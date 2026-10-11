@@ -90,7 +90,10 @@ class PostsCubit extends Cubit<PostsState> {
     final active = <PostSummary>[];
     final quiet = <PostSummary>[];
     for (final post in posts) {
-      if (post.isPinned) {
+      // A Post closed by budding is over: it sits in «Затихли» (plan D2).
+      if (post.isClosed) {
+        quiet.add(post);
+      } else if (post.isPinned) {
         pinned.add(post);
       } else if (now.difference(post.lastActivityAt) < quietAfter) {
         active.add(post);

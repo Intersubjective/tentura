@@ -184,11 +184,16 @@ abstract class RoomMessage with _$RoomMessage {
             return null;
           }
           final sourceMessageId = decoded['sourceMessageId'];
+          final title = decoded['title'];
+          final invitedCount = decoded['invitedCount'];
           return RoomMessageHierarchyChildCreated(
             childBeaconId: childBeaconId.trim(),
-            sourceMessageId: sourceMessageId is String && sourceMessageId.trim().isNotEmpty
+            sourceMessageId:
+                sourceMessageId is String && sourceMessageId.trim().isNotEmpty
                 ? sourceMessageId.trim()
                 : null,
+            title: title is String ? title.trim() : null,
+            invitedCount: invitedCount is int ? invitedCount : null,
           );
         case 'hierarchyLifecycle':
           final eventId = decoded['eventId'];
@@ -218,6 +223,31 @@ abstract class RoomMessage with _$RoomMessage {
         default:
           return null;
       }
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Typed payload of a `postClosed` notice (kind 5); null for any other row
+  /// or an unparseable payload.
+  RoomMessagePostClosed? get postClosedPayload {
+    if (systemMessageKind != BeaconRoomSystemMessageKind.postClosed) {
+      return null;
+    }
+    final raw = systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final childBeaconId = decoded['childBeaconId'];
+      final title = decoded['title'];
+      if (childBeaconId is! String || childBeaconId.trim().isEmpty) {
+        return null;
+      }
+      return RoomMessagePostClosed(
+        childBeaconId: childBeaconId.trim(),
+        title: title is String ? title.trim() : '',
+      );
     } on Object {
       return null;
     }

@@ -538,7 +538,18 @@ class RoomMessageTile extends StatelessWidget {
     final showMarkDone = showMarkDoneFooter(message);
 
     if (BeaconHierarchyNotice.isHierarchyNoticeRow(message)) {
-      return BeaconHierarchyNotice(message: message);
+      final authorName = message.author.shownName.trim();
+      return BeaconHierarchyNotice(
+        message: message,
+        actorName: authorName.isNotEmpty
+            ? authorName
+            : _participantDisplayName(
+                participants: participants,
+                userId: message.authorId,
+                viewer: myProfile,
+                l10n: l10n,
+              ),
+      );
     }
 
     if (capabilities.closure &&
@@ -1695,7 +1706,9 @@ class RoomMessageTile extends StatelessWidget {
             ],
           );
 
-    final childBeaconId = capabilities.childPromotion
+    // Post rooms show the footer under a bud source too (plan D2).
+    final childBeaconId =
+        capabilities.childPromotion || capabilities.childPromotionOwnOnly
         ? promotedChildBeaconId
         : null;
     final underBubble = [

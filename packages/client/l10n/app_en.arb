@@ -8171,5 +8171,45 @@
         "type": "String"
       }
     }
+  },
+  "roomBudNotice": "{name} made the request «{title}» and invited {count, plural, =1{1 person} other{{count} people}}",
+  "@roomBudNotice": {
+    "description": "Post room notice: a member budded a Request from the Post and invited people.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "roomBudNoticeNoInvites": "{name} made the request «{title}»",
+  "@roomBudNoticeNoInvites": {
+    "description": "Post room notice: a member budded a Request from the Post without invites.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "roomPostClosedNotice": "The post is closed. The conversation continues in the request «{title}».",
+  "@roomPostClosedNotice": {
+    "description": "Post room notice once the Post was closed by budding a Request.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "postClosedMarker": "closed",
+  "@postClosedMarker": {
+    "description": "Marker on a closed Post in Conversations."
   }
 }

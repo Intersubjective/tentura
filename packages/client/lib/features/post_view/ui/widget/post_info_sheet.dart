@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -90,7 +91,9 @@ class PostInfoSheet extends StatelessWidget {
     final muted = summary?.isMutedAt(now) ?? false;
     final pinned = summary?.isPinned ?? false;
     final rootExcerpt = summary?.rootExcerpt.trim() ?? '';
-    final canForward = beacon.viewerCanForward;
+    // A Post closed by budding is read-only (plan D2).
+    final isClosed = beacon.status == BeaconStatus.closed;
+    final canForward = beacon.viewerCanForward && !isClosed;
     void pick(PostAction action) => Navigator.of(context).pop(action);
 
     final muteLine = summary == null
@@ -161,7 +164,7 @@ class PostInfoSheet extends StatelessWidget {
               text: forwardingOpen
                   ? l10n.postInfoForwardingOpen
                   : l10n.postInfoForwardingClosed,
-              action: isAuthor && !forwardingOpen
+              action: isAuthor && !forwardingOpen && !isClosed
                   ? TextButton(
                       onPressed: () => pick(PostAction.allowForwarding),
                       child: Text(l10n.postMenuAllowForwarding),
@@ -232,7 +235,7 @@ class PostInfoSheet extends StatelessWidget {
               profileViewCubitFactory: profileViewCubitFactory,
             ),
             const Divider(height: 1),
-            if (isAuthor)
+            if (isAuthor && !isClosed)
               _ActionTile(
                 icon: Icons.change_circle_outlined,
                 label: l10n.postMenuConvertToRequest,
@@ -246,7 +249,7 @@ class PostInfoSheet extends StatelessWidget {
                 color: scheme.onSurface,
                 onTap: () => pick(PostAction.complain),
               ),
-            if (isAddressee)
+            if (isAddressee && !isClosed)
               _ActionTile(
                 icon: Icons.logout,
                 label: l10n.postMenuLeave,

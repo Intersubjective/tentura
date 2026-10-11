@@ -37,12 +37,15 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// True when [message] is a `childCreated` notice whose promotion source is
 /// already in [loadedMessageIds] — the source bubble owns the preview card.
+/// A Post bud notice is never redundant: it names the budder, the title and
+/// the invite count, which the footer does not (plan D2).
 bool isRedundantChildCreatedNotice(
   RoomMessage message,
   Set<String> loadedMessageIds,
 ) {
   final payload = message.hierarchyPayload;
   if (payload is! RoomMessageHierarchyChildCreated) return false;
+  if (payload.isPostBud) return false;
   final sourceMessageId = payload.sourceMessageId;
   return sourceMessageId != null && loadedMessageIds.contains(sourceMessageId);
 }

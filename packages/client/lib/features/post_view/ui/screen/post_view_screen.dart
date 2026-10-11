@@ -86,7 +86,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
               ? null
               : BackButton(onPressed: () => Navigator.maybePop(context)),
           actions: [
-            if (state.beacon.viewerCanForward)
+            if (state.beacon.viewerCanForward && !_isClosed(state))
               IconButton(
                 icon: const Icon(Icons.north_east),
                 tooltip: l10n.labelForward,
@@ -567,7 +567,7 @@ class _Overflow extends StatelessWidget {
         const PopupMenuDivider(),
         if (!viewerIsAuthor)
           item(PostAction.complain, Icons.flag_outlined, l10n.buttonComplaint),
-        if (_viewerIsAddressee(context, viewerId))
+        if (!_isClosed(state) && _viewerIsAddressee(context, viewerId))
           item(
             PostAction.leave,
             Icons.logout,
@@ -596,6 +596,11 @@ class _Overflow extends StatelessWidget {
     );
   }
 }
+
+/// A Post closed by budding is read-only: no forward, leave or other writes
+/// (plan D2; the server rejects them too).
+bool _isClosed(PostViewState state) =>
+    state.beacon.status == BeaconStatus.closed;
 
 /// The viewer's own messages in the loaded room that a Request can be budded
 /// from, newest first.

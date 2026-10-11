@@ -20,7 +20,7 @@ abstract class PostsState extends StateBase with _$PostsState {
     /// Unpinned, active within the last 72 h («Сейчас»).
     @Default([]) List<PostSummary> active,
 
-    /// Unpinned, silent for 72 h or more («Затихли»).
+    /// Unpinned, silent for 72 h or more, or closed by budding («Затихли»).
     @Default([]) List<PostSummary> quiet,
 
     /// The clock the sections were split against.

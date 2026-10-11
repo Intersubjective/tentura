@@ -6566,5 +6566,39 @@
         "type": "String"
       }
     }
-  }
+  },
+  "roomBudNotice": "{name} оформил(а) запрос «{title}» и позвал(а) {count, plural, one{{count} человека} few{{count} человек} many{{count} человек} other{{count} человека}}",
+  "@roomBudNotice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "roomBudNoticeNoInvites": "{name} оформил(а) запрос «{title}»",
+  "@roomBudNoticeNoInvites": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "roomPostClosedNotice": "Пост закрыт. Разговор продолжается в запросе «{title}».",
+  "@roomPostClosedNotice": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "postClosedMarker": "закрыт"
 }

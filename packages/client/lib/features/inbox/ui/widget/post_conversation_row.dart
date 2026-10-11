@@ -38,7 +38,12 @@ class PostConversationRow extends StatelessWidget {
     final muted = post.isMutedAt(now);
 
     return Semantics(
-      label: [addressing, post.rootExcerpt, lastMessage].join(', '),
+      label: [
+        addressing,
+        if (post.isClosed) l10n.postClosedMarker,
+        post.rootExcerpt,
+        lastMessage,
+      ].join(', '),
       selected: selected,
       child: Material(
         color: selected
@@ -71,6 +76,13 @@ class PostConversationRow extends StatelessWidget {
                               ).copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
+                          if (post.isClosed) ...[
+                            SizedBox(width: tt.tightGap),
+                            TenturaStatusText(
+                              l10n.postClosedMarker,
+                              key: const Key('PostConversation.ClosedMarker'),
+                            ),
+                          ],
                           if (muted) ...[
                             SizedBox(width: tt.tightGap),
                             Icon(

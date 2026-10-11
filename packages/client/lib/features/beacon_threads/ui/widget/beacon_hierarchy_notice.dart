@@ -16,16 +16,28 @@ import 'child_beacon_preview_loader.dart';
 /// create) uses centered join-style chrome — not a request card. Lifecycle
 /// notices stay person-free one-liners. Callers that already show a
 /// source-message footer must skip the notice row (see `BasicChatBody`).
+///
+/// A Request budded from a Post renders from its payload (title snapshot and
+/// invite count), because Post members who are not observers of the child
+/// cannot read it (plan D2). A `postClosed` row renders the closed notice.
 class BeaconHierarchyNotice extends StatelessWidget {
-  const BeaconHierarchyNotice({required this.message, super.key});
+  const BeaconHierarchyNotice({
+    required this.message,
+    this.actorName = '',
+    super.key,
+  });
 
   final RoomMessage message;
+
+  /// Display name of the budder for a Post bud notice (the row author).
+  final String actorName;
 
   /// Whether [message] should be rendered by this widget instead of an
   /// ordinary chat bubble.
   static bool isHierarchyNoticeRow(RoomMessage m) =>
       m.systemMessageKind == BeaconRoomSystemMessageKind.hierarchyLifecycle ||
-      m.systemMessageKind == BeaconRoomSystemMessageKind.childCreated;
+      m.systemMessageKind == BeaconRoomSystemMessageKind.childCreated ||
+      m.systemMessageKind == BeaconRoomSystemMessageKind.postClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -34,8 +46,35 @@ class BeaconHierarchyNotice extends StatelessWidget {
     final scheme = theme.colorScheme;
     final tt = context.tt;
 
+    if (message.systemMessageKind == BeaconRoomSystemMessageKind.postClosed) {
+      final closed = message.postClosedPayload;
+      if (closed != null) {
+        return _CenteredLinkNotice(
+          key: const Key('Room.PostClosedNotice'),
+          line: l10n.roomPostClosedNotice(closed.title),
+          icon: Icons.lock_outline,
+          childBeaconId: closed.childBeaconId,
+        );
+      }
+    }
+
     final payload = message.hierarchyPayload;
     if (payload is RoomMessageHierarchyChildCreated) {
+      if (payload.isPostBud) {
+        final name = actorName.trim().isNotEmpty
+            ? actorName.trim()
+            : message.author.shownName.trim();
+        final title = payload.title!;
+        final count = payload.invitedCount!;
+        return _CenteredLinkNotice(
+          key: const Key('Room.BudNotice'),
+          line: count > 0
+              ? l10n.roomBudNotice(name, title, count)
+              : l10n.roomBudNoticeNoInvites(name, title),
+          icon: Icons.subdirectory_arrow_right_outlined,
+          childBeaconId: payload.childBeaconId,
+        );
+      }
       return _ChildCreatedCenteredNotice(
         childBeaconId: payload.childBeaconId,
       );
@@ -178,6 +217,73 @@ class _ChildCreatedCenteredNoticeState
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Centered one-line notice that opens the child Request on tap: the Post
+/// bud notice and the closed-Post notice. Text comes from the payload only.
+class _CenteredLinkNotice extends StatelessWidget {
+  const _CenteredLinkNotice({
+    required this.line,
+    required this.icon,
+    required this.childBeaconId,
+    super.key,
+  });
+
+  final String line;
+  final IconData icon;
+  final String childBeaconId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        tt.tightGap / 2,
+        tt.screenHPadding,
+        tt.tightGap / 2,
+      ),
+      child: Semantics(
+        button: true,
+        label: line,
+        excludeSemantics: true,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: () => context.router.push(
+              BeaconViewRoute(id: childBeaconId),
+            ),
+            borderRadius: BorderRadius.circular(tt.cardRadius),
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+                  SizedBox(width: tt.iconTextGap / 2),
+                  Flexible(
+                    child: Text(
+                      line,
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

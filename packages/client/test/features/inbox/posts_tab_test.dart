@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -37,6 +38,7 @@ PostSummary _post(
   DateTime? mutedUntil,
   int unreadCount = 0,
   bool isAuthor = false,
+  BeaconStatus status = BeaconStatus.open,
 }) => PostSummary(
   id: id,
   authorId: 'U$id',
@@ -48,6 +50,7 @@ PostSummary _post(
   mutedUntil: mutedUntil,
   unreadCount: unreadCount,
   isAuthor: isAuthor,
+  status: status,
 );
 
 DateTime _ago(Duration d) => _now.subtract(d);
@@ -178,6 +181,33 @@ void main() {
       expect(cubit.state.active, isEmpty);
       expect(cubit.state.quiet, isEmpty);
     });
+  });
+
+  group('closed Posts (plan D2)', () {
+    test(
+      'a Post closed by budding sits in «Затихли», even fresh or pinned',
+      () async {
+        repository.posts = [
+          _post('Popen', lastActivityAt: _ago(const Duration(minutes: 5))),
+          _post(
+            'Pclosed_fresh',
+            lastActivityAt: _ago(const Duration(minutes: 1)),
+            status: BeaconStatus.closed,
+          ),
+          _post(
+            'Pclosed_pinned',
+            lastActivityAt: _ago(const Duration(hours: 1)),
+            pinnedAt: _ago(const Duration(minutes: 30)),
+            status: BeaconStatus.closed,
+          ),
+        ];
+        await buildCubit();
+
+        expect(_ids(cubit.state.active), ['Popen']);
+        expect(cubit.state.pinned, isEmpty);
+        expect(_ids(cubit.state.quiet), ['Pclosed_fresh', 'Pclosed_pinned']);
+      },
+    );
   });
 
   group('the 72 h split against the injected clock', () {
@@ -555,6 +585,27 @@ void main() {
       );
       expect(
         find.descendant(of: rowOf('Ploud'), matching: mutedIcon),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a closed Post shows the «закрыт» marker in «Затихли»', (
+      tester,
+    ) async {
+      repository.posts = [
+        _post('Pclosed', status: BeaconStatus.closed),
+        _post('Popen'),
+      ];
+      await pumpTab(tester);
+
+      double top(Finder f) => tester.getTopLeft(f.first).dy;
+      expect(top(header('Затихли')), lessThan(top(rowOf('Pclosed'))));
+      expect(
+        find.descendant(of: rowOf('Pclosed'), matching: find.text('закрыт')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: rowOf('Popen'), matching: find.text('закрыт')),
         findsNothing,
       );
     });
