@@ -6610,5 +6610,10 @@
     }
   },
   "inviteAccept": "Принять",
-  "inviteDecline": "Не смогу"
+  "inviteDecline": "Не смогу",
+  "beaconGrewFromPost": "Вырос из поста",
+  "inviteAction": "Позвать",
+  "inviteStatusPending": "приглашён(а)",
+  "inviteStatusDeclined": "не сможет",
+  "inviteWithdraw": "Отозвать приглашение"
 }

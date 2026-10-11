@@ -134,6 +134,7 @@ ON CONFLICT (id) DO NOTHING
       expect(ref.state, BeaconParentReferenceState.available);
       expect(ref.beaconId, BeaconHierarchyTopology.beaconA);
       expect(ref.title, 'Request A');
+      expect(ref.isPost, isFalse, reason: 'a Request parent');
     }, skip: skipReason);
 
     test('viewer who cannot read B gets no reference', () async {

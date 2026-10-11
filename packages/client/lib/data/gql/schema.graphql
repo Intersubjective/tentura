@@ -4744,6 +4744,7 @@ type query_root {
   attentionSurfaceSummary: v2_AttentionSurfaceSummary!
 
   beaconAuthorInvites(beaconId: String!): [v2_BeaconAuthorInvite!]!
+  beaconBudObservers(beaconId: String!): [String!]!
   """
   fetch data from the table: "beacon"
   """
@@ -7913,6 +7914,7 @@ type v2_BeaconLineageSuggestion {
 
 type v2_BeaconParentReference {
   beaconId: String
+  isPost: Boolean!
   state: String!
   title: String
 }

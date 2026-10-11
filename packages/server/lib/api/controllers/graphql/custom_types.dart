@@ -1661,6 +1661,7 @@ final gqlTypeBeaconParentReference =
         field('state', graphQLString.nonNullable()),
         field('beaconId', graphQLString),
         field('title', graphQLString),
+        field('isPost', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeBeaconPromotionSource =

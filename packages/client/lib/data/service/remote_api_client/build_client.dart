@@ -396,6 +396,7 @@ class _V2RoutingLink extends Link {
     'AuthorInviteWithdraw',
     'MyPendingAuthorInvites',
     'BeaconAuthorInvites',
+    'BeaconBudObservers',
   };
 
   @override

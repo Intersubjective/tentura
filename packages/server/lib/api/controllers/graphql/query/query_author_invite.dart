@@ -19,6 +19,7 @@ final class QueryAuthorInvite extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     myPendingAuthorInvites,
     beaconAuthorInvites,
+    beaconBudObservers,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get myPendingAuthorInvites =>
@@ -67,5 +68,17 @@ final class QueryAuthorInvite extends GqlNodeBase {
               },
           ];
         },
+      );
+
+  /// The snapshot observers of a budded Request, for its author (plan D4).
+  GraphQLObjectField<dynamic, dynamic> get beaconBudObservers =>
+      GraphQLObjectField(
+        'beaconBudObservers',
+        GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        arguments: [_beaconId.field],
+        resolve: (_, args) => _case.budObservers(
+          actorUserId: getCredentials(args).sub,
+          beaconId: _beaconId.fromArgsNonNullable(args),
+        ),
       );
 }

@@ -7,6 +7,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 /// Immediate-parent link for a child request header (plan §6.1).
+///
+/// A Request budded from a Post reads «Вырос из поста» above the Post's
+/// title; an unreadable parent shows the generic unavailable row, whatever
+/// its kind.
 class BeaconHierarchyParentLink extends StatelessWidget {
   const BeaconHierarchyParentLink({
     required this.reference,
@@ -25,8 +29,11 @@ class BeaconHierarchyParentLink extends StatelessWidget {
       BeaconParentReferenceState.available => _AvailableRow(
         title: reference.title?.trim().isNotEmpty == true
             ? reference.title!.trim()
+            : reference.isPost
+            ? ''
             : L10n.of(context)!.beaconParentRequest,
         parentBeaconId: reference.beaconId ?? '',
+        isPost: reference.isPost,
       ),
     };
   }
@@ -72,10 +79,12 @@ class _AvailableRow extends StatelessWidget {
   const _AvailableRow({
     required this.title,
     required this.parentBeaconId,
+    this.isPost = false,
   });
 
   final String title;
   final String parentBeaconId;
+  final bool isPost;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +96,7 @@ class _AvailableRow extends StatelessWidget {
     final tt = context.tt;
     return Semantics(
       button: true,
-      label: l10n.beaconParentRequest,
+      label: isPost ? l10n.beaconGrewFromPost : l10n.beaconParentRequest,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -109,13 +118,27 @@ class _AvailableRow extends StatelessWidget {
                   ),
                   SizedBox(width: tt.rowGap * 0.75),
                   Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isPost)
+                          Text(
+                            l10n.beaconGrewFromPost,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        if (title.isNotEmpty)
+                          Text(
+                            title,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
                   Icon(

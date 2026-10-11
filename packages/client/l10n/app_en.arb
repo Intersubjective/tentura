@@ -8228,5 +8228,25 @@
   "inviteDecline": "Can't make it",
   "@inviteDecline": {
     "description": "Activity invite card: decline the author invite."
+  },
+  "beaconGrewFromPost": "Grew from a post",
+  "@beaconGrewFromPost": {
+    "description": "Child Request header: link to the Post it was budded from."
+  },
+  "inviteAction": "Invite",
+  "@inviteAction": {
+    "description": "Child Request People tab: invite a Post member who saw the bud (snapshot observer)."
+  },
+  "inviteStatusPending": "invited",
+  "@inviteStatusPending": {
+    "description": "Child Request People tab: an author invite is pending."
+  },
+  "inviteStatusDeclined": "can't make it",
+  "@inviteStatusDeclined": {
+    "description": "Child Request People tab: the invitee declined the author invite."
+  },
+  "inviteWithdraw": "Withdraw invite",
+  "@inviteWithdraw": {
+    "description": "Child Request People tab: withdraw a pending author invite."
   }
 }

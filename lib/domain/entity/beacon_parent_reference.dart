@@ -11,13 +11,21 @@ class BeaconParentReference {
     required this.state,
     this.beaconId,
     this.title,
+    this.isPost = false,
   });
 
   final BeaconParentReferenceState state;
   final String? beaconId;
   final String? title;
 
-  static const none = BeaconParentReference(state: BeaconParentReferenceState.none);
+  /// The parent is a Post (a budded Request). Set only with
+  /// [BeaconParentReferenceState.available]: an unreadable parent does not
+  /// reveal its kind.
+  final bool isPost;
+
+  static const none = BeaconParentReference(
+    state: BeaconParentReferenceState.none,
+  );
 
   static const unavailable = BeaconParentReference(
     state: BeaconParentReferenceState.unavailable,

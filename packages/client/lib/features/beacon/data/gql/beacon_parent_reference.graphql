@@ -3,5 +3,6 @@ query BeaconParentReference($beaconId: String!) {
     state
     beaconId
     title
+    isPost
   }
 }

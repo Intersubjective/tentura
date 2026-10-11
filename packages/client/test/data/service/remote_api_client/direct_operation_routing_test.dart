@@ -83,6 +83,7 @@ void main() {
         'AuthorInviteWithdraw',
         'MyPendingAuthorInvites',
         'BeaconAuthorInvites',
+        'BeaconBudObservers',
       ];
       for (final name in operationNames) {
         expect(isTenturaDirectOperation(name), isTrue, reason: name);

@@ -150,6 +150,20 @@ query {
       ('beaconInvites', 'Uactor', 'Bchild', null, null),
     ]);
   });
+
+  test('beaconBudObservers reads the observers of a Request as the '
+      'caller', () async {
+    final result = await run('''
+query {
+  beaconBudObservers(beaconId: "Bchild")
+}
+''');
+
+    expect(result['beaconBudObservers'], ['Ucold', 'Uwarm']);
+    expect(inviteCase.calls, [
+      ('budObservers', 'Uactor', 'Bchild', null, null),
+    ]);
+  });
 }
 
 final class _FakeAuthorInviteCase extends Fake implements AuthorInviteCase {
@@ -224,6 +238,15 @@ final class _FakeAuthorInviteCase extends Fake implements AuthorInviteCase {
         createdAt: _createdAt,
       ),
     ];
+  }
+
+  @override
+  Future<List<String>> budObservers({
+    required String actorUserId,
+    required String beaconId,
+  }) async {
+    calls.add(('budObservers', actorUserId, beaconId, null, null));
+    return const ['Ucold', 'Uwarm'];
   }
 
   @override

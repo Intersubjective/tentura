@@ -10,6 +10,7 @@ import '../gql/_g/author_invite_create.req.gql.dart';
 import '../gql/_g/author_invite_decline.req.gql.dart';
 import '../gql/_g/author_invite_withdraw.req.gql.dart';
 import '../gql/_g/beacon_author_invites.req.gql.dart';
+import '../gql/_g/beacon_bud_observers.req.gql.dart';
 import '../gql/_g/my_pending_author_invites.req.gql.dart';
 
 @Singleton(as: AuthorInvitePort, env: [Environment.dev, Environment.prod])
@@ -107,6 +108,15 @@ class AuthorInviteRepository implements AuthorInvitePort {
           createdAt: DateTime.parse(row.createdAt).toUtc(),
         ),
     ];
+  }
+
+  @override
+  Future<List<String>> budObservers({required String beaconId}) async {
+    final rows = await _remoteApiService
+        .request(GBeaconBudObserversReq((b) => b.vars.beaconId = beaconId))
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconBudObservers);
+    return rows.toList(growable: false);
   }
 
   static AuthorInvite _transition(

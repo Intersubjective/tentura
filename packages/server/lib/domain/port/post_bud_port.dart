@@ -52,4 +52,13 @@ abstract interface class PostBudPort {
     required String inviterId,
     required String inviteeId,
   });
+
+  /// The snapshot observers of the budded Request [childId] (Arch §2.1),
+  /// ordered by id, for its author's People tab (plan D4). Empty unless
+  /// [authorId] is the author of [childId]; an observer hidden from the
+  /// author by a block is left out.
+  Future<List<String>> observerIdsForAuthor({
+    required String childId,
+    required String authorId,
+  });
 }

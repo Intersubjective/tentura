@@ -1,0 +1,3 @@
+query BeaconBudObservers($beaconId: String!) {
+  beaconBudObservers(beaconId: $beaconId)
+}

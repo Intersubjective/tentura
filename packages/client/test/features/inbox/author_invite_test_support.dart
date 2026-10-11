@@ -61,6 +61,10 @@ final class FakeAuthorInvitePort implements AuthorInvitePort {
   @override
   Future<List<AuthorInvite>> beaconInvites({required String beaconId}) =>
       throw UnimplementedError();
+
+  @override
+  Future<List<String>> budObservers({required String beaconId}) =>
+      throw UnimplementedError();
 }
 
 AuthorInviteCase buildAuthorInviteCase(FakeAuthorInvitePort port) =>

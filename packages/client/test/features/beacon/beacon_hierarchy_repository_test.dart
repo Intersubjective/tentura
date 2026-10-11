@@ -171,6 +171,7 @@ void main() {
                 'state': 'available',
                 'beaconId': 'Bparent000001',
                 'title': 'Parent request',
+                'isPost': true,
               },
             },
             response: {},
@@ -187,6 +188,7 @@ void main() {
       expect(reference.state, BeaconParentReferenceState.available);
       expect(reference.beaconId, 'Bparent000001');
       expect(reference.title, 'Parent request');
+      expect(reference.isPost, isTrue);
     });
 
     test('mapPromotionSource success', () async {

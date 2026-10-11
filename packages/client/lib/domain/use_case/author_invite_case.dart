@@ -35,4 +35,8 @@ final class AuthorInviteCase extends UseCaseBase {
 
   Future<List<AuthorInvite>> beaconInvites(String beaconId) =>
       _port.beaconInvites(beaconId: beaconId);
+
+  /// The snapshot observers of the caller's budded Request (plan D4).
+  Future<List<String>> budObservers(String beaconId) =>
+      _port.budObservers(beaconId: beaconId);
 }

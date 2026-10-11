@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -905,6 +906,67 @@ WHERE id = '${row.forwardEdgeId}'
           (await attention.activityOffers(accountId: _warm)).items,
           isEmpty,
         );
+      });
+    });
+
+    group('People tab (D4)', () {
+      test('the author sees the snapshot observers, a blocked one '
+          'hidden', () async {
+        expect(
+          await s.invites.budObservers(actorUserId: _author, beaconId: _child),
+          [..._observers]..sort(),
+        );
+
+        await writer.execute('''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES ('$_cold', '$_author', '$_cold')
+''');
+        expect(
+          await s.invites.budObservers(actorUserId: _author, beaconId: _child),
+          ([..._observers]..remove(_cold))..sort(),
+        );
+      });
+
+      test(
+        'an observer, the Post author or anyone else gets nothing',
+        () async {
+          for (final viewer in [_warm, _postAuthor, _late]) {
+            expect(
+              await s.invites.budObservers(
+                actorUserId: viewer,
+                beaconId: _child,
+              ),
+              isEmpty,
+              reason: viewer,
+            );
+          }
+          expect(
+            await s.invites.budObservers(
+              actorUserId: _postAuthor,
+              beaconId: _post,
+            ),
+            isEmpty,
+            reason: 'a Post has no observers',
+          );
+        },
+      );
+
+      test('the parent reference marks a readable Post parent', () async {
+        final hierarchy = BeaconHierarchyRepository(database);
+        final reference = await hierarchy.loadParentReference(
+          childBeaconId: _child,
+          viewerId: _postAuthor,
+        );
+        expect(reference.state, BeaconParentReferenceState.available);
+        expect(reference.beaconId, _post);
+        expect(reference.isPost, isTrue);
+
+        final outsider = await hierarchy.loadParentReference(
+          childBeaconId: _child,
+          viewerId: _late,
+        );
+        expect(outsider.state, BeaconParentReferenceState.none);
+        expect(outsider.isPost, isFalse);
       });
     });
   });

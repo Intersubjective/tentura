@@ -20,4 +20,8 @@ abstract interface class AuthorInvitePort {
 
   /// Invites on the caller's Request (the child People tab).
   Future<List<AuthorInvite>> beaconInvites({required String beaconId});
+
+  /// The snapshot observers of the caller's budded Request (plan D4): the
+  /// targets of a later invite. Empty for anyone but the author.
+  Future<List<String>> budObservers({required String beaconId});
 }

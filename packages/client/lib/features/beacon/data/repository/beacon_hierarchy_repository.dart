@@ -34,7 +34,10 @@ import '../gql/_g/beacon_promotion_source.req.gql.dart';
 String? _scheduleDateTimeToIso(DateTime? dateTime) =>
     dateTime?.toUtc().toIso8601String();
 
-@Singleton(as: BeaconHierarchyRepositoryPort, env: [Environment.dev, Environment.prod])
+@Singleton(
+  as: BeaconHierarchyRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
 class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   BeaconHierarchyRepository(this._remoteApiService);
 
@@ -47,7 +50,9 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     required String beaconId,
   }) async {
     final data = await _remoteApiService
-        .request(GBeaconHierarchyCapabilitiesReq((b) => b.vars.beaconId = beaconId))
+        .request(
+          GBeaconHierarchyCapabilitiesReq((b) => b.vars.beaconId = beaconId),
+        )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconHierarchyCapabilities);
     return mapCapabilities(data);
@@ -200,6 +205,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     state: BeaconParentReferenceState.values.byName(data.state),
     beaconId: data.beaconId,
     title: data.title,
+    isPost: data.isPost,
   );
 
   @override

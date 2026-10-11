@@ -202,6 +202,32 @@ WHERE o.beacon_id = $1 AND o.user_id = $4 AND o.user_id <> $3
     );
   }
 
+  @override
+  Future<List<String>> observerIdsForAuthor({
+    required String childId,
+    required String authorId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT o.user_id
+FROM public.beacon_bud_observer o
+JOIN public.beacon b ON b.id = o.beacon_id
+WHERE o.beacon_id = $1
+  AND b.user_id = $2
+  AND o.user_id <> $2
+  AND NOT public.block_hides($2, o.user_id)
+ORDER BY o.user_id
+''',
+          variables: [
+            Variable.withString(childId),
+            Variable.withString(authorId),
+          ],
+        )
+        .get();
+    return [for (final r in rows) r.read<String>('user_id')];
+  }
+
   static PostBudInviteCandidate _candidate({
     required String userId,
     required bool warm,

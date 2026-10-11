@@ -133,6 +133,7 @@ Map<String, dynamic> beaconParentReferenceToGqlMap(
   'state': reference.state.name,
   'beaconId': reference.beaconId,
   'title': reference.title,
+  'isPost': reference.isPost,
 };
 
 Map<String, dynamic> beaconPromotionSourceToGqlMap(
@@ -151,8 +152,7 @@ Map<String, dynamic> beaconChildCreateResultToGqlMap(
   'beaconId': result.beaconId,
   'beacon': switch (result.outcome) {
     BeaconChildCommandOutcome.created ||
-    BeaconChildCommandOutcome.replayed =>
-      result.beacon?.asJson,
+    BeaconChildCommandOutcome.replayed => result.beacon?.asJson,
     BeaconChildCommandOutcome.alreadyPromoted => null,
   },
 };

@@ -256,6 +256,28 @@ void main() {
     ]);
   });
 
+  test('budObservers sends beaconId and maps the observer ids', () async {
+    final sent = <WireSent>[];
+    late List<String> observers;
+    await withRemoteWire(
+      {
+        'BeaconBudObservers': {
+          '__typename': 'query_root',
+          'beaconBudObservers': ['Uobserver0001', 'Uobserver0002'],
+        },
+      },
+      sent,
+      (remote) async {
+        observers = await AuthorInviteRepository(
+          remote,
+        ).budObservers(beaconId: _beaconId);
+      },
+    );
+    expect(sent.single.operationName, 'BeaconBudObservers');
+    expect(sent.single.variables, {'beaconId': _beaconId});
+    expect(observers, ['Uobserver0001', 'Uobserver0002']);
+  });
+
   group('typed errors', () {
     final cases = <int, Matcher>{
       1333: isA<AuthorInviteNotFoundException>(),

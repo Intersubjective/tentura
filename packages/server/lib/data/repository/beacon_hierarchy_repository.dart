@@ -12,6 +12,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/beacon_hierarchy_cursor.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_structural_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_policy.dart';
@@ -269,6 +270,7 @@ WHERE b.id = $1
         state: BeaconParentReferenceState.available,
         beaconId: parentId,
         title: parent.title,
+        isPost: parent.kind == BeaconKind.post.value,
       );
     }
     return BeaconParentReference.unavailable;
@@ -345,14 +347,16 @@ WHERE id = $1
 
   @override
   Future<BeaconStructuralRecord?> loadStructuralRecord(String beaconId) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
 SELECT id, status, parent_beacon_id, published_at
 FROM public.beacon
 WHERE id = $1
 ''',
-      variables: [Variable<String>(beaconId)],
-    ).get();
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
     if (rows.isEmpty) {
       return null;
     }
@@ -373,7 +377,7 @@ WHERE id = $1
     final rows = await _database
         .customSelect(
           r'''
-SELECT id, user_id, title, status
+SELECT id, user_id, title, status, kind
 FROM public.beacon
 WHERE id = $1
 ''',
@@ -389,6 +393,7 @@ WHERE id = $1
       ownerId: row.readNullable<String>('user_id') ?? '',
       title: row.read<String>('title'),
       status: row.read<int>('status'),
+      kind: row.read<int>('kind'),
     );
   }
 
@@ -592,12 +597,14 @@ final class _BeaconRow {
     required this.ownerId,
     required this.title,
     required this.status,
+    this.kind = 0,
   });
 
   final String id;
   final String ownerId;
   final String title;
   final int status;
+  final int kind;
 }
 
 final class _AdmittedHelperBatch {
