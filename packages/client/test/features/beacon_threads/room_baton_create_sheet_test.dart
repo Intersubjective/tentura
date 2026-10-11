@@ -1,15 +1,19 @@
 // «Who'll take it?» start flow in the room:
-//  - the message-actions sheet offers «Who'll take it?» only on the viewer's
-//    own plain message that has no live baton, while the feature flag is on and
-//    the room is writable (the flag is injected through `BeaconRoomBody`);
+//  - the message-actions sheet offers «Who'll take it?» on anyone's plain
+//    (or poll) message, not on system lines or baton messages, while the feature flag
+//    is on and the room is writable (the flag is injected through
+//    `BeaconRoomBody`); the baton is then posted as a new message replying to
+//    that one;
 //  - it is reachable by long-press and by secondary tap;
-//  - the create sheet lists admitted room members except the viewer, keeps
-//    «Ask» disabled unless 1–12 people are picked, shows priority controls
-//    only after «Set priority» is switched on, and submits
-//    `[{userId, tier}]` through `RoomCubit.batonCreate`.
+//  - the create sheet lists admitted room members (with avatars) except the
+//    viewer, keeps «Ask» disabled unless 1–12 people are picked, shows
+//    priority controls only after «Set priority» is switched on, and submits
+//    the ask text, the reply target and `[{userId, tier}]` through
+//    `RoomCubit.batonCreate`.
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -24,6 +28,7 @@ import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_baton_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -41,7 +46,13 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   final RoomState _state;
 
   final batonCreateCalls =
-      <({String messageId, List<_Candidate> candidates})>[];
+      <
+        ({
+          String text,
+          String? replyToMessageId,
+          List<_Candidate> candidates,
+        })
+      >[];
 
   @override
   RoomState get state => _state;
@@ -52,12 +63,36 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   @override
   Future<void> markReadToBottom() async {}
 
+  final batonUpdateCalls =
+      <({String batonId, String text, List<_Candidate> candidates})>[];
+
+  final batonCancelCalls = <String>[];
+
   @override
-  Future<void> batonCreate({
-    required String messageId,
+  Future<void> batonUpdate({
+    required String batonId,
+    required String text,
     required List<_Candidate> candidates,
   }) async {
-    batonCreateCalls.add((messageId: messageId, candidates: candidates));
+    batonUpdateCalls.add((batonId: batonId, text: text, candidates: candidates));
+  }
+
+  @override
+  Future<void> batonCancel({required String batonId}) async {
+    batonCancelCalls.add(batonId);
+  }
+
+  @override
+  Future<void> batonCreate({
+    required String text,
+    required List<_Candidate> candidates,
+    String? replyToMessageId,
+  }) async {
+    batonCreateCalls.add((
+      text: text,
+      replyToMessageId: replyToMessageId,
+      candidates: candidates,
+    ));
   }
 }
 
@@ -119,14 +154,6 @@ RoomMessage _message({
   baton: baton,
 );
 
-const _collecting = RoomBatonAuthorData(
-  id: 'baton-1',
-  status: RoomBatonStatus.collecting,
-  candidates: [],
-  allAnswered: false,
-  eligibleCount: 0,
-);
-
 const _taken = RoomBatonAuthorData(
   id: 'baton-1',
   status: RoomBatonStatus.taken,
@@ -164,6 +191,7 @@ void main() {
     List<RoomMessage>? messages,
     List<BeaconParticipant>? participants,
     bool batonEnabled = true,
+    bool enableComposer = false,
     BeaconStatus status = BeaconStatus.open,
   }) async {
     final profileCubit = _MockProfileCubit(_viewer);
@@ -216,7 +244,7 @@ void main() {
             child: TenturaResponsiveScope(
               child: Scaffold(
                 body: BeaconRoomBody(
-                  enableComposer: false,
+                  enableComposer: enableComposer,
                   batonEnabled: batonEnabled,
                 ),
               ),
@@ -289,12 +317,11 @@ void main() {
       expect(find.text(_actionLabel), findsOneWidget);
     });
 
-    testWidgets('is not offered on someone else\'s message', (tester) async {
+    testWidgets('is also offered on someone else\'s message', (tester) async {
       await pumpRoom(tester, messages: [_message(author: _other)]);
       await openActionsByLongPress(tester);
 
-      expect(find.byType(BottomSheet), findsOneWidget);
-      expect(find.text(_actionLabel), findsNothing);
+      expect(find.text(_actionLabel), findsOneWidget);
     });
 
     testWidgets('is not offered while the feature flag is off', (tester) async {
@@ -305,7 +332,9 @@ void main() {
       expect(find.text(_actionLabel), findsNothing);
     });
 
-    testWidgets('is offered by the released default feature flag', (tester) async {
+    testWidgets('is offered by the released default feature flag', (
+      tester,
+    ) async {
       // The released default enables the action without a test override.
       // The explicit disabled override is checked separately above.
       final profileCubit = _MockProfileCubit(_viewer);
@@ -368,21 +397,6 @@ void main() {
       expect(find.text(_actionLabel), findsNothing);
     });
 
-    testWidgets('is not offered while a baton is collecting', (tester) async {
-      await pumpRoom(tester, messages: [_message(baton: _collecting)]);
-      await openActionsByLongPress(tester);
-
-      expect(find.byType(BottomSheet), findsOneWidget);
-      expect(find.text(_actionLabel), findsNothing);
-    });
-
-    testWidgets('is not offered once the baton was taken', (tester) async {
-      await pumpRoom(tester, messages: [_message(baton: _taken)]);
-      await openActionsByLongPress(tester);
-
-      expect(find.byType(BottomSheet), findsOneWidget);
-      expect(find.text(_actionLabel), findsNothing);
-    });
 
     testWidgets('is not offered when the room is read-only', (tester) async {
       await pumpRoom(tester, status: BeaconStatus.closed);
@@ -402,7 +416,10 @@ void main() {
 
       expect(find.text('Boris Driver'), findsOneWidget);
       expect(find.text('Clara Helper'), findsOneWidget);
-      expect(find.text('Me Myself'), findsNothing);
+      expect(
+        find.widgetWithText(CheckboxListTile, 'Me Myself'),
+        findsNothing,
+      );
       // Not admitted to the room yet, so cannot be asked.
       expect(find.text('Dmitri Pending'), findsNothing);
     });
@@ -523,7 +540,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(cubit.batonCreateCalls, hasLength(1));
-      expect(cubit.batonCreateCalls.single.messageId, 'm1');
+      // Posted as a new message replying to the one it started from.
+      expect(cubit.batonCreateCalls.single.replyToMessageId, 'm1');
+      expect(cubit.batonCreateCalls.single.text, isEmpty);
       expect(
         cubit.batonCreateCalls.single.candidates,
         unorderedEquals([
@@ -564,6 +583,326 @@ void main() {
           (userId: 'u-clara', tier: 3),
         ]),
       );
+    });
+
+    testWidgets('shows the replied-to message and sends the typed ask', (
+      tester,
+    ) async {
+      final cubit = await pumpRoom(tester);
+      await openCreateSheet(tester);
+
+      // The quote of the source message is in the sheet.
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text('Who can drive on Friday?'),
+        ),
+        findsOneWidget,
+      );
+      await tester.enterText(find.byType(TextField), '  Friday, 9:00  ');
+      await pick(tester, 'Boris Driver');
+      await tester.tap(find.text('Ask'));
+      await tester.pumpAndSettle();
+
+      expect(cubit.batonCreateCalls.single.text, 'Friday, 9:00');
+      expect(cubit.batonCreateCalls.single.replyToMessageId, 'm1');
+    });
+
+    testWidgets('shows an avatar next to each member', (tester) async {
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(CheckboxListTile, 'Boris Driver'),
+          matching: find.byType(TenturaAvatar),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    // Regression: the 1/2/3 control used to sit inside the CheckboxListTile,
+    // whose MergeSemantics folded it into the row's node. The web engine only
+    // gets the merged node, so with semantics on (web non-prod) a click on a
+    // priority segment became the row's tap and unpicked the person instead.
+    // The segment must be its own (not merged-up) tappable node.
+    testWidgets('a semantics tap on a priority segment sets the priority', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final cubit = await pumpRoom(tester);
+      await openCreateSheet(tester);
+      await pick(tester, 'Boris Driver');
+      await tester.tap(find.text('Set priority'));
+      await tester.pumpAndSettle();
+
+      tester.semantics.tap(
+        // A node the engine actually receives: not merged up, with the
+        // segment's label and tap after merging its own children.
+        find.semantics.byPredicate((node) {
+          final data = node.getSemanticsData();
+          return !node.isMergedIntoParent &&
+              data.label == '2' &&
+              data.hasAction(SemanticsAction.tap);
+        }),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      await tester.tap(find.text('Ask'));
+      await tester.pumpAndSettle();
+      expect(
+        cubit.batonCreateCalls.single.candidates,
+        [(userId: 'u-boris', tier: 2)],
+      );
+      semantics.dispose();
+    });
+  });
+
+  group('attach menu', () {
+    Future<void> openAttachMenu(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('attach')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('offers «Poll» and «Who\'ll take it?»', (tester) async {
+      await pumpRoom(tester, enableComposer: true);
+      await openAttachMenu(tester);
+
+      expect(find.text('Poll'), findsOneWidget);
+      expect(find.text(_actionLabel), findsOneWidget);
+    });
+
+    testWidgets('hides «Who\'ll take it?» while the feature flag is off', (
+      tester,
+    ) async {
+      await pumpRoom(tester, enableComposer: true, batonEnabled: false);
+      await openAttachMenu(tester);
+
+      expect(find.text('Poll'), findsOneWidget);
+      expect(find.text(_actionLabel), findsNothing);
+    });
+
+    testWidgets('starts a standalone baton: the ask is required and nothing '
+        'is replied to', (tester) async {
+      final cubit = await pumpRoom(tester, enableComposer: true);
+      await openAttachMenu(tester);
+      await tester.tap(find.text(_actionLabel));
+      await tester.pumpAndSettle();
+
+      await pick(tester, 'Boris Driver');
+      expect(askOnPressed(tester), isNull, reason: 'no ask typed yet');
+
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(TextField),
+        ),
+        'Who can drive on Friday?',
+      );
+      await tester.pump();
+      expect(askOnPressed(tester), isNotNull);
+
+      await tester.tap(find.text('Ask'));
+      await tester.pumpAndSettle();
+
+      final call = cubit.batonCreateCalls.single;
+      expect(call.text, 'Who can drive on Friday?');
+      expect(call.replyToMessageId, isNull);
+      expect(call.candidates, [(userId: 'u-boris', tier: 1)]);
+    });
+  });
+
+  group('baton message actions', () {
+    const asking = RoomBatonAuthorData(
+      id: 'baton-1',
+      status: RoomBatonStatus.collecting,
+      candidates: [
+        RoomBatonCandidate(
+          userId: 'u-boris',
+          title: 'Boris Driver',
+          tier: 2,
+          response: RoomBatonResponse.canHelp,
+        ),
+      ],
+      allAnswered: true,
+      eligibleCount: 1,
+    );
+
+    RoomMessage batonMessage(RoomBatonData baton, {Profile author = _viewer}) =>
+        _message(
+          author: author,
+          semanticMarker: BeaconRoomSemanticMarker.baton,
+          baton: baton,
+        );
+
+    Future<void> longPressBaton(WidgetTester tester) async {
+      await tester.longPressAt(
+        tester.getTopLeft(find.byType(RoomBatonCard)) + const Offset(8, 8),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Finder inSheet(String text) => find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.text(text),
+    );
+
+    void expectNoGenericActions() {
+      for (final text in [
+        '❤️',
+        'Edit message',
+        'Copy text',
+        'Pin as fact',
+        'Turn into…',
+        _actionLabel,
+      ]) {
+        expect(inSheet(text), findsNothing, reason: text);
+      }
+    }
+
+    testWidgets('the author of a collecting baton gets edit, reply, cancel '
+        'and delete only', (tester) async {
+      await pumpRoom(tester, messages: [batonMessage(asking)]);
+      await longPressBaton(tester);
+
+      for (final text in ['Edit', 'Reply', 'Cancel', 'Delete message']) {
+        expect(inSheet(text), findsOneWidget, reason: text);
+      }
+      expectNoGenericActions();
+    });
+
+    testWidgets('once taken the author can only reply or delete', (
+      tester,
+    ) async {
+      await pumpRoom(tester, messages: [batonMessage(_taken)]);
+      await longPressBaton(tester);
+
+      expect(inSheet('Reply'), findsOneWidget);
+      expect(inSheet('Delete message'), findsOneWidget);
+      expect(inSheet('Edit'), findsNothing);
+      expect(inSheet('Cancel'), findsNothing);
+      expectNoGenericActions();
+    });
+
+    testWidgets('everyone else can only reply', (tester) async {
+      await pumpRoom(
+        tester,
+        messages: [
+          batonMessage(
+            const RoomBatonObserverData(
+              id: 'baton-1',
+              status: RoomBatonStatus.collecting,
+            ),
+            author: _other,
+          ),
+        ],
+      );
+      await longPressBaton(tester);
+
+      expect(inSheet('Reply'), findsOneWidget);
+      for (final text in ['Edit', 'Cancel', 'Delete message']) {
+        expect(inSheet(text), findsNothing, reason: text);
+      }
+      expectNoGenericActions();
+    });
+
+    testWidgets('a plain tap on the baton bubble opens the baton menu', (
+      tester,
+    ) async {
+      await pumpRoom(tester, messages: [batonMessage(asking)]);
+      await tester.tapAt(
+        tester.getTopLeft(find.byType(RoomBatonCard)) + const Offset(8, 8),
+      );
+      await tester.pumpAndSettle();
+
+      expect(inSheet('Edit'), findsOneWidget);
+      expect(inSheet('Cancel'), findsOneWidget);
+      expectNoGenericActions();
+    });
+
+    testWidgets('a tap on a card button does its own job, not the menu', (
+      tester,
+    ) async {
+      await pumpRoom(tester, messages: [batonMessage(asking)]);
+      await tester.tap(find.text('Choose now'));
+      await tester.pumpAndSettle();
+
+      // The choose sheet, not the message menu.
+      expect(find.text('Pick for me'), findsOneWidget);
+      expect(inSheet('Edit'), findsNothing);
+    });
+
+    testWidgets('«Edit» opens the sheet filled in and saves the change', (
+      tester,
+    ) async {
+      final cubit = await pumpRoom(tester, messages: [batonMessage(asking)]);
+      await longPressBaton(tester);
+      await tester.tap(inSheet('Edit'));
+      await tester.pumpAndSettle();
+
+      final field = find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(TextField),
+      );
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'Who can drive on Friday?',
+      );
+      // Boris is already asked, at priority 2 (so priorities are shown).
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.widgetWithText(CheckboxListTile, 'Boris Driver'),
+            )
+            .value,
+        isTrue,
+      );
+      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+
+      await tester.enterText(field, 'Who can drive on Saturday?');
+      await pick(tester, 'Clara Helper');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final call = cubit.batonUpdateCalls.single;
+      expect(call.batonId, 'baton-1');
+      expect(call.text, 'Who can drive on Saturday?');
+      expect(
+        call.candidates,
+        unorderedEquals([
+          (userId: 'u-boris', tier: 2),
+          (userId: 'u-clara', tier: 1),
+        ]),
+      );
+    });
+
+    testWidgets('«Cancel» asks for confirmation, then cancels', (tester) async {
+      final cubit = await pumpRoom(tester, messages: [batonMessage(asking)]);
+      await longPressBaton(tester);
+      await tester.tap(inSheet('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(cubit.batonCancelCalls, isEmpty);
+      // Both buttons name what they do; no ambiguous bare «Cancel».
+      Finder inDialog(String text) => find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(text),
+      );
+      expect(inDialog('Keep it'), findsOneWidget);
+      expect(inDialog('Cancel the ask'), findsOneWidget);
+      expect(inDialog('Cancel'), findsNothing);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(cubit.batonCancelCalls, ['baton-1']);
     });
   });
 }

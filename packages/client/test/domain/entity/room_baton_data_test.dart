@@ -257,8 +257,8 @@ void main() {
       final observer = data! as RoomBatonObserverData;
       expect(observer.id, 'Zbaton000001');
       expect(observer.status, RoomBatonStatus.taken);
-      expect(observer.taker.id, 'Uaaaaaaaaaaa');
-      expect(observer.taker.title, 'Alice');
+      expect(observer.taker!.id, 'Uaaaaaaaaaaa');
+      expect(observer.taker!.title, 'Alice');
     });
   });
 
@@ -390,7 +390,21 @@ void main() {
       );
     });
 
-    test('observer payload without a taker parses to null', () {
+    test('observer sees a collecting or cancelled baton without a taker', () {
+      for (final status in ['collecting', 'cancelled']) {
+        final data = RoomBatonData.tryParse(
+          _json({
+            'id': 'Zbaton000001',
+            'status': status,
+            'viewerRole': 'observer',
+          }),
+        );
+        expect(data, isA<RoomBatonObserverData>(), reason: status);
+        expect((data! as RoomBatonObserverData).taker, isNull);
+      }
+    });
+
+    test('taken observer payload without a taker parses to null', () {
       expect(
         RoomBatonData.tryParse(
           _json({

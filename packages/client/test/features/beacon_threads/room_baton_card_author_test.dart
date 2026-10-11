@@ -12,6 +12,7 @@
 //    else;
 //  - `RoomMessageTile` forwards select / cancel with the baton id.
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -244,6 +245,7 @@ ButtonStyleButton _buttonLabelled(String label) => find
 
 Future<void> _openChooseSheet(WidgetTester tester) async {
   await tester.tap(find.text('Choose now'));
+  await tester.pump(kDoubleTapTimeout);
   await tester.pumpAndSettle();
 }
 
@@ -371,6 +373,7 @@ void main() {
       expect(find.text('Nobody can help yet.'), findsOneWidget);
 
       await tester.tap(find.text('Choose now'), warnIfMissed: false);
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
       expect(find.text('Pick for me'), findsNothing);
     });
@@ -456,6 +459,7 @@ void main() {
         findsOneWidget,
       );
       await tester.tap(find.text('Pick for me'));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(picks, [null]);
@@ -476,6 +480,7 @@ void main() {
           matching: find.text('Eva Helper'),
         ),
       );
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(picks, ['u-eva']);
@@ -498,6 +503,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
@@ -509,6 +515,7 @@ void main() {
           matching: find.byType(FilledButton),
         ),
       );
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(cancels, 1);
@@ -528,6 +535,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
       await tester.tap(
         find.descendant(
@@ -535,6 +543,7 @@ void main() {
           matching: find.byType(TextButton),
         ),
       );
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(cancels, 0);
@@ -593,6 +602,7 @@ void main() {
 
       await _openChooseSheet(tester);
       await tester.tap(find.text('Pick for me'));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(picks, [(batonId: 'baton-1', userId: null)]);
@@ -618,6 +628,7 @@ void main() {
           matching: find.text('Eva Helper'),
         ),
       );
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(picks, [(batonId: 'baton-1', userId: 'u-eva')]);
@@ -637,6 +648,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
       await tester.tap(
         find.descendant(
@@ -644,6 +656,7 @@ void main() {
           matching: find.byType(FilledButton),
         ),
       );
+      await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(cancelled, ['baton-1']);

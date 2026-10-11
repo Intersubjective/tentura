@@ -105,7 +105,21 @@ void main() {
       // #235 removed constellationAnchorUpsert/Delete and changed the
       // constellationAnchorsApply result (ack only), so older clients cannot
       // talk to this server: the floor is the release that ships both sides.
-      expect(kDefaultMinClientVersion, '7.34.0');
+      expect(
+        _compare(kDefaultMinClientVersion, '7.34.0'),
+        greaterThanOrEqualTo(0),
+      );
+      expect(
+        _compare(_shippedClientVersion(), kDefaultMinClientVersion),
+        greaterThanOrEqualTo(0),
+      );
+    });
+
+    test('baton-as-message release raises the cutover floor', () {
+      // «Who'll take it?» rev 2 changed roomBatonCreate (beaconId + text +
+      // replyToMessageId instead of messageId, returns the new message id),
+      // so older clients cannot start a baton on this server.
+      expect(kDefaultMinClientVersion, '7.35.0');
       expect(
         _compare(_shippedClientVersion(), kDefaultMinClientVersion),
         greaterThanOrEqualTo(0),

@@ -50,6 +50,7 @@ import '../gql/_g/room_message_target.data.gql.dart';
 import '../gql/_g/room_baton_cancel.req.gql.dart';
 import '../gql/_g/room_baton_create.req.gql.dart';
 import '../gql/_g/room_baton_respond.req.gql.dart';
+import '../gql/_g/room_baton_update.req.gql.dart';
 import '../gql/_g/room_baton_select.req.gql.dart';
 import '../gql/_g/room_poll_create.req.gql.dart';
 import '../gql/_g/room_now_line_update.req.gql.dart';
@@ -827,15 +828,20 @@ class BeaconThreadsRepository {
         .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
   }
 
-  /// Starts a baton on [messageId]; returns the author's view of it.
-  Future<RoomBatonData?> batonCreate({
-    required String messageId,
+  /// Posts a new «Who'll take it?» message in [beaconId]'s room; returns its
+  /// id.
+  Future<String> batonCreate({
+    required String beaconId,
+    required String text,
     required List<({String userId, int tier})> candidates,
+    String? replyToMessageId,
   }) => _remoteApiService
       .request(
         GRoomBatonCreateReq(
           (b) => b.vars
-            ..messageId = messageId
+            ..beaconId = beaconId
+            ..text = text
+            ..replyToMessageId = replyToMessageId
             ..candidates.replace([
               for (final c in candidates)
                 Gv2_RoomBatonCandidateInput(
@@ -847,11 +853,7 @@ class BeaconThreadsRepository {
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then(
-        (r) => RoomBatonData.tryParse(
-          r.dataOrThrow(label: _label).roomBatonCreate,
-        ),
-      );
+      .then((r) => r.dataOrThrow(label: _label).roomBatonCreate);
 
   /// Records the viewer's answer; returns their updated view.
   Future<RoomBatonData?> batonRespond({
@@ -869,6 +871,34 @@ class BeaconThreadsRepository {
       .then(
         (r) => RoomBatonData.tryParse(
           r.dataOrThrow(label: _label).roomBatonRespond,
+        ),
+      );
+
+  /// The author's edit of a collecting baton; returns their updated view.
+  Future<RoomBatonData?> batonUpdate({
+    required String batonId,
+    required String text,
+    required List<({String userId, int tier})> candidates,
+  }) => _remoteApiService
+      .request(
+        GRoomBatonUpdateReq(
+          (b) => b.vars
+            ..batonId = batonId
+            ..text = text
+            ..candidates.replace([
+              for (final c in candidates)
+                Gv2_RoomBatonCandidateInput(
+                  (i) => i
+                    ..userId = c.userId
+                    ..tier = c.tier,
+                ),
+            ]),
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then(
+        (r) => RoomBatonData.tryParse(
+          r.dataOrThrow(label: _label).roomBatonUpdate,
         ),
       );
 

@@ -18,6 +18,7 @@ void main() {
       expect(BeaconRoomSemanticMarker.factEdited, 10);
       expect(BeaconRoomSemanticMarker.factUnpinned, 11);
       expect(BeaconRoomSemanticMarker.batonTaken, 12);
+      expect(BeaconRoomSemanticMarker.baton, 13);
     });
   });
 

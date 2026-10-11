@@ -6445,9 +6445,10 @@
   "batonPickForMe": "Выбрать за меня",
   "batonPickForMeHint": "Один человек из самого высокого приоритета, случайно.",
   "batonCancel": "Отменить",
-  "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»",
+  "batonCancelConfirmTitle": "Отменить «Кто возьмётся?»?",
   "batonCancelConfirmBody": "Людям, которых вы спросили, сообщим, что это больше не нужно.",
-  "batonCancelConfirmAction": "Отменить",
+  "batonCancelConfirmAction": "Отменить вопрос",
+  "batonCancelConfirmKeep": "Оставить",
   "batonReceiptAsked": "{author} спрашивает, сможете ли вы помочь",
   "@batonReceiptAsked": {
     "description": "Private Activity receipt asking the viewer whether they can help.",
@@ -6490,6 +6491,15 @@
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
   },
+  "batonActionEdit": "Изменить",
+  "batonEditSubmit": "Сохранить",
+  "batonCreateTextLabel": "Что нужно сделать?",
+  "batonCreateTextReplyHint": "Необязательно: ответ покажет, о чём речь",
+  "batonObserverCollecting": "Ищем, кто возьмётся.",
+  "batonCancelledLine": "Отменено.",
+  "beaconRoomSemanticBaton": "Кто возьмётся?",
+  "beaconRoomAttachCreatePoll": "Опрос",
+  "beaconRoomAttachCreateBaton": "Кто возьмётся?",
   "composerEmojiButtonTooltip": "Эмодзи",
   "emojiPickerSearchHint": "Поиск эмодзи",
   "emojiPickerNoRecents": "Здесь появятся эмодзи, которые вы используете",

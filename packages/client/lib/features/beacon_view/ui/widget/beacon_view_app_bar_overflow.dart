@@ -13,7 +13,6 @@ import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
-import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_poll_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -30,7 +29,6 @@ import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
-
 /// Initial help offer dialog + [BeaconViewCubit.offerHelp].
 Future<void> beaconViewRunInitialHelpOfferDialog(
   BuildContext context,
@@ -251,16 +249,6 @@ VoidCallback? beaconViewRoomCreatePromiseAction({
   return null;
 }
 
-VoidCallback? beaconViewRoomCreatePollAction({
-  required BuildContext context,
-  required RoomCubit? roomCubit,
-  required bool inRoomSurface,
-}) {
-  if (!inRoomSurface || roomCubit == null || roomCubit.isClosed) return null;
-  if (!roomCubit.state.canWriteDiscussion) return null;
-  return () => unawaited(showBeaconRoomPollSheet(context, cubit: roomCubit));
-}
-
 /// Room-level "Update plan" — only for members allowed to edit the plan
 /// (author / steward / admitted), matching the pinned-now strip's edit gate.
 VoidCallback? beaconViewRoomUpdatePlanAction({
@@ -305,11 +293,6 @@ Widget beaconViewAppBarOverflow({
     beaconViewCubit: cubit,
     beaconId: beaconId,
     onSaved: onItemsTabRefresh,
-    inRoomSurface: showRoomActions,
-  );
-  final onCreatePoll = beaconViewRoomCreatePollAction(
-    context: context,
-    roomCubit: roomCubit,
     inRoomSurface: showRoomActions,
   );
   final onUpdatePlan = beaconViewRoomUpdatePlanAction(
@@ -360,7 +343,6 @@ Widget beaconViewAppBarOverflow({
             }
           : null,
       onCreatePromise: onCreatePromise,
-      onCreatePoll: onCreatePoll,
       onUpdatePlan: onUpdatePlan,
       onForward: onForward,
       onDelete: showBeaconManagementOverflow
@@ -399,7 +381,6 @@ Widget beaconViewAppBarOverflow({
         : null,
     onActivityLog: onActivityLog,
     onCreatePromise: onCreatePromise,
-    onCreatePoll: onCreatePoll,
     onUpdatePlan: onUpdatePlan,
     onForward: onForward,
     onOfferHelp:

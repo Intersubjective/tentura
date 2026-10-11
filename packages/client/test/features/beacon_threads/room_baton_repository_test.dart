@@ -146,15 +146,17 @@ Map<String, dynamic> _roomMessageRow({
 
 void main() {
   group('baton mutations send the wire variables', () {
-    test('batonCreate sends messageId and candidates with tiers and maps the '
-        'returned payload', () async {
+    test('batonCreate sends the room, text, reply target and candidates '
+        'with tiers and returns the new message id', () async {
       final link = _RecordingLink(
-        _mutationResponse('roomBatonCreate', _takenAuthorJson),
+        _mutationResponse('roomBatonCreate', 'Mmessage00002'),
       );
       final repo = _repositoryFor(link).repo;
 
-      final data = await repo.batonCreate(
-        messageId: 'Mmessage00001',
+      final messageId = await repo.batonCreate(
+        beaconId: 'Bbeacon00001',
+        text: 'Who can drive on Friday?',
+        replyToMessageId: 'Mmessage00001',
         candidates: const [
           (userId: 'Uaaaaaaaaaaa', tier: 1),
           (userId: 'Ubbbbbbbbbbb', tier: 3),
@@ -162,25 +164,29 @@ void main() {
       );
 
       final vars = link.requests.single.variables;
-      expect(vars['messageId'], 'Mmessage00001');
+      expect(vars['beaconId'], 'Bbeacon00001');
+      expect(vars['text'], 'Who can drive on Friday?');
+      expect(vars['replyToMessageId'], 'Mmessage00001');
       expect(vars['candidates'], [
         {'userId': 'Uaaaaaaaaaaa', 'tier': 1},
         {'userId': 'Ubbbbbbbbbbb', 'tier': 3},
       ]);
-      expect(data, isA<RoomBatonAuthorData>());
-      expect(data!.id, 'Zbaton000001');
+      expect(messageId, 'Mmessage00002');
     });
 
-    test('batonCreate maps a null payload to null', () async {
-      final link = _RecordingLink(_mutationResponse('roomBatonCreate', null));
+    test('batonCreate without a reply target sends a null reply id', () async {
+      final link = _RecordingLink(
+        _mutationResponse('roomBatonCreate', 'Mmessage00002'),
+      );
       final repo = _repositoryFor(link).repo;
 
-      final data = await repo.batonCreate(
-        messageId: 'Mmessage00001',
+      await repo.batonCreate(
+        beaconId: 'Bbeacon00001',
+        text: 'Who can drive?',
         candidates: const [(userId: 'Uaaaaaaaaaaa', tier: 1)],
       );
 
-      expect(data, isNull);
+      expect(link.requests.single.variables['replyToMessageId'], isNull);
     });
 
     test(

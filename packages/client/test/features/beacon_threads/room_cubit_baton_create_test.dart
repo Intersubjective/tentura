@@ -1,10 +1,12 @@
 // «Who'll take it?» start on `RoomCubit.batonCreate`:
-//  - sends the message id and `[{userId, tier}]` to the repository, then
-//    refetches so the author's card appears on the message;
+//  - sends the room, the ask, the optional reply target and
+//    `[{userId, tier}]` to the repository, then refetches so the new baton
+//    message appears at the end of the room;
 //  - when the repository fails, the error is surfaced as an effect.
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -13,48 +15,62 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
 
+typedef _CreateCall = ({
+  String beaconId,
+  String text,
+  String? replyToMessageId,
+  List<({String userId, int tier})> candidates,
+});
+
 class _BatonStartRepository extends FakeBeaconThreadsRepository {
   _BatonStartRepository({required super.userId});
 
-  final createCalls =
-      <({String messageId, List<({String userId, int tier})> candidates})>[];
+  final createCalls = <_CreateCall>[];
   Exception? error;
 
   @override
-  Future<RoomBatonData?> batonCreate({
-    required String messageId,
+  Future<String> batonCreate({
+    required String beaconId,
+    required String text,
     required List<({String userId, int tier})> candidates,
+    String? replyToMessageId,
   }) async {
-    createCalls.add((messageId: messageId, candidates: candidates));
+    createCalls.add((
+      beaconId: beaconId,
+      text: text,
+      replyToMessageId: replyToMessageId,
+      candidates: candidates,
+    ));
     final failure = error;
     if (failure != null) throw failure;
-    final started = RoomBatonAuthorData(
-      id: 'baton-1',
-      status: RoomBatonStatus.collecting,
-      candidates: [
-        for (final c in candidates)
-          RoomBatonCandidate(
-            userId: c.userId,
-            title: c.userId,
-            tier: c.tier,
-            response: RoomBatonResponse.waiting,
-          ),
-      ],
-      allAnswered: false,
-      eligibleCount: 0,
-    );
     messages = [
-      for (final m in messages)
-        RoomMessage(
-          id: m.id,
-          beaconId: m.beaconId,
-          authorId: m.authorId,
-          body: m.body,
-          createdAt: m.createdAt,
-          baton: m.id == messageId ? started : m.baton,
+      ...messages,
+      RoomMessage(
+        id: 'msg-baton',
+        beaconId: beaconId,
+        authorId: kRoomCubitFakeMyUserId,
+        body: text,
+        createdAt: DateTime.utc(2026, 10, 3, 1),
+        semanticMarker: BeaconRoomSemanticMarker.baton,
+        replyToMessageId: replyToMessageId,
+        baton: RoomBatonAuthorData(
+          id: 'baton-1',
+          status: RoomBatonStatus.collecting,
+          candidates: [
+            for (final c in candidates)
+              RoomBatonCandidate(
+                userId: c.userId,
+                title: c.userId,
+                tier: c.tier,
+                response: RoomBatonResponse.waiting,
+              ),
+          ],
+          allAnswered: false,
+          eligibleCount: 0,
         ),
+      ),
     ];
-    return started;
+    return 'msg-baton';
   }
 }
 
@@ -82,13 +98,14 @@ void main() {
   }
 
   group('RoomCubit.batonCreate', () {
-    test('sends the picked people with their tiers and shows the new '
-        'card after a refetch', () async {
+    test('posts the ask as a reply with the picked people and their tiers, '
+        'and shows the new message at the end after a refetch', () async {
       await openRoom();
       final fetchesBefore = repo.fetchMessagesCallCount;
 
       await cubit.batonCreate(
-        messageId: 'msg-1',
+        text: 'Friday, 9:00',
+        replyToMessageId: 'msg-1',
         candidates: const [
           (userId: 'u-boris', tier: 1),
           (userId: 'u-clara', tier: 2),
@@ -97,24 +114,43 @@ void main() {
       await pumpEventQueue();
 
       expect(repo.createCalls, hasLength(1));
-      expect(repo.createCalls.single.messageId, 'msg-1');
-      expect(repo.createCalls.single.candidates, [
+      final call = repo.createCalls.single;
+      expect(call.beaconId, kRoomCubitFakeBeaconId);
+      expect(call.text, 'Friday, 9:00');
+      expect(call.replyToMessageId, 'msg-1');
+      expect(call.candidates, [
         (userId: 'u-boris', tier: 1),
         (userId: 'u-clara', tier: 2),
       ]);
       expect(repo.fetchMessagesCallCount, greaterThan(fetchesBefore));
-      final baton = cubit.state.messages.single.baton;
-      expect(baton, isA<RoomBatonAuthorData>());
-      expect(baton!.status, RoomBatonStatus.collecting);
+      // The source message is untouched; the baton is a new last message.
+      expect(cubit.state.messages.first.baton, isNull);
+      final last = cubit.state.messages.last;
+      expect(last.id, 'msg-baton');
+      expect(last.replyToMessageId, 'msg-1');
+      expect(last.baton, isA<RoomBatonAuthorData>());
       expect(effects.emitted, isEmpty);
     });
 
-    test('surfaces the error and leaves the message without a baton', () async {
+    test('posts a standalone ask without a reply target', () async {
+      await openRoom();
+
+      await cubit.batonCreate(
+        text: 'Who can drive?',
+        candidates: const [(userId: 'u-boris', tier: 1)],
+      );
+      await pumpEventQueue();
+
+      expect(repo.createCalls.single.replyToMessageId, isNull);
+      expect(cubit.state.messages.last.baton, isA<RoomBatonAuthorData>());
+    });
+
+    test('surfaces the error and posts nothing', () async {
       await openRoom();
       repo.error = Exception('rate limited');
 
       await cubit.batonCreate(
-        messageId: 'msg-1',
+        text: 'Who can drive?',
         candidates: const [(userId: 'u-boris', tier: 1)],
       );
       await pumpEventQueue();

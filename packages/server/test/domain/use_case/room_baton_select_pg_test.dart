@@ -98,7 +98,9 @@ Future<void> main() async {
       List<({String userId, int tier})>? candidates,
     }) => batonCase.create(
       actorId: _author,
-      messageId: _message,
+      beaconId: _request,
+      text: '',
+      replyToMessageId: _message,
       candidates:
           candidates ??
           [(userId: _a, tier: 1), (userId: _b, tier: 1), (userId: _c, tier: 2)],
@@ -333,7 +335,7 @@ WHERE beacon_id = '$_request' AND user_id = '$_a'
           'takerUserId',
         });
         expect(m.payload['batonId'], baton.id);
-        expect(m.payload['sourceMessageId'], _message);
+        expect(m.payload['sourceMessageId'], baton.messageId);
         expect(m.payload['takerUserId'], _a);
       },
     );
@@ -351,7 +353,7 @@ WHERE beacon_id = '$_request' AND user_id = '$_a'
     });
 
     test(
-      'cancel writes no message and no receipt, and frees the message',
+      'cancel writes no message and no receipt; a new baton can follow',
       () async {
         final batonCase = build();
         final baton = await createBaton(batonCase);

@@ -48,6 +48,10 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// «Who'll take it?» baton resolved with a taker (system line).
   static const batonTaken = 12;
+
+  /// «Who'll take it?» baton message; `body` is the ask (may be empty when it
+  /// replies to the message it is about). The baton row hangs off this id.
+  static const baton = 13;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).

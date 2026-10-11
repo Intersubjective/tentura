@@ -59,6 +59,10 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// «Who'll take it?» baton resolved with a taker (system line).
   static const batonTaken = 12;
+
+  /// «Who'll take it?» message; `body` is the ask (may be empty when it
+  /// replies to the message it is about), the baton rides on `baton`.
+  static const baton = 13;
 }
 
 /// Mirrors server [BeaconRoomSystemMessageKind].

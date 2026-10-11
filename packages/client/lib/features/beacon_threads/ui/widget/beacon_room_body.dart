@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
+import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -32,9 +33,12 @@ import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 
 import '../bloc/room_cubit.dart';
+import '../util/room_reply_excerpt.dart';
 import '../coordination_room_navigation.dart';
 import 'fact_actions_sheet.dart';
+import 'beacon_room_poll_sheet.dart';
 import 'fact_picker_sheet.dart';
+import 'room_baton_card.dart';
 import 'room_baton_create_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_readers_sheet.dart';
@@ -91,6 +95,39 @@ String _readWatermarksFingerprint(Map<String, RoomReadWatermark> watermarks) {
 
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   final _basicChatKey = GlobalKey<BasicChatBodyState>();
+
+  /// Opens the «Who'll take it?» sheet; the baton is posted as a new message
+  /// at the end of the room, replying to [replyTo] when given.
+  Future<void> _showBatonCreateSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer, {
+    RoomMessage? replyTo,
+  }) => showRoomBatonCreateSheet(
+    context,
+    participants: [
+      for (final p in cubit.state.participants)
+        if (p.userId != viewer.id && p.roomAccess == RoomAccessBits.admitted) p,
+    ],
+    replyTo: replyTo == null
+        ? null
+        : (
+            authorName: replyTo.author.shownName,
+            excerpt: roomReplyExcerptFor(
+              excerpt: roomReplyExcerpt(replyTo),
+              hasAttachments: replyTo.attachments.isNotEmpty,
+              l10n: l10n,
+            ),
+          ),
+    onAsk: (text, candidates) => unawaited(
+      cubit.batonCreate(
+        text: text,
+        candidates: candidates,
+        replyToMessageId: replyTo?.id,
+      ),
+    ),
+  );
 
   bool _suppressesRichMessageActions(RoomMessage message) =>
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
@@ -370,6 +407,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     }
                   }
                 : null,
+            onCreatePoll: canWrite
+                ? () =>
+                      unawaited(showBeaconRoomPollSheet(context, cubit: cubit))
+                : null,
+            onCreateBaton: canWrite && widget.batonEnabled
+                ? () => unawaited(
+                    _showBatonCreateSheet(context, cubit, l10n, myProfile),
+                  )
+                : null,
             imageRepository: GetIt.I<ImageRepository>(),
             clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
@@ -593,6 +639,19 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message, {
     bool isThreadMode = false,
   }) {
+    final baton = message.baton;
+    if (message.semanticMarker == BeaconRoomSemanticMarker.baton &&
+        baton != null) {
+      _onBatonMessageActionsPressed(
+        context,
+        cubit,
+        l10n,
+        viewer,
+        message,
+        baton,
+      );
+      return;
+    }
     final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
     final caps = widget.capabilities;
@@ -610,12 +669,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
     final hasBodyText = message.body.trim().isNotEmpty;
+    // Starts a new baton message that replies to this one (anyone's plain or
+    // poll message; not system lines — baton messages have their own menu).
+    final marker = message.semanticMarker;
     final showBatonStart =
         widget.batonEnabled &&
         canWrite &&
-        isOwnMessage &&
-        message.semanticMarker == null &&
-        message.baton == null;
+        RoomCubit.canReplyTo(message) &&
+        message.systemMessageKind == null &&
+        (marker == null || marker == BeaconRoomSemanticMarker.poll);
     unawaited(
       showModalBottomSheet<void>(
         context: context,
@@ -696,20 +758,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           onTap: () {
                             Navigator.pop(ctx);
                             unawaited(
-                              showRoomBatonCreateSheet(
+                              _showBatonCreateSheet(
                                 context,
-                                participants: [
-                                  for (final p in cubit.state.participants)
-                                    if (p.userId != viewer.id &&
-                                        p.roomAccess == RoomAccessBits.admitted)
-                                      p,
-                                ],
-                                onAsk: (candidates) => unawaited(
-                                  cubit.batonCreate(
-                                    messageId: message.id,
-                                    candidates: candidates,
-                                  ),
-                                ),
+                                cubit,
+                                l10n,
+                                viewer,
+                                replyTo: message,
                               ),
                             );
                           },
@@ -919,6 +973,154 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
   }
+
+  /// Actions for a «Who'll take it?» message: only what makes sense for the
+  /// baton (no reactions, plain-text edit, facts or «Turn into…»). The author
+  /// can edit or cancel it while answers are being collected.
+  void _onBatonMessageActionsPressed(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer,
+    RoomMessage message,
+    RoomBatonData baton,
+  ) {
+    final canWrite = cubit.state.canWriteDiscussion;
+    final authorView = baton is RoomBatonAuthorData ? baton : null;
+    final canManage =
+        canWrite &&
+        authorView != null &&
+        authorView.status == RoomBatonStatus.collecting;
+    final canReply = canWrite && RoomCubit.canReplyTo(message);
+    final canDelete = canWrite && authorView != null;
+    if (!canManage && !canReply && !canDelete) return;
+
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        // Root navigator for the same Web PopScope reason as the message
+        // actions sheet above.
+        useRootNavigator: true,
+        builder: (ctx) {
+          final tt = ctx.tt;
+          final error = Theme.of(ctx).colorScheme.error;
+          return Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: tt.contentMaxWidth ?? double.infinity,
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (canManage)
+                      ListTile(
+                        leading: const Icon(Icons.edit_outlined),
+                        title: Text(l10n.batonActionEdit),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          unawaited(
+                            _showBatonEditSheet(
+                              context,
+                              cubit,
+                              l10n,
+                              viewer,
+                              message,
+                              authorView,
+                            ),
+                          );
+                        },
+                      ),
+                    if (canReply)
+                      ListTile(
+                        leading: const Icon(Icons.reply_outlined),
+                        title: Text(l10n.beaconRoomActionReply),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          cubit.startReplyTo(message);
+                        },
+                      ),
+                    if (canManage)
+                      ListTile(
+                        leading: const Icon(Icons.cancel_outlined),
+                        title: Text(l10n.batonCancel),
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          if (await confirmRoomBatonCancel(context)) {
+                            await cubit.batonCancel(batonId: baton.id);
+                          }
+                        },
+                      ),
+                    if (canDelete) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(Icons.delete_outline, color: error),
+                        title: Text(
+                          l10n.beaconRoomActionDeleteMessage,
+                          style: TextStyle(color: error),
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          unawaited(
+                            _confirmDeleteMessage(
+                              context,
+                              cubit,
+                              l10n,
+                              message,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// The author's edit of a collecting baton: the same sheet, filled in.
+  Future<void> _showBatonEditSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer,
+    RoomMessage message,
+    RoomBatonAuthorData baton,
+  ) => showRoomBatonCreateSheet(
+    context,
+    participants: [
+      for (final p in cubit.state.participants)
+        if (p.userId != viewer.id && p.roomAccess == RoomAccessBits.admitted) p,
+    ],
+    replyTo: message.isReply
+        ? (
+            authorName: message.replyToAuthorTitle ?? '',
+            excerpt: roomReplyExcerptFor(
+              excerpt: message.replyToBodyExcerpt,
+              hasAttachments: message.replyToHasAttachments,
+              l10n: l10n,
+            ),
+          )
+        : null,
+    initial: (
+      text: message.body,
+      tiers: {for (final c in baton.candidates) c.userId: c.tier},
+    ),
+    onAsk: (text, candidates) => unawaited(
+      cubit.batonUpdate(
+        batonId: baton.id,
+        text: text,
+        candidates: candidates,
+      ),
+    ),
+  );
 
   Future<void> _confirmUnpinFactFromMessage(
     BuildContext context,

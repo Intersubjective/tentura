@@ -59,7 +59,16 @@ final class MutationRoomBaton extends GqlNodeBase {
 
   final BeaconRoomRepositoryPort _roomRepository;
 
-  final _messageId = InputFieldString(fieldName: 'messageId');
+  final _beaconId = InputFieldString(fieldName: 'beaconId');
+
+  final _text = InputFieldString(fieldName: 'text');
+
+  /// Nullable: a baton that is not a reply leaves it out or sends `null`.
+  final _replyToMessageId = GraphQLFieldInput<String?, String?>(
+    'replyToMessageId',
+    _NullableStringType(),
+    defaultsToNull: true,
+  );
 
   final _batonId = InputFieldString(fieldName: 'batonId');
 
@@ -78,39 +87,71 @@ final class MutationRoomBaton extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     roomBatonCreate,
+    roomBatonUpdate,
     roomBatonRespond,
     roomBatonSelect,
     roomBatonCancel,
   ];
 
+  /// Posts a new baton message; returns its id.
   GraphQLObjectField<dynamic, dynamic> get roomBatonCreate =>
       GraphQLObjectField(
         'roomBatonCreate',
-        graphQLString,
+        graphQLString.nonNullable(),
         arguments: [
-          _messageId.field,
+          _beaconId.field,
+          _text.field,
+          _replyToMessageId,
           _candidates,
         ],
         resolve: (_, args) async {
           final jwt = getCredentials(args);
           final baton = await _case.create(
             actorId: jwt.sub,
-            messageId: _messageId.fromArgsNonNullable(args),
-            candidates: [
-              for (final raw in args[_candidates.name]! as List)
-                (
-                  userId: (raw as Map)['userId']! as String,
-                  tier: (raw['tier']! as num).toInt(),
-                ),
-            ],
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            text: _text.fromArgsNonNullable(args),
+            replyToMessageId: switch (args[_replyToMessageId.name]) {
+              final String id when id.isNotEmpty => id,
+              _ => null,
+            },
+            candidates: _candidatesFromArgs(args),
           );
-          return _batonDataJson(
-            beaconId: baton.beaconId,
-            messageId: baton.messageId,
-            viewerId: jwt.sub,
-          );
+          return baton.messageId;
         },
       );
+
+  /// The author's edit of a collecting baton; returns their updated view.
+  GraphQLObjectField<dynamic, dynamic> get roomBatonUpdate =>
+      GraphQLObjectField(
+        'roomBatonUpdate',
+        graphQLString,
+        arguments: [
+          _batonId.field,
+          _text.field,
+          _candidates,
+        ],
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          final batonId = _batonId.fromArgsNonNullable(args);
+          await _case.update(
+            actorId: jwt.sub,
+            batonId: batonId,
+            text: _text.fromArgsNonNullable(args),
+            candidates: _candidatesFromArgs(args),
+          );
+          return _batonDataJsonById(batonId: batonId, viewerId: jwt.sub);
+        },
+      );
+
+  List<({String userId, int tier})> _candidatesFromArgs(
+    Map<String, dynamic> args,
+  ) => [
+    for (final raw in args[_candidates.name]! as List)
+      (
+        userId: (raw as Map)['userId']! as String,
+        tier: (raw['tier']! as num).toInt(),
+      ),
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get roomBatonRespond =>
       GraphQLObjectField(

@@ -7766,7 +7766,7 @@
   "@batonCancel": {
     "description": "Author's button that cancels the «Who'll take it?» baton (asks for confirmation first)."
   },
-  "batonCancelConfirmTitle": "Cancel \"Who'll take it?\"",
+  "batonCancelConfirmTitle": "Cancel \"Who'll take it?\"?",
   "@batonCancelConfirmTitle": {
     "description": "Title of the confirmation dialog for cancelling a baton."
   },
@@ -7774,9 +7774,13 @@
   "@batonCancelConfirmBody": {
     "description": "Body of the confirmation dialog for cancelling a baton."
   },
-  "batonCancelConfirmAction": "Cancel it",
+  "batonCancelConfirmAction": "Cancel the ask",
   "@batonCancelConfirmAction": {
     "description": "Confirm button of the cancel-baton dialog."
+  },
+  "batonCancelConfirmKeep": "Keep it",
+  "@batonCancelConfirmKeep": {
+    "description": "Dismiss button of the cancel-baton confirmation: keeps the baton. Must not read like «Cancel», which is ambiguous next to the cancel action."
   },
   "batonReceiptAsked": "{author} asks you can help",
   "@batonReceiptAsked": {
@@ -7819,6 +7823,42 @@
   "batonCreateSubmit": "Ask",
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
+  },
+  "batonActionEdit": "Edit",
+  "@batonActionEdit": {
+    "description": "Message-actions item on the author's collecting «Who'll take it?» message: edit the ask and who is asked."
+  },
+  "batonEditSubmit": "Save",
+  "@batonEditSubmit": {
+    "description": "Submit button of the «Who'll take it?» sheet when editing an existing one."
+  },
+  "batonCreateTextLabel": "What needs doing?",
+  "@batonCreateTextLabel": {
+    "description": "Text field in the create-baton sheet: the ask posted as the baton message."
+  },
+  "batonCreateTextReplyHint": "Optional: the reply shows what it is about",
+  "@batonCreateTextReplyHint": {
+    "description": "Helper under the ask field when the baton replies to a message, so the ask may stay empty."
+  },
+  "batonObserverCollecting": "Looking for someone to take it.",
+  "@batonObserverCollecting": {
+    "description": "Shown on a «Who'll take it?» message to room members who were not asked, while answers are being collected."
+  },
+  "batonCancelledLine": "Cancelled.",
+  "@batonCancelledLine": {
+    "description": "Shown on a «Who'll take it?» message after its author cancelled it."
+  },
+  "beaconRoomSemanticBaton": "Who'll take it?",
+  "@beaconRoomSemanticBaton": {
+    "description": "Header label of a «Who'll take it?» message bubble."
+  },
+  "beaconRoomAttachCreatePoll": "Poll",
+  "@beaconRoomAttachCreatePoll": {
+    "description": "Attach menu item that opens the create-poll sheet."
+  },
+  "beaconRoomAttachCreateBaton": "Who'll take it?",
+  "@beaconRoomAttachCreateBaton": {
+    "description": "Attach menu item that opens the «Who'll take it?» sheet."
   },
   "composerEmojiButtonTooltip": "Emoji",
   "@composerEmojiButtonTooltip": {

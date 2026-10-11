@@ -1,0 +1,7 @@
+mutation RoomBatonUpdate(
+  $batonId: String!
+  $text: String!
+  $candidates: [v2_RoomBatonCandidateInput!]!
+) {
+  roomBatonUpdate(batonId: $batonId, text: $text, candidates: $candidates)
+}

@@ -684,38 +684,36 @@ ORDER BY tier, user_id
         'title': titleById[takerId] ?? '',
       };
       final candidates = candidatesByBatonId[batonId] ?? const <QueryRow>[];
-      Map<String, Object?>? payload;
+      final Map<String, Object?> payload;
 
       if (b.read<String>('author_id') == viewerUserId) {
-        if (status != 2) {
-          payload = {
-            'id': batonId,
-            'status': statusName,
-            'viewerRole': 'author',
-            'candidates': [
-              for (final c in candidates)
-                {
-                  'userId': c.read<String>('user_id'),
-                  'title': titleById[c.read<String>('user_id')] ?? '',
-                  'tier': c.read<int>('tier'),
-                  'response': responseName(c.read<int>('response')),
-                  'respondedAt': isoOrNull(c, 'responded_at'),
-                },
-            ],
-            'allAnswered': candidates.every(
-              (c) => c.read<int>('response') != 0,
-            ),
-            'eligibleCount': candidates
-                .where((c) => c.read<int>('response') == 1)
-                .length,
-            if (taken) ...{
-              'taker': taker(),
-              'selectionMode': b.readNullable<int>('selection_mode') == 2
-                  ? 'manual'
-                  : 'auto',
-            },
-          };
-        }
+        payload = {
+          'id': batonId,
+          'status': statusName,
+          'viewerRole': 'author',
+          'candidates': [
+            for (final c in candidates)
+              {
+                'userId': c.read<String>('user_id'),
+                'title': titleById[c.read<String>('user_id')] ?? '',
+                'tier': c.read<int>('tier'),
+                'response': responseName(c.read<int>('response')),
+                'respondedAt': isoOrNull(c, 'responded_at'),
+              },
+          ],
+          'allAnswered': candidates.every(
+            (c) => c.read<int>('response') != 0,
+          ),
+          'eligibleCount': candidates
+              .where((c) => c.read<int>('response') == 1)
+              .length,
+          if (taken) ...{
+            'taker': taker(),
+            'selectionMode': b.readNullable<int>('selection_mode') == 2
+                ? 'manual'
+                : 'auto',
+          },
+        };
       } else {
         QueryRow? mine;
         for (final c in candidates) {
@@ -738,18 +736,18 @@ ORDER BY tier, user_id
             'outcome': ?outcome,
             if (outcome == 'you') 'taker': taker(),
           };
-        } else if (taken) {
+        } else {
+          // The baton is its own message, so the room sees that it exists;
+          // who was asked and how they answered stays private (plan §1.4).
           payload = {
             'id': batonId,
             'status': statusName,
             'viewerRole': 'observer',
-            'taker': taker(),
+            if (taken) 'taker': taker(),
           };
         }
       }
-      if (payload != null) {
-        out[b.read<String>('message_id')] = jsonEncode(payload);
-      }
+      out[b.read<String>('message_id')] = jsonEncode(payload);
     }
     return out;
   }

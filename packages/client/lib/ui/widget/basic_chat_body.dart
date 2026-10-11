@@ -71,6 +71,8 @@ class BasicChatBody extends StatefulWidget {
     this.replyTarget,
     this.onCancelReply,
     this.onPickFact,
+    this.onCreatePoll,
+    this.onCreateBaton,
     this.pendingQuotedFact,
     this.onCancelQuotedFact,
     this.onToggleReaction,
@@ -138,6 +140,12 @@ class BasicChatBody extends StatefulWidget {
   /// Invoked when the composer's attach-menu "Fact" item is tapped; hidden
   /// from the menu when null.
   final VoidCallback? onPickFact;
+
+  /// Attach-menu "Poll" item; hidden when null.
+  final VoidCallback? onCreatePoll;
+
+  /// Attach-menu "Who'll take it?" item; hidden when null.
+  final VoidCallback? onCreateBaton;
 
   /// Fact quoted into the composer, pending send.
   final BeaconFactCard? pendingQuotedFact;
@@ -786,6 +794,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
                         onPickFact: widget.onPickFact,
+                        onCreatePoll: widget.onCreatePoll,
+                        onCreateBaton: widget.onCreateBaton,
                         pendingQuotedFact: widget.pendingQuotedFact,
                         onCancelQuotedFact: widget.onCancelQuotedFact,
                       )
@@ -816,6 +826,8 @@ class BeaconRoomComposer extends StatefulWidget {
     this.replyTarget,
     this.onCancelReply,
     this.onPickFact,
+    this.onCreatePoll,
+    this.onCreateBaton,
     this.pendingQuotedFact,
     this.onCancelQuotedFact,
     super.key,
@@ -860,6 +872,12 @@ class BeaconRoomComposer extends StatefulWidget {
   /// Invoked when the attach-menu "Fact" item is tapped; hidden from the
   /// menu when null.
   final VoidCallback? onPickFact;
+
+  /// Attach-menu "Poll" item; hidden when null.
+  final VoidCallback? onCreatePoll;
+
+  /// Attach-menu "Who'll take it?" item; hidden when null.
+  final VoidCallback? onCreateBaton;
 
   /// Fact quoted into the composer, pending send.
   final BeaconFactCard? pendingQuotedFact;
@@ -1532,6 +1550,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   Widget _attachMenuButton(L10n l10n, ThemeData theme, bool busy) {
     final readOnly = widget.readOnlyHint != null;
     final onPickFact = widget.onPickFact;
+    final onCreatePoll = widget.onCreatePoll;
+    final onCreateBaton = widget.onCreateBaton;
     final hasSlots = _remainingSlots > 0;
     return PopupMenuButton<String>(
       key: const ValueKey('attach'),
@@ -1547,6 +1567,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           await _pickFiles();
         } else if (v == 'fact') {
           onPickFact?.call();
+        } else if (v == 'poll') {
+          onCreatePoll?.call();
+        } else if (v == 'baton') {
+          onCreateBaton?.call();
         }
       },
       itemBuilder: (ctx) => [
@@ -1564,6 +1588,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           PopupMenuItem(
             value: 'fact',
             child: Text(l10n.beaconRoomAttachPickFact),
+          ),
+        if (onCreatePoll != null)
+          PopupMenuItem(
+            value: 'poll',
+            child: Text(l10n.beaconRoomAttachCreatePoll),
+          ),
+        if (onCreateBaton != null)
+          PopupMenuItem(
+            value: 'baton',
+            child: Text(l10n.beaconRoomAttachCreateBaton),
           ),
       ],
       icon: Icon(

@@ -1397,15 +1397,24 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  /// Author: asks [candidates] «Who'll take it?» on [messageId], then
-  /// refetches so the author's card appears on the message.
+  /// Posts a «Who'll take it?» message ([text], optionally replying to
+  /// [replyToMessageId]) that asks [candidates], then refetches so it shows at
+  /// the end of the room like a freshly sent message.
   Future<void> batonCreate({
-    required String messageId,
+    required String text,
     required List<({String userId, int tier})> candidates,
+    String? replyToMessageId,
   }) async {
     if (_rejectIfDiscussionReadOnly()) return;
     try {
-      await _case.batonCreate(messageId: messageId, candidates: candidates);
+      await _case.batonCreate(
+        beaconId: state.beaconId,
+        text: text,
+        candidates: candidates,
+        replyToMessageId: replyToMessageId,
+      );
+      await markSeenNowIfNeeded();
+      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await _requestRefresh(scope: _RoomRefreshScope.messages);
     } on Object catch (e) {
       _showSnackError(e);
@@ -1472,6 +1481,26 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   /// Author: cancels the baton, then refetches so the card goes away.
+  /// Author: saves an edit of a collecting baton (the ask and who is asked),
+  /// then refetches so the card and the message text update.
+  Future<void> batonUpdate({
+    required String batonId,
+    required String text,
+    required List<({String userId, int tier})> candidates,
+  }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
+    try {
+      await _case.batonUpdate(
+        batonId: batonId,
+        text: text,
+        candidates: candidates,
+      );
+      await _requestRefresh(scope: _RoomRefreshScope.messages);
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
   Future<void> batonCancel({required String batonId}) async {
     if (_rejectIfDiscussionReadOnly()) return;
     try {
