@@ -313,6 +313,9 @@ AttentionReceipt _batonReceipt(String type, int beaconKind) => AttentionReceipt(
   collapsedCount: 1,
   presentationPayloadJson: jsonEncode({
     'eventType': type,
+    // As the server writes it: a baton ask reaches its candidate personally
+    // (#189 — `batonCandidate`), the other two do not.
+    'personal': type == 'batonAsked',
     'excerpt': 'Carry the boxes',
     // Extra payload fields must never become rendered candidate names.
     'candidates': [

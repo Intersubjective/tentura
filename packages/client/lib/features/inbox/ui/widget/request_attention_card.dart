@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
+import 'package:tentura/domain/attention/request_card_zones.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -13,12 +14,14 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
-import 'activity_event_subcard_block.dart';
 import 'attention_mini_card.dart';
 import 'request_attention_indicators.dart';
 
@@ -72,6 +75,16 @@ class RequestAttentionCard extends StatelessWidget {
   static const headerKey = Key('request-attention-card-header');
   static const overflowKey = Key('request-attention-card-overflow');
   static const clearAllKey = Key('request-attention-card-clear-all');
+
+  /// #189 rev 2 — the card's zones.
+  static const subLineKey = Key('request-attention-card-sub-line');
+  static const forYouZoneKey = Key('request-attention-card-for-you-zone');
+  static const forYouIndicatorKey = Key('request-attention-card-for-you');
+  static const alsoToYouKey = Key('request-attention-card-also-to-you');
+  static const moreNotesKey = Key('request-attention-card-more-notes');
+  static const notesSheetKey = Key('request-attention-card-notes-sheet');
+  static const changeLineKey = Key('request-attention-card-change-line');
+  static const footerTimelineKey = Key('request-attention-card-timeline');
 
   /// The Offer Help control's key **is** the stable `TestIds.inboxOfferHelp`
   /// key, not a card-private one.
@@ -144,14 +157,31 @@ class RequestAttentionCard extends StatelessWidget {
     final tt = context.tt;
     final visibleCap = context.windowClass == WindowClass.compact ? 1 : 3;
 
-    final forwards = _forwardSlots(visibleCap);
-    final eventCap = visibleCap - forwards.length;
+    final zones = RequestCardZones.fromPreview(eventsPreview);
+    final notes = _noteForwards();
+    // CAP (#189): the cap counts «вам» rows only and is absolute. Notes come
+    // first (D-171-5a, K7), then one row per sender, newest first; what does
+    // not fit is *named* below — never silently dropped, and never a reason
+    // to drop the change line or the footer (the old `eventCap = 0` bug).
+    final shownNotes = notes.take(visibleCap).toList(growable: false);
+    final hiddenNotes = notes.length - shownNotes.length;
+    final personalCap = visibleCap - shownNotes.length;
+    final shownPersonal = zones.personalRows
+        .take(personalCap < 0 ? 0 : personalCap)
+        .toList(growable: false);
+    final hiddenPersonal = zones.personalRows
+        .skip(shownPersonal.length)
+        .toList(growable: false);
+    final shownEvents =
+        shownPersonal.fold(0, (sum, row) => sum + row.receipts.length) +
+        (zones.changeLine == null ? 0 : 1);
+    final hiddenEvents = eventTotal - shownEvents;
     final hasClearable = requestHasDot(facts);
 
     return Semantics(
       key: semanticsKey,
       container: true,
-      label: _semanticsLabel(l10n),
+      label: _semanticsLabel(l10n, zones),
       child: Material(
         color: tt.surface,
         borderRadius: BorderRadius.circular(tt.cardRadius),
@@ -168,43 +198,68 @@ class RequestAttentionCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _header(context, l10n, tt),
+                _header(context, l10n, tt, zones),
                 SizedBox(height: tt.rowGap),
-                for (final forward in forwards) forward,
-                if (eventCap > 0 && eventsPreview.isNotEmpty)
-                  ActivityEventSubcardBlock(
-                    eventTotal: eventTotal,
-                    eventsPreview: eventsPreview,
-                    beaconId: beacon.id,
-                    requestTitle: beacon.title,
-                    actors: actors,
-                    visibleCap: eventCap,
-                    // D-171-5b: the card's hard maximum height *is* this — the
-                    // block leaves for the Timeline instead of growing.
-                    onOpenTimeline: onOpenTimeline,
-                    onEventTap: onEventTap,
-                    onClearEvent: _isPinned ? null : onClearEvent,
-                    quotedBodyOf: _quotedBodyOf,
+                if (shownNotes.isNotEmpty ||
+                    shownPersonal.isNotEmpty ||
+                    hiddenNotes > 0 ||
+                    hiddenPersonal.isNotEmpty)
+                  _ForYouZone(
+                    key: forYouZoneKey,
+                    children: [
+                      for (final note in shownNotes) _noteRow(l10n, note),
+                      for (final row in shownPersonal)
+                        _personalRow(context, l10n, row),
+                      if (hiddenNotes > 0)
+                        _zoneLink(
+                          tt,
+                          key: moreNotesKey,
+                          label: l10n.attentionCardMoreNotes(hiddenNotes),
+                          onTap: () => _showNotesSheet(context, l10n, notes),
+                        ),
+                      if (hiddenPersonal.isNotEmpty)
+                        _zoneLink(
+                          tt,
+                          key: alsoToYouKey,
+                          label: _alsoToYou(l10n, hiddenPersonal),
+                          onTap: onOpenBeacon,
+                        ),
+                    ],
                   ),
-                _coalescedForwards(l10n, tt, hasNoteSlots: forwards.isNotEmpty),
-                // With one event its own × is the same act; a second control
-                // for it is noise.
-                if (!_isPinned &&
-                    hasClearable &&
-                    eventTotal > 1 &&
-                    onClearAll != null) ...[
-                  SizedBox(height: tt.tightGap),
-                  TenturaTextAction(
-                    key: clearAllKey,
-                    label: l10n.attentionCardClearAll,
-                    onPressed: onClearAll,
+                _coalescedForwards(
+                  l10n,
+                  tt,
+                  hasNoteSlots: notes.isNotEmpty,
+                ),
+                if (zones.changeLine case final change?)
+                  _ChangeLine(
+                    key: changeLineKey,
+                    receipt: change,
+                    text: _changeText(l10n, change),
+                    onTap: onEventTap == null ? null : () => onEventTap!(change),
                   ),
-                ],
                 if (_isPinned) ...[
+                  if (hiddenEvents > 0)
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TenturaTextAction(
+                        key: footerTimelineKey,
+                        label: l10n.attentionCardFooterMore(hiddenEvents),
+                        flushStart: true,
+                        onPressed: onOpenTimeline,
+                      ),
+                    ),
                   const TenturaHairlineDivider(),
                   SizedBox(height: tt.tightGap),
                   _actionRow(l10n, tt),
-                ],
+                ] else
+                  _footer(
+                    context,
+                    l10n,
+                    tt,
+                    hiddenEvents: hiddenEvents,
+                    canClear: hasClearable && eventTotal > 0,
+                  ),
               ],
             ),
           ),
@@ -215,12 +270,33 @@ class RequestAttentionCard extends StatelessWidget {
 
   // ---------------------------------------------------------------- header
 
-  /// Same order as a My Work card: title, status (here: the deadline, only
-  /// while it matters), then who it is from. The deadline's tone colours the
-  /// deadline alone — it used to paint the author's name red with it.
-  Widget _header(BuildContext context, L10n l10n, TenturaTokens tt) {
+  /// Title, then one sub-line «relation · author · deadline if near».
+  /// The relation is a word, never a chip or a colour alone (§11); the author
+  /// drops out when they are the forwarder the note row already names.
+  Widget _header(
+    BuildContext context,
+    L10n l10n,
+    TenturaTokens tt,
+    RequestCardZones zones,
+  ) {
     final deadline = _deadline(l10n);
     final author = beacon.author.shownName.trim();
+    final authorIsForwarder =
+        provenance.latestNoteForward?.senderId == beacon.author.id;
+    final muted = TenturaText.bodySmall(tt.textMuted);
+    final parts = <InlineSpan>[
+      if (_relationWord(l10n) case final relation?) TextSpan(text: relation),
+      if (author.isNotEmpty &&
+          !authorIsForwarder &&
+          _headlineTreatment != AttentionHeadlineTreatment.user)
+        TextSpan(text: author),
+      if (deadline != null)
+        TextSpan(
+          text: deadline.text,
+          // The one danger colour For You allows: an overdue header deadline.
+          style: deadline.urgent ? TenturaText.bodySmall(tt.danger) : null,
+        ),
+    ];
 
     return Row(
       key: headerKey,
@@ -239,33 +315,31 @@ class RequestAttentionCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TenturaText.titleSmall(tt.text),
               ),
-              if (deadline != null)
-                if (deadline.urgent)
-                  TenturaStatusText(deadline.text, tone: TenturaTone.danger)
-                else
-                  Text(
-                    deadline.text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.textMuted),
+              if (parts.isNotEmpty)
+                Text.rich(
+                  key: subLineKey,
+                  TextSpan(
+                    style: muted,
+                    children: [
+                      for (var i = 0; i < parts.length; i++) ...[
+                        if (i > 0) const TextSpan(text: ' · '),
+                        parts[i],
+                      ],
+                    ],
                   ),
-              if (author.isNotEmpty &&
-                  _headlineTreatment != AttentionHeadlineTreatment.user)
-                Text(
-                  l10n.constellationPreviewAuthorLine(author),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
             ],
           ),
         ),
-        if (_relationChip(l10n) case final chip?) ...[
-          SizedBox(width: tt.tightGap),
-          chip,
-        ],
         SizedBox(width: tt.tightGap),
-        RequestAttentionIndicators(facts: facts),
+        // E19: the slot holds @ (something addressed to you) or the dot
+        // (only general updates), never both.
+        if (zones.hasPersonal)
+          const _ForYouIndicator()
+        else
+          RequestAttentionIndicators(facts: facts),
         BeaconOverflowMenu(
           key: overflowKey,
           beacon: beacon,
@@ -307,72 +381,266 @@ class RequestAttentionCard extends StatelessWidget {
     return compactDeadlineLabel(l10n, endAt);
   }
 
-  Widget? _relationChip(L10n l10n) {
+  String? _relationWord(L10n l10n) {
     // The pinned variant has no relation yet, by definition (§6.1).
     if (_isPinned) return null;
     return switch (relation) {
       RequestAttentionRelation.none => null,
-      RequestAttentionRelation.helping => TenturaRelationChip(
-        label: l10n.attentionRelationHelping,
-        tone: TenturaRelationTone.helping,
-      ),
-      RequestAttentionRelation.following => TenturaRelationChip(
-        label: l10n.inboxWatching,
-        tone: TenturaRelationTone.following,
-      ),
+      RequestAttentionRelation.helping => l10n.attentionRelationHelping,
+      RequestAttentionRelation.following => l10n.inboxWatching,
     };
   }
 
-  // ------------------------------------------------------------ mini-cards
+  // ------------------------------------------------------------ «вам» zone
 
-  /// Forward mini-cards, pinned slot first (D-171-5a), then the remaining
-  /// note-bearing senders. Note-less forwards never take a slot — they
-  /// coalesce (§7.3).
-  List<Widget> _forwardSlots(int visibleCap) {
+  /// Every note-bearing forward, newest note first (D-171-5a) — never
+  /// `senders.first`, which is MR-ranked. A note is never folded (K6).
+  List<_NoteForward> _noteForwards() {
     final pinned = provenance.latestNoteForward;
-    final rest = provenance.senders.where(
-      (s) => s.notePreview.trim().isNotEmpty && s.id != pinned?.senderId,
-    );
-    final slots = <Widget>[];
-    if (pinned != null) slots.add(_pinnedForwardCard(pinned));
-    for (final sender in rest) {
-      if (slots.length >= visibleCap) break;
-      slots.add(_senderForwardCard(sender));
-    }
-    return slots.take(visibleCap).toList(growable: false);
+    return [
+      if (pinned != null)
+        _NoteForward(
+          id: 'forward:${pinned.forwardId}',
+          senderId: pinned.senderId,
+          displayName: pinned.displayName,
+          imageId: pinned.imageId,
+          note: pinned.notePreview,
+          reasonSlugs: pinned.reasonSlugs,
+          at: pinned.forwardedAt,
+        ),
+      for (final sender in provenance.senders)
+        if (sender.notePreview.trim().isNotEmpty &&
+            sender.id != pinned?.senderId)
+          _NoteForward(
+            id: 'forward-sender:${sender.id}',
+            senderId: sender.id,
+            displayName: sender.displayName,
+            imageId: sender.imageId,
+            note: sender.notePreview,
+            reasonSlugs: sender.reasonSlugs,
+          ),
+    ];
   }
 
-  Widget _pinnedForwardCard(InboxLatestNoteForward forward) =>
-      AttentionMiniCard(
-        key: ValueKey('forward:${forward.forwardId}'),
-        kind: AttentionMiniCardKind.forward,
-        receipt: _forwardReceipt(
-          id: 'forward:${forward.forwardId}',
-          senderId: forward.senderId,
-          at: forward.forwardedAt,
-        ),
-        actor: _profileOf(
-          forward.senderId,
-          forward.displayName,
-          forward.imageId,
-        ),
-        quotedBody: forward.notePreview,
-        capabilitySlugs: forward.reasonSlugs,
-        onTap: onOpenBeacon,
-      );
+  Widget _noteRow(L10n l10n, _NoteForward note) {
+    final actor = _profileOf(note.senderId, note.displayName, note.imageId);
+    final name = profileWithContactOverlay(actor).shownName;
+    return AttentionMiniCard(
+      key: ValueKey(note.id),
+      kind: AttentionMiniCardKind.forward,
+      receipt: _forwardReceipt(
+        id: note.id,
+        senderId: note.senderId,
+        at: note.at,
+      ),
+      actor: actor,
+      eventLine: note.senderId == beacon.author.id
+          ? l10n.attentionCardForwardedByAuthor(name)
+          : l10n.attentionCardForwardedBy(name),
+      quotedBody: note.note,
+      capabilitySlugs: note.reasonSlugs,
+      compactAge: true,
+      onTap: onOpenBeacon,
+    );
+  }
 
-  Widget _senderForwardCard(InboxForwardSender sender) => AttentionMiniCard(
-    key: ValueKey('forward-sender:${sender.id}'),
-    kind: AttentionMiniCardKind.forward,
-    receipt: _forwardReceipt(
-      id: 'forward-sender:${sender.id}',
-      senderId: sender.id,
-      at: null,
+  /// One sender, in their own words; the × clears everything they sent.
+  Widget _personalRow(
+    BuildContext context,
+    L10n l10n,
+    PersonalSenderRow row,
+  ) {
+    final receipt = row.newest;
+    final actor = actors[receipt.actorUserId ?? ''];
+    final name = actor == null
+        ? ''
+        : profileWithContactOverlay(actor).shownName.trim();
+    final dismiss = _isPinned ? null : onClearEvent;
+    return AttentionMiniCard(
+      key: ValueKey('personal:${row.senderId}:${receipt.id}'),
+      receipt: receipt,
+      actor: actor,
+      eventLine: _personalLine(l10n, receipt, name),
+      requestTitle: beacon.title,
+      compactAge: true,
+      dismissLabel: name.isEmpty ? null : l10n.attentionCardDismissRow(name),
+      onTap: onEventTap == null ? null : () => onEventTap!(receipt),
+      onDismiss: dismiss == null
+          ? null
+          : () {
+              for (final event in row.receipts) {
+                dismiss(event.id);
+              }
+            },
+    );
+  }
+
+  /// The sender's own words (§ Тексты). Null leaves the mini-card's own
+  /// localized copy for the event.
+  String? _personalLine(L10n l10n, AttentionReceipt receipt, String name) {
+    if (name.isEmpty) return null;
+    final payload = receipt.presentationPayloadJson;
+    final words = excerptFromPresentationPayload(payload) ?? '';
+    return switch (attentionEventTypeOf(payload)) {
+      'roomMessagePosted' when words.isNotEmpty =>
+        l10n.attentionCardMessageToYou(name, words),
+      'needsMe' when words.isNotEmpty => l10n.attentionCardAsksYou(name, words),
+      'promiseMade' when words.isNotEmpty =>
+        l10n.attentionCardPromisesYou(name, words),
+      'offerAccepted' => l10n.attentionCardOfferAccepted(name),
+      'offerDeclined' => l10n.attentionCardOfferDeclined(name),
+      'postFirstResponse' => l10n.attentionCardPostFirstReply(name),
+      'blockerOpened' when words.isNotEmpty =>
+        l10n.attentionCardBlockerOnYourItem(words),
+      _ => null,
+    };
+  }
+
+  /// «↳ ещё вам: Ольга, Иван и ещё 2» — at most two names, then a number
+  /// with no noun after it.
+  String _alsoToYou(L10n l10n, List<PersonalSenderRow> hidden) {
+    final names = [
+      for (final row in hidden)
+        if (actors[row.senderId] case final actor?)
+          profileWithContactOverlay(actor).shownName.trim(),
+    ].where((n) => n.isNotEmpty).toList(growable: false);
+    final shown = names.take(2).join(', ');
+    final rest = hidden.length - names.take(2).length;
+    if (shown.isEmpty) return l10n.attentionCardAlsoToYou('$rest');
+    return rest > 0
+        ? l10n.attentionCardAlsoToYouMore(shown, rest)
+        : l10n.attentionCardAlsoToYou(shown);
+  }
+
+  Widget _zoneLink(
+    TenturaTokens tt, {
+    required Key key,
+    required String label,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: EdgeInsets.only(left: tt.avatarSize + tt.avatarTextGap),
+    child: Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TenturaTextAction(
+        key: key,
+        label: label,
+        flushStart: true,
+        onPressed: onTap,
+      ),
     ),
-    actor: _profileOf(sender.id, sender.displayName, sender.imageId),
-    quotedBody: sender.notePreview,
-    capabilitySlugs: sender.reasonSlugs,
-    onTap: onOpenBeacon,
+  );
+
+  Future<void> _showNotesSheet(
+    BuildContext context,
+    L10n l10n,
+    List<_NoteForward> notes,
+  ) => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      final tt = sheetContext.tt;
+      return SafeArea(
+        child: ListView(
+          key: notesSheetKey,
+          shrinkWrap: true,
+          padding: tt.cardPadding,
+          children: [
+            Text(
+              l10n.attentionCardNotesSheetTitle,
+              style: TenturaText.titleSmall(tt.text),
+            ),
+            for (final note in notes) _noteRow(l10n, note),
+          ],
+        ),
+      );
+    },
+  );
+
+  // ----------------------------------------------------------- change line
+
+  /// The newest general event as one line: glyph, text, age. Items churn
+  /// reads as one «Пункты обновлены» whatever moved.
+  String _changeText(L10n l10n, AttentionReceipt receipt) {
+    final payload = receipt.presentationPayloadJson;
+    final words = excerptFromPresentationPayload(payload) ?? '';
+    final actor = actors[receipt.actorUserId ?? ''];
+    final name = actor == null
+        ? ''
+        : profileWithContactOverlay(actor).shownName.trim();
+    final scoped = requestScopedEventCopy(
+      title: receipt.title,
+      body: receipt.body,
+      presentationKey: receipt.presentationKey,
+      presentationPayloadJson: payload,
+      requestTitle: beacon.title,
+      actorName: name,
+      l10n: l10n,
+    );
+    return switch (attentionEventTypeOf(payload)) {
+      'blockerOpened' when words.isNotEmpty =>
+        l10n.attentionCardChangeBlocker(words),
+      'helpOfferSubmitted' when name.isNotEmpty =>
+        l10n.attentionCardChangeHelpOffered(name),
+      'coordinationChanged' ||
+      'promiseMade' ||
+      'promiseWithdrawn' ||
+      'commitmentAccepted' ||
+      'commitmentResolved' ||
+      'commitmentCancelled' ||
+      'commitmentRedirected' => l10n.attentionCardChangeItemsUpdated,
+      _ => scoped.event,
+    };
+  }
+
+  // ---------------------------------------------------------------- footer
+
+  /// «Ещё N в хронологии ›» (or «Хронология ›») — always the Timeline, never
+  /// an expansion (D-171-5b) — and «✓ Разобрано» at the far end.
+  Widget _footer(
+    BuildContext context,
+    L10n l10n,
+    TenturaTokens tt, {
+    required int hiddenEvents,
+    required bool canClear,
+  }) => Padding(
+    padding: EdgeInsets.only(top: tt.tightGap),
+    child: Row(
+      children: [
+        Expanded(
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TenturaTextAction(
+              key: footerTimelineKey,
+              label: hiddenEvents > 0
+                  ? l10n.attentionCardFooterMore(hiddenEvents)
+                  : l10n.attentionCardFooterTimeline,
+              flushStart: true,
+              onPressed: onOpenTimeline,
+            ),
+          ),
+        ),
+        if (canClear && onClearAll != null) ...[
+          SizedBox(width: tt.rowGap),
+          TenturaTextAction(
+            key: clearAllKey,
+            label: l10n.attentionCardDone,
+            // On a phone the ✓ costs the width «Ещё N в хронологии ›» needs
+            // to stay whole; the word alone carries the action.
+            icon: context.windowClass == WindowClass.compact
+                ? null
+                : Icon(Icons.check, size: tt.iconSize),
+            onPressed: () {
+              final cleared = eventTotal;
+              onClearAll!();
+              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                SnackBar(content: Text(l10n.attentionCardCleared(cleared))),
+              );
+            },
+          ),
+        ],
+      ],
+    ),
   );
 
   /// Provenance is not a receipt — it comes from `inbox_provenance_data` — so
@@ -410,13 +678,6 @@ class RequestAttentionCard extends StatelessWidget {
       contactName: contactNameOf(id),
       image: hasImage ? ImageEntity(id: imageId, authorId: id) : null,
     );
-  }
-
-  /// The mini-card prefers the body only when an actor profile resolved, so
-  /// the excerpt is handed over explicitly.
-  String? _quotedBodyOf(AttentionReceipt receipt) {
-    final body = receipt.body.trim();
-    return body.isEmpty || body == receipt.title.trim() ? null : body;
   }
 
   /// §7.3 — note-less forwards fold into one line with overlapping avatars.
@@ -544,16 +805,156 @@ class RequestAttentionCard extends StatelessWidget {
   ];
 
   /// §11 — the whole sentence, so no state is carried by a chip alone.
-  String _semanticsLabel(L10n l10n) {
+  String _semanticsLabel(L10n l10n, RequestCardZones zones) {
     final events = facts.unclearedOptionalEvents + facts.unclearedOutcomes;
+    final personal = zones.personalRows.fold(
+      0,
+      (sum, row) => sum + row.receipts.length,
+    );
     return [
       l10n.attentionCardA11yRequest(beacon.title, beacon.author.shownName),
       if (events > 0) l10n.attentionCardA11yEvents(events),
+      if (personal > 0) l10n.attentionCardA11yPersonal(personal),
       switch (relation) {
         RequestAttentionRelation.helping => l10n.attentionRelationHelping,
         RequestAttentionRelation.following => l10n.inboxWatching,
         RequestAttentionRelation.none => null,
       },
     ].nonNulls.join(', ');
+  }
+}
+
+/// A note-bearing forward, from provenance (not a receipt).
+class _NoteForward {
+  const _NoteForward({
+    required this.id,
+    required this.senderId,
+    required this.displayName,
+    required this.imageId,
+    required this.note,
+    required this.reasonSlugs,
+    this.at,
+  });
+
+  final String id;
+  final String senderId;
+  final String displayName;
+  final String? imageId;
+  final String note;
+  final List<String> reasonSlugs;
+  final DateTime? at;
+}
+
+/// The «вам» zone: what people sent you personally, behind an accent rule so
+/// it reads as one block apart from the change line under it.
+class _ForYouZone extends StatelessWidget {
+  const _ForYouZone({required this.children, super.key});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: tt.attentionHighlight,
+            width: TenturaSpacing.tight,
+          ),
+        ),
+      ),
+      padding: EdgeInsets.only(left: tt.iconTextGap),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+}
+
+/// E19's other state: «@», there is something addressed to you on this card.
+class _ForYouIndicator extends StatelessWidget {
+  const _ForYouIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Semantics(
+      key: RequestAttentionCard.forYouIndicatorKey,
+      label: L10n.of(context)!.attentionCardForYouIndicator,
+      container: true,
+      excludeSemantics: true,
+      child: Text(
+        '@',
+        style: TenturaText.titleSmall(tt.attentionHighlight),
+      ),
+    );
+  }
+}
+
+/// The card's one change line: glyph, text, age. No ×, no avatar, no count.
+class _ChangeLine extends StatelessWidget {
+  const _ChangeLine({
+    required this.receipt,
+    required this.text,
+    this.onTap,
+    super.key,
+  });
+
+  final AttentionReceipt receipt;
+  final String text;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final l10n = L10n.of(context)!;
+    final now = DateTime.now();
+    final age = cardRelativeAge(when: receipt.createdAt, now: now, l10n: l10n);
+    final spoken = cardRelativeAgeSpoken(
+      when: receipt.createdAt,
+      now: now,
+      l10n: l10n,
+    );
+    final style = TenturaText.bodySmall(tt.textMuted);
+    return Semantics(
+      button: onTap != null,
+      label: '$text · $spoken',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinInteractiveDimension,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: tt.avatarSize,
+                child: Icon(
+                  updatesFeedGlyphFor(receipt, tt).icon,
+                  size: tt.iconSize,
+                  color: tt.textMuted,
+                ),
+              ),
+              SizedBox(width: tt.avatarTextGap),
+              Expanded(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+              ),
+              SizedBox(width: tt.iconTextGap),
+              Text(age, maxLines: 1, style: TenturaText.withTabular(style)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

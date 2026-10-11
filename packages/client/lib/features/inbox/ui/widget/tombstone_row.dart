@@ -59,7 +59,9 @@ class TombstoneRow extends StatelessWidget {
     final from = name.isEmpty ? null : l10n.constellationPreviewAuthorLine(name);
     final sentence = activityForwardOutcomeLabel(l10n, receipt.forwardOutcome);
     final localCreatedAt = receipt.createdAt.toLocal();
-    final age = compactRelativeTimeAgo(
+    // #189: the card's short age, so a tombstone and the card beside it
+    // read the same way.
+    final age = cardRelativeAge(
       when: receipt.createdAt,
       now: DateTime.now(),
       l10n: l10n,

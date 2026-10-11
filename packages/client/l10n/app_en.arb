@@ -7838,5 +7838,252 @@
     "context": "Snackbar when a pin or move has not been acknowledged by the server for 15 seconds"
   },
   "graphTrustNotSaved": "Trust change not saved",
-  "graphTrustRetry": "Retry"
+  "graphTrustRetry": "Retry",
+  "relativeTimeCompactNow": "now",
+  "@relativeTimeCompactNow": {
+    "context": "For You Request card (#189)"
+  },
+  "relativeTimeCompactMinutes": "{n}m",
+  "@relativeTimeCompactMinutes": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeCompactHours": "{n}h",
+  "@relativeTimeCompactHours": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeCompactDays": "{n}d",
+  "@relativeTimeCompactDays": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeSpokenNow": "just now",
+  "@relativeTimeSpokenNow": {
+    "context": "For You Request card (#189)"
+  },
+  "relativeTimeSpokenMinutes": "{count, plural, =1{1 minute ago} other{{count} minutes ago}}",
+  "@relativeTimeSpokenMinutes": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeSpokenHours": "{count, plural, =1{1 hour ago} other{{count} hours ago}}",
+  "@relativeTimeSpokenHours": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeSpokenDays": "{count, plural, =1{1 day ago} other{{count} days ago}}",
+  "@relativeTimeSpokenDays": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionCardForwardedByAuthor": "Forwarded by {name} (author)",
+  "@attentionCardForwardedByAuthor": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardMessageToYou": "{name}: {text}",
+  "@attentionCardMessageToYou": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardAsksYou": "{name} asks you: {item}",
+  "@attentionCardAsksYou": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardPromisesYou": "{name} promises you: {item}",
+  "@attentionCardPromisesYou": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardOfferAccepted": "Your help was accepted · {name}",
+  "@attentionCardOfferAccepted": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardOfferDeclined": "Help not needed · {name}",
+  "@attentionCardOfferDeclined": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardPostFirstReply": "First reply to your post · {name}",
+  "@attentionCardPostFirstReply": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardBlockerOnYourItem": "Blocker on your item: {title}",
+  "@attentionCardBlockerOnYourItem": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardAlsoToYou": "↳ also to you: {names}",
+  "@attentionCardAlsoToYou": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardAlsoToYouMore": "↳ also to you: {names} and {count} more",
+  "@attentionCardAlsoToYouMore": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionCardChangeBlocker": "Blocker: {title}",
+  "@attentionCardChangeBlocker": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardChangeHelpOffered": "Help offered · {name}",
+  "@attentionCardChangeHelpOffered": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardChangeItemsUpdated": "Items updated",
+  "@attentionCardChangeItemsUpdated": {
+    "context": "For You Request card (#189)"
+  },
+  "attentionCardFooterMore": "{count} more in Timeline ›",
+  "@attentionCardFooterMore": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionCardFooterTimeline": "Timeline ›",
+  "@attentionCardFooterTimeline": {
+    "context": "For You Request card (#189)"
+  },
+  "attentionCardDone": "Done",
+  "@attentionCardDone": {
+    "context": "For You Request card (#189)"
+  },
+  "attentionCardCleared": "{count, plural, =1{1 update cleared} other{{count} updates cleared}}",
+  "@attentionCardCleared": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionCardForYouIndicator": "something for you",
+  "@attentionCardForYouIndicator": {
+    "context": "For You Request card (#189)"
+  },
+  "attentionCardA11yPersonal": "{count} for you",
+  "@attentionCardA11yPersonal": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionCardMoreNotes": "{count, plural, =1{1 more note ›} other{{count} more notes ›}}",
+  "@attentionCardMoreNotes": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionCardNotesSheetTitle": "Notes from forwards",
+  "@attentionCardNotesSheetTitle": {
+    "context": "For You Request card (#189)"
+  },
+  "attentionCardDismissRow": "Dismiss: {name}",
+  "@attentionCardDismissRow": {
+    "context": "For You Request card (#189)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

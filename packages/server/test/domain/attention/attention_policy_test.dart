@@ -17,6 +17,93 @@ void main() {
           as Map<String, Object?>;
   final rows = (contract['eventTypes']! as List).cast<Map<String, Object?>>();
 
+  group('#189 personal flag', () {
+    Map<String, Object?> payloadFor(
+      AttentionEventType eventType,
+      Set<AttentionRecipientReason> reasons, {
+      String? actor = 'actor',
+    }) => policy
+        .project(
+          eventType: eventType,
+          recipientId: 'recipient',
+          recipientReasons: reasons,
+          role: AttentionRecipientRoleFacts(
+            canReadBeaconContent: true,
+            beaconId: 'B1',
+            actorUserId: actor,
+            messageId: 'M1',
+            targetEntityId: 'T1',
+            coordinationItemId: 'C1',
+          ),
+        )
+        .presentationPayload;
+
+    test('a message addressed to you is personal', () {
+      expect(
+        payloadFor(
+          AttentionEventType.roomMessagePosted,
+          {AttentionRecipientReason.directedChatTarget},
+        )['personal'],
+        isTrue,
+      );
+    });
+
+    test('a blocker is personal by why you got it, not by its type', () {
+      expect(
+        payloadFor(
+          AttentionEventType.blockerOpened,
+          {AttentionRecipientReason.affectedParticipant},
+        )['personal'],
+        isTrue,
+      );
+      expect(
+        payloadFor(
+          AttentionEventType.blockerOpened,
+          {AttentionRecipientReason.admittedRoomMember},
+        )['personal'],
+        isFalse,
+      );
+    });
+
+    test('a status change is never personal', () {
+      expect(
+        payloadFor(
+          AttentionEventType.requestStatusChanged,
+          {AttentionRecipientReason.affectedParticipant},
+        )['personal'],
+        isFalse,
+      );
+    });
+
+    test('no actor, or yourself as the actor, is never personal', () {
+      expect(
+        payloadFor(
+          AttentionEventType.needsMe,
+          {AttentionRecipientReason.targetOfAsk},
+          actor: null,
+        )['personal'],
+        isFalse,
+      );
+      expect(
+        payloadFor(
+          AttentionEventType.needsMe,
+          {AttentionRecipientReason.targetOfAsk},
+          actor: 'recipient',
+        )['personal'],
+        isFalse,
+      );
+    });
+
+    test('own-duty reminders map to their presentation keys', () {
+      expect(AttentionPolicy.ownDutyReminderPresentationKeys, {
+        'stale_reminder',
+        'request_stale',
+        'closure_draft_reminder',
+        'deadline_reminder',
+      });
+    });
+  });
+
   group('compact contract projection policy', () {
     for (final row in rows) {
       final eventName = row['eventType']! as String;
@@ -49,6 +136,7 @@ void main() {
           everyElement(
             isIn({
               'eventType',
+              'personal',
               'actorUserId',
               'beaconId',
               'coordinationItemId',

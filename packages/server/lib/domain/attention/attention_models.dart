@@ -19,7 +19,7 @@ enum AttentionEventCatalogStatus {
 abstract final class AttentionEventTypeCatalog {
   AttentionEventTypeCatalog._();
 
-  static const int contractSchemaVersion = 5;
+  static const int contractSchemaVersion = 6;
 
   static void assertDeclared(AttentionEventType eventType) {
     switch (eventType) {
@@ -259,6 +259,14 @@ AttentionItemKind attentionItemKindFromWireName(String value) =>
 /// Newest-first preview size embedded on grouped Activity rows (regular/expanded
 /// visible cap). Compact UI shows the first of these.
 const kActivityEventPreviewCap = 3;
+
+/// #189 rev 2 — how many *personal* events a For You card preview carries.
+///
+/// The card groups them per sender into its «вам» zone and names the senders
+/// it has no room for, so it needs every uncleared personal event rather
+/// than the newest three overall — which let one chatty sender push a status
+/// change, or a second sender, out of sight.
+const kActivityPersonalPreviewCap = 20;
 
 enum AttentionSettlementKind {
   resolved,

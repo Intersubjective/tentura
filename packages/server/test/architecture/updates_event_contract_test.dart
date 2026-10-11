@@ -34,6 +34,10 @@ const _mandatoryCardContractKeys = {
   'selfAuthored',
   'headlineTreatment',
   'coalescible',
+  // #189 rev 2 (schema 6): the For You card's zones.
+  'personal',
+  'stateLike',
+  'ownDutyReminder',
 };
 
 const _headlineTreatments = {'beacon', 'user', 'system'};
@@ -256,7 +260,7 @@ const _expectedEventTypes = <Map<String, String>>[
 ];
 
 void main() {
-  test('Updates contract has the exact revision 5 semantic coverage', () {
+  test('Updates contract has the exact revision 6 semantic coverage', () {
     final contractFile = _contractFile();
     final contract = Map<String, dynamic>.from(
       jsonDecode(contractFile.readAsStringSync()) as Map,
@@ -410,6 +414,8 @@ void main() {
               '$eventType: AttentionPolicy.placement disagrees with the '
               'contract',
         );
+
+        _expectCardZonesAgreeWithPolicy(eventType, variant);
       }
     }
 
@@ -440,6 +446,74 @@ void _collectUnverified(
     } else if (value is List && value.contains('unverified')) {
       gaps.add('$prefix.$key');
     }
+  }
+}
+
+/// #189 rev 2 — `personal`, `stateLike` and `ownDutyReminder` are written
+/// by [AttentionPolicy] onto every receipt or read by the For You projection,
+/// so the declaration and the code must be one decision.
+///
+/// `personal: true` means: a recipient who holds one of this variant's
+/// [AttentionPolicy.personalRecipientReasons] gets a personal receipt (when a
+/// person other than them acted); its other reasons do not make it personal.
+void _expectCardZonesAgreeWithPolicy(
+  String eventType,
+  Map<String, dynamic> variant,
+) {
+  const policy = AttentionPolicy();
+  final type = AttentionEventType.values.byName(eventType);
+  for (final key in const ['personal', 'stateLike', 'ownDutyReminder']) {
+    expect(variant[key], isA<bool>(), reason: '$eventType $key must be a bool');
+  }
+  expect(
+    policy.isStateLike(type),
+    variant['stateLike'],
+    reason: '$eventType: AttentionPolicy.isStateLike disagrees',
+  );
+  expect(
+    policy.isOwnDutyReminder(type),
+    variant['ownDutyReminder'],
+    reason: '$eventType: AttentionPolicy.isOwnDutyReminder disagrees',
+  );
+  if (variant['ownDutyReminder'] == true || variant['stateLike'] == true) {
+    expect(
+      variant['personal'],
+      isFalse,
+      reason: '$eventType: reminders and state changes are never personal',
+    );
+  }
+  final predicate = (variant['recipientPredicate']! as String)
+      .replaceFirst('reason:', '')
+      .split('|');
+  // Predicate names outside the runtime enum (`closureMember`, `inviter`
+  // spelled as a category, `unverified`) are documentation, not reasons the
+  // policy can be asked about.
+  final runtimeNames = AttentionRecipientReason.values.map((r) => r.name);
+  for (final name in predicate) {
+    if (!runtimeNames.contains(name)) continue;
+    final reason = AttentionRecipientReason.values.byName(name);
+    final expected =
+        variant['personal'] == true &&
+        AttentionPolicy.personalRecipientReasons.contains(reason);
+    expect(
+      policy.isPersonal(
+        eventType: type,
+        recipientId: 'recipient',
+        recipientReasons: {reason},
+        actorUserId: 'actor',
+      ),
+      expected,
+      reason: '$eventType $name: AttentionPolicy.isPersonal disagrees',
+    );
+  }
+  if (variant['personal'] == true) {
+    expect(
+      predicate
+          .where(runtimeNames.contains)
+          .map(AttentionRecipientReason.values.byName),
+      contains(isIn(AttentionPolicy.personalRecipientReasons)),
+      reason: '$eventType: a personal variant names a personal reason',
+    );
   }
 }
 

@@ -1,3 +1,5 @@
+import 'package:tentura_server/domain/attention/attention_policy.dart';
+
 /// U09a step 2 — the one definition of "rows that carry their own ×".
 ///
 /// Owner decision A is a safety property, not a convenience: *Dismiss all*
@@ -14,6 +16,28 @@
 ///
 /// Every fragment takes the viewer's account id as `$1`.
 abstract final class AttentionDismissibleSql {
+  /// #189 — For You carries only what can be skipped (owner rule). A reminder
+  /// about the viewer's *own* duty is not skippable, so it never speaks on
+  /// For You: not as a card row, not in a card's count, not in the tab's dot
+  /// and not in its sweep. It stays in the Request's Timeline and History,
+  /// and on My Work for a Request the viewer is responsible for. The key list
+  /// is composed from [AttentionPolicy.isOwnDutyReminder], so it cannot drift
+  /// from the contract's `ownDutyReminder`.
+  static String forYouEligible(String alias) =>
+      '($alias.presentation_key IS NULL OR $alias.presentation_key <> ALL '
+      '(ARRAY[$_ownDutyReminderKeys]::text[]))';
+
+  static final String _ownDutyReminderKeys =
+      (AttentionPolicy.ownDutyReminderPresentationKeys.toList()..sort())
+          .map((key) => "'$key'")
+          .join(', ');
+
+  /// #189 — the receipt's `personal` flag (AttentionPolicy.isPersonal), as a
+  /// SQL boolean. Rows written before the flag existed were backfilled by
+  /// m0237; anything still without it reads as not personal.
+  static String isPersonal(String alias) =>
+      "COALESCE(($alias.presentation_payload ->> 'personal')::boolean, false)";
+
   /// Visibility, responsibility scope and surface — the one definition.
   ///
   /// U09a kept a deliberate copy of this in `AttentionRepository`, on the
@@ -177,6 +201,7 @@ activity_optional_dismissible AS (
   WHERE v.surface = 'activity'
     AND ${activeOptional('v')}
     AND ${relayShellExcluded('v')}
+    AND ${forYouEligible('v')}
 )''';
 
   /// §6 `my desk.dot` — "any owned Request has a dot", where

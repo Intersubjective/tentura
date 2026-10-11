@@ -24,7 +24,6 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.dart';
@@ -697,17 +696,16 @@ void main() {
     // Watching collection; the primary stream does not draw it. Pinned in
     // `for_you_stream_entries_test.dart`, both halves together.
     expect(find.byType(ActivityWatchingDigestRow), findsNothing);
-    // CHANGES IN U16b: D-171-5b / spec §6.2 — the event block now lives
-    // *inside* the card under `timeline`, never beside a tile under
-    // `paginate`. One block, and it is the card's.
-    expect(find.byType(ActivityEventSubcardBlock), findsOneWidget);
+    // CHANGES IN #189 rev 2: the card draws its events as zones — a «вам»
+    // row per sender and one change line — with the footer opening the
+    // Timeline (D-171-5b). A general child is the change line.
     expect(
-      tester
-          .widget<ActivityEventSubcardBlock>(
-            find.byType(ActivityEventSubcardBlock),
-          )
-          .overflowPolicy,
-      AttentionBlockOverflowPolicy.timeline,
+      find.byKey(RequestAttentionCard.changeLineKey),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(RequestAttentionCard.footerTimelineKey),
+      findsOneWidget,
     );
   });
 
