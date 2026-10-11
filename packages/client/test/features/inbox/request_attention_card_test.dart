@@ -735,14 +735,12 @@ void main() {
     final now = DateTime.now().toUtc();
     final olgaOld = _event(
       id: 'm1',
-      actorUserId: 'u3',
       personal: true,
       excerpt: 'Доски привезу к 10',
       createdAt: now.subtract(const Duration(hours: 3)),
     );
     final olgaNew = _event(
       id: 'm2',
-      actorUserId: 'u3',
       personal: true,
       excerpt: 'А ворота кто откроет?',
       createdAt: now.subtract(const Duration(hours: 2)),
