@@ -6,6 +6,8 @@ import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -83,6 +85,15 @@ final class AdmissionOperation {
     // (a) The helper's confirmation: an active offer and its `offered` event.
     final active = await _helpOfferRepository.fetchByBeaconId(beaconId);
     if (!active.any((o) => o.userId == helperId)) {
+      // Only the helper's own act (an invite accept) may create the offer; an
+      // ordinary accept whose offer was withdrawn must not open a helper-scoped
+      // unit inside the author's transaction.
+      if (actorId != helperId) {
+        throw HelpOfferCoordinationException(
+          coordinationCode:
+              HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+        );
+      }
       await _helpOfferRepository.upsert(
         beaconId: beaconId,
         userId: helperId,

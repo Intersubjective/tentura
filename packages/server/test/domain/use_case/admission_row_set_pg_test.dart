@@ -29,6 +29,8 @@ import 'package:tentura_server/data/repository/user_availability_repository.dart
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
@@ -190,6 +192,30 @@ Future<void> main() async {
       },
     );
 
+    /// The ordinary accept: the author is the mutating actor, no invite.
+    Future<void> admitAsAuthorWithoutInvite() =>
+        harness.attention.runAction<void>(
+          actorUserId: _authorId,
+          action: (transaction) async {
+            final beacon = await harness.beacons.getBeaconById(
+              beaconId: _beaconId,
+            );
+            await harness.admission.admitWithConfirmations(
+              beacon: beacon,
+              helperId: _helperId,
+              confirmingAuthorId: _authorId,
+              actorId: _authorId,
+              transaction: transaction,
+              attention: () => harness.attentionIntents.offerAccepted(
+                receiverId: _helperId,
+                beaconId: _beaconId,
+                actorUserId: _authorId,
+                sourceEventKey: 'admission:test',
+              ),
+            );
+          },
+        );
+
     test('offer then author accept writes the admission row set', () async {
       await offer();
       await harness.coordinationCase.acceptHelpOffer(
@@ -237,6 +263,60 @@ VALUES ('$_beaconId', '$_stewardId')
         await admitAsHelper();
 
         expect(await rowSet(), _expectedRowSet(_authorId));
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'an ordinary admission without an active offer is rejected as an '
+      'inactive offer and writes nothing',
+      () async {
+        final before = await rowSet();
+
+        await expectLater(
+          admitAsAuthorWithoutInvite(),
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              HelpOfferCoordinationExceptionCodes(
+                HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+              ).codeNumber,
+            ),
+          ),
+        );
+
+        expect(await rowSet(), before);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'an ordinary admission after the helper withdrew is rejected as an '
+      'inactive offer and does not revive the offer',
+      () async {
+        await offer();
+        await harness.helpOfferCase.withdraw(
+          beaconId: _beaconId,
+          userId: _helperId,
+          withdrawReason: 'cannot_do_it',
+        );
+        final before = await rowSet();
+
+        await expectLater(
+          admitAsAuthorWithoutInvite(),
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              HelpOfferCoordinationExceptionCodes(
+                HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+              ).codeNumber,
+            ),
+          ),
+        );
+
+        expect(await rowSet(), before);
       },
       skip: skipReason,
     );
