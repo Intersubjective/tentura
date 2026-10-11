@@ -111,9 +111,23 @@ void main() {
     }
 
     test('derives admission capacity from a pinned multi-lane pool', () {
-      final env = _env(pinned: true, connections: 3);
-      expect(env.pgPoolSettings.maxConnectionCount, 3);
-      expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 3);
+      final env = _env(pinned: true, connections: 2);
+      expect(env.pgPoolSettings.maxConnectionCount, 2);
+      expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 2);
+    });
+
+    test('a large pool does not lift admission past its own cap', () {
+      final env = _env(pinned: true, connections: 20);
+      expect(env.constellationDbMaxConcurrent, 2);
+      expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 2);
+      final raised = Env(
+        environment: Environment.test,
+        printEnv: false,
+        driftTransactionPinnedPoolEnabled: true,
+        maxConnectionCount: 20,
+        constellationDbMaxConcurrent: 3,
+      );
+      expect(ConstellationDbSchedulerConfig.fromEnv(raised).maxConcurrent, 3);
     });
   });
 }

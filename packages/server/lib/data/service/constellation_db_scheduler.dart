@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:math';
 
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -21,7 +22,10 @@ class ConstellationDbSchedulerConfig {
 
   factory ConstellationDbSchedulerConfig.fromEnv(Env env) =>
       ConstellationDbSchedulerConfig(
-        maxConcurrent: env.pgPoolSettings.maxConnectionCount!,
+        maxConcurrent: min(
+          env.pgPoolSettings.maxConnectionCount!,
+          env.constellationDbMaxConcurrent,
+        ),
         reservedRefreshShare: env.constellationDbRefreshShare,
       );
 
@@ -73,8 +77,11 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
     }
     final waiter = _Waiter(kind, _now());
     final result = Completer<T>();
+    // Admission happens from whichever body finished last; the body itself
+    // must run in its caller's zone (Sentry scope, transaction and actor keys).
+    final zone = Zone.current;
     waiter
-      ..start = (() => _execute(waiter, body, result))
+      ..start = (() => zone.run(() => _execute(waiter, body, result)))
       ..timer = Timer(config.queueDeadline, () {
         if ((waiter.isWrite ? _writes : _refreshes).remove(waiter)) {
           result.completeError(_retryLater());

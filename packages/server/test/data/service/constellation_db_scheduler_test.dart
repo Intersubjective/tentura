@@ -123,6 +123,32 @@ void main() {
     });
   });
 
+  group('ConstellationDbScheduler zones', () {
+    test('each body runs in the zone of its own caller', () async {
+      final scheduler = _scheduler();
+      final key = Object();
+      final release = Completer<void>();
+      final seen = <String?>[];
+      final first = runZoned(
+        () => scheduler.run(ConstellationDbWorkKind.apply, () async {
+          seen.add(Zone.current[key] as String?);
+          await release.future;
+        }),
+        zoneValues: {key: 'first'},
+      );
+      final second = runZoned(
+        () => scheduler.run(ConstellationDbWorkKind.apply, () async {
+          seen.add(Zone.current[key] as String?);
+        }),
+        zoneValues: {key: 'second'},
+      );
+      await Future<void>.delayed(Duration.zero);
+      release.complete();
+      await Future.wait([first, second]);
+      expect(seen, ['first', 'second']);
+    });
+  });
+
   group('ConstellationDbScheduler over the limit', () {
     // maxQueued bounds WAITING items only; work already running does not
     // count against it (one running + maxQueued waiting are all accepted).

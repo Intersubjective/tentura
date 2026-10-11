@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
@@ -143,6 +144,7 @@ class Env {
     bool? realtimeActorEchoEnabled,
     Duration? constellationFieldBroadcastWindow,
     double? constellationDbRefreshShare,
+    int? constellationDbMaxConcurrent,
     bool? attentionV1ShadowEnabled,
     bool? driftTransactionPinnedPoolEnabled,
     String? minClientVersion,
@@ -373,6 +375,12 @@ class Env {
            constellationDbRefreshShare ??
            double.tryParse(_env['CONSTELLATION_DB_REFRESH_SHARE'] ?? '') ??
            0.3,
+       constellationDbMaxConcurrent = max(
+         1,
+         constellationDbMaxConcurrent ??
+             int.tryParse(_env['CONSTELLATION_DB_MAX_CONCURRENT'] ?? '') ??
+             2,
+       ),
        constellationFieldBroadcastWindow =
            constellationFieldBroadcastWindow ??
            Duration(
@@ -741,6 +749,11 @@ class Env {
 
   /// Coalescing interval for payload-free global constellation field hints.
   final Duration constellationFieldBroadcastWindow;
+
+  /// Upper bound on constellation DB jobs (field reads, anchor applies) one
+  /// isolate runs at once. Admission also never exceeds the pool's effective
+  /// lanes; this cap keeps a large pool from silently lifting the gate.
+  final int constellationDbMaxConcurrent;
 
   /// Share of constellation DB admissions reserved for refresh (ANCHORS/FULL)
   /// work while interactive writes are waiting.
