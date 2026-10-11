@@ -139,8 +139,10 @@ queries only). Named to avoid the existing `invitation` table.
 ### 2.6 Bud command record
 
 One idempotency table: the existing `beacon_child_commands` (PK `(actor_user_id, client_command_id)`)
-gains `bud_input_hash` (full normalised input: content, invitees + notes, `isDiscoverable`,
-`closePost`), `bud_result jsonb` (child id, per-invitee outcome) and `anchor_inherited_at`. Replay
+gains `bud_result jsonb` (child id, per-invitee outcome) and `anchor_inherited_at`. The hash of the
+full normalised bud input (content, invitees + notes, `isDiscoverable`, `closePost`) goes into the
+existing `normalized_input_hash` with a `bud:` prefix, so a `clientCommandId` reused across endpoints
+conflicts. The already-promoted outcome also stores a `bud_result`. Replay
 runs right after the global lock and **before** any parent assert, so it also works after
 `closePost`.
 
@@ -265,6 +267,31 @@ active offer) delegates to the same operation. One code path, two entry points.
   **terminal** (`{1, 2, 6}`), pending invites → `expired`, their delivery edges' contacts are resolved
   without noisy evidence and their receipts are cleared, in the same transaction. Review (5) does not
   expire invites (it can reopen); accept is refused while in review.
+- **Block cleanup:** pending invites between the pair → `withdrawn`.
+
+### 5.5 Two-confirmation rule elsewhere (#283)
+
+`BeaconRoomCase.admit` is removed (no client caller; plan A3). Direct author forwards unchanged.
+
+### 5.6 Attention catalog
+
+New `AttentionEventType`s `authorInviteReceived`, `authorInviteAccepted`, `authorInviteDeclined`
+(author-side optional update, no push); accept/decline/withdraw/supersede/expiry/block cleanup
+clear the invitee's receipt via `AttentionSystemSettlementPort.clearAuthorInviteReceived`, declared in `AttentionEventTypeCatalog.assertDeclared`
+(`attention_models.dart:18`), policy switches, `NotificationKind`, the updates contract
+(`docs/contracts/updates-event-contract.json`) and the client classification.
+
+## 6. Noisy-contact interaction
+
+| Invite | Deadline | Ignore | Decline | Accept |
+|---|---|---|---|---|
+| Warm | set | **exempt** from the sweep | declined, no evidence | engaged |
+| Cold | set | noisy evidence written (published only if the wall is enabled) | declined, no evidence | engaged |
+| Expired (child terminal) | — | resolved, no evidence | — | — |
+
+## 7. Route credit across the Post (D4)
+
+Per-helper provenance, anchored to the accepted invite:
 - **Approval credit:** for a helper admitted via an invite, the arrival edge is
   `arrival_post_edge_id`; credit to its sender unless it is the Request author or the helper
   (existing skip rules). NULL arrival (Post author, or arrival lost) → no approval credit.
