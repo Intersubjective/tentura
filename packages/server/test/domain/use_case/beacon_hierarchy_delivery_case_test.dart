@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.d
 import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_delivery_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
@@ -83,6 +84,10 @@ final class _InMemoryDeliveryOutbox implements BeaconHierarchyOutboxPort {
     String targetBeaconId,
   ) async =>
       destinationStatus[targetBeaconId];
+
+  @override
+  Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId) async =>
+      destinationStatus.containsKey(targetBeaconId) ? BeaconKind.request : null;
 
   @override
   Future<String> insertHierarchyLifecycleNotice({

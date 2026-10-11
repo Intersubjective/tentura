@@ -444,6 +444,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     Set<String>? needs,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool isDiscoverable = true,
     required bool draft,
   }) async {
     final author = UserEntity(id: authorId, displayName: authorId);
@@ -468,6 +469,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       needs: needs ?? const {},
       primaryNeedSlug: primaryNeedSlug,
       addressLabel: addressLabel,
+      isDiscoverable: isDiscoverable,
     );
     storageById[entity.id] = entity;
     return entity;

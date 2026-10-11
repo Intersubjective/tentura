@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_delivery_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_outbox_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -259,6 +260,24 @@ WHERE id = $1
       return null;
     }
     return BeaconStatus.fromSmallint(rows.single.read<int>('status'));
+  }
+
+  @override
+  Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT kind
+FROM public.beacon
+WHERE id = $1
+''',
+          variables: [Variable<String>(targetBeaconId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return BeaconKind.fromValue(rows.single.read<int>('kind'));
   }
 
   @override

@@ -225,6 +225,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     Set<String>? needs,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable = true,
     required bool? draft,
   }) =>
       (super.noSuchMethod(
@@ -242,6 +243,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #needs: needs,
               #primaryNeedSlug: primaryNeedSlug,
               #addressLabel: addressLabel,
+              #isDiscoverable: isDiscoverable,
               #draft: draft,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
@@ -261,6 +263,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #needs: needs,
                   #primaryNeedSlug: primaryNeedSlug,
                   #addressLabel: addressLabel,
+                  #isDiscoverable: isDiscoverable,
                   #draft: draft,
                 }),
               ),

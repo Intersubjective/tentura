@@ -334,6 +334,7 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     Set<String>? needs,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool isDiscoverable = true,
     required bool draft,
   }) => _database.withMutatingUser(authorId, () async {
     final effectiveStatus = draft ? BeaconStatus.draft : BeaconStatus.open;
@@ -357,6 +358,7 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         primaryNeedSlug: Value(primaryNeedSlug),
         status: Value(effectiveStatus.smallintValue),
         addressLabel: Value(addressLabel),
+        isDiscoverable: Value(isDiscoverable),
       ),
     );
 

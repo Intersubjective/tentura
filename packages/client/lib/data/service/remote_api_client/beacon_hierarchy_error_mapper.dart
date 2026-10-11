@@ -25,5 +25,11 @@ void throwIfBeaconHierarchyError(int? code, Map<String, dynamic>? extensions) {
       throw const CoordinationKindDisabledException();
     case BeaconHierarchyCursorInvalidException.codeNumber:
       throw const BeaconHierarchyCursorInvalidException();
+    case PostChildRequiresBudException.codeNumber:
+      throw const PostChildRequiresBudException();
+    case BudSourceNotOwnMessageException.codeNumber:
+      throw const BudSourceNotOwnMessageException();
+    case PostNotOpenException.codeNumber:
+      throw const PostNotOpenException();
   }
 }

@@ -2,6 +2,8 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.d
 import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
+
 /// Durable hierarchy lifecycle outbox writes and worker claims.
 abstract class BeaconHierarchyOutboxPort {
   Future<BeaconHierarchyEvent> recordEvent({
@@ -27,6 +29,9 @@ abstract class BeaconHierarchyOutboxPort {
   Future<BeaconHierarchyEvent?> loadEvent(String eventId);
 
   Future<BeaconStatus?> loadDestinationBeaconStatus(String targetBeaconId);
+
+  /// Null when the beacon row is gone.
+  Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId);
 
   Future<String> insertHierarchyLifecycleNotice({
     required String eventId,

@@ -65,6 +65,7 @@ abstract class BeaconRepositoryPort {
     Set<String>? needs,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool isDiscoverable = true,
     required bool draft,
   });
 

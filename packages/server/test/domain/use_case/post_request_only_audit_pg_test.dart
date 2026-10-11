@@ -48,6 +48,7 @@ import 'package:tentura_server/domain/entity/constellation_anchor_projection.dar
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
@@ -322,6 +323,7 @@ GROUP BY beacon_id
       });
 
       test('createChild with a Post as the parent', () async {
+        // Only budding (createChildUnderPost) creates a child under a Post.
         await expectLater(
           harness.children.createChild(
             actorUserId: _author,
@@ -331,7 +333,7 @@ GROUP BY beacon_id
             description: 'Cannot hang a Request under a Post',
             draft: false,
           ),
-          throwsBeaconNotRequest,
+          throwsA(isA<PostChildRequiresBudException>()),
         );
       });
 

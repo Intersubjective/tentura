@@ -1,6 +1,7 @@
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/post_parent_stage.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
 
@@ -28,6 +29,28 @@ class FakeBeaconChildCreatePort implements BeaconChildCreatePort {
     required bool draft,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<BeaconChildCreateResult> createChildUnderPost({
+    required String actorUserId,
+    required String postId,
+    required String sourceMessageId,
+    required String clientCommandId,
+    required String title,
+    String? description,
+    String? context,
+    String? tags,
+    String? needs,
+    String? primaryNeedSlug,
+    bool primaryNeedSlugProvided = false,
+    DateTime? endAt,
+    DateTime? startAt,
+    Coordinates? coordinates,
+    String? addressLabel,
+    bool isDiscoverable = false,
+    Map<String, Object?> budInput = const {},
+    PostParentStage? stage,
+  }) => throw UnimplementedError();
 
   @override
   Future<BeaconEntity> publishDraft({

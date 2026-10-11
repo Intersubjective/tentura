@@ -91,3 +91,24 @@ final class BeaconHierarchyCursorInvalidException
 
   static const codeNumber = 1317;
 }
+
+/// A Request under a Post is created only by budding.
+final class PostChildRequiresBudException extends BeaconHierarchyException {
+  const PostChildRequiresBudException([super.message]);
+
+  static const codeNumber = 1330;
+}
+
+/// A Request can be budded only from the budder's own message.
+final class BudSourceNotOwnMessageException extends BeaconHierarchyException {
+  const BudSourceNotOwnMessageException([super.message]);
+
+  static const codeNumber = 1331;
+}
+
+/// The Post is not open (draft, closed or deleted).
+final class PostNotOpenException extends BeaconHierarchyException {
+  const PostNotOpenException([super.message]);
+
+  static const codeNumber = 1332;
+}

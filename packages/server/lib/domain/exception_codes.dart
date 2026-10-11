@@ -102,6 +102,9 @@ enum BeaconExceptionCode {
   batonAlreadyActive, // 1327
   batonTakerNotAvailable, // 1328
   batonMessageNotEligible, // 1329
+  postChildRequiresBud, // 1330
+  budSourceNotOwnMessage, // 1331
+  postNotOpen, // 1332
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

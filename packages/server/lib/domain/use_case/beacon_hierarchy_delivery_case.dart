@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_hierarchy_delivery_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_notice_copy.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_outbox_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -161,19 +162,27 @@ final class BeaconHierarchyDeliveryCase extends UseCaseBase {
           sourceDeleted: sourceDeleted,
         );
 
-        final occurrenceKey = 'hierarchy:${target.eventId}:${target.targetBeaconId}';
-        final intent = await _intents.beaconHierarchyStatusChanged(
-          destinationBeaconId: target.targetBeaconId,
-          messageId: noticeMessageId,
-          direction: direction,
-          toStatus: event.toStatus,
-          occurredAt: event.occurredAt,
-          sourceEventKey: occurrenceKey,
-          sourceDeleted: sourceDeleted,
-          actorUserId: event.actorUserId,
+        // A Post target keeps the notice row but gets no attention: live Post
+        // members are not the child's audience (Arch §4.2, design §5.5).
+        final destinationKind = await _outbox.loadDestinationBeaconKind(
+          target.targetBeaconId,
         );
-        if (intent.recipients.isNotEmpty) {
-          await transaction.record(intent);
+        if (destinationKind != BeaconKind.post) {
+          final occurrenceKey =
+              'hierarchy:${target.eventId}:${target.targetBeaconId}';
+          final intent = await _intents.beaconHierarchyStatusChanged(
+            destinationBeaconId: target.targetBeaconId,
+            messageId: noticeMessageId,
+            direction: direction,
+            toStatus: event.toStatus,
+            occurredAt: event.occurredAt,
+            sourceEventKey: occurrenceKey,
+            sourceDeleted: sourceDeleted,
+            actorUserId: event.actorUserId,
+          );
+          if (intent.recipients.isNotEmpty) {
+            await transaction.record(intent);
+          }
         }
 
         await _outbox.markDeliveryDelivered(

@@ -36,7 +36,8 @@ SELECT
   normalized_input_hash,
   result_beacon_id,
   result_state,
-  deleted
+  deleted,
+  bud_result::text AS bud_result
 FROM public.beacon_child_commands
 WHERE actor_user_id = $1 AND client_command_id = $2
 ''',
@@ -57,6 +58,7 @@ WHERE actor_user_id = $1 AND client_command_id = $2
       outcome: _outcomeFromDb(row.read<int>('result_state')),
       resultBeaconId: row.readNullable<String>('result_beacon_id'),
       deleted: row.read<bool>('deleted'),
+      budResult: _readJsonMap(row, 'bud_result'),
     );
   }
 
@@ -68,6 +70,7 @@ WHERE actor_user_id = $1 AND client_command_id = $2
     required BeaconCreationContext creationContext,
     required BeaconChildCommandOutcome outcome,
     String? resultBeaconId,
+    Map<String, Object?>? budResult,
   }) async {
     await _database.customStatement(
       r'''
@@ -78,9 +81,10 @@ INSERT INTO public.beacon_child_commands (
   result_beacon_id,
   result_state,
   deleted,
+  bud_result,
   updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, false, now()
+  $1, $2, $3, $4, $5, false, $6::jsonb, now()
 )
 ON CONFLICT (actor_user_id, client_command_id) DO UPDATE
 SET
@@ -88,6 +92,7 @@ SET
   result_beacon_id = EXCLUDED.result_beacon_id,
   result_state = EXCLUDED.result_state,
   deleted = false,
+  bud_result = EXCLUDED.bud_result,
   updated_at = now()
 WHERE public.beacon_child_commands.normalized_input_hash = EXCLUDED.normalized_input_hash
 ''',
@@ -97,10 +102,15 @@ WHERE public.beacon_child_commands.normalized_input_hash = EXCLUDED.normalized_i
         normalizedInputHash,
         resultBeaconId,
         _outcomeToDb(outcome),
+        if (budResult == null) null else jsonEncode(budResult),
       ],
     );
 
-    return BeaconChildCreateResult(outcome: outcome, beaconId: resultBeaconId);
+    return BeaconChildCreateResult(
+      outcome: outcome,
+      beaconId: resultBeaconId,
+      budResult: budResult,
+    );
   }
 
   @override
@@ -399,6 +409,8 @@ WHERE public.beacon_promotions.published_at IS NULL
     required String childBeaconId,
     String? sourceMessageId,
     required String actorUserId,
+    String? title,
+    int? invitedCount,
   }) async {
     final messageId = generateId('R');
     final identity = 'child_created:$childBeaconId';
@@ -407,6 +419,8 @@ WHERE public.beacon_promotions.published_at IS NULL
       'kind': 'childCreated',
       'childBeaconId': childBeaconId,
       if (sourceMessageId != null) 'sourceMessageId': sourceMessageId,
+      'title': ?title,
+      'invitedCount': ?invitedCount,
     };
     await _database.customStatement(
       r'''

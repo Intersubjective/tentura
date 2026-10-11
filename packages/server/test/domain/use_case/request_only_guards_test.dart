@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
@@ -690,7 +691,8 @@ void main() {
           description: 'Child description',
           draft: true,
         ),
-        throwsBeaconNotRequest,
+        // Only budding (createChildUnderPost) creates a child under a Post.
+        throwsA(isA<PostChildRequiresBudException>()),
       );
 
       expect(commands.unexpectedCalls, isEmpty);

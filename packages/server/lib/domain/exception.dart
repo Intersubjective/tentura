@@ -517,6 +517,42 @@ final class BeaconNotRequestException extends ExceptionBase {
       );
 }
 
+// Budding a Request from a Post (docs/plans/post-request-budding-*.md).
+
+/// A child under a Post is created only by budding (`createChildUnderPost`);
+/// the plain child-create command refuses a Post parent.
+final class PostChildRequiresBudException extends ExceptionBase {
+  const PostChildRequiresBudException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.postChildRequiresBud,
+        ),
+        description:
+            description ?? 'A Request under a Post is created by budding only',
+      );
+}
+
+/// The bud source message was not written by the budder (Arch §3.1).
+final class BudSourceNotOwnMessageException extends ExceptionBase {
+  const BudSourceNotOwnMessageException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.budSourceNotOwnMessage,
+        ),
+        description:
+            description ?? 'A Request can be budded only from your own message',
+      );
+}
+
+/// The Post is not open (draft, closed or deleted).
+final class PostNotOpenException extends ExceptionBase {
+  const PostNotOpenException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.postNotOpen),
+        description: description ?? 'The Post is not open',
+      );
+}
+
 // «Who'll take it?» (baton) — plan §2.2/B2
 // (`docs/plans/baton-who-takes-it-plan.md`).
 

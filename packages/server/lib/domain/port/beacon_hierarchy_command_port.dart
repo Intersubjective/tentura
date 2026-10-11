@@ -14,6 +14,7 @@ class BeaconChildCommandRecord {
     required this.outcome,
     this.resultBeaconId,
     required this.deleted,
+    this.budResult,
   });
 
   final String actorUserId;
@@ -22,6 +23,9 @@ class BeaconChildCommandRecord {
   final BeaconChildCommandOutcome outcome;
   final String? resultBeaconId;
   final bool deleted;
+
+  /// Stored result of a bud (`createChildUnderPost`), returned on replay.
+  final Map<String, Object?>? budResult;
 }
 
 /// Domain result of an authorized child create command.
@@ -30,11 +34,15 @@ class BeaconChildCreateResult {
     required this.outcome,
     this.beaconId,
     this.beacon,
+    this.budResult,
   });
 
   final BeaconChildCommandOutcome outcome;
   final String? beaconId;
   final BeaconEntity? beacon;
+
+  /// Set for a Post parent (`createChildUnderPost`): the stored bud result.
+  final Map<String, Object?>? budResult;
 }
 
 /// Parent beacon facts required for child create/publish validation.
@@ -88,6 +96,7 @@ abstract class BeaconHierarchyCommandPort {
     required BeaconCreationContext creationContext,
     required BeaconChildCommandOutcome outcome,
     String? resultBeaconId,
+    Map<String, Object?>? budResult,
   });
 
   Future<void> markCommandDeleted({
@@ -145,10 +154,14 @@ abstract class BeaconHierarchyCommandPort {
     required String promoterUserId,
   });
 
+  /// [title] and [invitedCount] are set for a Post parent only: non-observers
+  /// cannot read the child, so the notice carries a title snapshot.
   Future<String> insertChildCreationNotice({
     required String parentBeaconId,
     required String childBeaconId,
     String? sourceMessageId,
     required String actorUserId,
+    String? title,
+    int? invitedCount,
   });
 }

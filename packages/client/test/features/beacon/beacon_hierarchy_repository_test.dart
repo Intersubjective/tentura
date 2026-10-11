@@ -338,6 +338,18 @@ void main() {
             ),
           ),
         );
+        expect(
+          () => throwIfBeaconHierarchyError(1330, null),
+          throwsA(isA<PostChildRequiresBudException>()),
+        );
+        expect(
+          () => throwIfBeaconHierarchyError(1331, null),
+          throwsA(isA<BudSourceNotOwnMessageException>()),
+        );
+        expect(
+          () => throwIfBeaconHierarchyError(1332, null),
+          throwsA(isA<PostNotOpenException>()),
+        );
       },
     );
 

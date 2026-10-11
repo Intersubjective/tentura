@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.d
 import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_outbox_port.dart';
 
 /// In-memory outbox for lifecycle producer unit tests.
@@ -68,6 +69,10 @@ final class RecordingBeaconHierarchyOutbox implements BeaconHierarchyOutboxPort 
   Future<BeaconStatus?> loadDestinationBeaconStatus(
     String targetBeaconId,
   ) async =>
+      null;
+
+  @override
+  Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId) async =>
       null;
 
   @override
@@ -189,6 +194,10 @@ final class ThrowingBeaconHierarchyOutbox extends BeaconHierarchyOutboxPort {
   @override
   Future<BeaconStatus?> loadDestinationBeaconStatus(String targetBeaconId) =>
       _inner.loadDestinationBeaconStatus(targetBeaconId);
+
+  @override
+  Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId) =>
+      _inner.loadDestinationBeaconKind(targetBeaconId);
 
   @override
   Future<String> insertHierarchyLifecycleNotice({

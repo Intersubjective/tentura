@@ -10,6 +10,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.d
 import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_delivery_consts.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -132,6 +133,10 @@ final class _FailingNoticeOutbox implements BeaconHierarchyOutboxPort {
   @override
   Future<BeaconStatus?> loadDestinationBeaconStatus(String targetBeaconId) =>
       _inner.loadDestinationBeaconStatus(targetBeaconId);
+
+  @override
+  Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId) =>
+      _inner.loadDestinationBeaconKind(targetBeaconId);
 
   @override
   Future<void> scheduleDeliveryRetry({
