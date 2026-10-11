@@ -90,7 +90,7 @@ phase; web edge kinds; radius selection model; membership webs in the field payl
 | A4 | D9: only request holders + their path ancestors are drawn (`:100`) | In **composer mode** the composition widens to forward-eligible visible peers (up to the render cap). |
 | A5 | §9.2 anti-feed: prominence never encodes recency (`:552`) | A Post's *presence* (fade/expiry) uses conversation recency. Not ranking, not sort order. Requests unaffected. |
 | A6 | Pinning D15/D17: no provisional local-only state | One scoped exception: the composer draft node lives only in the session until publish. |
-| A7 | `person_bond`: co-members of an open beacon are mutually visible as people (`m0193.dart:3639-3670`); used by forward candidates, the forward gate and shared contexts | `kind = 1` membership does **not** create a bond. |
+| A7 | `person_bond`: co-members of an open beacon are mutually visible as people (`m0193.dart:3639-3670`); used by forward candidates, the forward gate and shared contexts | `kind = 1` membership does **not** create a bond. **Amended** (see [`post-request-budding-design.md`](post-request-budding-design.md)): Post members are observers of a budded child Request, and the author may invite co-members; still no `person_bond`. |
 
 ---
 
@@ -107,7 +107,7 @@ phase; web edge kinds; radius selection model; membership webs in the field payl
 | Q7 | Where the Post content lives | The root message (text + attachments + mentions). The room's top pinned strip links to it. No other surfaces besides the overflow menu. |
 | Q8 | Recipient cap | No special server cap — interface limits + the noisy-contact wall (Q15). |
 | Q9 | Forward policy for Requests | None. Requests keep today's rules. Converting a closed Post opens forwarding — the convert dialog says so. |
-| Q10 | Children / fork | No children of Posts, no fork of Posts. |
+| Q10 | Children / fork | **Amended** (see [`post-request-budding-design.md`](post-request-budding-design.md)): a Post may have child Requests budded from it; no fork of Posts. Originally: no children of Posts, no fork of Posts. |
 | Q11 | Noun | «Пост» / "Post". Its room is "Chat" like a Request's. |
 | Q12 | Post «Можно пересылать» | Default **on**. Before sending the author may switch it off (only invited people take part; the author can always invite more). After publish: one-way, off → on. |
 

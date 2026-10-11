@@ -270,6 +270,7 @@ Future<void> openPeopleSurface(WidgetTester tester, AuthorSeenHarness h) async {
                 beaconState: state,
                 focusUserId: null,
                 peopleTabAttentionActive: false,
+                postBuddingEnabled: false,
               ),
             ),
           ),

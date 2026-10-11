@@ -41,6 +41,8 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../inbox/author_invite_test_support.dart'
+    show registerEmptyAuthorInvitesGetIt;
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 
@@ -353,6 +355,7 @@ Future<void> _setupGetIt() async {
     await getIt.unregister<UiEffectPort>();
   }
   getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
+  registerEmptyAuthorInvitesGetIt();
 }
 
 class _HarnessRouter extends Mock implements StackRouter {

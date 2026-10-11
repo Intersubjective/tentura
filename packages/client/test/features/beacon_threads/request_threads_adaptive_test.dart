@@ -40,6 +40,8 @@ import 'package:tentura/ui/test_ids.dart';
 
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../inbox/author_invite_test_support.dart'
+    show registerEmptyAuthorInvitesGetIt;
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
 
@@ -597,6 +599,7 @@ Future<void> _setupGetIt({Profile? profile}) async {
     await getIt.unregister<UiEffectPort>();
   }
   getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
+  registerEmptyAuthorInvitesGetIt();
 }
 
 TenturaUnderlineTabs _tabs(WidgetTester tester) =>

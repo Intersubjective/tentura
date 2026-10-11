@@ -199,7 +199,7 @@ const kPostsEnabled = true;
 
 /// Gate for every client entry point that starts budding a Request from a
 /// Post (post→Request budding plan §0; unit E3 flips it).
-const kPostBuddingEnabled = false;
+const kPostBuddingEnabled = true;
 
 /// Ticking more members than this in the bud invite step shows a warning.
 const kPostBudInviteWarningAbove = 5;

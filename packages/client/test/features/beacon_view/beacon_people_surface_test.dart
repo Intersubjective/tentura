@@ -112,6 +112,7 @@ Widget _wrap(
           focusUserId: null,
           peopleTabAttentionActive: false,
           peopleFoldEpoch: epoch,
+          postBuddingEnabled: false,
         ),
       ),
     ),

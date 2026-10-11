@@ -84,7 +84,7 @@ Duration? _parseEnvDuration(String? raw) {
 /// `packages/client/pubspec.yaml` and its `web/index.html` cache-buster;
 /// until it does, this floor rejects every client, which is the intended
 /// shape of a one-release cutover and not a bug to soften.
-const kDefaultMinClientVersion = '7.35.0';
+const kDefaultMinClientVersion = '7.38.0';
 
 class Env {
   Env({

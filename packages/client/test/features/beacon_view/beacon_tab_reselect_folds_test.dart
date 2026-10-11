@@ -170,6 +170,7 @@ void main() {
                             focusUserId: null,
                             peopleTabAttentionActive: false,
                             peopleFoldEpoch: peopleFoldEpoch,
+                            postBuddingEnabled: false,
                           ),
                         ),
                       ],

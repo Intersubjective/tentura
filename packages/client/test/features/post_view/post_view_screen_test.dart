@@ -1006,6 +1006,13 @@ void main() {
       matching: find.byIcon(Icons.delete_outline),
     );
 
+    // The sheet also offers «Оформить запрос» now, so delete can sit below the
+    // fold of the scrollable sheet.
+    Future<void> tapDelete(WidgetTester tester) async {
+      await tester.ensureVisible(deleteAction());
+      await tester.tap(deleteAction());
+    }
+
     testWidgets('asks «Удалить пост?» before the Post root is deleted', (
       tester,
     ) async {
@@ -1013,7 +1020,7 @@ void main() {
       await openRootActions(tester);
 
       expect(deleteAction(), findsOneWidget);
-      await tester.tap(deleteAction());
+      await tapDelete(tester);
       await _settle(tester);
 
       expect(find.text('Удалить пост?'), findsOneWidget);
@@ -1025,7 +1032,7 @@ void main() {
     ) async {
       final h = await _pumpPost(tester, beacon: _post(), viewer: _author);
       await openRootActions(tester);
-      await tester.tap(deleteAction());
+      await tapDelete(tester);
       await _settle(tester);
       expect(find.text('Удалить пост?'), findsOneWidget);
 
@@ -1037,7 +1044,7 @@ void main() {
     testWidgets('cancelling keeps the Post', (tester) async {
       final h = await _pumpPost(tester, beacon: _post(), viewer: _author);
       await openRootActions(tester);
-      await tester.tap(deleteAction());
+      await tapDelete(tester);
       await _settle(tester);
       expect(find.text('Удалить пост?'), findsOneWidget);
 

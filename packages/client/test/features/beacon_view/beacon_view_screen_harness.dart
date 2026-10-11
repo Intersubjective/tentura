@@ -34,6 +34,8 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../inbox/author_invite_test_support.dart'
+    show registerEmptyAuthorInvitesGetIt, unregisterEmptyAuthorInvitesGetIt;
 import '../beacon_threads/room_cubit_fakes.dart';
 
 const kBeaconViewHarnessBeaconId = 'b-view-harness';
@@ -388,6 +390,7 @@ Future<void> registerBeaconViewHarnessGetIt({
     await getIt.unregister<UiEffectPort>();
   }
   getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
+  registerEmptyAuthorInvitesGetIt();
 }
 
 Future<void> unregisterBeaconViewHarnessGetIt() async {
@@ -401,6 +404,7 @@ Future<void> unregisterBeaconViewHarnessGetIt() async {
   if (getIt.isRegistered<UiEffectPort>()) {
     await getIt.unregister<UiEffectPort>();
   }
+  unregisterEmptyAuthorInvitesGetIt();
 }
 
 Future<BeaconViewHarness> pumpBeaconViewHarness(

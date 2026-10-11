@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
@@ -96,4 +97,38 @@ final class _Profiles implements ProfileRepositoryPort {
 final class _Account implements AttentionAccountPort {
   @override
   Stream<String> get currentAccountChanges => const Stream.empty();
+}
+
+/// Registers an [AuthorInviteCase] over empty lists plus an empty
+/// [AttentionActorProfilesCase], for screens that mount the author's invites
+/// section (the post-budding gate is on) without caring about it.
+void registerEmptyAuthorInvitesGetIt() {
+  unregisterEmptyAuthorInvitesGetIt();
+  GetIt.I
+    ..registerSingleton<AuthorInviteCase>(
+      buildAuthorInviteCase(_EmptyInvitesPort()),
+    )
+    ..registerSingleton<AttentionActorProfilesCase>(
+      buildActorProfiles(const []),
+    );
+}
+
+void unregisterEmptyAuthorInvitesGetIt() {
+  final getIt = GetIt.I;
+  if (getIt.isRegistered<AuthorInviteCase>()) {
+    getIt.unregister<AuthorInviteCase>();
+  }
+  if (getIt.isRegistered<AttentionActorProfilesCase>()) {
+    getIt.unregister<AttentionActorProfilesCase>();
+  }
+}
+
+final class _EmptyInvitesPort extends FakeAuthorInvitePort {
+  @override
+  Future<List<AuthorInvite>> beaconInvites({required String beaconId}) async =>
+      const [];
+
+  @override
+  Future<List<String>> budObservers({required String beaconId}) async =>
+      const [];
 }

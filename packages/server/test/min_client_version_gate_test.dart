@@ -119,7 +119,12 @@ void main() {
       // «Who'll take it?» rev 2 changed roomBatonCreate (beaconId + text +
       // replyToMessageId instead of messageId, returns the new message id),
       // so older clients cannot start a baton on this server.
-      expect(kDefaultMinClientVersion, '7.35.0');
+      // A later release may raise the floor again; what this release owes is
+      // that the floor never drops below the version that changed the RPC.
+      expect(
+        _compare(kDefaultMinClientVersion, '7.35.0'),
+        greaterThanOrEqualTo(0),
+      );
       expect(
         _compare(_shippedClientVersion(), kDefaultMinClientVersion),
         greaterThanOrEqualTo(0),
