@@ -8112,5 +8112,64 @@
         "type": "String"
       }
     }
+  },
+  "postBudAction": "Make a request",
+  "@postBudAction": {
+    "description": "Room message action and Post ⋯ menu entry that buds a Request from a Post message; also the submit button of the bud form."
+  },
+  "postBudPickMessageTitle": "Which message should the request come from?",
+  "@postBudPickMessageTitle": {
+    "description": "Title of the source picker a non-author sees from the Post ⋯ menu."
+  },
+  "postBudInviteTitle": "Who to invite",
+  "@postBudInviteTitle": {
+    "description": "Title of the invite step when budding a Request from a Post."
+  },
+  "postBudInviteExplanation": "Invited people get an invitation and decide for themselves whether to take part. The other post members will see the request and can offer help themselves.",
+  "@postBudInviteExplanation": {
+    "description": "Explanation above the invite list of the bud form."
+  },
+  "postBudInviteVia": "via {name}",
+  "@postBudInviteVia": {
+    "description": "Shown under a Post member the budder may not know: who brought them into the Post.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postBudInviteManyWarning": "Everyone ticked gets a request. Ticked: {count}",
+  "@postBudInviteManyWarning": {
+    "description": "Warning in the bud invite step when more than five members are ticked.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postBudInviteNoteHint": "Why you're inviting them (optional)",
+  "@postBudInviteNoteHint": {
+    "description": "Hint of the per-invitee note field in the bud invite step."
+  },
+  "postBudClosePost": "Close the post and continue in the request",
+  "@postBudClosePost": {
+    "description": "Checkbox in the bud invite step."
+  },
+  "postBudDiscoverableWarning": "Only the post's members saw the post. If you make the request visible to everyone, others will see it too.",
+  "@postBudDiscoverableWarning": {
+    "description": "Warning under the discoverability control of the bud form."
+  },
+  "postBudForwardingWarning": "Forwarding was off in the post. The request can be forwarded.",
+  "@postBudForwardingWarning": {
+    "description": "Shown in the bud form when the Post's forwarding was off."
+  },
+  "postBudNotInvitedSnack": "Could not invite: {names}",
+  "@postBudNotInvitedSnack": {
+    "description": "Snackbar after budding when some picked members were not invited.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
   }
 }

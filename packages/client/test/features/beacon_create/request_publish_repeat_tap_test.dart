@@ -15,6 +15,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/post_conversion_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_conversion_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -37,6 +38,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
@@ -614,7 +616,10 @@ void main() {
         )
         ..registerSingleton<ContextRepository>(_ContextRepositoryFake())
         ..registerSingleton<BeaconCreateCase>(fakeBeaconCreateCase())
-        ..registerSingleton<PostConversionCase>(PostConversionCase(conversion));
+        ..registerSingleton<PostConversionCase>(PostConversionCase(conversion))
+    ..registerSingleton<MessagePrefillCase>(
+      MessagePrefillCase(conversion, FakeBeaconHierarchyRepositoryPort()),
+    );
     });
 
     tearDown(() => GetIt.I.reset());

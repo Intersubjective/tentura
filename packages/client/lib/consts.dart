@@ -207,5 +207,8 @@ const kPostsEnabled = true;
 /// Post (post→Request budding plan §0; unit E3 flips it).
 const kPostBuddingEnabled = false;
 
+/// Ticking more members than this in the bud invite step shows a warning.
+const kPostBudInviteWarningAbove = 5;
+
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;

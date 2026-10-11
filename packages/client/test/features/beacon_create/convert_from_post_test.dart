@@ -11,10 +11,12 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/port/post_conversion_port.dart';
+import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_conversion_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -114,6 +116,10 @@ void main() {
     cubit = BeaconCreateCubit(
       beaconCreateCase: fakeBeaconCreateCase(write: write),
       postConversionCase: PostConversionCase(conversion),
+      messagePrefillCase: MessagePrefillCase(
+        conversion,
+        FakeBeaconHierarchyRepositoryPort(),
+      ),
       effects: effects,
     );
     addTearDown(cubit.close);

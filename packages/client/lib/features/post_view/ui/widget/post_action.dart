@@ -16,6 +16,9 @@ enum PostAction {
   showOnField,
   allowForwarding,
   convertToRequest,
+
+  /// «Оформить запрос»: bud a Request from a Post message (plan D1).
+  budRequest,
   complain,
   leave,
   delete,

@@ -13,11 +13,14 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/domain/use_case/message_prefill_case.dart';
+import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/domain/use_case/post_conversion_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
@@ -41,6 +44,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     BeaconHierarchyCase? hierarchyCase,
     PostPublishCase? postPublishCase,
     PostConversionCase? postConversionCase,
+    MessagePrefillCase? messagePrefillCase,
+    PostBudCase? postBudCase,
+    this.postBuddingEnabled = kPostBuddingEnabled,
     BeaconCreationContext? childCreationContext,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
@@ -65,6 +71,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
            (convertFromPostId != null && convertFromPostId.isNotEmpty
                ? GetIt.I<PostConversionCase>()
                : null),
+       _injectedPrefillCase = messagePrefillCase,
+       _injectedPostBudCase = postBudCase,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
@@ -120,6 +128,22 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   Future<String?>? _conversionInFlight;
 
+  final MessagePrefillCase? _injectedPrefillCase;
+
+  MessagePrefillCase get _prefillCase =>
+      _injectedPrefillCase ?? GetIt.I<MessagePrefillCase>();
+
+  final PostBudCase? _injectedPostBudCase;
+
+  PostBudCase get _postBudCase =>
+      _injectedPostBudCase ?? GetIt.I<PostBudCase>();
+
+  /// `kPostBuddingEnabled`, injectable so tests can open the gate.
+  final bool postBuddingEnabled;
+
+  /// Latch for [submitBud]: a repeat tap while one runs is dropped.
+  bool _budSubmitBusy = false;
+
   final UiEffectPort _effects;
 
   Completer<String?>? _draftCreateInFlight;
@@ -162,6 +186,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (context == null || hierarchy == null || isClosed) return;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      if (postBuddingEnabled &&
+          context is BeaconCreationContextPromotedChild &&
+          (state.draftId ?? '').isEmpty) {
+        final parent = await _case.fetchById(context.parentBeaconId);
+        if (isClosed) return;
+        if (parent.kind == BeaconKind.post) {
+          await _initPostBud(context, parent);
+          return;
+        }
+      }
       final session = await hierarchy.openComposer(
         creationContext: context,
         restoredDraftBeaconId: state.draftId,
@@ -178,6 +212,151 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       validate();
     } catch (e) {
       _emitSnackError(e);
+    }
+  }
+
+  /// The parent is a Post: prefill from the source message and load whom to
+  /// invite. Nothing is saved before [submitBud].
+  Future<void> _initPostBud(
+    BeaconCreationContextPromotedChild context,
+    Beacon post,
+  ) async {
+    final prefill = await _prefillCase.sourceMessage(
+      parentBeaconId: context.parentBeaconId,
+      sourceMessageId: context.sourceMessageId,
+    );
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        title: prefill.title,
+        description: prefill.description,
+        isDiscoverable: false,
+        postBud: PostBudForm(
+          postId: context.parentBeaconId,
+          sourceMessageId: context.sourceMessageId,
+          clientCommandId: _postBudCase.newClientCommandId(),
+          postForwardingClosed:
+              post.forwardPolicy == BeaconForwardPolicyValue.closed,
+        ),
+        status: const StateIsSuccess(),
+      ),
+    );
+    validate();
+    await loadBudInviteCandidates();
+  }
+
+  /// Loads the invite step; ticks the members the server pre-ticks.
+  Future<void> loadBudInviteCandidates() async {
+    final bud = state.postBud;
+    if (bud == null || isClosed) return;
+    try {
+      final step = await _postBudCase.inviteStep(bud.postId);
+      if (isClosed) return;
+      final current = state.postBud ?? bud;
+      emit(
+        state.copyWith(
+          postBud: current.copyWith(
+            candidatesLoaded: true,
+            candidates: step.candidates,
+            profiles: step.profiles,
+            selectedIds: {
+              for (final c in step.candidates)
+                if (c.isInvitable && c.pretick) c.userId,
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      _effects.emit(ShowError(e));
+    }
+  }
+
+  void setBudInviteeSelected(String userId, {required bool selected}) {
+    final bud = state.postBud;
+    if (bud == null) return;
+    final next = {...bud.selectedIds};
+    if (selected) {
+      next.add(userId);
+    } else {
+      next.remove(userId);
+    }
+    emit(state.copyWith(postBud: bud.copyWith(selectedIds: next)));
+  }
+
+  void setBudInviteeNote(String userId, String note) {
+    final bud = state.postBud;
+    if (bud == null) return;
+    emit(
+      state.copyWith(
+        postBud: bud.copyWith(notes: {...bud.notes, userId: note}),
+      ),
+    );
+  }
+
+  void setBudClosePost(bool value) {
+    final bud = state.postBud;
+    if (bud == null) return;
+    emit(state.copyWith(postBud: bud.copyWith(closePostChoice: value)));
+  }
+
+  /// Buds the Request from the Post message. Returns the result once the
+  /// server answered (navigation stays with the caller), null when nothing
+  /// was sent or it failed. A repeat call while one runs is dropped; a retry
+  /// after a failure reuses the same `clientCommandId`, so the server replays
+  /// instead of budding twice.
+  Future<PostBudResult?> submitBud({required String context}) async {
+    if (_budSubmitBusy) return null;
+    _budSubmitBusy = true;
+    try {
+      return await _submitBud(context: context);
+    } finally {
+      _budSubmitBusy = false;
+    }
+  }
+
+  Future<PostBudResult?> _submitBud({required String context}) async {
+    final bud = state.postBud;
+    if (bud == null || isClosed) return null;
+    validate();
+    if (state.publishBlocker != null) {
+      revealValidationHints();
+      return null;
+    }
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final description = state.description.trim();
+      final location = state.location.trim();
+      final result = await _postBudCase.budFromPost(
+        postId: bud.postId,
+        sourceMessageId: bud.sourceMessageId,
+        clientCommandId: bud.clientCommandId,
+        title: state.title.trim(),
+        description: description.isEmpty ? null : description,
+        context: context.isEmpty ? null : context,
+        coordinates: state.coordinates,
+        startAt: state.startAt,
+        endAt: state.endAt,
+        tags: state.tags.isEmpty ? null : state.tags.join(','),
+        needs: state.needs.isEmpty ? null : state.needs.join(','),
+        primaryNeedSlug: state.primaryNeedSlug,
+        addressLabel: location.isEmpty ? null : location,
+        isDiscoverable: state.isDiscoverable,
+        invitees: bud.invitees,
+        closePost: bud.closePost,
+      );
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            draftId: result.childBeaconId,
+            isLive: result.childBeaconId != null,
+            status: const StateIsSuccess(),
+          ),
+        );
+      }
+      return result;
+    } catch (e) {
+      _emitSnackError(e);
+      return null;
     }
   }
 
@@ -278,7 +457,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// (UI review, creation flow). Child requests may have an empty one.
   bool get _shouldQuietPersist {
     if (isClosed || state.isEditMode || state.isLive) return false;
-    if (_convertFromPostId != null) return false;
+    if (_convertFromPostId != null || state.isPostBud) return false;
     if (state.title.trim().length < kTitleMinLength) return false;
     return state.isChildMode || state.description.trim().isNotEmpty;
   }
@@ -363,7 +542,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     _convertFromPostId = postId;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final prefill = await _convertCase.prefill(postId);
+      final prefill = await _prefillCase.postRoot(postId);
       if (isClosed) return;
       final cover = prefill.coverSuggestion;
       emit(

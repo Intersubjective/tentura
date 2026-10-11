@@ -55,9 +55,15 @@ class BeaconRoomBody extends StatefulWidget {
     this.capabilities = const RoomCapabilities.request(),
     this.postRoot,
     this.batonEnabled = kBatonEnabled,
+    this.postBuddingEnabled = kPostBuddingEnabled,
   });
 
   final bool enableComposer;
+
+  /// Offers «Оформить запрос» on the viewer's own messages in a room whose
+  /// capabilities allow own-message promotion; defaults to
+  /// [kPostBuddingEnabled].
+  final bool postBuddingEnabled;
 
   /// Offers «Who'll take it?» on the viewer's own messages; defaults to
   /// [kBatonEnabled].
@@ -672,6 +678,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     // Starts a new baton message that replies to this one (anyone's plain or
     // poll message; not system lines — baton messages have their own menu).
     final marker = message.semanticMarker;
+    final showBud =
+        widget.postBuddingEnabled &&
+        caps.childPromotionOwnOnly &&
+        canWrite &&
+        isOwnMessage &&
+        !isThreadMode &&
+        message.isPromotionEligible;
     final showBatonStart =
         widget.batonEnabled &&
         canWrite &&
@@ -765,6 +778,22 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                 viewer,
                                 replyTo: message,
                               ),
+                            );
+                          },
+                        ),
+                      if (showBud)
+                        ListTile(
+                          key: const Key('Room.BudRequestAction'),
+                          leading: const Icon(
+                            Icons.subdirectory_arrow_right_outlined,
+                          ),
+                          title: Text(l10n.postBudAction),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _openChildRequestComposerFromMessage(
+                              context,
+                              cubit,
+                              message,
                             );
                           },
                         ),

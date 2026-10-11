@@ -27,6 +27,7 @@ import 'cover_block.dart';
 import 'cover_symbol_sheet.dart';
 import 'create_details_row.dart';
 import 'image_tab.dart';
+import 'post_bud_invite_step.dart';
 
 class InfoTab extends StatefulWidget {
   const InfoTab({
@@ -805,10 +806,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   ),
                 ),
               ),
-              _detailsHairline(tt),
+              // A bud takes no cover (plan D1): the pipeline never sets one.
               BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
                 bloc: _cubit,
                 buildWhen: (p, c) =>
+                    p.isPostBud != c.isPostBud ||
                     p.images != c.images ||
                     p.coverKey != c.coverKey ||
                     p.coverSource != c.coverSource ||
@@ -816,18 +818,25 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     p.primaryNeedSlug != c.primaryNeedSlug,
                 builder: (context, state) {
                   final subtitle = _coverSubtitle(state);
+                  if (state.isPostBud) return const SizedBox.shrink();
                   final filled = state.coverImage != null ||
                       state.coverSource == BeaconCoverSource.symbol ||
                       state.images.isNotEmpty;
-                  return CreateDetailsRow(
-                    keyId: const Key('BeaconCreate.CoverRow'),
-                    icon: Icons.image_outlined,
-                    title: _l10n.beaconCreateCoverRow,
-                    subtitle: subtitle,
-                    filled: filled,
-                    onTap: () => unawaited(
-                      _openOverlay(() => _showCoverSheet(context)),
-                    ),
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _detailsHairline(tt),
+                      CreateDetailsRow(
+                        keyId: const Key('BeaconCreate.CoverRow'),
+                        icon: Icons.image_outlined,
+                        title: _l10n.beaconCreateCoverRow,
+                        subtitle: subtitle,
+                        filled: filled,
+                        onTap: () => unawaited(
+                          _openOverlay(() => _showCoverSheet(context)),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -893,6 +902,24 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   isDiscoverable: isDiscoverable,
                   onChanged: _cubit.setDiscoverable,
                 ),
+              ),
+              BlocSelector<
+                BeaconCreateCubit,
+                BeaconCreateState,
+                ({bool bud, bool discoverable, bool forwardingClosed})
+              >(
+                bloc: _cubit,
+                selector: (s) => (
+                  bud: s.isPostBud,
+                  discoverable: s.isDiscoverable,
+                  forwardingClosed: s.postBud?.postForwardingClosed ?? false,
+                ),
+                builder: (context, v) => v.bud
+                    ? PostBudFormWarnings(
+                        showDiscoverable: v.discoverable,
+                        showForwarding: v.forwardingClosed,
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),

@@ -20,6 +20,7 @@ class RoomCapabilities {
     required this.commitmentSheet,
     required this.closure,
     required this.pinnedStrip,
+    this.childPromotionOwnOnly = false,
   });
 
   /// Every Request feature on.
@@ -31,7 +32,8 @@ class RoomCapabilities {
       childPromotion = true,
       commitmentSheet = true,
       closure = true,
-      pinnedStrip = RoomPinnedStrip.requestNow;
+      pinnedStrip = RoomPinnedStrip.requestNow,
+      childPromotionOwnOnly = false;
 
   /// Every Request-only feature off.
   const RoomCapabilities.post()
@@ -42,7 +44,8 @@ class RoomCapabilities {
       childPromotion = false,
       commitmentSheet = false,
       closure = false,
-      pinnedStrip = RoomPinnedStrip.postRoot;
+      pinnedStrip = RoomPinnedStrip.postRoot,
+      childPromotionOwnOnly = true;
 
   final bool facts;
   final bool blocker;
@@ -52,6 +55,11 @@ class RoomCapabilities {
   final bool commitmentSheet;
   final bool closure;
   final RoomPinnedStrip pinnedStrip;
+
+  /// A Request may be budded from the viewer's own messages only (Post rooms,
+  /// «Оформить запрос»). The message actions evaluate ownership; the client
+  /// gate `kPostBuddingEnabled` still decides whether the action shows.
+  final bool childPromotionOwnOnly;
 
   @override
   bool operator ==(Object other) =>
@@ -64,7 +72,8 @@ class RoomCapabilities {
           childPromotion == other.childPromotion &&
           commitmentSheet == other.commitmentSheet &&
           closure == other.closure &&
-          pinnedStrip == other.pinnedStrip;
+          pinnedStrip == other.pinnedStrip &&
+          childPromotionOwnOnly == other.childPromotionOwnOnly;
 
   @override
   int get hashCode => Object.hash(
@@ -76,6 +85,7 @@ class RoomCapabilities {
     commitmentSheet,
     closure,
     pinnedStrip,
+    childPromotionOwnOnly,
   );
 }
 

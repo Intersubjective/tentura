@@ -18,6 +18,7 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import '../bloc/beacon_create_cubit.dart';
 import '../dialog/beacon_send_confirmation_dialog.dart';
 import '../widget/info_tab.dart';
+import '../widget/post_bud_invite_step.dart';
 import '../widget/recipients_tab.dart';
 
 /// After a successful [BeaconCreateCubit.makeLive], leave create and open the
@@ -248,6 +249,34 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
   }
 
+  /// Buds the Request, opens it, and names the picked members the server
+  /// did not invite.
+  Future<void> _submitBud() async {
+    final contextName = context.read<ContextCubit>().state.selected;
+    final l10n = L10n.of(context)!;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final bud = _beaconCreateCubit.state.postBud;
+    final result = await _beaconCreateCubit.submitBud(context: contextName);
+    if (!mounted || result == null) return;
+    final childId = result.childBeaconId;
+    final skipped = result.notInvitedUserIds;
+    if (skipped.isNotEmpty) {
+      final names = [
+        for (final id in skipped)
+          switch (bud?.nameOf(id) ?? '') {
+            '' => l10n.unknownPerson,
+            final name => name,
+          },
+      ].join(', ');
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.postBudNotInvitedSnack(names))),
+      );
+    }
+    if (childId == null || childId.isEmpty) return;
+    widget.onPublished?.call();
+    await popCreateAndOpenLiveBeacon(context.router, beaconId: childId);
+  }
+
   Future<void> _submitConversion() async {
     _formKey.currentState?.save();
     await _beaconCreateCubit.submitConversion();
@@ -313,6 +342,11 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     _beaconCreateCubit.validate();
     if (_beaconCreateCubit.state.publishBlocker != null) {
       _beaconCreateCubit.revealValidationHints();
+      return;
+    }
+    if (_beaconCreateCubit.state.isPostBud) {
+      // A bud saves nothing before submit: no draft, no recipients step.
+      setState(() => _step = _recipientsStep);
       return;
     }
     await _beaconCreateCubit.flushAutosave();
@@ -405,19 +439,24 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
               BlocSelector<
                 BeaconCreateCubit,
                 BeaconCreateState,
-                ({bool isDraft, bool isEdit, bool isLive})
+                ({bool isDraft, bool isEdit, bool isLive, bool isBud})
               >(
                 bloc: _beaconCreateCubit,
                 selector: (s) => (
                   isDraft: s.draftId != null,
                   isEdit: s.isEditMode,
                   isLive: s.isLive,
+                  isBud: s.isPostBud,
                 ),
                 // The title names the step, and a fresh request keeps
                 // "Create new request" after autosave quietly made a draft —
                 // it used to flip to "Edit draft" mid-typing (UI review).
                 builder: (context, mode) => Text(
-                  isRecipients
+                  mode.isBud
+                      ? (isRecipients
+                            ? l10n.postBudInviteTitle
+                            : l10n.postBudAction)
+                      : isRecipients
                       ? l10n.beaconRecipients
                       : mode.isEdit
                       ? l10n.editBeaconTitle
@@ -441,9 +480,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                     p.isEditMode != c.isEditMode ||
                     p.isLive != c.isLive ||
                     p.isLoading != c.isLoading ||
-                    p.draftId != c.draftId,
+                    p.draftId != c.draftId ||
+                    p.isPostBud != c.isPostBud,
                 builder: (context, state) {
-                  if (state.isEditMode || state.isLive) {
+                  if (state.isEditMode || state.isLive || state.isPostBud) {
                     return const SizedBox.shrink();
                   }
                   return TenturaTextAction(
@@ -480,7 +520,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
               listener: (context, state) {
                 if (!mounted) return;
                 if (_step != _recipientsStep) return;
-                if (state.isEditMode) return;
+                if (state.isEditMode || state.isPostBud) return;
                 if (state.publishBlocker != null) return;
                 if (state.draftId != null) return;
                 if (_recipientsDraftEnsuring) return;
@@ -491,7 +531,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 buildWhen: (p, c) =>
                     p.status != c.status ||
                     p.draftId != c.draftId ||
-                    p.isEditMode != c.isEditMode,
+                    p.isEditMode != c.isEditMode ||
+                    p.isPostBud != c.isPostBud,
                 builder: (context, state) {
                   if (state.isEditMode && _step != _formStep) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -535,7 +576,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                         widget.initialTab ==
                                         kBeaconCreateTabImage,
                                   ),
-                                  _buildRecipientsTab(state, contextName),
+                                  if (state.isPostBud)
+                                    const PostBudInviteStep()
+                                  else
+                                    _buildRecipientsTab(state, contextName),
                                 ],
                               ),
                             ),
@@ -598,6 +642,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                         ),
                       ),
                     );
+                  }
+
+                  if (state.isPostBud) {
+                    return _budBottomBar(state, l10n, tt);
                   }
 
                   if (widget.convertFromPostId.isNotEmpty) {
@@ -778,6 +826,45 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Bud mode: «Next» to the invite step, then «Оформить запрос».
+  Widget _budBottomBar(
+    BeaconCreateState state,
+    L10n l10n,
+    TenturaTokens tt,
+  ) {
+    final onInvites = _step == _recipientsStep;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const TenturaHairlineDivider(),
+        SizedBox(height: tt.rowGap),
+        SizedBox(
+          height: tt.buttonHeight,
+          width: double.infinity,
+          child: onInvites
+              ? FilledButton(
+                  key: const Key('PostBud.SubmitButton'),
+                  onPressed: state.isLoading
+                      ? null
+                      : () => unawaited(_submitBud()),
+                  child: _BusyLabel(
+                    isSaving: state.isLoading,
+                    label: l10n.postBudAction,
+                  ),
+                )
+              : FilledButton(
+                  key: const Key('PostBud.NextButton'),
+                  onPressed: state.isLoading
+                      ? null
+                      : () => unawaited(_onNext()),
+                  child: Text(l10n.buttonNext),
+                ),
+        ),
+      ],
     );
   }
 

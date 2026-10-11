@@ -6534,5 +6534,37 @@
   "attentionCardA11yPersonal": "из них {count} лично вам",
   "attentionCardMoreNotes": "{count, plural, one{ещё {count} записка ›} few{ещё {count} записки ›} many{ещё {count} записок ›} other{ещё {count} записки ›}}",
   "attentionCardNotesSheetTitle": "Записки к пересылкам",
-  "attentionCardDismissRow": "Убрать: {name}"
+  "attentionCardDismissRow": "Убрать: {name}",
+  "postBudAction": "Оформить запрос",
+  "postBudPickMessageTitle": "Из какого сообщения оформить запрос?",
+  "postBudInviteTitle": "Кого позвать",
+  "postBudInviteExplanation": "Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами.",
+  "postBudInviteVia": "через {name}",
+  "@postBudInviteVia": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postBudInviteManyWarning": "Каждый отмеченный получит просьбу. Отмечено: {count}",
+  "@postBudInviteManyWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postBudInviteNoteHint": "Почему зовёте (необязательно)",
+  "postBudClosePost": "Закрыть пост и продолжить в запросе",
+  "postBudDiscoverableWarning": "Пост видели только его участники. Если сделать запрос видимым для всех, его увидят и другие.",
+  "postBudForwardingWarning": "В посте пересылка была выключена. Запрос можно пересылать.",
+  "postBudNotInvitedSnack": "Не удалось позвать: {names}",
+  "@postBudNotInvitedSnack": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  }
 }

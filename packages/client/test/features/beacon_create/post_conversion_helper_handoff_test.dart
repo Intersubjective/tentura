@@ -7,6 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/post_conversion_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_conversion_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -17,6 +18,7 @@ import 'package:tentura/features/context/domain/entity/context_entity.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import 'fake_beacon_ports.dart';
@@ -94,7 +96,10 @@ Future<ConversionRouteHarness> pumpConversionRoute(
     )
     ..registerSingleton<ContextRepository>(_ContextRepositoryFake())
     ..registerSingleton<BeaconCreateCase>(fakeBeaconCreateCase())
-    ..registerSingleton<PostConversionCase>(PostConversionCase(port));
+    ..registerSingleton<PostConversionCase>(PostConversionCase(port))
+    ..registerSingleton<MessagePrefillCase>(
+      MessagePrefillCase(port, FakeBeaconHierarchyRepositoryPort()),
+    );
   addTearDown(GetIt.I.reset);
   final router = _ConversionRouter();
   addTearDown(() async {

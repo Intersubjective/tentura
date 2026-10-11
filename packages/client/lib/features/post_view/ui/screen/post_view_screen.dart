@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -37,9 +40,17 @@ enum _MuteChoice {
 /// it opens «О посте» with everything else. ↗ forwards, ⋮ keeps the
 /// shortcuts (mute, pin, complain / leave / delete).
 class PostViewScreen extends StatefulWidget {
-  const PostViewScreen({required this.id, this.inPane = false, super.key});
+  const PostViewScreen({
+    required this.id,
+    this.inPane = false,
+    this.postBuddingEnabled = kPostBuddingEnabled,
+    super.key,
+  });
 
   final String id;
+
+  /// Offers «Оформить запрос» in ⋮; defaults to [kPostBuddingEnabled].
+  final bool postBuddingEnabled;
 
   /// Shown beside Inbox's conversation list: nothing to go back to.
   final bool inPane;
@@ -83,6 +94,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
               ),
             _Overflow(
               state: state,
+              postBuddingEnabled: widget.postBuddingEnabled,
               onSelected: (action) => unawaited(_run(context, action)),
             ),
           ],
@@ -162,6 +174,13 @@ class _PostViewScreenState extends State<PostViewScreen> {
             ),
           );
         }
+      case PostAction.budRequest:
+        final sourceId = await _pickBudSource(context);
+        if (sourceId != null && context.mounted) {
+          await context.router.push(
+            BeaconCreateRoute(parentBeaconId: id, sourceMessageId: sourceId),
+          );
+        }
       case PostAction.complain:
         screenCubit.showComplaint(id);
       case PostAction.leave:
@@ -173,6 +192,42 @@ class _PostViewScreenState extends State<PostViewScreen> {
           await cubit.delete();
         }
     }
+  }
+
+  /// The author buds from the root message; everyone else picks one of their
+  /// own eligible messages.
+  Future<String?> _pickBudSource(BuildContext context) async {
+    final cubit = context.read<PostViewCubit>();
+    final viewerId = cubit.myProfile.id;
+    if (cubit.state.beacon.author.id == viewerId) {
+      return cubit.state.beacon.postRootMessageId;
+    }
+    final messages = _ownBudSources(context, viewerId);
+    if (messages.isEmpty) return null;
+    final l10n = L10n.of(context)!;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final tt = ctx.tt;
+        return SimpleDialog(
+          key: const Key('PostBud.SourcePicker'),
+          title: Text(l10n.postBudPickMessageTitle),
+          children: [
+            for (final m in messages)
+              SimpleDialogOption(
+                key: ValueKey('PostBud.Source.${m.id}'),
+                onPressed: () => Navigator.pop(ctx, m.id),
+                child: Text(
+                  m.body.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodyMedium(tt.text),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   Future<_MuteChoice?> _pickMuteChoice(BuildContext context) {
@@ -441,9 +496,14 @@ class _MembersLine extends StatelessWidget {
 
 /// ⋮: «О посте», mute and pin, then complain / leave / delete.
 class _Overflow extends StatelessWidget {
-  const _Overflow({required this.state, required this.onSelected});
+  const _Overflow({
+    required this.state,
+    required this.postBuddingEnabled,
+    required this.onSelected,
+  });
 
   final PostViewState state;
+  final bool postBuddingEnabled;
   final ValueChanged<PostAction> onSelected;
 
   @override
@@ -454,6 +514,13 @@ class _Overflow extends StatelessWidget {
     final viewerId = context.read<PostViewCubit>().myProfile.id;
     final viewerIsAuthor = state.beacon.author.id == viewerId;
     final muted = summary?.isMutedAt(now) ?? false;
+    // Read when the menu opens: the room loads after this bar is built.
+    bool canBud() =>
+        postBuddingEnabled &&
+        state.beacon.status == BeaconStatus.open &&
+        (viewerIsAuthor
+            ? state.beacon.postRootMessageId != null
+            : _ownBudSources(context, viewerId).isNotEmpty);
 
     PopupMenuItem<PostAction> item(
       PostAction value,
@@ -491,6 +558,12 @@ class _Overflow extends StatelessWidget {
           item(PostAction.unpin, Icons.push_pin, l10n.postMenuUnpin)
         else
           item(PostAction.pin, Icons.push_pin_outlined, l10n.postMenuPin),
+        if (canBud())
+          item(
+            PostAction.budRequest,
+            Icons.subdirectory_arrow_right_outlined,
+            l10n.postBudAction,
+          ),
         const PopupMenuDivider(),
         if (!viewerIsAuthor)
           item(PostAction.complain, Icons.flag_outlined, l10n.buttonComplaint),
@@ -522,6 +595,20 @@ class _Overflow extends StatelessWidget {
           p.userId == viewerId && p.role == BeaconParticipantRoleBits.addressee,
     );
   }
+}
+
+/// The viewer's own messages in the loaded room that a Request can be budded
+/// from, newest first.
+List<RoomMessage> _ownBudSources(BuildContext context, String viewerId) {
+  final messages =
+      context.read<ThreadHostCubit>().roomCubit?.state.messages ?? const [];
+  return [
+    for (final m in messages.reversed)
+      if (m.authorId == viewerId &&
+          m.isPromotionEligible &&
+          m.body.trim().isNotEmpty)
+        m,
+  ];
 }
 
 class _MenuRow extends StatelessWidget {

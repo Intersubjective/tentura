@@ -9,6 +9,10 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'post_bud_form.dart';
+
+export 'post_bud_form.dart';
+
 part 'beacon_create_state.freezed.dart';
 
 /// First missing field that blocks the Publish action on create / draft flows.
@@ -80,6 +84,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     @Default(false) bool childPromotionConflict,
     String? existingPromotedChildBeaconId,
 
+    /// Set when the parent is a Post: the form buds a Request from a Post
+    /// message instead of saving a child draft (plan D1).
+    PostBudForm? postBud,
+
     /// Whether the request may appear in others' constellation field (opt-out).
     @Default(true) bool isDiscoverable,
 
@@ -89,6 +97,8 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
   const BeaconCreateState._();
 
   bool get isChildMode => creationContext != null;
+
+  bool get isPostBud => postBud != null;
 
   bool get isEditMode => editId != null;
 

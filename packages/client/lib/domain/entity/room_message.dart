@@ -65,6 +65,20 @@ abstract class RoomMessage with _$RoomMessage {
 
   const RoomMessage._();
 
+  /// A plain message a Request may be promoted or budded from; mirrors the
+  /// server's `BeaconPromotionEligibilityPolicy` so the client only offers
+  /// sources the server accepts.
+  bool get isPromotionEligible =>
+      authorId.isNotEmpty &&
+      (threadItemId ?? '').isEmpty &&
+      systemMessageKind == null &&
+      (systemPayloadJson ?? '').isEmpty &&
+      semanticMarker == null &&
+      (linkedItemId ?? '').isEmpty &&
+      (linkedPollingId ?? '').isEmpty &&
+      linkedEventKind == null &&
+      (linkedFactCardId ?? '').isEmpty;
+
   bool get isReply => (replyToMessageId ?? '').trim().isNotEmpty;
 
   /// Known to be a reply, but the parent snapshot did not resolve — deleted
