@@ -236,7 +236,9 @@ class RequestAttentionCard extends StatelessWidget {
                     key: changeLineKey,
                     receipt: change,
                     text: _changeText(l10n, change),
-                    onTap: onEventTap == null ? null : () => onEventTap!(change),
+                    onTap: onEventTap == null
+                        ? null
+                        : () => onEventTap!(change),
                   ),
                 if (_isPinned) ...[
                   if (hiddenEvents > 0)
@@ -335,8 +337,11 @@ class RequestAttentionCard extends StatelessWidget {
         ),
         SizedBox(width: tt.tightGap),
         // E19: the slot holds @ (something addressed to you) or the dot
-        // (only general updates), never both.
-        if (zones.hasPersonal)
+        // (only general updates), never both. A forward awaiting your
+        // decision is addressed to you too, though the server keeps
+        // `relay_received` out of the preview and the card shows it from
+        // provenance instead.
+        if (_hasPersonal(zones))
           const _ForYouIndicator()
         else
           RequestAttentionIndicators(facts: facts),
@@ -485,8 +490,10 @@ class RequestAttentionCard extends StatelessWidget {
       'roomMessagePosted' when words.isNotEmpty =>
         l10n.attentionCardMessageToYou(name, words),
       'needsMe' when words.isNotEmpty => l10n.attentionCardAsksYou(name, words),
-      'promiseMade' when words.isNotEmpty =>
-        l10n.attentionCardPromisesYou(name, words),
+      'promiseMade' when words.isNotEmpty => l10n.attentionCardPromisesYou(
+        name,
+        words,
+      ),
       'offerAccepted' => l10n.attentionCardOfferAccepted(name),
       'offerDeclined' => l10n.attentionCardOfferDeclined(name),
       'postFirstResponse' => l10n.attentionCardPostFirstReply(name),
@@ -578,8 +585,9 @@ class RequestAttentionCard extends StatelessWidget {
       l10n: l10n,
     );
     return switch (attentionEventTypeOf(payload)) {
-      'blockerOpened' when words.isNotEmpty =>
-        l10n.attentionCardChangeBlocker(words),
+      'blockerOpened' when words.isNotEmpty => l10n.attentionCardChangeBlocker(
+        words,
+      ),
       'helpOfferSubmitted' when name.isNotEmpty =>
         l10n.attentionCardChangeHelpOffered(name),
       'coordinationChanged' ||
@@ -804,13 +812,17 @@ class RequestAttentionCard extends StatelessWidget {
       ),
   ];
 
+  /// An undismissed «вам» item: a personal receipt, or a forward still
+  /// awaiting the viewer's decision.
+  bool _hasPersonal(RequestCardZones zones) =>
+      zones.hasPersonal || facts.pendingForward;
+
   /// §11 — the whole sentence, so no state is carried by a chip alone.
   String _semanticsLabel(L10n l10n, RequestCardZones zones) {
     final events = facts.unclearedOptionalEvents + facts.unclearedOutcomes;
-    final personal = zones.personalRows.fold(
-      0,
-      (sum, row) => sum + row.receipts.length,
-    );
+    final personal =
+        zones.personalRows.fold(0, (sum, row) => sum + row.receipts.length) +
+        (facts.pendingForward ? 1 : 0);
     return [
       l10n.attentionCardA11yRequest(beacon.title, beacon.author.shownName),
       if (events > 0) l10n.attentionCardA11yEvents(events),

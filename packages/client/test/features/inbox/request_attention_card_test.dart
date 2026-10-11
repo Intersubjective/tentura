@@ -242,12 +242,20 @@ void main() {
           facts: const RequestAttentionFacts(requestId: 'b1'),
           provenance: _provenance(
             senders: [
-              const InboxForwardSender(id: 'u1', displayName: 'Bai Yue', mr: 4,
-                  notePreview: 'Ты же с этим возился, глянь'),
+              const InboxForwardSender(
+                id: 'u1',
+                displayName: 'Bai Yue',
+                mr: 4,
+                notePreview: 'Ты же с этим возился, глянь',
+              ),
               // A second note, from somebody other than the pinned sender:
               // it may never be folded into the count either.
-              const InboxForwardSender(id: 'u2', displayName: 'Глеб', mr: 3,
-                  notePreview: 'Могу дать прицеп на выходных'),
+              const InboxForwardSender(
+                id: 'u2',
+                displayName: 'Глеб',
+                mr: 3,
+                notePreview: 'Могу дать прицеп на выходных',
+              ),
               const InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2),
               const InboxForwardSender(id: 'u4', displayName: 'Пётр', mr: 1),
             ],
@@ -291,7 +299,9 @@ void main() {
       ),
     );
 
-    await pump(const [InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2)]);
+    await pump(const [
+      InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2),
+    ]);
     await tester.pumpAndSettle();
     // Not «ещё 1» — there is nothing above it to be more than.
     expect(find.text('Переслано: Мила'), findsOneWidget);
@@ -304,15 +314,16 @@ void main() {
     expect(find.text('Переслано: Мила и ещё 1'), findsOneWidget);
 
     // The author forwarding their own Request is already «От Автор».
-    await pump(const [InboxForwardSender(id: 'a1', displayName: 'Автор', mr: 1)]);
+    await pump(const [
+      InboxForwardSender(id: 'a1', displayName: 'Автор', mr: 1),
+    ]);
     await tester.pumpAndSettle();
     expect(find.byKey(RequestAttentionCard.moreForwardedKey), findsNothing);
     expect(find.textContaining('Автор', findRichText: true), findsOneWidget);
   });
 
   testWidgets('«Ещё N в хронологии» opens the Timeline and never grows the '
-      'card (D-171-5b)',
-      (tester) async {
+      'card (D-171-5b)', (tester) async {
     var timeline = 0;
     Widget build() => _host(
       RequestAttentionCard(
@@ -364,7 +375,8 @@ void main() {
       _host(
         RequestAttentionCard(
           beacon: _beacon.copyWith(
-            title: 'Нужен прицеп и пара рук на выходных, иначе всё встанет '
+            title:
+                'Нужен прицеп и пара рук на выходных, иначе всё встанет '
                 'совсем — помогите пожалуйста кто может',
             endAt: DateTime.now().add(const Duration(hours: 6)),
           ),
@@ -376,7 +388,10 @@ void main() {
           ),
           provenance: _provenance(pinned: _pinnedForward),
           eventTotal: 4,
-          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          eventsPreview: [
+            _event(id: 'e1'),
+            _event(id: 'e2'),
+          ],
           actors: {'u1': _bai, 'u3': _mila},
           onOpenBeacon: () {},
           onOpenTimeline: () {},
@@ -405,7 +420,9 @@ void main() {
   ) async {
     var declined = 0;
     await tester.pumpWidget(
-      _host(_pinnedCard(onCantHelp: () async => declined++, actors: {'u1': _bai})),
+      _host(
+        _pinnedCard(onCantHelp: () async => declined++, actors: {'u1': _bai}),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -504,7 +521,10 @@ void main() {
             unclearedOptionalEvents: 2,
           ),
           eventTotal: 2,
-          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          eventsPreview: [
+            _event(id: 'e1'),
+            _event(id: 'e2'),
+          ],
           onOpenBeacon: () {},
           onOpenTimeline: () {},
           onClearEvent: (_) {},
@@ -608,7 +628,10 @@ void main() {
             unclearedOptionalEvents: 2,
           ),
           eventTotal: 2,
-          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          eventsPreview: [
+            _event(id: 'e1'),
+            _event(id: 'e2'),
+          ],
           actors: {'u3': _mila},
           onOpenBeacon: () {},
           onOpenTimeline: () {},
@@ -658,7 +681,10 @@ void main() {
                 ),
                 provenance: _provenance(pinned: _pinnedForward),
                 eventTotal: 4,
-                eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+                eventsPreview: [
+                  _event(id: 'e1'),
+                  _event(id: 'e2'),
+                ],
                 actors: {'u1': _bai, 'u3': _mila},
                 onOpenBeacon: () {},
                 onOpenTimeline: () {},
@@ -787,6 +813,18 @@ void main() {
       expect(find.byKey(RequestAttentionCard.forYouIndicatorKey), findsNothing);
       expect(find.byKey(RequestAttentionIndicators.dotKey), findsOneWidget);
       expect(find.text('Хронология ›'), findsOneWidget);
+    });
+
+    testWidgets('a forward awaiting your decision is addressed to you: @, '
+        'even though forwards never ride the event preview', (tester) async {
+      await tester.pumpWidget(_host(_pinnedCard()));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(RequestAttentionCard.forYouIndicatorKey),
+        findsOneWidget,
+      );
+      expect(find.byKey(RequestAttentionIndicators.dotKey), findsNothing);
     });
 
     testWidgets('a note from the author says «(автор)» and the author leaves '
