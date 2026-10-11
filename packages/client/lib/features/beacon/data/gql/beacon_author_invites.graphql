@@ -1,0 +1,9 @@
+query BeaconAuthorInvites($beaconId: String!) {
+  beaconAuthorInvites(beaconId: $beaconId) {
+    inviteId
+    inviteeId
+    status
+    note
+    createdAt
+  }
+}

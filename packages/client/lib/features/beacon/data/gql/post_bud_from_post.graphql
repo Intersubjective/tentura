@@ -1,0 +1,44 @@
+mutation PostBudFromPost(
+  $postId: String!,
+  $sourceMessageId: String!,
+  $clientCommandId: String!,
+  $title: String!,
+  $description: String,
+  $context: String,
+  $coordinates: v2_Coordinates = {},
+  $startAt: String,
+  $endAt: String,
+  $tags: String,
+  $needs: String,
+  $primaryNeedSlug: String,
+  $addressLabel: String,
+  $isDiscoverable: Boolean,
+  $invitees: [v2_PostBudInviteeInput!],
+  $closePost: Boolean
+) {
+  beaconBudFromPost(
+    postId: $postId,
+    sourceMessageId: $sourceMessageId,
+    clientCommandId: $clientCommandId,
+    title: $title,
+    description: $description,
+    context: $context,
+    coordinates: $coordinates,
+    startAt: $startAt,
+    endAt: $endAt,
+    tags: $tags,
+    needs: $needs,
+    primaryNeedSlug: $primaryNeedSlug,
+    addressLabel: $addressLabel,
+    isDiscoverable: $isDiscoverable,
+    invitees: $invitees,
+    closePost: $closePost
+  ) {
+    outcome
+    childBeaconId
+    invitees {
+      userId
+      outcome
+    }
+  }
+}

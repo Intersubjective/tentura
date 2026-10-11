@@ -507,6 +507,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               for (final preview in row.eventsPreview)
                 _mapReceiptFields(preview),
             ],
+            inviteId: row.inviteId,
           ),
       ],
     );

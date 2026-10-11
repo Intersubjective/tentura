@@ -1,0 +1,7 @@
+mutation AuthorInviteAccept($inviteId: String!) {
+  beaconAuthorInviteAccept(inviteId: $inviteId) {
+    inviteId
+    beaconId
+    status
+  }
+}

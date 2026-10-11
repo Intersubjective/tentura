@@ -8,6 +8,7 @@ import 'package:gql_exec/gql_exec.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 
 import 'exception.dart';
@@ -28,6 +29,11 @@ Exception mapRemoteFailure(Object? error) {
     return error;
   }
   if (error is ClosureException) {
+    return error;
+  }
+  // Typed by `throwIfBeaconHierarchyError` in the error link (nested
+  // Requests, Post budding, author invites); callers catch these by type.
+  if (error is BeaconHierarchyException) {
     return error;
   }
   if (error is AuthSessionLostException) {

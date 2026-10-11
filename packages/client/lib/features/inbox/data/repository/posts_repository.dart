@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 
@@ -49,6 +50,7 @@ class PostsRepository implements PostsRepositoryPort {
     mutedForever: row.mutedForever,
     unreadCount: row.unreadCount,
     isAuthor: row.isAuthor,
+    status: BeaconStatus.fromSmallint(row.status),
   );
 
   static DateTime? _parse(String? raw) =>

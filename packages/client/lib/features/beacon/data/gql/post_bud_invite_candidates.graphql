@@ -1,0 +1,10 @@
+query PostBudInviteCandidates($postId: String!) {
+  postBudInviteCandidates(postId: $postId) {
+    userId
+    warm
+    outcome
+    pretick
+    viaUserId
+    hasWritten
+  }
+}

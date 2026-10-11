@@ -203,5 +203,9 @@ final kInvitationCodeRegExp = RegExp('I[a-f0-9]{0,12}');
 /// Gate for every client entry point that lets a user create a Post.
 const kPostsEnabled = true;
 
+/// Gate for every client entry point that starts budding a Request from a
+/// Post (post→Request budding plan §0; unit E3 flips it).
+const kPostBuddingEnabled = false;
+
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;

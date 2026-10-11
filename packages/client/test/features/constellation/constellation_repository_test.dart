@@ -54,6 +54,7 @@ final class _StubRepository implements ConstellationRepositoryPort {
 Map<String, Object?> _fieldPayload({
   bool includeAnchorProjection = false,
   int edgeTier = 1,
+  String? parentBeaconId,
 }) => {
   '__typename': 'v2_ConstellationField',
   'loadedAt': '2026-09-09T12:00:00.000Z',
@@ -105,6 +106,7 @@ Map<String, Object?> _fieldPayload({
       'helpOfferCount': 2,
       'coverSource': 0,
       'coverThumb': null,
+      'parentBeaconId': parentBeaconId,
     },
   ],
   if (includeAnchorProjection)
@@ -188,6 +190,38 @@ void main() {
       expect(field.requests.single.needs, ['tools']);
       expect(field.requests.single.startAt, DateTime.utc(2026, 9, 10, 10));
       expect(field.requests.single.heldState, ConstellationHeldState.offered);
+    });
+
+    test('maps the Post a Request budded from (plan C8)', () async {
+      Future<ConstellationField> fetch(String? parentBeaconId) async {
+        final data = <String, dynamic>{
+          '__typename': 'query_root',
+          'constellationField': _fieldPayload(parentBeaconId: parentBeaconId),
+        };
+        final client = Client(
+          link: _FakeLink(Response(data: data, response: const {})),
+          defaultFetchPolicies: _fetchPolicies,
+        );
+        final response = await client
+            .request(
+              GConstellationFieldFetchReq((b) {
+                b.vars
+                  ..showClosed = false
+                  ..participatedOnly = false
+                  ..projection = Gv2_ConstellationProjection.FULL;
+              }),
+            )
+            .firstWhere((event) => event.dataSource == DataSource.Link);
+        return mapConstellationFieldFromFieldFetch(
+          response.dataOrThrow(label: 'test').constellationField,
+        );
+      }
+
+      expect(
+        (await fetch('Bpost00000001')).requests.single.parentBeaconId,
+        'Bpost00000001',
+      );
+      expect((await fetch(null)).requests.single.parentBeaconId, isNull);
     });
 
     test(

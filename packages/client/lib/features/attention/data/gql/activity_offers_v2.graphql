@@ -12,6 +12,7 @@ query ActivityOffersV2($cursor: String, $limit: Int) {
       unseen
       eventTotal
       eventUnseenCount
+      inviteId
       eventsPreview {
         ...AttentionReceiptFields
       }

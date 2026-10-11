@@ -73,6 +73,22 @@ void main() {
       expect(isTenturaDirectOperation('MarkBeaconPeopleSeen'), isTrue);
     });
 
+    test('post bud and author-invite operations route to Tentura V2', () {
+      const operationNames = [
+        'PostBudFromPost',
+        'PostBudInviteCandidates',
+        'AuthorInviteCreate',
+        'AuthorInviteAccept',
+        'AuthorInviteDecline',
+        'AuthorInviteWithdraw',
+        'MyPendingAuthorInvites',
+        'BeaconAuthorInvites',
+      ];
+      for (final name in operationNames) {
+        expect(isTenturaDirectOperation(name), isTrue, reason: name);
+      }
+    });
+
     test('noisy-wall preference operations route to Tentura V2', () {
       expect(isTenturaDirectOperation('NoisyWallEnabled'), isTrue);
       expect(isTenturaDirectOperation('SetNoisyWallEnabled'), isTrue);

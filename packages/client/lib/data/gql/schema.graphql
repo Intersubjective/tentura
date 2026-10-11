@@ -3824,6 +3824,11 @@ type mutation_root {
   attentionSettle(kind: String!, receiptId: String!): Int!
   attentionUndo(operationId: String!, undoToken: String!): v2_AttentionUndoResult!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
+  beaconAuthorInviteAccept(inviteId: String!): v2_AuthorInviteResult!
+  beaconAuthorInviteCreate(beaconId: String!, note: String, userId: String!): v2_AuthorInviteCreateResult!
+  beaconAuthorInviteDecline(inviteId: String!): v2_AuthorInviteResult!
+  beaconAuthorInviteWithdraw(inviteId: String!): v2_AuthorInviteResult!
+  beaconBudFromPost(addressLabel: String, clientCommandId: String!, closePost: Boolean, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, invitees: [v2_PostBudInviteeInput!], isDiscoverable: Boolean, needs: String, postId: String!, primaryNeedSlug: String, sourceMessageId: String!, startAt: String, tags: String, title: String!): v2_PostBudResult!
   beaconCancel(id: String!): v2_BeaconCancelResult!
   beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
   beaconClose(beaconId: String!): Boolean!
@@ -4738,6 +4743,7 @@ type query_root {
   attentionRequestHistory(beaconId: String!, cursor: String, limit: Int): v2_AttentionPage!
   attentionSurfaceSummary: v2_AttentionSurfaceSummary!
 
+  beaconAuthorInvites(beaconId: String!): [v2_BeaconAuthorInvite!]!
   """
   fetch data from the table: "beacon"
   """
@@ -5343,6 +5349,7 @@ type query_root {
   myBlocks: [v2_BlockIntent!]
   myContacts: [v2_UserContact!]
   myHelpOffer(id: String!): v2_HelpOfferWithCoordinationRow
+  myPendingAuthorInvites: [v2_PendingAuthorInvite!]!
   myPrivateLabelsForUser(subjectUserId: String!): [String!]
   myRoutingTags: [String!]!
   myWorkAttention(beaconIds: [String!]): [v2_MyWorkBeaconAttention!]!
@@ -5448,6 +5455,7 @@ type query_root {
 
   """fetch data from the table: "polling_variant" using primary key columns"""
   polling_variant_by_pk(id: String!): polling_variant
+  postBudInviteCandidates(postId: String!): [v2_PostBudInviteCandidate!]!
   postSummary(id: String!): v2_PostSummary
 
   """
@@ -7571,6 +7579,7 @@ type v2_ActivityOfferSortRow {
   latestForwardAt: String!
   listPositionAt: String!
   unseen: Boolean!
+  inviteId: String
 }
 
 type v2_AttentionClearResult {
@@ -7714,6 +7723,26 @@ type v2_AuthResponse {
   token_type: String!
 }
 
+type v2_AuthorInviteCreateResult {
+  inviteId: String
+  outcome: v2_PostBudInviteOutcome!
+}
+
+type v2_AuthorInviteResult {
+  beaconId: String!
+  inviteId: String!
+  status: v2_AuthorInviteStatus!
+}
+
+enum v2_AuthorInviteStatus {
+  pending
+  accepted
+  declined
+  withdrawn
+  expired
+  superseded
+}
+
 type v2_Beacon {
   addressLabel: String
   coverImageId: String
@@ -7735,6 +7764,14 @@ type v2_BeaconActivityEventRow {
   targetUserId: String
   type: Int!
   visibility: Int!
+}
+
+type v2_BeaconAuthorInvite {
+  createdAt: String!
+  inviteId: String!
+  inviteeId: String!
+  note: String
+  status: v2_AuthorInviteStatus!
 }
 
 type v2_BeaconChildCreateResult {
@@ -8182,6 +8219,7 @@ type v2_ConstellationRequest {
   viewerHasActiveHelpOffer: Boolean!
   viewerHasForwardEdge: Boolean!
   viewerIsRoomParticipant: Boolean!
+  parentBeaconId: String
 }
 
 input v2_Coordinates {
@@ -8358,6 +8396,49 @@ type v2_HelpOfferWithCoordinationRow {
   user: v2_user!
   userId: String!
   withdrawReason: String
+}
+
+type v2_PendingAuthorInvite {
+  beaconId: String!
+  beaconTitle: String!
+  createdAt: String!
+  inviteId: String!
+  inviterId: String!
+  note: String
+  sourcePostId: String
+}
+
+type v2_PostBudInviteCandidate {
+  hasWritten: Boolean!
+  outcome: v2_PostBudInviteOutcome!
+  pretick: Boolean!
+  userId: String!
+  viaUserId: String
+  warm: Boolean!
+}
+
+enum v2_PostBudInviteOutcome {
+  invited
+  notEligible
+  alreadyInvited
+  recipientPaused
+  blocked
+}
+
+input v2_PostBudInviteeInput {
+  note: String
+  userId: String!
+}
+
+type v2_PostBudInviteeResult {
+  outcome: v2_PostBudInviteOutcome!
+  userId: String!
+}
+
+type v2_PostBudResult {
+  childBeaconId: String
+  invitees: [v2_PostBudInviteeResult!]!
+  outcome: String!
 }
 
 type v2_image {
@@ -9173,6 +9254,7 @@ type v2_PostSummary {
   mutedForever: Boolean!
   unreadCount: Int!
   isAuthor: Boolean!
+  status: Int!
 }
 
 """

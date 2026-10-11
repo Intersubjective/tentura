@@ -13,4 +13,5 @@ fragment PostSummaryFields on v2_PostSummary {
   mutedForever
   unreadCount
   isAuthor
+  status
 }

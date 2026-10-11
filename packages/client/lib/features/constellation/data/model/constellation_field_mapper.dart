@@ -155,6 +155,7 @@ ConstellationRequest _mapRequestFields({
   String? endAt,
   String? addressLabel,
   ImageModelV2? coverThumb,
+  String? parentBeaconId,
 }) => ConstellationRequest(
   id: id,
   authorId: authorId,
@@ -173,6 +174,7 @@ ConstellationRequest _mapRequestFields({
   helpOfferCount: helpOfferCount,
   coverSource: BeaconCoverSource.fromWireOrPhoto(coverSource),
   coverThumb: coverThumb?.asEntity,
+  parentBeaconId: parentBeaconId,
 );
 
 ConstellationRequest _mapFieldFetchRequest(
@@ -195,6 +197,7 @@ ConstellationRequest _mapFieldFetchRequest(
   helpOfferCount: request.helpOfferCount,
   coverSource: request.coverSource,
   coverThumb: request.coverThumb as ImageModelV2?,
+  parentBeaconId: request.parentBeaconId,
 );
 
 ConstellationRequest _mapAnchorsFetchRequest(
@@ -217,6 +220,7 @@ ConstellationRequest _mapAnchorsFetchRequest(
   helpOfferCount: request.helpOfferCount,
   coverSource: request.coverSource,
   coverThumb: request.coverThumb as ImageModelV2?,
+  parentBeaconId: request.parentBeaconId,
 );
 
 ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
@@ -256,6 +260,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
         helpOfferCount: request.helpOfferCount,
         coverSource: request.coverSource,
         coverThumb: request.coverThumb as ImageModelV2?,
+        parentBeaconId: request.parentBeaconId,
       ),
   ],
   supportPeers: [
@@ -314,6 +319,7 @@ ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
         helpOfferCount: request.helpOfferCount,
         coverSource: request.coverSource,
         coverThumb: request.coverThumb as ImageModelV2?,
+        parentBeaconId: request.parentBeaconId,
       ),
   ],
   supportPeers: [

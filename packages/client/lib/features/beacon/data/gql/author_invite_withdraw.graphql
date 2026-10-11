@@ -1,0 +1,7 @@
+mutation AuthorInviteWithdraw($inviteId: String!) {
+  beaconAuthorInviteWithdraw(inviteId: $inviteId) {
+    inviteId
+    beaconId
+    status
+  }
+}

@@ -1,0 +1,6 @@
+mutation AuthorInviteCreate($beaconId: String!, $userId: String!, $note: String) {
+  beaconAuthorInviteCreate(beaconId: $beaconId, userId: $userId, note: $note) {
+    outcome
+    inviteId
+  }
+}

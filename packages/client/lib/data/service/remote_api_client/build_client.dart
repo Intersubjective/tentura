@@ -388,6 +388,14 @@ class _V2RoutingLink extends Link {
     'MyWorkCoordinationItemActivity',
     'MyWorkLastActivityEvent',
     'BeaconPublish',
+    'PostBudFromPost',
+    'PostBudInviteCandidates',
+    'AuthorInviteCreate',
+    'AuthorInviteAccept',
+    'AuthorInviteDecline',
+    'AuthorInviteWithdraw',
+    'MyPendingAuthorInvites',
+    'BeaconAuthorInvites',
   };
 
   @override

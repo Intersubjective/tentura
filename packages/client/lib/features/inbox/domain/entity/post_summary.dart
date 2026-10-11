@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 /// One Post the viewer is in, as the «Разговоры» tab lists it.
 @immutable
@@ -17,6 +18,7 @@ final class PostSummary {
     this.mutedForever = false,
     this.unreadCount = 0,
     this.isAuthor = false,
+    this.status = BeaconStatus.open,
   });
 
   final String id;
@@ -36,6 +38,12 @@ final class PostSummary {
   final bool mutedForever;
   final int unreadCount;
   final bool isAuthor;
+
+  /// [BeaconStatus.open], or [BeaconStatus.closed] once the Post was closed
+  /// by budding a Request from it.
+  final BeaconStatus status;
+
+  bool get isClosed => status == BeaconStatus.closed;
 
   bool get isPinned => pinnedAt != null;
 
