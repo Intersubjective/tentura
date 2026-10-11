@@ -406,6 +406,9 @@ activity_child_receipts AS (
     -- #189: For You carries only what can be skipped — no reminder about the
     -- viewer's own duty reaches a card, its count or its dot.
     AND ${AttentionDismissibleSql.forYouEligible('v')}
+    -- Plan C6: a pinned row with a pending invite is the invite card; its
+    -- `authorInviteReceived` receipt is the card, not one of its events.
+    AND NOT ${AttentionDismissibleSql.foldedInviteReceipt('v')}
 ),
 beacon_activity_stats AS (
   SELECT
@@ -1169,6 +1172,7 @@ AND (
         .customSelect(
           '''
 WITH $_visibleWithSurfaceCte,
+${AttentionDismissibleSql.eligiblePinned},
 ranked AS (
   SELECT
     $_visibleStreamColumns,
@@ -1204,6 +1208,8 @@ ranked AS (
     -- same rule that produced that number. The Request's own log — History and
     -- the Request timeline — is a different query and keeps every notice.
     AND ${AttentionDismissibleSql.primaryPlacement('v')}
+    -- Plan C6: the same fold as `activity_child_receipts`.
+    AND NOT ${AttentionDismissibleSql.foldedInviteReceipt('v')}
     $cursorClause
 )
 SELECT *
@@ -1287,7 +1293,16 @@ ranked AS (
         AND act.surface = 'activity'
         AND ${AttentionDismissibleSql.activeOptional('act')}
         AND ${AttentionDismissibleSql.primaryPlacement('act')}
-    ) AS unseen
+    ) AS unseen,
+    -- Plan C6: at most one pending invite per (Request, invitee), by the
+    -- `beacon_author_invite_pending_beacon_uq` index.
+    (
+      SELECT bai.id
+      FROM public.beacon_author_invite bai
+      WHERE bai.beacon_id = ep.beacon_id
+        AND bai.invitee_id = \$1
+        AND bai.status = 0
+    ) AS invite_id
   FROM eligible_pinned ep
   JOIN public.inbox_item ii
     ON ii.user_id = \$1
@@ -1329,6 +1344,7 @@ FROM eligible_pinned
           unseen: row.read<bool>('unseen'),
           eventTotal: row.read<int>('event_total'),
           eventUnseenCount: row.read<int>('event_unseen_count'),
+          inviteId: row.readNullable<String>('invite_id'),
         ),
     ];
     final hasMore = sortRows.length > boundedLimit;

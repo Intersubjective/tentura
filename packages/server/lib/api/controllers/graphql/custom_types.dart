@@ -119,6 +119,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlEnumAuthorInviteStatus,
   gqlTypeAuthorInviteCreateResult,
   gqlTypeAuthorInviteResult,
+  gqlTypePendingAuthorInvite,
+  gqlTypeBeaconAuthorInvite,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -421,6 +423,8 @@ final gqlTypeActivityOfferSortRow =
           'eventsPreview',
           GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
         ),
+        // Plan C6 - the viewer's pending author invite on this Request.
+        field('inviteId', graphQLString),
       ]);
 
 final gqlTypeActivityOfferPage = GraphQLObjectType('ActivityOfferPage', null)
@@ -1936,4 +1940,28 @@ final gqlTypeAuthorInviteResult = GraphQLObjectType('AuthorInviteResult', null)
     field('inviteId', graphQLString.nonNullable()),
     field('beaconId', graphQLString.nonNullable()),
     field('status', gqlEnumAuthorInviteStatus.nonNullable()),
+  ]);
+
+/// `myPendingAuthorInvites` (plan C6): a pending invite as its invitee sees
+/// it — the Request summary, the inviter and the note.
+final gqlTypePendingAuthorInvite =
+    GraphQLObjectType('PendingAuthorInvite', null)
+      ..fields.addAll([
+        field('inviteId', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('beaconTitle', graphQLString.nonNullable()),
+        field('inviterId', graphQLString.nonNullable()),
+        field('sourcePostId', graphQLString),
+        field('note', graphQLString),
+        field('createdAt', graphQLString.nonNullable()),
+      ]);
+
+/// `beaconAuthorInvites` (plan C6): one invite on the author's Request.
+final gqlTypeBeaconAuthorInvite = GraphQLObjectType('BeaconAuthorInvite', null)
+  ..fields.addAll([
+    field('inviteId', graphQLString.nonNullable()),
+    field('inviteeId', graphQLString.nonNullable()),
+    field('status', gqlEnumAuthorInviteStatus.nonNullable()),
+    field('note', graphQLString),
+    field('createdAt', graphQLString.nonNullable()),
   ]);

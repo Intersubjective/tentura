@@ -3,6 +3,7 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 import 'query_beacon_display.dart';
 import 'query_beacon_hierarchy.dart';
 import 'query_attention.dart';
+import 'query_author_invite.dart';
 import 'query_beacon_involvement.dart';
 import 'query_beacon_member_webs.dart';
 import 'query_beacon_room.dart';
@@ -34,6 +35,7 @@ import 'query_post_bud.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryAttention().all,
+  ...QueryAuthorInvite().all,
   ...QueryBeaconDisplay().all,
   ...QueryBeaconHierarchy().all,
   ...QueryInvitation().all,

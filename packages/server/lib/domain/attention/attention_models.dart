@@ -698,5 +698,11 @@ abstract class ActivityOfferSortRow with _$ActivityOfferSortRow {
     required int eventTotal,
     required int eventUnseenCount,
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> eventsPreview,
+
+    /// Plan C6 — the viewer's pending author invite on this Request, when
+    /// there is one: the row is then the invite card, and the invite's
+    /// `authorInviteReceived` receipt is folded into it rather than shown as
+    /// one of its events.
+    String? inviteId,
   }) = _ActivityOfferSortRow;
 }

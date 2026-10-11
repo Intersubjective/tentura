@@ -63,6 +63,19 @@ class AuthorInviteCase {
   final CommitmentRepositoryPort _commitments;
   final ForwardCase _forwardCase;
 
+  /// The caller's pending invites, for the «Для вас» invite card (plan C6).
+  Future<List<PendingAuthorInvite>> myPendingInvites({
+    required String actorUserId,
+  }) => _invites.listPendingForInvitee(actorUserId);
+
+  /// Every invite on [beaconId] for its author's People tab (plan C6). Anyone
+  /// else, an invitee or an observer included, gets an empty list rather than
+  /// an error, so the call is no oracle for the invites of others.
+  Future<List<AuthorInvite>> beaconInvites({
+    required String actorUserId,
+    required String beaconId,
+  }) => _invites.listForAuthor(beaconId: beaconId, authorId: actorUserId);
+
   /// A later invite from the child's People tab (Arch §3.3): only the child
   /// author, only for a snapshot observer, under the same eligibility rules
   /// as the bud. Ineligible targets are an outcome, not an error.

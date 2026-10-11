@@ -198,6 +198,7 @@ final class QueryAttention extends GqlNodeBase {
               'eventsPreview': [
                 for (final event in item.eventsPreview) _mapReceipt(event),
               ],
+              'inviteId': item.inviteId,
             },
         ],
         'totalCount': page.totalCount,

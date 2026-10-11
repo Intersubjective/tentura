@@ -182,6 +182,24 @@ eligible_pinned AS (
       'AND pk.kind = 1)) '
       'AND ${postMuteExcluded(alias)})';
 
+  /// Plan C6 — an `authorInviteReceived` receipt whose invite is still
+  /// pending. On the invitee's pinned For-you row for the same Request the
+  /// receipt *is* the invite card, so the read projection folds it into that
+  /// row instead of counting or previewing it as one of the row's events (no
+  /// duplicate card). It stays an ordinary optional receipt everywhere else:
+  /// the dot, the sweep and its clearing are untouched.
+  static String pendingInviteReceipt(String alias) =>
+      "($alias.kind = 'authorInviteReceived' AND EXISTS ( "
+      'SELECT 1 FROM public.beacon_author_invite bai '
+      'WHERE bai.beacon_id = $alias.beacon_id '
+      'AND bai.invitee_id = $alias.account_id AND bai.status = 0))';
+
+  /// [pendingInviteReceipt] on a Request in the pinned zone: the receipt
+  /// folded into its invite card. Requires [eligiblePinned] to precede it.
+  static String foldedInviteReceipt(String alias) =>
+      '(${pendingInviteReceipt(alias)} '
+      'AND $alias.beacon_id IN (SELECT beacon_id FROM eligible_pinned))';
+
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///
   /// The exclusions are the point:

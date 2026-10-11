@@ -11,6 +11,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dismissible_sql.dart';
+import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/author_invite_repository.dart';
@@ -41,6 +42,7 @@ import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/post_bud.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
@@ -710,6 +712,101 @@ WHERE id = '${row.forwardEdgeId}'
         (await _receipts(writer, kind: 'authorInviteReceived')).single.cleared,
         isTrue,
       );
+    });
+
+    group('read projections (C6)', () {
+      test('the invitee sees their own pending invite and note', () async {
+        final id = await invited(_warm, note: 'You have a van');
+        await invited(_cold);
+
+        final mine = await s.invites.myPendingInvites(actorUserId: _warm);
+        expect(mine, hasLength(1));
+        final pending = mine.single;
+        expect(pending.inviteId, id);
+        expect(pending.beaconId, _child);
+        expect(pending.beaconTitle, 'Move the piano');
+        expect(pending.inviterId, _author);
+        expect(pending.sourcePostId, _post);
+        expect(pending.note, 'You have a van');
+        expect(pending.createdAt, isNotNull);
+
+        await s.invites.decline(actorUserId: _warm, inviteId: id);
+        expect(await s.invites.myPendingInvites(actorUserId: _warm), isEmpty);
+        expect(
+          await s.invites.myPendingInvites(actorUserId: _author),
+          isEmpty,
+          reason: 'the inviter is not an invitee',
+        );
+      });
+
+      test('the author sees every invite on their child', () async {
+        final warmId = await invited(_warm, note: 'van');
+        final coldId = await invited(_cold);
+        await s.invites.decline(actorUserId: _cold, inviteId: coldId);
+
+        final all = await s.invites.beaconInvites(
+          actorUserId: _author,
+          beaconId: _child,
+        );
+        expect(
+          {for (final i in all) i.id: (i.inviteeId, i.status, i.note)},
+          {
+            warmId: (_warm, AuthorInviteStatus.pending, 'van'),
+            coldId: (_cold, AuthorInviteStatus.declined, null),
+          },
+        );
+        expect(all.map((i) => i.createdAt), everyElement(isNotNull));
+      });
+
+      test('an observer, an invitee or anyone else gets nothing', () async {
+        await invited(_warm, note: 'van');
+
+        for (final viewer in [_warm, _cold, _postAuthor, _late]) {
+          expect(
+            await s.invites.beaconInvites(
+              actorUserId: viewer,
+              beaconId: _child,
+            ),
+            isEmpty,
+            reason: viewer,
+          );
+        }
+      });
+
+      test('the pinned For-you row carries the invite and folds its '
+          'receipt', () async {
+        final id = await invited(_warm);
+        await s.forward(_author, _cold);
+        final attention = AttentionRepository(database);
+
+        final warmOffers = await attention.activityOffers(accountId: _warm);
+        expect(warmOffers.items.map((i) => i.beaconId), [_child]);
+        final row = warmOffers.items.single;
+        expect(row.inviteId, id);
+        expect(row.eventTotal, 0, reason: 'the receipt is the card itself');
+        expect(row.eventsPreview, isEmpty);
+
+        final feed = await attention.attentionFeed(
+          accountId: _warm,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+        expect(
+          feed.page.items.where((r) => r.beaconId == _child),
+          isEmpty,
+          reason: 'no second card for the same Request',
+        );
+
+        final coldOffers = await attention.activityOffers(accountId: _cold);
+        expect(coldOffers.items.single.beaconId, _child);
+        expect(coldOffers.items.single.inviteId, isNull);
+
+        await s.invites.decline(actorUserId: _warm, inviteId: id);
+        expect(
+          (await attention.activityOffers(accountId: _warm)).items,
+          isEmpty,
+        );
+      });
     });
   });
 }

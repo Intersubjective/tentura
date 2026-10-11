@@ -22,6 +22,17 @@ abstract interface class AuthorInvitePort {
     required String inviteeId,
   });
 
+  /// The pending invites of [inviteeId] on Requests they can read, newest
+  /// first (plan C6).
+  Future<List<PendingAuthorInvite>> listPendingForInvitee(String inviteeId);
+
+  /// Every invite on [beaconId] in any status, oldest first, when [authorId]
+  /// is the Request's author; otherwise empty (plan C6).
+  Future<List<AuthorInvite>> listForAuthor({
+    required String beaconId,
+    required String authorId,
+  });
+
   /// Lock-order steps 1–2 (Arch §4.1): the global hierarchy lock, then the
   /// Post lock of [sourcePostId] when there is one.
   Future<void> lockScope(String? sourcePostId);

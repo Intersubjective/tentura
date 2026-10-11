@@ -1,3 +1,4 @@
+import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/author_invite.dart';
@@ -53,6 +54,58 @@ class AuthorInviteRepository implements AuthorInvitePort {
     'FOR UPDATE',
     [beaconId, inviteeId],
   );
+
+  @override
+  Future<List<PendingAuthorInvite>> listPendingForInvitee(
+    String inviteeId,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT i.id, i.beacon_id, b.title, i.inviter_id, i.source_post_id, '
+          '       i.note, i.created_at '
+          'FROM public.beacon_author_invite i '
+          'JOIN public.beacon b ON b.id = i.beacon_id '
+          r'WHERE i.invitee_id = $1 AND i.status = 0 '
+          '  AND NOT public.block_hides(i.inviter_id, i.invitee_id) '
+          r'  AND public.beacon_can_read_content(i.beacon_id, $1) '
+          'ORDER BY i.created_at DESC, i.id DESC',
+          variables: [Variable.withString(inviteeId)],
+        )
+        .get();
+    return [
+      for (final r in rows)
+        PendingAuthorInvite(
+          inviteId: r.read<String>('id'),
+          beaconId: r.read<String>('beacon_id'),
+          beaconTitle: r.read<String>('title'),
+          inviterId: r.read<String>('inviter_id'),
+          sourcePostId: r.readNullable<String>('source_post_id'),
+          note: r.readNullable<String>('note'),
+          createdAt: _timestamp(r)!,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<AuthorInvite>> listForAuthor({
+    required String beaconId,
+    required String authorId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT $_columns, created_at FROM public.beacon_author_invite '
+          r'WHERE beacon_id = $1 '
+          '  AND EXISTS (SELECT 1 FROM public.beacon b '
+          r'             WHERE b.id = $1 AND b.user_id = $2) '
+          'ORDER BY created_at, id',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(authorId),
+          ],
+        )
+        .get();
+    return [for (final r in rows) _map(r)];
+  }
 
   @override
   Future<void> lockScope(String? sourcePostId) async {
@@ -128,6 +181,13 @@ class AuthorInviteRepository implements AuthorInvitePort {
     return row == null ? null : _map(row);
   }
 
+  /// `created_at` when the query selected it.
+  static DateTime? _timestamp(QueryRow r) => switch (r.data['created_at']) {
+    final DateTime v => v,
+    final PgDateTime v => v.dateTime,
+    _ => null,
+  };
+
   static AuthorInvite _map(QueryRow r) => AuthorInvite(
     id: r.read<String>('id'),
     beaconId: r.read<String>('beacon_id'),
@@ -138,5 +198,6 @@ class AuthorInviteRepository implements AuthorInvitePort {
     warm: r.read<bool>('warm'),
     note: r.readNullable<String>('note'),
     status: AuthorInviteStatus.fromCode(r.read<int>('status')),
+    createdAt: _timestamp(r),
   );
 }

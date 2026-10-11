@@ -33,6 +33,7 @@ final class AuthorInvite {
     required this.warm,
     required this.status,
     this.note,
+    this.createdAt,
   });
 
   final String id;
@@ -58,7 +59,40 @@ final class AuthorInvite {
   /// Visible to the inviter and the invitee only.
   final String? note;
 
+  /// Set by the read projections (plan C6); the lifecycle paths leave it null.
+  final DateTime? createdAt;
+
   bool get isPending => status == AuthorInviteStatus.pending;
+}
+
+/// A pending invite as its invitee sees it (plan C6, «Для вас» card data):
+/// the Request summary and the inviter, never the inviter's other invites.
+final class PendingAuthorInvite {
+  const PendingAuthorInvite({
+    required this.inviteId,
+    required this.beaconId,
+    required this.beaconTitle,
+    required this.inviterId,
+    required this.createdAt,
+    this.sourcePostId,
+    this.note,
+  });
+
+  final String inviteId;
+
+  /// The child Request.
+  final String beaconId;
+
+  final String beaconTitle;
+
+  final String inviterId;
+
+  /// The parent Post; NULL for repair invites.
+  final String? sourcePostId;
+
+  final String? note;
+
+  final DateTime createdAt;
 }
 
 /// Result of a later invite (`beaconAuthorInviteCreate`, Arch §3.3).

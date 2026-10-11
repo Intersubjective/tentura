@@ -6,13 +6,14 @@ import 'package:test/test.dart';
 import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_author_invite.dart';
+import 'package:tentura_server/api/controllers/graphql/query/query_author_invite.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/post_bud.dart';
 import 'package:tentura_server/domain/use_case/author_invite_case.dart';
 
-/// Plan C4: the author-invite mutations map their input and output
-/// faithfully and act as the authenticated user.
+/// Plans C4 and C6: the author-invite mutations and read queries map their
+/// input and output faithfully and act as the authenticated user.
 void main() {
   const auth = {kGlobalInputQueryJwt: JwtEntity(sub: 'Uactor')};
 
@@ -30,7 +31,8 @@ void main() {
               graphQLString,
               resolve: (_, _) => 'pong',
             ),
-          ),
+          )
+          ..fields.addAll(QueryAuthorInvite(authorInviteCase: inviteCase).all),
         mutationType: GraphQLObjectType('Mutation', 'Mutation root')
           ..fields.addAll(
             MutationAuthorInvite(authorInviteCase: inviteCase).all,
@@ -102,6 +104,52 @@ mutation {
       expect(inviteCase.calls, [(method, 'Uactor', 'BIinvite', null, null)]);
     });
   }
+
+  test('myPendingAuthorInvites reads as the caller', () async {
+    final result = await run('''
+query {
+  myPendingAuthorInvites {
+    inviteId beaconId beaconTitle inviterId sourcePostId note createdAt
+  }
+}
+''');
+
+    expect(result['myPendingAuthorInvites'], [
+      {
+        'inviteId': 'BIinvite',
+        'beaconId': 'Bchild',
+        'beaconTitle': 'Move the piano',
+        'inviterId': 'Uauthor',
+        'sourcePostId': 'Bpost',
+        'note': 'van',
+        'createdAt': '2026-10-11T10:00:00.000Z',
+      },
+    ]);
+    expect(inviteCase.calls, [('myPending', 'Uactor', '', null, null)]);
+  });
+
+  test('beaconAuthorInvites reads the invites of a Request', () async {
+    final result = await run('''
+query {
+  beaconAuthorInvites(beaconId: "Bchild") {
+    inviteId inviteeId status note createdAt
+  }
+}
+''');
+
+    expect(result['beaconAuthorInvites'], [
+      {
+        'inviteId': 'BIinvite',
+        'inviteeId': 'Uactor',
+        'status': 'declined',
+        'note': 'van',
+        'createdAt': '2026-10-11T10:00:00.000Z',
+      },
+    ]);
+    expect(inviteCase.calls, [
+      ('beaconInvites', 'Uactor', 'Bchild', null, null),
+    ]);
+  });
 }
 
 final class _FakeAuthorInviteCase extends Fake implements AuthorInviteCase {
@@ -135,6 +183,48 @@ final class _FakeAuthorInviteCase extends Fake implements AuthorInviteCase {
     warm: true,
     status: status,
   );
+
+  static final _createdAt = DateTime.utc(2026, 10, 11, 10);
+
+  @override
+  Future<List<PendingAuthorInvite>> myPendingInvites({
+    required String actorUserId,
+  }) async {
+    calls.add(('myPending', actorUserId, '', null, null));
+    return [
+      PendingAuthorInvite(
+        inviteId: 'BIinvite',
+        beaconId: 'Bchild',
+        beaconTitle: 'Move the piano',
+        inviterId: 'Uauthor',
+        sourcePostId: 'Bpost',
+        note: 'van',
+        createdAt: _createdAt,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<AuthorInvite>> beaconInvites({
+    required String actorUserId,
+    required String beaconId,
+  }) async {
+    calls.add(('beaconInvites', actorUserId, beaconId, null, null));
+    return [
+      AuthorInvite(
+        id: 'BIinvite',
+        beaconId: beaconId,
+        inviterId: 'Uauthor',
+        inviteeId: 'Uactor',
+        sourcePostId: 'Bpost',
+        forwardEdgeId: 'Fedge',
+        warm: true,
+        status: AuthorInviteStatus.declined,
+        note: 'van',
+        createdAt: _createdAt,
+      ),
+    ];
+  }
 
   @override
   Future<AuthorInvite> accept({
