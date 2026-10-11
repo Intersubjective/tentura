@@ -183,8 +183,7 @@ void main() {
       // Reply body is present (inline meta path uses RoomMessageTextBody).
       expect(
         find.byWidgetPredicate(
-          (w) =>
-              w is RoomMessageTextBody && w.display == 'I can bring one.',
+          (w) => w is RoomMessageTextBody && w.display == 'I can bring one.',
         ),
         findsOneWidget,
       );
@@ -237,6 +236,49 @@ void main() {
         ),
         findsOneWidget,
       );
+    },
+  );
+  testWidgets(
+    'promotion notice whose source message was deleted renders without '
+    'a footer and without crashing',
+    (tester) async {
+      registerHierarchy(title: 'Detached child');
+
+      final notice = RoomMessage(
+        id: 'notice-detached',
+        beaconId: 'b1',
+        authorId: 'promoter',
+        author: const Profile(id: 'promoter', displayName: 'Promoter'),
+        body: '',
+        createdAt: base,
+        systemMessageKind: BeaconRoomSystemMessageKind.childCreated,
+        systemPayloadJson: jsonEncode({
+          'version': 1,
+          'kind': 'childCreated',
+          'childBeaconId': 'child-1',
+          // The source was hard-deleted; the published child keeps its
+          // parent (A1), so the notice still names a missing message.
+          'sourceMessageId': 'source-deleted',
+        }),
+      );
+      final reply = RoomMessage(
+        id: 'reply-detached',
+        beaconId: 'b1',
+        authorId: bob.id,
+        author: bob,
+        body: 'Still here.',
+        createdAt: base.add(const Duration(minutes: 2)),
+        replyToMessageId: 'source-deleted',
+      );
+
+      await pumpChat(tester, messages: [notice, reply]);
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(BeaconHierarchyNotice), findsOneWidget);
+      expect(find.byType(BeaconChildPromotionFooter), findsNothing);
+      expect(find.byType(BeaconCardShell), findsNothing);
+      expect(find.text('Detached child'), findsOneWidget);
+      expect(find.byType(RoomMessageTile), findsNWidgets(2));
     },
   );
 }

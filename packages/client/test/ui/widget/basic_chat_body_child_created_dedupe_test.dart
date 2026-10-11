@@ -74,6 +74,23 @@ void main() {
       );
     });
 
+    test('false when the promotion source was deleted', () {
+      final notice = _msg(
+        id: 'notice-1',
+        systemMessageKind: BeaconRoomSystemMessageKind.childCreated,
+        payload: {
+          'version': 1,
+          'kind': 'childCreated',
+          'childBeaconId': 'child-1',
+          'sourceMessageId': 'source-deleted',
+        },
+      );
+      expect(
+        isRedundantChildCreatedNotice(notice, {'notice-1', 'other-1'}),
+        isFalse,
+      );
+    });
+
     test('false for ordinary messages', () {
       expect(
         isRedundantChildCreatedNotice(_msg(id: 'm1'), {'m1'}),
