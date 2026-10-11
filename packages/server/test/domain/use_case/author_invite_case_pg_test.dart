@@ -10,6 +10,8 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/data/database/migration/_migrations.dart'
+    show migrateDbSchema;
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dismissible_sql.dart';
@@ -116,11 +118,100 @@ Future<void> main() async {
     envVarName: 'TENTURA_AUTHOR_INVITE_CASE_PG_TEST_DB',
     defaultNamePrefix: 'tentura_test_author_invite_case',
   );
-  final pgSkip = await pgSkipReason(target);
+  final repairTarget = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_AUTHOR_INVITE_REPAIR_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_author_invite_repair',
+  );
+  final pgSkip = await pgSkipReason(target) ?? await pgSkipReason(repairTarget);
   if (pgSkip != null) {
     test('Postgres unavailable', () {}, skip: pgSkip);
     return;
   }
+
+  group('invites produced by the unconfirmed-committer repair', () {
+    late DisposablePgWriterSession session;
+    late Connection writer;
+    late TenturaDb database;
+    late _Stack s;
+
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(
+        target: repairTarget,
+        lastInclusiveVersion: '0247',
+      );
+      writer = session.writer;
+      await _seed(writer);
+      // `_cold` has no inbound edge at all, `_warm` has an ordinary one;
+      // both were admitted to the room without ever acknowledging.
+      await writer.execute('''
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$_child', '$_postAuthor', '$_warm')
+''');
+      for (final user in [_cold, _warm]) {
+        await writer.execute('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
+VALUES ('$_child', '$user', 2, 3)
+''');
+      }
+      await migrateDbSchema(writer);
+      database = openDisposablePgDatabase(repairTarget);
+      s = _Stack.build(database, repairTarget.databaseEnv);
+    });
+
+    tearDownAll(() async {
+      await tearDownDisposablePgWriter(session: session, drift: database);
+    });
+
+    Future<String> pendingInviteId(String user) async =>
+        (await writer.execute(
+              'SELECT id FROM public.beacon_author_invite '
+              "WHERE beacon_id = '$_child' AND invitee_id = '$user' "
+              'AND status = 0',
+            )).single.single!
+            as String;
+
+    for (final user in [_cold, _warm]) {
+      test('$user can read the Request and sees the pinned row with the '
+          'repair invite id', () async {
+        final canRead = await writer.execute(
+          Sql.named('SELECT public.beacon_can_read_content(@b, @u)'),
+          parameters: {'b': _child, 'u': user},
+        );
+        expect(canRead.single.single, isTrue);
+
+        final offers = await AttentionRepository(
+          database,
+        ).activityOffers(accountId: user);
+        expect(offers.items.map((i) => i.beaconId), [_child]);
+        expect(offers.items.single.inviteId, await pendingInviteId(user));
+      });
+
+      test('$user accepting the repair invite becomes a helper with an '
+          'acknowledged event', () async {
+        final accepted = await s.invites.accept(
+          actorUserId: user,
+          inviteId: await pendingInviteId(user),
+        );
+
+        expect(accepted.status, AuthorInviteStatus.accepted);
+        final rows = await collectAdmissionRowSet(
+          writer,
+          beaconId: _child,
+          helperId: user,
+        );
+        expect(
+          rows,
+          contains(startsWith('beacon_participant|user=$user|role=2|')),
+        );
+        expect(
+          rows,
+          contains(
+            'beacon_commitment_event|user=$user|actor=$_author|kind=1',
+          ),
+        );
+      });
+    }
+  });
 
   group('AuthorInviteCase', () {
     late DisposablePgWriterSession session;
@@ -313,6 +404,37 @@ VALUES ('$_helper', '$_author', '$_helper')
           );
         },
       );
+
+      test('a repair invite without a source Post is accepted into a helper '
+          'with an acknowledged event', () async {
+        await writer.execute('''
+INSERT INTO public.beacon_forward_edge
+  (id, beacon_id, sender_id, recipient_id, contact_sweep_exempt)
+VALUES ('Fai4repair001', '$_child', '$_author', '$_cold', true)
+''');
+        await writer.execute('''
+INSERT INTO public.beacon_author_invite
+  (id, beacon_id, inviter_id, invitee_id, forward_edge_id, warm)
+VALUES ('BIai4repair01', '$_child', '$_author', '$_cold', 'Fai4repair001',
+        true)
+''');
+
+        final accepted = await s.invites.accept(
+          actorUserId: _cold,
+          inviteId: 'BIai4repair01',
+        );
+
+        expect(accepted.status, AuthorInviteStatus.accepted);
+        final rows = await rowSet(_cold);
+        expect(
+          rows,
+          contains(startsWith('beacon_participant|user=$_cold|role=2|')),
+        );
+        expect(
+          rows,
+          contains('beacon_commitment_event|user=$_cold|actor=$_author|kind=1'),
+        );
+      });
 
       test('a repeated accept is idempotent', () async {
         final id = await invited(_warm);
