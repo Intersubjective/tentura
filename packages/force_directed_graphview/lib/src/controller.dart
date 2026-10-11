@@ -656,10 +656,16 @@ class GraphController<N, E> with ChangeNotifier {
     }
 
     void apply() {
-      if (_disposed ||
-          _transitionsPaused ||
-          generation != _publicationGeneration ||
-          topologyRevision != _scene.topologyRevision ||
+      if (_disposed || generation != _publicationGeneration) {
+        return;
+      }
+      // Paused transitions hold a new layout back, but other scene changes
+      // (a node drag's presentation) must still reach the view.
+      if (_transitionsPaused) {
+        if (!isNewLayoutSuccess) _notify(heldWhilePaused: false);
+        return;
+      }
+      if (topologyRevision != _scene.topologyRevision ||
           (successTicket != null &&
               successTicket != _scene.snapshot.layout?.ticket) ||
           !identical(outcome, _scene.layoutOutcome)) {

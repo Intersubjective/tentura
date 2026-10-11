@@ -201,6 +201,26 @@ void main() {
   });
 
   group('Queued layout publication guards', () {
+    testWidgets('a presentation drag publishes while transitions are paused',
+        (tester) async {
+      final controller = await _mountGraph(tester);
+      final token = controller.beginNodePresentationDragForId(
+        '1',
+        const Offset(100, 100),
+      );
+      _pause(controller);
+      await tester.pump();
+      var publications = 0;
+      controller.addListener(() => publications++);
+
+      controller.updateNodePresentationDrag(token, const Offset(180, 140));
+      await tester.pump();
+
+      expect(publications, greaterThan(0));
+      expect(controller.getPositionForId('1'), const Offset(180, 140));
+      _resume(controller);
+    });
+
     testWidgets('deferred frame notification is safe after disposal',
         (tester) async {
       var publications = 0;
