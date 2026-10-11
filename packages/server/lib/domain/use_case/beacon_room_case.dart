@@ -1096,44 +1096,6 @@ class BeaconRoomCase extends UseCaseBase {
     );
   }
 
-  Future<void> admit({
-    required String beaconId,
-    required String participantUserId,
-    required String actorUserId,
-  }) async {
-    await _requireRequest(beaconId);
-    final author = await _room.isBeaconAuthor(
-      beaconId: beaconId,
-      userId: actorUserId,
-    );
-    final steward = await _room.isBeaconSteward(
-      beaconId: beaconId,
-      userId: actorUserId,
-    );
-    if (!author && !steward) {
-      throw const UnauthorizedException(description: 'Author or steward only');
-    }
-    await _attention!.runAction<void>(
-      actorUserId: actorUserId,
-      action: (transaction) async {
-        await _hierarchyRepository.lockMutationScope();
-        await _room.admitParticipant(
-          beaconId: beaconId,
-          participantUserId: participantUserId,
-          actorUserId: actorUserId,
-        );
-        await transaction.record(
-          await _attentionIntents!.offerAccepted(
-            receiverId: participantUserId,
-            beaconId: beaconId,
-            actorUserId: actorUserId,
-            sourceEventKey: 'room_admission:${generateId('A')}',
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> stewardPromote({
     required String beaconId,
     required String stewardUserId,

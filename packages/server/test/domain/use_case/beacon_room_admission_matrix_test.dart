@@ -1,3 +1,4 @@
+import 'package:tentura_server/api/controllers/graphql/mutation/mutation_beacon_room.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
@@ -82,41 +83,7 @@ HelpOfferEntity _activeOffer() => HelpOfferEntity(
   updatedAt: _now,
 );
 
-class _AdmitStubRoom extends Fake implements BeaconRoomRepositoryPort {
-  _AdmitStubRoom({
-    this.authorIds = const {},
-    this.stewardIds = const {},
-  });
-
-  final Set<String> authorIds;
-  final Set<String> stewardIds;
-
-  String? admittedParticipantId;
-  String? admitActorId;
-
-  @override
-  Future<bool> isBeaconAuthor({
-    required String beaconId,
-    required String userId,
-  }) async => authorIds.contains(userId);
-
-  @override
-  Future<bool> isBeaconSteward({
-    required String beaconId,
-    required String userId,
-  }) async => stewardIds.contains(userId);
-
-  @override
-  Future<void> admitParticipant({
-    required String beaconId,
-    required String participantUserId,
-    required String actorUserId,
-    String admissionReason = 'admit',
-  }) async {
-    admittedParticipantId = participantUserId;
-    admitActorId = actorUserId;
-  }
-}
+class _UnusedRoomCase extends Fake implements BeaconRoomCase {}
 
 class _MinimalCoordinationItems extends Fake
     implements CoordinationItemRepositoryPort {}
@@ -194,7 +161,7 @@ void main() {
   group('exited helpers have external-viewer access (#144)', () {
     for (final withdraw in [true, false]) {
       test(
-        withdraw ? 'accept and admit then leave' : 'author declines offer',
+        withdraw ? 'accept then leave' : 'author declines offer',
         () async {
           final beaconRepo = MockBeaconRepositoryPort();
           final offers = _ExitOffers();
@@ -239,15 +206,6 @@ void main() {
             admission = RoomAccessBits.none;
           });
           when(
-            room.admitParticipant(
-              beaconId: _beaconId,
-              participantUserId: _helperId,
-              actorUserId: _authorId,
-            ),
-          ).thenAnswer((_) async {
-            admission = RoomAccessBits.admitted;
-          });
-          when(
             inbox.upsertWatchingForSender(
               senderId: _helperId,
               beaconId: _beaconId,
@@ -262,9 +220,11 @@ void main() {
               offerUserId: _helperId,
               actorUserId: _authorId,
             ),
-          ).thenAnswer(
-            (_) async => (status: BeaconStatus.open, statusChangedAt: null),
-          );
+          ).thenAnswer((_) async {
+            // Accepting an offer admits the helper (both confirmations).
+            admission = RoomAccessBits.admitted;
+            return (status: BeaconStatus.open, statusChangedAt: null);
+          });
           when(
             coordinationRepo.declineHelpOffer(
               beaconId: _beaconId,
@@ -312,11 +272,6 @@ void main() {
             await coordination.acceptHelpOffer(
               beaconId: _beaconId,
               offerUserId: _helperId,
-              actorUserId: _authorId,
-            );
-            await discussion.admit(
-              beaconId: _beaconId,
-              participantUserId: _helperId,
               actorUserId: _authorId,
             );
             expect(admission, RoomAccessBits.admitted);
@@ -426,116 +381,17 @@ void main() {
 
 
   group('room admission matrix (COV-051)', () {
-    group('BeaconRoomCase.admit — actor matrix', () {
-      late _AdmitStubRoom room;
-      late TestAttentionHarness attention;
-      late BeaconRoomCase sut;
-
-      setUp(() {
-        room = _AdmitStubRoom(authorIds: {_authorId});
-        attention = TestAttentionHarness();
-        sut = BeaconRoomCase(
-          room,
-          _MinimalCoordinationItems(),
-          _MinimalFactCards(),
-          _MinimalImages(),
-          _MinimalTasks(),
-          _MinimalRemoteStorage(),
-          _MinimalPolling(),
-          _MinimalUploadQuota(),
-          FakeUserBlockRepository(),
-      PassThroughMutatingUnitOfWork(),
-      FakeBeaconHierarchyRepository(),
-      const ProductionDiscussionProductPolicy(),
-          attentionIntents: attention.intents,
-          attention: attention.transactional,
-          env: Env(environment: Environment.test),
-          logger: Logger('BeaconRoomAdmissionMatrixTest'),
-        );
-      });
-
-      for (final row in <({String actorId, String label, bool isSteward})>[
-        (actorId: _authorId, label: 'author', isSteward: false),
-        (actorId: _stewardId, label: 'steward', isSteward: true),
-      ]) {
-        test('${row.label} admits participant and notifies', () async {
-          if (row.isSteward) {
-            room = _AdmitStubRoom(stewardIds: {row.actorId});
-                attention = TestAttentionHarness();
-            sut = BeaconRoomCase(
-              room,
-              _MinimalCoordinationItems(),
-              _MinimalFactCards(),
-                  _MinimalImages(),
-              _MinimalTasks(),
-              _MinimalRemoteStorage(),
-              _MinimalPolling(),
-              _MinimalUploadQuota(),
-              FakeUserBlockRepository(),
-      PassThroughMutatingUnitOfWork(),
-      FakeBeaconHierarchyRepository(),
-      const ProductionDiscussionProductPolicy(),
-              attentionIntents: attention.intents,
-              attention: attention.transactional,
-              env: Env(environment: Environment.test),
-              logger: Logger('BeaconRoomAdmissionMatrixTest'),
-            );
-          }
-
-          await sut.admit(
-            beaconId: _beaconId,
-            participantUserId: _helperId,
-            actorUserId: row.actorId,
-          );
-
-          expect(room.admittedParticipantId, _helperId);
-          expect(room.admitActorId, row.actorId);
-          expect(
-            attention.recorded.single.recipients.single.recipientId,
-            _helperId,
-          );
-          expect(attention.recorded.single.actorUserId, row.actorId);
-        });
-      }
-
-      test('outsider is rejected', () async {
-        room = _AdmitStubRoom();
-        sut = BeaconRoomCase(
-          room,
-          _MinimalCoordinationItems(),
-          _MinimalFactCards(),
-          _MinimalImages(),
-          _MinimalTasks(),
-          _MinimalRemoteStorage(),
-          _MinimalPolling(),
-          _MinimalUploadQuota(),
-          FakeUserBlockRepository(),
-      PassThroughMutatingUnitOfWork(),
-      FakeBeaconHierarchyRepository(),
-      const ProductionDiscussionProductPolicy(),
-          attentionIntents: attention.intents,
-          attention: attention.transactional,
-          env: Env(environment: Environment.test),
-          logger: Logger('BeaconRoomAdmissionMatrixTest'),
-        );
-
-        await expectLater(
-          sut.admit(
-            beaconId: _beaconId,
-            participantUserId: _helperId,
-            actorUserId: _outsiderId,
-          ),
-          throwsA(
-            isA<UnauthorizedException>().having(
-              (e) => e.description,
-              'description',
-              'Author or steward only',
-            ),
-          ),
-        );
-        expect(room.admittedParticipantId, isNull);
-      });
-    });
+    test(
+      'no admission path without both confirmations: BeaconRoomAdmit is '
+      'absent from the V2 schema (#283)',
+      () {
+        final fields = MutationBeaconRoom(
+          beaconRoomCase: _UnusedRoomCase(),
+        ).all.map((f) => f.name);
+        expect(fields, isNot(contains('BeaconRoomAdmit')));
+        expect(fields, contains('BeaconParticipantOfferHelp'));
+      },
+    );
 
     group('CoordinationCase.setCoordinationResponse — room access matrix', () {
       late MockBeaconRepositoryPort beaconRepo;

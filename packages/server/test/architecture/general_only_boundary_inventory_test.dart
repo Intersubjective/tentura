@@ -107,7 +107,6 @@ void main() {
       'roomPollCreate',
       'markThreadSeen',
       'participantOfferHelp',
-      'beaconRoomAdmit',
       'beaconStewardPromote',
       'roomMessageList',
       'roomMessageTarget',

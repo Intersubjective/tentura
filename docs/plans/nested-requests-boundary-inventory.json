@@ -87,14 +87,6 @@
     },
     {
       "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
-      "symbol": "beaconRoomAdmit",
-      "surface": "graphql-mutation",
-      "scopeInput": "beaconId",
-      "decision": "general-only-plus-lifecycle-guard",
-      "test": "ST/api/general_only_public_contract_test.dart"
-    },
-    {
-      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
       "symbol": "beaconStewardPromote",
       "surface": "graphql-mutation",
       "scopeInput": "beaconId",

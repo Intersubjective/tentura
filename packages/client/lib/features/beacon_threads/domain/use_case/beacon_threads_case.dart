@@ -298,11 +298,6 @@ base class BeaconThreadsCase extends UseCaseBase {
     required String note,
   }) => _room.participantOfferHelp(beaconId: beaconId, note: note);
 
-  Future<bool> admit({
-    required String beaconId,
-    required String participantUserId,
-  }) => _room.admit(beaconId: beaconId, participantUserId: participantUserId);
-
   Future<bool> promoteSteward({
     required String beaconId,
     required String stewardUserId,

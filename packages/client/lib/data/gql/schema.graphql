@@ -3802,7 +3802,6 @@ type mutation_root {
   BeaconFactCardRestore(baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, fromSeq: Int!): Int!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
-  BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
   BeaconRoomNowLineUpdate(beaconId: String!, text: String!): v2_BeaconRoomStateRow!
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
   MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): v2_BeaconPeopleSeenResult!

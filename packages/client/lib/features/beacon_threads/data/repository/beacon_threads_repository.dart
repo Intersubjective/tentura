@@ -35,7 +35,6 @@ import '../gql/_g/beacon_threads_list.req.gql.dart';
 import '../gql/_g/mark_thread_seen.req.gql.dart';
 import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
 import '../gql/_g/beacon_participant_offer_help.req.gql.dart';
-import '../gql/_g/beacon_room_admit.req.gql.dart';
 import '../gql/_g/beacon_room_state_get.req.gql.dart';
 import '../gql/_g/beacon_steward_promote.req.gql.dart';
 import '../gql/_g/room_message_attachment_add.req.gql.dart';
@@ -748,23 +747,6 @@ class BeaconThreadsRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconParticipantOfferHelp);
-    return ok;
-  }
-
-  Future<bool> admit({
-    required String beaconId,
-    required String participantUserId,
-  }) async {
-    final ok = await _remoteApiService
-        .request(
-          GBeaconRoomAdmitReq(
-            (b) => b.vars
-              ..beaconId = beaconId
-              ..participantUserId = participantUserId,
-          ),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).BeaconRoomAdmit);
     return ok;
   }
 

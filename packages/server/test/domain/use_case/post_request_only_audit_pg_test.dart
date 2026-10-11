@@ -357,17 +357,6 @@ GROUP BY beacon_id
         );
       });
 
-      test('room admission', () async {
-        await expectLater(
-          harness.room.admit(
-            beaconId: _draftPost,
-            participantUserId: _bob,
-            actorUserId: _author,
-          ),
-          throwsBeaconNotRequest,
-        );
-      });
-
       test('steward promotion', () async {
         await expectLater(
           harness.room.stewardPromote(

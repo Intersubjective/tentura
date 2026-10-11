@@ -31,7 +31,6 @@ void main() {
     'beacon_room_case.dart': [
       'runAction<',
       '.helpOfferSubmitted(',
-      '.offerAccepted(',
       '.coordinationChanged(',
     ],
   };

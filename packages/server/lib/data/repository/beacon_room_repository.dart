@@ -1237,39 +1237,6 @@ RETURNING *
     }
   });
 
-  Future<void> admitParticipant({
-    required String beaconId,
-    required String participantUserId,
-    required String actorUserId,
-    String admissionReason = BeaconRoomAdmissionReason.admit,
-  }) => _db.withMutatingUser(actorUserId, () async {
-    final existing = await findParticipant(
-      beaconId: beaconId,
-      userId: participantUserId,
-    );
-    if (existing?.roomAccess == RoomAccessBits.admitted) {
-      return;
-    }
-    await _db.managers.beaconParticipants
-        .filter(
-          (r) => r.beaconId.id(beaconId) & r.userId.id(participantUserId),
-        )
-        .update(
-          (o) => o(
-            roomAccess: const Value(RoomAccessBits.admitted),
-            status: const Value(BeaconParticipantStatusBits.committed),
-            updatedAt: Value(PgDateTime(DateTime.timestamp())),
-          ),
-        );
-    await recordBeaconRoomParticipantJoined(
-      db: _db,
-      beaconId: beaconId,
-      joinedUserId: participantUserId,
-      actorUserId: actorUserId,
-      admissionReason: admissionReason,
-    );
-  });
-
   /// Author coordination: admit helper into beacon Room (creates participant row when absent).
   @override
   Future<void> inviteOfferUserToBeaconRoom({

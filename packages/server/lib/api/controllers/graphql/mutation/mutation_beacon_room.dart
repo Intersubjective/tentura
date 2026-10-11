@@ -23,8 +23,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _threadId = InputFieldString(fieldName: 'threadId');
 
-  final _participantUserId = InputFieldString(fieldName: 'participantUserId');
-
   final _stewardUserId = InputFieldString(fieldName: 'stewardUserId');
 
   final _messageId = InputFieldString(fieldName: 'messageId');
@@ -73,7 +71,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
     roomMessageEdit,
     roomMessageDelete,
     participantOfferHelp,
-    beaconRoomAdmit,
     beaconStewardPromote,
     roomMessageReactionToggle,
     roomMessageMarkSemanticDone,
@@ -228,23 +225,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
               note: _body.fromArgs(args) ?? '',
-            )
-            .then((_) => true),
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconRoomAdmit =>
-      GraphQLObjectField(
-        'BeaconRoomAdmit',
-        graphQLBoolean.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _participantUserId.field,
-        ],
-        resolve: (_, args) => _case
-            .admit(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              participantUserId: _participantUserId.fromArgsNonNullable(args),
-              actorUserId: getCredentials(args).sub,
             )
             .then((_) => true),
       );

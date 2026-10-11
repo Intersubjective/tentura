@@ -134,25 +134,6 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
   }
 
   @override
-  _i3.Future<void> admitParticipant({
-    required String? beaconId,
-    required String? participantUserId,
-    required String? actorUserId,
-    String? admissionReason = 'admit',
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#admitParticipant, [], {
-              #beaconId: beaconId,
-              #participantUserId: participantUserId,
-              #actorUserId: actorUserId,
-              #admissionReason: admissionReason,
-            }),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
-
-  @override
   _i3.Future<Map<String, String>> attachmentsJsonByMessageIds(
     Iterable<String>? messageIds,
   ) =>

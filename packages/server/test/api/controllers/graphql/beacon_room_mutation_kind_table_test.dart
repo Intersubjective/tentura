@@ -54,7 +54,6 @@ const _postAllowedByMutation = <String, bool>{
   'MarkThreadSeen': true,
   'RoomPollCreate': true,
   'BeaconParticipantOfferHelp': false,
-  'BeaconRoomAdmit': false,
   'BeaconStewardPromote': false,
   'RoomMessageMarkSemanticDone': false,
   'BeaconRoomNowLineUpdate': false,
@@ -74,7 +73,6 @@ const _requiredPostAllowed = {
 
 const _requiredRequestOnly = {
   'BeaconParticipantOfferHelp',
-  'BeaconRoomAdmit',
   'BeaconStewardPromote',
   'RoomMessageMarkSemanticDone',
   'BeaconRoomNowLineUpdate',
@@ -122,11 +120,6 @@ final _probes = <String, Future<Object?> Function(BeaconRoomCase)>{
   ),
   'BeaconParticipantOfferHelp': (c) =>
       c.offerHelp(beaconId: _beaconId, userId: _otherUserId, note: 'I can'),
-  'BeaconRoomAdmit': (c) => c.admit(
-    beaconId: _beaconId,
-    participantUserId: _otherUserId,
-    actorUserId: _userId,
-  ),
   'BeaconStewardPromote': (c) => c.stewardPromote(
     beaconId: _beaconId,
     stewardUserId: _otherUserId,
@@ -299,14 +292,6 @@ class _PostRoom extends Fake implements BeaconRoomRepositoryPort {
   }) async => writes.add('participantOfferHelp');
 
   @override
-  Future<void> admitParticipant({
-    required String beaconId,
-    required String participantUserId,
-    required String actorUserId,
-    String admissionReason = 'admit',
-  }) async => writes.add('admitParticipant');
-
-  @override
   Future<void> setBeaconSteward({
     required String beaconId,
     required String stewardUserId,
@@ -397,7 +382,7 @@ void main() {
       expect(postAllowed, _requiredPostAllowed);
     });
 
-    test('classifies offer, admission, steward, semantic-done and now-line '
+    test('classifies offer, steward, semantic-done and now-line '
         'mutations as Request-only', () {
       final requestOnly = {
         for (final e in _postAllowedByMutation.entries)
