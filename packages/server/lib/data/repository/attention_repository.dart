@@ -403,14 +403,21 @@ activity_child_receipts AS (
     -- `event_total` is also the gate on the synthetic `requestActivity` row, a
     -- Request whose only receipt is such a notice grows no card at all.
     AND ${AttentionDismissibleSql.primaryPlacement('v')}
+    -- #189: For You carries only what can be skipped — no reminder about the
+    -- viewer's own duty reaches a card, its count or its dot.
+    AND ${AttentionDismissibleSql.forYouEligible('v')}
 ),
 beacon_activity_stats AS (
   SELECT
     beacon_id,
     MAX(created_at) AS max_created_at,
     MIN(created_at) AS min_created_at,
+    -- #189: optional events only. `activeAttention` also admits live
+    -- obligations, and For You never carries anything the viewer owes; an
+    -- obligation lives on My Work (its Request is in scope by construction,
+    -- so this is a guard on the rule rather than a change in membership).
     COUNT(*) FILTER (
-      WHERE ${AttentionDismissibleSql.activeAttention('child')}
+      WHERE ${AttentionDismissibleSql.activeOptional('child')}
     )::int AS event_total,
     COUNT(*) FILTER (
       WHERE ${AttentionDismissibleSql.activeOptional('child')}
@@ -872,6 +879,7 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       accountId: accountId,
       beaconIds: beaconIds,
       limitPerBeacon: kActivityEventPreviewCap,
+      cardPreview: true,
     );
     return [
       for (final item in items)
@@ -1113,11 +1121,18 @@ JOIN public."user" author ON author.id = readable.author_id
   static final String _openFamilyStatusList =
       (BeaconStatus.openFamilyValues.toList()..sort()).join(', ');
 
+  /// [cardPreview] — #189 rev 2, the For You card's zones. Instead of the
+  /// newest [limitPerBeacon] events overall, a Request gets up to
+  /// [kActivityPersonalPreviewCap] *personal* events (its «вам» zone, grouped
+  /// per sender by the card) plus its single newest *general* event (the
+  /// card's one change line). A deadline change never makes the change line:
+  /// it only recolours the header deadline.
   Future<Map<String, List<AttentionReceipt>>> _loadActivityChildReceipts({
     required String accountId,
     required Set<String> beaconIds,
     required int limitPerBeacon,
     AttentionCursor? cursor,
+    bool cardPreview = false,
   }) async {
     if (beaconIds.isEmpty) {
       return const {};
@@ -1146,7 +1161,9 @@ AND (
 )''',
       );
     }
-    variables.add(Variable<int>(limitPerBeacon));
+    // The card preview selects by zone instead of by count, so it binds no
+    // limit: an unused parameter is an error, not a no-op.
+    if (!cardPreview) variables.add(Variable<int>(limitPerBeacon));
     final limitParam = '\$${variables.length}';
     final rows = await _database
         .customSelect(
@@ -1161,16 +1178,28 @@ ranked AS (
     NULL::int AS digest_count,
     NULL::int AS event_total,
     NULL::int AS event_unseen_count,
+    ${AttentionDismissibleSql.isPersonal('v')} AS is_personal,
     ROW_NUMBER() OVER (
       PARTITION BY v.beacon_id
       ORDER BY v.created_at DESC, v.id DESC
-    ) AS rn
+    ) AS rn,
+    ROW_NUMBER() OVER (
+      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.isPersonal('v')}
+      ORDER BY v.created_at DESC, v.id DESC
+    ) AS zone_rn,
+    ROW_NUMBER() OVER (
+      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.isPersonal('v')},
+        (v.presentation_key = 'deadline_changed')
+      ORDER BY v.created_at DESC, v.id DESC
+    ) AS change_rn
   FROM visible v
   WHERE v.surface = 'activity'
     AND v.beacon_id IN ($placeholders)
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
     AND ${AttentionDismissibleSql.postMuteExcluded('v')}
-    AND ${AttentionDismissibleSql.activeAttention('v')}
+    -- #189: optional events only — For You never carries an obligation.
+    AND ${AttentionDismissibleSql.activeOptional('v')}
+    AND ${AttentionDismissibleSql.forYouEligible('v')}
     -- The preview is the expansion of `event_total`, so it is filtered by the
     -- same rule that produced that number. The Request's own log — History and
     -- the Request timeline — is a different query and keeps every notice.
@@ -1179,7 +1208,13 @@ ranked AS (
 )
 SELECT *
 FROM ranked
-WHERE rn <= $limitParam
+WHERE ${cardPreview ? '''
+  (ranked.is_personal AND ranked.zone_rn <= $kActivityPersonalPreviewCap)
+  OR (
+    NOT ranked.is_personal
+    AND ranked.presentation_key IS DISTINCT FROM 'deadline_changed'
+    AND ranked.change_rn = 1
+  )''' : 'rn <= $limitParam'}
 ORDER BY beacon_id, created_at DESC, id DESC
 ''',
           variables: variables,
@@ -1308,6 +1343,7 @@ FROM eligible_pinned
           if (row.eventTotal > 0) row.beaconId,
       },
       limitPerBeacon: kActivityEventPreviewCap,
+      cardPreview: true,
     );
     final items = [
       for (final row in sortRows)

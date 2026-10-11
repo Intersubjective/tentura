@@ -57,6 +57,10 @@ class AttentionMiniCard extends StatefulWidget {
     this.onDismiss,
     this.trailing,
     this.nameOnly = false,
+    this.eventLine,
+    this.compactAge = false,
+    this.dismissLabel,
+    this.eventMaxLines = 2,
     this.dismissDuration = const Duration(milliseconds: 180),
     super.key,
   });
@@ -108,6 +112,21 @@ class AttentionMiniCard extends StatefulWidget {
   /// is just the actor — saying «предложил помощь» again under «Предложили
   /// помощь · 2» is the repetition this exists to remove.
   final bool nameOnly;
+
+  /// #189 — the whole line, already written by the owner (a «вам» row says
+  /// «Ольга: Доски привезу к 10» in the sender's own words). Replaces the
+  /// derived event line, and on an event row the quote under it: the words
+  /// are on the line itself.
+  final String? eventLine;
+
+  /// #189 — the short card age («2 ч», «12 сент.») with the long form spoken,
+  /// instead of the shared «2 ч. назад».
+  final bool compactAge;
+
+  /// Spoken and shown as the ×'s tooltip; defaults to the generic «Убрать».
+  final String? dismissLabel;
+
+  final int eventMaxLines;
 
   final Duration dismissDuration;
 
@@ -186,23 +205,37 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
           l10n: l10n,
         ) !=
         null;
-    final eventLine = isBaton
+    final eventLine = widget.eventLine != null
+        ? widget.eventLine!
+        : isBaton
         ? scoped.event
         : widget.nameOnly && shownName.isNotEmpty
         ? shownName
         : _eventLine(l10n, scoped.event, shownName);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
-    final age = compactRelativeTimeAgo(
-      when: widget.receipt.createdAt,
-      now: DateTime.now(),
-      l10n: l10n,
-    );
+    final now = DateTime.now();
+    final age = widget.compactAge
+        ? cardRelativeAge(when: widget.receipt.createdAt, now: now, l10n: l10n)
+        : compactRelativeTimeAgo(
+            when: widget.receipt.createdAt,
+            now: now,
+            l10n: l10n,
+          );
+    final spokenAge = widget.compactAge
+        ? cardRelativeAgeSpoken(
+            when: widget.receipt.createdAt,
+            now: now,
+            l10n: l10n,
+          )
+        : age;
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
     // A forward's note comes from provenance, not the receipt; every other
     // row quotes only what its receipt carries beyond the event.
     final quoted = widget.kind == AttentionMiniCardKind.forward
         ? widget.quotedBody?.trim() ?? ''
+        : widget.eventLine != null
+        ? ''
         : scoped.excerpt;
 
     final leading = profile != null
@@ -254,12 +287,12 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
                         // event: beside it, it took the width the event
                         // needed and «Закройте цикл» broke over two lines.
                         child: widget.trailing == null
-                            ? _eventText(eventLine, age, eventStyle)
+                            ? _eventText(eventLine, spokenAge, eventStyle)
                             : Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _eventText(eventLine, age, eventStyle),
+                                  _eventText(eventLine, spokenAge, eventStyle),
                                   _ageText(tt, age, absoluteTime),
                                 ],
                               ),
@@ -283,7 +316,8 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
                         SizedBox(width: tt.tightGap),
                         _DismissControl(
                           focusNode: _dismissFocus,
-                          label: l10n.attentionEventDismiss,
+                          label:
+                              widget.dismissLabel ?? l10n.attentionEventDismiss,
                           emphasised: _hovering,
                           onPressed: _dismiss,
                         ),
@@ -349,7 +383,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     child: Text(
       eventLine,
       style: style,
-      maxLines: 2,
+      maxLines: widget.eventMaxLines,
       overflow: TextOverflow.ellipsis,
     ),
   );

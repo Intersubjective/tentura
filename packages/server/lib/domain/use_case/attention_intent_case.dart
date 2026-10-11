@@ -39,6 +39,11 @@ class AttentionIntentCase {
   static const _resolver = BeaconNotificationRecipientResolver();
   static const _copyBuilder = BeaconNotificationCopyBuilder();
 
+  /// [noteForRecipient] — #189 owner decision 1: the forward's note is kept
+  /// on each recipient's own receipt too, so the Request's Timeline holds it
+  /// and a note row on a For You card is never the note's only copy. A note
+  /// is private to its recipient, so it goes onto that recipient's role facts
+  /// and nobody else's.
   Future<AttentionDispatchIntent> relayReceived({
     required String beaconId,
     required String senderId,
@@ -46,21 +51,36 @@ class AttentionIntentCase {
     required List<String> recipientIds,
     required String sourceEventKey,
     BeaconKind beaconKind = BeaconKind.request,
-  }) => fromBeaconNotification(
-    notification: BeaconNotificationIntent(
-      kind: NotificationKind.newRelay,
-      priority: NotificationPriority.low,
-      beaconId: beaconId,
-      actorUserId: senderId,
-      forwardRecipientIds: recipientIds
-          .where((id) => id != senderId && id != beaconAuthorId)
-          .toList(),
-      beaconKind: beaconKind,
-    ),
-    eventType: AttentionEventType.relayReceived,
-    sourceEventKey: sourceEventKey,
-    resolveContext: false,
-  );
+    String? Function(String recipientId)? noteForRecipient,
+  }) async {
+    final intent = await fromBeaconNotification(
+      notification: BeaconNotificationIntent(
+        kind: NotificationKind.newRelay,
+        priority: NotificationPriority.low,
+        beaconId: beaconId,
+        actorUserId: senderId,
+        forwardRecipientIds: recipientIds
+            .where((id) => id != senderId && id != beaconAuthorId)
+            .toList(),
+        beaconKind: beaconKind,
+      ),
+      eventType: AttentionEventType.relayReceived,
+      sourceEventKey: sourceEventKey,
+      resolveContext: false,
+    );
+    if (noteForRecipient == null) return intent;
+    return intent.copyWith(
+      recipients: [
+        for (final recipient in intent.recipients)
+          switch (noteForRecipient(recipient.recipientId)?.trim()) {
+            final note? when note.isNotEmpty => recipient.copyWith(
+              role: recipient.role.copyWith(excerpt: note),
+            ),
+            _ => recipient,
+          },
+      ],
+    );
+  }
 
   Future<AttentionDispatchIntent> helpOfferSubmitted({
     required String beaconId,

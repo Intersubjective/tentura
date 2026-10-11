@@ -321,6 +321,7 @@ final class ForwardCase extends UseCaseBase {
                 recipientIds: insertedRecipientIds,
                 sourceEventKey: 'forward_batch:$batchId',
                 beaconKind: isPost ? BeaconKind.post : BeaconKind.request,
+                noteForRecipient: (id) => perRecipientNotes?[id] ?? sharedNote,
               ),
             );
           }

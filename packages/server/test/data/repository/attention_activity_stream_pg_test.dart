@@ -104,7 +104,9 @@ VALUES
         surface: AttentionSurface.activity,
       );
       expect(
-        feed.page.items.where((item) => item.itemKind == AttentionItemKind.forward),
+        feed.page.items.where(
+          (item) => item.itemKind == AttentionItemKind.forward,
+        ),
         isEmpty,
       );
       expect(
@@ -317,8 +319,7 @@ WHERE user_id = @userId AND beacon_id = @beaconId
           await _insertProfileReceipt(
             writer,
             id: 'NactpgR$index',
-            createdAt:
-                '2026-06-01T12:${index.toString().padLeft(2, '0')}:00Z',
+            createdAt: '2026-06-01T12:${index.toString().padLeft(2, '0')}:00Z',
           );
         }
         for (var index = 0; index < 20; index++) {
@@ -512,10 +513,16 @@ VALUES (@id, @authorId, @title, '', 0)
         '2026-08-10T10:00:00.000Z',
       );
       expect(grouped.single.eventTotal, 2);
-      expect(grouped.single.eventsPreview, hasLength(2));
+      // #189 rev 2: the card shows one change line, so the preview carries
+      // only the newest general event; the count still covers both.
       expect(
-        feed.page.items
-            .where((item) => item.itemKind == AttentionItemKind.receipt),
+        grouped.single.eventsPreview.map((e) => e.id),
+        ['NactstA002'],
+      );
+      expect(
+        feed.page.items.where(
+          (item) => item.itemKind == AttentionItemKind.receipt,
+        ),
         isEmpty,
       );
     });
@@ -658,51 +665,53 @@ ON CONFLICT DO NOTHING
     // the whole surface going empty, which is how R1 hid: the Request's live
     // optional event was vetoed along with the memory, while the tab kept
     // counting it. The tombstone row stays gone; the event is reachable.
-    test('dismissed tombstone stays dismissed and does not veto its Request',
-        () async {
-      await _ensureForwardPath(writer, beaconId: _closedBeaconId);
-      await _upsertInbox(
-        writer,
-        beaconId: _closedBeaconId,
-        status: 1,
-        latestForwardAt: '2026-08-14T08:00:00Z',
-      );
-      await writer.execute(
-        Sql.named(
-          'SELECT public.inbox_item_apply_tombstone_after_withdraw(@userId, @beaconId)',
-        ),
-        parameters: {'userId': _viewerId, 'beaconId': _closedBeaconId},
-      );
-      await writer.execute(
-        Sql.named('''
+    test(
+      'dismissed tombstone stays dismissed and does not veto its Request',
+      () async {
+        await _ensureForwardPath(writer, beaconId: _closedBeaconId);
+        await _upsertInbox(
+          writer,
+          beaconId: _closedBeaconId,
+          status: 1,
+          latestForwardAt: '2026-08-14T08:00:00Z',
+        );
+        await writer.execute(
+          Sql.named(
+            'SELECT public.inbox_item_apply_tombstone_after_withdraw(@userId, @beaconId)',
+          ),
+          parameters: {'userId': _viewerId, 'beaconId': _closedBeaconId},
+        );
+        await writer.execute(
+          Sql.named('''
 UPDATE public.inbox_item
 SET tombstone_dismissed_at = now()
 WHERE user_id = @userId AND beacon_id = @beaconId
 '''),
-        parameters: {'userId': _viewerId, 'beaconId': _closedBeaconId},
-      );
-      await _insertStatusReceipt(
-        writer,
-        id: 'NactstE001',
-        beaconId: _closedBeaconId,
-        createdAt: '2026-08-14T09:00:00Z',
-      );
+          parameters: {'userId': _viewerId, 'beaconId': _closedBeaconId},
+        );
+        await _insertStatusReceipt(
+          writer,
+          id: 'NactstE001',
+          beaconId: _closedBeaconId,
+          createdAt: '2026-08-14T09:00:00Z',
+        );
 
-      final feed = await query.attentionFeed(
-        accountId: _viewerId,
-        view: AttentionFeedView.all,
-        surface: AttentionSurface.activity,
-      );
-      expect(
-        feed.page.items.any((item) => item.id == 'inbox:$_closedBeaconId'),
-        isFalse,
-        reason: 'the dismissed memory never returns',
-      );
-      final group = feed.page.items.single;
-      expect(group.itemKind, AttentionItemKind.requestActivity);
-      expect(group.beaconId, _closedBeaconId);
-      expect(group.eventUnseenCount, 1);
-    });
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+        expect(
+          feed.page.items.any((item) => item.id == 'inbox:$_closedBeaconId'),
+          isFalse,
+          reason: 'the dismissed memory never returns',
+        );
+        final group = feed.page.items.single;
+        expect(group.itemKind, AttentionItemKind.requestActivity);
+        expect(group.beaconId, _closedBeaconId);
+        expect(group.eventUnseenCount, 1);
+      },
+    );
 
     // U15R-a / R1 — the seam Astra found: an outcome dismissal is a memory
     // being put away, never a veto on the Request's live attention. The tab
@@ -748,7 +757,8 @@ WHERE user_id = @userId AND beacon_id = @beaconId
         expect(
           summary.forYouDot,
           isTrue,
-          reason: 'the uncleared optional receipt still lights the tab. '
+          reason:
+              'the uncleared optional receipt still lights the tab. '
               'CHANGES IN U18c — this read the legacy `activityUnreadTotal`; '
               '§6 says `for you.count = never`, so the dot is the whole of '
               'what For You says.',
@@ -815,18 +825,21 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       expect(group.eventsPreview, hasLength(1));
     });
 
-    test('beacon-less activity receipt stays a standalone receipt row', () async {
-      await _insertProfileReceipt(writer, id: 'Nactgrp01');
+    test(
+      'beacon-less activity receipt stays a standalone receipt row',
+      () async {
+        await _insertProfileReceipt(writer, id: 'Nactgrp01');
 
-      final feed = await query.attentionFeed(
-        accountId: _viewerId,
-        view: AttentionFeedView.all,
-        surface: AttentionSurface.activity,
-      );
-      expect(feed.page.items, hasLength(1));
-      expect(feed.page.items.single.itemKind, AttentionItemKind.receipt);
-      expect(feed.page.items.single.beaconId, isNull);
-    });
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+        expect(feed.page.items, hasLength(1));
+        expect(feed.page.items.single.itemKind, AttentionItemKind.receipt);
+        expect(feed.page.items.single.beaconId, isNull);
+      },
+    );
 
     test(
       'beacon status receipt coalesces under open pinned forward not standalone',
@@ -866,124 +879,138 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       },
     );
 
-    test('unanswered open forward appears only in activityOffers pinned set',
-        () async {
-      await _upsertInbox(
-        writer,
-        beaconId: _foreignBeaconId,
-        status: 0,
-        latestForwardAt: '2026-08-17T08:00:00Z',
-      );
+    test(
+      'unanswered open forward appears only in activityOffers pinned set',
+      () async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-17T08:00:00Z',
+        );
 
-      final feed = await query.attentionFeed(
-        accountId: _viewerId,
-        view: AttentionFeedView.all,
-        surface: AttentionSurface.activity,
-      );
-      expect(
-        feed.page.items.where(
-          (item) => item.itemKind == AttentionItemKind.forward,
-        ),
-        isEmpty,
-      );
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+        expect(
+          feed.page.items.where(
+            (item) => item.itemKind == AttentionItemKind.forward,
+          ),
+          isEmpty,
+        );
 
-      final offers = await query.activityOffers(
-        accountId: _viewerId,
-        limit: 10,
-      );
-      expect(offers.totalCount, 1);
-      expect(offers.items.single.beaconId, _foreignBeaconId);
-    });
+        final offers = await query.activityOffers(
+          accountId: _viewerId,
+          limit: 10,
+        );
+        expect(offers.totalCount, 1);
+        expect(offers.items.single.beaconId, _foreignBeaconId);
+      },
+    );
 
-    test('watching status removes beacon from activityOffers pinned set', () async {
-      await _upsertInbox(
-        writer,
-        beaconId: _foreignBeaconId,
-        status: 1,
-        latestForwardAt: '2026-08-18T08:00:00Z',
-      );
+    test(
+      'watching status removes beacon from activityOffers pinned set',
+      () async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 1,
+          latestForwardAt: '2026-08-18T08:00:00Z',
+        );
 
-      final offers = await query.activityOffers(
-        accountId: _viewerId,
-        limit: 10,
-      );
-      expect(offers.totalCount, 0);
+        final offers = await query.activityOffers(
+          accountId: _viewerId,
+          limit: 10,
+        );
+        expect(offers.totalCount, 0);
 
-      final forward = await _singleActivityItem(query);
-      expect(forward.itemKind, AttentionItemKind.forward);
-      expect(forward.forwardOutcome, 'watching');
-    });
+        final forward = await _singleActivityItem(query);
+        expect(forward.itemKind, AttentionItemKind.forward);
+        expect(forward.forwardOutcome, 'watching');
+      },
+    );
 
-    test('active help offer removes beacon from activityOffers pinned set',
-        () async {
-      await _upsertInbox(
-        writer,
-        beaconId: _foreignBeaconId,
-        status: 0,
-        latestForwardAt: '2026-08-19T08:00:00Z',
-      );
-      await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
+    test(
+      'active help offer removes beacon from activityOffers pinned set',
+      () async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-19T08:00:00Z',
+        );
+        await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
 
-      final offers = await query.activityOffers(
-        accountId: _viewerId,
-        limit: 10,
-      );
-      expect(offers.totalCount, 0);
-    });
+        final offers = await query.activityOffers(
+          accountId: _viewerId,
+          limit: 10,
+        );
+        expect(offers.totalCount, 0);
+      },
+    );
 
     // REWRITTEN IN U10c (was: `activityOffers orders by effectiveActivityAt
     // not latest_forward_at`). Neither key orders the zone any more: the
     // position key does, and `effectiveActivityAt` survives only as the
     // latest-event key the card renders.
-    test('activityOffers orders the pinned zone by entry, not by either',
-        () async {
-      await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
-      await _ensureForwardPath(writer, beaconId: _closedBeaconId);
-      await _upsertInbox(
-        writer,
-        beaconId: _foreignBeaconId,
-        status: 0,
-        latestForwardAt: '2026-08-15T08:00:00Z',
-      );
-      await _insertStatusReceipt(
-        writer,
-        id: 'NactstF001',
-        beaconId: _foreignBeaconId,
-        createdAt: '2026-08-15T20:00:00Z',
-      );
-      await _upsertInbox(
-        writer,
-        beaconId: _closedBeaconId,
-        status: 0,
-        latestForwardAt: '2026-08-15T12:00:00Z',
-      );
+    test(
+      'activityOffers orders the pinned zone by entry, not by either',
+      () async {
+        await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
+        await _ensureForwardPath(writer, beaconId: _closedBeaconId);
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-15T08:00:00Z',
+        );
+        await _insertStatusReceipt(
+          writer,
+          id: 'NactstF001',
+          beaconId: _foreignBeaconId,
+          createdAt: '2026-08-15T20:00:00Z',
+        );
+        await _upsertInbox(
+          writer,
+          beaconId: _closedBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-15T12:00:00Z',
+        );
 
-      final page = await query.activityOffers(accountId: _viewerId, limit: 10);
-      // Both Requests entered when `_ensureForwardPath` created their inbox
-      // rows, `_closedBeaconId` second, so it sits above — and the status
-      // event on `_foreignBeaconId`, newer than everything in the fixture,
-      // does not lift it. Under the old key it did.
-      expect(page.items.map((e) => e.beaconId).toList(), [
-        _closedBeaconId,
-        _foreignBeaconId,
-      ]);
-      final foreign = page.items
-          .where((row) => row.beaconId == _foreignBeaconId)
-          .single;
-      expect(
-        foreign.eventTotal,
-        1,
-        reason: 'the event still attaches to its Request — it just does not '
-            'move it',
-      );
-      expect(foreign.eventsPreview, hasLength(1));
-      expect(
-        foreign.effectiveActivityAt.toUtc().toIso8601String(),
-        '2026-08-15T20:00:00.000Z',
-        reason: 'the latest-event key did move; it is simply not the key the '
-            'zone is ordered by',
-      );
-    });
+        final page = await query.activityOffers(
+          accountId: _viewerId,
+          limit: 10,
+        );
+        // Both Requests entered when `_ensureForwardPath` created their inbox
+        // rows, `_closedBeaconId` second, so it sits above — and the status
+        // event on `_foreignBeaconId`, newer than everything in the fixture,
+        // does not lift it. Under the old key it did.
+        expect(page.items.map((e) => e.beaconId).toList(), [
+          _closedBeaconId,
+          _foreignBeaconId,
+        ]);
+        final foreign = page.items
+            .where((row) => row.beaconId == _foreignBeaconId)
+            .single;
+        expect(
+          foreign.eventTotal,
+          1,
+          reason:
+              'the event still attaches to its Request — it just does not '
+              'move it',
+        );
+        expect(foreign.eventsPreview, hasLength(1));
+        expect(
+          foreign.effectiveActivityAt.toUtc().toIso8601String(),
+          '2026-08-15T20:00:00.000Z',
+          reason:
+              'the latest-event key did move; it is simply not the key the '
+              'zone is ordered by',
+        );
+      },
+    );
   }, skip: skipReason);
 }
 

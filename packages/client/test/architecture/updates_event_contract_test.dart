@@ -11,7 +11,7 @@ const _topLevelKeys = {
   'eventClassifications',
 };
 
-const _contractSchemaVersion = 5;
+const _contractSchemaVersion = 6;
 
 const _runtimeAttentionEventTypes = <String>[
   'relayReceived',
@@ -74,6 +74,10 @@ const _mandatoryCardContractKeys = {
   'selfAuthored',
   'headlineTreatment',
   'coalescible',
+  // #189 rev 2: the For You card's zones.
+  'personal',
+  'stateLike',
+  'ownDutyReminder',
 };
 
 const _headlineTreatments = {'beacon', 'user', 'system'};
@@ -295,7 +299,7 @@ const _expectedEventTypes = <Map<String, String>>[
 ];
 
 void main() {
-  test('Updates contract has the exact revision 5 semantic coverage', () {
+  test('Updates contract has the exact revision 6 semantic coverage', () {
     final contractFile = _contractFile();
     final contract = Map<String, dynamic>.from(
       jsonDecode(contractFile.readAsStringSync()) as Map,

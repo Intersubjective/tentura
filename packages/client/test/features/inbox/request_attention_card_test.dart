@@ -11,7 +11,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
-import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_indicators.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -22,10 +21,15 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// forward carrying a long note and its chips. Measured 458; the constant
 /// leaves one line of headroom.
 ///
+/// #189 rev 2 re-measured it at 504: the change line (a 48 dp tap target) and
+/// the footer now always render, where `eventCap = 0` used to drop every
+/// event — and «ещё N» with them — on a phone. Hiding nothing without a
+/// visible hint costs those two lines.
+///
 /// The number is the floor of the guarantee, not the guarantee itself — what
 /// §9 actually promises is that the height does not depend on how many events
 /// the Request has, which the D-171-5b test asserts directly.
-const double kCardCeiling360Scale13 = 480;
+const double kCardCeiling360Scale13 = 528;
 
 final _bai = Profile(id: 'u1', displayName: 'Bai Yue');
 final _gleb = Profile(id: 'u2', displayName: 'Глеб');
@@ -49,6 +53,8 @@ AttentionReceipt _event({
   String body = 'Сообщение в комнате',
   String? actorUserId = 'u3',
   DateTime? createdAt,
+  bool? personal,
+  String? excerpt,
 }) => AttentionReceipt(
   id: id,
   category: 'requestProgress',
@@ -60,7 +66,12 @@ AttentionReceipt _event({
   createdAt: createdAt ?? DateTime.utc(2026, 6, 19, 16, 40),
   collapsedCount: 1,
   presentationKey: presentationKey,
-  presentationPayloadJson: '{"eventType":"$kind"}',
+  presentationPayloadJson: [
+    '{"eventType":"$kind"',
+    if (personal != null) ',"personal":$personal',
+    if (excerpt != null) ',"excerpt":"$excerpt"',
+    '}',
+  ].join(),
   surface: AttentionSurface.activity,
   beaconId: 'b1',
   actorUserId: actorUserId,
@@ -151,7 +162,7 @@ void main() {
 
     expect(find.byType(RequestAttentionCard), findsOneWidget);
     expect(find.text('Ты же с этим возился, глянь'), findsOneWidget);
-    expect(find.text('Bai Yue переслал'), findsOneWidget);
+    expect(find.text('Переслано: Bai Yue'), findsOneWidget);
   });
 
   testWidgets('capability chips sit inside the mini-card, never the header', (
@@ -231,12 +242,20 @@ void main() {
           facts: const RequestAttentionFacts(requestId: 'b1'),
           provenance: _provenance(
             senders: [
-              const InboxForwardSender(id: 'u1', displayName: 'Bai Yue', mr: 4,
-                  notePreview: 'Ты же с этим возился, глянь'),
+              const InboxForwardSender(
+                id: 'u1',
+                displayName: 'Bai Yue',
+                mr: 4,
+                notePreview: 'Ты же с этим возился, глянь',
+              ),
               // A second note, from somebody other than the pinned sender:
               // it may never be folded into the count either.
-              const InboxForwardSender(id: 'u2', displayName: 'Глеб', mr: 3,
-                  notePreview: 'Могу дать прицеп на выходных'),
+              const InboxForwardSender(
+                id: 'u2',
+                displayName: 'Глеб',
+                mr: 3,
+                notePreview: 'Могу дать прицеп на выходных',
+              ),
               const InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2),
               const InboxForwardSender(id: 'u4', displayName: 'Пётр', mr: 1),
             ],
@@ -261,7 +280,7 @@ void main() {
       find.byKey(RequestAttentionCard.moreForwardedKey),
       findsOneWidget,
     );
-    expect(find.text('ещё 3 переслали'), findsOneWidget);
+    expect(find.text('Переслали ещё 3'), findsOneWidget);
   });
 
   testWidgets('with no note above it, the line names the forwarder', (
@@ -280,7 +299,9 @@ void main() {
       ),
     );
 
-    await pump(const [InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2)]);
+    await pump(const [
+      InboxForwardSender(id: 'u3', displayName: 'Мила', mr: 2),
+    ]);
     await tester.pumpAndSettle();
     // Not «ещё 1» — there is nothing above it to be more than.
     expect(find.text('Переслано: Мила'), findsOneWidget);
@@ -293,14 +314,16 @@ void main() {
     expect(find.text('Переслано: Мила и ещё 1'), findsOneWidget);
 
     // The author forwarding their own Request is already «От Автор».
-    await pump(const [InboxForwardSender(id: 'a1', displayName: 'Автор', mr: 1)]);
+    await pump(const [
+      InboxForwardSender(id: 'a1', displayName: 'Автор', mr: 1),
+    ]);
     await tester.pumpAndSettle();
     expect(find.byKey(RequestAttentionCard.moreForwardedKey), findsNothing);
-    expect(find.text('От Автор'), findsOneWidget);
+    expect(find.textContaining('Автор', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('«ещё N» opens the Timeline and never grows the card (D-171-5b)',
-      (tester) async {
+  testWidgets('«Ещё N в хронологии» opens the Timeline and never grows the '
+      'card (D-171-5b)', (tester) async {
     var timeline = 0;
     Widget build() => _host(
       RequestAttentionCard(
@@ -326,9 +349,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final before = tester.getSize(find.byType(RequestAttentionCard)).height;
-    final more = find.byKey(ActivityEventSubcardBlock.moreKey);
+    final more = find.byKey(RequestAttentionCard.footerTimelineKey);
     expect(more, findsOneWidget);
-    expect(find.byKey(ActivityEventSubcardBlock.loadMoreKey), findsNothing);
+    // Three general events make one change line; the other four are hidden.
+    expect(find.text('Ещё 4 в хронологии ›'), findsOneWidget);
 
     await tester.tap(more);
     await tester.pumpAndSettle();
@@ -351,7 +375,8 @@ void main() {
       _host(
         RequestAttentionCard(
           beacon: _beacon.copyWith(
-            title: 'Нужен прицеп и пара рук на выходных, иначе всё встанет '
+            title:
+                'Нужен прицеп и пара рук на выходных, иначе всё встанет '
                 'совсем — помогите пожалуйста кто может',
             endAt: DateTime.now().add(const Duration(hours: 6)),
           ),
@@ -363,7 +388,10 @@ void main() {
           ),
           provenance: _provenance(pinned: _pinnedForward),
           eventTotal: 4,
-          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          eventsPreview: [
+            _event(id: 'e1'),
+            _event(id: 'e2'),
+          ],
           actors: {'u1': _bai, 'u3': _mila},
           onOpenBeacon: () {},
           onOpenTimeline: () {},
@@ -392,7 +420,9 @@ void main() {
   ) async {
     var declined = 0;
     await tester.pumpWidget(
-      _host(_pinnedCard(onCantHelp: () async => declined++, actors: {'u1': _bai})),
+      _host(
+        _pinnedCard(onCantHelp: () async => declined++, actors: {'u1': _bai}),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -466,17 +496,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(TenturaRelationChip), findsOneWidget);
-    expect(find.text('Помогаю'), findsOneWidget);
+    // #189: the relation is a word on the sub-line, never a chip.
+    expect(find.byType(TenturaRelationChip), findsNothing);
+    expect(
+      find.textContaining('Помогаю · Автор', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.byKey(RequestAttentionCard.offerHelpKey), findsNothing);
     expect(find.byKey(RequestAttentionCard.followKey), findsNothing);
-    // Timeline lives in ⋮. One event: its own × is the clear — no second
-    // «Очистить всё» for the same act.
-    expect(find.byKey(RequestAttentionCard.clearAllKey), findsNothing);
+    // «Разобрано» shows whenever anything is dismissible, one event included.
+    expect(find.byKey(RequestAttentionCard.clearAllKey), findsOneWidget);
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsOneWidget);
   });
 
-  testWidgets('Очистить всё appears once there is more than one event', (
+  testWidgets('Разобрано appears whenever there is an event', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -488,7 +521,10 @@ void main() {
             unclearedOptionalEvents: 2,
           ),
           eventTotal: 2,
-          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          eventsPreview: [
+            _event(id: 'e1'),
+            _event(id: 'e2'),
+          ],
           onOpenBeacon: () {},
           onOpenTimeline: () {},
           onClearEvent: (_) {},
@@ -501,7 +537,7 @@ void main() {
     expect(find.byKey(RequestAttentionCard.clearAllKey), findsOneWidget);
   });
 
-  testWidgets('Очистить всё disappears when nothing is left to clear', (
+  testWidgets('Разобрано disappears when nothing is left to clear', (
     tester,
   ) async {
     var timeline = 0;
@@ -521,8 +557,9 @@ void main() {
 
     expect(find.byKey(RequestAttentionCard.clearAllKey), findsNothing);
     expect(find.byKey(RequestAttentionIndicators.dotKey), findsNothing);
-    expect(find.text('Хронология'), findsNothing);
-    expect(find.text('Слежу'), findsOneWidget);
+    // The Timeline is always one tap away, from the footer and from ⋮.
+    expect(find.text('Хронология ›'), findsOneWidget);
+    expect(find.textContaining('Слежу', findRichText: true), findsOneWidget);
 
     await tester.tap(find.byKey(RequestAttentionCard.overflowKey));
     await tester.pumpAndSettle();
@@ -548,7 +585,7 @@ void main() {
 
     // Same order as a My Work card: bare title, then who it is from.
     expect(find.text('Наши требования'), findsOneWidget);
-    expect(find.text('От Автор'), findsOneWidget);
+    expect(find.textContaining('Автор', findRichText: true), findsWidgets);
     expect(find.textContaining('«'), findsNothing);
     // §6.1: the header carries nothing else — no category, no "updated N ago".
     expect(find.textContaining('обновлен'), findsNothing);
@@ -591,7 +628,10 @@ void main() {
             unclearedOptionalEvents: 2,
           ),
           eventTotal: 2,
-          eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+          eventsPreview: [
+            _event(id: 'e1'),
+            _event(id: 'e2'),
+          ],
           actors: {'u3': _mila},
           onOpenBeacon: () {},
           onOpenTimeline: () {},
@@ -641,7 +681,10 @@ void main() {
                 ),
                 provenance: _provenance(pinned: _pinnedForward),
                 eventTotal: 4,
-                eventsPreview: [_event(id: 'e1'), _event(id: 'e2')],
+                eventsPreview: [
+                  _event(id: 'e1'),
+                  _event(id: 'e2'),
+                ],
                 actors: {'u1': _bai, 'u3': _mila},
                 onOpenBeacon: () {},
                 onOpenTimeline: () {},
@@ -663,5 +706,209 @@ void main() {
     expect(find.byType(AttentionMiniCard), findsOneWidget);
     expect(find.byKey(const ValueKey('next')), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('#189 rev 2 — the «вам» zone and one change line', () {
+    RequestAttentionCard grouped({
+      required List<AttentionReceipt> events,
+      int? total,
+      InboxProvenance? provenance,
+      ValueChanged<String>? onClearEvent,
+      VoidCallback? onClearAll,
+    }) => RequestAttentionCard(
+      beacon: _beacon,
+      relation: RequestAttentionRelation.following,
+      facts: RequestAttentionFacts(
+        requestId: 'b1',
+        unclearedOptionalEvents: total ?? events.length,
+      ),
+      provenance: provenance ?? InboxProvenance.empty,
+      eventTotal: total ?? events.length,
+      eventsPreview: events,
+      actors: {'u1': _bai, 'u2': _gleb, 'u3': _mila, 'u4': _petr},
+      onOpenBeacon: () {},
+      onOpenTimeline: () {},
+      onClearEvent: onClearEvent ?? (_) {},
+      onClearAll: onClearAll ?? () {},
+    );
+
+    final now = DateTime.now().toUtc();
+    final olgaOld = _event(
+      id: 'm1',
+      personal: true,
+      excerpt: 'Доски привезу к 10',
+      createdAt: now.subtract(const Duration(hours: 3)),
+    );
+    final olgaNew = _event(
+      id: 'm2',
+      personal: true,
+      excerpt: 'А ворота кто откроет?',
+      createdAt: now.subtract(const Duration(hours: 2)),
+    );
+    final gleb = _event(
+      id: 'm3',
+      actorUserId: 'u2',
+      personal: true,
+      excerpt: 'Я с тачкой',
+      createdAt: now.subtract(const Duration(hours: 1)),
+    );
+    final status = _event(
+      id: 's1',
+      kind: 'blockerOpened',
+      presentationKey: 'blocker_opened',
+      actorUserId: 'u4',
+      personal: false,
+      excerpt: 'нет ключа от ворот',
+      createdAt: now.subtract(const Duration(minutes: 40)),
+    );
+
+    testWidgets('on a phone: one sender row, the others named, and the '
+        'change line still shows (the old eventCap = 0 bug)', (tester) async {
+      await tester.pumpWidget(
+        _host(grouped(events: [status, gleb, olgaNew, olgaOld], total: 6)),
+      );
+      await tester.pumpAndSettle();
+
+      // Newest sender first, in their own words, with a short age.
+      expect(find.text('Глеб: Я с тачкой'), findsOneWidget);
+      expect(find.text('Мила: А ворота кто откроет?'), findsNothing);
+      expect(find.text('↳ ещё вам: Мила'), findsOneWidget);
+      expect(find.byKey(RequestAttentionCard.changeLineKey), findsOneWidget);
+      expect(find.text('Блокер: нет ключа от ворот'), findsOneWidget);
+      expect(find.text('40 мин'), findsOneWidget);
+      // Shown: Gleb's one message and the change line; 4 left in the Timeline.
+      expect(find.text('Ещё 4 в хронологии ›'), findsOneWidget);
+      // E19: @, not the dot, when something is addressed to you.
+      expect(
+        find.byKey(RequestAttentionCard.forYouIndicatorKey),
+        findsOneWidget,
+      );
+      expect(find.byKey(RequestAttentionIndicators.dotKey), findsNothing);
+    });
+
+    testWidgets('a sender row shows their newest message and its × clears '
+        'everything they sent', (tester) async {
+      final cleared = <String>[];
+      await tester.pumpWidget(
+        _host(
+          grouped(events: [olgaNew, olgaOld], onClearEvent: cleared.add),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Мила: А ворота кто откроет?'), findsOneWidget);
+      expect(find.text('Мила: Доски привезу к 10'), findsNothing);
+      await tester.tap(find.byKey(AttentionMiniCard.dismissKey));
+      await tester.pumpAndSettle();
+      expect(cleared, ['m2', 'm1']);
+    });
+
+    testWidgets('only general updates: the dot, no «вам» zone', (tester) async {
+      await tester.pumpWidget(_host(grouped(events: [status])));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(RequestAttentionCard.forYouZoneKey), findsNothing);
+      expect(find.byKey(RequestAttentionCard.forYouIndicatorKey), findsNothing);
+      expect(find.byKey(RequestAttentionIndicators.dotKey), findsOneWidget);
+      expect(find.text('Хронология ›'), findsOneWidget);
+    });
+
+    testWidgets('a forward awaiting your decision is addressed to you: @, '
+        'even though forwards never ride the event preview', (tester) async {
+      await tester.pumpWidget(_host(_pinnedCard()));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(RequestAttentionCard.forYouIndicatorKey),
+        findsOneWidget,
+      );
+      expect(find.byKey(RequestAttentionIndicators.dotKey), findsNothing);
+    });
+
+    testWidgets('a note from the author says «(автор)» and the author leaves '
+        'the sub-line', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          grouped(
+            events: [status],
+            provenance: _provenance(
+              pinned: InboxLatestNoteForward(
+                forwardId: 'f9',
+                senderId: 'a1',
+                displayName: 'Автор',
+                notePreview: 'Приходи, нужен второй ведущий',
+                forwardedAt: now.subtract(const Duration(hours: 1)),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Переслано: Автор (автор)'), findsOneWidget);
+      final subLine = tester.widget<Text>(
+        find.byKey(RequestAttentionCard.subLineKey),
+      );
+      expect(subLine.textSpan!.toPlainText(), 'Слежу');
+      // The note took the only phone slot; the change line is still there.
+      expect(find.byKey(RequestAttentionCard.changeLineKey), findsOneWidget);
+    });
+
+    testWidgets('notes past the cap fold into «ещё N записок», which opens '
+        'all of them', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          grouped(
+            events: [status],
+            provenance: _provenance(
+              senders: const [
+                InboxForwardSender(
+                  id: 'u2',
+                  displayName: 'Глеб',
+                  mr: 2,
+                  notePreview: 'Могу дать прицеп',
+                ),
+                InboxForwardSender(
+                  id: 'u4',
+                  displayName: 'Пётр',
+                  mr: 1,
+                  notePreview: 'Есть перчатки',
+                ),
+              ],
+              pinned: _pinnedForward,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('ещё 2 записки ›'), findsOneWidget);
+      await tester.tap(find.byKey(RequestAttentionCard.moreNotesKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(RequestAttentionCard.notesSheetKey), findsOneWidget);
+      expect(find.text('Есть перчатки'), findsOneWidget);
+    });
+
+    testWidgets('Разобрано clears the card and names the count', (
+      tester,
+    ) async {
+      var clearedAll = 0;
+      await tester.pumpWidget(
+        _host(
+          grouped(
+            events: [status, gleb],
+            total: 2,
+            onClearAll: () => clearedAll++,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Разобрано'), findsOneWidget);
+      await tester.tap(find.byKey(RequestAttentionCard.clearAllKey));
+      await tester.pump();
+      expect(clearedAll, 1);
+      expect(find.text('Убрано 2 события'), findsOneWidget);
+    });
   });
 }

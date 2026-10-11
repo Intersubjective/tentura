@@ -38,6 +38,12 @@ class AttentionPolicy {
         ? _preferenceClass(eventType)
         : null;
     final requiresAction = _requiresAction(eventType, recipientReasons);
+    final personal = isPersonal(
+      eventType: eventType,
+      recipientId: recipientId,
+      recipientReasons: recipientReasons,
+      actorUserId: role.actorUserId,
+    );
 
     return AttentionReceiptProjection(
       category: _category(eventType, suppression),
@@ -46,7 +52,11 @@ class AttentionPolicy {
       accessPolicy: accessPolicy,
       destination: destination,
       presentationKey: _presentationKey(eventType, role),
-      presentationPayload: _presentationPayload(eventType, role),
+      presentationPayload: _presentationPayload(
+        eventType,
+        role,
+        personal: personal,
+      ),
       requiresAction: requiresAction,
       attentionThreadKey: requiresAction
           ? _threadKey(eventType, recipientId, role)
@@ -357,6 +367,114 @@ class AttentionPolicy {
         _ => AttentionPlacement.primary,
       };
 
+  /// #189 — the recipient reasons that make a receipt *personal*: somebody
+  /// did this to you, by name, rather than to everyone on the Request.
+  ///
+  /// Mirrors the reasons named by the variants marked `personal: true` in
+  /// `docs/contracts/updates-event-contract.json`;
+  /// `updates_event_contract_test.dart` asserts the two agree.
+  static const personalRecipientReasons = {
+    AttentionRecipientReason.forwardRecipient,
+    AttentionRecipientReason.directedChatTarget,
+    AttentionRecipientReason.targetOfAsk,
+    AttentionRecipientReason.batonCandidate,
+    AttentionRecipientReason.postAuthor,
+    AttentionRecipientReason.affectedParticipant,
+  };
+
+  /// #189 — whether this event type can be personal at all. State changes,
+  /// reminders and churn never are, whoever receives them: «personal» is a
+  /// person addressing you, not the Request moving.
+  bool canBePersonal(AttentionEventType eventType) => switch (eventType) {
+    AttentionEventType.relayReceived ||
+    AttentionEventType.offerAccepted ||
+    AttentionEventType.offerDeclined ||
+    AttentionEventType.offerRemoved ||
+    AttentionEventType.commitmentReleased ||
+    AttentionEventType.roomMessagePosted ||
+    AttentionEventType.postFirstResponse ||
+    AttentionEventType.needsMe ||
+    AttentionEventType.blockerOpened ||
+    AttentionEventType.promiseMade ||
+    AttentionEventType.promiseWithdrawn ||
+    AttentionEventType.commitmentAccepted ||
+    AttentionEventType.commitmentCancelled ||
+    AttentionEventType.commitmentRedirected ||
+    AttentionEventType.batonAsked => true,
+    AttentionEventType.helpOfferSubmitted ||
+    AttentionEventType.requestStatusChanged ||
+    AttentionEventType.beaconHierarchyStatusChanged ||
+    AttentionEventType.obligationEnded ||
+    AttentionEventType.mutualConnectionFormed ||
+    AttentionEventType.inviteAccepted ||
+    AttentionEventType.blockerResolved ||
+    AttentionEventType.coordinationChanged ||
+    AttentionEventType.staleReminder ||
+    AttentionEventType.commitmentResolved ||
+    AttentionEventType.deadlineChanged ||
+    AttentionEventType.deadlineReminder ||
+    AttentionEventType.closureOpened ||
+    AttentionEventType.closureDraftReminder ||
+    AttentionEventType.closureFinalized ||
+    AttentionEventType.closureCancelled ||
+    AttentionEventType.requestStale ||
+    AttentionEventType.batonTaken ||
+    AttentionEventType.batonAllAnswered => false,
+  };
+
+  /// #189 — personal = a human actor other than the recipient, an event type
+  /// that [canBePersonal], and a [personalRecipientReasons] reason. Decided
+  /// by why the recipient got the event, never by its type alone: a blocker
+  /// on your own item is personal, the same blocker heard as a room member is
+  /// not.
+  bool isPersonal({
+    required AttentionEventType eventType,
+    required String recipientId,
+    required Set<AttentionRecipientReason> recipientReasons,
+    required String? actorUserId,
+  }) {
+    final actor = actorUserId?.trim() ?? '';
+    if (actor.isEmpty || actor == recipientId) return false;
+    if (!canBePersonal(eventType)) return false;
+    return recipientReasons.any(personalRecipientReasons.contains);
+  }
+
+  /// #189 — a state-like event: only its latest value matters, so a newer
+  /// one of the same kind supersedes it on a card's change line. Mirrors
+  /// `stateLike` in the contract.
+  bool isStateLike(AttentionEventType eventType) => switch (eventType) {
+    AttentionEventType.requestStatusChanged ||
+    AttentionEventType.beaconHierarchyStatusChanged ||
+    AttentionEventType.deadlineChanged ||
+    AttentionEventType.closureOpened ||
+    AttentionEventType.closureFinalized ||
+    AttentionEventType.closureCancelled => true,
+    _ => false,
+  };
+
+  /// #189 / owner rule «For You carries only what can be skipped» — a
+  /// reminder about the recipient's *own* duty. It stays in the Request's
+  /// Timeline and on My Work, and never speaks on For You. Mirrors
+  /// `ownDutyReminder` in the contract.
+  bool isOwnDutyReminder(AttentionEventType eventType) => switch (eventType) {
+    AttentionEventType.staleReminder ||
+    AttentionEventType.requestStale ||
+    AttentionEventType.closureDraftReminder ||
+    AttentionEventType.deadlineReminder => true,
+    _ => false,
+  };
+
+  /// The presentation keys of every [isOwnDutyReminder] event — what the For
+  /// You read path filters on (`AttentionDismissibleSql.forYouEligible`).
+  static final Set<String> ownDutyReminderPresentationKeys = {
+    for (final eventType in AttentionEventType.values)
+      if (const AttentionPolicy().isOwnDutyReminder(eventType))
+        const AttentionPolicy()._presentationKey(
+          eventType,
+          const AttentionRecipientRoleFacts(),
+        ),
+  };
+
   /// The stable identity of the *task* an obligation is about, excluding the
   /// generation — D03: `event family + beaconId + subjectId + recipientId`.
   ///
@@ -470,9 +588,16 @@ class AttentionPolicy {
 
   Map<String, Object?> _presentationPayload(
     AttentionEventType eventType,
-    AttentionRecipientRoleFacts role,
-  ) {
-    final payload = <String, Object?>{'eventType': eventType.name};
+    AttentionRecipientRoleFacts role, {
+    required bool personal,
+  }) {
+    final payload = <String, Object?>{
+      'eventType': eventType.name,
+      // #189 — the «вам» zone of a For You card. Always written, so a client
+      // can tell "not personal" from a receipt written before the field
+      // existed (m0237 backfills those).
+      'personal': personal,
+    };
     final values = <String, String?>{
       'actorUserId': _safeId(role.actorUserId),
       'beaconId': _safeId(role.beaconId),
