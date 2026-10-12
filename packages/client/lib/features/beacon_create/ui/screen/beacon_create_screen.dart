@@ -799,7 +799,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
           child: onInvites
               ? FilledButton(
                   key: const Key('PostBud.SubmitButton'),
-                  onPressed: state.isLoading
+                  onPressed:
+                      state.isLoading ||
+                          !(state.postBud?.candidatesLoaded ?? false)
                       ? null
                       : () => unawaited(_submitBud()),
                   child: _BusyLabel(

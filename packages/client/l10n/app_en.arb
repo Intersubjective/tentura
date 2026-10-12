@@ -8117,6 +8117,14 @@
   "@postBudInviteExplanation": {
     "description": "Explanation above the invite list of the bud form."
   },
+  "postBudInviteLoadFailed": "Couldn't load the post's members.",
+  "@postBudInviteLoadFailed": {
+    "description": "Shown in the bud form's invite step when the post's members failed to load."
+  },
+  "postBudInviteRetry": "Try again",
+  "@postBudInviteRetry": {
+    "description": "Retries loading the post's members in the bud form's invite step."
+  },
   "postBudInviteVia": "via {name}",
   "@postBudInviteVia": {
     "description": "Shown under a Post member the budder may not know: who brought them into the Post.",

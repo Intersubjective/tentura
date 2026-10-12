@@ -210,10 +210,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     await loadBudInviteCandidates();
   }
 
-  /// Loads the invite step; ticks the members the server pre-ticks.
+  /// Loads the invite step; ticks the members the server pre-ticks. Also the
+  /// retry after a failed load: the typed form is left as is.
   Future<void> loadBudInviteCandidates() async {
     final bud = state.postBud;
     if (bud == null || isClosed) return;
+    if (bud.candidatesFailed) {
+      emit(state.copyWith(postBud: bud.copyWith(candidatesFailed: false)));
+    }
     try {
       final step = await _postBudCase.inviteStep(bud.postId);
       if (isClosed) return;
@@ -232,6 +236,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         ),
       );
     } catch (e) {
+      if (!isClosed) {
+        final current = state.postBud ?? bud;
+        emit(state.copyWith(postBud: current.copyWith(candidatesFailed: true)));
+      }
       _effects.emit(ShowError(e));
     }
   }

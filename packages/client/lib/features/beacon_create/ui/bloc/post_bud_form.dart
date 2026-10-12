@@ -23,6 +23,9 @@ abstract class PostBudForm with _$PostBudForm {
 
     @Default(false) bool candidatesLoaded,
 
+    /// The last members load failed; cleared while a retry runs.
+    @Default(false) bool candidatesFailed,
+
     /// Every member of `E(P)` but the budder, as the server sent them.
     @Default(<PostBudInviteCandidate>[])
     List<PostBudInviteCandidate> candidates,

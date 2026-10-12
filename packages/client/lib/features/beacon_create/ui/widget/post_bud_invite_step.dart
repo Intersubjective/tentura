@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -40,7 +42,27 @@ class PostBudInviteStep extends StatelessWidget {
                 iconColor: tt.warn,
                 text: l10n.postBudInviteManyWarning(bud.selectedIds.length),
               ),
-            if (!bud.candidatesLoaded)
+            if (bud.candidatesFailed)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
+                child: Column(
+                  children: [
+                    Text(
+                      l10n.postBudInviteLoadFailed,
+                      textAlign: TextAlign.center,
+                      style: TenturaText.bodySmall(tt.text),
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    OutlinedButton(
+                      key: const Key('PostBud.RetryCandidates'),
+                      onPressed: () =>
+                          unawaited(cubit.loadBudInviteCandidates()),
+                      child: Text(l10n.postBudInviteRetry),
+                    ),
+                  ],
+                ),
+              )
+            else if (!bud.candidatesLoaded)
               Padding(
                 padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
                 child: const Center(

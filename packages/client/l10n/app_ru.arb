@@ -6532,6 +6532,8 @@
   "postBudPickMessageTitle": "Из какого сообщения оформить запрос?",
   "postBudInviteTitle": "Кого позвать",
   "postBudInviteExplanation": "Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами.",
+  "postBudInviteLoadFailed": "Не удалось загрузить участников поста.",
+  "postBudInviteRetry": "Повторить",
   "postBudInviteVia": "через {name}",
   "@postBudInviteVia": {
     "placeholders": {
