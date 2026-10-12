@@ -1,0 +1,3 @@
+query BeaconPlanGet($beaconId: String!) {
+  beaconPlan(beaconId: $beaconId)
+}

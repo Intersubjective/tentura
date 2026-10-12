@@ -60,7 +60,8 @@ class EmailDigestCase {
     if (prefs.emailDigest == DigestCadence.off) {
       return;
     }
-    if (!_isDueHour(prefs, now) || !_cadenceElapsed(prefs, await _last(accountId), now)) {
+    if (!_isDueHour(prefs, now) ||
+        !_cadenceElapsed(prefs, await _last(accountId), now)) {
       return;
     }
 
@@ -77,6 +78,7 @@ class EmailDigestCase {
     );
     final eligible = filtered
         .where((p) => prefs.emailCategories.contains(p.category))
+        .where((p) => !kNoDigestKinds.contains(p.kind))
         .toList();
     if (eligible.isEmpty) {
       return;
@@ -87,8 +89,10 @@ class EmailDigestCase {
       return;
     }
 
-    final unsubscribeUrl =
-        _links.unsubscribeUrl(accountId: accountId, scope: 'all');
+    final unsubscribeUrl = _links.unsubscribeUrl(
+      accountId: accountId,
+      scope: 'all',
+    );
     await _email.sendDigestEmail(
       to: email,
       locale: prefs.locale,

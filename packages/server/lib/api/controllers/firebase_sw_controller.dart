@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts.dart';
 
 import '_base_controller.dart';
+import 'push_action_controller.dart';
 
 @Injectable(order: 3)
 final class FirebaseSwController extends BaseController {
@@ -48,41 +49,110 @@ const messaging = firebase.messaging();
 // Keep this defensive: a thrown error here fails with nothing surfaced to
 // us (no Sentry, no test suite reaches this file — it only runs inside a
 // real browser's service worker).
+// Plan pushes (#220 §5.9) carry buttons: `data.actions` is a JSON list of
+// {id, title}, `data.actionToken` a short-lived signed token. Buttons only
+// show where the browser supports them (Chromium: Notification.maxActions);
+// elsewhere a tap opens the step, which is the fallback anyway.
+function planActions(data) {
+  try {
+    const max = (self.Notification && self.Notification.maxActions) || 0;
+    if (max <= 0 || !data.actions || !data.actionToken) return [];
+    const parsed = JSON.parse(data.actions);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((a) => a && a.id && a.title)
+      .slice(0, max)
+      .map((a) => ({ action: String(a.id), title: String(a.title) }));
+  } catch (e) {
+    return [];
+  }
+}
+
 messaging.onBackgroundMessage(async (payload) => {
   try {
     const data = payload.data || {};
     if (navigator.setAppBadge) {
       navigator.setAppBadge().catch(() => {});
     }
-    await self.registration.showNotification(data.title || "Tentura", {
+    const actions = planActions(data);
+    const options = {
       body: data.body || "",
-      icon: "${kPathWebAppIcon192}",
-      tag: data.beaconId || undefined,
-      data: { link: data.link || "/" },
-    });
+      icon: "$kPathWebAppIcon192",
+      tag: data.tag || data.beaconId || undefined,
+      data: {
+        link: data.link || "/",
+        actionToken: actions.length > 0 ? data.actionToken : undefined,
+        doneText: data.actionDoneText || "",
+        ackText: data.actionAckText || "",
+        failedText: data.actionFailedText || "",
+        title: data.title || "Tentura",
+      },
+    };
+    if (actions.length > 0) {
+      options.actions = actions;
+      // Re-alert when a newer push replaces the same step's notification.
+      options.renotify = true;
+    }
+    await self.registration.showNotification(data.title || "Tentura", options);
   } catch (e) {
     console.error("onBackgroundMessage failed", e);
   }
 });
 
+function openLink(link) {
+  return clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+    for (const client of windowClients) {
+      if (client.url === link && "focus" in client) {
+        return client.focus();
+      }
+    }
+    if (clients.openWindow) {
+      return clients.openWindow(link);
+    }
+  });
+}
+
+// A plan button ("done" / "ack") posts the signed token to
+// ${PushActionController.path} and replaces the notification with the
+// outcome; "open" and a tap on the body open the link (the step's card).
+async function runPlanAction(notification, action) {
+  const data = notification.data || {};
+  const tag = notification.tag || undefined;
+  let ok = false;
+  try {
+    const response = await fetch("${PushActionController.path}", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: data.actionToken }),
+      credentials: "omit",
+    });
+    ok = response.ok;
+  } catch (e) {
+    ok = false;
+  }
+  const done = action === "ack" ? data.ackText : data.doneText;
+  await self.registration.showNotification(data.title || "Tentura", {
+    body: (ok ? done : data.failedText) || "",
+    icon: "$kPathWebAppIcon192",
+    tag: tag,
+    data: { link: data.link || "/" },
+  });
+}
+
 // Data-only messages skip FCM's automatic click-to-open handling too, so we
 // own that as well: focus an existing tab on the link if one is open,
 // otherwise open a new one.
 self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const link = (event.notification.data && event.notification.data.link) || "/";
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url === link && "focus" in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(link);
-      }
-    })
-  );
+  const notification = event.notification;
+  notification.close();
+  const data = notification.data || {};
+  const link = data.link || "/";
+  const action = event.action || "";
+  if ((action === "done" || action === "ack") && data.actionToken) {
+    event.waitUntil(runPlanAction(notification, action));
+    return;
+  }
+  event.waitUntil(openLink(link));
 });
 ''';
 

@@ -63,6 +63,18 @@ abstract final class BeaconRoomSemanticMarker {
   /// «Who'll take it?» message; `body` is the ask (may be empty when it
   /// replies to the message it is about), the baton rides on `baton`.
   static const baton = 13;
+
+  /// Request plan revised: save, restore or an assignee leaving (#220).
+  static const planRevised = 14;
+
+  /// Plan steps ticked; consecutive ticks coalesce into one line (#220).
+  static const planStepsDone = 15;
+
+  /// «Не успеваю»: an assignee moved or handed over their step (#220).
+  static const planCantMake = 16;
+
+  /// The plan was copied from another Request on publish (#220).
+  static const planCopied = 17;
 }
 
 /// Mirrors server [BeaconRoomSystemMessageKind].
@@ -74,6 +86,9 @@ abstract final class BeaconRoomSystemMessageKind {
 
   /// A Post closed by budding; payload `{childBeaconId, title}`.
   static const postClosed = 5;
+
+  /// Request plan lines (markers 14..17, #220).
+  static const plan = 6;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

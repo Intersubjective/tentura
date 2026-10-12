@@ -443,6 +443,7 @@ void main() {
         final paint = payload['message'] as Map;
         expect(paint['body'], '');
         expect(paint['semanticMarker'], 10);
+        expect(paint['systemMessageKind'], isNull);
         expect(paint['systemPayload'], {
           'factCardId': 'Fpaint0010',
           'revisionSeq': 2,
@@ -551,6 +552,7 @@ void main() {
       final paint = payload['message'] as Map;
       expect(paint, containsPair('semanticMarker', null));
       expect(paint, containsPair('systemPayload', null));
+      expect(paint, containsPair('systemMessageKind', null));
       expect(paint, containsPair('quotedFact', null));
     });
 

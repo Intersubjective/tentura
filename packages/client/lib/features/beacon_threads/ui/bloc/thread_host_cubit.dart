@@ -5,6 +5,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/room_composer_intent.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
 import 'room_cubit.dart';
@@ -41,6 +42,20 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
   int _windowClassTransitionGeneration = 0;
 
   RoomCubit? get roomCubit => _roomCubit;
+
+  /// Held until a General room cubit exists to take it.
+  RoomComposerIntent? _pendingComposerIntent;
+
+  /// Hands [intent] to the open General room, or to the next one created.
+  void armComposerIntent(RoomComposerIntent intent) {
+    final room = _roomCubit;
+    if (room != null && !room.isClosed && !state.switching) {
+      _pendingComposerIntent = null;
+      room.armComposerIntent(intent);
+      return;
+    }
+    _pendingComposerIntent = intent;
+  }
 
   /// Push lifecycle status into the active room cubit (and cache for rebuilds).
   void syncBeaconStatus(BeaconStatus status) {
@@ -93,6 +108,11 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
       final cached = _beaconStatus;
       if (cached != null) {
         _roomCubit!.syncBeaconStatus(cached);
+      }
+      final intent = _pendingComposerIntent;
+      if (intent != null) {
+        _pendingComposerIntent = null;
+        _roomCubit!.armComposerIntent(intent);
       }
       emit(
         state.copyWith(

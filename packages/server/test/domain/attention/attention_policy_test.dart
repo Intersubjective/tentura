@@ -458,6 +458,22 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.authorInviter},
     role: _baseRole,
   ),
+  'planStepDue' ||
+  'planStepTurn' ||
+  'planChangePending' ||
+  'planStepReminder' ||
+  'planStepOverdue' => (
+    reasons: const {AttentionRecipientReason.planStepAssignee},
+    role: _baseRole,
+  ),
+  'planStepLate' || 'planCantMake' || 'planStepUnassigned' => (
+    reasons: const {AttentionRecipientReason.authorOfBeacon},
+    role: _baseRole,
+  ),
+  'planEdited' || 'planStepDone' => (
+    reasons: const {AttentionRecipientReason.admittedRoomMember},
+    role: _baseRole,
+  ),
   _ => throw StateError('No policy fixture for $eventName'),
 };
 

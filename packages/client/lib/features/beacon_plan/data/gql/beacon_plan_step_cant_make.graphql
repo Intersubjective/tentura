@@ -1,0 +1,19 @@
+mutation BeaconPlanStepCantMake(
+  $stepId: String!
+  $option: String!
+  $baseRevisionSeq: Int!
+  $newStartAt: String
+  $newEndAt: String
+  $toUserId: String
+  $excerpt: String
+) {
+  beaconPlanStepCantMake(
+    stepId: $stepId
+    option: $option
+    baseRevisionSeq: $baseRevisionSeq
+    newStartAt: $newStartAt
+    newEndAt: $newEndAt
+    toUserId: $toUserId
+    excerpt: $excerpt
+  )
+}

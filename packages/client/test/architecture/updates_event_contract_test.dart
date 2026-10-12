@@ -55,6 +55,17 @@ const _runtimeAttentionEventTypes = <String>[
   'authorInviteReceived',
   'authorInviteAccepted',
   'authorInviteDeclined',
+  // Request plan («либретто», #220).
+  'planStepDue',
+  'planStepTurn',
+  'planChangePending',
+  'planStepReminder',
+  'planStepOverdue',
+  'planStepLate',
+  'planCantMake',
+  'planStepUnassigned',
+  'planEdited',
+  'planStepDone',
 ];
 
 const _classificationVariantKeys = {
@@ -326,6 +337,97 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/author_invite_case_pg_test.dart',
+  },
+  // Request plan («либретто», #220) — plan-implementation.md §4.6.
+  {
+    'eventType': 'planStepDue',
+    'producer': 'PlanAttentionCase.reconcile|PlanStepSweepCase.runDue',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepTurn',
+    'producer': 'PlanAttentionCase.reconcile',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planChangePending',
+    'producer': 'PlanAttentionCase.afterRevision|PlanAttentionCase.reconcile',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'mandatory',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepReminder',
+    'producer': 'PlanStepSweepCase.runDue',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepOverdue',
+    'producer': 'PlanStepSweepCase.runDue',
+    'recipientCategory': 'plan_step_assignee',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepLate',
+    'producer': 'PlanStepSweepCase.runDue',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planCantMake',
+    'producer': 'PlanAttentionCase.afterCantMake',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepUnassigned',
+    'producer': 'PlanStepSweepCase.runDue|PlanAttentionCase.afterRevision',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_step_sweep_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planEdited',
+    'producer': 'PlanAttentionCase.afterRevision',
+    'recipientCategory': 'admitted_room_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard_or_noisy',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
+  },
+  {
+    'eventType': 'planStepDone',
+    'producer': 'PlanAttentionCase.afterTick',
+    'recipientCategory': 'admitted_room_members',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard_or_noisy',
+    'coveringTest':
+        'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
   },
 ];
 

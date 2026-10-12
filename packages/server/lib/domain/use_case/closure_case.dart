@@ -29,6 +29,7 @@ import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 
 import '_use_case_base.dart';
 import 'beacon_lifecycle_effects_case.dart';
+import 'plan_attention_case.dart';
 
 /// A12: episode-closure lock and lifecycle (Arch §5.1–§5.3, §7).
 ///
@@ -49,6 +50,7 @@ final class ClosureCase extends UseCaseBase {
     required ClosureFinalizerPort finalizer,
     required super.env,
     required super.logger,
+    this._planAttention,
   }) : _uow = unitOfWork,
        _repo = closureRepository,
        _beacons = beaconRepository,
@@ -70,6 +72,7 @@ final class ClosureCase extends UseCaseBase {
   final AttentionSystemSettlementPort _settlement;
   final ClosureReceiptsPort _receipts;
   final ClosureFinalizerPort _finalizer;
+  final PlanAttentionCase? _planAttention;
 
   static const Duration _window = Duration(days: 7);
   static const Duration _closeNowGrace = Duration(hours: 48);
@@ -165,6 +168,11 @@ final class ClosureCase extends UseCaseBase {
       // D04: a closed Request cannot still owe an answer to an offer.
       await _settlement.supersedeAuthorHelpOfferObligationsOnBeaconClose(
         beaconId,
+      );
+      // Review ends step obligations, closed ends all plan obligations (P21).
+      await _planAttention?.onRequestStatusChanged(
+        beaconId: beaconId,
+        actorId: authorId,
       );
       if (!opensEpoch) return;
 
@@ -279,6 +287,11 @@ final class ClosureCase extends UseCaseBase {
         fromStatus: beacon.status,
         toStatus: BeaconStatus.needsMoreHelp,
         reason: BeaconLifecycleChangeReason.reopenedFromReview,
+        actorId: authorId,
+      );
+      // Back in the open family: the current steps are owed again (P21).
+      await _planAttention?.onRequestStatusChanged(
+        beaconId: beaconId,
         actorId: authorId,
       );
       await _receipts.cancelled(beaconId, live.epoch);

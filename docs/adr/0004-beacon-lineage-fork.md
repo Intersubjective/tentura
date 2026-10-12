@@ -56,3 +56,7 @@ Two questions drove this ADR:
 ### Visibility supersession (2026-06-24)
 
 **Amendment A** documented a world-readable Hasura `beacon` select model (`filter: {}`). That visibility gate is **partially superseded** by [ADR 0008](0008-beacon-visibility-and-invite-sharing.md): relationship-scoped `beacon_can_read_content` / `canReadContent` now governs fork source access and lineage reads. Fork mechanics, copy policy, and subjective forward suggestions in this ADR remain in force; only the “any authenticated user reads any non-draft beacon” assumption is retired.
+
+## Amendment C (2026-10-05): the Request plan is copied, its people are not (#220)
+
+`beaconFork` takes an optional `copyPlan` flag and `planStepTimes`. When the caller is admitted to the source Request (author, steward or admitted member), the source's live plan steps are copied into the draft: titles, descriptions and order, with times taken from `planStepTimes` (the client shifts them to the new occurrence). Assignments, ticks, confirmations and revision history are **not** copied: every step of the copy has no assignee, consistent with Decision 2 (never copy participants). Callers who are not admitted to the source get the fork without a plan, silently. Publishing a draft that carries a copied plan writes one «plan copied» chat line that references the source by id only (Decision 8). Design: `docs/plans/request-plan-libretto-plan.md` §4.10.

@@ -279,6 +279,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.replyTarget?.id != c.replyTarget?.id ||
             p.pendingQuotedFact?.factCardId !=
                 c.pendingQuotedFact?.factCardId ||
+            p.composerPrefillSeq != c.composerPrefillSeq ||
+            p.composerPrefill != c.composerPrefill ||
             p.beaconStatus != c.beaconStatus ||
             p.myUserId != c.myUserId ||
             p.readWatermarksLoaded != c.readWatermarksLoaded ||
@@ -355,6 +357,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             onCancelReply: cubit.cancelReply,
             pendingQuotedFact: _pendingQuotedFactCard(state),
             onCancelQuotedFact: cubit.clearPendingQuotedFact,
+            composerPrefill: state.composerPrefill,
+            composerPrefillSeq: state.composerPrefillSeq,
+            onComposerPrefillApplied: cubit.clearComposerPrefill,
             onToggleReaction: canWrite
                 ? (messageId, emoji) => cubit.toggleReaction(
                     messageId: messageId,

@@ -13,6 +13,7 @@ import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dar
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
@@ -122,6 +123,12 @@ class ProfileRepositoryMock extends Mock implements ProfileRepositoryPort {}
 
 @Injectable(as: BeaconRepository, env: [Environment.test], order: 1)
 class BeaconRepositoryMock extends Mock implements BeaconRepository {}
+
+@Injectable(as: BeaconPlanRepository, env: [Environment.test], order: 1)
+class BeaconPlanRepositoryMock extends Mock implements BeaconPlanRepository {
+  @override
+  Stream<String> get changes => const Stream.empty();
+}
 
 @Injectable(as: PollingRepository, env: [Environment.test], order: 1)
 class PollingRepositoryMock extends Mock implements PollingRepository {}

@@ -209,6 +209,17 @@ eligible_pinned AS (
   static String foldedInviteReceipt(String alias) =>
       '(${pendingInviteReceipt(alias)} '
       'AND $alias.beacon_id IN (SELECT beacon_id FROM eligible_pinned))';
+  /// Owner rule D12 (plan §4.7): For You never carries anything the viewer
+  /// is obliged or nudged to do about a Request plan. The five types are
+  /// part of [AttentionPolicy.isOwnDutyReminder], so [forYouEligible] already
+  /// excludes them from every For You list, dot and sweep set. This stand-alone
+  /// form guards the pinned row's `unseen` flag, which [forYouEligible] does
+  /// not touch — the `planAssignee` scope branch already keeps most of them on
+  /// My Work; this covers a closed Request and a reassigned step.
+  static String planObligationExcluded(String alias) =>
+      "COALESCE($alias.presentation_key, '') NOT IN "
+      "('plan_step_due', 'plan_step_turn', 'plan_change_pending', "
+      "'plan_step_reminder', 'plan_step_overdue')";
 
   /// Set R — dismissible optional receipts, the `notification_outbox` axis.
   ///
@@ -222,7 +233,8 @@ eligible_pinned AS (
   ///   responsible for is not dismissible from For You.
   /// * `relay_received` rows are the synthetic forward shell, not real
   ///   receipts; the forward itself is decided, never dismissed.
-  static String get dismissibleReceipts => '''
+  static String get dismissibleReceipts =>
+      '''
 activity_optional_dismissible AS (
   SELECT v.id AS receipt_id, v.beacon_id
   FROM visible v
@@ -242,7 +254,8 @@ activity_optional_dismissible AS (
   /// its own slightly looser copy — the Set R leg without the placement
   /// filter — which is a guard that cannot catch the drift it exists for.
   /// One definition, both callers.
-  static String get myDeskDotExpression => '''
+  static String get myDeskDotExpression =>
+      '''
 EXISTS (
   SELECT 1
   FROM visible v
@@ -277,7 +290,8 @@ OR EXISTS (
   ///
   /// U18c retired the three legacy totals this was deliberately not a
   /// re-scoping of; §6's rule is now the only one the summary states.
-  static String get myDeskCountExpression => '''
+  static String get myDeskCountExpression =>
+      '''
 SELECT COUNT(*) FILTER (
   WHERE v.surface = 'myWork'
     AND ${liveObligation('v')}
@@ -293,7 +307,8 @@ FROM visible v''';
   /// dismissible row is sweepable but is not on the list, and a tab that
   /// lights with nothing to act on is the failure §6's "One predicate"
   /// paragraph exists to prevent.
-  static String get forYouDotExpression => '''
+  static String get forYouDotExpression =>
+      '''
 EXISTS (
   SELECT 1
   FROM activity_optional_dismissible r

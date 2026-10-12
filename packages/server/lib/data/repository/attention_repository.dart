@@ -277,7 +277,8 @@ FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
     );
   }
 
-  static String get _visibleStreamColumns => '''
+  static String get _visibleStreamColumns =>
+      '''
     v.id,
     v.account_id,
     v.category,
@@ -429,7 +430,8 @@ beacon_activity_stats AS (
   GROUP BY beacon_id
 )''';
 
-  static String get _activityPageStreamCte => '''
+  static String get _activityPageStreamCte =>
+      '''
 $_activityGroupingCtes,
 page_stream AS (
   SELECT
@@ -656,7 +658,9 @@ page_stream AS (
       Variable<String>(surface?.name),
     ];
     final cursorClause = StringBuffer();
-    final streamAlias = surface == AttentionSurface.activity ? 'stream' : 'visible';
+    final streamAlias = surface == AttentionSurface.activity
+        ? 'stream'
+        : 'visible';
     if (cursor != null) {
       variables
         ..add(Variable<String>(cursor.createdAt.toUtc().toIso8601String()))
@@ -928,8 +932,9 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       ids.length,
       (index) => '\$${index + 2}',
     ).join(',');
-    final rows = await _database.customSelect(
-      '''
+    final rows = await _database
+        .customSelect(
+          '''
 SELECT
   b.id AS beacon_id,
   CASE
@@ -958,11 +963,12 @@ LEFT JOIN public.beacon_room_message root
   ON root.id = b.post_root_message_id
 WHERE b.id IN ($placeholders)
 ''',
-      variables: [
-        Variable<String>(accountId),
-        ...ids.map(Variable<String>.new),
-      ],
-    ).get();
+          variables: [
+            Variable<String>(accountId),
+            ...ids.map(Variable<String>.new),
+          ],
+        )
+        .get();
     final byId = {for (final row in rows) row.read<String>('beacon_id'): row};
     AttentionReceipt withTitle(AttentionReceipt item) {
       final row = item.beaconId == null ? null : byId[item.beaconId];
@@ -1019,8 +1025,9 @@ WHERE b.id IN ($placeholders)
       ids.length,
       (index) => '\$${index + 2}',
     ).join(',');
-    final rows = await _database.customSelect(
-      '''
+    final rows = await _database
+        .customSelect(
+          '''
 WITH readable AS (
   SELECT
     b.id AS beacon_id,
@@ -1078,11 +1085,12 @@ FROM readable
 JOIN public.beacon b ON b.id = readable.beacon_id
 JOIN public."user" author ON author.id = readable.author_id
 ''',
-      variables: [
-        Variable<String>(accountId),
-        ...ids.map(Variable<String>.new),
-      ],
-    ).get();
+          variables: [
+            Variable<String>(accountId),
+            ...ids.map(Variable<String>.new),
+          ],
+        )
+        .get();
 
     final byBeacon = {
       for (final row in rows)
@@ -1168,9 +1176,8 @@ AND (
     // limit: an unused parameter is an error, not a no-op.
     if (!cardPreview) variables.add(Variable<int>(limitPerBeacon));
     final limitParam = '\$${variables.length}';
-    final rows = await _database
-        .customSelect(
-          '''
+    final rows = await _database.customSelect(
+      '''
 WITH $_visibleWithSurfaceCte,
 ${AttentionDismissibleSql.eligiblePinned},
 ranked AS (
@@ -1223,9 +1230,8 @@ WHERE ${cardPreview ? '''
   )''' : 'rn <= $limitParam'}
 ORDER BY beacon_id, created_at DESC, id DESC
 ''',
-          variables: variables,
-        )
-        .get();
+      variables: variables,
+    ).get();
 
     final byBeacon = <String, List<AttentionReceipt>>{};
     for (final row in rows) {
@@ -1266,9 +1272,8 @@ AND (
     variables.add(Variable<int>(boundedLimit + 1));
     final limitParam = '\$${variables.length}';
 
-    final rows = await _database
-        .customSelect(
-          '''
+    final rows = await _database.customSelect(
+      '''
 WITH $_visibleWithSurfaceCte,
 $_activityGroupingCtes,
 ranked AS (
@@ -1293,6 +1298,7 @@ ranked AS (
         AND act.surface = 'activity'
         AND ${AttentionDismissibleSql.activeOptional('act')}
         AND ${AttentionDismissibleSql.primaryPlacement('act')}
+        AND ${AttentionDismissibleSql.planObligationExcluded('act')}
     ) AS unseen,
     -- Plan C6: at most one pending invite per (Request, invitee), by the
     -- `beacon_author_invite_pending_beacon_uq` index.
@@ -1317,9 +1323,8 @@ WHERE true
 ORDER BY ranked.list_position_at DESC, ranked.beacon_id DESC
 LIMIT $limitParam
 ''',
-          variables: variables,
-        )
-        .get();
+      variables: variables,
+    ).get();
 
     final countRow = await _database
         .customSelect(
@@ -1408,9 +1413,8 @@ AND (
     variables.add(Variable<int>(boundedLimit + 1));
     final limitParam = '\$${variables.length}';
 
-    final rows = await _database
-        .customSelect(
-          '''
+    final rows = await _database.customSelect(
+      '''
 WITH $_visibleWithSurfaceCte,
 page AS (
   SELECT
@@ -1423,9 +1427,8 @@ $_visibleStreamColumns
 )
 SELECT * FROM page
 ''',
-          variables: variables,
-        )
-        .get();
+      variables: variables,
+    ).get();
 
     var items = [for (final row in rows) _mapRow(row)];
     final hasMore = items.length > boundedLimit;
@@ -1473,8 +1476,9 @@ WHERE \$2 NOT IN (SELECT scope.beacon_id FROM scope)
     final stats = statsRows.isEmpty ? null : statsRows.first;
     final eventTotal = stats?.read<int>('event_total') ?? 0;
     final unseenCount = stats?.read<int>('event_unseen_count') ?? 0;
-    final latestAt =
-        stats == null ? null : _readTimestamp(stats, 'max_created_at');
+    final latestAt = stats == null
+        ? null
+        : _readTimestamp(stats, 'max_created_at');
 
     final byBeacon = await _loadActivityChildReceipts(
       accountId: accountId,
@@ -1491,7 +1495,8 @@ WHERE \$2 NOT IN (SELECT scope.beacon_id FROM scope)
       beaconId: beaconId,
       eventTotal: eventTotal,
       unseenCount: unseenCount,
-      latestAt: latestAt ??
+      latestAt:
+          latestAt ??
           (events.isNotEmpty
               ? events.first.createdAt
               : DateTime.fromMillisecondsSinceEpoch(0, isUtc: true)),
@@ -1673,9 +1678,8 @@ WHERE outbox.account_id = \$1
   Future<int> markSeenForBeacon({
     required String accountId,
     required String beaconId,
-  }) =>
-      _database.customUpdate(
-        '''
+  }) => _database.customUpdate(
+    '''
 UPDATE public.notification_outbox outbox
 SET
   seen_at = COALESCE(outbox.seen_at, now())
@@ -1687,12 +1691,12 @@ WHERE outbox.account_id = \$1
     FROM public.visible_attention_receipts(\$1)
   )
 ''',
-        variables: [
-          Variable<String>(accountId),
-          Variable<String>(beaconId),
-        ],
-        updateKind: UpdateKind.update,
-      );
+    variables: [
+      Variable<String>(accountId),
+      Variable<String>(beaconId),
+    ],
+    updateKind: UpdateKind.update,
+  );
 
   // DORMANT(item-threads): bridges attention read state to per-item-thread seen watermarks.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
@@ -1791,7 +1795,7 @@ WHERE outbox.occurrence_id = occ.id
       Variable<String>(accountId),
       Variable<String>(receiptId),
       Variable<String>(kind.wireName),
-      Variable<String>(_helpOfferSubmittedEventType),
+      const Variable<String>(_helpOfferSubmittedEventType),
     ],
     updateKind: UpdateKind.update,
   );

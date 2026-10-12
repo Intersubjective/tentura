@@ -130,6 +130,16 @@ void main() {
         greaterThanOrEqualTo(0),
       );
     });
+
+    test('request plan release raises the floor to 7.41.0', () {
+      // Plan obligations (#220) need the Plan UI and «Понятно» to clear;
+      // older clients would receive obligations they cannot act on.
+      expect(kDefaultMinClientVersion, '7.41.0');
+      expect(
+        _compare(_shippedClientVersion(), kDefaultMinClientVersion),
+        greaterThanOrEqualTo(0),
+      );
+    });
   });
 }
 

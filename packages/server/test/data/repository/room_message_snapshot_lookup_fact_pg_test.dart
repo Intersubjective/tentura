@@ -8,6 +8,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -180,6 +181,74 @@ Future<void> main() async {
         expect(snapshot.semanticMarker, isNull);
         expect(snapshot.systemPayload, isNull);
         expect(snapshot.quotedFact, isNull);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'Request plan lines (#220: kind plan, markers 14..17, no author) are '
+      'painted with payload and systemMessageKind; a plan marker without '
+      'the plan kind is not',
+      () async {
+        Future<void> insert(
+          String id, {
+          required int marker,
+          required int? kind,
+          String? author,
+        }) => writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_room_message
+  (id, beacon_id, author_id, body, mentions, thread_item_id, created_at,
+   semantic_marker, system_payload, system_message_kind)
+VALUES (@id, @beacon, @author, '', ARRAY[]::text[], NULL, @at,
+        @marker::smallint, @payload::jsonb, @kind::smallint)
+'''),
+          parameters: {
+            'id': id,
+            'beacon': _beaconId,
+            'author': author,
+            'at': _t0.add(const Duration(days: 1)),
+            'marker': marker,
+            'kind': kind,
+            'payload': jsonEncode({
+              'ticks': [
+                {'stepId': 'PS000000000001', 'title': 'Bring boards'},
+              ],
+            }),
+          },
+        );
+
+        await insert(
+          'Rsfplantick',
+          marker: BeaconRoomSemanticMarker.planStepsDone,
+          kind: BeaconRoomSystemMessageKind.plan,
+        );
+        await insert(
+          'Rsfplanrevs',
+          marker: BeaconRoomSemanticMarker.planRevised,
+          kind: BeaconRoomSystemMessageKind.plan,
+          author: _ownerId,
+        );
+        await insert(
+          'Rsfplannokd',
+          marker: BeaconRoomSemanticMarker.planRevised,
+          kind: null,
+          author: _ownerId,
+        );
+
+        final tick = await find('Rsfplantick');
+        expect(tick, isNotNull);
+        expect(tick!.authorId, '', reason: 'a null author paints as empty');
+        expect(tick.systemMessageKind, BeaconRoomSystemMessageKind.plan);
+        expect(tick.semanticMarker, BeaconRoomSemanticMarker.planStepsDone);
+        expect(
+          (tick.systemPayload!['ticks']! as List).single,
+          containsPair('title', 'Bring boards'),
+        );
+        final revised = await find('Rsfplanrevs');
+        expect(revised!.authorId, _ownerId);
+        expect(revised.semanticMarker, BeaconRoomSemanticMarker.planRevised);
+        expect(await find('Rsfplannokd'), isNull);
       },
       skip: skipReason,
     );

@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
 
 import 'my_work_last_event.dart';
 
@@ -84,6 +85,9 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// Viewer archive preference (orthogonal to [kind]; UNIT 05 reads this).
     @Default(false) bool viewerArchived,
+
+    /// The viewer's plan steps and pending changes (#220 §5.8; V2 batch).
+    PlanViewerSlice? planSlice,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();

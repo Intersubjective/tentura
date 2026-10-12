@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
@@ -63,6 +64,7 @@ final class TaskWorkerCase extends UseCaseBase {
     StaleRequestReminderSweepCase staleRequestReminderSweep,
     ContactResolutionSweepCase contactResolutionSweep,
     BudAnchorSweepCase budAnchorSweep,
+    PlanStepSweepCase planStepSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -91,6 +93,7 @@ final class TaskWorkerCase extends UseCaseBase {
       staleRequestReminderSweep: staleRequestReminderSweep,
       contactResolutionSweep: contactResolutionSweep,
       budAnchorSweep: budAnchorSweep,
+      planStepSweep: planStepSweep,
       env: env,
       logger: logger,
     ),
@@ -120,6 +123,7 @@ final class TaskWorkerCase extends UseCaseBase {
     StaleRequestReminderSweepCase? staleRequestReminderSweep,
     ContactResolutionSweepCase? contactResolutionSweep,
     this._budAnchorSweep,
+    this._planStepSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -168,6 +172,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final StaleRequestReminderSweepCase? _staleRequestReminderSweep;
   final ContactResolutionSweepCase? _contactResolutionSweep;
   final BudAnchorSweepCase? _budAnchorSweep;
+  final PlanStepSweepCase? _planStepSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -199,6 +204,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastStaleRequestReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBudAnchorSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastPlanStepSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
@@ -268,8 +274,9 @@ final class TaskWorkerCase extends UseCaseBase {
     () async {
       final now = DateTime.timestamp();
       if (now.difference(_lastAttentionDeliverySweep) <
-          const Duration(seconds: 10))
+          const Duration(seconds: 10)) {
         return;
+      }
       _lastAttentionDeliverySweep = now;
       await _attentionChannelDelivery?.runDue(
         workerId: 'task-worker',
@@ -279,8 +286,9 @@ final class TaskWorkerCase extends UseCaseBase {
     () async {
       final now = DateTime.timestamp();
       if (now.difference(_lastBeaconHierarchyDeliverySweep) <
-          const Duration(seconds: 10))
+          const Duration(seconds: 10)) {
         return;
+      }
       _lastBeaconHierarchyDeliverySweep = now;
       await _beaconHierarchyDelivery?.runDue(
         workerId: 'task-worker',
@@ -290,10 +298,21 @@ final class TaskWorkerCase extends UseCaseBase {
     () async {
       final now = DateTime.timestamp();
       if (now.difference(_lastDeadlineReminderSweep) <
-          const Duration(minutes: 5))
+          const Duration(minutes: 5)) {
         return;
+      }
       _lastDeadlineReminderSweep = now;
       await _deadlineReminderSweep?.runDue(now: now);
+    },
+    // Request plan («либретто», #220) §4.5: step reminders, due, overdue.
+    () async {
+      if (!env.planEnabled) return;
+      final now = DateTime.timestamp();
+      if (now.difference(_lastPlanStepSweep) < const Duration(seconds: 30)) {
+        return;
+      }
+      _lastPlanStepSweep = now;
+      await _planStepSweep?.runDue(now: now);
     },
     () async {
       final now = DateTime.timestamp();

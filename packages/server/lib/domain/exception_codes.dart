@@ -108,6 +108,16 @@ enum BeaconExceptionCode {
   authorInviteNotFound, // 1333
   authorInviteNotPending, // 1334
   authorInviteRequestNotOpen, // 1335
+  planEditConflict, // 1336
+  planStepNotFound, // 1337
+  planNotEditable, // 1338
+  planActionStale, // 1339
+  planRestoreSourceMissing, // 1340
+  planRateLimited, // 1341
+  planAssigneeNotAdmitted, // 1342
+  planTooLarge, // 1343
+  planDisabled, // 1344
+  planInvalid, // 1345
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
