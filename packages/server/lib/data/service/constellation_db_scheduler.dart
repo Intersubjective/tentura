@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:math';
 
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -22,10 +21,7 @@ class ConstellationDbSchedulerConfig {
 
   factory ConstellationDbSchedulerConfig.fromEnv(Env env) =>
       ConstellationDbSchedulerConfig(
-        maxConcurrent: min(
-          env.pgPoolSettings.maxConnectionCount!,
-          env.constellationDbMaxConcurrent,
-        ),
+        maxConcurrent: env.constellationDbMaxConcurrent,
         reservedRefreshShare: env.constellationDbRefreshShare,
       );
 
@@ -63,6 +59,7 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
   final _writes = Queue<_Waiter>();
   final _refreshes = Queue<_Waiter>();
   var _running = 0;
+  var _runningWrites = 0;
   var _refreshCredit = 0.0;
 
   int get _waiting => _writes.length + _refreshes.length;
@@ -94,26 +91,33 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
   }
 
   void _pump() {
-    while (_running < config.maxConcurrent && _waiting > 0) {
+    while (true) {
       final queue = _pick();
+      if (queue == null) return;
       final waiter = queue.removeFirst()..timer?.cancel();
       _running++;
+      if (waiter.isWrite) _runningWrites++;
       unawaited(waiter.start!());
     }
   }
 
-  Queue<_Waiter> _pick() {
-    if (_writes.isEmpty) {
-      _refreshCredit = 0;
-      return _refreshes;
+  /// Writes own one extra slot beyond [ConstellationDbSchedulerConfig.maxConcurrent]
+  /// so long FULL reads can never starve them.
+  Queue<_Waiter>? _pick() {
+    final open = _running < config.maxConcurrent;
+    final writeOk = _writes.isNotEmpty && (open || _runningWrites == 0);
+    final refreshOk = _refreshes.isNotEmpty && open;
+    if (_writes.isEmpty) _refreshCredit = 0;
+    if (!writeOk && !refreshOk) return null;
+    if (_writes.isNotEmpty && _refreshes.isNotEmpty) {
+      // Credit accrues per write pick even when refreshes are slot-blocked.
+      _refreshCredit += config.reservedRefreshShare;
+      if (refreshOk && _refreshCredit >= 1) {
+        _refreshCredit -= 1;
+        return _refreshes;
+      }
     }
-    if (_refreshes.isEmpty) return _writes;
-    _refreshCredit += config.reservedRefreshShare;
-    if (_refreshCredit >= 1) {
-      _refreshCredit -= 1;
-      return _refreshes;
-    }
-    return _writes;
+    return writeOk ? _writes : _refreshes;
   }
 
   Future<void> _execute<T>(
@@ -136,6 +140,7 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
       result.completeError(e, st);
     } finally {
       _running--;
+      if (waiter.isWrite) _runningWrites--;
       scheduleMicrotask(_pump);
     }
   }

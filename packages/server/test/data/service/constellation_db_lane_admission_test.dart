@@ -10,6 +10,7 @@ Env _env({required bool pinned, required int connections}) => Env(
   printEnv: false,
   driftTransactionPinnedPoolEnabled: pinned,
   maxConnectionCount: connections,
+  constellationDbMaxConcurrent: 1,
 );
 
 /// Models Drift's FIFO transaction lane independently of scheduler admission.
@@ -78,56 +79,61 @@ _observeFullThenApply(Env env) async {
 }
 
 void main() {
-  group('Constellation DB admission follows effective pool lanes', () {
-    for (final mode in [
-      (name: 'statement transactions', pinned: false, connections: 8),
-      (name: 'pinned transactions', pinned: true, connections: 1),
-    ]) {
-      group(mode.name, () {
-        Env env() => _env(pinned: mode.pinned, connections: mode.connections);
+  group(
+    'Constellation DB admission with one configured slot on the effective pool lanes',
+    () {
+      for (final mode in [
+        (name: 'statement transactions', pinned: false, connections: 8),
+        (name: 'pinned transactions', pinned: true, connections: 1),
+      ]) {
+        group(mode.name, () {
+          Env env() => _env(pinned: mode.pinned, connections: mode.connections);
 
-        test('admits one transaction for the single effective DB lane', () {
-          final databaseEnv = env();
-          expect(databaseEnv.pgPoolSettings.maxConnectionCount, 1);
-          final config = ConstellationDbSchedulerConfig.fromEnv(databaseEnv);
-          expect(config.queueDeadline, const Duration(seconds: 10));
-          expect(config.maxQueued, 1000);
-          expect(config.maxConcurrent, 1);
+          test(
+            'admits the configured slot count for the single effective DB lane',
+            () {
+              final databaseEnv = env();
+              expect(databaseEnv.pgPoolSettings.maxConnectionCount, 1);
+              final config = ConstellationDbSchedulerConfig.fromEnv(
+                databaseEnv,
+              );
+              expect(config.queueDeadline, const Duration(seconds: 10));
+              expect(config.maxQueued, 1000);
+              expect(config.maxConcurrent, 1);
+            },
+          );
+
+          test(
+            'starts queued apply immediately after the running FULL',
+            () async {
+              final observed = await _observeFullThenApply(env());
+              expect(observed.startedAfterFull, ['full', 'apply']);
+            },
+          );
         });
+      }
 
-        test('keeps another FULL outside the occupied Drift lane', () async {
-          final observed = await _observeFullThenApply(env());
-          expect(observed.admittedWhileFullRuns, ['full']);
-        });
-
-        test(
-          'starts queued apply immediately after the running FULL',
-          () async {
-            final observed = await _observeFullThenApply(env());
-            expect(observed.startedAfterFull, ['full', 'apply']);
-          },
-        );
-      });
-    }
-
-    test('derives admission capacity from a pinned multi-lane pool', () {
-      final env = _env(pinned: true, connections: 2);
-      expect(env.pgPoolSettings.maxConnectionCount, 2);
-      expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 2);
-    });
-
-    test('a large pool does not lift admission past its own cap', () {
-      final env = _env(pinned: true, connections: 20);
-      expect(env.constellationDbMaxConcurrent, 2);
-      expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 2);
-      final raised = Env(
-        environment: Environment.test,
-        printEnv: false,
-        driftTransactionPinnedPoolEnabled: true,
-        maxConnectionCount: 20,
-        constellationDbMaxConcurrent: 3,
+      test(
+        'a multi-lane pinned pool does not change the configured slot count',
+        () {
+          final env = _env(pinned: true, connections: 2);
+          expect(env.pgPoolSettings.maxConnectionCount, 2);
+          expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 1);
+        },
       );
-      expect(ConstellationDbSchedulerConfig.fromEnv(raised).maxConcurrent, 3);
-    });
-  });
+
+      test('a large pool does not lift admission past its own knob', () {
+        final env = _env(pinned: true, connections: 20);
+        expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 1);
+        final raised = Env(
+          environment: Environment.test,
+          printEnv: false,
+          driftTransactionPinnedPoolEnabled: true,
+          maxConnectionCount: 20,
+          constellationDbMaxConcurrent: 3,
+        );
+        expect(ConstellationDbSchedulerConfig.fromEnv(raised).maxConcurrent, 3);
+      });
+    },
+  );
 }
