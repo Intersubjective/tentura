@@ -40,13 +40,31 @@ class PlanEditCubit extends Cubit<PlanEditState> {
   /// A fresh, empty step (not yet in the draft).
   PlanStepSnapshot newStep() => PlanStepSnapshot(id: _newStepId(), title: '');
 
+  /// Adds or replaces a step. A step that is new or whose time changed takes
+  /// its place among the timed steps; untimed steps never move on their own.
   void putStep(PlanStepSnapshot step) {
     final steps = [...state.steps];
     final at = steps.indexWhere((s) => s.id == step.id);
     if (at < 0) {
       steps.add(step);
+      _placeByTime(steps, steps.length - 1);
     } else {
+      final timeChanged =
+          steps[at].startAt != step.startAt || steps[at].endAt != step.endAt;
       steps[at] = step;
+      if (timeChanged) _placeByTime(steps, at);
+    }
+    emit(state.copyWith(steps: steps));
+  }
+
+  /// Orders the timed steps chronologically (stable); untimed steps keep
+  /// their positions.
+  void sortByTime() {
+    final steps = [...state.steps];
+    final timed = steps.where((s) => !s.isUntimed).toList()..sort(_byAnchor);
+    var next = 0;
+    for (var i = 0; i < steps.length; i++) {
+      if (!steps[i].isUntimed) steps[i] = timed[next++];
     }
     emit(state.copyWith(steps: steps));
   }
@@ -134,4 +152,36 @@ class PlanEditCubit extends Cubit<PlanEditState> {
       );
     }
   }
+}
+
+DateTime? _anchor(PlanStepSnapshot s) => s.startAt ?? s.endAt;
+
+int _byAnchor(PlanStepSnapshot a, PlanStepSnapshot b) =>
+    _anchor(a)!.compareTo(_anchor(b)!);
+
+/// Moves the timed step at [at] to its chronological place among the other
+/// timed steps; stays where it is when there are none.
+void _placeByTime(List<PlanStepSnapshot> steps, int at) {
+  final step = steps[at];
+  final anchor = _anchor(step);
+  if (anchor == null) return;
+  final rest = [...steps]..removeAt(at);
+  var lastTimed = -1;
+  for (var i = 0; i < rest.length; i++) {
+    final other = _anchor(rest[i]);
+    if (other == null) continue;
+    if (other.isAfter(anchor)) {
+      rest.insert(i, step);
+      steps
+        ..clear()
+        ..addAll(rest);
+      return;
+    }
+    lastTimed = i;
+  }
+  if (lastTimed < 0) return;
+  rest.insert(lastTimed + 1, step);
+  steps
+    ..clear()
+    ..addAll(rest);
 }

@@ -108,6 +108,35 @@ void main() {
   });
 
   group('PlanEditCubit', () {
+    test('time places a step among timed ones; sortByTime keeps untimed', () {
+      PlanStepSnapshot st(String id, [int? h]) => PlanStepSnapshot(
+        id: id,
+        title: id,
+        startAt: h == null ? null : DateTime.utc(2030, 1, 1, h),
+      );
+      final c = PlanEditCubit(plan: repo.plan, planCase: planCaseFor(repo));
+      for (final s in [...c.state.steps]) {
+        c.removeStep(s.id);
+      }
+      c
+        ..putStep(st('a', 9))
+        ..putStep(st('b', 12))
+        ..putStep(st('u'))
+        ..putStep(st('n', 10));
+      expect(c.state.steps.map((s) => s.id), ['a', 'n', 'b', 'u']);
+      c.putStep(st('x', 20));
+      expect(c.state.steps.map((s) => s.id), ['a', 'n', 'b', 'x', 'u']);
+      c.putStep(st('n', 8));
+      expect(c.state.steps.map((s) => s.id), ['n', 'a', 'b', 'x', 'u']);
+      c.putStep(st('n', 8).copyWith(title: 'renamed'));
+      expect(c.state.steps.first.title, 'renamed');
+      c.reorder(0, 3);
+      expect(c.state.orderContradictsTime, isTrue);
+      c.sortByTime();
+      expect(c.state.steps.map((s) => s.id), ['n', 'a', 'b', 'x', 'u']);
+      expect(c.state.orderContradictsTime, isFalse);
+    });
+
     test('draft edits and save with the base taken at open', () async {
       final c = PlanEditCubit(
         plan: repo.plan,
