@@ -85,8 +85,6 @@ final class BeaconChildCreateCase extends UseCaseBase
     String? addressLabel,
     required bool draft,
   }) async {
-    await _enforceCreateRateLimit(actorUserId);
-
     final trimmedCommandId = clientCommandId.trim();
     if (trimmedCommandId.isEmpty) {
       throw const BeaconChildCommandConflictException(
@@ -173,6 +171,8 @@ final class BeaconChildCreateCase extends UseCaseBase
             );
           }
 
+          // The limit gates new commands only; a replay returns its result.
+          await _enforceCreateRateLimit(actorUserId);
           await _lockCreateScope(
             actorUserId: actorUserId,
             clientCommandId: trimmedCommandId,
@@ -378,8 +378,6 @@ final class BeaconChildCreateCase extends UseCaseBase
     Map<String, Object?> budInput = const {},
     PostParentStage? stage,
   }) async {
-    await _enforceCreateRateLimit(actorUserId);
-
     final trimmedCommandId = clientCommandId.trim();
     if (trimmedCommandId.isEmpty) {
       throw const BeaconChildCommandConflictException(
@@ -452,6 +450,8 @@ final class BeaconChildCreateCase extends UseCaseBase
             );
           }
 
+          // The limit gates new commands only; a replay returns its result.
+          await _enforceCreateRateLimit(actorUserId);
           await _postLock!.lockForPostMutation(postId);
           await _lockCreateScope(
             actorUserId: actorUserId,
