@@ -71,6 +71,10 @@ BEGIN
         (beacon_id, sender_id, recipient_id, contact_sweep_exempt)
       VALUES (r.beacon_id, r.author_id, r.user_id, true)
       RETURNING id INTO _edge;
+    ELSE
+      UPDATE public.beacon_forward_edge
+      SET contact_sweep_exempt = true
+      WHERE id = _edge;
     END IF;
 
     INSERT INTO public.beacon_author_invite

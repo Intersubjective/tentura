@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:async/async.dart' show StreamSinkTransformer;
+import 'package:logging/logging.dart';
 import 'package:postgres/messages.dart'
     show ErrorFieldId, Message, NoticeMessage;
 import 'package:postgres/postgres.dart';
@@ -16,6 +17,10 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dismissible_sql.dart';
 import 'package:tentura_server/data/repository/attention_repository.dart';
+import 'package:tentura_server/data/repository/forward_edge_repository.dart';
+import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
+import 'package:tentura_server/domain/use_case/contact_resolution_sweep_case.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
@@ -170,6 +175,47 @@ Future<void> main() async {
       );
       expect(rows.single.toList(), [true, null, null]);
     });
+
+    test(
+      'a reused unresolved repair edge produces no noisy evidence',
+      () async {
+        final invite = (await _invites(writer, _open, _withEdge)).single;
+        expect(invite.warm, isTrue);
+        expect(invite.forwardEdge, _latestEdge);
+
+        final before = await writer.execute(
+          'SELECT contact_outcome, contact_resolved_at, contact_deadline_at '
+          "FROM public.beacon_forward_edge WHERE id = '$_latestEdge'",
+        );
+        expect(before.single[0], isNull);
+        expect(before.single[1], isNull);
+        expect(before.single[2], isNotNull);
+
+        await writer.execute(
+          'UPDATE public.beacon_forward_edge '
+          "SET contact_deadline_at = now() - interval '1 hour' "
+          "WHERE id = '$_latestEdge'",
+        );
+        await ContactResolutionSweepCase(
+          unitOfWork: MutatingUnitOfWork(database),
+          forwardEdgeRepository: ForwardEdgeRepository(database),
+          trustLedger: TrustLedgerRepository(database),
+          env: migrationTarget.databaseEnv,
+          logger: Logger('M0248RepairSweepPgTest'),
+        ).run();
+
+        final after = await writer.execute(
+          'SELECT contact_outcome, contact_resolved_at '
+          "FROM public.beacon_forward_edge WHERE id = '$_latestEdge'",
+        );
+        expect(after.single.toList(), [null, null]);
+        final evidence = await writer.execute(
+          'SELECT source_key FROM public.trust_evidence '
+          "WHERE source_key LIKE 'contact:$_latestEdge:%'",
+        );
+        expect(evidence, isEmpty);
+      },
+    );
 
     test('a person who never confirmed loses room access', () async {
       for (final user in [_noEdge, _withEdge, _historicalAdmit]) {
