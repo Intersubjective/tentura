@@ -61,10 +61,18 @@ class PlanEditCubit extends Cubit<PlanEditState> {
   /// their positions.
   void sortByTime() {
     final steps = [...state.steps];
-    final timed = steps.where((s) => !s.isUntimed).toList()..sort(_byAnchor);
+    // `List.sort` is not stable: the original index breaks ties.
+    final timed =
+        <(int, PlanStepSnapshot)>[
+          for (var i = 0; i < steps.length; i++)
+            if (!steps[i].isUntimed) (i, steps[i]),
+        ]..sort((a, b) {
+          final byTime = _byAnchor(a.$2, b.$2);
+          return byTime != 0 ? byTime : a.$1.compareTo(b.$1);
+        });
     var next = 0;
     for (var i = 0; i < steps.length; i++) {
-      if (!steps[i].isUntimed) steps[i] = timed[next++];
+      if (!steps[i].isUntimed) steps[i] = timed[next++].$2;
     }
     emit(state.copyWith(steps: steps));
   }

@@ -135,6 +135,16 @@ void main() {
       c.sortByTime();
       expect(c.state.steps.map((s) => s.id), ['n', 'a', 'b', 'x', 'u']);
       expect(c.state.orderContradictsTime, isFalse);
+      // Equal times keep their order.
+      c
+        ..putStep(st('e1', 15))
+        ..putStep(st('e2', 15))
+        ..putStep(st('e3', 15))
+        ..sortByTime();
+      expect(
+        c.state.steps.map((s) => s.id).where((i) => i.startsWith('e')),
+        ['e1', 'e2', 'e3'],
+      );
     });
 
     test('draft edits and save with the base taken at open', () async {
