@@ -27,14 +27,23 @@ class ForwardPinnedSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: overlapsContent ? 0.5 : 0,
-      clipBehavior: Clip.hardEdge,
-      child: SizedBox(
-        height: height,
-        width: double.infinity,
-        child: child,
+    // One full-width semantics node per header. A pinned header sits next to
+    // the scroll view's content node, and Flutter orders the two by geometry.
+    // Two half-width tab nodes flip ahead of the content once the on-screen
+    // keyboard shrinks the viewport; Flutter Web then moves the content's DOM
+    // node, which blurs a focused note field and closes the keyboard. A
+    // full-width node always sorts above the content.
+    return Semantics(
+      container: true,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        elevation: overlapsContent ? 0.5 : 0,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          height: height,
+          width: double.infinity,
+          child: child,
+        ),
       ),
     );
   }
