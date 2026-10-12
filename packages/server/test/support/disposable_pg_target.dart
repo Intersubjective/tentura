@@ -186,6 +186,8 @@ final class DisposablePgTarget {
       pgPassword: password,
       printEnv: false,
       isDebugModeOn: false,
+      // Perf budgets must not depend on a host-level pool flag.
+      driftTransactionPinnedPoolEnabled: false,
     );
 
     return DisposablePgTarget(
