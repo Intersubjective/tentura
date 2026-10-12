@@ -676,6 +676,85 @@ Future<void> main() async {
       },
     );
 
+    test(
+      'author decline revalidates acknowledgement after locking, so it cannot '
+      'revoke a helper whose invite acceptance acknowledged first',
+      () async {
+        await _seed(writer);
+        final s = await buddedWithInvite();
+        await _seedActiveOffer(writer, s.child, _invitee);
+        // The test holds the hierarchy lock while the accept queues for it
+        // first and the decline second. The decline has already read "not
+        // acknowledged" by then; once the accept admits and acknowledges the
+        // helper and commits, the decline must re-read and refuse.
+        final pids = [await _backendPid(dbA), await _backendPid(dbB)];
+        await writer.execute('BEGIN');
+        late Future<_Outcome> accept;
+        late Future<_Outcome> decline;
+        try {
+          await writer.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+          );
+          accept = _settle(
+            b.invites.accept(actorUserId: _invitee, inviteId: s.invite),
+          );
+          await _waitForBlockedBackends(writer, pids, 1);
+          decline = _settle(
+            a.coordination.declineHelpOffer(
+              beaconId: s.child,
+              offerUserId: _invitee,
+              actorUserId: _budder,
+              reason: 'not needed',
+            ),
+          );
+          await _waitForBlockedBackends(writer, pids, 2);
+          // Barrier: the decline's lock wait is only reached after its
+          // pre-lock acknowledgement read, and the accept (queued first, so it
+          // owns the lock next) has committed nothing yet. So that read can
+          // only have seen an unacknowledged, still pending helper.
+          expect(
+            await _acknowledgementCount(writer, s.child, _invitee),
+            0,
+            reason: 'no acknowledgement exists while the decline has read',
+          );
+          expect(await _isAdmitted(writer, s.child, _invitee), isFalse);
+          expect(
+            await _inviteStatus(writer, s.invite),
+            AuthorInviteStatus.pending.code,
+          );
+          await writer.execute('COMMIT');
+        } finally {
+          await writer.execute('ROLLBACK');
+        }
+        final outcomes = await Future.wait([accept, decline]).timeout(
+          _roundBudget,
+          onTimeout: () => fail('did not finish in $_roundBudget'),
+        );
+        expect(outcomes.first.error, isNull);
+        expect(
+          await _inviteStatus(writer, s.invite),
+          AuthorInviteStatus.accepted.code,
+        );
+        final declineError = outcomes.last.error;
+        expect(declineError, isA<HelpOfferCoordinationException>());
+        expect(
+          (declineError! as HelpOfferCoordinationException).code,
+          isA<HelpOfferCoordinationExceptionCodes>().having(
+            (c) => c.exceptionCode,
+            'exceptionCode',
+            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
+          ),
+        );
+        // The acknowledged helper keeps the offer, the room access and the
+        // acknowledgement; the refused decline leaves no trace.
+        expect(await _offerStatus(writer, s.child, _invitee), 0);
+        expect(await _isAdmitted(writer, s.child, _invitee), isTrue);
+        expect(await _declineEventCount(writer, s.child, _invitee), 0);
+        expect(await _acknowledgementCount(writer, s.child, _invitee), 1);
+        await _expectInvariants(writer, 'accept then decline');
+      },
+    );
+
     for (final existingOffer in [true, false]) {
       test(
         'an invitee offering help takes the child advisory lock before the '
@@ -1166,6 +1245,21 @@ Future<int> _backendPid(TenturaDb db) async {
 }
 
 /// Number of decline events recorded for [user] on [beacon].
+Future<int> _acknowledgementCount(
+  Connection writer,
+  String beacon,
+  String user,
+) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT count(*) FROM public.beacon_commitment_event '
+      'WHERE beacon_id = @b AND user_id = @u AND kind = 1',
+    ),
+    parameters: {'b': beacon, 'u': user},
+  );
+  return rows.single.single! as int;
+}
+
 Future<int> _declineEventCount(
   Connection writer,
   String beacon,

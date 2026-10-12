@@ -444,21 +444,11 @@ final class CoordinationCase extends UseCaseBase {
     required String reason,
   }) async {
     final trimmedReason = _validateReason(reason);
-    final hadAcknowledged = await _commitmentQueryCase.everAcknowledgedPair(
-      beaconId: beaconId,
-      userId: offerUserId,
-    );
     final beacon = await _prepareAdmissionAction(
       beaconId: beaconId,
       offerUserId: offerUserId,
       actorUserId: actorUserId,
     );
-    if (hadAcknowledged) {
-      throw HelpOfferCoordinationException(
-        coordinationCode:
-            HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
-      );
-    }
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: (transaction) async {
@@ -467,6 +457,18 @@ final class CoordinationCase extends UseCaseBase {
         // trigger takes the hierarchy lock anyway, so taking it last deadlocks.
         await _authorInvites?.lockScope(null);
         await _closureCase?.lockRequest(beaconId);
+        // Re-read after locking: an invite accept may have acknowledged the
+        // helper while this waited for the locks.
+        final hadAcknowledged = await _commitmentQueryCase.everAcknowledgedPair(
+          beaconId: beaconId,
+          userId: offerUserId,
+        );
+        if (hadAcknowledged) {
+          throw HelpOfferCoordinationException(
+            coordinationCode: HelpOfferCoordinationExceptionCode
+                .commitmentAlreadyAcknowledged,
+          );
+        }
         // Snapshot the affected helper while the pre-decline audience is intact.
         final intent = await _attentionIntents!.offerDeclined(
           receiverId: offerUserId,
@@ -490,13 +492,6 @@ final class CoordinationCase extends UseCaseBase {
           offerUserId: offerUserId,
           authorUserId: actorUserId,
         );
-        if (hadAcknowledged) {
-          await _recordSoftenedIfTransition(
-            beaconId: beaconId,
-            userId: offerUserId,
-            actorUserId: actorUserId,
-          );
-        }
         await transaction.record(intent);
         await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
           beaconId: beaconId,
