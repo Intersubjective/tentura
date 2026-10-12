@@ -381,6 +381,10 @@ final class HelpOfferCase extends UseCaseBase {
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
+        // Lock order (Arch §4.1): hierarchy before the child lock, as the
+        // same helper's invite accept takes them; the participant trigger
+        // takes the hierarchy lock anyway, so taking it last deadlocks.
+        await _authorInvites?.lockScope(null);
         await _closureCase?.lockRequest(beaconId);
         await _commitmentRepository.record(
           beaconId: beaconId,

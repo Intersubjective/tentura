@@ -33,6 +33,7 @@ import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repositor
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/post_bud_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
+import 'package:tentura_server/data/repository/person_capability_event_repository.dart';
 import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
@@ -64,7 +65,9 @@ import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
+import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
+import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 import 'package:tentura_server/domain/use_case/post_bud_case.dart';
 import 'package:tentura_server/domain/use_case/post_case.dart';
 import 'package:tentura_server/domain/use_case/post_close_operation.dart';
@@ -73,6 +76,7 @@ import 'package:tentura_server/domain/use_case/user_block_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/fake_beacon_access_guard.dart';
 import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/pg_test_public_keys.dart';
 
@@ -529,6 +533,64 @@ Future<void> main() async {
       );
     });
 
+    test(
+      'helper withdrawal takes the hierarchy lock before the child lock, '
+      'so it cannot deadlock with the same helper accepting an invite',
+      () async {
+        await _seed(writer);
+        final s = await buddedWithInvite();
+        await _seedActiveOffer(writer, s.child, _invitee);
+        // The test holds the hierarchy lock while the accept queues for it
+        // first and the withdrawal queues second. On release the accept owns
+        // the hierarchy lock and wants the child lock; a withdrawal that
+        // already took the child lock before queueing (wrong order) deadlocks
+        // with it, one that queued on the hierarchy lock first does not.
+        await writer.execute('BEGIN');
+        late Future<_Outcome> accept;
+        late Future<_Outcome> withdraw;
+        try {
+          await writer.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+          );
+          accept = _settle(
+            a.invites.accept(actorUserId: _invitee, inviteId: s.invite),
+          );
+          await _waitForBlockedBackends(writer, 1);
+          withdraw = _settle(
+            b.helpOffers.withdraw(
+              beaconId: s.child,
+              userId: _invitee,
+              withdrawReason: 'timing',
+            ),
+          );
+          await _waitForBlockedBackends(writer, 2);
+          await writer.execute('COMMIT');
+        } finally {
+          await writer.execute('ROLLBACK');
+        }
+        final outcomes = await Future.wait([accept, withdraw]).timeout(
+          _roundBudget,
+          onTimeout: () => fail('did not finish in $_roundBudget'),
+        );
+        for (final outcome in outcomes) {
+          expect(
+            _isDeadlockOrTimeout(outcome.error),
+            isFalse,
+            reason: 'deadlock or timeout: ${outcome.error}',
+          );
+          expect(outcome.error, isNull);
+        }
+        // Accept ran first, then the withdrawal revoked the helper again.
+        expect(
+          await _inviteStatus(writer, s.invite),
+          AuthorInviteStatus.accepted.code,
+        );
+        expect(await _offerStatus(writer, s.child, _invitee), 1);
+        expect(await _isAdmitted(writer, s.child, _invitee), isFalse);
+        await _expectInvariants(writer, 'accept then withdraw');
+      },
+    );
+
     test('later invite ∥ bud from the same Post (N5)', () async {
       await race<String>(
         setUpRound: () async {
@@ -785,6 +847,57 @@ WHERE beacon_id = @b AND user_id = @u AND room_access = 3
   return rows.isNotEmpty;
 }
 
+/// An active help offer plus its participant row, as left by an offer the
+/// invitee made before the author's invite arrived.
+Future<void> _seedActiveOffer(
+  Connection writer,
+  String beacon,
+  String user,
+) async {
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_help_offer (beacon_id, user_id, created_at)
+VALUES (@b, @u, now())
+ON CONFLICT DO NOTHING
+'''),
+    parameters: {'b': beacon, 'u': user},
+  );
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_participant
+  (id, beacon_id, user_id, role, status, room_access, created_at, updated_at)
+VALUES ('Ppbc9offer01', @b, @u, 2, 0, 1, now(), now())
+ON CONFLICT DO NOTHING
+'''),
+    parameters: {'b': beacon, 'u': user},
+  );
+}
+
+/// Waits until [count] sessions wait for an advisory lock.
+Future<void> _waitForBlockedBackends(Connection writer, int count) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      'SELECT count(*) FROM pg_locks '
+      "WHERE locktype = 'advisory' AND NOT granted",
+    );
+    if ((rows.single.single! as int) >= count) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('fewer than $count sessions blocked on an advisory lock');
+}
+
+Future<int> _offerStatus(Connection writer, String beacon, String user) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT status FROM public.beacon_help_offer '
+      'WHERE beacon_id = @b AND user_id = @u',
+    ),
+    parameters: {'b': beacon, 'u': user},
+  );
+  return rows.single.single! as int;
+}
+
 Future<void> _seed(Connection writer) async {
   await writer.execute('''
 TRUNCATE TABLE
@@ -853,6 +966,7 @@ final class _Stack {
     required this.beaconCase,
     required this.blocks,
     required this.posts,
+    required this.helpOffers,
   });
 
   final PostBudCase buds;
@@ -860,6 +974,7 @@ final class _Stack {
   final BeaconCase beaconCase;
   final UserBlockCase blocks;
   final PostCase posts;
+  final HelpOfferCase helpOffers;
 
   factory _Stack.build(TenturaDb db, Env env) {
     final logger = Logger('PostBudConcurrencyPgTest');
@@ -969,6 +1084,27 @@ final class _Stack {
       logger: logger,
     );
     return _Stack(
+      helpOffers: HelpOfferCase(
+        helpOffers,
+        beacons,
+        commitments,
+        inbox,
+        CapabilityCase(
+          PersonCapabilityEventRepository(db),
+          env: env,
+          logger: logger,
+        ),
+        FakeBeaconAccessGuard(),
+        roomRepository: room,
+        attentionIntents: intents,
+        attention: attention,
+        attentionSystemSettlement: settlement,
+        closureCase: closure,
+        authorInvites: authorInvites,
+        coordinationRepository: coordinationRepository,
+        env: env,
+        logger: logger,
+      ),
       buds: PostBudCase(
         BeaconChildCreateCase(
           beacons,
