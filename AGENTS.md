@@ -63,11 +63,15 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   dart test --exclude-tags pg
 # Postgres tests run in two steps. The `mr` ones also reach the MeritRank
 # service, which is a single shared container every disposable database talks
-# to, so they must not run in parallel with each other.
+# to, so they must not run in parallel with each other. The D8 load suite
+# (`load` tag) runs a 1,000-session publication burst that outlasts the
+# wrapper timeout, so the routine `mr` run excludes it; run it on its own.
 cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- \
   dart test --tags pg --exclude-tags mr
 cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 30m -- \
-  dart test --tags mr -j 1
+  dart test --tags mr --exclude-tags load -j 1
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 90m -- \
+  dart test --tags load -j 1
 ```
 
 > Disposable pg databases are cloned from a prebuilt template

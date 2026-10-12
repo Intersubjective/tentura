@@ -10,7 +10,6 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide ConstellationAnchor, isNotNull, isNull;
-import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
@@ -23,10 +22,11 @@ import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
-/// The constellation FULL read and the anchor apply transaction freeze the
-/// visibility memo: while another connection keeps committing trust changes,
-/// each successful attempt computes the visible set once per (viewer, context),
-/// and does so with the tx-local freeze flag already set.
+/// The constellation FULL read freezes the visibility memo: while another
+/// connection keeps committing trust changes, its frozen snapshot computes the
+/// visible set at most once per (viewer, context), with the tx-local freeze
+/// flag already set. The anchor apply no longer consults visibility at all
+/// (a pin beats visibility), so it neither computes it nor fails on an outage.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_CONSTELLATION_FROZEN_VISIBILITY_PG_TEST_DB',
@@ -76,6 +76,8 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount, updated_at
   var flagCallsBefore = 0;
 
   Future<void> resetCounters() async {
+    // The stored visible set (m0235) would answer without computing.
+    await writer.execute('DELETE FROM public.person_visible_set_cache');
     callsBefore = await locksHeld(7001);
     flagCallsBefore = await locksHeld(7002);
   }
@@ -87,12 +89,14 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount, updated_at
   /// changes without pause; each attempt must compute exactly once, with the
   /// freeze flag set at that first computation.
   ///
-  /// The batch apply seeds the memo and sets the flag in the same statement as
-  /// its one computation, so it cannot promise the flag at that computation;
-  /// it passes [flagSetAtComputation] false and is held to one computation.
+  /// [storesFirst] is for the FULL read, which stores the set in its own
+  /// transaction before the frozen snapshot; [noComputation] is for the apply,
+  /// which must not compute the set.
   Future<void> expectOneFrozenComputationPerAttempt(
     Future<void> Function() attempt, {
     bool flagSetAtComputation = true,
+    bool storesFirst = false,
+    bool noComputation = false,
   }) async {
     var stop = false;
     final churner = () async {
@@ -105,9 +109,20 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount, updated_at
       for (var i = 0; i < attempts; i++) {
         await resetCounters();
         await attempt();
-        expect(await calls(), 1, reason: 'attempt $i');
-        if (flagSetAtComputation) {
-          expect(await flagCalls(), 1, reason: 'attempt $i');
+        final flagged = await flagCalls();
+        if (noComputation) {
+          expect(await calls(), 0, reason: 'attempt $i');
+        } else if (storesFirst) {
+          // The read-only snapshot cannot fill the stored visible set, so the
+          // read stores it first (unflagged, own transaction); churn may
+          // invalidate it, and then the frozen snapshot computes once more.
+          expect(flagged, lessThanOrEqualTo(1), reason: 'attempt $i');
+          expect(await calls(), inInclusiveRange(1, 2), reason: 'attempt $i');
+        } else {
+          expect(await calls(), 1, reason: 'attempt $i');
+          if (flagSetAtComputation) {
+            expect(flagged, 1, reason: 'attempt $i');
+          }
         }
       }
     } finally {
@@ -183,12 +198,12 @@ $$
         ),
       );
       expect(snapshot.peers.map((p) => p.id), contains(peer));
-    }),
+    }, storesFirst: true),
   );
 
   test(
-    'an anchor apply under continuous trust churn computes the visible set '
-    'once, with the freeze flag set',
+    'an anchor apply under continuous trust churn does not compute the '
+    'visible set',
     () => expectOneFrozenComputationPerAttempt(() async {
       final result = await anchorRepository.applyAnchorUpsert(
         viewerId: viewer,
@@ -201,13 +216,14 @@ $$
         ),
       );
       expect(result, isNotNull);
-    }, flagSetAtComputation: false),
+    }, noComputation: true),
   );
 
   group('when MeritRank fails', () {
-    setUp(
-      () => writer.execute('INSERT INTO public._cfrozen_mr_down VALUES (true)'),
-    );
+    setUp(() async {
+      await writer.execute('DELETE FROM public.person_visible_set_cache');
+      await writer.execute('INSERT INTO public._cfrozen_mr_down VALUES (true)');
+    });
     tearDown(() => writer.execute('DELETE FROM public._cfrozen_mr_down'));
 
     test(
@@ -221,35 +237,33 @@ $$
             projection: ConstellationProjection.full,
           ),
         );
-        expect(snapshot.peers, isEmpty);
+        // A pin of an earlier test stays on the map, but as an invisible
+        // peer: nobody else is on it.
+        final pinned = snapshot.anchorProjection.pinnedPeers;
+        expect(pinned.where((p) => p.visible), isEmpty);
+        expect(
+          snapshot.peers.map((p) => p.id).toSet().difference({
+            for (final p in pinned) p.id,
+          }),
+          isEmpty,
+        );
       },
     );
 
     test(
-      'an anchor apply fails closed and rejects the person target',
+      'an anchor apply does not depend on MeritRank and still pins the person',
       () async {
-        await expectLater(
-          anchorRepository.applyAnchorUpsert(
-            viewerId: viewer,
-            context: ctx,
-            target: ConstellationAnchorTarget.person(peer),
-            position: const ConstellationAnchorPosition(
-              xUnits: 1,
-              yUnits: 1,
-              coordinateSpaceVersion: 1,
-            ),
-          ),
-          // A service error aborts the batch (nothing is written); the retry
-          // wrapper reports it once its budget is spent.
-          throwsA(
-            predicate<Object>(
-              (e) =>
-                e is PostgresSnapshotUnavailableException ||
-                (e is PostgresRetryDeadlineExceededException &&
-                    e.cause is PostgresSnapshotUnavailableException),
-            ),
+        final result = await anchorRepository.applyAnchorUpsert(
+          viewerId: viewer,
+          context: ctx,
+          target: ConstellationAnchorTarget.person(peer),
+          position: const ConstellationAnchorPosition(
+            xUnits: 1,
+            yUnits: 1,
+            coordinateSpaceVersion: 1,
           ),
         );
+        expect(result.anchor.target, ConstellationAnchorTarget.person(peer));
       },
     );
   });

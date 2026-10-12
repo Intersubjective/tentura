@@ -1065,7 +1065,13 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
                   .cast<Map<String, dynamic>>()
                   .singleWhere((record) => record['id'] == firstPeer),
           ];
-          const identityFields = {'id', 'kind', 'targetKind', 'pinState'};
+          const identityFields = {
+            'id',
+            'kind',
+            'targetKind',
+            'pinState',
+            'visible',
+          };
           for (final placeholder in placeholders) {
             expect(placeholder['pinState'], 'tombstone');
             for (final entry in placeholder.entries) {

@@ -412,11 +412,14 @@ void _expectIdentityOnlyTombstone(
       'pinState',
     },
   );
+  // `visible` is a non-null wire field of every peer (U54); it says nothing
+  // about a deleted account, so it is part of the identity envelope.
   _expectNoContent(targetRecord, const {
     'id',
     'kind',
     'targetKind',
     'pinState',
+    'visible',
   });
   expect(projection.supportPeers, isEmpty);
   expect(projection.supportEdges, isEmpty);

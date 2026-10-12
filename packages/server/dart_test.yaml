@@ -14,3 +14,9 @@ tags:
       MeritRank service, so these suites are tagged `pg` and `mr` as well:
       they stay out of the default run and the plain pg run, and run
       serialised (`-j 1`) like every `mr` suite. Select with `--tags perf`.
+  load:
+    description: >-
+      D8 load suite (publication burst at 1,000 sessions). It outlasts the
+      whole-suite wrapper timeout of the routine `mr` run, so that run
+      excludes it (`--exclude-tags load`); select it on its own with
+      `--tags load` as a perf-only measurement.
