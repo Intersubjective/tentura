@@ -281,7 +281,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   Future<PostBudResult?> _submitBud({required String context}) async {
     final bud = state.postBud;
-    if (bud == null || isClosed) return null;
+    if (bud == null || isClosed || !bud.candidatesLoaded) return null;
     validate();
     if (state.publishBlocker != null) {
       revealValidationHints();

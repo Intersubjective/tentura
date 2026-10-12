@@ -75,6 +75,12 @@ class FakePostBudPort implements PostBudPort {
 
   Exception? budError;
 
+  /// When set, `inviteCandidates` waits for it before answering.
+  Completer<void>? candidatesGate;
+
+  /// When set, `inviteCandidates` throws it.
+  Exception? candidatesError;
+
   /// When set, `budFromPost` waits for it before answering.
   Completer<void>? gate;
 
@@ -86,7 +92,12 @@ class FakePostBudPort implements PostBudPort {
   @override
   Future<List<PostBudInviteCandidate>> inviteCandidates({
     required String postId,
-  }) async => candidates;
+  }) async {
+    await candidatesGate?.future;
+    final error = candidatesError;
+    if (error != null) throw error;
+    return candidates;
+  }
 
   @override
   Future<PostBudResult> budFromPost({

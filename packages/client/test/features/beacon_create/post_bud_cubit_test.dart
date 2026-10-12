@@ -126,12 +126,12 @@ void main() {
         expect(cubit.state.postBud!.closePost, isTrue);
       });
 
-      test('on iff every eligible member is ticked', () async {
+      test('on iff every member is ticked', () async {
         final h = BudHarness();
         h.port.candidates = [
           budCandidate('a', pretick: true),
           budCandidate('b', pretick: true),
-          budCandidate('c', outcome: PostBudInviteOutcome.notEligible),
+          budCandidate('c', pretick: true),
         ];
         final cubit = await _open(h);
         expect(cubit.state.postBud!.closePost, isTrue);

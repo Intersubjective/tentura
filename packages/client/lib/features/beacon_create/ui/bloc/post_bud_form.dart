@@ -60,12 +60,12 @@ abstract class PostBudForm with _$PostBudForm {
   int get memberCount => candidates.length + 1;
 
   /// «Закрыть пост…» is on by default when the Post has at most two members
-  /// or every invitable member is ticked.
+  /// or every member is ticked (one who cannot be invited never is). Off while
+  /// the membership is unknown.
   bool get closePostByDefault {
+    if (!candidatesLoaded) return false;
     if (memberCount <= 2) return true;
-    final eligible = invitable;
-    return eligible.isNotEmpty &&
-        eligible.every((c) => selectedIds.contains(c.userId));
+    return candidates.every((c) => selectedIds.contains(c.userId));
   }
 
   bool get closePost => closePostChoice ?? closePostByDefault;
