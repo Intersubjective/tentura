@@ -236,9 +236,9 @@ WHERE image_id IS NOT NULL
       r'''
 DELETE FROM public.image
 WHERE author_id = $1
-  AND id = ANY($2::uuid[])
+  AND id = ANY(ARRAY(SELECT jsonb_array_elements_text($2::jsonb))::uuid[])
 ''',
-      [authorId, imageIds],
+      [authorId, jsonEncode(imageIds)],
     );
   }
 }

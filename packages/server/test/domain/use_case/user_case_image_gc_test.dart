@@ -47,6 +47,20 @@ class _FakeErasurePort extends Fake implements UserErasurePort {
       const [];
 
   @override
+  Future<List<String>> hardDeleteOwnedDraftBeacons({
+    required List<String> beaconIds,
+    required String ownerId,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<String>> scrubDeletedOwnedBeaconContents({
+    required List<String> beaconIds,
+    required String ownerId,
+  }) async =>
+      const [];
+
+  @override
   Future<void> deleteUserScopedEvaluationAndCapabilityRows({
     required String userId,
   }) async {}
@@ -123,13 +137,13 @@ void main() {
   });
 
   test(
-    'enqueues image GC only after the account erasure transaction commits',
+    'enqueues image GC in the same transaction as the image row deletion',
     () async {
       expect(await case_.deleteById(id: 'Uauth'), isTrue);
 
       expect(order.calls, [
-        'userRepo.deleteById(Uauth)',
         'imageGc.enqueue(Uauth,Iprofile1)',
+        'userRepo.deleteById(Uauth)',
       ]);
     },
   );

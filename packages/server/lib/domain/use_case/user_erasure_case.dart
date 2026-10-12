@@ -43,8 +43,6 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
 
   @override
   Future<bool> deleteById({required String id}) async {
-    final imageIdsForGc = <({String imageId, String authorId})>[];
-
     const batchSize = 200;
     final ownedPublished = await _erasure.listOwnedPublishedBeacons(userId: id);
     final draftIds = await _erasure.listOwnedDraftBeaconIds(userId: id);
@@ -54,90 +52,124 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
     Future<void> step(Future<void> Function() fn) => atomic
         ? fn()
         : _attention.runAction(actorUserId: id, action: (_) => fn());
+    // Cleanup jobs are enqueued in the transaction that deleted the image rows.
+    Future<void> enqueueGc(List<String> imageIds) async {
+      for (final imageId in imageIds) {
+        await _imageObjectGc.enqueue(imageId: imageId, authorId: id);
+      }
+    }
+
+    Future<void> eraseActive(OwnedPublishedBeaconRow owned) async {
+      await _hierarchy.lockMutationScope();
+      await _beacons.runInBeaconStateTransaction(
+        beaconId: owned.beaconId,
+        userId: id,
+        fn: (locked) async {
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: locked.id,
+            fromStatus: locked.status,
+            toStatus: BeaconStatus.deleted,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: id,
+            reason: BeaconStatusTransitionReason.deleted,
+          );
+          await _beacons.recordBeaconStatusTransition(
+            beaconId: locked.id,
+            fromStatus: locked.status,
+            toStatus: BeaconStatus.deleted,
+            reason: BeaconLifecycleChangeReason.deleted,
+            actorId: id,
+          );
+          await enqueueGc(
+            await _erasure.scrubDeletedOwnedBeaconContent(
+              beaconId: locked.id,
+              ownerId: id,
+            ),
+          );
+          return true;
+        },
+      );
+    }
+
+    Future<void> scrubDeleted(List<String> beaconIds) async {
+      for (var start = 0; start < beaconIds.length; start += batchSize) {
+        await step(
+          () async {
+            await _hierarchy.lockMutationScope();
+            await enqueueGc(
+              await _erasure.scrubDeletedOwnedBeaconContents(
+                beaconIds: beaconIds.skip(start).take(batchSize).toList(),
+                ownerId: id,
+              ),
+            );
+          },
+        );
+      }
+    }
+
     Future<void> erase() async {
-      final deletedIds = <String>[];
       // Active rows still require their individual locked lifecycle transition.
       // Each transition commits independently; already-deleted rows use bulk SQL.
       for (final owned in ownedPublished) {
-        if (owned.status == BeaconStatus.deleted) {
-          deletedIds.add(owned.beaconId);
-          continue;
+        if (owned.status != BeaconStatus.deleted) {
+          await step(() => eraseActive(owned));
         }
-        await step(
-          () async {
-            await _hierarchy.lockMutationScope();
-            await _beacons.runInBeaconStateTransaction(
-              beaconId: owned.beaconId,
-              userId: id,
-              fn: (locked) async {
-                await _lifecycleEffects.recordEligibleSourceTransition(
-                  sourceBeaconId: locked.id,
-                  fromStatus: locked.status,
-                  toStatus: BeaconStatus.deleted,
-                  occurredAt: DateTime.timestamp(),
-                  actorUserId: id,
-                  reason: BeaconStatusTransitionReason.deleted,
-                );
-                await _beacons.recordBeaconStatusTransition(
-                  beaconId: locked.id,
-                  fromStatus: locked.status,
-                  toStatus: BeaconStatus.deleted,
-                  reason: BeaconLifecycleChangeReason.deleted,
-                  actorId: id,
-                );
-                final images = await _erasure.scrubDeletedOwnedBeaconContent(
-                  beaconId: locked.id,
-                  ownerId: id,
-                );
-                imageIdsForGc.addAll([
-                  for (final imageId in images)
-                    (imageId: imageId, authorId: id),
-                ]);
-                return true;
-              },
-            );
-          },
-        );
       }
-      for (var start = 0; start < deletedIds.length; start += batchSize) {
-        await step(
-          () async {
-            await _hierarchy.lockMutationScope();
-            final images = await _erasure.scrubDeletedOwnedBeaconContents(
-              beaconIds: deletedIds.skip(start).take(batchSize).toList(),
-              ownerId: id,
-            );
-            imageIdsForGc.addAll([
-              for (final imageId in images) (imageId: imageId, authorId: id),
-            ]);
-          },
-        );
-      }
+      await scrubDeleted([
+        for (final owned in ownedPublished)
+          if (owned.status == BeaconStatus.deleted) owned.beaconId,
+      ]);
       for (var start = 0; start < draftIds.length; start += batchSize) {
         await step(
           () async {
             await _hierarchy.lockMutationScope();
-            final images = await _erasure.hardDeleteOwnedDraftBeacons(
-              beaconIds: draftIds.skip(start).take(batchSize).toList(),
-              ownerId: id,
+            await enqueueGc(
+              await _erasure.hardDeleteOwnedDraftBeacons(
+                beaconIds: draftIds.skip(start).take(batchSize).toList(),
+                ownerId: id,
+              ),
             );
-            imageIdsForGc.addAll([
-              for (final imageId in images) (imageId: imageId, authorId: id),
-            ]);
           },
         );
       }
+      // The final step re-lists under the lock so rows created after the
+      // first listing are erased too.
       await step(
         () async {
           await _hierarchy.lockMutationScope();
+          final handledDrafts = draftIds.toSet();
+          await enqueueGc(
+            await _erasure.hardDeleteOwnedDraftBeacons(
+              beaconIds: [
+                for (final draftId in await _erasure.listOwnedDraftBeaconIds(
+                  userId: id,
+                ))
+                  if (!handledDrafts.contains(draftId)) draftId,
+              ],
+              ownerId: id,
+            ),
+          );
+          // Rows already handled by this run's chunks are not re-scrubbed.
+          final handled = {for (final owned in ownedPublished) owned.beaconId};
+          final remaining = [
+            for (final owned in await _erasure.listOwnedPublishedBeacons(
+              userId: id,
+            ))
+              if (!handled.contains(owned.beaconId)) owned,
+          ];
+          for (final owned in remaining) {
+            if (owned.status != BeaconStatus.deleted) await eraseActive(owned);
+          }
+          await enqueueGc(
+            await _erasure.scrubDeletedOwnedBeaconContents(
+              beaconIds: [for (final owned in remaining) owned.beaconId],
+              ownerId: id,
+            ),
+          );
           await _erasure.deleteUserScopedEvaluationAndCapabilityRows(
             userId: id,
           );
-          final profileImages = await _erasure.deleteOwnedImageRows(userId: id);
-          imageIdsForGc.addAll([
-            for (final imageId in profileImages)
-              (imageId: imageId, authorId: id),
-          ]);
+          await enqueueGc(await _erasure.deleteOwnedImageRows(userId: id));
           await _erasure.deleteOrdinaryRoomMessagesAuthoredByUser(userId: id);
           await _users.deleteById(id: id);
         },
@@ -148,12 +180,6 @@ final class UserErasureCase extends UseCaseBase implements AccountErasureCase {
       await _attention.runAction(actorUserId: id, action: (_) => erase());
     } else {
       await erase();
-    }
-    for (final pending in imageIdsForGc) {
-      await _imageObjectGc.enqueue(
-        imageId: pending.imageId,
-        authorId: pending.authorId,
-      );
     }
 
     return true;
