@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/forward_attribution_method.dart';
 import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
+import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/forward/forward_constants.dart';
@@ -89,24 +90,40 @@ final class ForwardCase extends UseCaseBase {
     required String edgeId,
     required String senderId,
   }) async {
-    final edge = await _forwardEdgeRepository.fetchById(edgeId);
-    if (edge == null || edge.senderId != senderId) return false;
-    if (edge.cancelledAt != null) return false;
-    if (edge.recipientReadAt != null) return false;
-    if (edge.recipientRejected) return false;
+    final first = await _forwardEdgeRepository.fetchById(edgeId);
+    if (first == null || first.senderId != senderId) return false;
+    final isPost =
+        (await _beaconRepository.getBeaconById(beaconId: first.beaconId))
+            .kind ==
+        BeaconKind.post;
 
-    final hasChain = await _forwardEdgeRepository.existsWithParent(edgeId);
-    if (hasChain) return false;
+    Future<ForwardEdgeEntity?> eligibleEdge() async {
+      final edge = await _forwardEdgeRepository.fetchById(edgeId);
+      if (edge == null || edge.senderId != senderId) return null;
+      if (edge.cancelledAt != null) return null;
+      if (edge.recipientReadAt != null) return null;
+      if (edge.recipientRejected) return null;
 
-    final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
-      beaconId: edge.beaconId,
-      userId: edge.recipientId,
-    );
-    if (hasOffer) return false;
+      final hasChain = await _forwardEdgeRepository.existsWithParent(edgeId);
+      if (hasChain) return null;
+
+      final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
+        beaconId: edge.beaconId,
+        userId: edge.recipientId,
+      );
+      return hasOffer ? null : edge;
+    }
+
+    // Requests: checks run before the transaction. Posts: hierarchy -> Post
+    // lock first, then every mutable check, inside the transaction.
+    if (!isPost && await eligibleEdge() == null) return false;
 
     return _attention!.runAction(
       actorUserId: senderId,
       action: (_) async {
+        if (isPost) await _postLock!.lockForPostMutation(first.beaconId);
+        final edge = await eligibleEdge();
+        if (edge == null) return false;
         await _forwardEdgeRepository.cancel(edgeId, senderId);
         await _capabilityEvidence.reconcileForwardReasons(
           forwardEdgeId: edgeId,

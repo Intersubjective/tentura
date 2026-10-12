@@ -488,6 +488,87 @@ Future<void> main() async {
       );
     });
 
+    group('cancelling a forward edge while the addressee leaves', () {
+      test(
+        'a cancellation queued behind a leave on the hierarchy lock does not '
+        'take the edge first: the leave wins and the cancellation is refused',
+        () async {
+          for (var round = 0; round < _rounds; round++) {
+            await _resetFixture(writer);
+            final edgeId = await _insertEdge(writer, _author, _recipient);
+            await writer.execute("""
+INSERT INTO public.inbox_item (user_id, beacon_id, status)
+VALUES ('$_recipient', '$_post', 1)
+ON CONFLICT (user_id, beacon_id) DO UPDATE SET status = 1
+""");
+            expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+
+            final cancelPid = await _backendPid(forwardDb);
+            final leavePid = await _backendPid(blockDb);
+            // The writer holds the hierarchy scope while the leave and then
+            // the cancellation queue behind it, so on release the leave gets
+            // the hierarchy first: the interleaving of the deadlock.
+            await writer.execute('BEGIN');
+            late final Future<_Outcome> leave;
+            late final Future<_Outcome> cancel;
+            try {
+              await writer.execute(
+                'SELECT pg_advisory_xact_lock(hashtextextended('
+                "'tentura.beacon_hierarchy.v1', 0))",
+              );
+              leave = _settle(
+                blockStack.postCase.leave(userId: _recipient, beaconId: _post),
+              );
+              await _waitForHierarchyWaiter(writer, leavePid);
+              cancel = _settle(
+                forwardStack.forwardCase.cancelForward(
+                  edgeId: edgeId,
+                  senderId: _author,
+                ),
+              );
+              await _waitForHierarchyWaiter(writer, cancelPid);
+            } finally {
+              await writer.execute('COMMIT');
+            }
+
+            final outcomes = await Future.wait([leave, cancel]).timeout(
+              _roundBudget,
+              onTimeout: () => fail('round $round did not finish'),
+            );
+            expect(
+              outcomes[0].error,
+              isNull,
+              reason: 'round $round: the leave must succeed',
+            );
+            expect(
+              outcomes[1].error,
+              isNull,
+              reason: 'round $round: the cancellation must not fail',
+            );
+            // The leave committed first and declined the delivery, so the
+            // cancellation, re-checking after it holds its locks, is refused
+            // and leaves the edge alone.
+            expect(
+              outcomes[1].value,
+              isFalse,
+              reason: 'round $round: a declined delivery cannot be cancelled',
+            );
+            expect(
+              await _liveEdgeCount(writer, _post, _recipient),
+              1,
+              reason: 'round $round: the refused cancellation keeps the edge',
+            );
+            expect(
+              await _roomAccess(writer, _post, _recipient),
+              RoomAccessBits.left,
+              reason: 'round $round: the addressee stays out of the room',
+            );
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+      );
+    });
+
     group('leave of a Post', () {
       test(
         'a forward to the addressee racing their leave never deadlocks and '
@@ -988,4 +1069,30 @@ final class _AllVisiblePeers extends Fake
     required Iterable<String> peerIds,
     required String context,
   }) async => peerIds.toSet();
+}
+
+Future<int> _backendPid(TenturaDb db) async {
+  final row = await db
+      .customSelect('SELECT pg_backend_pid() AS pid')
+      .getSingle();
+  return row.read<int>('pid');
+}
+
+/// Waits until backend [pid] waits for the hierarchy advisory lock. Scoped to
+/// this database, that key and that pid (`pg_locks` is cluster-wide).
+Future<void> _waitForHierarchyWaiter(Connection writer, int pid) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      'SELECT 1 FROM pg_locks l '
+      "WHERE l.locktype = 'advisory' AND NOT l.granted AND l.objsubid = 1 "
+      'AND ((l.classid::bigint << 32) | l.objid::bigint) = '
+      "hashtextextended('tentura.beacon_hierarchy.v1', 0) "
+      'AND l.pid = $pid AND l.database = '
+      '(SELECT oid FROM pg_database WHERE datname = current_database())',
+    );
+    if (rows.isNotEmpty) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('backend $pid never waited for the hierarchy lock');
 }
