@@ -241,7 +241,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
               final constellation = context.read<ConstellationCubit>();
               _composing = composer.createCubit != null;
               if (!_composing) {
-                constellation.exitComposing();
+                constellation.exitComposing(
+                  pinPersonIds: composer.sentInCircleIds,
+                );
                 unawaited(constellation.load());
               } else {
                 constellation.enterComposing(

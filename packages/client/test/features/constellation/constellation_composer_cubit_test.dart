@@ -283,4 +283,51 @@ void main() {
       },
     );
   });
+  group('People dropped on the circle', () {
+    test('a dropped person inside the circle becomes a recipient', () {
+      composer
+        ..start(BeaconKind.post, Offset.zero)
+        ..setRadius(25);
+      expect(composer.selection.selected, contains('Ua'));
+      unawaited(composer.toggle('Ua'));
+      expect(composer.selection.selected, isNot(contains('Ua')));
+
+      composer.personDropped('Ua');
+
+      expect(composer.selection.selected, contains('Ua'));
+    });
+
+    test('a person dropped outside the circle is not added', () {
+      composer
+        ..start(BeaconKind.post, Offset.zero)
+        ..setRadius(25)
+        ..personDropped('Ue');
+
+      expect(composer.selection.selected, isNot(contains('Ue')));
+    });
+
+    test('a sent session reports the recipients inside the circle', () async {
+      composer
+        ..start(BeaconKind.post, Offset.zero)
+        ..setRadius(25)
+        ..toggleManualSelection()
+        ..toggleMapRecipient('Ue');
+      expect(composer.selection.selected, containsAll(['Ua', 'Ub', 'Ue']));
+
+      await composer.finish();
+
+      expect(composer.sentInCircleIds, {'Ua', 'Ub'});
+    });
+
+    test('a cancelled session reports nobody', () async {
+      composer
+        ..start(BeaconKind.post, Offset.zero)
+        ..setRadius(25);
+
+      await composer.cancel();
+      await composer.finish();
+
+      expect(composer.sentInCircleIds, isEmpty);
+    });
+  });
 }

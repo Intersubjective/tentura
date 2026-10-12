@@ -55,6 +55,12 @@ final class RadiusRecipientSelection {
         id,
   });
 
+  /// Whether [id] has a position inside the circle.
+  bool isInCircle(String id) {
+    final position = positions[id];
+    return position != null && _distance(position, center) <= radius;
+  }
+
   /// Toggles effective membership and clears the opposite manual override.
   RadiusRecipientSelection toggle(String id) {
     final added = {...manualAdded};

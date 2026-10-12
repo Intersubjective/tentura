@@ -827,12 +827,16 @@ class ConstellationSceneController {
   /// Gives composer-added people a ring slot around the ego and, unless a
   /// placement write is pending ([confirmedAnchors] is null), pins every
   /// person at its anchor or last known position; then places the draft.
+  /// People in [movedPersonIds] were moved by hand and stay where dropped;
+  /// [heldPersonId], under the pointer right now, is left to the drag.
   void placeComposerNodes({
     required Set<NodeDetails> nodes,
     required Set<GraphNodeId> previousNodeIds,
     required String viewerId,
     required Set<String> placedPersonIds,
     required Map<String, Offset> personPositions,
+    required Set<GraphNodeId> movedPersonIds,
+    required GraphNodeId? heldPersonId,
     required List<ConstellationAnchor>? confirmedAnchors,
     required Offset draftCentre,
   }) {
@@ -872,15 +876,19 @@ class ConstellationSceneController {
       final anchors = constellationAnchorsByNodeId(confirmedAnchors);
       for (final node in nodes.whereType<FieldPersonNode>()) {
         final id = node.graphNodeId;
+        if (id == heldPersonId) continue;
         final anchor = anchors[id];
         final point = anchor == null
             ? null
             : constellationV1AnchorToPoint(anchor.position);
         final current = graphController.renderSnapshot.resolvePosition(id);
-        final position = point != null
-            ? Offset(point.x, point.y)
-            : personPositions[id] ??
-                  (current == null ? null : Offset(current.x, current.y));
+        final moved = movedPersonIds.contains(id) ? personPositions[id] : null;
+        final position =
+            moved ??
+            (point != null
+                ? Offset(point.x, point.y)
+                : personPositions[id] ??
+                      (current == null ? null : Offset(current.x, current.y)));
         if (position != null) {
           personPositions[id] = position;
           placedPersonIds.add(id);
