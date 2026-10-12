@@ -1040,6 +1040,155 @@ Future<void> main() async {
       );
     }
 
+    for (final action in ['accept', 'decline', 'withdraw']) {
+      test(
+        'an offer $action queued behind a Request expiry finalization is '
+        'rejected without side effects once the Request is closed',
+        () async {
+          await _seed(writer);
+          final s = await buddedWithInvite();
+          await _seedActiveOffer(writer, s.child, _invitee);
+          await writer.execute(
+            Sql.named(
+              'INSERT INTO public.beacon_closure '
+              '(beacon_id, epoch, status, opened_at, closes_at) VALUES '
+              "(@b, 1, 0, now() - interval '2 days', now() - interval '1 hour')",
+            ),
+            parameters: {'b': s.child},
+          );
+          final sweepPid = await _backendPid(dbA);
+          final actionPid = await _backendPid(dbB);
+          final sweep = ClosureFinalizeSweepCase(
+            unitOfWork: MutatingUnitOfWork(dbA),
+            closureRepository: ClosureRepository(dbA),
+            finalizer: _GatedClosingFinalizer(
+              BeaconRepository(dbA),
+              gate: () async {},
+            ),
+            env: dbAEnv,
+            logger: Logger('OfferActionRevalidationPgTest'),
+          );
+          // The sweep queues for the test-held hierarchy lock first and
+          // closes the Request (no acknowledged members) once it owns it;
+          // the action already validated an open Request and an active offer
+          // before it queued second, so it must revalidate after locking.
+          await writer.execute('BEGIN');
+          late Future<_Outcome> sweeping;
+          late Future<_Outcome> acting;
+          try {
+            await writer.execute(
+              "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+            );
+            sweeping = _settle(sweep.run());
+            await _waitForBlockedBackends(writer, [sweepPid], 1);
+            acting = _settle(switch (action) {
+              'accept' => b.coordination.acceptHelpOffer(
+                beaconId: s.child,
+                offerUserId: _invitee,
+                actorUserId: _budder,
+              ),
+              'decline' => b.coordination.declineHelpOffer(
+                beaconId: s.child,
+                offerUserId: _invitee,
+                actorUserId: _budder,
+                reason: 'not needed',
+              ),
+              _ => b.helpOffers.withdraw(
+                beaconId: s.child,
+                userId: _invitee,
+                withdrawReason: 'timing',
+              ),
+            });
+            await _waitForBlockedBackends(writer, [sweepPid, actionPid], 2);
+            await writer.execute('COMMIT');
+          } finally {
+            await writer.execute('ROLLBACK');
+          }
+          final outcomes = await Future.wait([sweeping, acting]).timeout(
+            _roundBudget,
+            onTimeout: () => fail('did not finish in $_roundBudget'),
+          );
+          expect(outcomes[0].error, isNull, reason: 'the sweep finalizes');
+          expect(
+            await _beaconStatus(writer, s.child),
+            BeaconStatus.closed.smallintValue,
+          );
+          final error = outcomes[1].error;
+          expect(error, isA<HelpOfferCoordinationException>());
+          expect(
+            (error! as HelpOfferCoordinationException).code,
+            isA<HelpOfferCoordinationExceptionCodes>().having(
+              (c) => c.exceptionCode,
+              'exceptionCode',
+              action == 'withdraw'
+                  ? HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden
+                  : HelpOfferCoordinationExceptionCode.beaconNotOpen,
+            ),
+          );
+          expect(await _offerStatus(writer, s.child, _invitee), 0);
+          expect(await _isAdmitted(writer, s.child, _invitee), isFalse);
+          expect(await _acknowledgementCount(writer, s.child, _invitee), 0);
+          expect(await _declineEventCount(writer, s.child, _invitee), 0);
+        },
+      );
+    }
+
+    test(
+      'author decline queued behind the helper withdrawing the same offer '
+      'is rejected as not active, leaving no decline behind',
+      () async {
+        await _seed(writer);
+        final s = await buddedWithInvite();
+        await _seedActiveOffer(writer, s.child, _invitee);
+        final pids = [await _backendPid(dbA), await _backendPid(dbB)];
+        await writer.execute('BEGIN');
+        late Future<_Outcome> withdraw;
+        late Future<_Outcome> decline;
+        try {
+          await writer.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+          );
+          withdraw = _settle(
+            b.helpOffers.withdraw(
+              beaconId: s.child,
+              userId: _invitee,
+              withdrawReason: 'timing',
+            ),
+          );
+          await _waitForBlockedBackends(writer, pids, 1);
+          decline = _settle(
+            a.coordination.declineHelpOffer(
+              beaconId: s.child,
+              offerUserId: _invitee,
+              actorUserId: _budder,
+              reason: 'not needed',
+            ),
+          );
+          await _waitForBlockedBackends(writer, pids, 2);
+          await writer.execute('COMMIT');
+        } finally {
+          await writer.execute('ROLLBACK');
+        }
+        final outcomes = await Future.wait([withdraw, decline]).timeout(
+          _roundBudget,
+          onTimeout: () => fail('did not finish in $_roundBudget'),
+        );
+        expect(outcomes.first.error, isNull);
+        final error = outcomes.last.error;
+        expect(error, isA<HelpOfferCoordinationException>());
+        expect(
+          (error! as HelpOfferCoordinationException).code,
+          isA<HelpOfferCoordinationExceptionCodes>().having(
+            (c) => c.exceptionCode,
+            'exceptionCode',
+            HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+          ),
+        );
+        expect(await _declineEventCount(writer, s.child, _invitee), 0);
+        expect(await _offerStatus(writer, s.child, _invitee), 1);
+      },
+    );
+
     for (final existingOffer in [true, false]) {
       test(
         'an invitee offering help takes the child advisory lock before the '

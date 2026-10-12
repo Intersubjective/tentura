@@ -376,15 +376,18 @@ final class CoordinationCase extends UseCaseBase {
     required String offerUserId,
     required String actorUserId,
   }) async {
-    final beacon = await _prepareAdmissionAction(
-      beaconId: beaconId,
-      offerUserId: offerUserId,
-      actorUserId: actorUserId,
-    );
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: (transaction) async {
-        await _hierarchyRepository.lockMutationScope();
+        // Lock order (Arch §0): hierarchy, then the child lock; revalidate
+        // everything mutable only once they are held.
+        await _authorInvites?.lockScope(null);
+        await _closureCase?.lockRequest(beaconId);
+        final beacon = await _prepareAdmissionAction(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          actorUserId: actorUserId,
+        );
         // The actor (author or steward) is the confirming author; the offer
         // checked above is the helper's confirmation, so step (a) is a no-op.
         final snap = await _admission.admitWithConfirmations(
@@ -444,11 +447,6 @@ final class CoordinationCase extends UseCaseBase {
     required String reason,
   }) async {
     final trimmedReason = _validateReason(reason);
-    final beacon = await _prepareAdmissionAction(
-      beaconId: beaconId,
-      offerUserId: offerUserId,
-      actorUserId: actorUserId,
-    );
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: (transaction) async {
@@ -457,6 +455,11 @@ final class CoordinationCase extends UseCaseBase {
         // trigger takes the hierarchy lock anyway, so taking it last deadlocks.
         await _authorInvites?.lockScope(null);
         await _closureCase?.lockRequest(beaconId);
+        final beacon = await _prepareAdmissionAction(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          actorUserId: actorUserId,
+        );
         // Re-read after locking: an invite accept may have acknowledged the
         // helper while this waited for the locks.
         final hadAcknowledged = await _commitmentQueryCase.everAcknowledgedPair(

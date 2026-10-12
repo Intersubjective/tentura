@@ -404,6 +404,16 @@ final class HelpOfferCase extends UseCaseBase {
         // takes the hierarchy lock anyway, so taking it last deadlocks.
         await _authorInvites?.lockScope(null);
         await _closureCase?.lockRequest(beaconId);
+        // Re-read after locking: a closure may have won the hierarchy lock.
+        final locked = await _beaconRepository.getBeaconById(
+          beaconId: beaconId,
+        );
+        if (!locked.allowsBeaconWithdraw) {
+          throw HelpOfferCoordinationException(
+            coordinationCode:
+                HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
+          );
+        }
         await _commitmentRepository.record(
           beaconId: beaconId,
           userId: userId,
