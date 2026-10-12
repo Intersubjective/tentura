@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -755,6 +756,101 @@ Future<void> main() async {
       },
     );
 
+    for (final path in ['accepting an invite', 'offering help on a pending invite']) {
+      test(
+        'an author status change takes the hierarchy lock before the child '
+        'row, so it cannot deadlock with the invitee $path',
+        () async {
+          await _seed(writer);
+          final s = await buddedWithInvite();
+          // The test holds the hierarchy lock while the invitee's operation
+          // queues for it first and the status change second. On release the
+          // invitee owns the hierarchy lock and wants the child row; a status
+          // change that already locked the child row before queueing (wrong
+          // order, its status trigger takes the hierarchy lock later)
+          // deadlocks with it.
+          final inviteePid = await _backendPid(dbA);
+          final statusPid = await _backendPid(dbB);
+          final pids = [inviteePid, statusPid];
+          await writer.execute('BEGIN');
+          late Future<_Outcome> invitee;
+          late Future<_Outcome> statusChange;
+          try {
+            await writer.execute(
+              "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+            );
+            invitee = _settle(
+              path == 'accepting an invite'
+                  ? a.invites.accept(actorUserId: _invitee, inviteId: s.invite)
+                  : a.helpOffers.offerHelp(
+                      beaconId: s.child,
+                      userId: _invitee,
+                      message: 'On my way',
+                    ),
+            );
+            await _waitForBlockedBackends(writer, pids, 1);
+            expect(
+              await _hierarchyWaiterPids(writer, pids),
+              [inviteePid],
+              reason: 'the invitee operation queues for the hierarchy lock first',
+            );
+            statusChange = _settle(
+              b.coordination.setBeaconStatus(
+                beaconId: s.child,
+                authorUserId: _budder,
+                status: BeaconStatus.enoughHelp.smallintValue,
+              ),
+            );
+            await _waitForBlockedBackends(writer, pids, 2);
+            expect(
+              await _hierarchyWaiterPids(writer, pids),
+              unorderedEquals(pids),
+              reason: 'both queue for the hierarchy lock',
+            );
+            // Both participating backends are now confirmed waiting for the
+            // hierarchy lock, and the invitee waits for it before it touches
+            // the child row. So the only backend that could own the child row
+            // here is the status change: a row-lock probe that finds it taken
+            // pins the inversion (row held while queued for the hierarchy).
+            final childRow = await writer.execute(
+              Sql.named(
+                'SELECT id FROM public.beacon WHERE id = @b '
+                'FOR UPDATE SKIP LOCKED',
+              ),
+              parameters: {'b': s.child},
+            );
+            expect(
+              childRow,
+              isNotEmpty,
+              reason:
+                  'the status change must not hold the child row while it '
+                  'waits for the hierarchy lock',
+            );
+            await writer.execute('COMMIT');
+          } finally {
+            await writer.execute('ROLLBACK');
+          }
+          final outcomes = await Future.wait([invitee, statusChange]).timeout(
+            _roundBudget,
+            onTimeout: () => fail('did not finish in $_roundBudget'),
+          );
+          for (final outcome in outcomes) {
+            expect(
+              _isDeadlockOrTimeout(outcome.error),
+              isFalse,
+              reason: 'deadlock or timeout: ${outcome.error}',
+            );
+            expect(outcome.error, isNull);
+          }
+          expect(
+            await _beaconStatus(writer, s.child),
+            BeaconStatus.enoughHelp.smallintValue,
+          );
+          await _expectInvariants(writer, 'invitee then status change');
+        },
+      );
+    }
+
     for (final existingOffer in [true, false]) {
       test(
         'an invitee offering help takes the child advisory lock before the '
@@ -1128,6 +1224,20 @@ ON CONFLICT DO NOTHING
 '''),
     parameters: {'b': beacon, 'u': user},
   );
+}
+
+/// Backend pids among [pids] waiting for the hierarchy lock (scoped to this
+/// database, never cluster-wide).
+Future<List<int>> _hierarchyWaiterPids(Connection writer, List<int> pids) async {
+  final rows = await writer.execute(
+    'SELECT DISTINCT l.pid FROM pg_locks l '
+    "WHERE l.locktype = 'advisory' AND NOT l.granted AND l.objsubid = 1 "
+    'AND ((l.classid::bigint << 32) | l.objid::bigint) = '
+    "hashtextextended('tentura.beacon_hierarchy.v1', 0) "
+    'AND l.pid IN (${pids.join(',')}) AND l.database = '
+    '(SELECT oid FROM pg_database WHERE datname = current_database())',
+  );
+  return [for (final r in rows) r.single! as int];
 }
 
 /// Waits until [count] of the sessions with backend [pids] wait for the

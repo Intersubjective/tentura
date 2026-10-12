@@ -751,25 +751,58 @@ final class CoordinationCase extends UseCaseBase {
 
     Future<BeaconStatusResult> mutate(
       AttentionTransaction? transaction,
-    ) => _beaconRepository.runInBeaconStateTransaction(
-      beaconId: beaconId,
-      userId: authorUserId,
-      fn: (beacon) async {
-        if (beacon.status == BeaconStatus.reviewOpen) {
-          if (target == BeaconStatus.enoughHelp ||
-              target == BeaconStatus.open) {
-            throw HelpOfferCoordinationException(
+    ) async {
+      // The status trigger takes the hierarchy lock, so it (then the child
+      // advisory lock) must come before the child row (Arch §4.1).
+      await _hierarchyRepository.lockMutationScope();
+      await _closureCase?.lockRequest(beaconId);
+      return _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: authorUserId,
+        fn: (beacon) async {
+          if (beacon.status == BeaconStatus.reviewOpen) {
+            if (target == BeaconStatus.enoughHelp ||
+                target == BeaconStatus.open) {
+              throw HelpOfferCoordinationException(
+                coordinationCode: HelpOfferCoordinationExceptionCode
+                    .invalidCoordinationStatus,
+              );
+            }
+          }
+
+          if (target == BeaconStatus.needsMoreHelp &&
+              beacon.status == BeaconStatus.reviewOpen) {
+            final closure = _closureCase;
+            if (closure != null) {
+              await closure.reopen(authorId: authorUserId, beaconId: beaconId);
+              final snap = await _coordinationRepository.beaconStatusSnapshot(
+                beaconId,
+              );
+              return BeaconStatusResult(
+                beaconId: beaconId,
+                status: snap.status.smallintValue,
+                statusChangedAt: snap.statusChangedAt,
+              );
+            }
+          }
+
+          final reason = switch (target) {
+            BeaconStatus.needsMoreHelp =>
+              BeaconStatusTransitionReason.needsMoreHelp,
+            BeaconStatus.enoughHelp => BeaconStatusTransitionReason.enoughHelp,
+            BeaconStatus.open => BeaconStatusTransitionReason.neutralOpen,
+            _ => throw HelpOfferCoordinationException(
               coordinationCode:
                   HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
-            );
-          }
-        }
+            ),
+          };
 
-        if (target == BeaconStatus.needsMoreHelp &&
-            beacon.status == BeaconStatus.reviewOpen) {
-          final closure = _closureCase;
-          if (closure != null) {
-            await closure.reopen(authorId: authorUserId, beaconId: beaconId);
+          final verdict = validateBeaconStatusTransition(
+            from: beacon.status,
+            to: target,
+            reason: reason,
+          );
+          if (verdict.verdict == BeaconStatusTransitionVerdict.noop) {
             final snap = await _coordinationRepository.beaconStatusSnapshot(
               beaconId,
             );
@@ -779,25 +812,33 @@ final class CoordinationCase extends UseCaseBase {
               statusChangedAt: snap.statusChangedAt,
             );
           }
-        }
+          if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
+            throw HelpOfferCoordinationException(
+              coordinationCode:
+                  HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+            );
+          }
 
-        final reason = switch (target) {
-          BeaconStatus.needsMoreHelp =>
-            BeaconStatusTransitionReason.needsMoreHelp,
-          BeaconStatus.enoughHelp => BeaconStatusTransitionReason.enoughHelp,
-          BeaconStatus.open => BeaconStatusTransitionReason.neutralOpen,
-          _ => throw HelpOfferCoordinationException(
-            coordinationCode:
-                HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
-          ),
-        };
+          final intent = transaction == null
+              ? null
+              : await _attentionIntents!.requestStatusChanged(
+                  beaconId: beaconId,
+                  fromStatus: beacon.status.name,
+                  toStatus: target.name,
+                  actorUserId: authorUserId,
+                  sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          await _beaconRepository.recordBeaconStatusTransition(
+            beaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: target,
+            reason: reasonStringForTransition(reason),
+            actorId: authorUserId,
+          );
+          if (intent != null) {
+            await transaction!.record(intent);
+          }
 
-        final verdict = validateBeaconStatusTransition(
-          from: beacon.status,
-          to: target,
-          reason: reason,
-        );
-        if (verdict.verdict == BeaconStatusTransitionVerdict.noop) {
           final snap = await _coordinationRepository.beaconStatusSnapshot(
             beaconId,
           );
@@ -806,44 +847,9 @@ final class CoordinationCase extends UseCaseBase {
             status: snap.status.smallintValue,
             statusChangedAt: snap.statusChangedAt,
           );
-        }
-        if (verdict.verdict != BeaconStatusTransitionVerdict.allowed) {
-          throw HelpOfferCoordinationException(
-            coordinationCode:
-                HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
-          );
-        }
-
-        final intent = transaction == null
-            ? null
-            : await _attentionIntents!.requestStatusChanged(
-                beaconId: beaconId,
-                fromStatus: beacon.status.name,
-                toStatus: target.name,
-                actorUserId: authorUserId,
-                sourceEventKey: 'request_status:${generateId('A')}',
-              );
-        await _beaconRepository.recordBeaconStatusTransition(
-          beaconId: beaconId,
-          fromStatus: beacon.status,
-          toStatus: target,
-          reason: reasonStringForTransition(reason),
-          actorId: authorUserId,
-        );
-        if (intent != null) {
-          await transaction!.record(intent);
-        }
-
-        final snap = await _coordinationRepository.beaconStatusSnapshot(
-          beaconId,
-        );
-        return BeaconStatusResult(
-          beaconId: beaconId,
-          status: snap.status.smallintValue,
-          statusChangedAt: snap.statusChangedAt,
-        );
-      },
-    );
+        },
+      );
+    }
 
     return _attention!.runAction(
       actorUserId: authorUserId,
