@@ -76,6 +76,9 @@ class BasicChatBody extends StatefulWidget {
     this.onCreateBaton,
     this.pendingQuotedFact,
     this.onCancelQuotedFact,
+    this.composerPrefill,
+    this.composerPrefillSeq = 0,
+    this.onComposerPrefillApplied,
     this.onToggleReaction,
     this.onOpenFileAttachment,
     this.onVotePoll,
@@ -152,6 +155,14 @@ class BasicChatBody extends StatefulWidget {
   final BeaconFactCard? pendingQuotedFact;
 
   final VoidCallback? onCancelQuotedFact;
+
+  /// Text another surface asked to put into the composer; applied once per
+  /// [composerPrefillSeq], then [onComposerPrefillApplied] is called.
+  final String? composerPrefill;
+
+  final int composerPrefillSeq;
+
+  final VoidCallback? onComposerPrefillApplied;
 
   final Future<void> Function(String messageId, String emoji)? onToggleReaction;
 
@@ -799,6 +810,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         onCreateBaton: widget.onCreateBaton,
                         pendingQuotedFact: widget.pendingQuotedFact,
                         onCancelQuotedFact: widget.onCancelQuotedFact,
+                        prefill: widget.composerPrefill,
+                        prefillSeq: widget.composerPrefillSeq,
+                        onPrefillApplied: widget.onComposerPrefillApplied,
                       )
                     : const SizedBox.shrink(),
               ),
@@ -831,6 +845,9 @@ class BeaconRoomComposer extends StatefulWidget {
     this.onCreateBaton,
     this.pendingQuotedFact,
     this.onCancelQuotedFact,
+    this.prefill,
+    this.prefillSeq = 0,
+    this.onPrefillApplied,
     super.key,
   });
 
@@ -885,6 +902,15 @@ class BeaconRoomComposer extends StatefulWidget {
 
   final VoidCallback? onCancelQuotedFact;
 
+  /// Text put into the field (replacing what it held), cursor at the end;
+  /// applied once per [prefillSeq].
+  final String? prefill;
+
+  final int prefillSeq;
+
+  /// Called after [prefill] went into the field.
+  final VoidCallback? onPrefillApplied;
+
   @override
   State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
 }
@@ -934,6 +960,29 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     _composerFocus = FocusNode(onKeyEvent: _handleComposerKeyEvent);
     _text.addListener(_onTextChanged);
     _composerFocus.addListener(_onComposerFocusChange);
+    _maybeApplyPrefill();
+  }
+
+  int _appliedPrefillSeq = 0;
+
+  void _maybeApplyPrefill() {
+    final text = widget.prefill;
+    if (text == null ||
+        text.isEmpty ||
+        widget.prefillSeq == _appliedPrefillSeq ||
+        widget.readOnlyHint != null) {
+      return;
+    }
+    _appliedPrefillSeq = widget.prefillSeq;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _text.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+      _composerFocus.requestFocus();
+      widget.onPrefillApplied?.call();
+    });
   }
 
   KeyEventResult _handleComposerKeyEvent(FocusNode node, KeyEvent event) {
@@ -1039,6 +1088,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
         widget.readOnlyHint == null) {
       requestComposerFocus();
     }
+    _maybeApplyPrefill();
   }
 
   void _onTextChanged() {

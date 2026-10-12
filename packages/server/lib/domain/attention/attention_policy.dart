@@ -120,6 +120,16 @@ class AttentionPolicy {
       AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected =>
       AttentionSuppressionClass.mandatory,
+    AttentionEventType.planStepDue ||
+    AttentionEventType.planStepTurn ||
+    AttentionEventType.planChangePending => AttentionSuppressionClass.mandatory,
+    AttentionEventType.planStepReminder ||
+    AttentionEventType.planStepOverdue ||
+    AttentionEventType.planStepLate ||
+    AttentionEventType.planCantMake ||
+    AttentionEventType.planStepUnassigned => AttentionSuppressionClass.standard,
+    AttentionEventType.planEdited ||
+    AttentionEventType.planStepDone => AttentionSuppressionClass.noisy,
   };
 
   bool _isActiveRequestParticipant(AttentionRecipientReason reason) =>
@@ -171,6 +181,16 @@ class AttentionPolicy {
     AttentionEventType.requestStale => NotificationCategory.asksOfMe,
     AttentionEventType.closureFinalized ||
     AttentionEventType.closureCancelled => NotificationCategory.unblocksMe,
+    AttentionEventType.planStepDue ||
+    AttentionEventType.planChangePending ||
+    AttentionEventType.planStepReminder ||
+    AttentionEventType.planStepOverdue => NotificationCategory.asksOfMe,
+    AttentionEventType.planStepTurn => NotificationCategory.unblocksMe,
+    AttentionEventType.planStepLate ||
+    AttentionEventType.planCantMake ||
+    AttentionEventType.planStepUnassigned => NotificationCategory.coordination,
+    AttentionEventType.planEdited ||
+    AttentionEventType.planStepDone => NotificationCategory.ambient,
   };
 
   AttentionAccessPolicy _accessPolicy(
@@ -215,6 +235,16 @@ class AttentionPolicy {
     AttentionEventType.deadlineReminder ||
     AttentionEventType.closureDraftReminder ||
     AttentionEventType.requestStale => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.planStepDue ||
+    AttentionEventType.planStepTurn ||
+    AttentionEventType.planChangePending ||
+    AttentionEventType.planStepReminder ||
+    AttentionEventType.planStepOverdue ||
+    AttentionEventType.planStepLate ||
+    AttentionEventType.planCantMake ||
+    AttentionEventType.planStepUnassigned ||
+    AttentionEventType.planEdited ||
+    AttentionEventType.planStepDone => AttentionAccessPolicy.beaconContent,
     AttentionEventType.closureOpened ||
     AttentionEventType.closureFinalized ||
     AttentionEventType.closureCancelled =>
@@ -275,6 +305,19 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
+      AttentionEventType.planStepDue ||
+      AttentionEventType.planStepTurn ||
+      AttentionEventType.planChangePending ||
+      AttentionEventType.planStepReminder ||
+      AttentionEventType.planStepOverdue ||
+      AttentionEventType.planStepLate ||
+      AttentionEventType.planCantMake ||
+      AttentionEventType.planStepUnassigned ||
+      AttentionEventType.planEdited ||
+      AttentionEventType.planStepDone => AttentionDestination(
+        kind: AttentionDestinationKind.beacon,
+        targetEntityId: role.beaconId,
+      ),
       AttentionEventType.roomMessagePosted ||
       AttentionEventType.postFirstResponse ||
       AttentionEventType.batonAsked ||
@@ -304,6 +347,8 @@ class AttentionPolicy {
         AttentionEventType.coordinationChanged =>
           AttentionPreferenceClass.coordinationChurn,
         AttentionEventType.commitmentCancelled =>
+          AttentionPreferenceClass.coordinationChurn,
+        AttentionEventType.planEdited || AttentionEventType.planStepDone =>
           AttentionPreferenceClass.coordinationChurn,
         AttentionEventType.requestStatusChanged ||
         AttentionEventType.beaconHierarchyStatusChanged =>
@@ -354,6 +399,19 @@ class AttentionPolicy {
     AttentionEventType.authorInviteReceived => false,
     AttentionEventType.authorInviteAccepted => false,
     AttentionEventType.authorInviteDeclined => false,
+    // Plan obligations (§4.6): only the step's assignee owes the act.
+    AttentionEventType.planStepDue ||
+    AttentionEventType.planStepTurn ||
+    AttentionEventType.planChangePending => reasons.contains(
+      AttentionRecipientReason.planStepAssignee,
+    ),
+    AttentionEventType.planStepReminder => false,
+    AttentionEventType.planStepOverdue => false,
+    AttentionEventType.planStepLate => false,
+    AttentionEventType.planCantMake => false,
+    AttentionEventType.planStepUnassigned => false,
+    AttentionEventType.planEdited => false,
+    AttentionEventType.planStepDone => false,
   };
 
   /// U11 / D16 — the placement of a receipt, decided by the producer.
@@ -439,7 +497,17 @@ class AttentionPolicy {
     AttentionEventType.closureCancelled ||
     AttentionEventType.requestStale ||
     AttentionEventType.batonTaken ||
-    AttentionEventType.batonAllAnswered => false,
+    AttentionEventType.batonAllAnswered ||
+    AttentionEventType.planStepDue ||
+    AttentionEventType.planStepTurn ||
+    AttentionEventType.planChangePending ||
+    AttentionEventType.planStepReminder ||
+    AttentionEventType.planStepOverdue ||
+    AttentionEventType.planStepLate ||
+    AttentionEventType.planCantMake ||
+    AttentionEventType.planStepUnassigned ||
+    AttentionEventType.planEdited ||
+    AttentionEventType.planStepDone => false,
   };
 
   /// #189 — personal = a human actor other than the recipient, an event type
@@ -480,7 +548,14 @@ class AttentionPolicy {
     AttentionEventType.staleReminder ||
     AttentionEventType.requestStale ||
     AttentionEventType.closureDraftReminder ||
-    AttentionEventType.deadlineReminder => true,
+    AttentionEventType.deadlineReminder ||
+    // Request plan (#220, owner rule D12): what the viewer is obliged or
+    // nudged to do about a plan step never reaches For You.
+    AttentionEventType.planStepDue ||
+    AttentionEventType.planStepTurn ||
+    AttentionEventType.planChangePending ||
+    AttentionEventType.planStepReminder ||
+    AttentionEventType.planStepOverdue => true,
     _ => false,
   };
 
@@ -525,6 +600,13 @@ class AttentionPolicy {
     }
     final subject = switch (eventType) {
       AttentionEventType.helpOfferSubmitted => role.targetEntityId,
+      // A step obligation is one task per step: a new start time or a new
+      // generation of «your turn» renews it rather than adding a second.
+      AttentionEventType.planStepDue ||
+      AttentionEventType.planStepTurn => role.coordinationItemId,
+      // One pending confirmation per person and Request, renewed by every
+      // revision that touches their steps (P7).
+      AttentionEventType.planChangePending => beaconId,
       // A new obligation variant must declare what its generations vary over
       // before it can be written; silently reusing the Request would collapse
       // unrelated tasks onto one key.
@@ -607,6 +689,16 @@ class AttentionPolicy {
     AttentionEventType.authorInviteReceived => 'author_invite_received',
     AttentionEventType.authorInviteAccepted => 'author_invite_accepted',
     AttentionEventType.authorInviteDeclined => 'author_invite_declined',
+    AttentionEventType.planStepDue => 'plan_step_due',
+    AttentionEventType.planStepTurn => 'plan_step_turn',
+    AttentionEventType.planChangePending => 'plan_change_pending',
+    AttentionEventType.planStepReminder => 'plan_step_reminder',
+    AttentionEventType.planStepOverdue => 'plan_step_overdue',
+    AttentionEventType.planStepLate => 'plan_step_late',
+    AttentionEventType.planCantMake => 'plan_cant_make',
+    AttentionEventType.planStepUnassigned => 'plan_step_unassigned',
+    AttentionEventType.planEdited => 'plan_edited',
+    AttentionEventType.planStepDone => 'plan_step_done',
   };
 
   Map<String, Object?> _presentationPayload(

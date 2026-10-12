@@ -29,6 +29,9 @@ abstract final class BeaconRoomSystemMessageKind {
 
   /// A Post closed by budding (plan C5); payload `{childBeaconId, title}`.
   static const postClosed = 5;
+
+  /// Request plan lines (markers 14..17, #220).
+  static const plan = 6;
 }
 
 /// Opaque hierarchy list cursor version.

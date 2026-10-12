@@ -20,33 +20,65 @@ void main() {
   Request request() =>
       Request('GET', Uri.parse('http://localhost/firebase-messaging-sw.js'));
 
-  test('generated service worker always displays its own notification', () async {
+  test(
+    'generated service worker always displays its own notification',
+    () async {
+      final controller = FirebaseSwController(
+        Env(
+          fbApiKey: 'test-api-key',
+          fbAppId: '1:123:web:abc',
+          fbProjectId: 'tentura-test',
+          fbAuthDomain: 'tentura-test.firebaseapp.com',
+          fbStorageBucket: 'tentura-test.appspot.com',
+          fbSenderId: '123',
+        ),
+      );
+
+      final body = await controller
+          .handler(request())
+          .then(
+            (r) => r.readAsString(),
+          );
+
+      expect(body, contains('onBackgroundMessage'));
+      expect(body, contains('showNotification'));
+      expect(body, contains('notificationclick'));
+      expect(body, contains('icon: "/tentura-icon-192.png"'));
+      expect(body, isNot(contains('/icons/Icon-192.png')));
+    },
+  );
+
+  test('plan push buttons (#220 §5.9): actions only where supported, '
+      'POST to the push-action endpoint, open-the-step fallback', () async {
     final controller = FirebaseSwController(
-      Env(
-        fbApiKey: 'test-api-key',
-        fbAppId: '1:123:web:abc',
-        fbProjectId: 'tentura-test',
-        fbAuthDomain: 'tentura-test.firebaseapp.com',
-        fbStorageBucket: 'tentura-test.appspot.com',
-        fbSenderId: '123',
-      ),
+      Env(fbApiKey: 'test-api-key', fbProjectId: 'tentura-test'),
     );
 
-    final body = await controller.handler(request()).then(
+    final body = await controller
+        .handler(request())
+        .then(
           (r) => r.readAsString(),
         );
 
-    expect(body, contains('onBackgroundMessage'));
-    expect(body, contains('showNotification'));
-    expect(body, contains('notificationclick'));
-    expect(body, contains('icon: "/tentura-icon-192.png"'));
-    expect(body, isNot(contains('/icons/Icon-192.png')));
+    expect(body, contains('Notification.maxActions'));
+    expect(body, contains('options.actions = actions'));
+    expect(body, contains('tag: data.tag || data.beaconId'));
+    expect(body, contains('event.action'));
+    expect(body, contains('fetch("/api/v2/push-action"'));
+    expect(body, contains('method: "POST"'));
+    expect(body, contains('JSON.stringify({ token: data.actionToken })'));
+    expect(body, contains('data.failedText'));
+    expect(body, contains('data.ackText'));
+    expect(body, contains('openLink(link)'));
+    expect(body, isNot(contains(r'${')), reason: 'no unrendered Dart');
   });
 
   test('falls back to a no-op stub when FB_API_KEY is unset', () async {
     final controller = FirebaseSwController(Env(fbApiKey: ''));
 
-    final body = await controller.handler(request()).then(
+    final body = await controller
+        .handler(request())
+        .then(
           (r) => r.readAsString(),
         );
 

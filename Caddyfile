@@ -119,6 +119,12 @@
 		}
 	}
 
+	# Plan push buttons (#220 §5.9) — POSTed by the service worker; must hit
+	# Tentura, not the Hasura catch-all below. Ships no later than the SW.
+	handle /api/v2/push-action {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
+	}
+
 	handle /firebase-messaging-sw.js {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
 	}

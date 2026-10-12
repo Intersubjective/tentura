@@ -7,7 +7,9 @@ import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dar
 void main() {
   group('normalizeBeaconViewRouteQuery (plan §6 / §6.1)', () {
     test('bare request path → NOW (no tab key)', () {
-      final q = normalizeBeaconViewRouteQuery(incomingQuery: const {}).queryParameters;
+      final q = normalizeBeaconViewRouteQuery(
+        incomingQuery: const {},
+      ).queryParameters;
       expect(q.containsKey(kQueryBeaconViewTab), isFalse);
     });
 
@@ -16,6 +18,39 @@ void main() {
         incomingQuery: {kQueryBeaconViewTab: kBeaconViewTabNow},
       ).queryParameters;
       expect(q[kQueryBeaconViewTab], kBeaconViewTabNow);
+    });
+
+    test('tab=plan keeps step= (#220)', () {
+      final q = normalizeBeaconViewRouteQuery(
+        incomingQuery: {
+          kQueryBeaconViewTab: kBeaconViewTabPlan,
+          kQueryPlanStepId: ' PS1 ',
+          kQueryIsDeepLink: 'true',
+        },
+      ).queryParameters;
+      expect(q[kQueryBeaconViewTab], kBeaconViewTabPlan);
+      expect(q[kQueryPlanStepId], 'PS1');
+      expect(q[kQueryIsDeepLink], 'true');
+      final route = beaconViewOperationalFromNormalized(
+        normalizeBeaconViewRouteQuery(
+          incomingQuery: {
+            kQueryBeaconViewTab: kBeaconViewTabPlan,
+            kQueryPlanStepId: 'PS1',
+          },
+        ),
+      );
+      expect(route.args?.stepId, 'PS1');
+      expect(route.args?.viewTab, kBeaconViewTabPlan);
+    });
+
+    test('step= without tab=plan is dropped', () {
+      final q = normalizeBeaconViewRouteQuery(
+        incomingQuery: {
+          kQueryBeaconViewTab: kBeaconViewTabThreads,
+          kQueryPlanStepId: 'PS1',
+        },
+      ).queryParameters;
+      expect(q.containsKey(kQueryPlanStepId), isFalse);
     });
 
     test('tab=threads → ROOM', () {
@@ -94,18 +129,21 @@ void main() {
       expect(q[kQueryMessageId], 'M9');
     });
 
-    test('path legacy thread → ROOM without message even when message present', () {
-      final q = normalizeBeaconViewRouteQuery(
-        pathThreadId: 'legacy-item',
-        incomingQuery: {
-          kQueryMessageId: 'M9',
-          kQueryBeaconViewTab: 'people',
-        },
-      ).queryParameters;
-      expect(q[kQueryBeaconViewTab], kBeaconViewTabThreads);
-      expect(q[kQueryThreadId], 'legacy-item');
-      expect(q.containsKey(kQueryMessageId), isFalse);
-    });
+    test(
+      'path legacy thread → ROOM without message even when message present',
+      () {
+        final q = normalizeBeaconViewRouteQuery(
+          pathThreadId: 'legacy-item',
+          incomingQuery: {
+            kQueryMessageId: 'M9',
+            kQueryBeaconViewTab: 'people',
+          },
+        ).queryParameters;
+        expect(q[kQueryBeaconViewTab], kBeaconViewTabThreads);
+        expect(q[kQueryThreadId], 'legacy-item');
+        expect(q.containsKey(kQueryMessageId), isFalse);
+      },
+    );
 
     test('preserves entry= and is_deep_link=', () {
       final q = normalizeBeaconViewRouteQuery(

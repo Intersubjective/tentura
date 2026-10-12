@@ -23,6 +23,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'beacon_plan_case.dart';
 import 'capability_case.dart';
 import '_use_case_base.dart';
 
@@ -42,6 +43,7 @@ final class HelpOfferCase extends UseCaseBase {
     ClosureCase? closureCase,
     AuthorInvitePort? authorInvites,
     CoordinationRepositoryPort? coordinationRepository,
+    this._beaconPlan,
     required super.env,
     required super.logger,
   }) : _roomRepository = roomRepository,
@@ -72,6 +74,7 @@ final class HelpOfferCase extends UseCaseBase {
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
   final ClosureCase? _closureCase;
+  final BeaconPlanCase? _beaconPlan;
 
   /// Budding supersede (Arch §5.4): set only when both the invite port and
   /// the coordination repository are wired.
@@ -441,6 +444,14 @@ final class HelpOfferCase extends UseCaseBase {
           beaconId: beaconId,
           authorAccountId: beacon.author.id,
           helpOffererUserId: userId,
+        );
+        // A helper who left no longer holds plan steps (plan §4.6 item 4);
+        // someone still admitted (a steward) keeps theirs.
+        await _beaconPlan?.unassignOnLeave(
+          transaction: transaction,
+          beaconId: beaconId,
+          userId: userId,
+          actorId: userId,
         );
         final beaconAfter = await _beaconRepository.getBeaconById(
           beaconId: beaconId,

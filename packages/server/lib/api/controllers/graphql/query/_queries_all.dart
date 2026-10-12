@@ -6,6 +6,7 @@ import 'query_attention.dart';
 import 'query_author_invite.dart';
 import 'query_beacon_involvement.dart';
 import 'query_beacon_member_webs.dart';
+import 'query_beacon_plan.dart';
 import 'query_beacon_room.dart';
 import 'query_capability.dart';
 import 'query_capability_projection.dart';
@@ -42,6 +43,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryInviteGenealogy().all,
   ...QueryBeaconInvolvement().all,
   ...QueryBeaconMemberWebs().all,
+  ...QueryBeaconPlan().all,
   ...QueryBeaconRoom().all,
   ...QueryPost().all,
   ...QueryPostBud().all,

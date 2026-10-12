@@ -165,12 +165,27 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
   return entries;
 }
 
+/// Plan rows of the HUD ladder (#220 §5.2): an optional replacement for the
+/// YOU row and the rows that follow it (BY PLAN, NEXT).
+typedef BeaconHudPlanRows = ({
+  BeaconHudMetadataEntry? you,
+  List<BeaconHudMetadataEntry> after,
+});
+
+/// Builds [BeaconHudPlanRows]; [systemOccupiesYou] is true when a system
+/// situation (offers to review, a helper's standing message, …) holds YOU.
+typedef BeaconHudPlanRowsBuilder =
+    BeaconHudPlanRows Function({required bool systemOccupiesYou});
+
 List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   BuildContext context, {
   required double rowWidth,
   required BeaconViewState state,
   VoidCallback? onEditNowLine,
   VoidCallback? onReviewAuthorOffers,
+
+  /// Request plan rows; null keeps the YOU row as it is.
+  BeaconHudPlanRowsBuilder? planRows,
 
   /// False when the caller renders the next step and blocker itself (the
   /// pinned Request HUD); only the YOU row is built then.
@@ -247,7 +262,13 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
     rowHarmony: phaseResult.rowHarmony,
   );
 
-  if (isBeaconYouRowVisible(input: situationInput)) {
+  final plan = planRows?.call(
+    systemOccupiesYou: hasBeaconYouPersonalObligation(input: situationInput),
+  );
+  final planYou = plan?.you;
+  if (planYou != null) {
+    entries.add(planYou);
+  } else if (isBeaconYouRowVisible(input: situationInput)) {
     final hasAuthorReviewObligation =
         state.isAuthorOrSteward && authorUnreviewedHelpOfferCount > 0;
     entries.add(
@@ -273,6 +294,7 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
       ),
     );
   }
+  if (plan != null) entries.addAll(plan.after);
 
   return entries;
 }

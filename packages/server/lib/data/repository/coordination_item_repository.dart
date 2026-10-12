@@ -1704,6 +1704,11 @@ int _previewKindForSemanticMarker(int marker) => switch (marker) {
       BeaconRoomSemanticMarker.factUnpinned =>
         ThreadMessagePreviewKind.factUnpinned,
       BeaconRoomSemanticMarker.batonTaken => ThreadMessagePreviewKind.text,
+      BeaconRoomSemanticMarker.planRevised ||
+      BeaconRoomSemanticMarker.planCantMake ||
+      BeaconRoomSemanticMarker.planCopied =>
+        ThreadMessagePreviewKind.planUpdated,
+      BeaconRoomSemanticMarker.planStepsDone => ThreadMessagePreviewKind.done,
       _ => throw StateError('Unknown semantic marker: $marker'),
     };
 

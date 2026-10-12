@@ -4,6 +4,7 @@ import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 
 import 'package:tentura/features/inbox/data/gql/_g/inbox_room_context_batch.req.gql.dart';
@@ -46,6 +47,7 @@ class BeaconRoomHintsRepository {
           openBlockerTitle: _clip(e.openBlockerTitle ?? ''),
           openBlocker: _mapOpenBlocker(e),
           publicFactSnippet: _clip(e.publicFactSnippet ?? ''),
+          planSlice: PlanViewerSlice.tryDecode(e.planSliceJson),
         ),
     };
   }

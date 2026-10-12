@@ -31,6 +31,7 @@ enum RealtimeEntityKind {
   constellationAnchor,
   constellationField,
   inviteSeedPrompt,
+  beaconPlan,
   ;
 
   /// Maps the closed WebSocket protocol vocabulary into a domain kind.
@@ -59,6 +60,7 @@ enum RealtimeEntityKind {
     'constellation_anchor' => RealtimeEntityKind.constellationAnchor,
     'constellation_field' => RealtimeEntityKind.constellationField,
     'invite_seed_prompt' => RealtimeEntityKind.inviteSeedPrompt,
+    'beacon_plan' => RealtimeEntityKind.beaconPlan,
     _ => null,
   };
 }

@@ -1,0 +1,3 @@
+mutation BeaconPlanStepSetDone($stepId: String!, $done: Boolean!) {
+  beaconPlanStepSetDone(stepId: $stepId, done: $done)
+}

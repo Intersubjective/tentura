@@ -15,7 +15,10 @@ import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
-@LazySingleton(as: EmailNotificationPort, env: [Environment.dev, Environment.prod])
+@LazySingleton(
+  as: EmailNotificationPort,
+  env: [Environment.dev, Environment.prod],
+)
 class EmailNotificationService implements EmailNotificationPort {
   EmailNotificationService(
     this._preferences,
@@ -53,6 +56,9 @@ class EmailNotificationService implements EmailNotificationPort {
     final category = categoryOf(kind);
     // Immediate email is reserved for the highest-stakes category.
     if (category != NotificationCategory.asksOfMe) {
+      return;
+    }
+    if (kNoImmediateEmailKinds.contains(kind)) {
       return;
     }
 
@@ -115,7 +121,11 @@ class EmailNotificationService implements EmailNotificationPort {
         channelCollapseKey: channelCollapseKey,
       );
     } on Object catch (e, s) {
-      _logger.warning('[Email] immediate send failed for $recipientUserId', e, s);
+      _logger.warning(
+        '[Email] immediate send failed for $recipientUserId',
+        e,
+        s,
+      );
     }
   }
 
@@ -191,7 +201,11 @@ class EmailNotificationService implements EmailNotificationPort {
       );
       return true;
     } on Object catch (e, s) {
-      _logger.warning('[Email] immediate send failed for $recipientUserId', e, s);
+      _logger.warning(
+        '[Email] immediate send failed for $recipientUserId',
+        e,
+        s,
+      );
       return false;
     }
   }

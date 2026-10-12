@@ -1,0 +1,3 @@
+mutation BeaconPlanAck($beaconId: String!, $uptoSeq: Int!) {
+  beaconPlanAck(beaconId: $beaconId, uptoSeq: $uptoSeq)
+}

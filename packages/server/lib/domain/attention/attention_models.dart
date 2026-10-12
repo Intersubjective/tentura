@@ -60,6 +60,16 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.authorInviteReceived:
       case AttentionEventType.authorInviteAccepted:
       case AttentionEventType.authorInviteDeclined:
+      case AttentionEventType.planStepDue:
+      case AttentionEventType.planStepTurn:
+      case AttentionEventType.planChangePending:
+      case AttentionEventType.planStepReminder:
+      case AttentionEventType.planStepOverdue:
+      case AttentionEventType.planStepLate:
+      case AttentionEventType.planCantMake:
+      case AttentionEventType.planStepUnassigned:
+      case AttentionEventType.planEdited:
+      case AttentionEventType.planStepDone:
         return;
     }
   }
@@ -123,6 +133,28 @@ enum AttentionEventType {
   authorInviteReceived,
   authorInviteAccepted,
   authorInviteDeclined,
+  /// Request plan («либретто», #220) — `plan-implementation.md` §4.6.
+  ///
+  /// Obligations of a step's assignee (`requiresAction`): the step started
+  /// ([planStepDue]), an untimed step became theirs because the previous one
+  /// was ticked ([planStepTurn]), or the plan changed their step and waits
+  /// for «Понятно» ([planChangePending]). Never in For You (D12).
+  planStepDue,
+  planStepTurn,
+  planChangePending,
+
+  /// Optional nudges to the assignee: 15 minutes before start, once overdue.
+  planStepReminder,
+  planStepOverdue,
+
+  /// Optional notices to the Request author.
+  planStepLate,
+  planCantMake,
+  planStepUnassigned,
+
+  /// Ambient plan hum for the rest of the room (never pushed).
+  planEdited,
+  planStepDone,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -166,6 +198,8 @@ enum AttentionRecipientReason {
 
   /// The person who sent an author invitation, told the invitee's answer.
   authorInviter,
+  /// The assignee of a Request plan step.
+  planStepAssignee,
 }
 
 extension AttentionRecipientReasonScope on AttentionRecipientReason {

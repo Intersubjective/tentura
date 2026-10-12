@@ -24,6 +24,10 @@ abstract class RealtimeRoomMessagePaint with _$RealtimeRoomMessagePaint {
     String? replyToBodyExcerpt,
     @Default(false) bool replyToHasAttachments,
     int? semanticMarker,
+
+    /// `system_message_kind` of a system line (plan lines are 5); null for
+    /// a person's message.
+    int? systemMessageKind,
     Map<String, dynamic>? systemPayload,
     QuotedFact? quotedFact,
   }) = _RealtimeRoomMessagePaint;

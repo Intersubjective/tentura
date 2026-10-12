@@ -105,6 +105,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlEnumClosureRole,
   gqlInputClosureSplitEntry,
   gqlInputRoomBatonCandidate,
+  gqlInputPlanStepTime,
   gqlTypeClosureMember,
   gqlTypeClosureOutcomeEntry,
   gqlTypeClosureSplitEntry,
@@ -676,6 +677,9 @@ final gqlTypeInboxRoomContextRow =
         field('openBlockerCreatorImageId', graphQLString),
         field('openBlockerCreatorHasPicture', graphQLBoolean),
         field('publicFactSnippet', graphQLString),
+        // Request plan («либретто», #220) slice of the viewer (plan §4.9):
+        // {done,total,overdueMine,current,alsoActive,next,pendingAck,now}.
+        field('planSliceJson', graphQLString),
       ]);
 
 /// Result of marking a beacon room (or thread) as seen.
@@ -1741,6 +1745,17 @@ final gqlInputRoomBatonCandidate = GraphQLInputObjectType(
   inputFields: [
     GraphQLInputObjectField('userId', graphQLString.nonNullable()),
     GraphQLInputObjectField('tier', graphQLInt.nonNullable()),
+  ],
+);
+
+/// Request plan (#220) fork copy: the new time of one source step, computed
+/// by the client in the viewer's zone (plan §4.10, §5.11).
+final gqlInputPlanStepTime = GraphQLInputObjectType(
+  'PlanStepTimeInput',
+  inputFields: [
+    GraphQLInputObjectField('sourceStepId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('startAt', graphQLString),
+    GraphQLInputObjectField('endAt', graphQLString),
   ],
 );
 

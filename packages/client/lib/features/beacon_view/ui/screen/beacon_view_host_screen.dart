@@ -238,6 +238,7 @@ class BeaconViewOperationalScreen extends StatelessWidget {
     @QueryParam(kQueryBeaconEntry) this.entry,
     @QueryParam(kQueryThreadId) this.threadId,
     @QueryParam(kQueryMessageId) this.messageId,
+    @QueryParam(kQueryPlanStepId) this.stepId,
     super.key,
   });
 
@@ -249,6 +250,9 @@ class BeaconViewOperationalScreen extends StatelessWidget {
   final String? threadId;
   final String? messageId;
 
+  /// Plan step whose card opens once the plan loads (`tab=plan`).
+  final String? stepId;
+
   @override
   Widget build(BuildContext context) {
     return BeaconViewScreen(
@@ -259,6 +263,7 @@ class BeaconViewOperationalScreen extends StatelessWidget {
       entry: entry,
       threadId: threadId,
       messageId: messageId,
+      stepId: stepId,
     );
   }
 }
