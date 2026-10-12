@@ -945,6 +945,101 @@ Future<void> main() async {
       },
     );
 
+    for (final closeNow in [false, true]) {
+      test(
+        '${closeNow ? 'closing a Request now' : 'reopening a Request'} in '
+        'review does not deadlock with the invitee accepting a pending invite',
+        () async {
+          await _seed(writer);
+          final s = await buddedWithInvite();
+          await writer.execute(
+            Sql.named(
+              'UPDATE public.beacon SET status = @s WHERE id = @b',
+            ),
+            parameters: {
+              's': BeaconStatus.reviewOpen.smallintValue,
+              'b': s.child,
+            },
+          );
+          await writer.execute(
+            Sql.named(
+              'INSERT INTO public.beacon_closure '
+              '(beacon_id, epoch, status, opened_at, closes_at) VALUES '
+              "(@b, 1, 0, now() - interval '1 hour', now() + interval '6 days')",
+            ),
+            parameters: {'b': s.child},
+          );
+          final closurePid = await _backendPid(dbA);
+          final acceptPid = await _backendPid(dbB);
+          // The closure side runs on its own stack so its finalizer can
+          // close the Request through the real status update.
+          final closing = _Stack.build(
+            dbA,
+            dbAEnv,
+            finalizer: _GatedClosingFinalizer(
+              BeaconRepository(dbA),
+              fromStatus: BeaconStatus.reviewOpen,
+              gate: () async {},
+            ),
+          );
+          // The accept queues for a test-held hierarchy lock first, then the
+          // closure operation follows. With the child advisory lock taken
+          // before the hierarchy lock the closure holds the child lock while
+          // queued for hierarchy behind the accept, which in turn needs the
+          // child lock once granted: a deadlock. With the right order the
+          // closure queues for hierarchy before it takes anything else.
+          await writer.execute('BEGIN');
+          late Future<_Outcome> accepting;
+          late Future<_Outcome> closureOp;
+          try {
+            await writer.execute(
+              "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+            );
+            accepting = _settle(
+              b.invites.accept(actorUserId: _invitee, inviteId: s.invite),
+            );
+            await _waitForBlockedBackends(writer, [acceptPid], 1);
+            closureOp = _settle(
+              closeNow
+                  ? closing.closure.closeNow(
+                      authorId: _budder,
+                      beaconId: s.child,
+                    )
+                  : closing.closure.reopen(
+                      authorId: _budder,
+                      beaconId: s.child,
+                    ),
+            );
+            await _waitForBlockedBackends(writer, [acceptPid, closurePid], 2);
+            await writer.execute('COMMIT');
+          } finally {
+            await writer.execute('ROLLBACK');
+          }
+          final outcomes = await Future.wait([accepting, closureOp]).timeout(
+            _roundBudget,
+            onTimeout: () => fail('did not finish in $_roundBudget'),
+          );
+          for (final outcome in outcomes) {
+            expect(
+              _isDeadlockOrTimeout(outcome.error),
+              isFalse,
+              reason: 'deadlock or timeout: ${outcome.error}',
+            );
+          }
+          expect(outcomes[1].error, isNull, reason: 'the closure op succeeds');
+          if (outcomes[0].error != null) {
+            expect(outcomes[0].error, isA<ExceptionBase>());
+          }
+          expect(
+            await _beaconStatus(writer, s.child),
+            (closeNow ? BeaconStatus.closed : BeaconStatus.needsMoreHelp)
+                .smallintValue,
+          );
+          await _expectInvariants(writer, 'closure op and invite accept');
+        },
+      );
+    }
+
     for (final existingOffer in [true, false]) {
       test(
         'an invitee offering help takes the child advisory lock before the '
@@ -1603,6 +1698,7 @@ final class _Stack {
     required this.posts,
     required this.helpOffers,
     required this.coordination,
+    required this.closure,
   });
 
   final PostBudCase buds;
@@ -1612,8 +1708,13 @@ final class _Stack {
   final PostCase posts;
   final HelpOfferCase helpOffers;
   final CoordinationCase coordination;
+  final ClosureCase closure;
 
-  factory _Stack.build(TenturaDb db, Env env) {
+  factory _Stack.build(
+    TenturaDb db,
+    Env env, {
+    ClosureFinalizerPort? finalizer,
+  }) {
     final logger = Logger('PostBudConcurrencyPgTest');
     final uow = MutatingUnitOfWork(db);
     final attention = TransactionalAttentionCase(
@@ -1675,7 +1776,7 @@ final class _Stack {
       lifecycleEffects: lifecycleEffects,
       attentionSystemSettlement: settlement,
       receipts: const NoopClosureReceipts(),
-      finalizer: _NoFinalizer(),
+      finalizer: finalizer ?? _NoFinalizer(),
       env: env,
       logger: logger,
     );
@@ -1721,6 +1822,7 @@ final class _Stack {
       logger: logger,
     );
     return _Stack(
+      closure: closure,
       coordination: CoordinationCase(
         beacons,
         helpOffers,
@@ -1850,9 +1952,14 @@ final class _NoFinalizer extends Fake implements ClosureFinalizerPort {}
 
 /// Closes the Request with the production status update after [gate].
 final class _GatedClosingFinalizer implements ClosureFinalizerPort {
-  _GatedClosingFinalizer(this._beacons, {required this.gate});
+  _GatedClosingFinalizer(
+    this._beacons, {
+    required this.gate,
+    this.fromStatus = BeaconStatus.open,
+  });
 
   final BeaconRepository _beacons;
+  final BeaconStatus fromStatus;
   final Future<void> Function() gate;
 
   @override
@@ -1864,7 +1971,7 @@ final class _GatedClosingFinalizer implements ClosureFinalizerPort {
     await gate();
     await _beacons.recordBeaconStatusTransition(
       beaconId: beaconId,
-      fromStatus: BeaconStatus.open,
+      fromStatus: fromStatus,
       toStatus: BeaconStatus.closed,
       reason: BeaconLifecycleChangeReason.closureExpired,
       actorId: null,

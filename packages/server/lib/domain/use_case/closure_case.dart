@@ -254,6 +254,7 @@ final class ClosureCase extends UseCaseBase {
     actorId: authorId,
     beaconId: beaconId,
     expectedEpoch: expectedEpoch,
+    hierarchyScope: true,
     body: (live) async {
       final beacon = await _beacons.getBeaconById(beaconId: beaconId);
       BeaconKindPolicy.requireRequest(beacon);
@@ -293,6 +294,7 @@ final class ClosureCase extends UseCaseBase {
     actorId: authorId,
     beaconId: beaconId,
     expectedEpoch: expectedEpoch,
+    hierarchyScope: true,
     body: (live) async {
       await _requireAuthor(beaconId, authorId);
       if (live == null) throw const ClosureException.wrongStatus();
