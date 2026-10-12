@@ -25,7 +25,7 @@ Map<String, String> _incomingQueryFromParameters(Parameters qp) {
 /// 4. `entry=` / `is_deep_link=` are always preserved;
 /// 5. legacy `tab=room` is read as `tab=threads`;
 /// 6. unrecognized `tab` falls through to NOW (tab omitted);
-/// 7. `step=` survives only with `tab=plan`.
+/// 7. `step=`, `page=` and `rev=` survive only with `tab=plan`.
 NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
   String? pathThreadId,
   Map<String, String> incomingQuery = const {},
@@ -48,6 +48,8 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
   final message = incomingQuery[kQueryMessageId]?.trim();
   final peopleAttention = incomingQuery[kQueryBeaconPeopleTabAttention]?.trim();
   final planStep = incomingQuery[kQueryPlanStepId]?.trim();
+  final planPage = incomingQuery[kQueryPlanPage]?.trim();
+  final planRevision = incomingQuery[kQueryPlanRevision]?.trim();
 
   final result = <String, String>{...preserved};
 
@@ -69,6 +71,12 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
       result[kQueryBeaconViewTab] = kBeaconViewTabPlan;
       if (planStep != null && planStep.isNotEmpty) {
         result[kQueryPlanStepId] = planStep;
+      }
+      if (planPage != null && planPage.isNotEmpty) {
+        result[kQueryPlanPage] = planPage;
+        if (planRevision != null && planRevision.isNotEmpty) {
+          result[kQueryPlanRevision] = planRevision;
+        }
       }
     // `room` is the discussion tab's pre-threads name; links that still
     // carry it (old notifications, bookmarks) open the discussion rather
@@ -122,5 +130,7 @@ BeaconViewOperationalRoute beaconViewOperationalFromNormalized(
     threadId: q[kQueryThreadId],
     messageId: q[kQueryMessageId],
     stepId: q[kQueryPlanStepId],
+    planPage: q[kQueryPlanPage],
+    planRevision: q[kQueryPlanRevision],
   );
 }

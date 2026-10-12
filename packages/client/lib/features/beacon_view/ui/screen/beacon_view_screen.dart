@@ -24,6 +24,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -116,6 +117,8 @@ class BeaconViewScreen extends StatefulWidget {
     this.messageId,
     this.syncRoute = true,
     this.stepId,
+    this.planPage,
+    this.planRevision,
     super.key,
   });
 
@@ -144,6 +147,12 @@ class BeaconViewScreen extends StatefulWidget {
 
   /// Plan step whose card opens once the plan loads (`tab=plan&step=`).
   final String? stepId;
+
+  /// Page open over the plan (`tab=plan&page=history|edit`).
+  final String? planPage;
+
+  /// With `page=history`: the revision to open (`rev=`).
+  final String? planRevision;
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
@@ -194,6 +203,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   /// The deep-linked plan step ([BeaconViewScreen.stepId]) was opened once.
   bool _planStepHandled = false;
+
+  /// The open plan page was opened from here (a browser history entry of
+  /// ours), so closing it goes back rather than replacing the URL.
+  bool _planPageOpenedHere = false;
 
   /// Loads the plan once the viewer is known to be inside the Request;
   /// outsiders (showcase, admission pending) never fetch it.
@@ -336,10 +349,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   String _beaconViewPath({
     String? viewTab,
     String? threadId,
+    BeaconPlanPage? planPage,
+    int? planRevision,
   }) {
     final q = <String, String>{};
     if (viewTab != null && viewTab.isNotEmpty) {
       q[kQueryBeaconViewTab] = viewTab;
+    }
+    if (planPage != null) {
+      q[kQueryPlanPage] = planPage.queryValue;
+      if (planRevision != null) q[kQueryPlanRevision] = '$planRevision';
     }
     if (threadId != null && threadId.isNotEmpty) {
       q[kQueryThreadId] = threadId;
@@ -358,7 +377,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     String? threadId,
   }) {
     if (!widget.syncRoute) return Future<void>.value();
-    return context.router.replacePath(
+    return _replaceBeaconPath(
       _beaconViewPath(
         viewTab: beaconSurfaceViewTab(surface),
         threadId: threadId,
@@ -371,6 +390,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     // tab branch turns `beacon/view/:id` into an unmatched relative path, so
     // AutoRoute falls back to My Work while retaining the query parameters.
     return _syncSurfaceQuery(BeaconSurface.room, threadId: threadId);
+  }
+
+  /// Rewrites this Request's URL in place: same page, no new browser entry.
+  /// `replacePath` cannot do it (from this screen's own router the absolute
+  /// path does not resolve), so navigate the root router and report the
+  /// URL change as a replace ([Router.neglect]).
+  Future<void> _replaceBeaconPath(String path) {
+    final root = context.router.root;
+    // No [Router] (a bare widget host): no browser entry to protect.
+    if (Router.maybeOf(context) == null) return root.navigatePath(path);
+    late Future<void> done;
+    Router.neglect(context, () => done = root.navigatePath(path));
+    return done;
   }
 
   BeaconRoomLease _ensureRoomLease() =>
@@ -425,6 +457,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         host.roomCubit?.prepareThreadScroll(messageId: messageId);
       }
     });
+    // The side pane keeps a Plan / People tab the URL asked for; the URL
+    // names the chat thread only when the pane is on NOW.
+    if (_selectedSurface == BeaconSurface.plan ||
+        _selectedSurface == BeaconSurface.people) {
+      return;
+    }
     unawaited(_syncExpandedThreadQuery(RequestThread.generalId));
   }
 
@@ -585,6 +623,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (oldWidget.stepId != widget.stepId || oldWidget.id != widget.id) {
       _planStepHandled = false;
     }
+    if (oldWidget.planPage != null && widget.planPage == null) {
+      _planPageOpenedHere = false;
+    }
     if (oldWidget.viewTab != widget.viewTab) {
       _selectedSurface = beaconViewSurfaceForTab(widget.viewTab);
       if (widget.viewTab == 'log') {
@@ -592,6 +633,59 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       }
     }
   }
+
+  /// The page open over the plan, if the Plan tab is showing.
+  BeaconPlanPage? get _activePlanPage =>
+      _selectedSurface == BeaconSurface.plan
+      ? BeaconPlanPage.tryParse(widget.planPage)
+      : null;
+
+  /// Plan history / editor: a pushed URL (a browser history entry), so the
+  /// back gesture closes the page instead of leaving the Request.
+  void _openPlanPage(BeaconPlanPage page, {int? revision}) {
+    _planPageOpenedHere = true;
+    // The URL may lag the tab shown, so do not count on a `tab=` change.
+    _switchToSurface(BeaconSurface.plan, syncQuery: false);
+    // Root router: this screen's own router cannot resolve the absolute path.
+    unawaited(
+      context.router.root.navigatePath(
+        _beaconViewPath(
+          viewTab: kBeaconViewTabPlan,
+          planPage: page,
+          planRevision: revision,
+        ),
+      ),
+    );
+  }
+
+  void _closePlanPage() {
+    if (_planPageOpenedHere && context.router.canNavigateBack) {
+      _planPageOpenedHere = false;
+      context.router.back();
+      return;
+    }
+    // Deep link or reload onto the page: nothing of ours to go back to.
+    unawaited(
+      _replaceBeaconPath(_beaconViewPath(viewTab: kBeaconViewTabPlan)),
+    );
+  }
+
+  Widget _buildPlanPage(BeaconPlanPage page, BeaconViewState beaconState) =>
+      BeaconPlanPageView(
+        key: ValueKey('plan-page-${page.name}-${beaconState.beacon.id}'),
+        page: page,
+        beaconId: beaconState.beacon.id,
+        admitted: beaconPlanAdmittedPeople(beaconState),
+        revision: int.tryParse(widget.planRevision ?? ''),
+        onClose: _closePlanPage,
+      );
+
+  /// The Home tab whose rail item this Request is under.
+  HomeTab get _railTab => switch (widget.entry) {
+    kBeaconEntryInbox => HomeTab.inbox,
+    kBeaconEntryRoomNotification => HomeTab.updates,
+    _ => HomeTab.work,
+  };
 
   void _switchToSurface(BeaconSurface surface, {bool syncQuery = true}) {
     if (_selectedSurface == surface) {
@@ -885,13 +979,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             ),
             SizedBox(
               width: nowPaneWidth,
-              child: _buildTabbedContent(
-                beaconViewCubit: beaconViewCubit,
-                screenCubit: screenCubit,
-                beaconState: beaconState,
-                isSplit: true,
-                roomLease: roomLease,
-              ),
+              // A plan page takes the plan's pane; the chat stays beside it.
+              child: switch (_activePlanPage) {
+                final page? => _buildPlanPage(page, beaconState),
+                null => _buildTabbedContent(
+                  beaconViewCubit: beaconViewCubit,
+                  screenCubit: screenCubit,
+                  beaconState: beaconState,
+                  isSplit: true,
+                  roomLease: roomLease,
+                ),
+              },
             ),
           ],
         );
@@ -969,7 +1067,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => BeaconPlanPageScope(
+    open: _openPlanPage,
+    child: Builder(builder: _buildScreen),
+  );
+
+  Widget _buildScreen(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
     final beaconViewCubit = context.read<BeaconViewCubit>();
     final l10n = L10n.of(context)!;
@@ -1144,6 +1247,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             !state.isRoomAdmissionBlocked,
                       );
 
+                      // Narrow windows: a plan page is a screen of its own,
+                      // with its own top bar and back.
+                      final planPage = _activePlanPage;
+                      if (planPage != null &&
+                          !isSplit &&
+                          !showcase &&
+                          showBeaconContent) {
+                        return HomeRailFrame(
+                          selectedTab: _railTab,
+                          child: _buildPlanPage(planPage, state),
+                        );
+                      }
+
                       final contentColumn = Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -1193,6 +1309,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                   _selectedSurface == BeaconSurface.now),
                           onPopInvokedWithResult: (didPop, result) {
                             if (didPop) return;
+                            // An open plan page handles the back itself.
+                            if (_activePlanPage != null) return;
                             if (showcase) {
                               _setPreviewAsOutsider(false);
                               return;
@@ -1204,11 +1322,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             }
                           },
                           child: HomeRailFrame(
-                            selectedTab: switch (widget.entry) {
-                              kBeaconEntryInbox => HomeTab.inbox,
-                              kBeaconEntryRoomNotification => HomeTab.updates,
-                              _ => HomeTab.work,
-                            },
+                            selectedTab: _railTab,
                             child: Scaffold(
                               appBar: TenturaTopBar.of(
                                 context,

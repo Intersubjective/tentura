@@ -43,6 +43,33 @@ void main() {
       expect(route.args?.viewTab, kBeaconViewTabPlan);
     });
 
+    test('tab=plan keeps the plan page and its revision', () {
+      final normalized = normalizeBeaconViewRouteQuery(
+        incomingQuery: {
+          kQueryBeaconViewTab: kBeaconViewTabPlan,
+          kQueryPlanPage: kPlanPageHistory,
+          kQueryPlanRevision: '7',
+        },
+      );
+      expect(normalized.queryParameters[kQueryPlanPage], kPlanPageHistory);
+      expect(normalized.queryParameters[kQueryPlanRevision], '7');
+      final route = beaconViewOperationalFromNormalized(normalized);
+      expect(route.args?.planPage, kPlanPageHistory);
+      expect(route.args?.planRevision, '7');
+    });
+
+    test('page= and rev= without tab=plan are dropped', () {
+      final q = normalizeBeaconViewRouteQuery(
+        incomingQuery: {
+          kQueryBeaconViewTab: kBeaconViewTabNow,
+          kQueryPlanPage: kPlanPageEdit,
+          kQueryPlanRevision: '7',
+        },
+      ).queryParameters;
+      expect(q.containsKey(kQueryPlanPage), isFalse);
+      expect(q.containsKey(kQueryPlanRevision), isFalse);
+    });
+
     test('step= without tab=plan is dropped', () {
       final q = normalizeBeaconViewRouteQuery(
         incomingQuery: {

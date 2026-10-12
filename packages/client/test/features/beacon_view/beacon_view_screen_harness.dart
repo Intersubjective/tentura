@@ -47,7 +47,7 @@ final kBeaconViewHarnessSeenAt = DateTime.utc(2026, 8, 14, 10);
 const kBeaconViewHarnessCompact = Size(390, 844);
 const kBeaconViewHarnessExpanded = Size(1280, 900);
 
-class BeaconViewHarnessRouter extends Mock implements StackRouter {
+class BeaconViewHarnessRouter extends Mock implements RootStackRouter {
   int pushCount = 0;
   int popCount = 0;
   int maybePopCalls = 0;
@@ -73,6 +73,19 @@ class BeaconViewHarnessRouter extends Mock implements StackRouter {
   }) async {
     replacedPaths.add(path);
     return null;
+  }
+
+  // BeaconViewScreen rewrites its URL in place via the root router.
+  @override
+  RootStackRouter get root => this;
+
+  @override
+  Future<void> navigatePath(
+    String path, {
+    bool includePrefixMatches = false,
+    OnNavigationFailure? onFailure,
+  }) async {
+    replacedPaths.add(path);
   }
 
   @override

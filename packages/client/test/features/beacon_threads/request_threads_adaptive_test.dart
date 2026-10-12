@@ -72,7 +72,7 @@ class _MockRouteData extends Mock implements RouteData {
   final String name;
 }
 
-class _HarnessRouter extends Mock implements StackRouter {
+class _HarnessRouter extends Mock implements RootStackRouter {
   int pushCount = 0;
   int popCount = 0;
   PageRouteInfo? lastPush;
@@ -99,6 +99,19 @@ class _HarnessRouter extends Mock implements StackRouter {
   }) async {
     replacedPaths.add(path);
     return null;
+  }
+
+  // BeaconViewScreen rewrites its URL in place via the root router.
+  @override
+  RootStackRouter get root => this;
+
+  @override
+  Future<void> navigatePath(
+    String path, {
+    bool includePrefixMatches = false,
+    OnNavigationFailure? onFailure,
+  }) async {
+    replacedPaths.add(path);
   }
 
   @override

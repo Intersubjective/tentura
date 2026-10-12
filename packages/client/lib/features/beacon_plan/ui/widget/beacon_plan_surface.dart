@@ -11,9 +11,8 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_cubit.dart';
-import '../screen/plan_edit_screen.dart';
-import '../screen/plan_history_screen.dart';
 import '../util/plan_presenter.dart';
+import 'beacon_plan_page.dart';
 import 'plan_people_matrix.dart';
 import 'plan_step_row.dart';
 import 'plan_step_sheet.dart';
@@ -164,43 +163,13 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
     names: plan?.names,
   );
 
-  Future<void> _openEditor(BeaconPlan plan) async {
-    final cubit = context.read<PlanCubit>();
-    final l10n = L10n.of(context)!;
-    final people = _people(plan);
-    final outcome = await openPlanEditor(
-      context,
-      plan: plan,
-      people: people,
-      planCase: widget.planCase,
-    );
-    if (!mounted || outcome == null) return;
-    unawaited(cubit.refresh());
-    if (outcome.kind == PlanSaveOutcomeKind.merged) {
-      final names = [
-        for (final id in outcome.theirActorIds) people.nameOf(id, l10n),
-      ];
-      showSnackBar(
-        context,
-        text: names.isEmpty
-            ? l10n.planMergedAnon(outcome.theirStepIds.length)
-            : l10n.planMerged(outcome.theirStepIds.length, names.join(', ')),
-      );
-    } else if (outcome.kind == PlanSaveOutcomeKind.applied) {
-      showSnackBar(context, text: l10n.planSaved);
-    }
-  }
+  // The editor and the history are pages of the Request's URL; the Request
+  // view places them (whole screen, or the plan pane beside the chat).
+  void _openEditor(BeaconPlan plan) =>
+      BeaconPlanPageScope.maybeOf(context)?.open(BeaconPlanPage.edit);
 
-  Future<void> _openHistory(BeaconPlan plan) async {
-    final cubit = context.read<PlanCubit>();
-    await openPlanHistory(
-      context,
-      plan: plan,
-      people: _people(plan),
-      planCase: widget.planCase,
-    );
-    if (mounted) unawaited(cubit.refresh());
-  }
+  void _openHistory(BeaconPlan plan) =>
+      BeaconPlanPageScope.maybeOf(context)?.open(BeaconPlanPage.history);
 
   void _openStep(BeaconPlan plan, String stepId) => unawaited(
     showPlanStepSheet(
@@ -208,7 +177,7 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
       cubit: context.read<PlanCubit>(),
       stepId: stepId,
       people: _people(plan),
-      onEdit: plan.editable ? () => unawaited(_openEditor(plan)) : null,
+      onEdit: plan.editable ? () => _openEditor(plan) : null,
       onOpenDiscussion: widget.onOpenDiscussion,
       onCantMakeChat: widget.onCantMakeChat,
     ),

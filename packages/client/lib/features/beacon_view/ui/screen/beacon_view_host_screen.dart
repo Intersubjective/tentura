@@ -239,6 +239,8 @@ class BeaconViewOperationalScreen extends StatelessWidget {
     @QueryParam(kQueryThreadId) this.threadId,
     @QueryParam(kQueryMessageId) this.messageId,
     @QueryParam(kQueryPlanStepId) this.stepId,
+    @QueryParam(kQueryPlanPage) this.planPage,
+    @QueryParam(kQueryPlanRevision) this.planRevision,
     super.key,
   });
 
@@ -253,6 +255,12 @@ class BeaconViewOperationalScreen extends StatelessWidget {
   /// Plan step whose card opens once the plan loads (`tab=plan`).
   final String? stepId;
 
+  /// Page open over the plan (`tab=plan&page=history|edit`).
+  final String? planPage;
+
+  /// With `page=history`: the revision to open.
+  final String? planRevision;
+
   @override
   Widget build(BuildContext context) {
     return BeaconViewScreen(
@@ -264,6 +272,8 @@ class BeaconViewOperationalScreen extends StatelessWidget {
       threadId: threadId,
       messageId: messageId,
       stepId: stepId,
+      planPage: planPage,
+      planRevision: planRevision,
     );
   }
 }

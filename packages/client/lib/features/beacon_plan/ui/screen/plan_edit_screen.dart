@@ -12,29 +12,25 @@ import '../bloc/plan_edit_cubit.dart';
 import '../util/plan_presenter.dart';
 import '../widget/plan_step_edit_sheet.dart';
 
-/// Opens the plan editor over [plan]. Resolves to the save outcome, or null
-/// when the user left without saving.
-Future<PlanSaveOutcome?> openPlanEditor(
-  BuildContext context, {
-  required BeaconPlan plan,
-  required PlanPeople people,
-  BeaconPlanCase? planCase,
-}) => Navigator.of(context, rootNavigator: true).push<PlanSaveOutcome>(
-  MaterialPageRoute(
-    fullscreenDialog: true,
-    builder: (_) => BlocProvider(
-      create: (_) => PlanEditCubit(plan: plan, planCase: planCase),
-      child: PlanEditScreen(people: people),
-    ),
-  ),
-);
-
 /// The plan editor: draft steps (reorder, add, edit, delete), an optional
 /// comment and «Сохранить». Nothing is visible to others until saved.
+///
+/// Shown by `BeaconPlanPageView` over a [PlanEditCubit].
 class PlanEditScreen extends StatelessWidget {
-  const PlanEditScreen({required this.people, super.key});
+  const PlanEditScreen({
+    required this.people,
+    required this.onClose,
+    required this.onSaved,
+    super.key,
+  });
 
   final PlanPeople people;
+
+  /// Leaves the editor without saving.
+  final VoidCallback onClose;
+
+  /// The draft was saved; the host shows the outcome and leaves.
+  final ValueChanged<PlanSaveOutcome> onSaved;
 
   static const saveKey = Key('plan-edit-save');
   static const addKey = Key('plan-edit-add');
@@ -83,6 +79,10 @@ class PlanEditScreen extends StatelessWidget {
     return ok ?? false;
   }
 
+  Future<void> _close(BuildContext context, {required bool isDirty}) async {
+    if (!isDirty || await _confirmDiscard(context)) onClose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -103,7 +103,7 @@ class PlanEditScreen extends StatelessWidget {
       listener: (context, state) {
         final saved = state.saved;
         if (saved != null) {
-          Navigator.of(context).pop(saved.outcome);
+          onSaved(saved.outcome);
           return;
         }
         final error = state.error;
@@ -118,12 +118,12 @@ class PlanEditScreen extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<PlanEditCubit>();
         final validation = _validationText(state.validationError, l10n);
+        // Not a route of its own: a system back (Android) closes the editor
+        // rather than the Request.
         return PopScope(
-          canPop: !state.isDirty || state.saved != null,
-          onPopInvokedWithResult: (didPop, _) async {
-            if (didPop) return;
-            final navigator = Navigator.of(context);
-            if (await _confirmDiscard(context)) navigator.pop();
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) unawaited(_close(context, isDirty: state.isDirty));
           },
           child: Scaffold(
             appBar: TenturaTopBar.of(
@@ -132,7 +132,8 @@ class PlanEditScreen extends StatelessWidget {
               leading: IconButton(
                 icon: const Icon(Icons.close),
                 tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed: () =>
+                    unawaited(_close(context, isDirty: state.isDirty)),
               ),
               actions: [
                 Padding(

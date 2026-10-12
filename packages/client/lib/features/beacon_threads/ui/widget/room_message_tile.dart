@@ -581,11 +581,6 @@ class RoomMessageTile extends StatelessWidget {
             ? authorName
             : planNameOf(message.authorId.isEmpty ? null : message.authorId),
         nameOf: planNameOf,
-        people: [
-          for (final p in participants)
-            if (p.roomAccess == RoomAccessBits.admitted)
-              profileFromBeaconParticipant(p),
-        ],
       );
     }
 

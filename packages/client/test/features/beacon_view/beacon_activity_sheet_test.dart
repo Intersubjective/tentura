@@ -358,7 +358,7 @@ Future<void> _setupGetIt() async {
   registerEmptyAuthorInvitesGetIt();
 }
 
-class _HarnessRouter extends Mock implements StackRouter {
+class _HarnessRouter extends Mock implements RootStackRouter {
   final List<String> replacedPaths = [];
 
   @override
@@ -369,6 +369,19 @@ class _HarnessRouter extends Mock implements StackRouter {
   }) async {
     replacedPaths.add(path);
     return null;
+  }
+
+  // BeaconViewScreen rewrites its URL in place via the root router.
+  @override
+  RootStackRouter get root => this;
+
+  @override
+  Future<void> navigatePath(
+    String path, {
+    bool includePrefixMatches = false,
+    OnNavigationFailure? onFailure,
+  }) async {
+    replacedPaths.add(path);
   }
 
   @override

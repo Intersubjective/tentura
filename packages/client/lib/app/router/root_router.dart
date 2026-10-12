@@ -493,11 +493,27 @@ class RootRouter extends RootStackRouter {
     final transformed = _transformDeepLink(deepLink.uri);
     final browseStack = buildBrowseDeepLinkStack(transformed);
     if (browseStack != null) {
-      return deepLink.initial
-          ? DeepLink([browseStack.home, browseStack.detail])
-          : DeepLink([browseStack.detail], navigate: false);
+      if (deepLink.initial) {
+        return DeepLink([browseStack.home, browseStack.detail]);
+      }
+      // Browser back/forward within the detail on top (e.g. a Request's
+      // `tab=plan&page=history` → `tab=plan`): update it in place. Pushing
+      // a fresh copy adds a history entry, so back would bounce between the
+      // two URLs instead of leaving.
+      return DeepLink(
+        [browseStack.detail],
+        navigate: _isTopDetail(browseStack.detail),
+      );
     }
     return deepLink;
+  }
+
+  bool _isTopDetail(PageRouteInfo detail) {
+    final stack = stackData;
+    if (stack.isEmpty) return false;
+    final top = stack.last;
+    return top.name == detail.routeName &&
+        top.pathParams.optString('id') == detail.rawPathParams['id'];
   }
 
   Future<Uri> deepLinkTransformer(Uri uri) => SynchronousFuture(

@@ -115,6 +115,20 @@ const kBeaconViewTabPlan = 'plan';
 /// the plan has loaded (notification deep links, #220).
 const kQueryPlanStepId = 'step';
 
+/// With [kQueryBeaconViewTab]=`plan`: the page open over the plan,
+/// [kPlanPageHistory] or [kPlanPageEdit]. In the URL so browser back closes
+/// it instead of leaving the Request.
+const kQueryPlanPage = 'page';
+
+/// [kQueryPlanPage] value — the plan history.
+const kPlanPageHistory = 'history';
+
+/// [kQueryPlanPage] value — the plan editor.
+const kPlanPageEdit = 'edit';
+
+/// With [kQueryPlanPage]=[kPlanPageHistory]: the revision to open.
+const kQueryPlanRevision = 'rev';
+
 /// Pre-threads name of [kBeaconViewTabThreads]; accepted on input only.
 const kBeaconViewTabRoomLegacy = 'room';
 

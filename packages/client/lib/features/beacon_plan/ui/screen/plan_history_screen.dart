@@ -10,41 +10,14 @@ import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_history_cubit.dart';
 import '../util/plan_presenter.dart';
 
-/// Opens the plan history of [plan]'s Request (or of [beaconId] when the
-/// caller has no plan at hand, e.g. a chat line). With [focusSeq] the history
-/// opens on that revision («История ›» of a chat line).
-Future<void> openPlanHistory(
-  BuildContext context, {
-  required PlanPeople people,
-  BeaconPlan? plan,
-  String? beaconId,
-  int? focusSeq,
-  BeaconPlanCase? planCase,
-}) {
-  final id = plan?.beaconId ?? beaconId ?? '';
-  return Navigator.of(context, rootNavigator: true).push<void>(
-    MaterialPageRoute(
-      builder: (_) => BlocProvider(
-        create: (_) {
-          final cubit = PlanHistoryCubit(beaconId: id, planCase: planCase);
-          unawaited(cubit.load());
-          return cubit;
-        },
-        child: PlanHistoryScreen(
-          plan: plan,
-          people: people,
-          focusSeq: focusSeq,
-        ),
-      ),
-    ),
-  );
-}
-
 /// Revisions newest first: who, when, the l10n-rendered changes; tap one to
 /// preview it and «Вернуть эту версию».
+///
+/// Shown by `BeaconPlanPageView` over a [PlanHistoryCubit].
 class PlanHistoryScreen extends StatefulWidget {
   const PlanHistoryScreen({
     required this.people,
+    required this.onClose,
     this.plan,
     this.focusSeq,
     super.key,
@@ -52,6 +25,9 @@ class PlanHistoryScreen extends StatefulWidget {
 
   final BeaconPlan? plan;
   final PlanPeople people;
+
+  /// Back to the plan.
+  final VoidCallback onClose;
 
   /// Revision to open once the history has loaded.
   final int? focusSeq;
@@ -191,13 +167,24 @@ class _PlanHistoryScreenState extends State<PlanHistoryScreen> {
             ],
           );
         }
-        return Scaffold(
-          appBar: TenturaTopBar.of(
-            context,
-            title: Text(l10n.planHistoryTitle),
-            progress: state.restoring ? const LinearProgressIndicator() : null,
+        // Not a route of its own: a system back (Android) closes the history
+        // rather than the Request.
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) widget.onClose();
+          },
+          child: Scaffold(
+            appBar: TenturaTopBar.of(
+              context,
+              leading: BackButton(onPressed: widget.onClose),
+              title: Text(l10n.planHistoryTitle),
+              progress: state.restoring
+                  ? const LinearProgressIndicator()
+                  : null,
+            ),
+            body: body,
           ),
-          body: body,
         );
       },
     );

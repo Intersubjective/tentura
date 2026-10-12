@@ -1,14 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_revision.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_room_line.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
-import 'package:tentura/features/beacon_plan/ui/screen/plan_history_screen.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -24,7 +21,6 @@ class RoomPlanLine extends StatelessWidget {
     required this.message,
     required this.actorName,
     required this.nameOf,
-    this.people = const [],
     this.onOpenHistory,
     super.key,
   });
@@ -37,10 +33,8 @@ class RoomPlanLine extends StatelessWidget {
   /// Display name of anyone the payload mentions.
   final String Function(String? userId) nameOf;
 
-  /// Admitted people, for the history screen.
-  final List<Profile> people;
-
-  /// Opens the plan history at a revision; defaults to [openPlanHistory].
+  /// Opens the plan history at a revision; defaults to the Request's
+  /// [BeaconPlanPageScope].
   final void Function(BuildContext context, int revisionSeq)? onOpenHistory;
 
   static const fallbackKey = Key('room-plan-line-fallback');
@@ -52,14 +46,9 @@ class RoomPlanLine extends StatelessWidget {
       open(context, seq);
       return;
     }
-    unawaited(
-      openPlanHistory(
-        context,
-        beaconId: message.beaconId,
-        people: PlanPeople(admitted: people),
-        focusSeq: seq,
-      ),
-    );
+    BeaconPlanPageScope.maybeOf(
+      context,
+    )?.open(BeaconPlanPage.history, revision: seq);
   }
 
   @override
