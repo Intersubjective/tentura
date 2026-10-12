@@ -35,7 +35,7 @@ class TrustLedgerRepository implements TrustLedgerPort {
         source_key text, beacon_id text, epoch integer, related_user_id text,
         occurred_at timestamptz, metadata jsonb
       )
-      ON CONFLICT DO NOTHING
+      ON CONFLICT (source_key) DO NOTHING
       ''',
       [
         jsonEncode([
