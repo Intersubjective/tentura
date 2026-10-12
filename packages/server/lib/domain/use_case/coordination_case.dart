@@ -462,6 +462,11 @@ final class CoordinationCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: (transaction) async {
+        // Lock order (Arch §0): hierarchy before the child lock, ahead of the
+        // offer row, as the helper's withdrawal takes them; the participant
+        // trigger takes the hierarchy lock anyway, so taking it last deadlocks.
+        await _authorInvites?.lockScope(null);
+        await _closureCase?.lockRequest(beaconId);
         // Snapshot the affected helper while the pre-decline audience is intact.
         final intent = await _attentionIntents!.offerDeclined(
           receiverId: offerUserId,

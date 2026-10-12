@@ -47,6 +47,7 @@ import 'package:tentura_server/domain/entity/post_bud.dart';
 import 'package:tentura_server/domain/entity/post_parent_stage.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
@@ -64,6 +65,7 @@ import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dar
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
@@ -545,6 +547,7 @@ Future<void> main() async {
         // the hierarchy lock and wants the child lock; a withdrawal that
         // already took the child lock before queueing (wrong order) deadlocks
         // with it, one that queued on the hierarchy lock first does not.
+        final pids = [await _backendPid(dbA), await _backendPid(dbB)];
         await writer.execute('BEGIN');
         late Future<_Outcome> accept;
         late Future<_Outcome> withdraw;
@@ -555,7 +558,7 @@ Future<void> main() async {
           accept = _settle(
             a.invites.accept(actorUserId: _invitee, inviteId: s.invite),
           );
-          await _waitForBlockedBackends(writer, 1);
+          await _waitForBlockedBackends(writer, pids, 1);
           withdraw = _settle(
             b.helpOffers.withdraw(
               beaconId: s.child,
@@ -563,7 +566,7 @@ Future<void> main() async {
               withdrawReason: 'timing',
             ),
           );
-          await _waitForBlockedBackends(writer, 2);
+          await _waitForBlockedBackends(writer, pids, 2);
           await writer.execute('COMMIT');
         } finally {
           await writer.execute('ROLLBACK');
@@ -588,6 +591,88 @@ Future<void> main() async {
         expect(await _offerStatus(writer, s.child, _invitee), 1);
         expect(await _isAdmitted(writer, s.child, _invitee), isFalse);
         await _expectInvariants(writer, 'accept then withdraw');
+      },
+    );
+
+    test(
+      'author decline takes the hierarchy lock before touching the offer, '
+      'so it cannot deadlock with the helper withdrawing the same offer',
+      () async {
+        await _seed(writer);
+        final s = await buddedWithInvite();
+        await _seedActiveOffer(writer, s.child, _invitee);
+        // The test holds the hierarchy lock while the withdrawal queues for
+        // it first and the decline second. On release the withdrawal owns the
+        // hierarchy lock and wants the offer row; a decline that already
+        // locked the offer row before queueing (wrong order) deadlocks with
+        // it, one that queued on the hierarchy lock first does not.
+        final pids = [await _backendPid(dbA), await _backendPid(dbB)];
+        await writer.execute('BEGIN');
+        late Future<_Outcome> withdraw;
+        late Future<_Outcome> decline;
+        try {
+          await writer.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+          );
+          withdraw = _settle(
+            b.helpOffers.withdraw(
+              beaconId: s.child,
+              userId: _invitee,
+              withdrawReason: 'timing',
+            ),
+          );
+          await _waitForBlockedBackends(writer, pids, 1);
+          decline = _settle(
+            a.coordination.declineHelpOffer(
+              beaconId: s.child,
+              offerUserId: _invitee,
+              actorUserId: _budder,
+              reason: 'not needed',
+            ),
+          );
+          await _waitForBlockedBackends(writer, pids, 2);
+          await writer.execute('COMMIT');
+        } finally {
+          await writer.execute('ROLLBACK');
+        }
+        final outcomes = await Future.wait([withdraw, decline]).timeout(
+          _roundBudget,
+          onTimeout: () => fail('did not finish in $_roundBudget'),
+        );
+        for (final outcome in outcomes) {
+          expect(
+            _isDeadlockOrTimeout(outcome.error),
+            isFalse,
+            reason: 'deadlock or timeout: ${outcome.error}',
+          );
+        }
+        expect(outcomes.first.error, isNull);
+        // The withdrawal ran first. The decline, after taking its locks,
+        // either still applies or sees the offer is gone and refuses; it must
+        // never be skipped silently or fail for another reason.
+        final declineError = outcomes.last.error;
+        final declineEvents = await _declineEventCount(
+          writer,
+          s.child,
+          _invitee,
+        );
+        if (declineError == null) {
+          expect(declineEvents, 1);
+        } else {
+          expect(declineError, isA<HelpOfferCoordinationException>());
+          expect(
+            (declineError as HelpOfferCoordinationException).code,
+            isA<HelpOfferCoordinationExceptionCodes>().having(
+              (c) => c.exceptionCode,
+              'exceptionCode',
+              HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+            ),
+          );
+          expect(declineEvents, 0);
+        }
+        expect(await _offerStatus(writer, s.child, _invitee), 1);
+        expect(await _isAdmitted(writer, s.child, _invitee), isFalse);
+        await _expectInvariants(writer, 'withdraw then decline');
       },
     );
 
@@ -873,18 +958,55 @@ ON CONFLICT DO NOTHING
   );
 }
 
-/// Waits until [count] sessions wait for an advisory lock.
-Future<void> _waitForBlockedBackends(Connection writer, int count) async {
+/// Waits until [count] of the sessions with backend [pids] wait for the
+/// hierarchy advisory lock.
+///
+/// `pg_locks` is cluster-wide, so waiters are limited to the participating
+/// backends, this database's oid and the hierarchy lock key (an advisory
+/// key is split over `classid`/`objid`). `pg_stat_activity` is avoided: its
+/// snapshot is frozen for the observer's open transaction.
+Future<void> _waitForBlockedBackends(
+  Connection writer,
+  List<int> pids,
+  int count,
+) async {
   final deadline = DateTime.now().add(const Duration(seconds: 10));
   while (DateTime.now().isBefore(deadline)) {
     final rows = await writer.execute(
-      'SELECT count(*) FROM pg_locks '
-      "WHERE locktype = 'advisory' AND NOT granted",
+      'SELECT count(DISTINCT l.pid) FROM pg_locks l '
+      "WHERE l.locktype = 'advisory' AND NOT l.granted "
+      'AND l.objsubid = 1 '
+      'AND ((l.classid::bigint << 32) | l.objid::bigint) = '
+      "hashtextextended('tentura.beacon_hierarchy.v1', 0) "
+      'AND l.pid IN (${pids.join(',')}) AND l.database = '
+      '(SELECT oid FROM pg_database WHERE datname = current_database())',
     );
     if ((rows.single.single! as int) >= count) return;
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
-  fail('fewer than $count sessions blocked on an advisory lock');
+  fail('fewer than $count of the sessions $pids blocked on the hierarchy lock');
+}
+
+/// The backend pid of [db]'s connection.
+Future<int> _backendPid(TenturaDb db) async {
+  final row = await db.customSelect('SELECT pg_backend_pid() AS pid').getSingle();
+  return row.read<int>('pid');
+}
+
+/// Number of decline events recorded for [user] on [beacon].
+Future<int> _declineEventCount(
+  Connection writer,
+  String beacon,
+  String user,
+) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT count(*) FROM public.beacon_help_offer_admission_event '
+      'WHERE beacon_id = @b AND offer_user_id = @u AND action = 2',
+    ),
+    parameters: {'b': beacon, 'u': user},
+  );
+  return rows.single.single! as int;
 }
 
 Future<int> _offerStatus(Connection writer, String beacon, String user) async {
@@ -967,6 +1089,7 @@ final class _Stack {
     required this.blocks,
     required this.posts,
     required this.helpOffers,
+    required this.coordination,
   });
 
   final PostBudCase buds;
@@ -975,6 +1098,7 @@ final class _Stack {
   final UserBlockCase blocks;
   final PostCase posts;
   final HelpOfferCase helpOffers;
+  final CoordinationCase coordination;
 
   factory _Stack.build(TenturaDb db, Env env) {
     final logger = Logger('PostBudConcurrencyPgTest');
@@ -1084,6 +1208,24 @@ final class _Stack {
       logger: logger,
     );
     return _Stack(
+      coordination: CoordinationCase(
+        beacons,
+        helpOffers,
+        coordinationRepository,
+        room,
+        blockRepository,
+        commitments,
+        commitmentQuery,
+        hierarchy,
+        attentionIntents: intents,
+        attention: attention,
+        attentionSystemSettlement: settlement,
+        closureCase: closure,
+        authorInvites: authorInvites,
+        guard: FakeBeaconAccessGuard(),
+        env: env,
+        logger: logger,
+      ),
       helpOffers: HelpOfferCase(
         helpOffers,
         beacons,
