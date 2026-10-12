@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura/features/beacon_plan/data/model/beacon_plan_error_mapper.dart';
@@ -10,6 +11,7 @@ import 'package:tentura/features/beacon_plan/domain/entity/plan_revision.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_state.dart';
 import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart';
+import 'package:tentura/ui/l10n/l10n_en.dart';
 
 import 'beacon_plan_test_support.dart';
 
@@ -254,6 +256,34 @@ void main() {
       final r = planTakeTheirSteps(mine, theirs, const ['PSc']);
       expect(r.ids, ['PSa', 'PSb', 'PSc']);
       expect(r.byId['PSc']!.title, 'C theirs');
+    });
+  });
+
+  group('planStepWhenLabel', () {
+    final l10n = L10nEn();
+
+    setUpAll(() async {
+      await initializeDateFormatting('en');
+    });
+
+    test('same-day range keeps day on start and time-only end', () {
+      final start = DateTime(2026, 10, 12, 10);
+      final end = DateTime(2026, 10, 12, 11, 30);
+      final label = planStepWhenLabel(
+        startAt: start,
+        endAt: end,
+        l10n: l10n,
+      );
+      expect(label, contains(planDayTime(start, l10n.localeName)));
+      expect(label, contains(planTime(end, l10n.localeName)));
+      expect(label, isNot(contains(planDayTime(end, l10n.localeName))));
+    });
+
+    test('untimed uses semantics copy', () {
+      expect(
+        planStepWhenLabel(startAt: null, endAt: null, l10n: l10n),
+        l10n.planUntimedSemantics,
+      );
     });
   });
 

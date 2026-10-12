@@ -38,7 +38,6 @@ class PlanEditScreen extends StatelessWidget {
 
   static const saveKey = Key('plan-edit-save');
   static const addKey = Key('plan-edit-add');
-  static const sortKey = Key('plan-edit-sort');
 
   String? _validationText(PlanDraftError? e, L10n l10n) => switch (e) {
     null => null,
@@ -150,129 +149,104 @@ class PlanEditScreen extends StatelessWidget {
               ],
               progress: state.isSaving ? const LinearProgressIndicator() : null,
             ),
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (validation != null)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: tt.screenHPadding,
-                      vertical: tt.rowGap,
-                    ),
-                    child: TenturaStatusText(
-                      validation,
-                      tone: TenturaTone.danger,
-                      maxLines: null,
-                    ),
-                  ),
-                if (state.orderContradictsTime)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: tt.screenHPadding,
-                      vertical: tt.rowGap,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TenturaStatusText(
-                            l10n.planEditOrderContradictsTime,
-                            maxLines: null,
-                          ),
-                        ),
-                        TenturaTextAction(
-                          key: sortKey,
-                          label: l10n.planEditSortByTime,
-                          icon: const Icon(Icons.schedule),
-                          onPressed: cubit.sortByTime,
-                        ),
-                      ],
-                    ),
-                  ),
-                Expanded(
-                  child: ReorderableListView.builder(
-                    buildDefaultDragHandles: false,
-                    itemCount: state.steps.length,
-                    onReorderItem: cubit.reorder,
-                    footer: Padding(
+            body: TenturaContentColumn(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (validation != null)
+                    Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: tt.screenHPadding,
                         vertical: tt.rowGap,
                       ),
-                      child: Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: TenturaTextAction(
-                          key: addKey,
-                          label: l10n.planEditAddStep,
-                          icon: const Icon(Icons.add),
-                          flushStart: true,
-                          onPressed: state.steps.length >= PlanLimits.maxSteps
-                              ? null
-                              : () => _editStep(
-                                  context,
-                                  cubit.newStep(),
-                                  isNew: true,
-                                ),
-                        ),
+                      child: TenturaStatusText(
+                        validation,
+                        tone: TenturaTone.danger,
+                        maxLines: null,
                       ),
                     ),
-                    itemBuilder: (context, i) {
-                      final step = state.steps[i];
-                      final problem = validatePlanStep(step);
-                      return ListTile(
-                        key: ValueKey(step.id),
-                        leading: ReorderableDragStartListener(
-                          index: i,
-                          child: Semantics(
-                            label: l10n.planEditReorderHandle,
-                            child: const SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: Icon(Icons.drag_handle),
-                            ),
+                  Expanded(
+                    child: ReorderableListView.builder(
+                      buildDefaultDragHandles: false,
+                      itemCount: state.steps.length,
+                      onReorderItem: cubit.reorder,
+                      footer: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: tt.screenHPadding,
+                          vertical: tt.rowGap,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: TenturaTextAction(
+                            key: addKey,
+                            label: l10n.planEditAddStep,
+                            icon: const Icon(Icons.add),
+                            flushStart: true,
+                            onPressed: state.steps.length >= PlanLimits.maxSteps
+                                ? null
+                                : () => _editStep(
+                                    context,
+                                    cubit.newStep(),
+                                    isNew: true,
+                                  ),
                           ),
                         ),
-                        title: Text(
-                          step.title.trim().isEmpty ? '—' : step.title,
-                          style: TenturaText.body(
-                            problem == null ? tt.text : tt.danger,
-                          ),
-                        ),
-                        subtitle: Text(
-                          [
-                            planStepTimeLabel(
-                              startAt: step.startAt,
-                              endAt: step.endAt,
-                              l10n: l10n,
-                            ),
-                            people.nameOf(step.assigneeId, l10n),
-                          ].join(' · '),
-                          style: TenturaText.bodySmall(tt.textMuted),
-                        ),
-                        trailing: IconButton(
-                          tooltip: l10n.planEditDeleteStep,
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => cubit.removeStep(step.id),
-                        ),
-                        onTap: () => _editStep(context, step, isNew: false),
-                      );
-                    },
-                  ),
-                ),
-                SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: EdgeInsets.all(tt.screenHPadding),
-                    child: TextFormField(
-                      initialValue: state.comment,
-                      maxLength: PlanLimits.maxCommentLength,
-                      decoration: InputDecoration(
-                        labelText: l10n.planEditComment,
                       ),
-                      onChanged: cubit.setComment,
+                      itemBuilder: (context, i) {
+                        final step = state.steps[i];
+                        final problem = validatePlanStep(step);
+                        return ListTile(
+                          key: ValueKey(step.id),
+                          leading: ReorderableDragStartListener(
+                            index: i,
+                            child: Semantics(
+                              label: l10n.planEditReorderHandle,
+                              child: const Icon(Icons.drag_handle),
+                            ),
+                          ),
+                          title: Text(
+                            step.title.trim().isEmpty ? '—' : step.title,
+                            style: TenturaText.body(
+                              problem == null ? tt.text : tt.danger,
+                            ),
+                          ),
+                          subtitle: Text(
+                            [
+                              planStepWhenLabel(
+                                startAt: step.startAt,
+                                endAt: step.endAt,
+                                l10n: l10n,
+                              ),
+                              people.nameOf(step.assigneeId, l10n),
+                            ].join(' · '),
+                            style: TenturaText.bodySmall(tt.textMuted),
+                          ),
+                          trailing: IconButton(
+                            tooltip: l10n.planEditDeleteStep,
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => cubit.removeStep(step.id),
+                          ),
+                          onTap: () => _editStep(context, step, isNew: false),
+                        );
+                      },
                     ),
                   ),
-                ),
-              ],
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: EdgeInsets.all(tt.screenHPadding),
+                      child: TextFormField(
+                        initialValue: state.comment,
+                        maxLength: PlanLimits.maxCommentLength,
+                        decoration: InputDecoration(
+                          labelText: l10n.planEditComment,
+                        ),
+                        onChanged: cubit.setComment,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
