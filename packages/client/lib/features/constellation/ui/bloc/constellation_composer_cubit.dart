@@ -108,9 +108,15 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   /// The create cubit of the current session; null before [start].
   BeaconCreateCubit? get createCubit => _createCubit;
 
+  /// Recipients of the last sent session who were inside the circle when it
+  /// was sent; empty after a cancel.
+  Set<String> get sentInCircleIds => _sentInCircleIds;
+  Set<String> _sentInCircleIds = const {};
+
   void start(BeaconKind kind, Offset scenePos) {
     _kind = kind;
     _cancelled = false;
+    _sentInCircleIds = const {};
     _createCubit = createCubitFactory(kind);
     final base = state.withCenter(scenePos.lPoint);
     emit(
@@ -210,6 +216,20 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     _push();
   }
 
+  /// A person dropped inside the circle becomes a recipient, even one the
+  /// viewer removed by hand before.
+  void personDropped(String id) {
+    if (_cancelled ||
+        isClosed ||
+        state.selected.contains(id) ||
+        !state.eligible.contains(id) ||
+        !state.isInCircle(id)) {
+      return;
+    }
+    emit(state.addManually(id));
+    _push();
+  }
+
   void toggleMapRecipient(String id) {
     if (_cancelled ||
         !state.manualSelectionEnabled ||
@@ -261,6 +281,12 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     final create = _createCubit;
     forwardCubit = null;
     _createCubit = null;
+    _sentInCircleIds = _cancelled
+        ? const {}
+        : {
+            for (final id in state.selected)
+              if (state.isInCircle(id)) id,
+          };
     emit(
       RadiusRecipientSelection(
         center: state.center,

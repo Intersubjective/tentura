@@ -120,7 +120,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._composePresentation = composeConstellationPresentation,
     ConstellationSceneController? scene,
   }) : _scene = scene ?? ConstellationSceneController(),
-        _case = case_,
+       _case = case_,
        _viewer = viewer,
        _forwardCaseOverride = forwardCase,
        super(const ConstellationState()) {
@@ -199,6 +199,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Map<String, ConstellationPerson> _composerPeople = const {};
   final Set<String> _composerPlacedPersonIds = {};
   final Map<String, Offset> _composerPersonPositions = {};
+
+  /// Graph ids of people the viewer moved by hand while composing; they stay
+  /// where they were dropped until the session ends, over their pins.
+  final Set<GraphNodeId> _composerMovedPersonIds = {};
+
+  /// People who had no pin when the viewer first moved them while composing.
+  final Set<String> _composerMovedUnpinnedIds = {};
+
+  /// Graph id of the person a composer drag holds, and where it started.
+  GraphNodeId? _composerDragGraphId;
+  Offset? _composerDragStart;
   Set<String> _composingSelectedIds = const {};
   Offset _composingDraftCentre = Offset.zero;
   void Function(String personId)? _onComposingToggle;
@@ -260,14 +271,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   int get writeCount => _writeCount;
 
-  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
-      _scene.layoutAlgorithm(
-        graphRevision: state.graphRevision,
-        viewerId: _viewer.id,
-        statePaths: state.paths,
-        stateKeptPeerIds: state.keptPeerIds,
-        forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
-      );
+  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm => _scene.layoutAlgorithm(
+    graphRevision: state.graphRevision,
+    viewerId: _viewer.id,
+    statePaths: state.paths,
+    stateKeptPeerIds: state.keptPeerIds,
+    forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
+  );
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm =>
       _scene.constellationAlgorithm(
@@ -578,14 +588,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         listEquals(before.pinnedRequests, after.pinnedRequests) &&
         listEquals(before.supportPeers, after.supportPeers) &&
         listEquals(before.supportEdges, after.supportEdges) &&
-        listEquals(before.serverFilteredBeaconIds, after.serverFilteredBeaconIds) &&
+        listEquals(
+          before.serverFilteredBeaconIds,
+          after.serverFilteredBeaconIds,
+        ) &&
         before.serverFilteredBeaconCount == after.serverFilteredBeaconCount &&
         before.anchors.length == after.anchors.length &&
         {for (final a in before.anchors) a.target: a.position}.entries.every(
-          (entry) =>
-              after.anchors.any(
-                (a) => a.target == entry.key && a.position == entry.value,
-              ),
+          (entry) => after.anchors.any(
+            (a) => a.target == entry.key && a.position == entry.value,
+          ),
         );
   }
 
@@ -796,19 +808,46 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Leaves the composing phase: removes the draft node and its edges and
   /// restores the regular composition.
-  void exitComposing() {
+  ///
+  /// People moved by hand return to their places, except those in
+  /// [pinPersonIds] who had no pin: they get one where they were dropped.
+  void exitComposing({Set<String> pinPersonIds = const {}}) {
     if (isClosed || !state.isComposing) {
       return;
     }
+    if (_composerDragGraphId != null) _cancelComposerDrag();
     final token = graphController.activePresentationTokenForNode(
       const FieldDraftNode().graphNodeId,
     );
     if (token != null) {
       graphController.cancelNodePresentationDrag(token);
     }
-    _composerPlacedPersonIds.forEach(graphController.clearPresentationForNodeId);
+    final pinnedGraphIds = <GraphNodeId>{};
+    if (_placementCase != null) {
+      for (final id in _composerMovedUnpinnedIds.intersection(pinPersonIds)) {
+        final graphId = 'fp:$id';
+        final position = _composerPersonPositions[graphId];
+        if (position == null) continue;
+        _submitUpsert(
+          target: ConstellationAnchorTarget.person(id),
+          position: constellationPointToV1Anchor(
+            (x: position.dx, y: position.dy),
+          ),
+        );
+        pinnedGraphIds.add(graphId);
+      }
+    }
+    _composerPlacedPersonIds
+        .difference(pinnedGraphIds)
+        .forEach(graphController.clearPresentationForNodeId);
+    // A new pin holds its node at the drop until the layout lands there.
+    if (pinnedGraphIds.isNotEmpty) {
+      _scene.addPlacementHandoffGraphIds(pinnedGraphIds);
+    }
     _composerPlacedPersonIds.clear();
     _composerPersonPositions.clear();
+    _composerMovedPersonIds.clear();
+    _composerMovedUnpinnedIds.clear();
     _composingCandidateIds = const {};
     _composingSelectedIds = const {};
     _onComposingToggle = null;
@@ -838,12 +877,87 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _interaction.updateDragPresentation(target, sceneCentre);
   }
 
-  Offset clampClusterDragPosition(NodeDetails node, Offset proposed) =>
-      _interaction.clampClusterDragPosition(
-        state.activePlacementTarget,
-        node,
-        proposed,
-      );
+  Offset clampClusterDragPosition(NodeDetails node, Offset proposed) {
+    final composerStart = _composerDragStart;
+    if (composerStart != null &&
+        tenturaGraphNodeId(node) == _composerDragGraphId) {
+      return _clampComposerDrop(composerStart, proposed);
+    }
+    return _interaction.clampClusterDragPosition(
+      state.activePlacementTarget,
+      node,
+      proposed,
+    );
+  }
+
+  /// Whether dragging [node] only moves it for the composer session: while
+  /// composing, people are arranged by hand and nothing is written.
+  bool isComposerDrag(NodeDetails node) =>
+      state.isComposing && node is FieldPersonNode && node.id != viewerId;
+
+  /// Whether a composer drag holds a node.
+  bool get isComposerDragActive => _composerDragGraphId != null;
+
+  void beginComposerDrag(FieldPersonNode node) {
+    if (isClosed || !state.isComposing) {
+      return;
+    }
+    final graphId = node.graphNodeId;
+    final point = graphController.renderSnapshot.resolvePosition(graphId);
+    _composerDragGraphId = graphId;
+    _composerDragStart =
+        _composerPersonPositions[graphId] ??
+        (point == null ? null : Offset(point.x, point.y));
+    if (!_composerMovedPersonIds.contains(graphId) &&
+        !isAnchored(ConstellationAnchorTarget.person(node.id))) {
+      _composerMovedUnpinnedIds.add(node.id);
+    }
+    _interaction.beginDragging(node.id);
+  }
+
+  /// Keeps the person where it was dropped for the rest of the session.
+  void endComposerDrag(FieldPersonNode node, Offset sceneCentre) {
+    final graphId = node.graphNodeId;
+    if (isClosed || _composerDragGraphId != graphId) {
+      return;
+    }
+    final start = _composerDragStart;
+    final drop = start == null
+        ? sceneCentre
+        : _clampComposerDrop(start, sceneCentre);
+    _composerDragGraphId = null;
+    _composerDragStart = null;
+    _interaction.draggingNodeId = null;
+    _composerMovedPersonIds.add(graphId);
+    _composerPlacedPersonIds.add(graphId);
+    _composerPersonPositions[graphId] = drop;
+    _scene.updateSingleNodePresentation(graphId, drop);
+    graphController.setCameraInteractionGated(false);
+    _releaseFreeze();
+  }
+
+  /// A lost pointer puts the person back where the drag started.
+  void _cancelComposerDrag() {
+    final graphId = _composerDragGraphId;
+    final start = _composerDragStart;
+    _composerDragGraphId = null;
+    _composerDragStart = null;
+    _interaction.draggingNodeId = null;
+    if (graphId != null && start != null) {
+      _scene.updateSingleNodePresentation(graphId, start);
+    }
+    graphController.setCameraInteractionGated(false);
+    _releaseFreeze();
+  }
+
+  Offset _clampComposerDrop(Offset start, Offset proposed) {
+    final limited = constellationLimitClusterDelta(
+      parentStart: (x: start.dx, y: start.dy),
+      proposedParent: (x: proposed.dx, y: proposed.dy),
+      companionStarts: const [],
+    );
+    return Offset(start.dx + limited.x, start.dy + limited.y);
+  }
 
   void _beginClusterDragPresentation(ConstellationAnchorTarget target) =>
       _interaction.beginClusterDragPresentation(
@@ -1137,7 +1251,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ({Map<ConstellationAnchorTarget, PlacementCue> cues, Duration? nextChange})
   get placementCues =>
       _placementCase?.cues ??
-      (cues: const <ConstellationAnchorTarget, PlacementCue>{}, nextChange: null);
+      (
+        cues: const <ConstellationAnchorTarget, PlacementCue>{},
+        nextChange: null,
+      );
 
   void retryPlacement(ConstellationAnchorTarget target) {
     if (!isClosed) _placementCase?.retry(target);
@@ -1161,6 +1278,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   void onPointerCancelDuringDrag() {
     if (isClosed || _interaction.draggingNodeId == null) {
+      return;
+    }
+    if (_composerDragGraphId != null) {
+      _cancelComposerDrag();
       return;
     }
     _cancelUnsentPlacement(write: false);
@@ -1570,8 +1691,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (next == _appliedLabelBudget || state.field == null) {
       return;
     }
-    if (state.hasPendingPlacementWrite ||
-        _interaction.draggingNodeId != null) {
+    if (state.hasPendingPlacementWrite || _interaction.draggingNodeId != null) {
       _labelBudgetRecomposePending = true;
       return;
     }
@@ -1583,7 +1703,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _footprintMetrics = metrics;
-    if (_scene.ephemeralOwnedLayoutAlgorithm != null || _dispatchingLayoutRecovery) {
+    if (_scene.ephemeralOwnedLayoutAlgorithm != null ||
+        _dispatchingLayoutRecovery) {
       return;
     }
     if (_scene.awaitingLayoutOutcome) {
@@ -2382,6 +2503,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         viewerId: viewerId,
         placedPersonIds: _composerPlacedPersonIds,
         personPositions: _composerPersonPositions,
+        movedPersonIds: _composerMovedPersonIds,
+        heldPersonId: _composerDragGraphId,
         confirmedAnchors: state.hasPendingPlacementWrite
             ? null
             : state.confirmedProjection?.anchors ??

@@ -735,6 +735,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
           canDragNode: cubit.canDragNode,
           transformNodeDragPosition: cubit.clampClusterDragPosition,
           onNodeDragStart: (node, position) {
+            // While composing a person is only moved for the session.
+            if (node is FieldPersonNode && cubit.isComposerDrag(node)) {
+              cubit.beginComposerDrag(node);
+              return;
+            }
             final target = cubit.anchorTargetForNode(node);
             if (target == null) {
               return;
@@ -753,6 +758,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _syncComposerPersonPositions(cubit, composer);
           },
           onNodeDragEnd: (node, position) {
+            if (node is FieldPersonNode && cubit.isComposerDragActive) {
+              cubit.endComposerDrag(node, position);
+              _syncComposerPersonPositions(cubit, composer);
+              composer?.personDropped(node.id);
+              return;
+            }
             final target = cubit.anchorTargetForNode(node);
             if (target == null) {
               return;
