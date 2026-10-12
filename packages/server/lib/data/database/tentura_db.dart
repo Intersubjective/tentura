@@ -32,6 +32,7 @@ import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
+import 'db_pipeline_trace.dart';
 import 'postgres_serialization_retry.dart';
 import 'custom_types/mentions_text_array_type.dart';
 import 'table/account_credentials.dart';
@@ -184,22 +185,24 @@ class TenturaDb extends _$TenturaDb {
     : _pinnedSession = session,
       _pool = pool,
       super(
-        session == null
-            ? _TransactionPinnedPgDatabase(
-                pool,
-                logStatements: env.isDebugModeOn,
-              )
-            : PgDatabase.opened(
-                session,
-                enableMigrations: false,
-                logStatements: env.isDebugModeOn,
-              ),
+        DbSpanDatabase(
+          session == null
+              ? _TransactionPinnedPgDatabase(
+                  pool,
+                  logStatements: env.isDebugModeOn,
+                )
+              : PgDatabase.opened(
+                  session,
+                  enableMigrations: false,
+                  logStatements: env.isDebugModeOn,
+                ),
+        ),
       );
 
   TenturaDb.forTest({required QueryExecutor database})
     : _pinnedSession = null,
       _pool = null,
-      super(database);
+      super(database.interceptWith(DbSpanInterceptor()));
 
   final _PinnedPoolSession? _pinnedSession;
 
@@ -212,13 +215,31 @@ class TenturaDb extends _$TenturaDb {
   Future<T> transaction<T>(
     Future<T> Function() action, {
     bool requireNew = false,
+  }) {
+    final trace = DbTransactionTrace.begin(
+      this,
+      leasesConnection: _pool != null,
+    );
+    if (trace == null) {
+      return _transaction(action, requireNew: requireNew);
+    }
+    return trace.run(() => _transaction(action, requireNew: requireNew));
+  }
+
+  Future<T> _transaction<T>(
+    Future<T> Function() action, {
+    required bool requireNew,
   }) async {
     final session = _pinnedSession;
     if (session == null) {
       return super.transaction(action, requireNew: requireNew);
     }
-    await session.pin();
+    final trace = DbTransactionTrace.current;
+    await session.pin(probeBackendPid: trace != null);
     try {
+      if (trace != null) {
+        await trace.acquired(backendPid: session.pinnedBackendPid);
+      }
       return await super.transaction(action, requireNew: requireNew);
     } finally {
       session.unpin();
@@ -393,6 +414,12 @@ final class _PinnedPoolSession implements Session {
   Future<void>? _pinning;
   int _pins = 0;
 
+  String? _pinnedBackendPid;
+
+  /// The backend PID of the pinned connection, when the pin was asked to probe
+  /// it (a traced transaction created the pin).
+  String? get pinnedBackendPid => _pinnedBackendPid;
+
   /// Runs a statement on the pinned connection or on the pool.
   ///
   /// The choice and the pool request happen in one synchronous step. While a
@@ -413,7 +440,9 @@ final class _PinnedPoolSession implements Session {
         .then((_) => _route(onPinned, onPool));
   }
 
-  Future<void> pin() async {
+  /// [probeBackendPid] reads the PID while the new pin has the connection to
+  /// itself; later, a probe would land inside a transaction another pin began.
+  Future<void> pin({bool probeBackendPid = false}) async {
     _pins++;
     if (_pins > 1) {
       await _pinning;
@@ -424,7 +453,12 @@ final class _PinnedPoolSession implements Session {
     _pinning = ready.future;
     unawaited(
       _pool
-          .withConnection((connection) {
+          .withConnection((connection) async {
+            if (probeBackendPid) {
+              _pinnedBackendPid = await DbTransactionTrace.backendPid(
+                connection,
+              );
+            }
             _pinned = connection;
             ready.complete();
             return release.future;
@@ -445,6 +479,7 @@ final class _PinnedPoolSession implements Session {
     if (_pins == 0) return;
     if (--_pins > 0) return;
     _pinned = null;
+    _pinnedBackendPid = null;
     _release?.complete();
     _release = null;
   }
@@ -583,17 +618,20 @@ final class _PinnedTransactionDelegate extends SupportedTransactionDelegate {
   var _savepoints = 0;
 
   @override
-  Future<void> startTransaction(Future<void> Function(QueryDelegate) run) =>
-      _pool.withConnection(
-        (connection) => connection.runTx((tx) async {
-          final delegate = PgDatabase.opened(
-            tx,
-            enableMigrations: false,
-          ).delegate;
-          await delegate.open(const _NoopExecutorUser());
-          await run(delegate);
-        }),
-      );
+  Future<void> startTransaction(Future<void> Function(QueryDelegate) run) {
+    final trace = DbTransactionTrace.current;
+    return _pool.withConnection((connection) async {
+      await trace?.acquired(connection: connection);
+      await connection.runTx((tx) async {
+        final delegate = PgDatabase.opened(
+          tx,
+          enableMigrations: false,
+        ).delegate;
+        await delegate.open(const _NoopExecutorUser());
+        await run(delegate);
+      });
+    });
+  }
 
   @override
   Future<void> Function(

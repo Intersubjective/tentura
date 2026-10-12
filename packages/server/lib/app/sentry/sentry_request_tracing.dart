@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 import 'package:sentry/sentry.dart';
 import 'package:shelf_plus/shelf_plus.dart';
@@ -5,6 +7,7 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:tentura_server/env.dart';
 
 import 'sentry_benign_filter.dart';
+import 'sentry_db_span.dart';
 import 'sentry_event_scrub.dart';
 import 'sentry_request_context.dart';
 import 'sentry_trace_propagation.dart';
@@ -65,7 +68,12 @@ Middleware sentryRequestTracing({required Env env}) {
       });
 
       try {
-        final response = await innerHandler(enrichedRequest);
+        // The request hub is a clone, so `Sentry.getSpan()` cannot see this
+        // transaction; hand it to DB-pipeline spans through the zone.
+        final response = await runZoned(
+          () => innerHandler(enrichedRequest),
+          zoneValues: {kSentryParentSpanZoneKey: transaction},
+        );
         await sentryContext.enrichFromRequest(enrichedRequest);
         transaction.status = statusFromHttpStatusCode(response.statusCode);
         await transaction.finish();

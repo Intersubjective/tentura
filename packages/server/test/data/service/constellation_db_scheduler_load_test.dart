@@ -48,11 +48,12 @@ Future<Duration> _timed(
   void Function()? onStart,
 }) async {
   final submitted = clock.elapsed;
-  await s.run(kind, () {
+  return s.run(kind, () async {
     onStart?.call();
-    return clock.serve(service);
+    await clock.serve(service);
+    // A later caller continuation can observe the next work's service time.
+    return clock.elapsed - submitted;
   });
-  return clock.elapsed - submitted;
 }
 
 Duration _max(Iterable<Duration> ds) => ds.reduce((a, b) => a > b ? a : b);

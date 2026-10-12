@@ -2,6 +2,8 @@ import 'dart:math' show Random;
 
 import 'package:postgres/postgres.dart' show ServerException;
 
+import 'package:tentura_server/app/sentry/sentry_db_span.dart';
+
 /// Retries [action] once after PostgreSQL deadlock (`40P01`) or serialization
 /// failure (`40001`). The failed attempt must run inside a transaction that
 /// fully rolls back before the retry (caller's responsibility).
@@ -86,7 +88,10 @@ Future<T> withPostgresBoundedRetry<T>(
       }
       if (attempts >= maxAttempts) rethrow;
       final ceiling = baseBackoff.inMilliseconds * (1 << (attempts - 1));
-      await doSleep(Duration(milliseconds: rng.nextInt(ceiling + 1)));
+      await sentryDbSpan(
+        'db.retry.backoff',
+        (_) => doSleep(Duration(milliseconds: rng.nextInt(ceiling + 1))),
+      );
       if (clock.elapsed >= deadline) {
         throw PostgresRetryDeadlineExceededException(deadline, error);
       }

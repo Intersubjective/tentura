@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:injectable/injectable.dart';
+import 'package:sentry/sentry.dart';
+import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
@@ -72,7 +74,11 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
     if (_running + _waiting >= config.maxConcurrent + config.maxQueued) {
       return Future.error(_retryLater());
     }
-    final waiter = _Waiter(kind, _now());
+    final waiter = _Waiter(kind, _now())
+      ..admissionWait = startSentryDbSpan(
+        'db.admission.wait',
+        tags: {'work.class': kind.name},
+      );
     final result = Completer<T>();
     // Admission happens from whichever body finished last; the body itself
     // must run in its caller's zone (Sentry scope, transaction and actor keys).
@@ -81,7 +87,9 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
       ..start = (() => zone.run(() => _execute(waiter, body, result)))
       ..timer = Timer(config.queueDeadline, () {
         if ((waiter.isWrite ? _writes : _refreshes).remove(waiter)) {
-          result.completeError(_retryLater());
+          final refusal = _retryLater();
+          unawaited(finishSentryDbSpan(waiter.admissionWait, refusal));
+          result.completeError(refusal);
         }
       });
     (waiter.isWrite ? _writes : _refreshes).add(waiter);
@@ -95,6 +103,7 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
       final queue = _pick();
       if (queue == null) return;
       final waiter = queue.removeFirst()..timer?.cancel();
+      unawaited(finishSentryDbSpan(waiter.admissionWait));
       _running++;
       if (waiter.isWrite) _runningWrites++;
       unawaited(waiter.start!());
@@ -158,6 +167,7 @@ final class _Waiter {
   final DateTime enqueuedAt;
   Future<void> Function()? start;
   Timer? timer;
+  ISentrySpan? admissionWait;
 
   bool get isWrite => kind == ConstellationDbWorkKind.apply;
 }

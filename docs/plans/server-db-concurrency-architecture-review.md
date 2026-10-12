@@ -379,6 +379,8 @@ Retry использует тот же deadline. После его истече�
 | **7. Сократить SQL/transaction cost** | Set-based publisher ack, attention capture/undo, ledger inserts; ограниченные background batches. | Число SQL на операцию, lock-held time, p95/p99, rollback cost. Проверить прежнюю атомарность и idempotency. |
 | **8. Настроить общую ёмкость** | Сравнить 1 и 2 web isolates при одинаковом суммарном pool; согласовать Hasura/MR limits. | Максимальная устойчивая throughput при заданном p95, а не максимальное число in-flight запросов. |
 
+**Статус шага 1 (tentura-ev3z.8).** Spans `db.admission.wait`, `db.pool.acquire`, `db.transaction`, `db.sql`, `db.retry.backoff`, `db.cancel.drain` и теги `graphql.operation`, `work.class`, `isolate`, `db.backend_pid` реализованы; один V2-запрос в trace — это admission → transaction { acquire, SQL… }. Baseline смешанной нагрузки (screen-open burst + anchor drags + auth refresh на копии `tentura_perfsynth`), p50/p95 queue vs SQL: [docs/performance/db-pipeline-baseline.md](../performance/db-pipeline-baseline.md). Главный вывод: FULL ограничен очередью, а не SQL — при одном соединении admission wait 178 из 286 мс p50 и 1342 из 1854 мс p95 при ~60 мс SQL; pool acquire пренебрежим, а ожидание executor lock в pinned-режиме пока не имеет своего span.
+
 Для шага 4 мигрировать нужно **use case целиком**, а не произвольный отдельный repository method: иначе одна бизнес-транзакция незаметно расколется между старой и новой DB session.
 
 Нагрузочная матрица должна включать:
