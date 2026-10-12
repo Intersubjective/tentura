@@ -576,7 +576,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       state.copyWith(
         nonArchivedCards: [
           for (final c in state.nonArchivedCards)
-            c.beaconId == beaconId ? c.copyWith(planSlice: slice) : c,
+            if (c.beaconId == beaconId) c.copyWith(planSlice: slice) else c,
         ],
       ),
     );
