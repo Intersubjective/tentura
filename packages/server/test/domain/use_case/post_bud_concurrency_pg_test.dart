@@ -1282,6 +1282,99 @@ Future<void> main() async {
       );
     }
 
+    for (final earlierInvite in [false, true]) {
+      for (final existingOffer in [true, false]) {
+        test(
+          'an invitee offering help while the author creates the first invite '
+          'is admitted through it and no ordinary offer obligation is raised '
+          '(${earlierInvite ? 'after a withdrawn invite' : 'no earlier invite'}, '
+          '${existingOffer ? 'existing offer' : 'new offer'})',
+          () async {
+            await _seed(writer);
+            final String child;
+            if (earlierInvite) {
+              final s = await buddedWithInvite();
+              await a.invites.withdraw(actorUserId: _budder, inviteId: s.invite);
+              child = s.child;
+            } else {
+              child = (await bud(a)).childBeaconId!;
+            }
+            expect(await _pendingInviteId(writer, child, _invitee), isNull);
+            if (existingOffer) await _seedActiveOffer(writer, child, _invitee);
+            // The author's create queues on the child row first, so it
+            // commits before the offer gets the row; the offer looked for a
+            // pending invite before that and found none, so it must look
+            // again once it holds its locks.
+            final createPid = await _backendPid(dbB);
+            final offerPid = await _backendPid(dbA);
+            final writerPid = await _writerBackendPid(writer);
+            await writer.execute('BEGIN');
+            Future<_Outcome>? create;
+            Future<_Outcome>? offer;
+            try {
+              await writer.execute(
+                Sql.named(
+                  'SELECT id FROM public.beacon WHERE id = @b FOR UPDATE',
+                ),
+                parameters: {'b': child},
+              );
+              create = _settle(
+                b.invites.create(
+                  actorUserId: _budder,
+                  beaconId: child,
+                  inviteeId: _invitee,
+                ),
+              );
+              await _waitForRowLockWaiter(writer, createPid, writerPid);
+              offer = _settle(
+                a.helpOffers.offerHelp(
+                  beaconId: child,
+                  userId: _invitee,
+                  message: 'On my way',
+                ),
+              );
+              await _waitForLockWaiter(writer, offerPid);
+              await writer.execute('COMMIT');
+            } finally {
+              await writer.execute('ROLLBACK');
+              await Future.wait([
+                ?create,
+                ?offer,
+              ]).timeout(
+                _roundBudget,
+                onTimeout: () => fail('did not finish in $_roundBudget'),
+              );
+            }
+            final outcomes = [await create, await offer];
+            for (final outcome in outcomes) {
+              expect(
+                _isDeadlockOrTimeout(outcome.error),
+                isFalse,
+                reason: 'deadlock or timeout: ${outcome.error}',
+              );
+              expect(outcome.error, isNull);
+            }
+            expect(
+              await _inviteStatuses(writer, child, _invitee),
+              contains(AuthorInviteStatus.accepted.code),
+            );
+            expect(
+              await _pendingInviteId(writer, child, _invitee),
+              isNull,
+              reason: 'the created invite is accepted by the offer',
+            );
+            expect(await _isAdmitted(writer, child, _invitee), isTrue);
+            expect(
+              await _helpOfferSubmittedCount(writer, child),
+              0,
+              reason: 'an admitted invitee raises no author-response obligation',
+            );
+            await _expectInvariants(writer, 'offer racing a new invite');
+          },
+        );
+      }
+    }
+
     test('later invite ∥ bud from the same Post (N5)', () async {
       await race<String>(
         setUpRound: () async {
@@ -1720,6 +1813,36 @@ Future<void> _waitForRowLockWaiter(
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
   fail('session $pid never blocked on a row lock held by $blockerPid');
+}
+
+/// Waits until the backend [pid] is blocked on any lock (scoped to the pid).
+Future<void> _waitForLockWaiter(Connection writer, int pid) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      Sql.named(
+        'SELECT count(*) FROM pg_stat_activity '
+        "WHERE pid = @pid AND wait_event_type = 'Lock'",
+      ),
+      parameters: {'pid': pid},
+    );
+    if ((rows.single.single! as int) > 0) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('session $pid never blocked on a lock');
+}
+
+/// Number of `helpOfferSubmitted` attention occurrences that mention [beacon].
+Future<int> _helpOfferSubmittedCount(Connection writer, String beacon) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT count(*) FROM public.attention_occurrence '
+      "WHERE event_type = 'helpOfferSubmitted' "
+      "AND immutable_payload::text LIKE '%' || @b || '%'",
+    ),
+    parameters: {'b': beacon},
+  );
+  return rows.single.single! as int;
 }
 
 /// The backend pid of the test's own [writer] connection.

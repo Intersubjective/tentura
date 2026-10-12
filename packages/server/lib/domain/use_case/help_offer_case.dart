@@ -105,20 +105,20 @@ final class HelpOfferCase extends UseCaseBase {
         description: 'Viewer cannot read request content',
       );
     }
-    // A pending author invite turns the offer into an accept (Arch §5.4);
-    // its locks (hierarchy, Post, child advisory) come before the Request row
-    // (Arch §4.1).
-    final pendingInvite = _inviteAdmission == null
+    // A pending author invite turns the offer into an accept (Arch §5.4). On
+    // a budded Request its locks (hierarchy, Post, child advisory) come before
+    // the Request row (Arch §4.1) whether or not an invite exists yet; the
+    // invite is looked up only after them, so one created meanwhile is seen.
+    final sourcePostId = _inviteAdmission == null
         ? null
-        : await _authorInvites!.fetchPending(
+        : (await _beaconRepository.getBeaconById(
             beaconId: beaconId,
-            inviteeId: userId,
-          );
+          )).parentBeaconId;
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
-        if (pendingInvite != null) {
-          await _authorInvites!.lockScope(pendingInvite.sourcePostId);
+        if (sourcePostId != null) {
+          await _authorInvites!.lockScope(sourcePostId);
           // Child advisory lock before the child row and the invite row.
           await _closureCase?.lockRequest(beaconId);
         }
@@ -172,7 +172,7 @@ final class HelpOfferCase extends UseCaseBase {
               );
               // The offer predates the invite: it is still the second
               // confirmation, and no second `offered` event is recorded.
-              final invite = pendingInvite == null
+              final invite = sourcePostId == null
                   ? null
                   : await _authorInvites!.lockPendingUnblocked(
                       beaconId: beaconId,
@@ -202,7 +202,7 @@ final class HelpOfferCase extends UseCaseBase {
               permissibleKind: permissibleKind,
             );
             final offerKind = permissibleKind;
-            final invite = pendingInvite == null
+            final invite = sourcePostId == null
                 ? null
                 : await _authorInvites!.lockPendingUnblocked(
                     beaconId: beaconId,
