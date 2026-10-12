@@ -8573,6 +8573,14 @@
   "@planEditReorderHandle": {
     "description": "Semantics of the reorder handle."
   },
+  "planEditOrderContradictsTime": "Step order does not match the times.",
+  "@planEditOrderContradictsTime": {
+    "description": "Hint in the plan editor when timed steps are not in chronological order."
+  },
+  "planEditSortByTime": "Sort by time",
+  "@planEditSortByTime": {
+    "description": "Orders the timed steps of the plan draft chronologically."
+  },
   "planEditComment": "What changed (optional)",
   "@planEditComment": {
     "description": "Optional comment of a plan revision."

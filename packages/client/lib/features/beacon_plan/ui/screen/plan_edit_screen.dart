@@ -38,6 +38,7 @@ class PlanEditScreen extends StatelessWidget {
 
   static const saveKey = Key('plan-edit-save');
   static const addKey = Key('plan-edit-add');
+  static const sortKey = Key('plan-edit-sort');
 
   String? _validationText(PlanDraftError? e, L10n l10n) => switch (e) {
     null => null,
@@ -164,6 +165,29 @@ class PlanEditScreen extends StatelessWidget {
                       maxLines: null,
                     ),
                   ),
+                if (state.orderContradictsTime)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.screenHPadding,
+                      vertical: tt.rowGap,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TenturaStatusText(
+                            l10n.planEditOrderContradictsTime,
+                            maxLines: null,
+                          ),
+                        ),
+                        TenturaTextAction(
+                          key: sortKey,
+                          label: l10n.planEditSortByTime,
+                          icon: const Icon(Icons.schedule),
+                          onPressed: cubit.sortByTime,
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: ReorderableListView.builder(
                     buildDefaultDragHandles: false,
@@ -200,7 +224,11 @@ class PlanEditScreen extends StatelessWidget {
                           index: i,
                           child: Semantics(
                             label: l10n.planEditReorderHandle,
-                            child: const Icon(Icons.drag_handle),
+                            child: const SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Icon(Icons.drag_handle),
+                            ),
                           ),
                         ),
                         title: Text(

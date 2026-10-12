@@ -6665,6 +6665,8 @@
   "planEditAddStep": "Добавить шаг",
   "planEditDeleteStep": "Удалить шаг",
   "planEditReorderHandle": "Перетащить шаг",
+  "planEditOrderContradictsTime": "Порядок шагов не совпадает со временем.",
+  "planEditSortByTime": "По времени",
   "planEditComment": "Что изменилось (необязательно)",
   "planEditApply": "Применить",
   "planEditNewStep": "Новый шаг",
