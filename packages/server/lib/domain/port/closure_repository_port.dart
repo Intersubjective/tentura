@@ -9,6 +9,10 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 /// single SQL statement and joins the caller's ambient transaction
 /// (`MutatingUnitOfWorkPort.run`).
 abstract class ClosureRepositoryPort {
+  /// Global beacon-hierarchy mutation lock (lock order step 1); take it before
+  /// [lockRequest] when the transaction will update beacon status.
+  Future<void> lockHierarchyScope();
+
   /// Per-request advisory lock (xact-scoped; pool-safe).
   Future<void> lockRequest(String beaconId);
 

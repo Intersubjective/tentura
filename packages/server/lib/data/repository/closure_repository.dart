@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/trust/forward/forward_provenance.dart';
 import 'package:tentura_server/domain/trust/ledger_evidence.dart';
 import 'package:tentura_server/domain/trust/trust_evidence_kind.dart';
 
+import 'beacon_hierarchy_repository.dart';
 import 'capability_evidence_repository.dart';
 import 'commitment_repository.dart' show insertCommitmentEvent;
 import 'trust_ledger_repository.dart';
@@ -50,6 +51,10 @@ finalize_reason,
 settlement_version,
 settlement_params::text AS settlement_params
 ''';
+
+  @override
+  Future<void> lockHierarchyScope() =>
+      BeaconHierarchyRepository(_database).lockMutationScope();
 
   @override
   Future<void> lockRequest(String beaconId) => _database.customStatement(

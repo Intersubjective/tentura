@@ -43,6 +43,8 @@ import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/post_bud.dart';
 import 'package:tentura_server/domain/entity/post_parent_stage.dart';
@@ -66,6 +68,7 @@ import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dar
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/bud_anchor_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
+import 'package:tentura_server/domain/use_case/closure_finalize_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
@@ -129,6 +132,7 @@ Future<void> main() async {
     // race runs on its own database handle to really run concurrently.
     late TenturaDb dbA;
     late TenturaDb dbB;
+    late Env dbAEnv;
     late _Stack a;
     late _Stack b;
 
@@ -148,6 +152,7 @@ Future<void> main() async {
         printEnv: false,
         isDebugModeOn: false,
       );
+      dbAEnv = env;
       dbA = TenturaDb(env);
       dbB = TenturaDb(env);
       a = _Stack.build(dbA, env);
@@ -851,6 +856,95 @@ Future<void> main() async {
       );
     }
 
+    test(
+      'expiry finalization of a Request with a pending invite does not '
+      'deadlock with the invitee accepting that invite',
+      () async {
+        await _seed(writer);
+        final s = await buddedWithInvite();
+        await writer.execute(
+          Sql.named(
+            'INSERT INTO public.beacon_closure '
+            '(beacon_id, epoch, status, opened_at, closes_at) VALUES '
+            "(@b, 1, 0, now() - interval '2 days', now() - interval '1 hour')",
+          ),
+          parameters: {'b': s.child},
+        );
+        final sweepPid = await _backendPid(dbA);
+        final acceptPid = await _backendPid(dbB);
+        // Finalization closes the Request through the real status update
+        // (its trigger takes the hierarchy lock), but only once the accept
+        // is parked on an advisory lock: with the child lock taken before
+        // the hierarchy lock the accept owns hierarchy and waits for the
+        // child lock, and the status update then waits for hierarchy. With
+        // the right order the accept waits for the hierarchy lock the sweep
+        // holds instead.
+        final finalizer = _GatedClosingFinalizer(
+          BeaconRepository(dbA),
+          gate: () => _waitForInviteeParkedBehindSweep(
+            writer,
+            inviteePid: acceptPid,
+            sweepPid: sweepPid,
+            beaconId: s.child,
+          ),
+        );
+        final sweep = ClosureFinalizeSweepCase(
+          unitOfWork: MutatingUnitOfWork(dbA),
+          closureRepository: ClosureRepository(dbA),
+          finalizer: finalizer,
+          env: dbAEnv,
+          logger: Logger('ExpirySweepLockOrderPgTest'),
+        );
+        // Both sessions queue behind a test-held hierarchy lock so the
+        // sweep's transaction starts first, then the accept follows.
+        await writer.execute('BEGIN');
+        late Future<_Outcome> sweeping;
+        late Future<_Outcome> accepting;
+        try {
+          await writer.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+          );
+          sweeping = _settle(sweep.run());
+          // The correct sweep queues for the hierarchy lock before anything
+          // else; the wrong one already holds the child lock and runs on.
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          accepting = _settle(
+            b.invites.accept(actorUserId: _invitee, inviteId: s.invite),
+          );
+          // The accept is queued for the test-held hierarchy lock; release
+          // it only then, so the gate above sees the post-release state.
+          await _waitForBlockedBackends(writer, [acceptPid], 1);
+          await writer.execute('COMMIT');
+        } finally {
+          await writer.execute('ROLLBACK');
+        }
+        final outcomes = await Future.wait([sweeping, accepting]).timeout(
+          _roundBudget,
+          onTimeout: () => fail('did not finish in $_roundBudget'),
+        );
+        for (final outcome in outcomes) {
+          expect(
+            _isDeadlockOrTimeout(outcome.error),
+            isFalse,
+            reason: 'deadlock or timeout: ${outcome.error}',
+          );
+        }
+        expect(outcomes[0].error, isNull, reason: 'the sweep finalizes');
+        if (outcomes[1].error != null) {
+          expect(outcomes[1].error, isA<ExceptionBase>());
+        }
+        expect(sweepPid, isNot(acceptPid));
+        // The sweep logs and swallows a failed row, so a deadlock victim
+        // shows up as a Request that was never closed.
+        expect(
+          await _beaconStatus(writer, s.child),
+          BeaconStatus.closed.smallintValue,
+          reason: 'the sweep finalized the expired Request',
+        );
+        await _expectInvariants(writer, 'expiry finalize and invite accept');
+      },
+    );
+
     for (final existingOffer in [true, false]) {
       test(
         'an invitee offering help takes the child advisory lock before the '
@@ -1267,6 +1361,48 @@ Future<void> _waitForBlockedBackends(
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
   fail('fewer than $count of the sessions $pids blocked on the hierarchy lock');
+}
+
+/// Waits until the invitee session [inviteePid] is parked behind the sweep
+/// session [sweepPid]: either waiting for the child advisory lock of
+/// [beaconId], or waiting for the hierarchy lock while [sweepPid] holds it.
+/// A wait for the hierarchy lock held by someone else does not count.
+///
+/// Scoped to this database and the two pids (never cluster-wide).
+Future<void> _waitForInviteeParkedBehindSweep(
+  Connection writer, {
+  required int inviteePid,
+  required int sweepPid,
+  required String beaconId,
+}) async {
+  const hierarchyKey =
+      "hashtextextended('tentura.beacon_hierarchy.v1', 0)";
+  const key = '((l.classid::bigint << 32) | l.objid::bigint)';
+  const inThisDb =
+      'l.database = (SELECT oid FROM pg_database WHERE datname = current_database())';
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      Sql.named(
+        'SELECT '
+        '(SELECT count(*) FROM pg_locks l '
+        "WHERE l.locktype = 'advisory' AND NOT l.granted AND l.objsubid = 1 "
+        'AND l.pid = @invitee AND $inThisDb '
+        'AND $key = hashtextextended(@b, 4242)) + '
+        '(SELECT count(*) FROM pg_locks l '
+        "WHERE l.locktype = 'advisory' AND NOT l.granted AND l.objsubid = 1 "
+        'AND l.pid = @invitee AND $inThisDb AND $key = $hierarchyKey '
+        'AND EXISTS (SELECT 1 FROM pg_locks h '
+        "WHERE h.locktype = 'advisory' AND h.granted AND h.objsubid = 1 "
+        'AND h.pid = @sweep AND h.database = l.database '
+        'AND h.classid = l.classid AND h.objid = l.objid))',
+      ),
+      parameters: {'invitee': inviteePid, 'sweep': sweepPid, 'b': beaconId},
+    );
+    if ((rows.single.single! as int) >= 1) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('invitee $inviteePid never parked behind the sweep $sweepPid');
 }
 
 /// Waits until the session with backend [pid] waits for the child advisory
@@ -1710,6 +1846,30 @@ final class _UnusedGenealogy extends Fake
     implements InviteGenealogyRepositoryPort {}
 
 final class _NoFinalizer extends Fake implements ClosureFinalizerPort {}
+
+/// Closes the Request with the production status update after [gate].
+final class _GatedClosingFinalizer implements ClosureFinalizerPort {
+  _GatedClosingFinalizer(this._beacons, {required this.gate});
+
+  final BeaconRepository _beacons;
+  final Future<void> Function() gate;
+
+  @override
+  Future<void> finalize({
+    required String beaconId,
+    required int epoch,
+    required FinalizeReason reason,
+  }) async {
+    await gate();
+    await _beacons.recordBeaconStatusTransition(
+      beaconId: beaconId,
+      fromStatus: BeaconStatus.open,
+      toStatus: BeaconStatus.closed,
+      reason: BeaconLifecycleChangeReason.closureExpired,
+      actorId: null,
+    );
+  }
+}
 
 final class _UnusedImages extends Fake implements ImageRepositoryPort {}
 

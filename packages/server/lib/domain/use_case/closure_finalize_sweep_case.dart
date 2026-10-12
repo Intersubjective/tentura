@@ -38,6 +38,7 @@ final class ClosureFinalizeSweepCase extends UseCaseBase {
       try {
         await _uow.run<void>(
           action: () async {
+            await _repo.lockHierarchyScope();
             await _repo.lockRequest(row.beaconId);
             await _finalizer.finalize(
               beaconId: row.beaconId,

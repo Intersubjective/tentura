@@ -15,6 +15,9 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   const ClosureRepositoryMock();
 
   @override
+  Future<void> lockHierarchyScope() async {}
+
+  @override
   Future<void> lockRequest(String beaconId) async {}
 
   @override
