@@ -626,6 +626,105 @@ WHERE id = '${row.forwardEdgeId}'
         },
       );
 
+      test('re-offering after an earlier offer admits through a later invite '
+          'without a second offered event', () async {
+        await s.offerHelp(_warm, message: 'First');
+        expect(await _offerMessage(writer, _warm), 'First');
+        expect(
+          await _inviteCount(writer),
+          0,
+          reason: 'the offer predates any invitation',
+        );
+
+        final id = await invited(_warm);
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.pending.code,
+          reason: 'the invite arrives while the offer is already active',
+        );
+        expect(
+          await _roomAccess(writer, _warm),
+          isNull,
+          reason: 'an ordinary offer alone does not admit',
+        );
+
+        expect(
+          (await AttentionRepository(database).activityOffers(
+            accountId: _warm,
+          )).items.where((i) => i.beaconId == _child).map((i) => i.inviteId),
+          [id],
+          reason: 'the pending invite card stays actionable before re-offering',
+        );
+
+        await s.offerHelp(_warm, message: 'Second');
+
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.accepted.code,
+        );
+        expect(await _roomAccess(writer, _warm), 3);
+        expect(await _offerMessage(writer, _warm), 'Second');
+        final events = await rowSet(_warm);
+        expect(
+          events.where(
+            (r) => r.startsWith('beacon_commitment_event|user=$_warm|'),
+          ),
+          [
+            'beacon_commitment_event|user=$_warm|actor=$_warm|kind=0',
+            'beacon_commitment_event|user=$_warm|actor=$_author|kind=1',
+          ],
+          reason: 'one offered event, then the author acknowledgement',
+        );
+        final receipts = await _receipts(writer);
+        expect(
+          receipts
+              .where((r) => r.kind == 'authorInviteAccepted')
+              .map((r) => r.account),
+          [_author],
+        );
+        expect(
+          receipts
+              .where((r) => r.kind == 'authorInviteReceived')
+              .single
+              .cleared,
+          isTrue,
+        );
+
+        // Client projection: no pending invite card is left behind.
+        expect(await s.invites.myPendingInvites(actorUserId: _warm), isEmpty);
+        expect(
+          (await AttentionRepository(
+            database,
+          ).activityOffers(accountId: _warm)).items.where(
+            (i) => i.inviteId != null,
+          ),
+          isEmpty,
+        );
+      });
+
+      test('an existing offer does not hide a later pending invite from the '
+          'pinned For-you zone', () async {
+        await s.offerHelp(_warm);
+        expect(await _offerMessage(writer, _warm), isNotNull);
+        expect(await _inviteCount(writer), 0);
+
+        final id = await invited(_warm);
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.pending.code,
+        );
+
+        final offers = await AttentionRepository(
+          database,
+        ).activityOffers(accountId: _warm);
+        expect(
+          offers.items
+              .where((i) => i.beaconId == _child)
+              .map((i) => i.inviteId),
+          [id],
+        );
+      });
+
       test(
         'the author accepting an ordinary offer supersedes the invite',
         () async {

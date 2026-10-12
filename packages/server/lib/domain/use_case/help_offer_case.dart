@@ -167,6 +167,21 @@ final class HelpOfferCase extends UseCaseBase {
                 beaconId: beaconId,
                 helpTypes: helpTypes,
               );
+              // The offer predates the invite: it is still the second
+              // confirmation, and no second `offered` event is recorded.
+              final invite = pendingInvite == null
+                  ? null
+                  : await _authorInvites!.lockPendingUnblocked(
+                      beaconId: beaconId,
+                      inviteeId: userId,
+                    );
+              if (invite != null) {
+                await _admitInvitee(
+                  beacon: lockedBeacon,
+                  invite: invite,
+                  transaction: transaction,
+                );
+              }
               return;
             }
 

@@ -60,7 +60,17 @@ visible_raw AS (
     ON outbox.id = authorized.receipt_id
 ),
 scope AS (
-  SELECT beacon_id FROM public.responsibility_scope_base_beacons($1)
+  SELECT base.beacon_id
+  FROM public.responsibility_scope_base_beacons($1) base
+  -- A pending author invite keeps the Request on the invite card in For You
+  -- even when the viewer offered first; re-offering accepts it (Arch §5.4).
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM public.beacon_author_invite bai
+    WHERE bai.beacon_id = base.beacon_id
+      AND bai.invitee_id = $1
+      AND bai.status = 0
+  )
   UNION
   SELECT DISTINCT visible_raw.beacon_id
   FROM visible_raw
