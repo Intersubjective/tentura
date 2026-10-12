@@ -199,6 +199,133 @@ VALUES (@id, @user, 't', 'd', @status, ${published ? 'now()' : 'NULL'})
             ))
             .isNotEmpty;
 
+    /// Creates an image authored by [userId] and makes it the user's avatar.
+    Future<String> seedAvatar(String userId) async {
+      final image = await writer.execute(
+        Sql.named(
+          'INSERT INTO public.image (author_id) VALUES (@a) RETURNING id::text',
+        ),
+        parameters: {'a': userId},
+      );
+      final imageId = image.single.single! as String;
+      await writer.execute(
+        Sql.named(
+          'UPDATE public."user" SET image_id = @image::uuid WHERE id = @id',
+        ),
+        parameters: {'id': userId, 'image': imageId},
+      );
+      return imageId;
+    }
+
+    Future<void> seedDrafts(String userId, Set<String> images) async {
+      for (var i = 0; i < _ownedRows; i++) {
+        images.add(
+          await seedBeacon(
+            userId,
+            'Bd$userId$i',
+            BeaconStatus.draft,
+            published: false,
+          ),
+        );
+      }
+    }
+
+    test(
+      'a small account whose avatar is set is erased and the avatar object '
+      'is queued for storage cleanup',
+      () async {
+        final user = await seedUser();
+        final avatar = await seedAvatar(user);
+        final cover = await seedBeacon(
+          user,
+          'Bd${user}0',
+          BeaconStatus.draft,
+          published: false,
+        );
+
+        expect(await erasure.deleteById(id: user), isTrue);
+
+        expect(await userExists(user), isFalse);
+        expect(await imagesOf(user), isEmpty);
+        expect(await queued({avatar, cover}), {avatar, cover});
+      },
+    );
+
+    test(
+      'a chunked account whose avatar is set is erased and the avatar '
+      'object is queued for storage cleanup',
+      () async {
+        final user = await seedUser();
+        final images = <String>{};
+        await seedDrafts(user, images);
+        final avatar = await seedAvatar(user);
+        images.add(avatar);
+
+        expect(await erasure.deleteById(id: user), isTrue);
+
+        expect(await userExists(user), isFalse);
+        expect(await imagesOf(user), isEmpty);
+        expect(await queued(images), images);
+      },
+    );
+
+    for (final atomic in [true, false]) {
+      test(
+        'a ${atomic ? 'small' : 'chunked'} account with an avatar rolls '
+        'the whole final step back when the user deletion fails, and a '
+        'rerun completes',
+        () async {
+          final user = await seedUser();
+          final images = <String>{};
+          if (!atomic) await seedDrafts(user, images);
+          final avatar = await seedAvatar(user);
+          images.add(avatar);
+
+          users.crashOnDelete = true;
+          await expectLater(erasure.deleteById(id: user), throwsStateError);
+
+          // Neither the avatar reference, the image row nor its cleanup job
+          // survive a partial final step.
+          expect(await userExists(user), isTrue);
+          expect(await imagesOf(user), contains(avatar));
+          expect(
+            (await writer.execute(
+              Sql.named('SELECT image_id::text FROM public."user" WHERE id = @id'),
+              parameters: {'id': user},
+            )).single.single,
+            avatar,
+          );
+          expect(await queued({avatar}), isEmpty);
+
+          users.crashOnDelete = false;
+          expect(await erasure.deleteById(id: user), isTrue);
+          expect(await userExists(user), isFalse);
+          expect(await queued(images), images);
+        },
+      );
+    }
+
+    test(
+      'a failure of the avatar cleanup job insert rolls back the final step '
+      'and a rerun queues the avatar once',
+      () async {
+        final user = await seedUser();
+        final avatar = await seedAvatar(user);
+
+        imageGc.crashAfterEnqueue = 1;
+        await expectLater(erasure.deleteById(id: user), throwsStateError);
+
+        expect(await userExists(user), isTrue);
+        expect(await imagesOf(user), contains(avatar));
+        expect(await queued({avatar}), isEmpty);
+
+        imageGc.reset();
+        expect(await erasure.deleteById(id: user), isTrue);
+        expect(await userExists(user), isFalse);
+        expect(await queued({avatar}), {avatar});
+      },
+    );
+
     test(
       'rerun after a crash following a committed draft chunk erases '
       'everything and queues every image object',

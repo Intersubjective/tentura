@@ -178,6 +178,11 @@ WHERE author_id = $1
 
   @override
   Future<List<String>> deleteOwnedImageRows({required String userId}) async {
+    // user.image_id is ON DELETE RESTRICT: release the avatar first.
+    await _database.customStatement(
+      r'UPDATE public."user" SET image_id = NULL WHERE id = $1',
+      [userId],
+    );
     final rows = await _database
         .customSelect(
           r'SELECT id::text AS id FROM public.image WHERE author_id = $1',
