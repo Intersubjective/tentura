@@ -468,11 +468,12 @@ wait_reaper_ready() {
 }
 
 run_reaper() {
-  local run_id="" parent="" deadline=""
+  local run_id="" parent="" launcher="" deadline=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --run-id) run_id="$2"; shift 2 ;;
       --parent) parent="$2"; shift 2 ;;
+      --launcher) launcher="$2"; shift 2 ;;
       --deadline) deadline="$2"; shift 2 ;;
       *) shift ;;
     esac
@@ -495,6 +496,15 @@ run_reaper() {
       break
     fi
     if [[ -f "$marker/done" ]]; then
+      break
+    fi
+    # The launcher (whoever spawned the wrapper) died while the wrapper lives:
+    # agent sandboxes SIGKILL their own process, not the wrapper, which would
+    # otherwise keep its command and tmpfs cache alive until --timeout. A
+    # wrapper started detached has init/a subreaper as launcher, which never
+    # dies. /proc, not kill -0: signalling another user's pid 1 is EPERM.
+    if [[ -n "$launcher" && ! -d "/proc/$launcher" ]]; then
+      log "reaper: launcher $launcher of $run_id is gone, tearing the run down"
       break
     fi
     sleep 1
@@ -563,13 +573,14 @@ main() {
   local marker="$STATE_ROOT/$run_id"
   create_marker "$marker"
   local deadline=$(( $(date +%s) + secs + 45 ))
+  local launcher="$PPID"
 
   # Pre-sweep leftovers from previous killed agents before we start more.
   sweep_run "pre-$run_id"
 
   log "run $run_id timeout=$timeout cwd=$(pwd)"
   # Braces silence the shell's own "cannot open reaper.log" redirect error.
-  { setsid -f -- "$SELF" --reaper --run-id "$run_id" --parent "$$" --deadline "$deadline" \
+  { setsid -f -- "$SELF" --reaper --run-id "$run_id" --parent "$$" --launcher "$launcher" --deadline "$deadline" \
     </dev/null >>"$marker/reaper.log" 2>&1; } 2>/dev/null || true
   wait_reaper_ready "$marker" || true
 
