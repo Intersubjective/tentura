@@ -1490,7 +1490,7 @@ Future<int> _backendPid(TenturaDb db) async {
   return row.read<int>('pid');
 }
 
-/// Number of decline events recorded for [user] on [beacon].
+/// Number of `acknowledged` commitment events for [user] on [beacon].
 Future<int> _acknowledgementCount(
   Connection writer,
   String beacon,
@@ -1506,6 +1506,7 @@ Future<int> _acknowledgementCount(
   return rows.single.single! as int;
 }
 
+/// Number of decline events recorded for [user] on [beacon].
 Future<int> _declineEventCount(
   Connection writer,
   String beacon,
