@@ -11,24 +11,26 @@ import '../util/layout_geometry_adapters.dart';
 
 /// What the full create form needs from the composer.
 ///
-/// A Request continues the same server draft the composer already made
-/// (title/description typed so far carry over); a Post has no such
-/// continuity — only the recipient selection matters, so it starts a fresh
-/// draft in its own screen. Anchoring the result at the drop point is a
-/// separate, manual step afterward (drag the new node, same as any other
-/// beacon on the field).
+/// Both Post and Request hand off immediately with the current recipient
+/// selection — no composer draft continuity. Each create screen starts its
+/// own draft. Anchoring the result at the drop point is a separate, manual
+/// step afterward (drag the new node, same as any other beacon on the field).
 class ConstellationComposerHandoff {
   const ConstellationComposerHandoff.post({required this.recipientIds})
-    : draftId = null,
+    : kind = BeaconKind.post,
+      draftId = null,
       notes = const {};
 
   const ConstellationComposerHandoff.request({
-    required String this.draftId,
     required this.recipientIds,
-    required this.notes,
-  });
+    this.notes = const {},
+    this.draftId,
+  }) : kind = BeaconKind.request;
 
-  /// Null for a Post hand-off.
+  final BeaconKind kind;
+
+  /// Optional draft id when continuing an existing Request draft; usually
+  /// null so [BeaconCreateScreen] starts fresh.
   final String? draftId;
   final Set<String> recipientIds;
   final Map<String, String> notes;
@@ -37,8 +39,7 @@ class ConstellationComposerHandoff {
     void Function(Set<String>, Map<String, String>)? onRecipientsChanged,
     VoidCallback? onPublished,
   }) {
-    final id = draftId;
-    if (id == null) {
+    if (kind == BeaconKind.post) {
       return PostCreateRoute(
         initialRecipientIds: recipientIds,
         onRecipientsChanged: onRecipientsChanged,
@@ -46,7 +47,7 @@ class ConstellationComposerHandoff {
       );
     }
     return BeaconCreateRoute(
-      draftId: id,
+      draftId: draftId ?? '',
       initialRecipientIds: recipientIds,
       initialNotes: notes,
       onRecipientsChanged: onRecipientsChanged,
@@ -257,16 +258,13 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     }
   }
 
-  Future<ConstellationComposerHandoff?> prepareFullFormHandoff() async {
-    if (_kind == BeaconKind.request) await _touch();
-    return fullFormHandoff();
-  }
+  Future<ConstellationComposerHandoff?> prepareFullFormHandoff() async =>
+      fullFormHandoff();
 
   /// Recipient chip removals use the same persistent selection overrides.
   Future<void> toggle(String personId) async {
     if (_cancelled) return;
     emit(state.toggle(personId));
-    if (_kind == BeaconKind.request) await _touch();
     _push();
   }
 
@@ -330,22 +328,23 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     _push();
   }
 
-  /// A Post hands off immediately with just the current recipient selection
-  /// — no draft continuity. A Request needs its server draft to already
-  /// exist (first content edit or recipient change); null until then.
+  /// Hands off immediately with the current recipient selection — no draft
+  /// continuity for Post or Request. Null only before [start].
   ConstellationComposerHandoff? fullFormHandoff() {
+    if (_createCubit == null) return null;
+    final recipients = Set<String>.from(state.selected);
     if (_kind == BeaconKind.post) {
-      return ConstellationComposerHandoff.post(
-        recipientIds: Set<String>.from(state.selected),
-      );
+      return ConstellationComposerHandoff.post(recipientIds: recipients);
     }
-    final id = _createCubit?.state.draftId;
     final forward = forwardCubit;
-    if (id == null || id.isEmpty || forward == null) return null;
     return ConstellationComposerHandoff.request(
-      draftId: id,
-      recipientIds: {...forward.state.selectedIds},
-      notes: {...forward.state.perRecipientNotes},
+      recipientIds: forward != null
+          ? {...forward.state.selectedIds}
+          : recipients,
+      notes: forward != null
+          ? {...forward.state.perRecipientNotes}
+          : const {},
+      draftId: _createCubit?.state.draftId,
     );
   }
 

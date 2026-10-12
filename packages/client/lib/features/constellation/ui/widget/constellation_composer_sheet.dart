@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/radius_recipient_selection.dart';
@@ -101,13 +100,9 @@ class _SheetBody extends StatelessWidget {
                     selectedIcon: const Icon(Icons.person_add_alt_1),
                   ),
                   TextButton(
-                    key: const Key('constellation.composer.details_button'),
+                    key: const Key('constellation.composer.create_button'),
                     onPressed: () => unawaited(_openFullForm()),
-                    child: Text(
-                      composer.kind == BeaconKind.post
-                          ? l10n.constellationComposerCreate
-                          : l10n.constellationComposerDetails,
-                    ),
+                    child: Text(l10n.constellationComposerCreate),
                   ),
                 ],
               ),

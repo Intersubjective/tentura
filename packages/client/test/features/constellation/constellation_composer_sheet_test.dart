@@ -34,7 +34,7 @@ import '../beacon_create/fake_beacon_ports.dart';
 const _sidePanel = Key('constellation.composer.side_panel');
 const _bottomSheet = Key('constellation.composer.sheet');
 const _listButton = Key('constellation.composer.list_button');
-const _detailsButton = Key('constellation.composer.details_button');
+const _createButton = Key('constellation.composer.create_button');
 
 /// Widens the circle past Ud (distance 100) but not Ue (distance 200).
 const _wideRadius = 150.0;
@@ -308,7 +308,7 @@ void main() {
         final radiusBefore = composer.selection.radius;
         final selectedBefore = composer.selection.selected;
 
-        await tester.tap(find.byKey(_detailsButton));
+        await tester.tap(find.byKey(_createButton));
         await tester.pump();
 
         final route = opened.single;
@@ -333,13 +333,14 @@ void main() {
       },
     );
 
-    testWidgets('for a Request: labeled «Подробнее»', (tester) async {
+    testWidgets('for a Request: labeled Create', (tester) async {
       composer.start(BeaconKind.request, Offset.zero);
       await pumpSheet(tester, size: narrow);
 
       final l10n = lookupL10n(const Locale('en'));
-      expect(find.byKey(_detailsButton), findsOneWidget);
-      expect(find.text(l10n.constellationComposerDetails), findsOneWidget);
+      expect(find.byKey(_createButton), findsOneWidget);
+      expect(find.text(l10n.constellationComposerCreate), findsOneWidget);
+      expect(find.text(l10n.constellationComposerDetails), findsNothing);
     });
   });
 
@@ -374,7 +375,7 @@ void main() {
 
     expect(find.byKey(_listButton), findsNothing);
     expect(find.byType(ForwardRecipientPicker), findsNothing);
-    expect(find.byKey(_detailsButton), findsOneWidget);
+    expect(find.byKey(_createButton), findsOneWidget);
     expect(find.byKey(_chip('Ua')), findsOneWidget);
     final add = find.byKey(const Key('constellation.composer.add_person'));
     expect(tester.widget<IconButton>(add).isSelected, isFalse);

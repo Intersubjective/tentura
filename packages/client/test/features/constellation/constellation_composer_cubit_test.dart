@@ -207,30 +207,20 @@ void main() {
     });
 
     test(
-      'the first recipient change creates the draft and pushes selection',
+      'a recipient change alone creates no draft (hand-off carries selection)',
       () async {
         composer.start(BeaconKind.request, Offset.zero);
-        expect(write.createdFields, isEmpty);
-
         await composer.toggle('Ub');
         await settle();
-
-        expect(write.createdFields, hasLength(1));
-        expect(write.createdFields.single.kind, BeaconKind.request);
-        final forward = composer.forwardCubit!;
-        expect(forward.state.beaconId, 'server-beacon');
-        expect(forward.state.selectedIds, {'Ua', 'Uc'});
-
         await composer.toggle('Ud');
         await settle();
 
-        expect(write.createdFields, hasLength(1));
-        expect(forward.state.selectedIds, {'Ua', 'Uc', 'Ud'});
+        expect(write.createdFields, isEmpty);
       },
     );
 
     test(
-      'cancelling after only a recipient change deletes the draft',
+      'cancelling after only a recipient change deletes nothing',
       () async {
         composer.start(BeaconKind.request, Offset.zero);
         await composer.toggle('Ub');
@@ -239,7 +229,8 @@ void main() {
         await composer.cancel();
         await settle();
 
-        expect(write.deletedIds, ['server-beacon']);
+        expect(write.createdFields, isEmpty);
+        expect(write.deletedIds, isEmpty);
       },
     );
 

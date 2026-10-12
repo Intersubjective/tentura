@@ -2329,7 +2329,7 @@ Future<void> removeMapComposerRecipient(
 /// manual drag-to-pin step on the resulting node, same as any other beacon).
 Future<void> openFullFormFromMapComposer(WidgetTester tester) => tapAndSettle(
   tester,
-  find.byKey(const Key('constellation.composer.details_button')),
+  find.byKey(const Key('constellation.composer.create_button')),
 );
 
 /// From the full Post create screen (reached via

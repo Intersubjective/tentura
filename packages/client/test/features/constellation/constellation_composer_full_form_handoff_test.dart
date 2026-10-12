@@ -1,8 +1,7 @@
-// «Подробнее» in the graph composer opens the full create form on the same
-// server draft, with the composer's recipients and per-recipient notes already
-// selected. The sheet button hands a `BeaconCreateRoute` to its navigator; the
-// real `BeaconCreateScreen` then seeds its recipients `ForwardCubit` from the
-// route's initial recipients and notes.
+// «Создать» in the graph composer opens the full Request create form with the
+// composer's recipients already selected (no composer draft). The sheet button
+// hands a `BeaconCreateRoute` to its navigator; the real `BeaconCreateScreen`
+// then seeds its recipients `ForwardCubit` from the route's initial recipients.
 
 import 'dart:async';
 import 'dart:ui' show Offset;
@@ -55,7 +54,7 @@ import '../block/support/controllable_block_case.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 import '../contacts/contacts_case_test.dart';
 
-const _detailsButton = Key('constellation.composer.details_button');
+const _createButton = Key('constellation.composer.create_button');
 
 const _positions = <String, Offset>{
   'Ua': Offset(10, 0),
@@ -190,8 +189,8 @@ void main() {
     await GetIt.I.reset();
   });
 
-  testWidgets('the «Подробнее» button hands BeaconCreateRoute with the same '
-      'draft id, recipients and notes to the navigator', (tester) async {
+  testWidgets('the Create button hands BeaconCreateRoute with recipients '
+      'and no draft id to the navigator', (tester) async {
     final effects = FakeUiEffectPort();
     GetIt.I
       ..registerSingleton<UiEffectPort>(effects)
@@ -223,11 +222,6 @@ void main() {
       }
     });
     composer.start(BeaconKind.request, Offset.zero);
-    await tester.runAsync(() async {
-      await composer.contentChanged();
-      await Future<void>.delayed(Duration.zero);
-    });
-    composer.forwardCubit!.setRecipientNote('Ua', 'ты же хотел');
     tester.view
       ..physicalSize = const Size(420, 900)
       ..devicePixelRatio = 1;
@@ -258,15 +252,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(_detailsButton));
+    await tester.tap(find.byKey(_createButton));
     await tester.pump();
 
     final route = opened.single;
     expect(route, isA<BeaconCreateRoute>());
     final args = route.args! as BeaconCreateRouteArgs;
-    expect(args.draftId, 'server-beacon');
+    expect(args.draftId, '');
     expect(args.initialRecipientIds, {'Ua', 'Ub', 'Uc'});
-    expect(args.initialNotes, {'Ua': 'ты же хотел'});
+    expect(args.initialNotes, isEmpty);
   });
 
   testWidgets('the full form opened with initial recipients and notes seeds '

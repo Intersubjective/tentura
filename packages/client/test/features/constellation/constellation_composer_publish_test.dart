@@ -1,10 +1,8 @@
-// `ConstellationComposerCubit.fullFormHandoff()`: a Request needs its server
-// draft to already exist and hands off the same draft id, recipients and
-// per-recipient notes; a Post has no draft continuity and hands off
-// immediately with just the current recipient selection. Anchoring the
-// result at the drop point is a separate, manual step afterward (drag the
-// new node, same as any other beacon on the field) — see
-// constellation_cubit.dart's anchorTargetForNode.
+// `ConstellationComposerCubit.fullFormHandoff()`: Post and Request both hand
+// off immediately with the current recipient selection — no composer draft
+// continuity. Anchoring the result at the drop point is a separate, manual
+// step afterward (drag the new node, same as any other beacon on the field)
+// — see constellation_cubit.dart's anchorTargetForNode.
 
 import 'dart:ui' show Offset;
 
@@ -66,7 +64,44 @@ void main() {
   Future<void> settle() => Future<void>.delayed(Duration.zero);
 
   group('Request hand-off to the full form', () {
-    test('carries the draft id, recipients and notes', () async {
+    test('is available immediately, before any draft exists', () {
+      composer.start(BeaconKind.request, Offset.zero);
+
+      final handoff = composer.fullFormHandoff();
+
+      expect(handoff, isNotNull);
+      expect(handoff!.kind, BeaconKind.request);
+      expect(handoff.draftId, isNull);
+      expect(handoff.recipientIds, {'Ua', 'Ub', 'Uc'});
+      expect(handoff.notes, isEmpty);
+    });
+
+    test(
+      'opens BeaconCreateRoute with empty draft id and current recipients',
+      () {
+        composer.start(BeaconKind.request, Offset.zero);
+
+        final route = composer.fullFormHandoff()!.toRoute();
+
+        expect(route, isA<BeaconCreateRoute>());
+        final args = route.args! as BeaconCreateRouteArgs;
+        expect(args.draftId, '');
+        expect(args.initialRecipientIds, {'Ua', 'Ub', 'Uc'});
+        expect(args.initialNotes, isEmpty);
+      },
+    );
+
+    test('reflects recipient changes made before hand-off', () async {
+      composer.start(BeaconKind.request, Offset.zero);
+      await composer.toggle('Ub');
+      await settle();
+
+      final handoff = composer.fullFormHandoff();
+
+      expect(handoff!.recipientIds, {'Ua', 'Uc'});
+    });
+
+    test('carries notes from an existing ForwardCubit when present', () async {
       composer.start(BeaconKind.request, Offset.zero);
       await composer.contentChanged();
       await settle();
@@ -78,30 +113,6 @@ void main() {
       expect(handoff!.draftId, 'server-beacon');
       expect(handoff.recipientIds, {'Ua', 'Ub', 'Uc'});
       expect(handoff.notes, {'Ua': 'ты же хотел'});
-    });
-
-    test(
-      'opens BeaconCreateRoute with the same draft id, recipients and notes',
-      () async {
-        composer.start(BeaconKind.request, Offset.zero);
-        await composer.contentChanged();
-        await settle();
-        composer.forwardCubit!.setRecipientNote('Ua', 'ты же хотел');
-
-        final route = composer.fullFormHandoff()!.toRoute();
-
-        expect(route, isA<BeaconCreateRoute>());
-        final args = route.args! as BeaconCreateRouteArgs;
-        expect(args.draftId, 'server-beacon');
-        expect(args.initialRecipientIds, {'Ua', 'Ub', 'Uc'});
-        expect(args.initialNotes, {'Ua': 'ты же хотел'});
-      },
-    );
-
-    test('is unavailable before the server draft exists', () {
-      composer.start(BeaconKind.request, Offset.zero);
-
-      expect(composer.fullFormHandoff(), isNull);
     });
   });
 
