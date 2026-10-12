@@ -154,6 +154,7 @@ part 'tentura_db.g.dart';
 )
 class TenturaDb extends _$TenturaDb {
   static final Object _mutatingTransactionZoneKey = Object();
+  static final Object _connectionScopeZoneKey = Object();
 
   @factoryMethod
   TenturaDb(Env env)
@@ -211,6 +212,65 @@ class TenturaDb extends _$TenturaDb {
   /// database.
   final Pool<dynamic>? _pool;
 
+  _ScopedDatabaseUser? get _connectionScope {
+    final scope = Zone.current[_connectionScopeZoneKey];
+    if (scope is! _ScopedDatabaseUser ||
+        !identical(scope.attachedDatabase, this)) {
+      return null;
+    }
+    if (!scope.isActive) {
+      throw StateError('Database connection scope is closed');
+    }
+    return scope;
+  }
+
+  @override
+  DatabaseConnectionUser get resolvedEngine {
+    final scope = _connectionScope;
+    // Drift's ambient transaction/savepoint takes precedence over the scope.
+    // ignore: invalid_use_of_internal_member
+    final current = super.resolvedEngine;
+    return identical(current, this) ? scope ?? current : current;
+  }
+
+  /// Gives all repositories using this database a private Drift executor over
+  /// one leased connection. Nested calls retain the current transaction/lease.
+  Future<T> withConnectionScope<T>(Future<T> Function() action) {
+    final pool = _pool;
+    if (pool == null || !identical(resolvedEngine, this)) {
+      return action();
+    }
+    final trace = DbTransactionTrace.begin(this, leasesConnection: true);
+    Future<T> leased() => pool.withConnection((connection) async {
+      final root = executor;
+      final scope = _ScopedDatabaseUser(
+        this,
+        DbSpanDatabase(
+          PgDatabase.opened(
+            connection,
+            enableMigrations: false,
+            logStatements: root is DelegatedDatabase && root.logStatements,
+          ),
+        ),
+      );
+      try {
+        await trace?.acquired(connection: connection);
+        return await runZoned(
+          action,
+          zoneValues: {_connectionScopeZoneKey: scope},
+        );
+      } on Object {
+        // Do not reuse a session if transaction cleanup left its state unknown.
+        await connection.close();
+        rethrow;
+      } finally {
+        scope.isActive = false;
+        await scope.executor.close();
+      }
+    });
+    return trace == null ? leased() : trace.run(leased);
+  }
+
   @override
   Future<T> transaction<T>(
     Future<T> Function() action, {
@@ -231,7 +291,7 @@ class TenturaDb extends _$TenturaDb {
     required bool requireNew,
   }) async {
     final session = _pinnedSession;
-    if (session == null) {
+    if (session == null || _connectionScope != null) {
       return super.transaction(action, requireNew: requireNew);
     }
     final trace = DbTransactionTrace.current;
@@ -249,7 +309,7 @@ class TenturaDb extends _$TenturaDb {
   @override
   int get schemaVersion => 1;
 
-  /// Whether [action] is running inside [withMutatingUser] or
+  /// Whether an action is running inside [withMutatingUser] or
   /// [withMutatingSystem] on this database (including nested re-entry).
   bool get isInAmbientMutatingTransaction {
     final current = Zone.current[_mutatingTransactionZoneKey];
@@ -315,6 +375,11 @@ class TenturaDb extends _$TenturaDb {
   }) {
     final current = Zone.current[_mutatingTransactionZoneKey];
     if (current is _MutatingTransactionContext && identical(current.db, this)) {
+      if (!current.repeatableRead) {
+        return Future.error(
+          StateError('Cannot enter repeatable read inside read committed'),
+        );
+      }
       return withMutatingUser(userId, action);
     }
     final clock = Stopwatch()..start();
@@ -337,6 +402,7 @@ class TenturaDb extends _$TenturaDb {
             _mutatingTransactionZoneKey: _MutatingTransactionContext(
               this,
               userId,
+              repeatableRead: true,
             ),
           },
         );
@@ -368,7 +434,9 @@ class TenturaDb extends _$TenturaDb {
     final current = Zone.current[_mutatingTransactionZoneKey];
     if (current is _MutatingTransactionContext && identical(current.db, this)) {
       if (current.actorUserId != null) {
-        throw StateError('Cannot enter a system mutation inside an actor mutation');
+        throw StateError(
+          'Cannot enter a system mutation inside an actor mutation',
+        );
       }
       return action();
     }
@@ -396,10 +464,24 @@ class TenturaDb extends _$TenturaDb {
 }
 
 final class _MutatingTransactionContext {
-  const _MutatingTransactionContext(this.db, this.actorUserId);
+  const _MutatingTransactionContext(
+    this.db,
+    this.actorUserId, {
+    this.repeatableRead = false,
+  });
 
   final TenturaDb db;
   final String? actorUserId;
+  final bool repeatableRead;
+}
+
+final class _ScopedDatabaseUser extends DatabaseConnectionUser {
+  _ScopedDatabaseUser(this.attachedDatabase, QueryExecutor executor)
+    : super.delegate(attachedDatabase, executor: executor);
+
+  @override
+  final TenturaDb attachedDatabase;
+  bool isActive = true;
 }
 
 /// [Session] over a [Pool] that, while pinned, runs every statement on one

@@ -613,7 +613,6 @@ class AttentionIntentCase {
     kind: NotificationKind.roomMention,
     emptyTitle: 'New mention',
     emptyBody: 'mentioned you',
-    titleIsActorName: true,
     bodyPrefixedWithActor: true,
   );
 
@@ -764,9 +763,7 @@ class AttentionIntentCase {
         viewerId: actorUserId,
         peerIds: reasonsByRecipient.keys,
       );
-      for (final hiddenId in hiddenPeerIds) {
-        reasonsByRecipient.remove(hiddenId);
-      }
+      hiddenPeerIds.forEach(reasonsByRecipient.remove);
     }
 
     final recipients = <AttentionRecipientSnapshot>[];
@@ -875,9 +872,7 @@ class AttentionIntentCase {
         viewerId: actorUserId,
         peerIds: reasonsByRecipient.keys,
       );
-      for (final hiddenId in hiddenPeerIds) {
-        reasonsByRecipient.remove(hiddenId);
-      }
+      hiddenPeerIds.forEach(reasonsByRecipient.remove);
     }
 
     final recipients = <AttentionRecipientSnapshot>[];

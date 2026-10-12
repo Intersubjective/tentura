@@ -16,9 +16,11 @@ class MutatingUnitOfWork implements MutatingUnitOfWorkPort {
     String? actorUserId,
   }) {
     final actor = actorUserId?.trim();
-    if (actor == null || actor.isEmpty) {
-      return _database.withMutatingSystem(action);
-    }
-    return _database.withMutatingUser(actor, action);
+    return _database.withConnectionScope(() {
+      if (actor == null || actor.isEmpty) {
+        return _database.withMutatingSystem(action);
+      }
+      return _database.withMutatingUser(actor, action);
+    });
   }
 }

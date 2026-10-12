@@ -170,7 +170,7 @@ WHERE forward_mr > 0
       rejectedIds.contains(userId) ||
       myForwardedRecipientIds.contains(userId);
 
-  /// Mirrors client [ForwardCase.computeInvolvement] + [ForwardCandidate.canForwardTo].
+  /// Mirrors client `ForwardCase.computeInvolvement` + `ForwardCandidate.canForwardTo`.
   static bool _canForwardTo({
     required String userId,
     required String authorId,
