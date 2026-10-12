@@ -120,6 +120,7 @@ void main() {
   late CommitmentQueryCase commitmentQueryCase;
   late TestAttentionHarness attention;
   late CoordinationCase case_;
+  late FakeBeaconHierarchyRepository hierarchy;
 
   void buildCase() {
     attention = TestAttentionHarness();
@@ -130,6 +131,7 @@ void main() {
       env: Env(environment: Environment.test),
       logger: Logger('CoordinationCaseCommitmentEventsTest'),
     );
+    hierarchy = FakeBeaconHierarchyRepository();
     case_ = CoordinationCase(
       beaconRepo,
       helpOfferRepo,
@@ -138,7 +140,7 @@ void main() {
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,
-      FakeBeaconHierarchyRepository(),
+      hierarchy,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       attentionSystemSettlement: systemSettlement,
@@ -200,6 +202,9 @@ void main() {
         actorUserId: authorId,
       );
 
+      // Lock order (§0) holds without the optional author-invite port: the
+      // hierarchy lock is taken unconditionally before the child lock.
+      expect(hierarchy.lockMutationScopeCalls, 1);
       expect(commitmentRepo.recordCalls, [
         (
           beaconId: beaconId,
@@ -301,6 +306,7 @@ void main() {
         reason: 'no',
       );
 
+      expect(hierarchy.lockMutationScopeCalls, 1);
       expect(commitmentRepo.recordCalls, isEmpty);
       expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
         (

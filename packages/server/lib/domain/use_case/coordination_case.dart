@@ -381,7 +381,7 @@ final class CoordinationCase extends UseCaseBase {
       action: (transaction) async {
         // Lock order (Arch §0): hierarchy, then the child lock; revalidate
         // everything mutable only once they are held.
-        await _authorInvites?.lockScope(null);
+        await _hierarchyRepository.lockMutationScope();
         await _closureCase?.lockRequest(beaconId);
         final beacon = await _prepareAdmissionAction(
           beaconId: beaconId,
@@ -453,7 +453,7 @@ final class CoordinationCase extends UseCaseBase {
         // Lock order (Arch §0): hierarchy before the child lock, ahead of the
         // offer row, as the helper's withdrawal takes them; the participant
         // trigger takes the hierarchy lock anyway, so taking it last deadlocks.
-        await _authorInvites?.lockScope(null);
+        await _hierarchyRepository.lockMutationScope();
         await _closureCase?.lockRequest(beaconId);
         final beacon = await _prepareAdmissionAction(
           beaconId: beaconId,
