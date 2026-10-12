@@ -123,6 +123,12 @@ void main() {
         'request_stale',
         'closure_draft_reminder',
         'deadline_reminder',
+        // Request plan (#220): obligations and nudges never reach For You.
+        'plan_step_due',
+        'plan_step_turn',
+        'plan_change_pending',
+        'plan_step_reminder',
+        'plan_step_overdue',
       });
     });
   });
