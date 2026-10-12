@@ -34,7 +34,7 @@ class FakeBeaconChildCreatePort implements BeaconChildCreatePort {
   Future<BeaconChildCreateResult> createChildUnderPost({
     required String actorUserId,
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

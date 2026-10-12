@@ -49,7 +49,7 @@ final class MutationPostBud extends GqlNodeBase {
         gqlTypePostBudResult.nonNullable(),
         arguments: [
           _postId.field,
-          _sourceMessageId.field,
+          _sourceMessageId.fieldNullable,
           _clientCommandId.field,
           InputFieldBeaconTitle.fieldNonNullable,
           InputFieldDescription.field,
@@ -69,7 +69,7 @@ final class MutationPostBud extends GqlNodeBase {
           final result = await _case.budFromPost(
             actorUserId: getCredentials(args).sub,
             postId: _postId.fromArgsNonNullable(args),
-            sourceMessageId: _sourceMessageId.fromArgsNonNullable(args),
+            sourceMessageId: _sourceMessageId.fromArgs(args),
             clientCommandId: _clientCommandId.fromArgsNonNullable(args),
             title: InputFieldBeaconTitle.fromArgsNonNullable(args),
             description: InputFieldDescription.fromArgs(args),

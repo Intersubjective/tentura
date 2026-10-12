@@ -10,11 +10,12 @@ abstract interface class PostBudPort {
     required String postId,
   });
 
-  /// Creates the child Request from [sourceMessageId] in Post [postId].
+  /// Creates a child Request under Post [postId]. [sourceMessageId] is
+  /// optional own-message prefill only; budding is unlimited.
   /// Idempotent per [clientCommandId].
   Future<PostBudResult> budFromPost({
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

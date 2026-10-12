@@ -17,7 +17,7 @@ final class PostParentStageContext {
     required this.transaction,
     required this.actorUserId,
     required this.postId,
-    required this.sourceMessageId,
+    this.sourceMessageId,
     required this.child,
   });
 
@@ -27,7 +27,9 @@ final class PostParentStageContext {
   /// The budder.
   final String actorUserId;
   final String postId;
-  final String sourceMessageId;
+
+  /// Optional own message used for form prefill / notice payload only.
+  final String? sourceMessageId;
 
   /// The published child Request.
   final BeaconEntity child;

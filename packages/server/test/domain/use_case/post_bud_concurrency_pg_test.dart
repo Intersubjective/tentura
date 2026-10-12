@@ -246,7 +246,7 @@ Future<void> main() async {
       return (child: child, invite: invite!);
     }
 
-    test('bud ∥ bud on the same source message: one child', () async {
+    test('bud ∥ bud on the same source message: two children', () async {
       await race<void>(
         setUpRound: () async {},
         sides: [
@@ -259,17 +259,14 @@ Future<void> main() async {
           ];
           expect(
             results.map((r) => r.outcome).toSet(),
-            {
-              PostBudResultJson.outcomeCreated,
-              PostBudResultJson.outcomeAlreadyPromoted,
-            },
+            {PostBudResultJson.outcomeCreated},
             reason: round,
           );
           final children = await _childrenOf(writer, _post);
-          expect(children, hasLength(1), reason: round);
+          expect(children, hasLength(2), reason: round);
           expect(
             results.map((r) => r.childBeaconId).toSet(),
-            {children.single},
+            children.toSet(),
             reason: round,
           );
         },

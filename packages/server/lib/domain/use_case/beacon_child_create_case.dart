@@ -347,8 +347,9 @@ final class BeaconChildCreateCase extends UseCaseBase
   /// - replays a stored `bud_result` right after the global lock and before
   ///   any parent assert, so a replay works after the Post is closed;
   /// - takes the Post lock (Arch §4.1) before the create-scope locks;
-  /// - asserts the Post branch: open Post, actor in `E(P)`, own source
-  ///   message;
+  /// - asserts the Post branch: open Post, actor in `E(P)`; optional own
+  ///   [sourceMessageId] for notice/prefill only (unlimited buds; promotion
+  ///   rows stay unbound);
   /// - keeps the client's title and description (no source-body override);
   /// - persists [isDiscoverable] (part of the input hash);
   /// - runs [stage] after publish, then inserts the `childCreated` notice
@@ -361,7 +362,7 @@ final class BeaconChildCreateCase extends UseCaseBase
   Future<BeaconChildCreateResult> createChildUnderPost({
     required String actorUserId,
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,
@@ -384,12 +385,9 @@ final class BeaconChildCreateCase extends UseCaseBase
         description: 'Client command id is required',
       );
     }
-    final normalizedSourceMessageId = sourceMessageId.trim();
-    if (normalizedSourceMessageId.isEmpty) {
-      throw const BeaconPromotionSourceInvalidException(
-        description: 'A bud needs a source message',
-      );
-    }
+    final trimmedSource = sourceMessageId?.trim();
+    final normalizedSourceMessageId =
+        (trimmedSource == null || trimmedSource.isEmpty) ? null : trimmedSource;
 
     final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
     final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
@@ -426,10 +424,15 @@ final class BeaconChildCreateCase extends UseCaseBase
           extra: {'bud': budInput, 'isDiscoverable': isDiscoverable},
         );
 
-    final creationContext = BeaconCreationContextPromotedChild(
-      parentBeaconId: postId,
-      sourceMessageId: normalizedSourceMessageId,
-    );
+    // Source is optional prefill/notice only; the command row still records
+    // it when present. Promotion rows stay unbound (§0 / D3 unlimited).
+    final BeaconCreationContext creationContext =
+        normalizedSourceMessageId == null
+        ? BeaconCreationContextChild(parentBeaconId: postId)
+        : BeaconCreationContextPromotedChild(
+            parentBeaconId: postId,
+            sourceMessageId: normalizedSourceMessageId,
+          );
 
     try {
       return await _attention!.runAction(
@@ -457,30 +460,16 @@ final class BeaconChildCreateCase extends UseCaseBase
             actorUserId: actorUserId,
             clientCommandId: trimmedCommandId,
             parentBeaconId: postId,
-            sourceMessageId: normalizedSourceMessageId,
           );
           await _assertPostParentBudAllowed(
             actorUserId: actorUserId,
             postId: postId,
           );
-          await _loadOwnBudSource(
-            actorUserId: actorUserId,
-            postId: postId,
-            sourceMessageId: normalizedSourceMessageId,
-          );
-
-          final existingChildId = await _commands
-              .findPublishedChildForSourceMessage(
-                sourceMessageId: normalizedSourceMessageId,
-              );
-          if (existingChildId != null) {
-            return _recordAndReturnAlreadyPromoted(
+          if (normalizedSourceMessageId != null) {
+            await _loadOwnBudSource(
               actorUserId: actorUserId,
-              clientCommandId: trimmedCommandId,
-              normalizedInputHash: normalizedInputHash,
-              creationContext: creationContext,
-              existingChildBeaconId: existingChildId,
-              storeBudResult: true,
+              postId: postId,
+              sourceMessageId: normalizedSourceMessageId,
             );
           }
 
@@ -501,10 +490,11 @@ final class BeaconChildCreateCase extends UseCaseBase
             isDiscoverable: isDiscoverable,
             draft: false,
           );
+          // Unbound source: many buds per Post (and per message) are allowed.
           await _commands.upsertDraftPromotion(
             childBeaconId: created.id,
             parentBeaconId: postId,
-            sourceMessageId: normalizedSourceMessageId,
+            sourceMessageId: null,
             promoterUserId: actorUserId,
           );
           final child = await _publishChildInTransaction(
@@ -512,7 +502,8 @@ final class BeaconChildCreateCase extends UseCaseBase
             actorUserId: actorUserId,
             child: created,
             parentBeaconId: postId,
-            sourceMessageId: normalizedSourceMessageId,
+            sourceMessageId: null,
+            bindPromotion: true,
             withNotice: false,
           );
 
@@ -623,8 +614,9 @@ final class BeaconChildCreateCase extends UseCaseBase
     }
   }
 
-  /// The source must be an eligible message of the Post written by the
-  /// budder; for the Post author that includes the root message.
+  /// Optional bud prefill source: an eligible message of the Post written by
+  /// the budder (the Post author may use the root). Does not bind the
+  /// promotion row.
   Future<BeaconPromotionSourceFacts> _loadOwnBudSource({
     required String actorUserId,
     required String postId,
@@ -711,8 +703,10 @@ final class BeaconChildCreateCase extends UseCaseBase
     required String parentBeaconId,
     String? sourceMessageId,
     bool withNotice = true,
+    /// Publish a promotion row even when [sourceMessageId] is null (Post buds).
+    bool bindPromotion = false,
   }) async {
-    if (sourceMessageId != null) {
+    if (sourceMessageId != null || bindPromotion) {
       try {
         await _commands.markPromotionPublished(
           childBeaconId: child.id,

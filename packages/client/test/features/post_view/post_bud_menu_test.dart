@@ -1,6 +1,6 @@
-// «Оформить запрос» in the Post ⋮ menu (plan D1): the author goes straight to
-// the Request form for the root message; another member first picks one of
-// their own messages. Nothing shows while `kPostBuddingEnabled` is off.
+// «Оформить запрос» in the Post ⋮ menu (D3 unlimited): any member of an open
+// Post opens the Request form (author prefills from the root; others start
+// blank). Nothing shows while `kPostBuddingEnabled` is off.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -166,6 +166,7 @@ Future<_Router> _pump(
   required Profile viewer,
   required bool enabled,
   Beacon? beacon,
+  List<RoomMessage>? messages,
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -192,7 +193,7 @@ Future<_Router> _pump(
     roomBodyState(
       beaconId: _postId,
       myUserId: viewer.id,
-      messages: _messages,
+      messages: messages ?? _messages,
     ).copyWith(
       participants: [
         roomBodyAdmittedParticipant(
@@ -315,32 +316,33 @@ void main() {
     expect(args.sourceMessageId, _rootId);
   });
 
-  testWidgets('member: picks one of their own messages first', (tester) async {
+  testWidgets('member: opens the form with no source message', (tester) async {
     final router = await _pump(tester, viewer: _reader, enabled: true);
     await _openOverflow(tester);
     await tester.tap(find.text('Оформить запрос'));
     await _settle(tester);
 
-    expect(find.text('Из какого сообщения оформить запрос?'), findsOneWidget);
-    final picker = find.byKey(const Key('PostBud.SourcePicker'));
-    // Only the member's own message is offered, not the author's root.
-    expect(
-      find.descendant(of: picker, matching: find.text('Могу взять насос')),
-      findsOneWidget,
+    expect(find.byKey(const Key('PostBud.SourcePicker')), findsNothing);
+    final args = _createArgs(router);
+    expect(args.parentBeaconId, _postId);
+    expect(args.sourceMessageId, '');
+  });
+
+  testWidgets('silent member: still gets «Оформить запрос»', (tester) async {
+    final silent = const Profile(id: 'Ussilent', displayName: 'Тихон');
+    final router = await _pump(
+      tester,
+      viewer: silent,
+      enabled: true,
+      messages: [_msg(_rootId, _author, 'Кто в субботу на велопрогулку?')],
     );
-    expect(
-      find.descendant(
-        of: picker,
-        matching: find.text('Кто в субботу на велопрогулку?'),
-      ),
-      findsNothing,
-    );
-    await tester.tap(find.byKey(const ValueKey('PostBud.Source.Mmine')));
+    await _openOverflow(tester);
+    await tester.tap(find.text('Оформить запрос'));
     await _settle(tester);
 
     final args = _createArgs(router);
     expect(args.parentBeaconId, _postId);
-    expect(args.sourceMessageId, 'Mmine');
+    expect(args.sourceMessageId, '');
   });
 
   testWidgets('gate off: no entry in ⋮', (tester) async {

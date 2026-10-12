@@ -27,10 +27,13 @@ abstract class BeaconChildCreatePort {
 
   /// Budding: the only way to create a child under a Post (Arch §4.2).
   /// See `BeaconChildCreateCase.createChildUnderPost`.
+  ///
+  /// [sourceMessageId] is optional (own-message prefill / notice only); Post
+  /// buds are unlimited and do not bind `beacon_promotions.source_message_id`.
   Future<BeaconChildCreateResult> createChildUnderPost({
     required String actorUserId,
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

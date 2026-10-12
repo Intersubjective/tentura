@@ -151,7 +151,7 @@ query {
 typedef _BudCall = ({
   String actorUserId,
   String postId,
-  String sourceMessageId,
+  String? sourceMessageId,
   String clientCommandId,
   String title,
   String? description,
@@ -168,7 +168,7 @@ final class _FakePostBudCase extends Fake implements PostBudCase {
   Future<PostBudResult> budFromPost({
     required String actorUserId,
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

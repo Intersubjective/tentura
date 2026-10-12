@@ -1,6 +1,6 @@
 mutation PostBudFromPost(
   $postId: String!,
-  $sourceMessageId: String!,
+  $sourceMessageId: String,
   $clientCommandId: String!,
   $title: String!,
   $description: String,

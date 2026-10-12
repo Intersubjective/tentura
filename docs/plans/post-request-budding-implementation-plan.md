@@ -322,7 +322,7 @@ Also run the existing readable-ids consistency and perf tests.
 **Behaviour:**
 - **`createChild` with a Post parent** throws `PostChildRequiresBudException` **before** any status check. Update the order in `post_request_only_audit_pg_test.dart:324-336` accordingly.
 - **New case method `createChildUnderPost(...)`.** It shares the internals of `createChild` and is the only Post entry point; C3 calls it. It:
-  - runs the Post asserts (Arch §3.1): parent `kind = 1, status = 0`; actor ∈ `E(P)`; `sourceMessageId` required; `source.author_id = actor`;
+  - runs the Post asserts (Arch §3.1): parent `kind = 1, status = 0`; actor ∈ `E(P)`; `sourceMessageId` optional (own only when set); promotion `source_message_id` stays null (unlimited);
   - calls `PostLockPort.lockForPostMutation(post)` right after `lockMutationScope` and **before** `_lockCreateScope` (`beacon_child_create_case.dart:164`; advisory xact locks are re-entrant, so the repeated global lock is harmless);
   - **keeps the client's title and description** (no override from the source body);
   - accepts `isDiscoverable` (default `false`; `createChildBeacon` gains the parameter, because the column default is `true`, m0193:857). This parameter is part of the input hash;
@@ -578,9 +578,9 @@ No deadlocks (with a statement timeout set). Invariants I1, I2 and I6 hold after
 
 Invoke the `material-3-flutter` skill first.
 
-- **Entry points.**
-  - Room message action «Оформить запрос» on the user's own messages. `RoomCapabilities.post()` is a `const` constructor (`room_host.dart:37`), so add a bool flag `childPromotionOwnOnly`; the message tile evaluates `isOwnMessage`. Use secondary-tap plus a visible action, never long-press alone.
-  - Post ⋯ menu entry: the author goes to the root; others go to a source picker listing their own eligible messages.
+- **Entry points.** (D3 rev 1.1: unlimited — no own-message gate on ⋯)
+  - Room message action «Оформить запрос» on the user's own messages (optional prefill). `RoomCapabilities.post()` is a `const` constructor (`room_host.dart:37`), so add a bool flag `childPromotionOwnOnly`; the message tile evaluates `isOwnMessage`. Use secondary-tap plus a visible action, never long-press alone.
+  - Post ⋯ menu entry: any member of an open Post opens the form (author may prefill from the root; others start blank).
 - **`BeaconCreateScreen` in child mode with a Post parent.** Reuse `BeaconCreateRoute(parentBeaconId:, sourceMessageId:)`; the cubit detects a Post parent.
   - Prefill via the generalised `PostConversionCase.prefill`, renamed to `MessagePrefillCase` (update both callers; the conversion flow still uses it until E1): title = first line, description = the rest. No cover suggestion, because the pipeline takes no cover.
   - The invite step uses `postBudInviteCandidates`:

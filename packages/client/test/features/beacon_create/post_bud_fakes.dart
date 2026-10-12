@@ -102,7 +102,7 @@ class FakePostBudPort implements PostBudPort {
   @override
   Future<PostBudResult> budFromPost({
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

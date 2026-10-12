@@ -63,7 +63,7 @@ final class PostBudCase extends UseCaseBase {
 
   Future<PostBudResult> budFromPost({
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

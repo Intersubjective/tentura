@@ -1,6 +1,6 @@
 # Budding a Request from a Post — architecture
 
-**Status:** rev 2.2 (2026-10-11). Astra review applied (§14); rev 2.1–2.2 fold in the plan-level reviews (implementation plan §9, §10). Not an implementation plan.
+**Status:** rev 2.3 (2026-10-12). D3 amended: unlimited budding for any open-Post member (optional own-message prefill only). Astra review applied (§14); rev 2.1–2.2 fold in the plan-level reviews (implementation plan §9, §10). Not an implementation plan.
 **Product design (decisions, Russian):** [`post-request-budding-design.md`](post-request-budding-design.md) — D1–D7, N1–N6.
 This document turns those decisions into an architecture. It does not re-open them.
 **Supersedes:** the in-place Post → Request conversion (`beaconConvertToRequest`, kind 1 → 0;
@@ -20,8 +20,10 @@ the existing machinery it rides on and the smallest seam it needs.
 1. **A budded Request is a nested child of the Post** (`parent_beacon_id`), created by the **one**
    child-publication pipeline that `beaconChildCreate` already uses. Q10 is lifted for that path
    only. Posts still cannot be children.
-2. **Who buds:** any effectively admitted Post member, **only from their own message** (the Post
-   author also from the root). The Post must be open.
+2. **Who buds:** any effectively admitted member of an **open** Post, **unlimited** times (no
+   own-message gate, no one-child-per-message cap on the Post path). An own message may optionally
+   prefill the form; others' messages cannot be quoted. Request→Request promotion stays one child
+   per source message.
 3. **Observers are a snapshot** (`beacon_bud_observer`) of the Post's *effective, unblocked* members
    at bud time (N3). `contextAncestor` never grants read of a **Post**. Realtime hierarchy recipients
    follow the same snapshot.
@@ -51,7 +53,7 @@ the existing machinery it rides on and the smallest seam it needs.
 |---|---|---|
 | Child from a message | `beaconChildCreate` → `BeaconChildCreateCase.createChild` (`beacon_child_create_case.dart:57`); publish via `publishDraft` (`:267`, hierarchy lock first `:293`) | **Reuse** the pipeline; relax parent kind guard (`:476`) |
 | Idempotency | `clientCommandId` + input hash (`:135-161`, hash `:562`) | **Extend**: hash covers the full bud input (§4.2) |
-| One child per message | `beacon_promotions_published_source_uidx` (m0193:6631) | **As is** |
+| One child per message | `beacon_promotions_published_source_uidx` (m0193:6631) | **Request path as is**; Post buds leave `source_message_id` null so the unique index does not cap them |
 | Notice + attention on publish | `insertChildCreationNotice` (`beacon_hierarchy_command_repository.dart:397`), attention (`beacon_child_create_case.dart:406-449`) | **Reuse, single owner**: payload gains `invitedCount`; no attention receipts for Post parents |
 | Footer on the source message | `BeaconChildPromotionFooter`, `RoomCapabilities.childPromotion` | **Reuse**; enable for Posts |
 | Lifecycle notices | `BeaconLifecycleEffectsCase`, hierarchy outbox | **As is** (Request children); Posts excluded as *sources* |
@@ -152,8 +154,10 @@ runs right after the global lock and **before** any parent assert, so it also wo
 
 `_assertParentCreateAllowed` gains a Post branch (instead of `requireRequest(parent)`):
 - parent `kind = 1`, `status = 0`; actor ∈ `E(post)`;
-- `sourceMessageId` **required**; `source.author_id = actor` (root message = the Post author's own);
-- existing source eligibility. Request parents: unchanged.
+- `sourceMessageId` **optional** (prefill / notice only). When set: `source.author_id = actor` and
+  existing source eligibility; the promotion row still stores `source_message_id = NULL` so many
+  buds may share the same (or no) message. Request parents: unchanged (one published child per
+  source).
 
 The Post branch is enforced inside the shared pipeline, so neither `beaconChildCreate` nor the new
 mutation can create a Post child without it.
@@ -334,10 +338,10 @@ Existing `beacon` / `forward` hints → debounced field refetch. No new realtime
 
 | Surface | Change |
 |---|---|
-| Post room message actions | «Оформить запрос» on own messages (root for the author); `RoomCapabilities.post()` gets `childPromotion` with an own-message predicate |
-| Post header / ⋯ | «Оформить запрос» (root for the author; others pick one of their own messages) |
-| Bud screen | `BeaconCreateScreen` child mode with a Post parent; prefill from the source message (generalised `PostConversionCase.prefill`); invite step: `E(P)` members, writers first, ineligible silent members hidden, D5 pre-tick heuristic, warning above N, note, «Закрыть пост…» (default per design §5.6), discoverable off + warnings |
-| Post room | `childCreated` notice text «оформил(а) запрос «…», позвал(а) N человек»; footer; closed notice + disabled composer |
+| Post room message actions | «Оформить запрос» on own messages (optional prefill); `RoomCapabilities.post()` keeps `childPromotionOwnOnly` for that entry only |
+| Post header / ⋯ | «Оформить запрос» for any member of an open Post (no own-message gate; form may open empty) |
+| Bud screen | `BeaconCreateScreen` child mode with a Post parent; optional prefill from an own message; invite step: `E(P)` members, writers first, ineligible silent members hidden, D5 pre-tick heuristic, warning above N, note, «Закрыть пост…» (default per design §5.6), discoverable off + warnings |
+| Post room | `childCreated` notice text «оформил(а) запрос «…», позвал(а) N человек»; closed notice + disabled composer. Post buds do not bind `beacon_promotions.source_message_id`, so there is no per-message child footer cap |
 | Разговоры | closed Posts in «Затихли» with a marker (`PostSummary.status`) |
 | Child Request | «Вырос из поста» parent link when the viewer can read the Post |
 | Activity «Для вас» | invite card: inviter, note, «Принять» / «Не смогу» |

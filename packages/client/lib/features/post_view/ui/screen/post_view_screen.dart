@@ -7,7 +7,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -155,12 +154,15 @@ class _PostViewScreenState extends State<PostViewScreen> {
           await cubit.allowForwarding();
         }
       case PostAction.budRequest:
-        final sourceId = await _pickBudSource(context);
-        if (sourceId != null && context.mounted) {
-          await context.router.push(
-            BeaconCreateRoute(parentBeaconId: id, sourceMessageId: sourceId),
-          );
-        }
+        // ⋮ opens the form immediately (D3 unlimited). Prefill: author gets
+        // the root; others start blank (message action still prefills).
+        final cubit = context.read<PostViewCubit>();
+        final sourceId = cubit.state.beacon.author.id == cubit.myProfile.id
+            ? (cubit.state.beacon.postRootMessageId ?? '')
+            : '';
+        await context.router.push(
+          BeaconCreateRoute(parentBeaconId: id, sourceMessageId: sourceId),
+        );
       case PostAction.complain:
         screenCubit.showComplaint(id);
       case PostAction.leave:
@@ -172,42 +174,6 @@ class _PostViewScreenState extends State<PostViewScreen> {
           await cubit.delete();
         }
     }
-  }
-
-  /// The author buds from the root message; everyone else picks one of their
-  /// own eligible messages.
-  Future<String?> _pickBudSource(BuildContext context) async {
-    final cubit = context.read<PostViewCubit>();
-    final viewerId = cubit.myProfile.id;
-    if (cubit.state.beacon.author.id == viewerId) {
-      return cubit.state.beacon.postRootMessageId;
-    }
-    final messages = _ownBudSources(context, viewerId);
-    if (messages.isEmpty) return null;
-    final l10n = L10n.of(context)!;
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final tt = ctx.tt;
-        return SimpleDialog(
-          key: const Key('PostBud.SourcePicker'),
-          title: Text(l10n.postBudPickMessageTitle),
-          children: [
-            for (final m in messages)
-              SimpleDialogOption(
-                key: ValueKey('PostBud.Source.${m.id}'),
-                onPressed: () => Navigator.pop(ctx, m.id),
-                child: Text(
-                  m.body.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.bodyMedium(tt.text),
-                ),
-              ),
-          ],
-        );
-      },
-    );
   }
 
   Future<_MuteChoice?> _pickMuteChoice(BuildContext context) {
@@ -428,13 +394,9 @@ class _Overflow extends StatelessWidget {
     final viewerId = context.read<PostViewCubit>().myProfile.id;
     final viewerIsAuthor = state.beacon.author.id == viewerId;
     final muted = summary?.isMutedAt(now) ?? false;
-    // Read when the menu opens: the room loads after this bar is built.
+    // Any member of an open Post may bud (D3 unlimited); no own-message gate.
     bool canBud() =>
-        postBuddingEnabled &&
-        state.beacon.status == BeaconStatus.open &&
-        (viewerIsAuthor
-            ? state.beacon.postRootMessageId != null
-            : _ownBudSources(context, viewerId).isNotEmpty);
+        postBuddingEnabled && state.beacon.status == BeaconStatus.open;
 
     PopupMenuItem<PostAction> item(
       PostAction value,
@@ -515,20 +477,6 @@ class _Overflow extends StatelessWidget {
 /// (plan D2; the server rejects them too).
 bool _isClosed(PostViewState state) =>
     state.beacon.status == BeaconStatus.closed;
-
-/// The viewer's own messages in the loaded room that a Request can be budded
-/// from, newest first.
-List<RoomMessage> _ownBudSources(BuildContext context, String viewerId) {
-  final messages =
-      context.read<ThreadHostCubit>().roomCubit?.state.messages ?? const [];
-  return [
-    for (final m in messages.reversed)
-      if (m.authorId == viewerId &&
-          m.isPromotionEligible &&
-          m.body.trim().isNotEmpty)
-        m,
-  ];
-}
 
 class _MenuRow extends StatelessWidget {
   const _MenuRow({

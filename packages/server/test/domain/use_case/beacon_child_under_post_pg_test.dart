@@ -233,7 +233,8 @@ Future<void> main() async {
           parameters: {'c': childId},
         );
         expect(promotion.single[0], _post);
-        expect(promotion.single[1], _budderMsg);
+        // Post buds leave source unbound so budding stays unlimited (D3).
+        expect(promotion.single[1], isNull);
         expect(promotion.single[2], isNotNull);
 
         final notices = await _childCreatedNotices(writer);
@@ -378,24 +379,27 @@ Future<void> main() async {
       });
     });
 
-    group('already promoted', () {
-      test('stores an alreadyPromoted bud result and replays it', () async {
+    group('unlimited budding', () {
+      test('a second bud on the same source creates another child', () async {
         final first = await bud();
         final second = await bud(commandId: 'cmd-bud-again');
 
-        final expected = {
-          'outcome': 'alreadyPromoted',
-          'childBeaconId': first.beaconId,
-          'invitees': <Object?>[],
-        };
-        expect(second.outcome, BeaconChildCommandOutcome.alreadyPromoted);
-        expect(second.beaconId, first.beaconId);
-        expect(second.budResult, expected);
-        expect((await _command(writer, 'cmd-bud-again')).budResult, expected);
+        expect(second.outcome, BeaconChildCommandOutcome.created);
+        expect(second.beaconId, isNot(first.beaconId));
+        expect(await _childCount(writer), 2);
 
         final replay = await bud(commandId: 'cmd-bud-again');
-        expect(replay.budResult, expected);
+        expect(replay.outcome, BeaconChildCommandOutcome.replayed);
+        expect(replay.beaconId, second.beaconId);
+        expect(await _childCount(writer), 2);
+      });
+
+      test('blank source buds without a message', () async {
+        final result = await bud(source: '  ', commandId: 'cmd-bud-blank');
+        expect(result.outcome, BeaconChildCommandOutcome.created);
         expect(await _childCount(writer), 1);
+        final notices = await _childCreatedNotices(writer);
+        expect(notices.single.containsKey('sourceMessageId'), isFalse);
       });
     });
 
@@ -445,13 +449,9 @@ Future<void> main() async {
         );
       });
 
-      test('a missing or blank source message is rejected', () async {
+      test('a missing source message id is rejected when provided', () async {
         await expectLater(
           bud(source: 'Rbudc1missing'),
-          throwsA(isA<BeaconPromotionSourceInvalidException>()),
-        );
-        await expectLater(
-          bud(source: '  '),
           throwsA(isA<BeaconPromotionSourceInvalidException>()),
         );
       });

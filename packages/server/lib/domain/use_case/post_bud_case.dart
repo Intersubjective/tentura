@@ -42,7 +42,8 @@ class PostBudCase {
   final PostCloseOperation _postClose;
   final BudAnchorSweepCase _anchorSweep;
 
-  /// Buds a Request from [sourceMessageId] in [postId] (Arch §4.2).
+  /// Buds a Request from [postId] (Arch §4.2). [sourceMessageId] is optional
+  /// own-message prefill/notice only; budding is unlimited for Post members.
   ///
   /// Invitees are de-duplicated in request order. A per-invitee failure does
   /// not fail the bud; it is part of the stored result. A repeated
@@ -50,7 +51,7 @@ class PostBudCase {
   Future<PostBudResult> budFromPost({
     required String actorUserId,
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,

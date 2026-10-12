@@ -151,14 +151,29 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (context == null || hierarchy == null || isClosed) return;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      if (postBuddingEnabled &&
-          context is BeaconCreationContextPromotedChild &&
-          (state.draftId ?? '').isEmpty) {
-        final parent = await _case.fetchById(context.parentBeaconId);
-        if (isClosed) return;
-        if (parent.kind == BeaconKind.post) {
-          await _initPostBud(context, parent);
-          return;
+      if (postBuddingEnabled && (state.draftId ?? '').isEmpty) {
+        final parentId = switch (context) {
+          BeaconCreationContextChild(:final parentBeaconId) => parentBeaconId,
+          BeaconCreationContextPromotedChild(:final parentBeaconId) =>
+            parentBeaconId,
+          _ => null,
+        };
+        if (parentId != null) {
+          final parent = await _case.fetchById(parentId);
+          if (isClosed) return;
+          if (parent.kind == BeaconKind.post) {
+            final sourceId = switch (context) {
+              BeaconCreationContextPromotedChild(:final sourceMessageId) =>
+                sourceMessageId,
+              _ => '',
+            };
+            await _initPostBud(
+              postId: parentId,
+              sourceMessageId: sourceId,
+              post: parent,
+            );
+            return;
+          }
         }
       }
       final session = await hierarchy.openComposer(
@@ -180,25 +195,34 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  /// The parent is a Post: prefill from the source message and load whom to
-  /// invite. Nothing is saved before [submitBud].
-  Future<void> _initPostBud(
-    BeaconCreationContextPromotedChild context,
-    Beacon post,
-  ) async {
-    final prefill = await _prefillCase.sourceMessage(
-      parentBeaconId: context.parentBeaconId,
-      sourceMessageId: context.sourceMessageId,
-    );
+  /// The parent is a Post: optionally prefill from an own source message and
+  /// load whom to invite. Nothing is saved before [submitBud].
+  Future<void> _initPostBud({
+    required String postId,
+    required String sourceMessageId,
+    required Beacon post,
+  }) async {
+    var title = state.title;
+    var description = state.description;
+    final source = sourceMessageId.trim();
+    if (source.isNotEmpty) {
+      final prefill = await _prefillCase.sourceMessage(
+        parentBeaconId: postId,
+        sourceMessageId: source,
+      );
+      if (isClosed) return;
+      title = prefill.title;
+      description = prefill.description;
+    }
     if (isClosed) return;
     emit(
       state.copyWith(
-        title: prefill.title,
-        description: prefill.description,
+        title: title,
+        description: description,
         isDiscoverable: false,
         postBud: PostBudForm(
-          postId: context.parentBeaconId,
-          sourceMessageId: context.sourceMessageId,
+          postId: postId,
+          sourceMessageId: source,
           clientCommandId: _postBudCase.newClientCommandId(),
           postForwardingClosed:
               post.forwardPolicy == BeaconForwardPolicyValue.closed,
@@ -299,9 +323,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final description = state.description.trim();
       final location = state.location.trim();
+      final source = bud.sourceMessageId.trim();
       final result = await _postBudCase.budFromPost(
         postId: bud.postId,
-        sourceMessageId: bud.sourceMessageId,
+        sourceMessageId: source.isEmpty ? null : source,
         clientCommandId: bud.clientCommandId,
         title: state.title.trim(),
         description: description.isEmpty ? null : description,

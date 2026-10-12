@@ -44,7 +44,7 @@ class PostBudRepository implements PostBudPort {
   @override
   Future<PostBudResult> budFromPost({
     required String postId,
-    required String sourceMessageId,
+    String? sourceMessageId,
     required String clientCommandId,
     required String title,
     String? description,
@@ -60,12 +60,14 @@ class PostBudRepository implements PostBudPort {
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
   }) async {
+    final source = sourceMessageId?.trim();
     final data = await _remoteApiService
         .request(
           GPostBudFromPostReq(
             (b) => b.vars
               ..postId = postId
-              ..sourceMessageId = sourceMessageId
+              ..sourceMessageId =
+                  (source == null || source.isEmpty) ? null : source
               ..clientCommandId = clientCommandId
               ..title = title
               ..description = description
