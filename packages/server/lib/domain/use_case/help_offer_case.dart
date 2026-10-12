@@ -106,7 +106,8 @@ final class HelpOfferCase extends UseCaseBase {
       );
     }
     // A pending author invite turns the offer into an accept (Arch §5.4);
-    // its locks (hierarchy, Post) come before the Request row (Arch §4.1).
+    // its locks (hierarchy, Post, child advisory) come before the Request row
+    // (Arch §4.1).
     final pendingInvite = _inviteAdmission == null
         ? null
         : await _authorInvites!.fetchPending(
@@ -118,6 +119,8 @@ final class HelpOfferCase extends UseCaseBase {
       action: (transaction) async {
         if (pendingInvite != null) {
           await _authorInvites!.lockScope(pendingInvite.sourcePostId);
+          // Child advisory lock before the child row and the invite row.
+          await _closureCase?.lockRequest(beaconId);
         }
         await _beaconRepository.runInBeaconStateTransaction(
           beaconId: beaconId,

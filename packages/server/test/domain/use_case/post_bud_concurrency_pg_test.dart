@@ -676,6 +676,99 @@ Future<void> main() async {
       },
     );
 
+    for (final existingOffer in [true, false]) {
+      test(
+        'an invitee offering help takes the child advisory lock before the '
+        'child row and the invite row '
+        '(${existingOffer ? 'existing offer' : 'new offer'})',
+        () async {
+          await _seed(writer);
+          final s = await buddedWithInvite();
+          if (existingOffer) await _seedActiveOffer(writer, s.child, _invitee);
+          // The test plays another unit of work that owns the child advisory
+          // lock (a closure or admission step) and, in a second phase, the
+          // child row. Phase 1: an offer that locked the child row or the
+          // invite row before queueing for the advisory lock (wrong order)
+          // would deadlock with it; one that queues first holds neither.
+          // Phase 2: the advisory lock is released while the test keeps the
+          // child row; the offer must now queue on the child row before
+          // touching the invite row, so the invite row is still free.
+          final pid = await _backendPid(dbA);
+          final writerPid = await _writerBackendPid(writer);
+          await writer.execute('BEGIN');
+          Future<_Outcome>? offer;
+          try {
+            // Session-level, so it can be released before the transaction
+            // (and the child row lock) ends; it conflicts with the offer's
+            // transaction-level request for the same key.
+            await writer.execute(
+              r'SELECT pg_advisory_lock(hashtextextended($1, 4242))',
+              parameters: [s.child],
+            );
+            offer = _settle(a.helpOffers.offerHelp(
+              beaconId: s.child,
+              userId: _invitee,
+              message: 'On my way',
+            ));
+            await _waitForAdvisoryWaiter(writer, pid, s.child);
+            final childRow = await writer.execute(
+              Sql.named(
+                'SELECT id FROM public.beacon WHERE id = @b '
+                'FOR UPDATE SKIP LOCKED',
+              ),
+              parameters: {'b': s.child},
+            );
+            expect(
+              childRow,
+              isNotEmpty,
+              reason:
+                  'the offer must not hold the child row while it waits for '
+                  'the child advisory lock',
+            );
+            await _expectInviteRowFree(
+              writer,
+              s.invite,
+              'the offer must not hold the invite row while it waits for '
+              'the child advisory lock',
+            );
+            await writer.execute(
+              r'SELECT pg_advisory_unlock(hashtextextended($1, 4242))',
+              parameters: [s.child],
+            );
+            await _waitForRowLockWaiter(writer, pid, writerPid);
+            await _expectInviteRowFree(
+              writer,
+              s.invite,
+              'the offer must queue on the child row before it locks the '
+              'invite row',
+            );
+            await writer.execute('COMMIT');
+          } finally {
+            await writer.execute('ROLLBACK');
+            await writer.execute('SELECT pg_advisory_unlock_all()');
+            // Let a failed probe's offer finish before the next test reseeds.
+            await offer?.timeout(
+              _roundBudget,
+              onTimeout: () => fail('did not finish in $_roundBudget'),
+            );
+          }
+          final outcome = await offer;
+          expect(
+            _isDeadlockOrTimeout(outcome.error),
+            isFalse,
+            reason: 'deadlock or timeout: ${outcome.error}',
+          );
+          expect(outcome.error, isNull);
+          expect(
+            await _inviteStatus(writer, s.invite),
+            AuthorInviteStatus.accepted.code,
+          );
+          expect(await _isAdmitted(writer, s.child, _invitee), isTrue);
+          await _expectInvariants(writer, 'offer through the invite');
+        },
+      );
+    }
+
     test('later invite ∥ bud from the same Post (N5)', () async {
       await race<String>(
         setUpRound: () async {
@@ -985,6 +1078,85 @@ Future<void> _waitForBlockedBackends(
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
   fail('fewer than $count of the sessions $pids blocked on the hierarchy lock');
+}
+
+/// Waits until the session with backend [pid] waits for the child advisory
+/// lock of [beaconId] (`hashtextextended(beaconId, 4242)`).
+///
+/// `pg_locks` is cluster-wide, so the wait is limited to the participating
+/// backend, this database's oid and the lock key (an advisory key is split
+/// over `classid`/`objid`).
+Future<void> _waitForAdvisoryWaiter(
+  Connection writer,
+  int pid,
+  String beaconId,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      Sql.named(
+        'SELECT count(*) FROM pg_locks l '
+        "WHERE l.locktype = 'advisory' AND NOT l.granted "
+        'AND l.objsubid = 1 '
+        'AND ((l.classid::bigint << 32) | l.objid::bigint) = '
+        'hashtextextended(@b, 4242) '
+        'AND l.pid = @pid AND l.database = '
+        '(SELECT oid FROM pg_database WHERE datname = current_database())',
+      ),
+      parameters: {'b': beaconId, 'pid': pid},
+    );
+    if ((rows.single.single! as int) >= 1) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('session $pid never blocked on the child advisory lock of $beaconId');
+}
+
+/// Fails unless the invite row [inviteId] is not locked by another session.
+/// The probe runs in a savepoint, so its own row lock is released again.
+Future<void> _expectInviteRowFree(
+  Connection writer,
+  String inviteId,
+  String reason,
+) async {
+  await writer.execute('SAVEPOINT invite_probe');
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT id FROM public.beacon_author_invite WHERE id = @i '
+      'FOR UPDATE SKIP LOCKED',
+    ),
+    parameters: {'i': inviteId},
+  );
+  await writer.execute('ROLLBACK TO SAVEPOINT invite_probe');
+  expect(rows, isNotEmpty, reason: reason);
+}
+
+/// Waits until the session with backend [pid] is blocked by the session
+/// [blockerPid] without waiting for an advisory lock, i.e. on a row lock.
+Future<void> _waitForRowLockWaiter(
+  Connection writer,
+  int pid,
+  int blockerPid,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final rows = await writer.execute(
+      Sql.named(
+        'SELECT @blocker = ANY(pg_blocking_pids(@pid)) AND NOT EXISTS ( '
+        "SELECT 1 FROM pg_locks l WHERE l.locktype = 'advisory' "
+        'AND NOT l.granted AND l.pid = @pid)',
+      ),
+      parameters: {'pid': pid, 'blocker': blockerPid},
+    );
+    if (rows.single.single! as bool) return;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  fail('session $pid never blocked on a row lock held by $blockerPid');
+}
+
+/// The backend pid of the test's own [writer] connection.
+Future<int> _writerBackendPid(Connection writer) async {
+  final rows = await writer.execute('SELECT pg_backend_pid()');
+  return rows.single.single! as int;
 }
 
 /// The backend pid of [db]'s connection.
