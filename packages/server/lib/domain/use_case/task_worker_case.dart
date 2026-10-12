@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/plan_step_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
+import 'package:tentura_server/domain/use_case/attention_capture_settlement_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
@@ -65,6 +66,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ContactResolutionSweepCase contactResolutionSweep,
     BudAnchorSweepCase budAnchorSweep,
     PlanStepSweepCase planStepSweep,
+    AttentionCaptureSettlementCase attentionCaptureSettlement,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -94,6 +96,7 @@ final class TaskWorkerCase extends UseCaseBase {
       contactResolutionSweep: contactResolutionSweep,
       budAnchorSweep: budAnchorSweep,
       planStepSweep: planStepSweep,
+      attentionCaptureSettlement: attentionCaptureSettlement,
       env: env,
       logger: logger,
     ),
@@ -124,6 +127,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ContactResolutionSweepCase? contactResolutionSweep,
     this._budAnchorSweep,
     this._planStepSweep,
+    this._attentionCaptureSettlement,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -173,6 +177,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final ContactResolutionSweepCase? _contactResolutionSweep;
   final BudAnchorSweepCase? _budAnchorSweep;
   final PlanStepSweepCase? _planStepSweep;
+  final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -205,6 +210,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBudAnchorSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastPlanStepSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastAttentionCaptureSettlement = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
@@ -260,6 +266,16 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastBudAnchorSweep = now;
       await sweep.run();
+    },
+    // Dismiss-all captures abandoned mid-capture: resume or expire them.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastAttentionCaptureSettlement) <
+          const Duration(minutes: 1)) {
+        return;
+      }
+      _lastAttentionCaptureSettlement = now;
+      await _attentionCaptureSettlement?.runDue();
     },
     // Weekly nudge to the author of a stale open request.
     () async {

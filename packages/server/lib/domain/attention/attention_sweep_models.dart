@@ -85,6 +85,10 @@ enum AttentionSweepSkipReason {
   /// mistake an undone member for one it still has to do.
   undone('undone'),
 
+  /// The capture was abandoned past the expiry horizon, so the operation was
+  /// closed without deciding this member.
+  expired('expired'),
+
   /// The write was refused by the database. The sweep's own predicate is the
   /// first line of defence and this should never be the reason; if it is,
   /// something above the database is out of step with it.

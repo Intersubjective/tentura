@@ -49,6 +49,14 @@ enum AttentionClearStatus {
 
   /// Nothing was cleared and at least one member did not belong to the caller.
   denied,
+
+  /// The operation's capture is still being committed by another call, so
+  /// nothing is decided yet. Non-terminal: the same operation id resumes it.
+  pending,
+
+  /// The capture was abandoned for so long that the operation was given up on;
+  /// nothing was cleared on its behalf.
+  expired,
 }
 
 /// An issued capture: the opaque token plus the diagnostics a caller (and the

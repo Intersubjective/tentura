@@ -105,22 +105,25 @@ UPDATE public.attention_clear_operation
       );
       return members;
     });
-    if (snapshot == null && await _operationOwner(operationId) != accountId) {
-      return AttentionSweepResult(
-        operationId: operationId,
-        appliedReceiptIds: const [],
-        appliedOutcomeBeaconIds: const [],
-        skipped: const [],
-        failed: const [],
-        pending: const [],
-        status: AttentionClearStatus.denied,
-      );
+    if (snapshot == null) {
+      final header = await _operationHeader(operationId);
+      if (header?.owner != accountId) {
+        return _emptyResult(operationId, AttentionClearStatus.denied);
+      }
+      if (header!.status == AttentionClearStatus.expired.name) {
+        return _emptyResult(operationId, AttentionClearStatus.expired);
+      }
     }
-    await _capture(
+    // A capture another call is still committing is not ours to finish or to
+    // report on: until it is whole, nothing is decided and the answer is the
+    // non-terminal one.
+    if (!await _capture(
       operationId: operationId,
       chunkSize: bounded,
       snapshot: snapshot,
-    );
+    )) {
+      return _emptyResult(operationId, AttentionClearStatus.pending);
+    }
 
     // Phase 2 — decide the still-pending members, a bounded batch at a time.
     //
@@ -1085,13 +1088,20 @@ SELECT ii.beacon_id AS member_id,
       List.generate(count, (index) => '\$${index + from}').join(',');
 
   /// Membership, captured once and never extended.
-  Future<void> _capture({
+  ///
+  /// Returns false when the capture is still open after another call took the
+  /// cursor from this one and did not finish within [_captureWait]. Capture
+  /// commits in bounded chunks, so between two chunks nobody holds a lock on
+  /// the operation: a lost cursor compare-and-set only proves somebody else is
+  /// capturing, never that the capture is over.
+  Future<bool> _capture({
     required String operationId,
     required int chunkSize,
     List<Map<String, dynamic>>? snapshot,
   }) async {
     var cursor = 0;
-    if (snapshot == null) {
+    var members = snapshot;
+    if (members == null) {
       final header = await _database
           .customSelect(
             r'''
@@ -1101,30 +1111,32 @@ SELECT capture_snapshot::text AS capture_snapshot, capture_cursor
           )
           .getSingleOrNull();
       final raw = header?.read<String?>('capture_snapshot');
-      if (raw == null) return;
-      snapshot = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      if (raw == null) return true;
+      members = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
       cursor = header!.read<int>('capture_cursor');
     }
-    for (var start = cursor; start < snapshot.length; start += chunkSize) {
-      final chunk = snapshot.skip(start).take(chunkSize).toList();
+    for (var start = cursor; start < members.length; start += chunkSize) {
+      final chunk = members.skip(start).take(chunkSize).toList();
       final next = start + chunk.length;
-      await _database.transaction(() async {
+      final claimedChunk = await _database.transaction(() async {
         // The cursor update locks the header and fences concurrent resumptions.
         // It commits with the members, including clearing the final snapshot.
+        // `captured_at` moves with it: it is when the capture was last touched.
         final claimed = await _database.customUpdate(
           r'''
 UPDATE public.attention_clear_operation
           SET capture_cursor = $2,
+              captured_at = now(),
               capture_snapshot = CASE WHEN $4 THEN NULL ELSE capture_snapshot END
           WHERE id = $1 AND capture_cursor = $3''',
           variables: [
             Variable<String>(operationId),
             Variable<int>(next),
             Variable<int>(start),
-            Variable<bool>(next == snapshot!.length),
+            Variable<bool>(next == members!.length),
           ],
         );
-        if (claimed == 0) return;
+        if (claimed == 0) return false;
         await _database.customUpdate(
           r'''
 INSERT INTO public.attention_clear_operation_member
@@ -1143,20 +1155,144 @@ INSERT INTO public.attention_clear_operation_member
           ],
           updateKind: UpdateKind.insert,
         );
+        return true;
       });
+      if (!claimedChunk) return _awaitCapture(operationId);
+    }
+    return true;
+  }
+
+  static const _captureWait = Duration(seconds: 10);
+  static const _capturePoll = Duration(milliseconds: 50);
+
+  /// Waits for another call's capture of [operationId] to finish.
+  Future<bool> _awaitCapture(String operationId) async {
+    final deadline = DateTime.now().add(_captureWait);
+    while (true) {
+      final row = await _database
+          .customSelect(
+            r'''
+SELECT capture_snapshot IS NULL AS done
+  FROM public.attention_clear_operation WHERE id = $1''',
+            variables: [Variable<String>(operationId)],
+          )
+          .getSingleOrNull();
+      if (row?.read<bool>('done') ?? true) return true;
+      if (DateTime.now().isAfter(deadline)) return false;
+      await Future<void>.delayed(_capturePoll);
     }
   }
 
-  Future<String?> _operationOwner(String operationId) async {
+  /// Settles clears whose capture was started and then abandoned: still
+  /// `pending` with the frozen snapshot stored, and not touched for
+  /// [staleAfter]. Those older than [expireAfter] are expired — every member
+  /// decided, nothing cleared, snapshot dropped; the rest are resumed through
+  /// [dismissAll], which finishes the capture and applies the operation.
+  /// Returns how many operations were settled.
+  Future<int> settleAbandonedCaptures({
+    required Duration staleAfter,
+    required Duration expireAfter,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT id, account_id, captured_at < now() - make_interval(secs => $2) AS expired
+  FROM public.attention_clear_operation
+ WHERE status = 'pending' AND capture_snapshot IS NOT NULL
+   AND captured_at < now() - make_interval(secs => $1)
+ ORDER BY captured_at''',
+          variables: [
+            Variable<double>(staleAfter.inMilliseconds / 1000),
+            Variable<double>(expireAfter.inMilliseconds / 1000),
+          ],
+        )
+        .get();
+    var settled = 0;
+    for (final row in rows) {
+      final operationId = row.read<String>('id');
+      if (row.read<bool>('expired')) {
+        if (await _expireCapture(operationId)) settled++;
+      } else {
+        final result = await dismissAll(
+          accountId: row.read<String>('account_id'),
+          operationId: operationId,
+        );
+        if (result.status != AttentionClearStatus.pending) settled++;
+      }
+    }
+    return settled;
+  }
+
+  Future<bool> _expireCapture(String operationId) => _database.transaction(
+    () async {
+      // Locks the header, and re-checks under the lock that nobody finished or
+      // touched the capture since it was listed.
+      final locked = await _database
+          .customSelect(
+            r'''
+SELECT id FROM public.attention_clear_operation
+ WHERE id = $1 AND status = 'pending' AND capture_snapshot IS NOT NULL
+ FOR UPDATE''',
+            variables: [Variable<String>(operationId)],
+          )
+          .getSingleOrNull();
+      if (locked == null) return false;
+      await _database.customUpdate(
+        r'''
+UPDATE public.attention_clear_operation_member
+   SET state = 'skipped', skip_reason = $2
+ WHERE operation_id = $1 AND state = 'pending'
+''',
+        variables: [
+          Variable<String>(operationId),
+          Variable<String>(AttentionSweepSkipReason.expired.wireName),
+        ],
+        updateKind: UpdateKind.update,
+      );
+      await _database.customUpdate(
+        r'''
+UPDATE public.attention_clear_operation
+   SET status = $2, capture_snapshot = NULL
+ WHERE id = $1''',
+        variables: [
+          Variable<String>(operationId),
+          Variable<String>(AttentionClearStatus.expired.name),
+        ],
+        updateKind: UpdateKind.update,
+      );
+      return true;
+    },
+  );
+
+  AttentionSweepResult _emptyResult(
+    String operationId,
+    AttentionClearStatus status,
+  ) => AttentionSweepResult(
+    operationId: operationId,
+    appliedReceiptIds: const [],
+    appliedOutcomeBeaconIds: const [],
+    skipped: const [],
+    failed: const [],
+    pending: const [],
+    status: status,
+  );
+
+  Future<({String owner, String? status})?> _operationHeader(
+    String operationId,
+  ) async {
     final header = await _database
         .customSelect(
           r'''
-SELECT account_id FROM public.attention_clear_operation WHERE id = $1
+SELECT account_id, status FROM public.attention_clear_operation WHERE id = $1
 ''',
           variables: [Variable<String>(operationId)],
         )
         .getSingleOrNull();
-    return header?.read<String?>('account_id');
+    if (header == null) return null;
+    return (
+      owner: header.read<String>('account_id'),
+      status: header.read<String?>('status'),
+    );
   }
 
   /// The answer, rebuilt from stored membership rather than from what this
