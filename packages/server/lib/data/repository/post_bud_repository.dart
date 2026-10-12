@@ -115,9 +115,12 @@ SELECT $1, $2, $3, $4, $5,
   (SELECT e.id
    FROM public.beacon_forward_edge e
    JOIN public.beacon p ON p.id = e.beacon_id
+   JOIN public.beacon c ON c.id = $1
    WHERE e.beacon_id = $4
      AND e.recipient_id = $3
-     AND e.cancelled_at IS NULL
+     AND e.created_at <= COALESCE(c.published_at, now())
+     AND (e.cancelled_at IS NULL
+          OR e.cancelled_at > COALESCE(c.published_at, now()))
      AND p.user_id <> $3
    ORDER BY e.created_at DESC, e.id DESC
    LIMIT 1),
