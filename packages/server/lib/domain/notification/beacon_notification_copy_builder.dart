@@ -108,7 +108,7 @@ class BeaconNotificationCopyBuilder {
         ),
       ),
       NotificationKind.roomAccess => (
-        'Offer accepted',
+        '$actor accepted your offer',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,

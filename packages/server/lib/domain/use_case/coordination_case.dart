@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -174,7 +175,7 @@ final class CoordinationCase extends UseCaseBase {
     return null;
   }
 
-  Future<BeaconEntity> _prepareAdmissionAction({
+  Future<({BeaconEntity beacon, HelpOfferEntity offer})> _prepareAdmissionAction({
     required String beaconId,
     required String offerUserId,
     required String actorUserId,
@@ -197,12 +198,19 @@ final class CoordinationCase extends UseCaseBase {
       );
     }
     final active = await _helpOfferRepository.fetchByBeaconId(beaconId);
-    if (!active.any((c) => c.userId == offerUserId)) {
+    HelpOfferEntity? offer;
+    for (final candidate in active) {
+      if (candidate.userId == offerUserId) {
+        offer = candidate;
+        break;
+      }
+    }
+    if (offer == null) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
       );
     }
-    return beacon;
+    return (beacon: beacon, offer: offer);
   }
 
   String _validateReason(String reason) {
@@ -383,11 +391,12 @@ final class CoordinationCase extends UseCaseBase {
         // everything mutable only once they are held.
         await _hierarchyRepository.lockMutationScope();
         await _closureCase?.lockRequest(beaconId);
-        final beacon = await _prepareAdmissionAction(
+        final prepared = await _prepareAdmissionAction(
           beaconId: beaconId,
           offerUserId: offerUserId,
           actorUserId: actorUserId,
         );
+        final beacon = prepared.beacon;
         // The actor (author or steward) is the confirming author; the offer
         // checked above is the helper's confirmation, so step (a) is a no-op.
         final snap = await _admission.admitWithConfirmations(
@@ -401,6 +410,8 @@ final class CoordinationCase extends UseCaseBase {
             beaconId: beaconId,
             actorUserId: actorUserId,
             sourceEventKey: 'admission:${generateId('A')}',
+            beaconTitle: beacon.title,
+            bodyExcerpt: prepared.offer.message,
           ),
         );
         await _supersedePendingInvite(
@@ -455,11 +466,12 @@ final class CoordinationCase extends UseCaseBase {
         // trigger takes the hierarchy lock anyway, so taking it last deadlocks.
         await _hierarchyRepository.lockMutationScope();
         await _closureCase?.lockRequest(beaconId);
-        final beacon = await _prepareAdmissionAction(
+        final prepared = await _prepareAdmissionAction(
           beaconId: beaconId,
           offerUserId: offerUserId,
           actorUserId: actorUserId,
         );
+        final beacon = prepared.beacon;
         // Re-read after locking: an invite accept may have acknowledged the
         // helper while this waited for the locks.
         final hadAcknowledged = await _commitmentQueryCase.everAcknowledgedPair(
@@ -513,11 +525,12 @@ final class CoordinationCase extends UseCaseBase {
     required String reason,
   }) async {
     final trimmedReason = _validateReason(reason);
-    final beacon = await _prepareAdmissionAction(
+    final prepared = await _prepareAdmissionAction(
       beaconId: beaconId,
       offerUserId: offerUserId,
       actorUserId: actorUserId,
     );
+    final beacon = prepared.beacon;
     final participant = await _beaconRoomRepository.findParticipant(
       beaconId: beaconId,
       userId: offerUserId,

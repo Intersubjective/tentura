@@ -189,13 +189,27 @@ void main() {
       actorDisplayName: 'Alex',
     );
 
-    expect(copy.title, 'Offer accepted');
+    expect(copy.title, 'Alex accepted your offer');
     expect(copy.body, 'Your offer was accepted');
     expect(
       copy.actionUrl,
       '/#$kPathBeaconView/beacon-1?tab=threads&thread=general'
       '&entry=deep_link&is_deep_link=true',
     );
+  });
+
+  test('roomAccess body includes request title and offer message', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.roomAccess,
+        beaconTitle: 'Garden cleanup',
+        bodyExcerpt: 'I can bring tools',
+      ),
+      actorDisplayName: 'Alex',
+    );
+
+    expect(copy.title, 'Alex accepted your offer');
+    expect(copy.body, 'Garden cleanup — I can bring tools');
   });
 
   test('commitment copy includes request title when provided', () {

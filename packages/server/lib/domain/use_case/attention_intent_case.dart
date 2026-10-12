@@ -128,6 +128,7 @@ class AttentionIntentCase {
     required String actorUserId,
     required String sourceEventKey,
     String bodyExcerpt = '',
+    String beaconTitle = '',
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.roomAccess,
@@ -135,7 +136,8 @@ class AttentionIntentCase {
       beaconId: beaconId,
       actorUserId: actorUserId,
       targetPersonId: receiverId,
-      bodyExcerpt: bodyExcerpt,
+      bodyExcerpt: notificationExcerpt(bodyExcerpt),
+      beaconTitle: beaconTitle,
     ),
     eventType: AttentionEventType.offerAccepted,
     sourceEventKey: sourceEventKey,
