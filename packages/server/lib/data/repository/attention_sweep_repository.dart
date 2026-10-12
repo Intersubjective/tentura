@@ -704,6 +704,9 @@ SELECT receipt_id, outcome_beacon_id, state
             .skip(start)
             .take(AttentionSweepLimits.maxBatchSize)
             .toList(),
+        // The window is judged once, by the first chunk; later chunks finish
+        // what that decision admitted.
+        checkDeadline: start == 0,
       );
       if (result.refusal != null) {
         if (receipts.isEmpty && outcomes.isEmpty) return result;
@@ -748,10 +751,13 @@ SELECT receipt_id, outcome_beacon_id, state
     required String accountId,
     required String operationId,
     required List<QueryRow> members,
+    required bool checkDeadline,
   }) => _database.transaction(() async {
     // The window is a server column compared against the server's clock, and
-    // it is read inside the transaction that would restore — a deadline that
-    // expires mid-undo refuses rather than half-applying.
+    // it is read inside the transaction that would restore. Only the first
+    // chunk of an undo asks (`checkDeadline`): an undo that began inside the
+    // window finishes every chunk, so a deadline passing mid-undo never
+    // leaves it half-applied.
     final header = await _database
         .customSelect(
           r'''
@@ -780,7 +786,7 @@ SELECT account_id,
     if (header.read<bool>('never_applied')) {
       return refused(AttentionUndoRefusal.neverApplied);
     }
-    if (header.read<bool>('expired')) {
+    if (checkDeadline && header.read<bool>('expired')) {
       return refused(AttentionUndoRefusal.expired);
     }
 

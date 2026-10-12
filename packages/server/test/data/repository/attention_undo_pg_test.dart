@@ -9,6 +9,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_clear_repository.dart';
 import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
+import 'package:tentura_server/domain/attention/attention_sweep_models.dart';
 import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
@@ -196,6 +197,64 @@ Future<void> main() async {
         reason: 'an expired undo changes nothing at all',
       );
     });
+
+    test(
+      'a window that closes between chunks of one undo does not split it',
+      () async {
+        // Chosen behaviour: the deadline is decided once, under lock, before
+        // the first chunk, so an undo is all-or-nothing from the user's view
+        // (not a reported partial). The one thing that may refuse is the
+        // deadline at the moment the undo starts — see 'just outside the
+        // window' above.
+        // More members than one undo chunk, so the undo takes several chunks.
+        const total = AttentionSweepLimits.maxBatchSize + 1;
+        final receiptIds = [
+          for (var i = 0; i < total; i++)
+            'Nu09cbulk${i.toString().padLeft(4, '0')}',
+        ];
+        for (final id in receiptIds) {
+          await _insertReceipt(writer, id: id, beaconId: _beaconA);
+        }
+        final (operationId, token) = await sweepAll('OPu09cbulk');
+        expect(
+          await _countClearedBy(writer, operationId),
+          total,
+          reason: 'the fixture must have cleared every receipt it made',
+        );
+        // The first chunk to write its members closes the window, exactly as
+        // the clock would between two chunks of a slow undo.
+        await _closeWindowOnFirstRestore(writer);
+        addTearDown(() => _removeCloseWindowTrigger(writer));
+
+        final undone = await sweep.undo(
+          accountId: _viewerId,
+          operationId: operationId,
+          undoToken: token,
+        );
+
+        expect(
+          await _deadlineHasPassed(writer, operationId),
+          isTrue,
+          reason: 'the scenario is only meaningful if the window really '
+              'closed while the undo was running',
+        );
+        expect(
+          undone.status,
+          AttentionUndoStatus.complete,
+          reason: 'the window is judged once, before the first chunk: an undo '
+              'that began inside it finishes, it is never half-applied',
+        );
+        expect(undone.refusal, isNull);
+        expect(undone.failed, isEmpty);
+        expect(undone.skipped, isEmpty);
+        expect(undone.restoredReceiptIds, unorderedEquals(receiptIds));
+        expect(
+          await _countClearedBy(writer, operationId),
+          0,
+          reason: 'no receipt of the operation stays cleared',
+        );
+      },
+    );
 
     test('an operation that cleared nothing has no window', () async {
       // No dismissible row at all: the sweep applies nothing, so no window
@@ -1013,4 +1072,58 @@ Future<Object?> _memberDecisionRevision(
     parameters: {'id': operationId},
   );
   return rows.isEmpty ? null : rows.first.first;
+}
+
+Future<int> _countClearedBy(Connection writer, String operationId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT count(*) FROM public.notification_outbox '
+      'WHERE cleared_by_operation_id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.first.first! as int;
+}
+
+Future<bool> _deadlineHasPassed(Connection writer, String operationId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT undo_deadline < now() FROM public.attention_clear_operation '
+      'WHERE id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.first.first! as bool;
+}
+
+/// Moves the undo deadline into the past in the same transaction as the first
+/// member an undo marks `undone` — the deterministic stand-in for the wall
+/// clock passing the deadline between two chunks.
+Future<void> _closeWindowOnFirstRestore(Connection writer) async {
+  await writer.execute(r'''
+CREATE OR REPLACE FUNCTION public.test_close_undo_window_on_first_restore()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE public.attention_clear_operation
+     SET undo_deadline = now() - interval '1 second'
+   WHERE id = NEW.operation_id;
+  RETURN NEW;
+END $$
+''');
+  await writer.execute('''
+CREATE TRIGGER test_close_undo_window_on_first_restore
+AFTER UPDATE ON public.attention_clear_operation_member
+FOR EACH ROW WHEN (NEW.state = 'undone' AND OLD.state IS DISTINCT FROM 'undone')
+EXECUTE FUNCTION public.test_close_undo_window_on_first_restore()
+''');
+}
+
+Future<void> _removeCloseWindowTrigger(Connection writer) async {
+  await writer.execute(
+    'DROP TRIGGER IF EXISTS test_close_undo_window_on_first_restore '
+    'ON public.attention_clear_operation_member',
+  );
+  await writer.execute(
+    'DROP FUNCTION IF EXISTS public.test_close_undo_window_on_first_restore()',
+  );
 }
