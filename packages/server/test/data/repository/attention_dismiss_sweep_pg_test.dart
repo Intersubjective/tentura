@@ -191,10 +191,12 @@ Future<void> main() async {
       );
     });
 
-    test('the capture stores the identity undo will check', () async {
-      await _insertInboxItem(writer, beaconId: _watchedBeaconId, status: 1);
-      await writer.execute(
-        Sql.named('''
+    test(
+      'the capture stores the identity undo will check',
+      () async {
+        await _insertInboxItem(writer, beaconId: _watchedBeaconId, status: 1);
+        await writer.execute(
+          Sql.named('''
 INSERT INTO public.attention_request_state
   (account_id, beacon_id, outcome_generation, decision_revision)
 VALUES (@account, @beaconId, 5, 4)
@@ -202,25 +204,38 @@ ON CONFLICT (account_id, beacon_id) DO UPDATE SET
   outcome_generation = EXCLUDED.outcome_generation,
   decision_revision = EXCLUDED.decision_revision
 '''),
-        parameters: {'account': _viewerId, 'beaconId': _watchedBeaconId},
-      );
+          parameters: {'account': _viewerId, 'beaconId': _watchedBeaconId},
+        );
 
-      await sweep.dismissAll(accountId: _viewerId, operationId: 'OPu09bident');
+        // Read the stored identity only once the call itself says the operation
+        // is finished: the answer is the completion signal, not elapsed time.
+        final result = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09bident',
+        );
+        expect(result.status, AttentionClearStatus.complete);
+        expect(result.pending, isEmpty);
 
-      final row = await writer.execute(
-        'SELECT outcome_generation, decision_revision '
-        'FROM public.attention_clear_operation_member '
-        "WHERE operation_id = 'OPu09bident'",
-      );
-      expect(row.first[0], 5);
-      expect(
-        row.first[1],
-        4,
-        reason:
-            'U09c refuses to undo a member whose stance moved underneath it, '
-            'and a Restore moves the revision without moving the generation',
-      );
-    });
+        final row = await writer.execute(
+          'SELECT outcome_generation, decision_revision '
+          'FROM public.attention_clear_operation_member '
+          "WHERE operation_id = 'OPu09bident'",
+        );
+        expect(row, hasLength(1));
+        expect(row.first[0], 5);
+        expect(
+          row.first[1],
+          4,
+          reason:
+              'U09c refuses to undo a member whose stance moved underneath it, '
+              'and a Restore moves the revision without moving the generation',
+        );
+      },
+      // Whole-suite load stretches the sweep's several commits well past the
+      // 30 s default; the answer above is the completion signal, so a longer
+      // budget costs nothing on a passing run.
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
 
     test(
       'an operation id belonging to another account is denied, and touches '

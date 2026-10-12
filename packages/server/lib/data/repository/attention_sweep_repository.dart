@@ -1090,7 +1090,7 @@ SELECT ii.beacon_id AS member_id,
   /// Membership, captured once and never extended.
   ///
   /// Returns false when the capture is still open after another call took the
-  /// cursor from this one and did not finish within [_captureWait]. Capture
+  /// cursor from this one and stopped advancing for [_captureStallWait]. Capture
   /// commits in bounded chunks, so between two chunks nobody holds a lock on
   /// the operation: a lost cursor compare-and-set only proves somebody else is
   /// capturing, never that the capture is over.
@@ -1162,23 +1162,34 @@ INSERT INTO public.attention_clear_operation_member
     return true;
   }
 
-  static const _captureWait = Duration(seconds: 10);
+  static const _captureStallWait = Duration(seconds: 10);
   static const _capturePoll = Duration(milliseconds: 50);
 
   /// Waits for another call's capture of [operationId] to finish.
+  ///
+  /// How long a capture takes depends on load, so only a capture that stops
+  /// committing chunks for [_captureStallWait] is given up on; one whose
+  /// cursor keeps moving is waited for however long it takes.
   Future<bool> _awaitCapture(String operationId) async {
-    final deadline = DateTime.now().add(_captureWait);
+    int? lastCursor;
+    var stallDeadline = DateTime.now().add(_captureStallWait);
     while (true) {
       final row = await _database
           .customSelect(
             r'''
-SELECT capture_snapshot IS NULL AS done
+SELECT capture_snapshot IS NULL AS done, capture_cursor
   FROM public.attention_clear_operation WHERE id = $1''',
             variables: [Variable<String>(operationId)],
           )
           .getSingleOrNull();
       if (row?.read<bool>('done') ?? true) return true;
-      if (DateTime.now().isAfter(deadline)) return false;
+      final cursor = row!.read<int>('capture_cursor');
+      if (cursor != lastCursor) {
+        lastCursor = cursor;
+        stallDeadline = DateTime.now().add(_captureStallWait);
+      } else if (DateTime.now().isAfter(stallDeadline)) {
+        return false;
+      }
       await Future<void>.delayed(_capturePoll);
     }
   }
