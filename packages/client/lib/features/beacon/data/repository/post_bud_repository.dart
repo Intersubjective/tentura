@@ -44,9 +44,9 @@ class PostBudRepository implements PostBudPort {
   @override
   Future<PostBudResult> budFromPost({
     required String postId,
-    String? sourceMessageId,
     required String clientCommandId,
     required String title,
+    String? sourceMessageId,
     String? description,
     String? context,
     Coordinates? coordinates,

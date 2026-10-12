@@ -15,9 +15,9 @@ abstract interface class PostBudPort {
   /// Idempotent per [clientCommandId].
   Future<PostBudResult> budFromPost({
     required String postId,
-    String? sourceMessageId,
     required String clientCommandId,
     required String title,
+    String? sourceMessageId,
     String? description,
     String? context,
     Coordinates? coordinates,

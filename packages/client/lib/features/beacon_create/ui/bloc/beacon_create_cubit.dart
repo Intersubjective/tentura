@@ -877,7 +877,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  /// Re-crops the selected cover at 1:1 into [coverThumb] only. Cancelling
+  /// Re-crops the selected cover at 1:1 into `coverThumb` only. Cancelling
   /// preserves images, cover key, thumb, and source exactly.
   Future<void> adjustCoverCrop(ImageCropUiPort cropUi) async {
     final image = state.coverImage;
