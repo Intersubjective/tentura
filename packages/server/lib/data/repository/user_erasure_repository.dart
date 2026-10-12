@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -21,8 +23,9 @@ class UserErasureRepository implements UserErasurePort {
   Future<List<OwnedPublishedBeaconRow>> listOwnedPublishedBeacons({
     required String userId,
   }) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
 SELECT id, status
 FROM public.beacon
 WHERE user_id = $1
@@ -30,11 +33,12 @@ WHERE user_id = $1
   AND status <> $2
 ORDER BY id
 ''',
-      variables: [
-        Variable<String>(userId),
-        Variable<int>(BeaconStatus.draft.smallintValue),
-      ],
-    ).get();
+          variables: [
+            Variable<String>(userId),
+            Variable<int>(BeaconStatus.draft.smallintValue),
+          ],
+        )
+        .get();
     return [
       for (final row in rows)
         OwnedPublishedBeaconRow(
@@ -46,19 +50,21 @@ ORDER BY id
 
   @override
   Future<List<String>> listOwnedDraftBeaconIds({required String userId}) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
 SELECT id
 FROM public.beacon
 WHERE user_id = $1
   AND status = $2
 ORDER BY id
 ''',
-      variables: [
-        Variable<String>(userId),
-        Variable<int>(BeaconStatus.draft.smallintValue),
-      ],
-    ).get();
+          variables: [
+            Variable<String>(userId),
+            Variable<int>(BeaconStatus.draft.smallintValue),
+          ],
+        )
+        .get();
     return [for (final row in rows) row.read<String>('id')];
   }
 
@@ -66,45 +72,46 @@ ORDER BY id
   Future<List<String>> scrubDeletedOwnedBeaconContent({
     required String beaconId,
     required String ownerId,
+  }) =>
+      scrubDeletedOwnedBeaconContents(beaconIds: [beaconId], ownerId: ownerId);
+
+  @override
+  Future<List<String>> scrubDeletedOwnedBeaconContents({
+    required List<String> beaconIds,
+    required String ownerId,
   }) async {
+    if (beaconIds.isEmpty) return const [];
     final imageIds = await _collectBeaconOwnedImageIds(
-      beaconId: beaconId,
+      beaconIds: beaconIds,
       ownerId: ownerId,
     );
     await _database.customStatement(
       r'''
 UPDATE public.beacon
-SET title = $3,
-    description = $4,
-    context = NULL,
-    lat = NULL,
-    long = NULL,
-    address_label = NULL,
-    start_at = NULL,
-    end_at = NULL,
-    tags = '',
-    needs = '',
-    primary_need_slug = NULL,
-    cover_image_id = NULL,
-    cover_thumb_image_id = NULL,
-    cover_source = 0
-WHERE id = $1
-  AND user_id = $2
-''',
+      SET title = $3, description = $4, context = NULL, lat = NULL, long = NULL,
+        address_label = NULL, start_at = NULL, end_at = NULL, tags = '', needs = '',
+        primary_need_slug = NULL, cover_image_id = NULL, cover_thumb_image_id = NULL,
+        cover_source = 0
+      WHERE id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))
+        AND user_id = $2''',
       [
-        beaconId,
+        jsonEncode(beaconIds),
         ownerId,
         UserErasureScrubPlaceholders.title,
         UserErasureScrubPlaceholders.description,
       ],
     );
     await _database.customStatement(
-      r'DELETE FROM public.beacon_image WHERE beacon_id = $1',
-      [beaconId],
+      r'''
+DELETE FROM public.beacon_image WHERE beacon_id = ANY(
+        ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))''',
+      [jsonEncode(beaconIds)],
     );
     await _database.customStatement(
-      r'DELETE FROM public.beacon_image_stage WHERE beacon_id = $1',
-      [beaconId],
+      r'''
+DELETE FROM public.beacon_image_stage WHERE beacon_id = ANY(
+        ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))''',
+      [jsonEncode(beaconIds)],
     );
     if (imageIds.isNotEmpty) {
       await _deleteImageRows(imageIds: imageIds, authorId: ownerId);
@@ -116,14 +123,23 @@ WHERE id = $1
   Future<List<String>> hardDeleteOwnedDraftBeacon({
     required String beaconId,
     required String ownerId,
+  }) => hardDeleteOwnedDraftBeacons(beaconIds: [beaconId], ownerId: ownerId);
+
+  @override
+  Future<List<String>> hardDeleteOwnedDraftBeacons({
+    required List<String> beaconIds,
+    required String ownerId,
   }) async {
+    if (beaconIds.isEmpty) return const [];
     final imageIds = await _collectBeaconOwnedImageIds(
-      beaconId: beaconId,
+      beaconIds: beaconIds,
       ownerId: ownerId,
     );
     await _database.customStatement(
-      r'DELETE FROM public.beacon WHERE id = $1 AND user_id = $2',
-      [beaconId, ownerId],
+      r'''
+DELETE FROM public.beacon WHERE id = ANY(
+        ARRAY(SELECT jsonb_array_elements_text($1::jsonb))) AND user_id = $2''',
+      [jsonEncode(beaconIds), ownerId],
     );
     if (imageIds.isNotEmpty) {
       await _deleteImageRows(imageIds: imageIds, authorId: ownerId);
@@ -162,10 +178,12 @@ WHERE author_id = $1
 
   @override
   Future<List<String>> deleteOwnedImageRows({required String userId}) async {
-    final rows = await _database.customSelect(
-      r'SELECT id::text AS id FROM public.image WHERE author_id = $1',
-      variables: [Variable<String>(userId)],
-    ).get();
+    final rows = await _database
+        .customSelect(
+          r'SELECT id::text AS id FROM public.image WHERE author_id = $1',
+          variables: [Variable<String>(userId)],
+        )
+        .get();
     final imageIds = [for (final row in rows) row.read<String>('id')];
     if (imageIds.isEmpty) {
       return const [];
@@ -175,36 +193,38 @@ WHERE author_id = $1
   }
 
   Future<List<String>> _collectBeaconOwnedImageIds({
-    required String beaconId,
+    required List<String> beaconIds,
     required String ownerId,
   }) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
 SELECT DISTINCT image_id::text AS id
 FROM (
   SELECT bi.image_id
   FROM public.beacon_image bi
-  WHERE bi.beacon_id = $1
+  WHERE bi.beacon_id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))
   UNION
   SELECT b.cover_image_id
   FROM public.beacon b
-  WHERE b.id = $1 AND b.user_id = $2 AND b.cover_image_id IS NOT NULL
+  WHERE b.id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb))) AND b.user_id = $2 AND b.cover_image_id IS NOT NULL
   UNION
   SELECT b.cover_thumb_image_id
   FROM public.beacon b
-  WHERE b.id = $1 AND b.user_id = $2 AND b.cover_thumb_image_id IS NOT NULL
+  WHERE b.id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb))) AND b.user_id = $2 AND b.cover_thumb_image_id IS NOT NULL
   UNION
   SELECT s.image_id
   FROM public.beacon_image_stage s
-  WHERE s.beacon_id = $1
+  WHERE s.beacon_id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))
 ) owned
 WHERE image_id IS NOT NULL
 ''',
-      variables: [
-        Variable<String>(beaconId),
-        Variable<String>(ownerId),
-      ],
-    ).get();
+          variables: [
+            Variable<String>(jsonEncode(beaconIds)),
+            Variable<String>(ownerId),
+          ],
+        )
+        .get();
     return [for (final row in rows) row.read<String>('id')];
   }
 

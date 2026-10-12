@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
@@ -71,19 +73,15 @@ ORDER BY 1, 2
   }) async {
     final bounded = batchSize.clamp(1, AttentionSweepLimits.maxBatchSize);
 
-    // Phase 1 — the operation header, and membership if this call is the one
-    // that created it. `ON CONFLICT DO NOTHING` is the whole idempotency
-    // story, inherited from U08: a concurrent twin blocks on the primary key
-    // until the winner commits, then finds the membership the winner wrote
-    // and never captures its own.
-    final captured = await _database.transaction(() async {
+    // Persist the frozen membership before releasing the lane. A retry resumes
+    // this snapshot rather than capturing arrivals after the original gesture.
+    final snapshot = await _database.transaction(() async {
       final inserted = await _database.customUpdate(
         r'''
 INSERT INTO public.attention_clear_operation
-  (id, account_id, surface, status, applied, skipped, failed)
-VALUES ($1, $2, $3, 'pending', 0, 0, 0)
-ON CONFLICT (id) DO NOTHING
-''',
+        (id, account_id, surface, status, applied, skipped, failed)
+        VALUES ($1, $2, $3, 'pending', 0, 0, 0)
+        ON CONFLICT (id) DO NOTHING''',
         variables: [
           Variable<String>(operationId),
           Variable<String>(accountId),
@@ -91,31 +89,38 @@ ON CONFLICT (id) DO NOTHING
         ],
         updateKind: UpdateKind.insert,
       );
-      if (inserted == 0) return false;
-      await _capture(
-        accountId: accountId,
-        operationId: operationId,
-        chunkSize: bounded,
+      if (inserted == 0) return null;
+      final rows = await _database
+          .customSelect(captureSql, variables: [Variable<String>(accountId)])
+          .get();
+      final members = [for (final row in rows) row.data];
+      await _database.customUpdate(
+        r'''
+UPDATE public.attention_clear_operation
+        SET capture_snapshot = $2::jsonb WHERE id = $1''',
+        variables: [
+          Variable<String>(operationId),
+          Variable<String>(members.isEmpty ? null : jsonEncode(members)),
+        ],
       );
-      return true;
+      return members;
     });
-
-    if (!captured) {
-      // Somebody else's operation id. Say nothing about it — not even whether
-      // it exists.
-      final owner = await _operationOwner(operationId);
-      if (owner != accountId) {
-        return AttentionSweepResult(
-          operationId: operationId,
-          appliedReceiptIds: const [],
-          appliedOutcomeBeaconIds: const [],
-          skipped: const [],
-          failed: const [],
-          pending: const [],
-          status: AttentionClearStatus.denied,
-        );
-      }
+    if (snapshot == null && await _operationOwner(operationId) != accountId) {
+      return AttentionSweepResult(
+        operationId: operationId,
+        appliedReceiptIds: const [],
+        appliedOutcomeBeaconIds: const [],
+        skipped: const [],
+        failed: const [],
+        pending: const [],
+        status: AttentionClearStatus.denied,
+      );
     }
+    await _capture(
+      operationId: operationId,
+      chunkSize: bounded,
+      snapshot: snapshot,
+    );
 
     // Phase 2 — decide the still-pending members, a bounded batch at a time.
     //
@@ -148,17 +153,17 @@ ON CONFLICT (id) DO NOTHING
     // twin, a resume that found everything already decided — leaves it exactly
     // where it was. Otherwise replaying an id would buy unlimited undo time.
     await _database.customUpdate(
-      '''
+      r'''
 UPDATE public.attention_clear_operation
-   SET status = \$2, applied = \$3, skipped = \$4, failed = \$5,
+   SET status = $2, applied = $3, skipped = $4, failed = $5,
        undo_deadline = CASE
-         WHEN \$6 THEN GREATEST(
+         WHEN $6 THEN GREATEST(
            COALESCE(undo_deadline, now()),
-           now() + make_interval(secs => \$7)
+           now() + make_interval(secs => $7)
          )
          ELSE undo_deadline
        END
- WHERE id = \$1
+ WHERE id = $1
 ''',
       variables: [
         Variable<String>(operationId),
@@ -168,7 +173,8 @@ UPDATE public.attention_clear_operation
         Variable<int>(summary.failed.length),
         Variable<bool>(clearedHere > 0),
         Variable<double>(
-          AttentionUndoLimits.window.inMilliseconds / Duration.millisecondsPerSecond,
+          AttentionUndoLimits.window.inMilliseconds /
+              Duration.millisecondsPerSecond,
         ),
       ],
       updateKind: UpdateKind.update,
@@ -327,14 +333,14 @@ SELECT id FROM public.notification_outbox
       }
     }
 
-    // 4. Outcomes, one statement each inside a savepoint. The predicate is
-    // the first line of defence and m0185 is the second; if the database ever
-    // refuses a row this sweep thought it could dismiss, that member is
-    // reported `failed` rather than taking the whole batch down with it.
-    for (final id in applicableOutcomes) {
-      decisions[id] = await _dismissOutcome(
-        accountId: accountId,
-        beaconId: id,
+    // One guarded bulk update per outcome axis; a savepoint preserves the
+    // existing database-refusal result without aborting receipt decisions.
+    if (applicableOutcomes.isNotEmpty) {
+      decisions.addAll(
+        await _dismissOutcomes(
+          accountId: accountId,
+          beaconIds: applicableOutcomes,
+        ),
       );
     }
 
@@ -363,24 +369,29 @@ SELECT id FROM public.notification_outbox
       }
     }
 
-    for (final entry in decisions.entries) {
-      await _database.customUpdate(
-        r'''
-UPDATE public.attention_clear_operation_member
-   SET state = $2, skip_reason = $3
- WHERE operation_id = $1
-   AND (receipt_id = $4 OR outcome_beacon_id = $4)
-''',
-        variables: [
-          Variable<String>(operationId),
-          Variable<String>(entry.value.$1),
-          Variable<String>(entry.value.$2?.wireName),
-          Variable<String>(entry.key),
-        ],
-        updateKind: UpdateKind.update,
-      );
-    }
-
+    await _database.customUpdate(
+      r'''
+UPDATE public.attention_clear_operation_member AS member
+      SET state = decision.state, skip_reason = decision.skip_reason
+      FROM jsonb_to_recordset($2::jsonb)
+        AS decision(id text, state text, skip_reason text)
+      WHERE member.operation_id = $1
+        AND (member.receipt_id = decision.id OR member.outcome_beacon_id = decision.id)''',
+      variables: [
+        Variable<String>(operationId),
+        Variable<String>(
+          jsonEncode([
+            for (final entry in decisions.entries)
+              {
+                'id': entry.key,
+                'state': entry.value.$1,
+                'skip_reason': entry.value.$2?.wireName,
+              },
+          ]),
+        ),
+      ],
+      updateKind: UpdateKind.update,
+    );
     return (
       decided: decisions.length,
       applied: decisions.values
@@ -507,37 +518,46 @@ SELECT ii.beacon_id AS member_id,
     return reasons;
   }
 
-  Future<(String, AttentionSweepSkipReason?)> _dismissOutcome({
+  Future<Map<String, (String, AttentionSweepSkipReason?)>> _dismissOutcomes({
     required String accountId,
-    required String beaconId,
+    required List<String> beaconIds,
   }) async {
-    await _database.customStatement('SAVEPOINT attention_sweep_member');
+    await _database.customStatement('SAVEPOINT attention_sweep_members');
     try {
-      final rows = await _database.customUpdate(
-        r'''
-UPDATE public.inbox_item
-   SET tombstone_dismissed_at = now()
- WHERE user_id = $1
-   AND beacon_id = $2
-   AND tombstone_dismissed_at IS NULL
-''',
-        variables: [
-          Variable<String>(accountId),
-          Variable<String>(beaconId),
-        ],
-        updateKind: UpdateKind.update,
-      );
+      final rows = await _database
+          .customSelect(
+            r'''
+UPDATE public.inbox_item SET tombstone_dismissed_at = now()
+        WHERE user_id = $1
+          AND beacon_id = ANY(ARRAY(SELECT jsonb_array_elements_text($2::jsonb)))
+          AND tombstone_dismissed_at IS NULL RETURNING beacon_id''',
+            variables: [
+              Variable<String>(accountId),
+              Variable<String>(jsonEncode(beaconIds)),
+            ],
+          )
+          .get();
       await _database.customStatement(
-        'RELEASE SAVEPOINT attention_sweep_member',
+        'RELEASE SAVEPOINT attention_sweep_members',
       );
-      return rows > 0
-          ? (_stateApplied, null)
-          : (_stateSkipped, AttentionSweepSkipReason.alreadyCleared);
+      final applied = {for (final row in rows) row.read<String>('beacon_id')};
+      return {
+        for (final id in beaconIds)
+          id: applied.contains(id)
+              ? (_stateApplied, null)
+              : (_stateSkipped, AttentionSweepSkipReason.alreadyCleared),
+      };
     } on Object {
       await _database.customStatement(
-        'ROLLBACK TO SAVEPOINT attention_sweep_member',
+        'ROLLBACK TO SAVEPOINT attention_sweep_members',
       );
-      return (_stateFailed, AttentionSweepSkipReason.refused);
+      await _database.customStatement(
+        'RELEASE SAVEPOINT attention_sweep_members',
+      );
+      return {
+        for (final id in beaconIds)
+          id: (_stateFailed, AttentionSweepSkipReason.refused),
+      };
     }
   }
 
@@ -572,7 +592,7 @@ UPDATE public.inbox_item
   /// "The sweep actually applied this member." Shared by both axes. Without
   /// it, undo restores rows a bounded sweep never got to, which is undo
   /// silently finishing an operation it was asked to reverse.
-  static const undoAppliedStateGuard = r"AND member.state = 'applied'";
+  static const undoAppliedStateGuard = "AND member.state = 'applied'";
 
   /// The receipt half of undo, guards and all.
   ///
@@ -657,6 +677,77 @@ RETURNING ii.beacon_id
     required String accountId,
     required String operationId,
     required String undoToken,
+  }) async {
+    final members = await _database
+        .customSelect(
+          r'''
+SELECT receipt_id, outcome_beacon_id, state
+      FROM public.attention_clear_operation_member WHERE operation_id = $1
+      ORDER BY receipt_id NULLS LAST, outcome_beacon_id NULLS LAST''',
+          variables: [Variable<String>(operationId)],
+        )
+        .get();
+    final receipts = <String>[];
+    final outcomes = <String>[];
+    final skipped = <AttentionUndoMember>[];
+    final failed = <AttentionUndoMember>[];
+    AttentionUndoRefusal? refusal;
+    for (
+      var start = 0;
+      start < members.length || start == 0;
+      start += AttentionSweepLimits.maxBatchSize
+    ) {
+      final result = await _undoBatch(
+        accountId: accountId,
+        operationId: operationId,
+        members: members
+            .skip(start)
+            .take(AttentionSweepLimits.maxBatchSize)
+            .toList(),
+      );
+      if (result.refusal != null) {
+        if (receipts.isEmpty && outcomes.isEmpty) return result;
+        refusal = result.refusal;
+        for (final row in members.skip(start)) {
+          final receiptId = row.read<String?>('receipt_id');
+          failed.add(
+            AttentionUndoMember(
+              kind: receiptId == null ? 'outcome' : 'receipt',
+              id: receiptId ?? row.read<String>('outcome_beacon_id'),
+              reason: AttentionUndoSkipReason.refused,
+            ),
+          );
+        }
+        break;
+      }
+      receipts.addAll(result.restoredReceiptIds);
+      outcomes.addAll(result.restoredOutcomeBeaconIds);
+      skipped.addAll(result.skipped);
+      failed.addAll(result.failed);
+    }
+    final restored = receipts.length + outcomes.length;
+    final refused = skipped.length + failed.length;
+    return AttentionUndoResult(
+      operationId: operationId,
+      restoredReceiptIds: receipts,
+      restoredOutcomeBeaconIds: outcomes,
+      skipped: skipped,
+      failed: failed,
+      refusal: refusal,
+      status: restored > 0
+          ? (refused == 0
+                ? AttentionUndoStatus.complete
+                : AttentionUndoStatus.partial)
+          : (refused > 0
+                ? AttentionUndoStatus.stale
+                : AttentionUndoStatus.complete),
+    );
+  }
+
+  Future<AttentionUndoResult> _undoBatch({
+    required String accountId,
+    required String operationId,
+    required List<QueryRow> members,
   }) => _database.transaction(() async {
     // The window is a server column compared against the server's clock, and
     // it is read inside the transaction that would restore — a deadline that
@@ -693,19 +784,6 @@ SELECT account_id,
       return refused(AttentionUndoRefusal.expired);
     }
 
-    final members = await _database
-        .customSelect(
-          r'''
-SELECT receipt_id, outcome_beacon_id, state
-  FROM public.attention_clear_operation_member
- WHERE operation_id = $1
- ORDER BY receipt_id NULLS LAST, outcome_beacon_id NULLS LAST
- FOR UPDATE
-''',
-          variables: [Variable<String>(operationId)],
-        )
-        .get();
-
     final restoredReceipts = <String>[];
     final restoredOutcomes = <String>[];
     final skipped = <AttentionUndoMember>[];
@@ -713,6 +791,39 @@ SELECT receipt_id, outcome_beacon_id, state
     final unrestoredReceipts = <String>[];
     final unrestoredOutcomes = <String>[];
 
+    final receiptIds = [
+      for (final row in members)
+        if (row.read<String>('state') == _stateApplied &&
+            row.read<String?>('receipt_id') != null)
+          row.read<String>('receipt_id'),
+    ];
+    final outcomeIds = [
+      for (final row in members)
+        if (row.read<String>('state') == _stateApplied &&
+            row.read<String?>('receipt_id') == null)
+          row.read<String>('outcome_beacon_id'),
+    ];
+    final restoredMembers = <String, _RestoreOutcome>{};
+    if (receiptIds.isNotEmpty) {
+      restoredMembers.addAll(
+        await _restoreMembers(
+          accountId: accountId,
+          operationId: operationId,
+          memberIds: receiptIds,
+          isReceipt: true,
+        ),
+      );
+    }
+    if (outcomeIds.isNotEmpty) {
+      restoredMembers.addAll(
+        await _restoreMembers(
+          accountId: accountId,
+          operationId: operationId,
+          memberIds: outcomeIds,
+          isReceipt: false,
+        ),
+      );
+    }
     for (final row in members) {
       final receiptId = row.read<String?>('receipt_id');
       final isReceipt = receiptId != null;
@@ -735,12 +846,7 @@ SELECT receipt_id, outcome_beacon_id, state
         continue;
       }
 
-      final outcome = await _restoreMember(
-        accountId: accountId,
-        operationId: operationId,
-        memberId: id,
-        isReceipt: isReceipt,
-      );
+      final outcome = restoredMembers[id]!;
       switch (outcome) {
         case _RestoreOutcome.restored:
           (isReceipt ? restoredReceipts : restoredOutcomes).add(id);
@@ -786,15 +892,20 @@ SELECT receipt_id, outcome_beacon_id, state
       }
     }
 
-    for (final id in [...restoredReceipts, ...restoredOutcomes]) {
+    if (restoredReceipts.isNotEmpty || restoredOutcomes.isNotEmpty) {
       await _database.customUpdate(
         r'''
 UPDATE public.attention_clear_operation_member
-   SET state = 'undone'
- WHERE operation_id = $1
-   AND (receipt_id = $2 OR outcome_beacon_id = $2)
-''',
-        variables: [Variable<String>(operationId), Variable<String>(id)],
+        SET state = 'undone'
+        WHERE operation_id = $1 AND (receipt_id = ANY(
+          ARRAY(SELECT jsonb_array_elements_text($2::jsonb)))
+          OR outcome_beacon_id = ANY(ARRAY(SELECT jsonb_array_elements_text($2::jsonb))))''',
+        variables: [
+          Variable<String>(operationId),
+          Variable<String>(
+            jsonEncode([...restoredReceipts, ...restoredOutcomes]),
+          ),
+        ],
         updateKind: UpdateKind.update,
       );
     }
@@ -839,46 +950,60 @@ UPDATE public.attention_clear_operation
     );
   });
 
-  /// One member, inside a savepoint: a row the database refuses is reported
-  /// `failed` rather than taking the whole undo down with it.
-  Future<_RestoreOutcome> _restoreMember({
+  /// Restore one bounded axis, retaining every authorization/snapshot guard.
+  Future<Map<String, _RestoreOutcome>> _restoreMembers({
     required String accountId,
     required String operationId,
-    required String memberId,
+    required List<String> memberIds,
     required bool isReceipt,
   }) async {
-    await _database.customStatement('SAVEPOINT attention_undo_member');
+    await _database.customStatement('SAVEPOINT attention_undo_members');
     try {
+      final sql = isReceipt
+          ? undoReceiptSql.replaceFirst(
+              r'receipt.id = $3',
+              r'receipt.id = ANY(ARRAY(SELECT jsonb_array_elements_text($3::jsonb)))',
+            )
+          : undoOutcomeSql
+                .replaceFirst(
+                  r'ii.beacon_id = $3',
+                  r'ii.beacon_id = ANY(ARRAY(SELECT jsonb_array_elements_text($3::jsonb)))',
+                )
+                .replaceFirst(
+                  'RETURNING ii.beacon_id',
+                  'RETURNING ii.beacon_id AS id',
+                );
       final rows = await _database
           .customSelect(
-            isReceipt ? undoReceiptSql : undoOutcomeSql,
+            sql,
             variables: [
               Variable<String>(accountId),
               Variable<String>(operationId),
-              Variable<String>(memberId),
+              Variable<String>(jsonEncode(memberIds)),
             ],
           )
           .get();
       await _database.customStatement(
-        'RELEASE SAVEPOINT attention_undo_member',
+        'RELEASE SAVEPOINT attention_undo_members',
       );
-      return rows.isEmpty
-          ? _RestoreOutcome.refusedByGuard
-          : _RestoreOutcome.restored;
+      final restored = {for (final row in rows) row.read<String>('id')};
+      return {
+        for (final id in memberIds)
+          id: restored.contains(id)
+              ? _RestoreOutcome.restored
+              : _RestoreOutcome.refusedByGuard,
+      };
     } on Object {
       await _database.customStatement(
-        'ROLLBACK TO SAVEPOINT attention_undo_member',
+        'ROLLBACK TO SAVEPOINT attention_undo_members',
       );
-      return _RestoreOutcome.databaseRefused;
+      await _database.customStatement(
+        'RELEASE SAVEPOINT attention_undo_members',
+      );
+      return {for (final id in memberIds) id: _RestoreOutcome.databaseRefused};
     }
   }
 
-  /// Which guard refused, per member.
-  ///
-  /// The order matters and mirrors the guards: "somebody already put it back"
-  /// is not "another device owns this clear now" is not "you decided something
-  /// since". Absence from the lookup is a vanished row or a lost
-  /// authorization, deliberately one answer.
   Future<Map<String, AttentionUndoSkipReason>> _undoRefusalReasons({
     required String accountId,
     required String operationId,
@@ -955,54 +1080,64 @@ SELECT ii.beacon_id AS member_id,
 
   /// Membership, captured once and never extended.
   Future<void> _capture({
-    required String accountId,
     required String operationId,
     required int chunkSize,
+    List<Map<String, dynamic>>? snapshot,
   }) async {
-    final rows = await _database
-        .customSelect(
-          captureSql,
-          variables: [Variable<String>(accountId)],
-        )
-        .get();
-
-    for (var start = 0; start < rows.length; start += chunkSize) {
-      final chunk = rows.skip(start).take(chunkSize);
-      for (final row in chunk) {
-        final isReceipt =
-            row.read<String>('kind') ==
-            AttentionSweepMemberKind.receipt.wireName;
-        final memberId = row.read<String>('member_id');
-        final conflictTarget = isReceipt
-            ? '(operation_id, receipt_id) WHERE receipt_id IS NOT NULL'
-            : '(operation_id, outcome_beacon_id) '
-                  'WHERE outcome_beacon_id IS NOT NULL';
-        // m0186 gives each axis its own partial unique index, so the
-        // conflict target has to name the axis this row is on. Both branches
-        // absorb a duplicate identically — capture cannot run twice today
-        // (the header insert and this loop share one transaction, so a twin's
-        // `ON CONFLICT DO NOTHING` waits on the winner and then captures
-        // nothing), but an insert that is idempotent on one axis and throws
-        // on the other is a trap for whoever moves that boundary.
-        await _database.customUpdate(
-          '''
-INSERT INTO public.attention_clear_operation_member
-  (operation_id, receipt_id, outcome_beacon_id, beacon_id,
-   outcome_generation, decision_revision, state)
-VALUES (\$1, \$2, \$3, \$4, \$5, \$6, 'pending')
-ON CONFLICT $conflictTarget DO NOTHING
-''',
+    var cursor = 0;
+    if (snapshot == null) {
+      final header = await _database
+          .customSelect(
+            r'''
+SELECT capture_snapshot::text AS capture_snapshot, capture_cursor
+        FROM public.attention_clear_operation WHERE id = $1''',
+            variables: [Variable<String>(operationId)],
+          )
+          .getSingleOrNull();
+      final raw = header?.read<String?>('capture_snapshot');
+      if (raw == null) return;
+      snapshot = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      cursor = header!.read<int>('capture_cursor');
+    }
+    for (var start = cursor; start < snapshot.length; start += chunkSize) {
+      final chunk = snapshot.skip(start).take(chunkSize).toList();
+      final next = start + chunk.length;
+      await _database.transaction(() async {
+        // The cursor update locks the header and fences concurrent resumptions.
+        // It commits with the members, including clearing the final snapshot.
+        final claimed = await _database.customUpdate(
+          r'''
+UPDATE public.attention_clear_operation
+          SET capture_cursor = $2,
+              capture_snapshot = CASE WHEN $4 THEN NULL ELSE capture_snapshot END
+          WHERE id = $1 AND capture_cursor = $3''',
           variables: [
             Variable<String>(operationId),
-            Variable<String>(isReceipt ? memberId : null),
-            Variable<String>(isReceipt ? null : memberId),
-            Variable<String>(row.read<String?>('beacon_id')),
-            Variable<int>(row.read<int>('outcome_generation')),
-            Variable<int>(row.read<int>('decision_revision')),
+            Variable<int>(next),
+            Variable<int>(start),
+            Variable<bool>(next == snapshot!.length),
+          ],
+        );
+        if (claimed == 0) return;
+        await _database.customUpdate(
+          r'''
+INSERT INTO public.attention_clear_operation_member
+          (operation_id, receipt_id, outcome_beacon_id, beacon_id,
+           outcome_generation, decision_revision, state)
+          SELECT $1,
+            CASE WHEN m.kind = 'receipt' THEN m.member_id END,
+            CASE WHEN m.kind = 'outcome' THEN m.member_id END,
+            m.beacon_id, m.outcome_generation, m.decision_revision, 'pending'
+          FROM jsonb_to_recordset($2::jsonb) AS m(kind text, member_id text,
+            beacon_id text, outcome_generation integer, decision_revision integer)
+          ON CONFLICT DO NOTHING''',
+          variables: [
+            Variable<String>(operationId),
+            Variable<String>(jsonEncode(chunk)),
           ],
           updateKind: UpdateKind.insert,
         );
-      }
+      });
     }
   }
 

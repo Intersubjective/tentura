@@ -25,6 +25,18 @@ abstract class UserErasurePort {
     required String ownerId,
   });
 
+  /// Set-based counterpart for one bounded chunk of deleted published rows.
+  Future<List<String>> scrubDeletedOwnedBeaconContents({
+    required List<String> beaconIds,
+    required String ownerId,
+  });
+
+  /// Set-based counterpart for one bounded chunk of private drafts.
+  Future<List<String>> hardDeleteOwnedDraftBeacons({
+    required List<String> beaconIds,
+    required String ownerId,
+  });
+
   /// Deletes user-scoped capability-event rows that must be scrubbed before
   /// the account row is removed. (The review-era rows this used to
   /// cover went away with their tables in m0203.)

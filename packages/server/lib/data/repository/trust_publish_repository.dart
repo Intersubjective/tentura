@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/trust_publish_port.dart';
@@ -96,70 +98,97 @@ LIMIT $1
   Future<void> sync() => _database.customStatement('SELECT public.mr_sync()');
 
   @override
-  Future<void> ack(int token, List<PublishRow> rows) =>
-      _database.transaction(() async {
+  Future<void> ack(int token, List<PublishRow> rows) async {
+    var leaseAccepted = false;
+    // The publisher normally supplies 200 rows. Bound callers that supply more
+    // as well, rechecking the fencing token on every commit.
+    for (var start = 0; start < rows.length; start += 200) {
+      final batch = rows.skip(start).take(200).toList();
+      final accepted = await _database.transaction(() async {
         final lease = await _database
             .customSelect(
               r'''
-SELECT 1 FROM public.trust_publisher_lease
-WHERE id = 1 AND token = $1 AND lease_until > now()
-FOR UPDATE
-''',
+          SELECT 1 FROM public.trust_publisher_lease
+          WHERE id = 1 AND token = $1 AND lease_until > now()
+          FOR UPDATE
+          ''',
               variables: [Variable<int>(token)],
             )
             .get();
-        if (lease.isEmpty) return;
-        for (final row in rows) {
-          final current = await _database
-              .customSelect(
-                r'''
-SELECT target_w FROM public.user_trust_edge
-WHERE subject = $1 AND object = $2
-''',
-                variables: [
-                  Variable<String>(row.subject),
-                  Variable<String>(row.object),
-                ],
-              )
-              .get();
-          final target = current.isEmpty
-              ? 0.0
-              : current.single.read<double>('target_w');
-          if (target != row.target) continue;
-          final args = [
-            Variable<String>(row.subject),
-            Variable<String>(row.object),
-          ];
-          await _database.customUpdate(
-            r'''
-UPDATE public.user_trust_edge SET prev_sent_weight = target_w
-WHERE subject = $1 AND object = $2
-''',
-            variables: args,
-          );
-          await _database.customUpdate(
-            r'''
-DELETE FROM public.user_trust_edge
-WHERE subject = $1 AND object = $2 AND target_w = 0 AND prev_sent_weight = 0
-''',
-            variables: args,
-          );
-          await _database.customUpdate(
-            r'''
-DELETE FROM public.trust_publish_queue
-WHERE subject_user_id = $1 AND object_user_id = $2
-''',
-            variables: args,
-          );
-        }
-        // Same as WitnessWindowPort.bumpMrEpoch.
-        await _database.customStatement('SELECT public.mr_sync()');
+        if (lease.isEmpty) return false;
+        // Lock matching edges while comparing the published snapshot, so a
+        // concurrent projection cannot have its newly queued value acknowledged.
         await _database.customStatement(
           r'''
-UPDATE public.mr_publish_epoch SET epoch = epoch + 1 WHERE id = true
-''',
+          WITH published AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb)
+              AS p(subject text, object text, target double precision)
+          ), matching AS MATERIALIZED (
+            SELECT e.subject, e.object
+            FROM public.user_trust_edge e
+            JOIN published p ON p.subject = e.subject AND p.object = e.object
+            WHERE e.target_w = p.target
+            ORDER BY e.subject, e.object
+            FOR UPDATE OF e
+          ), acknowledged AS (
+            UPDATE public.user_trust_edge e SET prev_sent_weight = e.target_w
+            FROM matching m
+            WHERE e.subject = m.subject AND e.object = m.object
+            RETURNING e.subject, e.object, e.target_w
+          )
+          DELETE FROM public.trust_publish_queue q
+          WHERE EXISTS (
+            SELECT 1 FROM acknowledged a
+            WHERE a.subject = q.subject_user_id AND a.object = q.object_user_id
+          ) OR EXISTS (
+            SELECT 1 FROM published p
+            WHERE p.subject = q.subject_user_id AND p.object = q.object_user_id
+              AND p.target = 0 AND NOT EXISTS (
+                SELECT 1 FROM public.user_trust_edge e
+                WHERE e.subject = p.subject AND e.object = p.object
+              )
+          )
+          ''',
+          [
+            jsonEncode([
+              for (final row in batch)
+                {
+                  'subject': row.subject,
+                  'object': row.object,
+                  'target': row.target,
+                },
+            ]),
+          ],
         );
+        await _database.customStatement(
+          r'''
+DELETE FROM public.user_trust_edge e
+          USING jsonb_to_recordset($1::jsonb)
+            AS p(subject text, object text, target double precision)
+          WHERE e.subject = p.subject AND e.object = p.object
+            AND p.target = 0 AND e.target_w = 0 AND e.prev_sent_weight = 0''',
+          [
+            jsonEncode([
+              for (final row in batch)
+                {
+                  'subject': row.subject,
+                  'object': row.object,
+                  'target': row.target,
+                },
+            ]),
+          ],
+        );
+        return true;
       });
+      if (!accepted) break;
+      leaseAccepted = true;
+    }
+    if (!leaseAccepted) return;
+    await _database.customStatement('SELECT public.mr_sync()');
+    await _database.customStatement(
+      'UPDATE public.mr_publish_epoch SET epoch = epoch + 1 WHERE id = true',
+    );
+  }
 
   @override
   Future<void> fail(List<PublishRow> rows, String error) async {
@@ -185,7 +214,7 @@ WHERE subject_user_id = $1 AND object_user_id = $2
   Future<bool> cutoverPending() async {
     final rows = await _database
         .customSelect(
-          r"SELECT 1 FROM public.trust_cutover_state WHERE id = 1 AND status = 'pending'",
+          "SELECT 1 FROM public.trust_cutover_state WHERE id = 1 AND status = 'pending'",
         )
         .get();
     return rows.isNotEmpty;

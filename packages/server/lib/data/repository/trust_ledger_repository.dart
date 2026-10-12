@@ -20,38 +20,46 @@ class TrustLedgerRepository implements TrustLedgerPort {
 
   @override
   Future<void> record(List<LedgerEvidence> evidence) async {
-    for (final e in evidence) {
-      await _db.customInsert(
-        r'''
-INSERT INTO public.trust_evidence (
-  id, subject_user_id, object_user_id, kind, count, source_key,
-  beacon_id, closure_epoch, related_user_id, occurred_at, metadata
-) VALUES (
-  gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8,
-  coalesce($9, now()), $10::jsonb
-)
-ON CONFLICT (source_key) DO NOTHING
-''',
-        variables: [
-          Variable<String>(e.subjectId),
-          Variable<String>(e.objectId),
-          Variable<int>(e.kind.code),
-          Variable<double>(e.count),
-          Variable<String>(e.sourceKey),
-          Variable<String>(e.beaconId),
-          Variable<int>(e.epoch),
-          Variable<String>(e.relatedUserId),
-          Variable(
-            e.occurredAt == null ? null : PgDateTime(e.occurredAt!),
-            PgTypes.timestampWithTimezone,
-          ),
-          Variable<String>(jsonEncode(e.metadata)),
-        ],
-      );
-    }
-    await project({
-      for (final e in evidence) (e.subjectId, e.objectId),
-    }.toList());
+    if (evidence.isEmpty) return;
+    await _db.customStatement(
+      r'''
+      INSERT INTO public.trust_evidence (
+        id, subject_user_id, object_user_id, kind, count, source_key,
+        beacon_id, closure_epoch, related_user_id, occurred_at, metadata
+      )
+      SELECT gen_random_uuid()::text, e.subject, e.object, e.kind, e.count,
+        e.source_key, e.beacon_id, e.epoch, e.related_user_id,
+        coalesce(e.occurred_at, now()), e.metadata
+      FROM jsonb_to_recordset($1::jsonb) AS e(
+        subject text, object text, kind smallint, count double precision,
+        source_key text, beacon_id text, epoch integer, related_user_id text,
+        occurred_at timestamptz, metadata jsonb
+      )
+      ON CONFLICT DO NOTHING
+      ''',
+      [
+        jsonEncode([
+          for (final e in evidence)
+            {
+              'subject': e.subjectId,
+              'object': e.objectId,
+              'kind': e.kind.code,
+              'count': e.count,
+              'source_key': e.sourceKey,
+              'beacon_id': e.beaconId,
+              'epoch': e.epoch,
+              'related_user_id': e.relatedUserId,
+              'occurred_at': e.occurredAt?.toUtc().toIso8601String(),
+              'metadata': e.metadata,
+            },
+        ]),
+      ],
+    );
+    await project(
+      {
+        for (final e in evidence) (e.subjectId, e.objectId),
+      }.toList(),
+    );
   }
 
   @override
@@ -130,13 +138,26 @@ LIMIT 1
         final bySubject = a.$1.compareTo(b.$1);
         return bySubject != 0 ? bySubject : a.$2.compareTo(b.$2);
       });
-    for (final (s, o) in sorted) {
-      await _db
-          .customSelect(
-            r'SELECT public.trust_project_pair($1, $2)',
-            variables: [Variable<String>(s), Variable<String>(o)],
-          )
-          .get();
-    }
+    if (sorted.isEmpty) return;
+    await _db
+        .customSelect(
+          r'''
+      SELECT public.trust_project_pair(p.subject, p.object)
+      FROM (
+        SELECT subject, object
+        FROM jsonb_to_recordset($1::jsonb) AS pair(subject text, object text)
+        ORDER BY subject, object
+      ) p
+      ''',
+          variables: [
+            Variable<String>(
+              jsonEncode([
+                for (final (subject, object) in sorted)
+                  {'subject': subject, 'object': object},
+              ]),
+            ),
+          ],
+        )
+        .get();
   }
 }

@@ -1,0 +1,169 @@
+{
+  "environment": "perf",
+  "metric": "db_lane_hold",
+  "unit": "ms",
+  "measurementBoundary": "transaction_begin_to_commit",
+  "referenceMachine": "sol Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "database": {
+    "name": "tentura_test_lane_hold_perf",
+    "postgresVersion": "17.11"
+  },
+  "beforeRevision": "df3a45d54108938fda423293056af204630b436c",
+  "afterRevision": "7ef23a5d704ef2897e87475f7360dcd555f5bc52",
+  "revisionKind": "source_tree_sha1",
+  "beforeBaseCommit": "29f327e2dcb732110073ca95dac947d3547b9f26",
+  "sourceSnapshots": "/tmp/tentura-lane-hold-npu2gv9w",
+  "paths": [
+    {
+      "path": "trust_publish_ack",
+      "rows": 200,
+      "before": {
+        "runId": "1c5aa7ab-bfda-442b-86af-aff12d8da478",
+        "laneHoldsMs": [
+          1007.75
+        ],
+        "worstCaseLaneHoldMs": 1007.75
+      },
+      "after": {
+        "runId": "20a6001b-4c1d-4ac8-b7b7-d447a5099d72",
+        "laneHoldsMs": [
+          29.399
+        ],
+        "worstCaseLaneHoldMs": 29.399
+      }
+    },
+    {
+      "path": "attention_capture",
+      "rows": 1201,
+      "before": {
+        "runId": "25f4a906-7416-4ae9-b54c-e1a6dcfea4cd",
+        "laneHoldsMs": [
+          432.076
+        ],
+        "worstCaseLaneHoldMs": 432.076
+      },
+      "after": {
+        "runId": "4ea6805a-7dff-4725-ba56-aea95a1c1756",
+        "laneHoldsMs": [
+          47.001,
+          10.365,
+          10.096,
+          9.146,
+          8.893,
+          8.54,
+          10.962,
+          4.358
+        ],
+        "worstCaseLaneHoldMs": 47.001
+      }
+    },
+    {
+      "path": "attention_apply",
+      "rows": 200,
+      "before": {
+        "runId": "0ae62de2-792f-44ae-b525-10f62f9493ec",
+        "laneHoldsMs": [
+          0.601,
+          63.614
+        ],
+        "worstCaseLaneHoldMs": 63.614
+      },
+      "after": {
+        "runId": "85d4c5b8-e5ad-457b-b2ee-a887744549f7",
+        "laneHoldsMs": [
+          1.555,
+          29.152
+        ],
+        "worstCaseLaneHoldMs": 29.152
+      }
+    },
+    {
+      "path": "attention_undo",
+      "rows": 1201,
+      "before": {
+        "runId": "38627180-09e4-4883-97f9-d175af51f24e",
+        "laneHoldsMs": [
+          3112.124
+        ],
+        "worstCaseLaneHoldMs": 3112.124
+      },
+      "after": {
+        "runId": "bd637c3c-a1a7-4f4a-b9ae-27ed48398140",
+        "laneHoldsMs": [
+          44.148,
+          44.576,
+          24.03
+        ],
+        "worstCaseLaneHoldMs": 44.576
+      }
+    },
+    {
+      "path": "user_erasure_published",
+      "rows": 1201,
+      "before": {
+        "runId": "31c0efdb-f9d6-46b9-a30c-85c61917122f",
+        "laneHoldsMs": [
+          5569.405
+        ],
+        "worstCaseLaneHoldMs": 5569.405
+      },
+      "after": {
+        "runId": "3f2b424b-ecf1-4f35-a971-7590c4eccf92",
+        "laneHoldsMs": [
+          387.469,
+          343.706,
+          306.764,
+          301.077,
+          309.906,
+          320.361,
+          12.494,
+          1682.228
+        ],
+        "worstCaseLaneHoldMs": 1682.228
+      }
+    },
+    {
+      "path": "user_erasure_drafts",
+      "rows": 1201,
+      "before": {
+        "runId": "f5fe56a1-5048-4a1a-acee-796cf3cc5058",
+        "laneHoldsMs": [
+          2213.326
+        ],
+        "worstCaseLaneHoldMs": 2213.326
+      },
+      "after": {
+        "runId": "a8f3af5a-83a5-4a25-8a4c-0ee8d90b8e67",
+        "laneHoldsMs": [
+          173.879,
+          158.658,
+          162.414,
+          160.972,
+          162.728,
+          158.485,
+          6.728,
+          15.024
+        ],
+        "worstCaseLaneHoldMs": 173.879
+      }
+    },
+    {
+      "path": "contact_resolution",
+      "rows": 200,
+      "before": {
+        "runId": "b7476c3a-03f7-4f41-9d90-9c088a196f17",
+        "laneHoldsMs": [
+          1496.415
+        ],
+        "worstCaseLaneHoldMs": 1496.415
+      },
+      "after": {
+        "runId": "4f906999-e61b-4c95-891b-9470509b347e",
+        "laneHoldsMs": [
+          1422.579
+        ],
+        "worstCaseLaneHoldMs": 1422.579
+      }
+    }
+  ]
+}
