@@ -349,6 +349,8 @@ class BeaconRoomCase extends UseCaseBase {
 
   // DORMANT(item-threads): optional threadItemId; item-thread branch never taken in production (always null; General is thread_item_id IS NULL).
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  /// Persists a message, optionally using an upload prepared by an outer flow.
+  /// That flow must schedule hashing after commit if [deferAttachmentHash] is set.
   Future<Map<String, Object?>> createMessage({
     required String beaconId,
     required String userId,
@@ -358,6 +360,8 @@ class BeaconRoomCase extends UseCaseBase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
+    UploadedRoomAttachment? uploadedAttachment,
+    bool deferAttachmentHash = false,
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
@@ -437,7 +441,10 @@ class BeaconRoomCase extends UseCaseBase {
         payload = null;
       }
     }
-    if (trimmed.isEmpty && payload == null && quotedFactCardId == null) {
+    if (trimmed.isEmpty &&
+        payload == null &&
+        uploadedAttachment == null &&
+        quotedFactCardId == null) {
       throw const BeaconCreateException(
         description: 'Message text, attachment or quoted fact required',
       );
@@ -469,6 +476,18 @@ class BeaconRoomCase extends UseCaseBase {
         mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
     final postAuthorId = await _postAuthorId(beaconId);
 
+    // Complete object-store I/O before opening the attention transaction.
+    final attachment =
+        uploadedAttachment ??
+        (payload == null
+            ? null
+            : await _uploadAttachment(
+                userId: userId,
+                bytes: payload,
+                uploadFilename: attachmentFilename,
+                uploadMimeType: attachmentMimeType,
+              ));
+
     Future<Map<String, Object?>> persist(
       AttentionTransaction? transaction,
     ) async {
@@ -483,15 +502,11 @@ class BeaconRoomCase extends UseCaseBase {
         quotedFactCardId: quotedFactCardId,
         quotedFactRevisionSeq: quotedFactRevisionSeq,
       );
-      if (payload != null) {
-        await _addAttachmentBytesToMessage(
-          beaconId: beaconId,
-          userId: userId,
+      if (attachment != null) {
+        await _insertUploadedAttachment(
           messageId: row.id,
           mutatingUserId: userId,
-          bytes: payload,
-          uploadFilename: attachmentFilename,
-          uploadMimeType: attachmentMimeType,
+          attachment: attachment,
         );
       }
       if (transaction != null) {
@@ -545,13 +560,17 @@ class BeaconRoomCase extends UseCaseBase {
       return {'id': row.id, 'beaconId': row.beaconId};
     }
 
-    if (!hasDirected && postAuthorId == null) {
-      return persist(null);
+    final result = !hasDirected && postAuthorId == null
+        ? await persist(null)
+        : await _attention!.runAction(
+            actorUserId: userId,
+            action: persist,
+          );
+    // TaskWorker commits independently, so enqueue only after message commit.
+    if (!deferAttachmentHash) {
+      await scheduleAttachmentHash(attachment);
     }
-    return _attention!.runAction(
-      actorUserId: userId,
-      action: persist,
-    );
+    return result;
   }
 
   // DORMANT(item-threads): itemParticipantsOnly path for non-room item-thread viewers.
@@ -1452,7 +1471,47 @@ class BeaconRoomCase extends UseCaseBase {
       );
     }
     final position = count;
-    final attachmentId = generateId('A');
+    final attachment = await _uploadAttachment(
+      userId: userId,
+      bytes: bytes,
+      uploadFilename: uploadFilename,
+      uploadMimeType: uploadMimeType,
+    );
+    await _insertUploadedAttachment(
+      messageId: messageId,
+      mutatingUserId: mutatingUserId,
+      attachment: attachment,
+      position: position,
+    );
+    await scheduleAttachmentHash(attachment);
+  }
+
+  /// Completes upload I/O before a caller opens its message transaction.
+  Future<UploadedRoomAttachment?> prepareMessageAttachment({
+    required String userId,
+    required Stream<Uint8List> bytes,
+    String? uploadFilename,
+    String? uploadMimeType,
+  }) async {
+    final payload = await readUint8StreamWithLimit(
+      bytes,
+      kMaxRoomMessageAttachmentBytes,
+    );
+    if (payload.isEmpty) return null;
+    return _uploadAttachment(
+      userId: userId,
+      bytes: payload,
+      uploadFilename: uploadFilename,
+      uploadMimeType: uploadMimeType,
+    );
+  }
+
+  Future<UploadedRoomAttachment> _uploadAttachment({
+    required String userId,
+    required Uint8List bytes,
+    String? uploadFilename,
+    String? uploadMimeType,
+  }) async {
     final displayName = attachmentDisplayName(uploadFilename ?? 'file');
     var mime = _normalizeAttachmentMime(uploadMimeType, displayName);
     final sniffedMime = inferImageMimeFromLeadingBytes(bytes);
@@ -1461,25 +1520,12 @@ class BeaconRoomCase extends UseCaseBase {
     }
     final useImagePipeline =
         sniffedMime != null || _attachmentLooksLikeImage(mime, displayName);
+    String? imageId;
+    String? storagePath;
     if (useImagePipeline) {
-      final imageId = await _imageRepository.put(
+      imageId = await _imageRepository.put(
         authorId: userId,
         bytes: Stream.value(bytes),
-      );
-      await _tasksRepository.schedule(
-        TaskEntity(
-          details: TaskCalculateImageHashDetails(imageId: imageId),
-        ),
-      );
-      await _room.insertRoomMessageAttachmentImage(
-        attachmentId: attachmentId,
-        messageId: messageId,
-        position: position,
-        imageId: imageId,
-        mime: mime,
-        sizeBytes: bytes.length,
-        displayName: displayName,
-        mutatingUserId: mutatingUserId,
       );
     } else {
       // Image attachments reserve quota inside ImageRepository.put; file
@@ -1494,7 +1540,7 @@ class BeaconRoomCase extends UseCaseBase {
           description: 'Daily upload limit reached, try again tomorrow',
         );
       }
-      final storagePath = roomAttachmentStorageKey(bytes);
+      storagePath = roomAttachmentStorageKey(bytes);
       final meta = <String, String>{
         kHeaderContentType: mime,
       };
@@ -1507,17 +1553,64 @@ class BeaconRoomCase extends UseCaseBase {
         Stream.value(bytes),
         metadata: meta,
       );
+    }
+    return (
+      imageId: imageId,
+      storagePath: storagePath,
+      mime: mime,
+      sizeBytes: bytes.length,
+      displayName: displayName,
+    );
+  }
+
+  Future<void> _insertUploadedAttachment({
+    required String messageId,
+    required String mutatingUserId,
+    required UploadedRoomAttachment attachment,
+    int? position,
+  }) async {
+    final resolvedPosition =
+        position ?? await _room.countAttachmentsForMessage(messageId);
+    if (resolvedPosition >= kMaxRoomMessageAttachments) {
+      throw const BeaconCreateException(
+        description: 'Maximum attachments per message reached',
+      );
+    }
+    final attachmentId = generateId('A');
+    if (attachment.imageId case final imageId?) {
+      await _room.insertRoomMessageAttachmentImage(
+        attachmentId: attachmentId,
+        messageId: messageId,
+        position: resolvedPosition,
+        imageId: imageId,
+        mime: attachment.mime,
+        sizeBytes: attachment.sizeBytes,
+        displayName: attachment.displayName,
+        mutatingUserId: mutatingUserId,
+      );
+    } else {
       await _room.insertRoomMessageAttachmentFile(
         attachmentId: attachmentId,
         messageId: messageId,
-        position: position,
-        storagePath: storagePath,
-        mime: mime,
-        sizeBytes: bytes.length,
-        displayName: displayName,
+        position: resolvedPosition,
+        storagePath: attachment.storagePath!,
+        mime: attachment.mime,
+        sizeBytes: attachment.sizeBytes,
+        displayName: attachment.displayName,
         mutatingUserId: mutatingUserId,
       );
     }
+  }
+
+  /// Call after the outer transaction commits when deferring message hashing.
+  Future<void> scheduleAttachmentHash(
+    UploadedRoomAttachment? attachment,
+  ) async {
+    final imageId = attachment?.imageId;
+    if (imageId == null) return;
+    await _tasksRepository.schedule(
+      TaskEntity(details: TaskCalculateImageHashDetails(imageId: imageId)),
+    );
   }
 
   static bool _attachmentLooksLikeImage(String mime, String fileLabel) {
@@ -1651,3 +1744,12 @@ class BeaconRoomCase extends UseCaseBase {
     };
   }
 }
+
+/// Metadata of an upload completed before message persistence begins.
+typedef UploadedRoomAttachment = ({
+  String? imageId,
+  String? storagePath,
+  String mime,
+  int sizeBytes,
+  String displayName,
+});

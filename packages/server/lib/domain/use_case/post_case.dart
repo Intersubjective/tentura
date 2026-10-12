@@ -70,8 +70,8 @@ class PostCase {
   final TransactionalAttentionCase _attention;
 
   /// Publishes a draft Post, forwards it to [recipientIds] and posts the root
-  /// message, all in one transaction. A retry by the author after success
-  /// returns the existing ids.
+  /// message, all in one transaction after upload I/O. A retry by the author
+  /// after success returns the existing ids.
   Future<PostPublishResult> publish({
     required String authorId,
     required String beaconId,
@@ -85,74 +85,104 @@ class PostCase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
-  }) => _attention.runAction(
-    actorUserId: authorId,
-    action: (_) async {
-      await _postLock.lockForPostMutation(beaconId);
-      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-      if (beacon.author.id != authorId) {
-        throw const UnauthorizedException(
-          description: 'Only the author can publish a Post',
+  }) async {
+    final existing = await _publishedPostOrValidateDraft(
+      authorId: authorId,
+      beaconId: beaconId,
+    );
+    if (existing != null) return existing;
+    if (body.trim().isEmpty && attachmentBytes == null) {
+      throw const BeaconCreateException(
+        description: 'A Post needs text or an attachment',
+      );
+    }
+    final attachment = attachmentBytes == null
+        ? null
+        : await _roomCase.prepareMessageAttachment(
+            userId: authorId,
+            bytes: attachmentBytes,
+            uploadFilename: attachmentFilename,
+            uploadMimeType: attachmentMimeType,
+          );
+    var createdMessage = false;
+    final result = await _attention.runAction(
+      actorUserId: authorId,
+      action: (_) async {
+        await _postLock.lockForPostMutation(beaconId);
+        final existing = await _publishedPostOrValidateDraft(
+          authorId: authorId,
+          beaconId: beaconId,
         );
-      }
-      if (beacon.kind != BeaconKind.post) {
-        throw const BeaconCreateException(description: 'Not a Post');
-      }
-      final existingRoot = beacon.postRootMessageId;
-      if (beacon.status == BeaconStatus.open && existingRoot != null) {
+        if (existing != null) return existing;
+        await _beaconRepository.setForwardPolicy(
+          beaconId: beaconId,
+          policy: forwardPolicy,
+        );
+        await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
+        // Without recipients the Post stays visible only to its author —
+        // `beacon_can_read_content` already admits the author unconditionally.
+        if (recipientIds.isNotEmpty) {
+          await _forwardCase.forward(
+            senderId: authorId,
+            beaconId: beaconId,
+            recipientIds: recipientIds,
+            perRecipientNotes: notes,
+          );
+        }
+        final message = await _roomCase.createMessage(
+          beaconId: beaconId,
+          userId: authorId,
+          body: body,
+          explicitMentionUserIds: mentionUserIds,
+          explicitMentionOffsets: mentionOffsets,
+          explicitMentionLengths: mentionLengths,
+          uploadedAttachment: attachment,
+          deferAttachmentHash: true,
+          suppressMentionNotifyFor: recipientIds.toSet(),
+        );
+        final rootMessageId = message['id']! as String;
+        await _beaconRepository.setPostRootMessage(
+          beaconId: beaconId,
+          messageId: rootMessageId,
+        );
+        createdMessage = true;
         return PostPublishResult(
           beaconId: beaconId,
-          rootMessageId: existingRoot,
+          rootMessageId: rootMessageId,
         );
-      }
-      if (beacon.status != BeaconStatus.draft) {
-        throw const BeaconCreateException(
-          description: 'Post is not a draft',
-        );
-      }
-      if (body.trim().isEmpty && attachmentBytes == null) {
-        throw const BeaconCreateException(
-          description: 'A Post needs text or an attachment',
-        );
-      }
-      await _beaconRepository.setForwardPolicy(
-        beaconId: beaconId,
-        policy: forwardPolicy,
+      },
+    );
+    if (createdMessage) await _roomCase.scheduleAttachmentHash(attachment);
+    return result;
+  }
+
+  Future<PostPublishResult?> _publishedPostOrValidateDraft({
+    required String authorId,
+    required String beaconId,
+  }) async {
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beacon.author.id != authorId) {
+      throw const UnauthorizedException(
+        description: 'Only the author can publish a Post',
       );
-      await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
-      // Without recipients the Post stays visible only to its author —
-      // `beacon_can_read_content` already admits the author unconditionally.
-      if (recipientIds.isNotEmpty) {
-        await _forwardCase.forward(
-          senderId: authorId,
-          beaconId: beaconId,
-          recipientIds: recipientIds,
-          perRecipientNotes: notes,
-        );
-      }
-      final message = await _roomCase.createMessage(
-        beaconId: beaconId,
-        userId: authorId,
-        body: body,
-        explicitMentionUserIds: mentionUserIds,
-        explicitMentionOffsets: mentionOffsets,
-        explicitMentionLengths: mentionLengths,
-        attachmentBytes: attachmentBytes,
-        attachmentFilename: attachmentFilename,
-        attachmentMimeType: attachmentMimeType,
-        suppressMentionNotifyFor: recipientIds.toSet(),
-      );
-      final rootMessageId = message['id']! as String;
-      await _beaconRepository.setPostRootMessage(
-        beaconId: beaconId,
-        messageId: rootMessageId,
-      );
+    }
+    if (beacon.kind != BeaconKind.post) {
+      throw const BeaconCreateException(description: 'Not a Post');
+    }
+    final existingRoot = beacon.postRootMessageId;
+    if (beacon.status == BeaconStatus.open && existingRoot != null) {
       return PostPublishResult(
         beaconId: beaconId,
-        rootMessageId: rootMessageId,
+        rootMessageId: existingRoot,
       );
-    },
-  );
+    }
+    if (beacon.status != BeaconStatus.draft) {
+      throw const BeaconCreateException(
+        description: 'Post is not a draft',
+      );
+    }
+    return null;
+  }
 
   /// An addressee steps out of a Post (or of a Request converted from one).
   Future<void> leave({required String userId, required String beaconId}) =>
