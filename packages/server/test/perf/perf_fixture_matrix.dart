@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 
 import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
+import 'package:tentura_server/data/database/main_db_pool.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -26,6 +27,7 @@ import '../support/constellation_profiles_from_public_records.dart';
 import '../support/disposable_pg_target.dart';
 import 'perf_fixtures.dart';
 import 'perf_recorder.dart';
+import 'perf_scoped_pool_meter.dart';
 
 /// What a [PerfFixtureCase] varies.
 enum PerfFixtureFamily {
@@ -48,6 +50,9 @@ enum PerfFixtureFamily {
   /// injection.
   scenarios,
 }
+
+/// Connection budget of the scoped main pool, as dev runs it.
+const _scopedPoolCapacity = 4;
 
 /// What a case needs to run one measured attempt.
 final class PerfCaseRun {
@@ -117,6 +122,7 @@ final class PerfFixtureCase {
     this.explains = const [],
     this.seededExplains,
     this.meterProductionCursorHold = false,
+    this.scopedMainPool = false,
     this.warmUp,
     this.extras,
   });
@@ -144,6 +150,9 @@ final class PerfFixtureCase {
   /// itself, so the meter times that lock's hold.
   final bool meterProductionCursorHold;
 
+  /// Whether the work is measured through the production scoped main pool.
+  final bool scopedMainPool;
+
   /// Unmetered work before the first attempt, to run against warm caches.
   final PerfCaseWork? warmUp;
 
@@ -160,6 +169,10 @@ final class PerfFixtureCase {
 
   /// Runs [attempts] measured attempts against the seeded database of
   /// [session] and writes `build/perf/<name>.json`.
+  ///
+  /// A case with [scopedMainPool] runs through the production scoped
+  /// [MainDbPool] (capacity 4, as dev runs it) instead of a raw pool; its
+  /// report is labelled with the pool and carries `poolDiagnostics`.
   Future<File> record({
     required DisposablePgWriterSession session,
     required PerfFixtureSeed seed,
@@ -168,30 +181,76 @@ final class PerfFixtureCase {
     final target = session.target;
     final meter = PerfDbMeter()
       ..meterProductionCursorHold = meterProductionCursorHold;
-    final db = TenturaDb.forTest(
-      database: PgDatabase.opened(
-        meter.instrument(
-          Pool<dynamic>.withEndpoints(
-            [target.databaseEnv.pgEndpoint],
-            settings: target.databaseEnv.pgPoolSettings,
-          ),
+    MainDbPool? mainPool;
+    MeteredScopedDb? scoped;
+    Connection? probe;
+    final TenturaDb db;
+    if (scopedMainPool) {
+      final endpoint = target.databaseEnv.pgEndpoint;
+      mainPool = MainDbPool(
+        Env(
+          environment: Environment.test,
+          printEnv: false,
+          isDebugModeOn: false,
+          pgHost: endpoint.host,
+          pgPort: endpoint.port,
+          pgDatabase: endpoint.database,
+          pgUsername: endpoint.username,
+          pgPassword: endpoint.password,
+          maxConnectionCount: _scopedPoolCapacity,
         ),
-        enableMigrations: false,
-      ).interceptWith(meter),
-    );
+      );
+      scoped = db = MeteredScopedDb(mainPool);
+      // The WAL probe needs a session of its own: the scoped pool is leased
+      // per scope and the shared writer serves the lock and EXPLAIN probes.
+      probe = await Connection.open(
+        endpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      meter.instrument(probe);
+    } else {
+      db = TenturaDb.forTest(
+        database: PgDatabase.opened(
+          meter.instrument(
+            Pool<dynamic>.withEndpoints(
+              [target.databaseEnv.pgEndpoint],
+              settings: target.databaseEnv.pgPoolSettings,
+            ),
+          ),
+          enableMigrations: false,
+        ).interceptWith(meter),
+      );
+    }
     try {
       final run = PerfCaseRun(target: target, db: db, seed: seed);
       final recorder = PerfRecorder(
         fixture: name,
-        parameters: parameters,
+        parameters: {
+          ...parameters,
+          if (scopedMainPool) ...{
+            'poolKind': 'scoped-main-pool',
+            'poolCapacity': _scopedPoolCapacity,
+          },
+        },
         db: db,
         meter: meter,
         probeConnection: session.writer,
       );
       await warmUp?.call(run, PerfAttemptScope.unmetered(db), 0);
+      scoped?.clear();
       for (var i = 0; i < attempts; i++) {
         try {
-          await recorder.attempt((scope) => worker(run, scope, i));
+          await recorder.attempt(
+            (scope) => scoped == null
+                ? worker(run, scope, i)
+                : scoped.collect(() async {
+                    try {
+                      await worker(run, scope, i);
+                    } finally {
+                      scope.addCursorHold(scoped!.takeCursorHold());
+                    }
+                  }),
+          );
         } on Object {
           if (!injectsFailures) rethrow;
         }
@@ -211,9 +270,14 @@ final class PerfFixtureCase {
           mutating: explain.mutating,
         );
       }
+      if (scoped != null) {
+        recorder.report.extras['poolDiagnostics'] = scoped.diagnostics();
+      }
       return await recorder.writeReport();
     } finally {
       await db.close();
+      await mainPool?.close();
+      await probe?.close();
     }
   }
 }
@@ -596,6 +660,7 @@ PerfFixtureCase _applyBatchCase(int batch) {
     },
     requiresMeritRank: true,
     meterProductionCursorHold: true,
+    scopedMainPool: true,
     explains: [
       (
         label: 'anchor_upsert',

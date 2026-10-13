@@ -6,8 +6,7 @@ import 'package:drift/drift.dart';
 import 'package:postgres/postgres.dart' as pg;
 
 import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
-import 'package:tentura_server/data/database/tentura_db.dart'
-    show TenturaDb;
+import 'package:tentura_server/data/database/tentura_db.dart' show TenturaDb;
 
 import 'perf_instruments.dart' hide captureExplain;
 import 'perf_instruments.dart' as instruments show captureExplain;
@@ -148,7 +147,10 @@ final class PerfDbMeter extends QueryInterceptor {
       if (tracked != null) {
         final (owner, clock) = tracked;
         owner.txAge = Duration(
-          microseconds: max(owner.txAge.inMicroseconds, clock.elapsedMicroseconds),
+          microseconds: max(
+            owner.txAge.inMicroseconds,
+            clock.elapsedMicroseconds,
+          ),
         );
         _transactions[inner] = null;
       }
@@ -266,6 +268,10 @@ final class PerfAttemptScope {
     }
   }
 
+  /// Adds a cursor hold measured by the caller (a database whose statements
+  /// the [PerfDbMeter] cannot see).
+  void addCursorHold(Duration hold) => _state.cursorHold += hold;
+
   /// Takes a lock with [lockSql] (time to acquire is the cursor wait), then
   /// runs [hold] with it taken (its duration is the cursor hold). Call it
   /// inside the transaction that owns the lock.
@@ -314,7 +320,9 @@ final class PerfRecorder {
   /// Runs [action] as one measured attempt. Latency runs from the call of
   /// [action] to its completion, so response encoding done inside it counts;
   /// a failed attempt is recorded too and its error rethrown.
-  Future<T> attempt<T>(Future<T> Function(PerfAttemptScope scope) action) async {
+  Future<T> attempt<T>(
+    Future<T> Function(PerfAttemptScope scope) action,
+  ) async {
     final state = _AttemptState();
     // On the database's own session: the probe connection may be busy in a
     // transaction of its own while an attempt starts or ends.
@@ -367,7 +375,8 @@ final class PerfRecorder {
       final retries = max(
         0,
         state.serializationFailures -
-            (failure != null && isPostgresDeadlockOrSerializationFailure(failure)
+            (failure != null &&
+                    isPostgresDeadlockOrSerializationFailure(failure)
                 ? 1
                 : 0),
       );
