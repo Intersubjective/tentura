@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:meta/meta.dart';
 
+import 'plan_order.dart';
+
 /// Request plan («либретто», #220): one step as stored in a revision snapshot.
 ///
 /// Snapshots carry content only. Ticks («done») live outside revisions, so a
@@ -124,6 +126,16 @@ final class PlanSnapshot {
     }
     return null;
   }
+
+  /// The same steps in canonical chronological order (see
+  /// [orderPlanChronologically]).
+  PlanSnapshot chronological() => PlanSnapshot(
+    orderPlanChronologically<PlanStepSnapshot>(
+      steps,
+      startOf: (s) => s.startAt,
+      endOf: (s) => s.endAt,
+    ),
+  );
 
   List<Map<String, Object?>> toJson() => [for (final s in steps) s.toJson()];
 
