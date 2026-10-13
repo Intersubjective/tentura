@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -542,9 +543,12 @@ Widget buildBeaconViewHarnessWidget({
   String? viewTab,
   String? threadId,
   String? messageId,
+  String? planPage,
   ThreadsCubit? threadsCubit,
   ThreadHostCubit? host,
   BeaconViewRoomCubitRecorder? recorder,
+  // Kept by the caller across rebuilds (a route rebuilding the screen).
+  PlanCubit? planCubit,
 }) {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
@@ -561,6 +565,7 @@ Widget buildBeaconViewHarnessWidget({
       BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
       BlocProvider<ThreadsCubit>.value(value: harnessThreadsCubit),
       BlocProvider<ThreadHostCubit>.value(value: harnessHost),
+      if (planCubit != null) BlocProvider<PlanCubit>.value(value: planCubit),
       BlocProvider<BeaconHierarchyCubit>(
         create: (_) => BeaconHierarchyCubit(
           beaconId: beaconState.beacon.id,
@@ -590,6 +595,7 @@ Widget buildBeaconViewHarnessWidget({
         viewTab: viewTab,
         threadId: threadId,
         messageId: messageId,
+        planPage: planPage,
       ),
     ),
   );

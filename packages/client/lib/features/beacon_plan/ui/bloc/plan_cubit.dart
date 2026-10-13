@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/use_case/beacon_plan_case.dart';
+import 'plan_edit_cubit.dart';
 import 'plan_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -38,8 +39,27 @@ class PlanCubit extends Cubit<PlanState> {
 
   int _fetchEpoch = 0;
 
+  /// The open editor, kept here so an edit outlives the page: the browser's
+  /// Back swaps the route data without asking, and the page goes away.
+  PlanEditCubit? _editor;
+
+  /// The kept editor, or the one [create] makes (and keeps) if none is open.
+  PlanEditCubit editor(PlanEditCubit Function() create) {
+    final kept = _editor;
+    if (kept != null && !kept.isClosed) return kept;
+    return _editor = create();
+  }
+
+  /// The editor was left on purpose (saved or discarded): drop its draft.
+  void releaseEditor() {
+    final kept = _editor;
+    _editor = null;
+    if (kept != null) unawaited(kept.close());
+  }
+
   @override
   Future<void> close() async {
+    releaseEditor();
     await _changesSub.cancel();
     return super.close();
   }

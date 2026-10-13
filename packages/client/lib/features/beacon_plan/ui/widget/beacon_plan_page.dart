@@ -130,6 +130,13 @@ class _BeaconPlanPageViewState extends State<BeaconPlanPageView> {
     } else if (outcome.kind == PlanSaveOutcomeKind.applied) {
       showSnackBar(context, text: l10n.planSaved);
     }
+    _leaveEditor();
+  }
+
+  /// Leaving the editor on purpose (saved or discarded) drops its draft; a
+  /// page that merely goes away (browser Back) leaves it for the next open.
+  void _leaveEditor() {
+    _planCubit?.releaseEditor();
     widget.onClose();
   }
 
@@ -171,13 +178,15 @@ class _BeaconPlanPageViewState extends State<BeaconPlanPageView> {
                   }
                   if (!plan.editable) return _closing();
                   final people = _people(plan);
-                  return BlocProvider(
+                  return BlocProvider.value(
                     key: ValueKey('plan-edit-${widget.beaconId}'),
-                    create: (_) =>
-                        PlanEditCubit(plan: plan, planCase: widget.planCase),
+                    value: cubit.editor(
+                      () =>
+                          PlanEditCubit(plan: plan, planCase: widget.planCase),
+                    ),
                     child: PlanEditScreen(
                       people: people,
-                      onClose: widget.onClose,
+                      onClose: _leaveEditor,
                       onSaved: (outcome) => _onSaved(outcome, people),
                     ),
                   );
