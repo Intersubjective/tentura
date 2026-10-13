@@ -76,18 +76,6 @@ abstract class PlanEditState extends StateBase with _$PlanEditState {
 
   bool get isSaving => isLoading;
 
-  /// A timed step stands before an earlier timed one.
-  bool get orderContradictsTime {
-    DateTime? prev;
-    for (final s in steps) {
-      final at = s.startAt ?? s.endAt;
-      if (at == null) continue;
-      if (prev != null && at.isBefore(prev)) return true;
-      prev = at;
-    }
-    return false;
-  }
-
   /// First problem that blocks saving, or null.
   PlanDraftError? get validationError {
     if (steps.length > PlanLimits.maxSteps) return PlanDraftError.tooManySteps;
