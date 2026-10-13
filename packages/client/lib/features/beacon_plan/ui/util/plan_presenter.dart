@@ -164,6 +164,22 @@ final class PlanListStep extends PlanListItem {
   final bool dimmed;
 }
 
+/// A day header of the plan editor.
+final class PlanEditDay extends PlanListDay {
+  const PlanEditDay(super.day, this.lastAt);
+
+  /// The latest end (or start, for a step without an end) among the steps
+  /// of this day: where a per-day add continues from.
+  final DateTime lastAt;
+}
+
+/// A step row of the plan editor.
+final class PlanEditStep extends PlanListItem {
+  const PlanEditStep(this.step);
+
+  final PlanStepSnapshot step;
+}
+
 /// Whether [step] passes [filter] for [viewerId].
 bool planStepMatches(PlanStep step, PlanFilter filter, String viewerId) =>
     switch (filter.kind) {
@@ -182,14 +198,20 @@ List<PlanListItem> buildPlanListItems({
   required String viewerId,
   required DateTime now,
 }) {
+  // A stored plan may be out of order; a day header must not repeat.
+  final ordered = orderPlanChronologically<PlanStep>(
+    steps,
+    startOf: (s) => s.startAt,
+    endOf: (s) => s.endAt,
+  );
   final keep = <int, bool>{}; // index → dimmed
-  for (var i = 0; i < steps.length; i++) {
-    if (planStepMatches(steps[i], filter, viewerId)) keep[i] = false;
+  for (var i = 0; i < ordered.length; i++) {
+    if (planStepMatches(ordered[i], filter, viewerId)) keep[i] = false;
   }
   if (filter.kind == PlanFilterKind.mine) {
     for (final i in keep.keys.toList()) {
       for (final j in [i - 1, i + 1]) {
-        if (j >= 0 && j < steps.length) keep.putIfAbsent(j, () => true);
+        if (j >= 0 && j < ordered.length) keep.putIfAbsent(j, () => true);
       }
     }
   }
@@ -198,11 +220,11 @@ List<PlanListItem> buildPlanListItems({
   // The «now» line goes after the last step whose start has come.
   var lastStarted = -1;
   var anyTimed = false;
-  for (var i = 0; i < steps.length; i++) {
-    final anchor = steps[i].anchorAt;
+  for (var i = 0; i < ordered.length; i++) {
+    final anchor = ordered[i].anchorAt;
     if (anchor == null) continue;
     anyTimed = true;
-    if (steps[i].startAt != null && !steps[i].startAt!.isAfter(now)) {
+    if (ordered[i].startAt != null && !ordered[i].startAt!.isAfter(now)) {
       lastStarted = i;
     }
   }
@@ -216,7 +238,7 @@ List<PlanListItem> buildPlanListItems({
   }
   final indexes = keep.keys.toList()..sort();
   for (final i in indexes) {
-    final step = steps[i];
+    final step = ordered[i];
     final anchor = step.anchorAt;
     if (!nowPlaced && i > lastStarted) {
       items.add(PlanListNow(now));
@@ -230,6 +252,42 @@ List<PlanListItem> buildPlanListItems({
     items.add(PlanListStep(step, dimmed: keep[i]!));
   }
   if (!nowPlaced) items.add(PlanListNow(now));
+  return items;
+}
+
+/// The plan editor rows: the same day headers as [buildPlanListItems] (viewer's
+/// zone) over the steps in canonical order, leading untimed steps first
+/// without a header. No «now» line, no filter.
+List<PlanListItem> buildPlanEditItems(List<PlanStepSnapshot> steps) {
+  final items = <PlanListItem>[];
+  DateTime? day;
+  var lastAt = DateTime.fromMillisecondsSinceEpoch(0);
+  var dayIndex = 0; // where the open day's header sits in [items]
+
+  for (final step in orderPlanChronologically<PlanStepSnapshot>(
+    steps,
+    startOf: (s) => s.startAt,
+    endOf: (s) => s.endAt,
+  )) {
+    final anchor = step.startAt ?? step.endAt;
+    if (anchor != null &&
+        (day == null || !PlanDays.isSameDayLocal(day, anchor))) {
+      if (day != null) items[dayIndex] = PlanEditDay(day, lastAt);
+      day = anchor;
+      lastAt = anchor;
+      dayIndex = items.length;
+      items.add(PlanEditDay(anchor, anchor));
+    }
+    if (day != null) {
+      for (final t in [step.startAt, step.endAt]) {
+        if (t != null && PlanDays.isSameDayLocal(day, t) && t.isAfter(lastAt)) {
+          lastAt = t;
+        }
+      }
+    }
+    items.add(PlanEditStep(step));
+  }
+  if (day != null) items[dayIndex] = PlanEditDay(day, lastAt);
   return items;
 }
 

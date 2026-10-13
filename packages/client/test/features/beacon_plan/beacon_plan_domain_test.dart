@@ -303,6 +303,7 @@ void main() {
             PlanListDay() => 'day',
             PlanListNow() => 'now',
             PlanListStep(:final step) => step.id.substring(12),
+            PlanEditStep() => 'edit',
           },
       ];
       expect(kinds.where((k) => k == 'now'), hasLength(1));
@@ -333,6 +334,199 @@ void main() {
         now: DateTime.utc(2026, 10, 12, 7),
       ).whereType<PlanListStep>();
       expect(items.single.step.id, 'PS000000000004');
+    });
+  });
+
+  group('plan rows grouped by day', () {
+    // Local-zone wall times, so the day grouping is the same in any TZ.
+    DateTime at(int day, int hour, [int minute = 0]) =>
+        DateTime(2026, 10, day, hour, minute).toUtc();
+
+    PlanStep timed(String id, DateTime start, [DateTime? end]) =>
+        PlanStep(id: id, title: id, startAt: start, endAt: end);
+
+    String label(PlanListItem i) => switch (i) {
+      PlanListDay(:final day) => 'day ${day.toLocal().day}',
+      PlanListNow() => 'now',
+      PlanListStep(:final step) => step.id,
+      PlanEditStep(:final step) => step.id,
+      _ => 'other',
+    };
+
+    test('Plan tab shows one header for a day stored out of order', () {
+      final items = buildPlanListItems(
+        steps: [
+          timed('mon-a', at(12, 9)),
+          timed('tue', at(13, 9)),
+          timed('mon-b', at(12, 15)),
+        ],
+        filter: const PlanFilter.all(),
+        viewerId: 'ME',
+        now: at(11, 8),
+      );
+      expect(
+        items.where((i) => i is! PlanListNow).map(label),
+        ['day 12', 'mon-a', 'mon-b', 'day 13', 'tue'],
+      );
+      expect(items.whereType<PlanListDay>(), hasLength(2));
+    });
+
+    group('buildPlanEditItems', () {
+      test('headers come in date order and untimed steps stay under the '
+          'day of the timed step before them', () {
+        final items = buildPlanEditItems([
+          const PlanStepSnapshot(id: 'lead', title: 'lead'),
+          PlanStepSnapshot(id: 'tue', title: 'tue', startAt: at(13, 10)),
+          const PlanStepSnapshot(id: 'tue-after', title: 'tue-after'),
+          PlanStepSnapshot(id: 'mon', title: 'mon', startAt: at(12, 9)),
+          const PlanStepSnapshot(id: 'mon-after', title: 'mon-after'),
+        ]);
+        expect(items.map(label), [
+          'lead',
+          'day 12',
+          'mon',
+          'mon-after',
+          'day 13',
+          'tue',
+          'tue-after',
+        ]);
+      });
+
+      test('has no now line and no filtering', () {
+        final items = buildPlanEditItems([
+          PlanStepSnapshot(
+            id: 'past',
+            title: 'past',
+            assigneeId: 'U2',
+            startAt: DateTime.utc(2000),
+          ),
+          PlanStepSnapshot(id: 'future', title: 'future', startAt: at(12, 9)),
+        ]);
+        expect(items.whereType<PlanListNow>(), isEmpty);
+        expect(items.whereType<PlanEditStep>(), hasLength(2));
+      });
+
+      test('days follow the viewer zone, not the UTC date', () {
+        int localDays(Iterable<DateTime> instants) => {
+          for (final t in instants)
+            (t.toLocal().year, t.toLocal().month, t.toLocal().day),
+        }.length;
+
+        // Two instants one hour apart that straddle UTC midnight: the same
+        // local day in any zone ahead of or behind UTC by 1h or more.
+        final aroundUtcMidnight = [
+          DateTime.utc(2026, 10, 12, 23, 30),
+          DateTime.utc(2026, 10, 13, 0, 30),
+        ];
+        // Two instants one hour apart that straddle local midnight: the same
+        // UTC day in any zone offset from UTC by 1h or more.
+        final aroundLocalMidnight = [
+          DateTime(2026, 10, 12, 23, 30).toUtc(),
+          DateTime(2026, 10, 13, 0, 30).toUtc(),
+        ];
+
+        for (final instants in [aroundUtcMidnight, aroundLocalMidnight]) {
+          final items = buildPlanEditItems([
+            for (var i = 0; i < instants.length; i++)
+              PlanStepSnapshot(id: 's$i', title: 's$i', startAt: instants[i]),
+          ]);
+          final days = items.whereType<PlanEditDay>().toList();
+          expect(days, hasLength(localDays(instants)));
+          PlanEditDay? current;
+          for (final item in items) {
+            if (item is PlanEditDay) {
+              current = item;
+            } else if (item is PlanEditStep) {
+              expect(current, isNotNull, reason: 'a timed step has a header');
+              expect(
+                PlanDays.isSameDayLocal(current!.day, item.step.startAt!),
+                isTrue,
+                reason: 'every step sits under the header of its local day',
+              );
+            }
+          }
+        }
+      });
+
+      test('a later start-only step beats an earlier end for the per-day '
+          'add', () {
+        final items = buildPlanEditItems([
+          PlanStepSnapshot(
+            id: 'a',
+            title: 'a',
+            startAt: at(12, 9),
+            endAt: at(12, 10),
+          ),
+          PlanStepSnapshot(id: 'b', title: 'b', startAt: at(12, 11)),
+        ]);
+        expect(items.whereType<PlanEditDay>().single.lastAt, at(12, 11));
+      });
+
+      test('an untimed step does not move the per-day add time', () {
+        final items = buildPlanEditItems([
+          PlanStepSnapshot(id: 'a', title: 'a', startAt: at(12, 9)),
+          const PlanStepSnapshot(id: 'u', title: 'u'),
+        ]);
+        expect(items.whereType<PlanEditDay>().single.lastAt, at(12, 9));
+      });
+
+      test('Plan tab and editor group the same steps under the same days', () {
+        final times = [
+          at(13, 0, 30),
+          at(12, 23, 30),
+          DateTime.utc(2026, 10, 12, 23, 30),
+          at(12, 9),
+          DateTime.utc(2026, 10, 13, 0, 30),
+        ];
+        final list = buildPlanListItems(
+          steps: [
+            for (var i = 0; i < times.length; i++) timed('s$i', times[i]),
+          ],
+          filter: const PlanFilter.all(),
+          viewerId: 'ME',
+          now: at(11, 8),
+        );
+        final edit = buildPlanEditItems([
+          for (var i = 0; i < times.length; i++)
+            PlanStepSnapshot(id: 's$i', title: 's$i', startAt: times[i]),
+        ]);
+        expect(
+          edit.map(label).toList(),
+          list.where((i) => i is! PlanListNow).map(label).toList(),
+        );
+      });
+
+      test('an empty plan has no rows', () {
+        expect(buildPlanEditItems(const []), isEmpty);
+      });
+
+      test(
+        'a day carries the latest end among its steps for a per-day add',
+        () {
+          final items = buildPlanEditItems([
+            PlanStepSnapshot(
+              id: 'a',
+              title: 'a',
+              startAt: at(12, 9),
+              endAt: at(12, 9, 30),
+            ),
+            PlanStepSnapshot(
+              id: 'b',
+              title: 'b',
+              startAt: at(12, 9, 45),
+              endAt: at(12, 12),
+            ),
+            PlanStepSnapshot(id: 'c', title: 'c', startAt: at(12, 10)),
+            PlanStepSnapshot(id: 'd', title: 'd', startAt: at(13, 14)),
+          ]);
+          final days = items.whereType<PlanEditDay>().toList();
+          expect(days, hasLength(2));
+          expect(days[0].day.toLocal().day, 12);
+          expect(days[0].lastAt, at(12, 12));
+          expect(days[1].day.toLocal().day, 13);
+          expect(days[1].lastAt, at(13, 14), reason: 'start when no end');
+        },
+      );
     });
   });
 }

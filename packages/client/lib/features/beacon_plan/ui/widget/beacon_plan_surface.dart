@@ -330,6 +330,8 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
             ),
             onTap: () => _openStep(plan, step.id),
           ),
+          // Editor rows never reach the Plan tab.
+          PlanEditStep() => const SizedBox.shrink(),
         },
     ];
   }
