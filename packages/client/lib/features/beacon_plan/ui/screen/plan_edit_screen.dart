@@ -11,6 +11,7 @@ import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_edit_cubit.dart';
 import '../util/plan_presenter.dart';
 import '../widget/plan_step_edit_sheet.dart';
+import '../widget/plan_step_row.dart';
 
 /// The plan editor: draft steps (reorder, add, edit, delete), an optional
 /// comment and «Сохранить». Nothing is visible to others until saved.
@@ -66,6 +67,21 @@ class PlanEditScreen extends StatelessWidget {
     if (edited != null) cubit.putStep(edited);
   }
 
+  /// Maps a [ReorderableListView] move over [items] (headers included) to
+  /// step positions: [newIndex] is the slot after the dragged row is removed.
+  void _reorder(
+    PlanEditCubit cubit,
+    List<PlanListItem> items,
+    int oldIndex,
+    int newIndex,
+  ) {
+    final rest = [...items]..removeAt(oldIndex);
+    cubit.reorder(
+      items.take(oldIndex).whereType<PlanEditStep>().length,
+      rest.take(newIndex).whereType<PlanEditStep>().length,
+    );
+  }
+
   Future<bool> _confirmDiscard(BuildContext context) async {
     final l10n = L10n.of(context)!;
     final ok = await TenturaConfirmDialog.show(
@@ -118,6 +134,7 @@ class PlanEditScreen extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<PlanEditCubit>();
         final validation = _validationText(state.validationError, l10n);
+        final items = buildPlanEditItems(state.steps);
         // Not a route of its own: a system back (Android) closes the editor
         // rather than the Request.
         return PopScope(
@@ -169,8 +186,8 @@ class PlanEditScreen extends StatelessWidget {
                   Expanded(
                     child: ReorderableListView.builder(
                       buildDefaultDragHandles: false,
-                      itemCount: state.steps.length,
-                      onReorderItem: cubit.reorder,
+                      itemCount: items.length,
+                      onReorderItem: (o, n) => _reorder(cubit, items, o, n),
                       footer: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: tt.screenHPadding,
@@ -194,17 +211,33 @@ class PlanEditScreen extends StatelessWidget {
                         ),
                       ),
                       itemBuilder: (context, i) {
-                        final step = state.steps[i];
+                        final item = items[i];
+                        if (item is! PlanEditStep) {
+                          return PlanDayHeader(
+                            key: ValueKey('day-$i'),
+                            day: (item as PlanListDay).day,
+                          );
+                        }
+                        final step = item.step;
                         final problem = validatePlanStep(step);
+                        final untimed =
+                            step.startAt == null && step.endAt == null;
                         return ListTile(
                           key: ValueKey(step.id),
-                          leading: ReorderableDragStartListener(
-                            index: i,
-                            child: Semantics(
-                              label: l10n.planEditReorderHandle,
-                              child: const Icon(Icons.drag_handle),
-                            ),
-                          ),
+                          titleAlignment: ListTileTitleAlignment.top,
+                          leading: untimed
+                              ? ReorderableDragStartListener(
+                                  index: i,
+                                  child: Semantics(
+                                    container: true,
+                                    label: l10n.planEditReorderHandle,
+                                    child: Icon(
+                                      Icons.drag_handle,
+                                      size: tt.avatarTinySize,
+                                    ),
+                                  ),
+                                )
+                              : null,
                           title: Text(
                             step.title.trim().isEmpty ? '—' : step.title,
                             style: TenturaText.body(
