@@ -120,6 +120,17 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   bool _fetchInFlight = false;
   bool _fetchQueued = false;
 
+  /// Bumped on every optional clear; orders clears against desk-wide reads.
+  int _clearEpoch = 0;
+
+  /// Optional updates the user cleared, by receipt id, while a desk-wide
+  /// attention read might still be outstanding. A read that started before
+  /// the clear answers with the projection as it was then, so it must not
+  /// bring the row back.
+  final _recentClears = <String, ({int epoch, String beaconId})>{};
+
+  int _attentionReadsInFlight = 0;
+
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
   late final StreamSubscription<dynamic> _helpOfferChanges;
@@ -492,6 +503,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     // R6 — kept so the removal stays reversible. Everything below has to be
     // able to put this row back: a refusal is an answer, not a delay.
     final previous = current;
+    _recentClears[receiptId] = (epoch: ++_clearEpoch, beaconId: beaconId);
     if (current != null) {
       emit(
         state.copyWith(
@@ -513,6 +525,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     try {
       result = await _myWorkCase.clearReceipt(receiptId);
     } catch (_) {
+      _recentClears.remove(receiptId);
       _restoreAttention(beaconId, previous);
       await fetch(showLoading: false);
       rethrow;
@@ -521,6 +534,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     if (!result.appliedReceiptIds.contains(receiptId)) {
       // `skipped`, `denied`, `stale` — or simply a receipt the server did
       // not touch. None of them is a clear.
+      _recentClears.remove(receiptId);
       _restoreAttention(beaconId, previous);
       return;
     }
@@ -658,16 +672,16 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       return;
     }
     emit(state.copyWith(attentionLoaded: false));
+    final startEpoch = _clearEpoch;
+    _attentionReadsInFlight++;
     try {
-      final attentionByBeacon = await _myWorkCase.loadMyWorkAttention(
-        beaconIds,
-      );
+      final read = await _myWorkCase.loadMyWorkAttention(beaconIds);
       if (isClosed || seq != _fetchSeq) {
         return;
       }
       emit(
         state.copyWith(
-          attentionByBeacon: attentionByBeacon,
+          attentionByBeacon: _keepClearsMadeSince(startEpoch, read),
           attentionLoaded: true,
         ),
       );
@@ -676,6 +690,32 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         return;
       }
       emit(state.copyWith(attentionLoaded: false));
+    } finally {
+      if (--_attentionReadsInFlight == 0) _recentClears.clear();
     }
+  }
+
+  /// For a Request whose update was cleared after the read began, the read's
+  /// preview is older than the user's gesture: keep the current preview
+  /// (optimistic, or the server's own answer to the clear) over it.
+  Map<String, MyWorkBeaconAttention> _keepClearsMadeSince(
+    int startEpoch,
+    Map<String, MyWorkBeaconAttention> read,
+  ) {
+    final clearedSince = {
+      for (final c in _recentClears.values)
+        if (c.epoch > startEpoch) c.beaconId,
+    };
+    if (clearedSince.isEmpty) return read;
+    return {
+      for (final e in read.entries)
+        e.key: switch (state.attentionByBeacon[e.key]) {
+          final current? when clearedSince.contains(e.key) => e.value.copyWith(
+            unseenCount: current.unseenCount,
+            latestUnseen: current.latestUnseen,
+          ),
+          _ => e.value,
+        },
+    };
   }
 }
