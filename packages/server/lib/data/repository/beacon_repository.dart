@@ -787,6 +787,7 @@ WHERE user_id = $1 AND created_at >= $2
     required String actorId,
   }) => _database.withMutatingUser(actorId, () async {
     return (() async {
+      await _lockHierarchyThenBeacon(id);
       final existing = await _database.managers.beacons
           .filter(
             (e) => e.id.equals(id) & e.userId.id.equals(actorId),
@@ -830,6 +831,7 @@ WHERE user_id = $1 AND created_at >= $2
     required String actorId,
   }) => _database.withMutatingUser(actorId, () async {
     return (() async {
+      await _lockHierarchyThenBeacon(childBeaconId);
       final existing = await _database.managers.beacons
           .filter(
             (e) => e.id.equals(childBeaconId) & e.userId.id.equals(actorId),
@@ -866,6 +868,18 @@ WHERE user_id = $1 AND created_at >= $2
       return getBeaconById(beaconId: childBeaconId, filterByUserId: actorId);
     })();
   });
+
+  /// Lock order hierarchy scope -> beacon row, the same as deletion/erasure;
+  /// the draft status is checked only after both are held.
+  Future<void> _lockHierarchyThenBeacon(String beaconId) async {
+    await _database.customSelect(
+      "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+    ).get();
+    await _database.customSelect(
+      r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
+      variables: [Variable<String>(beaconId)],
+    ).get();
+  }
 
   Future<void> _insertBeaconPublishedEvent({
     required String beaconId,
