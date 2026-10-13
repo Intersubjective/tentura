@@ -55,6 +55,11 @@ abstract class PlanEditState extends StateBase with _$PlanEditState {
     @Default([]) List<PlanConflictStep> conflictSteps,
     @Default(0) int conflictSeq,
 
+    /// The step the last `putStep` moved to another place (so the
+    /// screen can scroll to it and flash it); [movedSeq] grows with each move.
+    String? movedStepId,
+    @Default(0) int movedSeq,
+
     /// Set once the draft is saved; the editor closes on it.
     PlanEditSaved? saved,
 

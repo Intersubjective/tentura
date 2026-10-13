@@ -175,6 +175,188 @@ void main() {
       await c.close();
     });
 
+    group('chronological draft', () {
+      const timedFirst = 'PS000000000001';
+      const timedSecond = 'PS000000000002';
+      const timedThird = 'PS000000000003';
+      const untimed = 'PS000000000004';
+
+      PlanEditCubit open([BeaconPlan? plan]) =>
+          PlanEditCubit(plan: plan ?? repo.plan, planCase: planCaseFor(repo));
+
+      /// The stored plan with its steps listed in [order].
+      BeaconPlan planStoredAs(List<String> order) {
+        final json = (jsonDecode(planJson()) as Map).cast<String, Object?>();
+        final byId = {
+          for (final s in json['steps']! as List) (s as Map)['id']: s,
+        };
+        json['steps'] = [for (final id in order) byId[id]];
+        return BeaconPlan.fromJson(json);
+      }
+
+      test('editing a step to a later day moves it with its untimed '
+          'followers and reports the move', () {
+        final c = open()
+          // The untimed step now follows the first timed step.
+          ..reorder(3, 1);
+        expect(c.state.steps.map((s) => s.id), [
+          timedFirst,
+          untimed,
+          timedSecond,
+          timedThird,
+        ]);
+        expect(c.state.movedSeq, 0);
+
+        c.putStep(
+          c.state.steps
+              .firstWhere((s) => s.id == timedFirst)
+              .copyWith(startAt: () => DateTime.utc(2026, 10, 13, 9)),
+        );
+
+        expect(c.state.steps.map((s) => s.id), [
+          timedSecond,
+          timedThird,
+          timedFirst,
+          untimed,
+        ]);
+        expect(c.state.movedStepId, timedFirst);
+        expect(c.state.movedSeq, 1);
+        unawaited(c.close());
+      });
+
+      test('editing a step without changing its place does not report a '
+          'move', () {
+        final c = open();
+        c.putStep(
+          c.state.steps
+              .firstWhere((s) => s.id == timedSecond)
+              .copyWith(title: 'Bring planks'),
+        );
+        expect(c.state.steps.map((s) => s.id), [
+          timedFirst,
+          timedSecond,
+          timedThird,
+          untimed,
+        ]);
+        expect(c.state.movedStepId, isNull);
+        expect(c.state.movedSeq, 0);
+        unawaited(c.close());
+      });
+
+      test('a new step without a time is appended at the end', () {
+        final c = open();
+        c.putStep(c.newStep().copyWith(title: 'Sweep up'));
+        expect(c.state.steps.last.title, 'Sweep up');
+        expect(c.state.steps, hasLength(5));
+        unawaited(c.close());
+      });
+
+      test('a new step that already has a time goes to its place and is '
+          'reported', () {
+        final c = PlanEditCubit(
+          plan: repo.plan,
+          planCase: planCaseFor(repo),
+          newStepId: () => 'PS0000000000ff',
+        );
+        c.putStep(
+          c.newStep().copyWith(
+            title: 'Early coffee',
+            startAt: () => DateTime.utc(2026, 10, 12, 9),
+          ),
+        );
+        expect(c.state.steps.map((s) => s.id), [
+          timedFirst,
+          'PS0000000000ff',
+          timedSecond,
+          timedThird,
+          untimed,
+        ]);
+        expect(c.state.movedStepId, 'PS0000000000ff');
+        expect(c.state.movedSeq, 1);
+        unawaited(c.close());
+      });
+
+      test('a timed step cannot be dragged', () {
+        final c = open()..reorder(0, 2);
+        expect(c.state.steps.map((s) => s.id), [
+          timedFirst,
+          timedSecond,
+          timedThird,
+          untimed,
+        ]);
+        expect(c.state.isDirty, isFalse);
+        unawaited(c.close());
+      });
+
+      test('an untimed step dropped between two timed steps sticks to the '
+          'one above it', () {
+        final c = open()..reorder(3, 2);
+        expect(c.state.steps.map((s) => s.id), [
+          timedFirst,
+          timedSecond,
+          untimed,
+          timedThird,
+        ]);
+        unawaited(c.close());
+      });
+
+      test('opening a plan stored out of order gives a chronological draft '
+          'that is not dirty', () {
+        final c = open(
+          planStoredAs([timedThird, timedSecond, timedFirst, untimed]),
+        );
+        expect(c.state.steps.map((s) => s.id), [
+          timedFirst,
+          untimed,
+          timedSecond,
+          timedThird,
+        ]);
+        expect(c.state.base.ids, c.state.steps.map((s) => s.id));
+        expect(c.state.isDirty, isFalse);
+        unawaited(c.close());
+      });
+
+      test('the draft rebased after a conflict is chronological', () async {
+        final fresh = (jsonDecode(planJson()) as Map).cast<String, Object?>();
+        fresh['revisionSeq'] = 5;
+        for (final step in fresh['steps']! as List) {
+          final s = step as Map;
+          // Someone moved the first step to a later day, keeping its slot.
+          if (s['id'] == timedFirst) s['startAt'] = '2026-10-13T09:00:00.000Z';
+          if (s['id'] == timedSecond) s['title'] = 'Boards (theirs)';
+        }
+        repo.saveErrors.add(
+          const PlanEditConflictException(
+            currentSeq: 5,
+            conflictStepIds: [timedSecond],
+          ),
+        );
+        final c = open();
+        repo.plan = BeaconPlan.fromJson(fresh);
+        c
+          ..putStep(
+            c.state.steps
+                .firstWhere((s) => s.id == timedSecond)
+                .copyWith(title: 'Boards (mine)'),
+          )
+          ..putStep(
+            c.state.steps
+                .firstWhere((s) => s.id == timedThird)
+                .copyWith(title: 'Frame (mine)'),
+          );
+        await c.save();
+        expect(c.state.conflictSeq, 1);
+        // The untimed step follows the third step it was stored after.
+        expect(c.state.steps.map((s) => s.id), [
+          timedSecond,
+          timedThird,
+          untimed,
+          timedFirst,
+        ]);
+        await c.close();
+      });
+    });
+
     test('validation blocks empty titles and reversed times', () {
       final c = PlanEditCubit(plan: repo.plan, planCase: planCaseFor(repo))
         ..putStep(const PlanStepSnapshot(id: 'PSx', title: ' '));

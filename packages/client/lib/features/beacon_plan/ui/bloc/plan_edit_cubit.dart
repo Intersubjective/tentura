@@ -29,8 +29,8 @@ class PlanEditCubit extends Cubit<PlanEditState> {
          PlanEditState(
            beaconId: plan.beaconId,
            baseSeq: plan.revisionSeq,
-           base: plan.snapshot,
-           steps: plan.snapshot.steps,
+           base: plan.snapshot.chronological(),
+           steps: plan.snapshot.chronological().steps,
          ),
        );
 
@@ -40,56 +40,42 @@ class PlanEditCubit extends Cubit<PlanEditState> {
   /// A fresh, empty step (not yet in the draft).
   PlanStepSnapshot newStep() => PlanStepSnapshot(id: _newStepId(), title: '');
 
-  /// Adds or replaces a step. A step that is new or whose time changed takes
-  /// its place among the timed steps; untimed steps never move on their own.
+  /// Adds or replaces [step] and keeps the draft chronological. When that
+  /// changes the step's place, its id is reported in `movedStepId`.
   void putStep(PlanStepSnapshot step) {
     final steps = [...state.steps];
     final at = steps.indexWhere((s) => s.id == step.id);
+    final before = at < 0 ? steps.length : at;
     if (at < 0) {
       steps.add(step);
-      _placeByTime(steps, steps.length - 1);
     } else {
-      final timeChanged =
-          steps[at].startAt != step.startAt || steps[at].endAt != step.endAt;
       steps[at] = step;
-      if (timeChanged) _placeByTime(steps, at);
     }
-    emit(state.copyWith(steps: steps));
-  }
-
-  /// Orders the timed steps chronologically (stable); untimed steps keep
-  /// their positions.
-  void sortByTime() {
-    final steps = [...state.steps];
-    // `List.sort` is not stable: the original index breaks ties.
-    final timed =
-        <(int, PlanStepSnapshot)>[
-          for (var i = 0; i < steps.length; i++)
-            if (!steps[i].isUntimed) (i, steps[i]),
-        ]..sort((a, b) {
-          final byTime = _byAnchor(a.$2, b.$2);
-          return byTime != 0 ? byTime : a.$1.compareTo(b.$1);
-        });
-    var next = 0;
-    for (var i = 0; i < steps.length; i++) {
-      if (!steps[i].isUntimed) steps[i] = timed[next++].$2;
-    }
-    emit(state.copyWith(steps: steps));
+    final ordered = PlanSnapshot(steps).chronological().steps;
+    final moved = ordered.indexWhere((s) => s.id == step.id) != before;
+    emit(
+      state.copyWith(
+        steps: ordered,
+        movedStepId: moved ? step.id : state.movedStepId,
+        movedSeq: moved ? state.movedSeq + 1 : state.movedSeq,
+      ),
+    );
   }
 
   void removeStep(String id) => emit(
     state.copyWith(steps: [...state.steps]..removeWhere((s) => s.id == id)),
   );
 
-  /// Moves the step at [oldIndex] to [newIndex] (index after removal, as
-  /// `ReorderableListView.onReorderItem` reports it).
+  /// Moves the untimed step at [oldIndex] to [newIndex] (index after removal,
+  /// as `ReorderableListView.onReorderItem` reports it). Timed steps stay
+  /// put; an untimed step dropped between timed ones sticks to the one above.
   void reorder(int oldIndex, int newIndex) {
     final steps = [...state.steps];
     if (oldIndex < 0 || oldIndex >= steps.length) return;
-    final target = newIndex;
     final moved = steps.removeAt(oldIndex);
-    steps.insert(target.clamp(0, steps.length), moved);
-    emit(state.copyWith(steps: steps));
+    if (moved.startAt != null || moved.endAt != null) return;
+    steps.insert(newIndex.clamp(0, steps.length), moved);
+    emit(state.copyWith(steps: PlanSnapshot(steps).chronological().steps));
   }
 
   void setComment(String comment) => emit(state.copyWith(comment: comment));
@@ -139,8 +125,8 @@ class PlanEditCubit extends Cubit<PlanEditState> {
         state.copyWith(
           status: const StateIsSuccess(),
           baseSeq: rebase.currentSeq,
-          base: rebase.theirs,
-          steps: rebase.draft.steps,
+          base: rebase.theirs.chronological(),
+          steps: rebase.draft.chronological().steps,
           conflictSteps: conflicts,
           conflictSeq: conflicts.isEmpty
               ? state.conflictSeq
@@ -160,36 +146,4 @@ class PlanEditCubit extends Cubit<PlanEditState> {
       );
     }
   }
-}
-
-DateTime? _anchor(PlanStepSnapshot s) => s.startAt ?? s.endAt;
-
-int _byAnchor(PlanStepSnapshot a, PlanStepSnapshot b) =>
-    _anchor(a)!.compareTo(_anchor(b)!);
-
-/// Moves the timed step at [at] to its chronological place among the other
-/// timed steps; stays where it is when there are none.
-void _placeByTime(List<PlanStepSnapshot> steps, int at) {
-  final step = steps[at];
-  final anchor = _anchor(step);
-  if (anchor == null) return;
-  final rest = [...steps]..removeAt(at);
-  var lastTimed = -1;
-  for (var i = 0; i < rest.length; i++) {
-    final other = _anchor(rest[i]);
-    if (other == null) continue;
-    if (other.isAfter(anchor)) {
-      rest.insert(i, step);
-      steps
-        ..clear()
-        ..addAll(rest);
-      return;
-    }
-    lastTimed = i;
-  }
-  if (lastTimed < 0) return;
-  rest.insert(lastTimed + 1, step);
-  steps
-    ..clear()
-    ..addAll(rest);
 }
