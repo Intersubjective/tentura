@@ -55,6 +55,7 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
          interactiveDeadline: config.queueDeadline,
          fullDeadline: config.queueDeadline,
          retryAfter: config.retryAfter,
+         enforceReentryGuard: false,
        );
 
   ConstellationDbScheduler.fromEnv(Env env)
@@ -62,6 +63,7 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
       _now = DateTime.now,
       _admission = MainDbScopeAdmission(
         maxConcurrent: env.pgPoolSettings.maxConnectionCount ?? 4,
+        enforceReentryGuard: false,
       );
 
   @FactoryMethod()

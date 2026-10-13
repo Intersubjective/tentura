@@ -148,6 +148,7 @@ part 'tentura_db.g.dart';
 class TenturaDb extends _$TenturaDb {
   static final Object _mutatingTransactionZoneKey = Object();
   static final Object _connectionScopeZoneKey = Object();
+  static final Object _readSnapshotZoneKey = Object();
 
   TenturaDb(Env env) : this._(MainDbPool(env), ownsPool: true);
 
@@ -413,12 +414,37 @@ class TenturaDb extends _$TenturaDb {
   /// System-owned mutation transaction with an explicitly empty actor scope.
   /// One PostgreSQL MVCC snapshot for repeatable-read field reads (C4).
   Future<T> withReadSnapshot<T>(Future<T> Function() action) {
-    return withTransaction(() async {
-      await customStatement(
-        'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY',
-      );
-      return action();
-    }, kind: MainDbWorkKind.full);
+    if (_mainPool?.enforceGuards ?? false) {
+      final open = Zone.current[_driftZoneRootUserKey];
+      final owner = open is DatabaseConnectionUser
+          // Match the owner just as Drift does in resolvedEngine.
+          // ignore: invalid_use_of_visible_for_overriding_member
+          ? open.attachedDatabase
+          : null;
+      if (owner is TenturaDb &&
+          open is! _ScopedDatabaseUser &&
+          Zone.current[_readSnapshotZoneKey] == null &&
+          _sharesScope(owner)) {
+        return Future.error(
+          StateError(
+            'Cannot start a read snapshot inside an open transaction: its '
+            'isolation level is already fixed',
+          ),
+        );
+      }
+    }
+    return withTransaction(
+      () async {
+        await customStatement(
+          'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY',
+        );
+        return runZoned(
+          action,
+          zoneValues: {_readSnapshotZoneKey: true},
+        );
+      },
+      kind: MainDbWorkKind.full,
+    );
   }
 
   /// Makes the rest of the current transaction keep its first visible-set
@@ -482,6 +508,38 @@ final class _ScopedDatabaseUser extends DatabaseConnectionUser {
   @override
   final TenturaDb attachedDatabase;
   bool isActive = true;
+
+  @override
+  Future<T> doWhenOpened<T>(FutureOr<T> Function(QueryExecutor e) fn) {
+    if (!isActive) {
+      return Future.error(
+        StateError(
+          'Database connection scope is closed: an executor reference was '
+          'kept past its scope',
+        ),
+      );
+    }
+    if (attachedDatabase._mainPool?.enforceGuards ?? false) {
+      final innermost = Zone.current[TenturaDb._driftZoneRootUserKey];
+      final owner = innermost is DatabaseConnectionUser
+          // Match the owner just as Drift does in resolvedEngine.
+          // ignore: invalid_use_of_visible_for_overriding_member
+          ? innermost.attachedDatabase
+          : null;
+      if (owner is TenturaDb &&
+          !identical(innermost, this) &&
+          attachedDatabase._sharesScope(owner)) {
+        return Future.error(
+          StateError(
+            'Statement sent to a stale executor: the innermost executor is '
+            '#${identityHashCode(innermost)} (expected), '
+            'but the statement went to #${identityHashCode(this)} (actual)',
+          ),
+        );
+      }
+    }
+    return super.doWhenOpened(fn);
+  }
 }
 
 /// Routes inherited Drift operations through the same admission and lease as

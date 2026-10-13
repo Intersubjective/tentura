@@ -51,6 +51,7 @@ final class MainDbScopeAdmission {
     this.interactiveDeadline = const Duration(milliseconds: 250),
     this.fullDeadline = const Duration(seconds: 1),
     this.retryAfter = const Duration(seconds: 2),
+    this.enforceReentryGuard = true,
   });
 
   final int maxConcurrent;
@@ -64,6 +65,11 @@ final class MainDbScopeAdmission {
   final Duration interactiveDeadline;
   final Duration fullDeadline;
   final Duration retryAfter;
+
+  /// Test/debug guard: an admitted body must not take a second slot of this
+  /// admission (it would deadlock once the slots are all held by such bodies).
+  final bool enforceReentryGuard;
+  final Object _slotZoneKey = Object();
   final _waiting = Queue<_AdmissionWaiter>();
   final _clock = Stopwatch()..start();
   final _actors = <String, int>{};
@@ -83,6 +89,17 @@ final class MainDbScopeAdmission {
     String? workClass,
   }) {
     final actor = actorUserId?.trim();
+    if (enforceReentryGuard) {
+      final held = Zone.current[_slotZoneKey];
+      if (held is _HeldSlot && held.active) {
+        return Future.error(
+          StateError(
+            'Main DB admission re-entry: the running body already holds a '
+            'slot of this admission and must reuse its connection scope',
+          ),
+        );
+      }
+    }
     _pump();
     final startsImmediately = _canStart(kind);
     if (_closed ||
@@ -106,11 +123,17 @@ final class MainDbScopeAdmission {
       ..refuse = result.completeError
       ..timer = Timer(budget, () => _expire(waiter))
       ..start = () => zone.run(() async {
+        final slot = _HeldSlot();
         try {
-          result.complete(await body());
+          result.complete(
+            await (enforceReentryGuard
+                ? runZoned(body, zoneValues: {_slotZoneKey: slot})
+                : body()),
+          );
         } on Object catch (error, stack) {
           result.completeError(error, stack);
         } finally {
+          slot.active = false;
           _running--;
           if (kind == MainDbWorkKind.full) _heavy--;
           if (kind == MainDbWorkKind.interactive) _interactive--;
@@ -212,6 +235,10 @@ final class MainDbScopeAdmission {
     constellationCode: ConstellationExceptionCode.retryLater,
     retryAfter: retryAfter,
   );
+}
+
+final class _HeldSlot {
+  bool active = true;
 }
 
 final class _AdmissionWaiter {

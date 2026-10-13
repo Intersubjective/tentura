@@ -25,15 +25,21 @@ final class MainDbPool {
 
   MainDbPool._(Env env, PoolSettings settings)
     : logStatements = env.isDebugModeOn,
+      enforceGuards = env.isDebugModeOn || env.environment == Environment.test,
       pool = Pool<dynamic>.withEndpoints(
         [env.pgEndpoint],
         settings: settings,
       ),
       admission = MainDbScopeAdmission(
         maxConcurrent: settings.maxConnectionCount ?? 4,
+        enforceReentryGuard:
+            env.isDebugModeOn || env.environment == Environment.test,
       );
 
   final bool logStatements;
+
+  /// Ownership/re-entry guards: on in test and debug, off in production.
+  final bool enforceGuards;
   final Pool<dynamic> pool;
   final MainDbScopeAdmission admission;
 
