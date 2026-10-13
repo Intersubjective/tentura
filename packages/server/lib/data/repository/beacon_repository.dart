@@ -695,7 +695,7 @@ VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::t
     required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
-  }) => _database.withTransaction(() async {
+  }) => _database.withJoinedTransaction(() async {
     await _database.managers.beacons
         .filter((e) => e.id.equals(beaconId))
         .update(
@@ -786,7 +786,7 @@ WHERE user_id = $1 AND created_at >= $2
     required String id,
     required String actorId,
   }) => _database.withMutatingUser(actorId, () async {
-    return _database.withTransaction(() async {
+    return (() async {
       final existing = await _database.managers.beacons
           .filter(
             (e) => e.id.equals(id) & e.userId.id.equals(actorId),
@@ -821,7 +821,7 @@ WHERE user_id = $1 AND created_at >= $2
       );
 
       return getBeaconById(beaconId: id, filterByUserId: actorId);
-    });
+    })();
   });
 
   @override
@@ -829,7 +829,7 @@ WHERE user_id = $1 AND created_at >= $2
     required String childBeaconId,
     required String actorId,
   }) => _database.withMutatingUser(actorId, () async {
-    return _database.withTransaction(() async {
+    return (() async {
       final existing = await _database.managers.beacons
           .filter(
             (e) => e.id.equals(childBeaconId) & e.userId.id.equals(actorId),
@@ -864,7 +864,7 @@ WHERE user_id = $1 AND created_at >= $2
       );
 
       return getBeaconById(beaconId: childBeaconId, filterByUserId: actorId);
-    });
+    })();
   });
 
   Future<void> _insertBeaconPublishedEvent({

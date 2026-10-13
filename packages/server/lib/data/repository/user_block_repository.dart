@@ -33,7 +33,7 @@ class UserBlockRepository implements UserBlockRepositoryPort {
     required String blockerId,
     required String blockedId,
     required int cascadeMode,
-  }) => _db.withTransaction(() async {
+  }) => _db.withJoinedTransaction(() async {
     // Mode 0 has nothing to materialize — store status=2 (done) so the
     // cascade worker never claims these rows into a tight no-op loop.
     await _db.customStatement(
@@ -102,7 +102,7 @@ SELECT EXISTS (
   Future<void> unblock({
     required String blockerId,
     required String blockedId,
-  }) => _db.withTransaction(() async {
+  }) => _db.withJoinedTransaction(() async {
     final affectedPairs = await _db
         .customSelect(
           r'''
@@ -170,7 +170,7 @@ WHERE blocker_id = $1 AND updated_at >= $2
   Future<void> promoteToDirect({
     required String blockerId,
     required String blockedId,
-  }) => _db.withTransaction(() async {
+  }) => _db.withJoinedTransaction(() async {
     await _db.customStatement(
       r'''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)

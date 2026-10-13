@@ -301,6 +301,17 @@ class TenturaDb extends _$TenturaDb {
     kind: kind,
   );
 
+  /// Runs [action] in the transaction already open on this scope, or in a new
+  /// one when there is none. Unlike [withTransaction] it never opens a
+  /// savepoint inside an existing unit of work.
+  Future<T> withJoinedTransaction<T>(
+    Future<T> Function() action, {
+    String? actorUserId,
+  }) {
+    if (resolvedEngine.executor is TransactionExecutor) return action();
+    return withTransaction(action, actorUserId: actorUserId);
+  }
+
   @override
   int get schemaVersion => 1;
 

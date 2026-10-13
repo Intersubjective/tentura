@@ -156,7 +156,7 @@ WHERE user_id = $1
     required String beaconId,
     required String recipientId,
   }) =>
-      _database.withTransaction(() async {
+      _database.withJoinedTransaction(() async {
         await _database.customStatement(
           r"SELECT set_config('tentura.allow_inbox_tombstone_transition', '1', true)",
         );

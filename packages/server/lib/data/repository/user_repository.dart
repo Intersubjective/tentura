@@ -208,7 +208,7 @@ class UserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
-  }) => _database.withTransaction<UserEntity>(() async {
+  }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingle();
@@ -382,7 +382,7 @@ class UserRepository implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) => _database.withTransaction<UserEntity>(() async {
+  }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingle();
@@ -904,7 +904,7 @@ class UserRepository implements UserRepositoryPort {
     required String invitationId,
     required String userId,
     bool bindFriendship = true,
-  }) => _database.withTransaction<bool>(() async {
+  }) => (() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingle();
@@ -969,7 +969,7 @@ class UserRepository implements UserRepositoryPort {
     }
 
     return true;
-  }, actorUserId: userId);
+  })();
 
   Future<void> _applyReciprocalTrustEdges(
     String userA,
