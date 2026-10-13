@@ -655,7 +655,7 @@ void main() {
         expect(
           attention.snapshot.summary.unreadTotal,
           0,
-          reason: 'the total is the server\'s active-attention count, and a '
+          reason: "the total is the server's active-attention count, and a "
               'queued read-axis ack is not a delta on it (§3)',
         );
         expect(

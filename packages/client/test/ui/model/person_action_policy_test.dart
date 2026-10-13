@@ -412,7 +412,7 @@ void main() {
       expect(policy.isMutuallyVisible, isTrue);
     });
 
-    test('no bond keeps today\'s trust-only behavior', () {
+    test("no bond keeps today's trust-only behavior", () {
       final policy = PersonActionPolicy.from(
         _profile(),
         isSelf: false,

@@ -257,7 +257,7 @@ void main() {
       await tester.pumpWidget(_cardHarness(_mixedAnswers));
       await tester.pumpAndSettle();
 
-      expect(find.text('Who\'ll take it: answers'), findsOneWidget);
+      expect(find.text("Who'll take it: answers"), findsOneWidget);
       final boris = _rowTexts(tester, 'Boris Driver');
       final clara = _rowTexts(tester, 'Clara Pending');
       final dmitri = _rowTexts(tester, 'Dmitri Busy');
@@ -266,14 +266,14 @@ void main() {
       expect(boris.join(' '), contains('can help'));
       expect(eva.join(' '), contains('can help'));
       expect(clara.join(' '), contains('waiting'));
-      expect(dmitri.join(' '), contains('can\'t help'));
+      expect(dmitri.join(' '), contains("can't help"));
 
       for (final other in [clara, dmitri]) {
         expect(other.join(' '), isNot(contains('can help')));
       }
       expect(boris.join(' '), isNot(contains('waiting')));
-      expect(boris.join(' '), isNot(contains('can\'t help')));
-      expect(clara.join(' '), isNot(contains('can\'t help')));
+      expect(boris.join(' '), isNot(contains("can't help")));
+      expect(clara.join(' '), isNot(contains("can't help")));
       expect(dmitri.join(' '), isNot(contains('waiting')));
     });
 
@@ -308,7 +308,7 @@ void main() {
       expect(find.textContaining('Priority'), findsNothing);
     });
 
-    testWidgets('shows each person\'s priority once several priorities are '
+    testWidgets("shows each person's priority once several priorities are "
         'in use', (tester) async {
       await tester.pumpWidget(_cardHarness(_tiered));
       await tester.pumpAndSettle();
@@ -562,7 +562,7 @@ void main() {
       for (final name in ['Clara Pending', 'Dmitri Busy']) {
         expect(find.textContaining(name), findsNothing);
       }
-      expect(find.text('Who\'ll take it: answers'), findsNothing);
+      expect(find.text("Who'll take it: answers"), findsNothing);
       expect(find.text('Choose now'), findsNothing);
       expect(find.text('Cancel'), findsNothing);
       expect(find.textContaining('can help'), findsNothing);
@@ -585,7 +585,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(RoomBatonCard), findsOneWidget);
-      expect(find.text('Who\'ll take it: answers'), findsOneWidget);
+      expect(find.text("Who'll take it: answers"), findsOneWidget);
     });
 
     testWidgets('forwards a pick with the baton id', (tester) async {

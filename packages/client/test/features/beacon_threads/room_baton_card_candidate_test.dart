@@ -258,11 +258,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Can you help? We\'re waiting for your response.'),
+        find.text("Can you help? We're waiting for your response."),
         findsOneWidget,
       );
       expect(find.text('Can help'), findsOneWidget);
-      expect(find.text('Can\'t help'), findsOneWidget);
+      expect(find.text("Can't help"), findsOneWidget);
       expect(
         find.text(
           '"Can help" means you\'re available, not that you\'ve taken it '
@@ -329,7 +329,7 @@ void main() {
       expect(answers, [true]);
     });
 
-    testWidgets('tapping Can\'t help reports a negative answer', (
+    testWidgets("tapping Can't help reports a negative answer", (
       tester,
     ) async {
       final answers = <bool>[];
@@ -341,7 +341,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Can\'t help'));
+      await tester.tap(find.text("Can't help"));
       await tester.pump(kDoubleTapTimeout);
 
       expect(answers, [false]);
@@ -362,7 +362,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Can you help? We\'re waiting for your response.'),
+        find.text("Can you help? We're waiting for your response."),
         findsNothing,
       );
     });
@@ -376,7 +376,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Your answer: Can\'t help. You can change it.'),
+        find.text("Your answer: Can't help. You can change it."),
         findsOneWidget,
       );
     });
@@ -393,7 +393,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Can\'t help'));
+      await tester.tap(find.text("Can't help"));
       await tester.pump(kDoubleTapTimeout);
 
       expect(answers, [false]);
@@ -411,7 +411,7 @@ void main() {
 
       expect(find.text('You took it.'), findsOneWidget);
       expect(find.text('Can help'), findsNothing);
-      expect(find.text('Can\'t help'), findsNothing);
+      expect(find.text("Can't help"), findsNothing);
     });
 
     testWidgets('tells an unchosen volunteer someone else was selected', (
@@ -449,7 +449,7 @@ void main() {
 
       expect(find.text('No longer needed.'), findsOneWidget);
       expect(find.text('Can help'), findsNothing);
-      expect(find.text('Can\'t help'), findsNothing);
+      expect(find.text("Can't help"), findsNothing);
     });
 
     for (final response in [RoomBatonResponse.waiting, null]) {
@@ -466,9 +466,9 @@ void main() {
 
           expect(find.text('No longer needed.'), findsOneWidget);
           expect(find.text('Can help'), findsNothing);
-          expect(find.text('Can\'t help'), findsNothing);
+          expect(find.text("Can't help"), findsNothing);
           expect(
-            find.text('Can you help? We\'re waiting for your response.'),
+            find.text("Can you help? We're waiting for your response."),
             findsNothing,
           );
         },
@@ -513,7 +513,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Can help'), findsNothing);
-      expect(find.text('Can\'t help'), findsNothing);
+      expect(find.text("Can't help"), findsNothing);
     });
 
     testWidgets('sees only that someone is being looked for while answers '
@@ -594,9 +594,9 @@ void main() {
         reason: 'only the taker is shown to an observer',
       );
       for (final copy in [
-        'Can you help? We\'re waiting for your response.',
+        "Can you help? We're waiting for your response.",
         'Can help',
-        'Can\'t help',
+        "Can't help",
         'You took it.',
         'No longer needed.',
       ]) {
@@ -617,7 +617,7 @@ void main() {
       ('after answering', _answered(RoomBatonResponse.canHelp)),
     ]) {
       testWidgets(
-        'keeps other people\'s names out of the candidate card $label',
+        "keeps other people's names out of the candidate card $label",
         (tester) async {
           final message = _messageWithBaton(baton).copyWith(
             reactionCounts: const {'👍': 1},
@@ -693,7 +693,7 @@ void main() {
       expect(find.text('Anna Author'), findsNothing);
       expect(find.textContaining('Clara Declined'), findsNothing);
       expect(find.text('Can help'), findsNothing);
-      expect(find.text('Can\'t help'), findsNothing);
+      expect(find.text("Can't help"), findsNothing);
 
       final line = find.byType(RoomMessageTile);
       final strings = _allStringsIn(tester, line);
@@ -884,7 +884,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Can you help? We\'re waiting for your response.'),
+        find.text("Can you help? We're waiting for your response."),
         findsNothing,
       );
 
@@ -901,13 +901,13 @@ void main() {
       await openRoomWithTile(tester);
       repo.error = Exception('offline');
 
-      await tester.tap(find.text('Can\'t help'));
+      await tester.tap(find.text("Can't help"));
       await tester.pump(kDoubleTapTimeout);
       await tester.pumpAndSettle();
 
       expect(repo.calls, [(batonId: 'baton-1', canHelp: false)]);
       expect(
-        find.text('Can you help? We\'re waiting for your response.'),
+        find.text("Can you help? We're waiting for your response."),
         findsOneWidget,
       );
       expect(find.textContaining('Your answer:'), findsNothing);

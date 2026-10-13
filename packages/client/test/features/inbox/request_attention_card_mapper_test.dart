@@ -90,7 +90,7 @@ void main() {
       );
     });
 
-    test('the dot comes from the server\'s uncleared count (§6 M1)', () {
+    test("the dot comes from the server's uncleared count (§6 M1)", () {
       expect(
         requestCardFromReceipt(_grouped(eventUnseenCount: 2))!
             .facts
@@ -142,7 +142,7 @@ void main() {
       expect(requestCardFromInboxItem(item())!.facts.pendingForward, isTrue);
     });
 
-    test('carries the item\'s own provenance, not a re-parse', () {
+    test("carries the item's own provenance, not a re-parse", () {
       final model = requestCardFromInboxItem(item())!;
 
       expect(model.provenance.latestNoteForward?.notePreview, 'look at this');

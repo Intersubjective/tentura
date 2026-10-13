@@ -88,7 +88,7 @@ void main() {
     expect(find.textContaining('With '), findsNothing);
   });
 
-  testWidgets('the viewer\'s own Request does not name its author', (
+  testWidgets("the viewer's own Request does not name its author", (
     tester,
   ) async {
     await tester.pumpWidget(

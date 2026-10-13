@@ -412,7 +412,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Known connection omitted by the map\'s render budget'),
+        find.text("Known connection omitted by the map's render budget"),
         findsOneWidget,
       );
     });
@@ -532,7 +532,7 @@ void main() {
         findsNothing,
       );
       expect(
-        find.text('Known connection omitted by the map\'s render budget'),
+        find.text("Known connection omitted by the map's render budget"),
         findsOneWidget,
       );
     });
@@ -593,7 +593,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Known connection omitted by the map\'s render budget'),
+        find.text("Known connection omitted by the map's render budget"),
         findsNothing,
       );
     });

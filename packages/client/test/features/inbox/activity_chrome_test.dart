@@ -618,7 +618,7 @@ void main() {
   });
 
   testWidgets(
-    'gate on: an empty For You stream renders §4\'s empty state, once',
+    "gate on: an empty For You stream renders §4's empty state, once",
     (tester) async {
       // The positive assert: a fixture that renders nothing would satisfy any
       // "did not overflow" check, so this pins the keyed title and the exact

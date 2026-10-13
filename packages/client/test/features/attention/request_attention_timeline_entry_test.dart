@@ -71,7 +71,7 @@ void main() {
         offenders,
         isEmpty,
         reason: 'the Timeline control must open the Request timeline (§9), '
-            'not a route of the call site\'s own choosing',
+            "not a route of the call site's own choosing",
       );
     });
   });

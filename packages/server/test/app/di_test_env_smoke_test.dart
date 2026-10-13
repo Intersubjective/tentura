@@ -1,4 +1,5 @@
 import 'package:test/test.dart';
+import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
@@ -19,6 +20,12 @@ void main() {
 
     await configureDependencies(smokeTestEnv());
     await getIt.allReady(ignorePendingAsyncCreation: true);
+    // Without Postgres the LISTEN connection's async creation fails. Settle it
+    // inside the test, or the refused connect is reported after completion.
+    await getIt.isReady<PgNotificationService>().then<void>(
+      (_) {},
+      onError: (Object _) {},
+    );
 
     expect(getIt.isRegistered<HelpOfferRepositoryPort>(), isTrue);
     expect(getIt.get<HelpOfferRepositoryPort>(), isNotNull);

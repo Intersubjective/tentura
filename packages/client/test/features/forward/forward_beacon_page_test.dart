@@ -490,7 +490,7 @@ void main() {
     const reachExplainer =
         'These are people you can reach. They get access only after they accept your forward.';
     const aheadHint =
-        'After selecting someone, you can explain why you\'re forwarding and add a personal note.';
+        "After selecting someone, you can explain why you're forwarding and add a personal note.";
 
     final cubit = _forwardCubitWithBeacon();
     addTearDown(cubit.close);

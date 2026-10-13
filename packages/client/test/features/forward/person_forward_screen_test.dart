@@ -110,7 +110,7 @@ void main() {
       await _pumpPersonForwardPage(tester, cubit: cubit);
 
       expect(
-        find.textContaining('isn\'t taking new requests until'),
+        find.textContaining("isn't taking new requests until"),
         findsOneWidget,
       );
       expect(
@@ -209,7 +209,7 @@ void main() {
 
       await _pumpPersonForwardPage(tester, cubit: cubit);
 
-      expect(find.textContaining('isn\'t taking new requests until'), findsNothing);
+      expect(find.textContaining("isn't taking new requests until"), findsNothing);
       expect(
         tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull,

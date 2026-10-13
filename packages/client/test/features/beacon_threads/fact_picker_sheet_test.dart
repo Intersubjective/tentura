@@ -480,33 +480,33 @@ void main() {
         expect(
           pending?.factText,
           factA.factText,
-          reason: 'the pending quote must carry the tapped card\'s text, '
-              'not the other listed card\'s',
+          reason: "the pending quote must carry the tapped card's text, "
+              "not the other listed card's",
         );
         expect(
           pending?.seq,
           factA.revisionSeq,
-          reason: 'the pending quote must carry the tapped card\'s '
+          reason: "the pending quote must carry the tapped card's "
               'revisionSeq as seq (room_cubit.dart RoomCubit.'
-              'setPendingQuotedFact\'s existing contract)',
+              "setPendingQuotedFact's existing contract)",
         );
         expect(
           pending?.visibility,
           factA.visibility,
-          reason: 'the pending quote must carry the tapped card\'s '
-              'visibility, not factB\'s (they differ: room vs public)',
+          reason: "the pending quote must carry the tapped card's "
+              "visibility, not factB's (they differ: room vs public)",
         );
         expect(
           pending?.status,
           factA.status,
-          reason: 'the pending quote must carry the tapped card\'s status, '
-              'not factB\'s (they differ: corrected vs active)',
+          reason: "the pending quote must carry the tapped card's status, "
+              "not factB's (they differ: corrected vs active)",
         );
         expect(
           pending?.pinnedById,
           factA.pinnedBy,
-          reason: 'the pending quote must carry the tapped card\'s pinner, '
-              'not factB\'s (they differ: author-a vs author-b)',
+          reason: "the pending quote must carry the tapped card's pinner, "
+              "not factB's (they differ: author-a vs author-b)",
         );
 
         expect(

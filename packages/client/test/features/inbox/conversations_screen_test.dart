@@ -351,7 +351,7 @@ void main() {
     expect(find.byType(PostsTabView), findsNothing);
   });
 
-  testWidgets('Conversations lists the viewer\'s Posts', (tester) async {
+  testWidgets("Conversations lists the viewer's Posts", (tester) async {
     await _pumpInbox(tester, posts: [_unreadPost('Pa'), _unreadPost('Pb')]);
 
     expect(find.byType(PostsTabView), findsOneWidget);

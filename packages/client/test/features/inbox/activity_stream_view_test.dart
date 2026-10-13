@@ -512,7 +512,7 @@ void main() {
         find.byType(RequestAttentionTimelineSheet),
         findsOneWidget,
         reason:
-            'every attention surface reaches §9\'s timeline, not a route '
+            "every attention surface reaches §9's timeline, not a route "
             'of its own',
       );
       final sheet = tester.widget<RequestAttentionTimelineSheet>(
@@ -528,7 +528,7 @@ void main() {
     expect(
       attentionRepo.historyCalls,
       ['beacon-pinned', 'beacon-stream'],
-      reason: 'and each one asks for its own Request\'s history',
+      reason: "and each one asks for its own Request's history",
     );
   });
 
@@ -938,7 +938,7 @@ void main() {
 
   // §9 state matrix: the outcome a grouped card displaced comes back as the
   // card's relation chip, so suppressing the duplicate loses nothing.
-  testWidgets('the suppressed outcome returns as the card\'s relation', (
+  testWidgets("the suppressed outcome returns as the card's relation", (
     tester,
   ) async {
     final inboxRepo = FakeInboxRepository();
@@ -1280,7 +1280,7 @@ void main() {
       expect(effects.emitted.whereType<ShowError>(), hasLength(1));
     });
 
-    testWidgets('«Can\'t make it» goes through the decline dialog', (
+    testWidgets("«Can't make it» goes through the decline dialog", (
       tester,
     ) async {
       final (:boot, :port, :effects) = await bootWithInvite();

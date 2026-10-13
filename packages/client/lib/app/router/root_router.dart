@@ -513,7 +513,7 @@ class RootRouter extends RootStackRouter {
     if (stack.isEmpty) return false;
     final top = stack.last;
     return top.name == detail.routeName &&
-        top.pathParams.optString('id') == detail.rawPathParams['id'];
+        top.params.optString('id') == detail.rawPathParams['id'];
   }
 
   Future<Uri> deepLinkTransformer(Uri uri) => SynchronousFuture(

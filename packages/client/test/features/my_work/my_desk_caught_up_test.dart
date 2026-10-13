@@ -137,7 +137,7 @@ void main() {
     );
   });
 
-  test('only the filters that show the desk\'s responsibilities say it', () {
+  test("only the filters that show the desk's responsibilities say it", () {
     final clear = {'b-1': attention('b-1'), 'b-2': attention('b-2')};
     final said = <MyWorkFilter>[
       for (final filter in MyWorkFilter.values)

@@ -137,7 +137,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('You\'ve routed here:\nTools'), findsOneWidget);
+    expect(find.text("You've routed here:\nTools"), findsOneWidget);
   });
 
   testWidgets('networkOutcome tier renders joined label copy', (tester) async {

@@ -395,7 +395,7 @@ void main() {
       (effects.emitted.whereType<ShowMessage>().single.message
               as ForwardLocationMyWorkMessage)
           .toEn,
-      'Request forwarded. It\'s in My Work. — Carol isn\'t taking new requests right now.',
+      "Request forwarded. It's in My Work. — Carol isn't taking new requests right now.",
     );
   });
 
@@ -482,7 +482,7 @@ void main() {
     expect(message, isA<ForwardLocationMyWorkMessage>());
     expect(
       (message as ForwardLocationMyWorkMessage).toEn,
-      'Request forwarded. It\'s in My Work.',
+      "Request forwarded. It's in My Work.",
     );
     expect(cubit.state.lastDeliveryOutcome?.deliveredCount, 2);
   });
@@ -523,7 +523,7 @@ void main() {
     expect(message, isA<ForwardLocationMessage>());
     expect(
       (message as ForwardLocationMessage).toEn,
-      'Request forwarded. It\'s in Following.',
+      "Request forwarded. It's in Following.",
     );
   });
 
@@ -619,7 +619,7 @@ void main() {
       (effects.emitted.whereType<ShowMessage>().single.message
               as ForwardLocationMyWorkMessage)
           .toEn,
-      'Request forwarded. It\'s in My Work. — 2 people aren\'t taking new requests right now.',
+      "Request forwarded. It's in My Work. — 2 people aren't taking new requests right now.",
     );
     expect(harness.forwardRepo.lastRecipientIds, ['U-alice']);
   });

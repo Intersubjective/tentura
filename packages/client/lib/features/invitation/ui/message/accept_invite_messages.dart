@@ -92,7 +92,7 @@ final class BeaconInviteAcceptedMessage extends LocalizableActionMessage {
   String get toEn {
     final who = inviterName.isEmpty ? 'Someone' : inviterName;
     final title = beaconTitle.isEmpty ? 'a request' : beaconTitle;
-    return '$who shared $title with you. It\'s in your Inbox.';
+    return "$who shared $title with you. It's in your Inbox.";
   }
 
   @override

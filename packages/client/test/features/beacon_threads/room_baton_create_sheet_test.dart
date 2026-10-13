@@ -300,8 +300,8 @@ void main() {
     return button.onPressed;
   }
 
-  group('«Who\'ll take it?» message action', () {
-    testWidgets('is offered on the viewer\'s own plain message', (
+  group("«Who'll take it?» message action", () {
+    testWidgets("is offered on the viewer's own plain message", (
       tester,
     ) async {
       await pumpRoom(tester);
@@ -317,7 +317,7 @@ void main() {
       expect(find.text(_actionLabel), findsOneWidget);
     });
 
-    testWidgets('is also offered on someone else\'s message', (tester) async {
+    testWidgets("is also offered on someone else's message", (tester) async {
       await pumpRoom(tester, messages: [_message(author: _other)]);
       await openActionsByLongPress(tester);
 
@@ -665,7 +665,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('offers «Poll» and «Who\'ll take it?»', (tester) async {
+    testWidgets("offers «Poll» and «Who'll take it?»", (tester) async {
       await pumpRoom(tester, enableComposer: true);
       await openAttachMenu(tester);
 
@@ -673,7 +673,7 @@ void main() {
       expect(find.text(_actionLabel), findsOneWidget);
     });
 
-    testWidgets('hides «Who\'ll take it?» while the feature flag is off', (
+    testWidgets("hides «Who'll take it?» while the feature flag is off", (
       tester,
     ) async {
       await pumpRoom(tester, enableComposer: true, batonEnabled: false);

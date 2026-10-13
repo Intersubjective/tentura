@@ -119,7 +119,7 @@ void main() {
             h.beaconRepo.fetchByIdCalls,
             fetchByIdAfterLoad + 1,
             reason:
-                '${entityType.name} invalidation must keep today\'s full '
+                "${entityType.name} invalidation must keep today's full "
                 'refresh behaviour: exactly one full refresh, not zero and '
                 'not a duplicate',
           );

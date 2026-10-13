@@ -112,7 +112,7 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('dragging an untimed step under the second day\'s first step '
+    testWidgets("dragging an untimed step under the second day's first step "
         'lands it there', (tester) async {
       final semantics = tester.ensureSemantics();
       final cubit = await _pump(tester);
@@ -134,7 +134,7 @@ void main() {
     });
 
     testWidgets('editing a step to another day re-renders it under that '
-        'day\'s header', (tester) async {
+        "day's header", (tester) async {
       final cubit = await _pump(tester);
       final before = tester.getTopLeft(find.byType(PlanDayHeader).at(1)).dy;
       expect(tester.getTopLeft(_row('A')).dy, lessThan(before));

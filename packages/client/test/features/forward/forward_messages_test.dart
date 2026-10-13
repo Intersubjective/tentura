@@ -7,7 +7,7 @@ void main() {
   group('ForwardLocationMessage', () {
     test('watching copy without pause', () {
       const message = ForwardLocationMessage(beaconId: 'B1');
-      expect(message.toEn, 'Request forwarded. It\'s in Following.');
+      expect(message.toEn, "Request forwarded. It's in Following.");
       expect(message.toRu, 'Запрос переслан. Он во вкладке «Слежу».');
       expect(message.label.toEn, 'Open in Following');
       expect(message.label.toRu, 'Открыть в «Слежу»');
@@ -21,7 +21,7 @@ void main() {
       );
       expect(
         message.toEn,
-        'Request forwarded. It\'s in Following. — Alice isn\'t taking new requests right now.',
+        "Request forwarded. It's in Following. — Alice isn't taking new requests right now.",
       );
       expect(
         message.toRu,
@@ -36,7 +36,7 @@ void main() {
       );
       expect(
         message.toEn,
-        'Request forwarded. It\'s in Following. — 2 people aren\'t taking new requests right now.',
+        "Request forwarded. It's in Following. — 2 people aren't taking new requests right now.",
       );
     });
 
@@ -49,7 +49,7 @@ void main() {
   group('ForwardLocationMyWorkMessage', () {
     test('my work copy without pause', () {
       const message = ForwardLocationMyWorkMessage();
-      expect(message.toEn, 'Request forwarded. It\'s in My Work.');
+      expect(message.toEn, "Request forwarded. It's in My Work.");
       expect(message.toRu, 'Запрос переслан. Он в «Моей работе».');
     });
 
@@ -58,7 +58,7 @@ void main() {
       expect(message, isNot(isA<LocalizableActionMessage>()));
       expect(
         message.toEn,
-        'Request forwarded. It\'s in My Work. — Bob isn\'t taking new requests right now.',
+        "Request forwarded. It's in My Work. — Bob isn't taking new requests right now.",
       );
     });
   });
@@ -72,7 +72,7 @@ void main() {
       );
       expect(
         message.toEn,
-        'Delivered to 0 of 1 — Alice isn\'t taking new requests right now.',
+        "Delivered to 0 of 1 — Alice isn't taking new requests right now.",
       );
     });
   });

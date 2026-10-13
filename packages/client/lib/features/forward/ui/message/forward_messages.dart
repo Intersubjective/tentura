@@ -9,10 +9,10 @@ String _forwardLocationPauseSuffixEn({
   int? skippedCount,
 }) {
   if (skippedName != null) {
-    return ' — $skippedName isn\'t taking new requests right now.';
+    return " — $skippedName isn't taking new requests right now.";
   }
   if (skippedCount != null) {
-    return ' — $skippedCount people aren\'t taking new requests right now.';
+    return " — $skippedCount people aren't taking new requests right now.";
   }
   return '';
 }
@@ -36,8 +36,8 @@ String forwardLocationCopyEn({
   int? skippedCount,
 }) {
   final base = inWatching
-      ? 'Request forwarded. It\'s in Following.'
-      : 'Request forwarded. It\'s in My Work.';
+      ? "Request forwarded. It's in Following."
+      : "Request forwarded. It's in My Work.";
   return '$base${_forwardLocationPauseSuffixEn(skippedName: skippedName, skippedCount: skippedCount)}';
 }
 
@@ -82,7 +82,7 @@ final class ForwardPartialDeliveryMessage extends LocalizableMessage {
 
   @override
   String get toEn =>
-      'Delivered to $deliveredCount of $requestedCount — $skippedName isn\'t taking new requests right now.';
+      "Delivered to $deliveredCount of $requestedCount — $skippedName isn't taking new requests right now.";
 
   @override
   String get toRu =>
@@ -103,7 +103,7 @@ final class ForwardPartialDeliveryManyMessage extends LocalizableMessage {
 
   @override
   String get toEn =>
-      'Delivered to $deliveredCount of $requestedCount — $skippedCount people aren\'t taking new requests right now.';
+      "Delivered to $deliveredCount of $requestedCount — $skippedCount people aren't taking new requests right now.";
 
   @override
   String get toRu =>

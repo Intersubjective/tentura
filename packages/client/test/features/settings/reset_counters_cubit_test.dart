@@ -110,7 +110,7 @@ void main() {
     expect(
       cubit.state.unrepairableCount,
       0,
-      reason: 'the second run fixed them; the first run\'s number is stale',
+      reason: "the second run fixed them; the first run's number is stale",
     );
   });
 

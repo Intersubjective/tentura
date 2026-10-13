@@ -15,7 +15,7 @@ void main() {
       .map((e) => Map<String, dynamic>.from(e as Map))
       .toList(growable: false);
 
-  test('the client mirror knows exactly the contract\'s event types', () {
+  test("the client mirror knows exactly the contract's event types", () {
     final declared = {
       for (final entry in classifications) entry['eventType']! as String,
     };

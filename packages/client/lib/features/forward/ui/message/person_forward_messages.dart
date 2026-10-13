@@ -18,7 +18,7 @@ final class PersonForwardAvailabilitySkippedMessage extends LocalizableMessage {
   final String name;
 
   @override
-  String get toEn => '$name isn\'t taking new requests right now.';
+  String get toEn => "$name isn't taking new requests right now.";
 
   @override
   String get toRu => '$name сейчас не принимает новые запросы.';

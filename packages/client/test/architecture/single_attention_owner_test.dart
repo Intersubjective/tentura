@@ -55,7 +55,7 @@ void main() {
     );
   });
 
-  test('only the attention owner derives a Request\'s event counts', () {
+  test("only the attention owner derives a Request's event counts", () {
     // Constructing the projection is deriving it. Features receive it.
     for (final file in dartSources('lib')) {
       if (file.path.contains(ownerDir)) continue;
@@ -72,7 +72,7 @@ void main() {
     forbid(
       root: 'lib/features',
       pattern: 'clearedAt:',
-      because: 'clearing is the owner\'s axis (D12–D14), not a screen\'s',
+      because: "clearing is the owner's axis (D12–D14), not a screen's",
     );
   });
 
