@@ -224,6 +224,7 @@ Future<void> main() async {
           var waiting = offered;
           var connections = 0;
           var worstAuth = Duration.zero;
+          final payloads = <WeakReference<Uint8List>>[];
           try {
             for (var index = 0; index < offered; index++) {
               outcomes.add(
@@ -232,8 +233,7 @@ Future<void> main() async {
                       ? harness.full((_) async {})
                       : harness.payloadMutation(
                           index,
-                          Uint8List(payloadBytes)
-                            ..fillRange(0, payloadBytes, index % 255),
+                          _trackedPayload(payloads, payloadBytes, index),
                         ),
                 ),
               );
@@ -267,10 +267,21 @@ Future<void> main() async {
           expect(refused, greaterThanOrEqualTo(offered - _maxWaiting));
           expect(connections, _slots);
           expect(harness.executedMutations, lessThanOrEqualTo(_maxWaiting));
+          // Retention is checked on the payloads themselves: RSS cannot tell
+          // a kept payload from garbage the GC has not reached yet, and the
+          // peak below swung from ~30 MiB locally to 68 MiB on a CI runner.
+          expect(
+            await _stillReachable(payloads),
+            0,
+            reason: 'Refused work must release the burst of request payloads.',
+          );
+          // Peak RSS includes uncollected garbage, so it is only bounded by
+          // the burst itself: a burst whose payloads were all kept alive at
+          // once would reach it.
           expect(
             peakRss - baselineRss,
-            lessThan(64 * 1024 * 1024),
-            reason: 'Refused work must release the burst of request payloads.',
+            lessThan(offered * payloadBytes),
+            reason: 'The burst must never be resident all at once.',
           );
           expect(worstAuth, lessThan(warmup.elapsed + _interactiveObservation));
           for (final outcome in outcomes.where((item) => item.error != null)) {
@@ -664,6 +675,30 @@ _Outcome _observe(Future<Object?> future) {
     },
   );
   return outcome;
+}
+
+Uint8List _trackedPayload(
+  List<WeakReference<Uint8List>> tracked,
+  int bytes,
+  int index,
+) {
+  final payload = Uint8List(bytes)..fillRange(0, bytes, index % 255);
+  tracked.add(WeakReference(payload));
+  return payload;
+}
+
+/// Counts [tracked] payloads that stay reachable while garbage is allocated
+/// until the VM has run full collections (Dart has no explicit GC call).
+Future<int> _stillReachable(List<WeakReference<Uint8List>> tracked) async {
+  var alive = tracked.length;
+  for (var round = 0; round < 20 && alive > 0; round++) {
+    for (var index = 0; index < 16; index++) {
+      Uint8List(4 << 20)[index] = index;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    alive = tracked.where((payload) => payload.target != null).length;
+  }
+  return alive;
 }
 
 bool _isRefused(_Outcome outcome) =>

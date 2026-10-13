@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
@@ -14,17 +18,30 @@ import '../support/smoke_env.dart';
 /// and checks every non-pg smoke assertion against it. Booting the whole graph
 /// costs seconds per file, so closure ports (A11b/A14/A17) and the reminder
 /// sweeps (A17) live here instead of in separate one-test files.
+///
+/// The graph's only eager Postgres connection is [PgNotificationService]'s
+/// LISTEN connection, opened by a non-lazy async singleton while the graph is
+/// built. Its refused connect fails inside get_it's own future chain, so the
+/// test cannot catch it, and it fails the test whenever Postgres is down (the
+/// non-pg CI job). The test therefore pre-registers an offline connector; the
+/// real service and everything that awaits it still resolve through the graph.
 void main() {
   test('DI graph resolves under test smoke env', () async {
-    addTearDown(() async => getIt.reset());
+    addTearDown(() async {
+      await getIt.reset();
+      getIt.skipDoubleRegistration = false;
+    });
 
+    getIt
+      ..skipDoubleRegistration = true
+      ..registerSingleton<PgNotificationConnector>(
+        const _OfflinePgNotificationConnector(),
+      );
     await configureDependencies(smokeTestEnv());
     await getIt.allReady(ignorePendingAsyncCreation: true);
-    // Without Postgres the LISTEN connection's async creation fails. Settle it
-    // inside the test, or the refused connect is reported after completion.
-    await getIt.isReady<PgNotificationService>().then<void>(
-      (_) {},
-      onError: (Object _) {},
+    expect(
+      await getIt.getAsync<PgNotificationService>(),
+      isA<PgNotificationService>(),
     );
 
     expect(getIt.isRegistered<HelpOfferRepositoryPort>(), isTrue);
@@ -45,4 +62,32 @@ void main() {
     expect(getIt.isRegistered<ClosureDraftReminderSweepCase>(), isTrue);
     expect(getIt.isRegistered<StaleRequestReminderSweepCase>(), isTrue);
   });
+}
+
+/// Opens LISTEN connections that never deliver anything and need no server.
+final class _OfflinePgNotificationConnector implements PgNotificationConnector {
+  const _OfflinePgNotificationConnector();
+
+  @override
+  Future<PgNotificationConnection> open(
+    Endpoint endpoint, {
+    required ConnectionSettings settings,
+  }) async => _OfflinePgNotificationConnection();
+}
+
+final class _OfflinePgNotificationConnection
+    implements PgNotificationConnection {
+  final _channel = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> channel(String name) => _channel.stream;
+
+  @override
+  Future<void> listen(String channel) async {}
+
+  @override
+  Future<void> notify(String channel, String payload) async {}
+
+  @override
+  Future<void> close() => _channel.close();
 }
