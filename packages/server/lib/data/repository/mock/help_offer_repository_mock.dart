@@ -25,6 +25,7 @@ class HelpOfferRepositoryMock implements HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
+    String? mutatingUserId,
   }) => Future.value();
 
   @override

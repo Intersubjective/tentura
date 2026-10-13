@@ -866,6 +866,7 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
     required String? userId,
     required String? withdrawReason,
     String? message = '',
+    String? mutatingUserId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#withdraw, [], {
@@ -873,6 +874,7 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
               #userId: userId,
               #withdrawReason: withdrawReason,
               #message: message,
+              #mutatingUserId: mutatingUserId,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),

@@ -81,6 +81,7 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
+    String? mutatingUserId,
   }) async {
     final existing = _offers[_key(beaconId, userId)];
     if (existing == null) return;

@@ -15,6 +15,10 @@ abstract class HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
+
+    /// Actor of the mutating unit (default: `userId`); pass the authenticated
+    /// actor when someone else's offer is withdrawn inside their unit of work.
+    String? mutatingUserId,
   });
 
   /// Ends the active offer grant without changing its message or exit reason.

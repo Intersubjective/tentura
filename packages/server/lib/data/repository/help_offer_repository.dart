@@ -60,7 +60,8 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
-  }) => _database.withMutatingUser(userId, () async {
+    String? mutatingUserId,
+  }) => _database.withMutatingUser(mutatingUserId ?? userId, () async {
     await _database.managers.beaconHelpOffers
         .filter(
           (e) => e.beaconId.id(beaconId) & e.userId.id(userId),

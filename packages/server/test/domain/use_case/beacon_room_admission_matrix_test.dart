@@ -144,6 +144,7 @@ class _ExitOffers extends Fake implements HelpOfferRepositoryPort {
     required String userId,
     required String withdrawReason,
     String message = '',
+    String? mutatingUserId,
   }) async {
     active = false;
   }

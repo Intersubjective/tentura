@@ -200,16 +200,19 @@ final class UserBlockCase extends UseCaseBase {
     String blockedId,
   ) async {
     await _withdrawOffersByOfferer(
+      blockerId: blockerId,
       offererId: blockerId,
       beaconAuthorId: blockedId,
     );
     await _withdrawOffersByOfferer(
+      blockerId: blockerId,
       offererId: blockedId,
       beaconAuthorId: blockerId,
     );
   }
 
   Future<void> _withdrawOffersByOfferer({
+    required String blockerId,
     required String offererId,
     required String beaconAuthorId,
   }) async {
@@ -228,6 +231,7 @@ final class UserBlockCase extends UseCaseBase {
         beaconId: beaconId,
         userId: offererId,
         actorUserId: offererId,
+        mutatingUserId: blockerId,
         kind: CommitmentEventKind.blockedCleanup,
         reason: kBlockWithdrawReason,
       );
@@ -236,6 +240,7 @@ final class UserBlockCase extends UseCaseBase {
         beaconId: beaconId,
         userId: offererId,
         withdrawReason: kBlockWithdrawReason,
+        mutatingUserId: blockerId,
       );
       final beaconAfter = await _beacons.getBeaconById(beaconId: beaconId);
       if (beaconAfter.status.isOpenFamily) {

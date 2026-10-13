@@ -132,6 +132,7 @@ final class _FakeHelpOffers extends Fake implements HelpOfferRepositoryPort {
     required String userId,
     String message = '',
     required String withdrawReason,
+    String? mutatingUserId,
   }) async {
     withdrawCalls.add(
       (beaconId: beaconId, userId: userId, reason: withdrawReason),
