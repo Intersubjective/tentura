@@ -13,6 +13,7 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/env.dart';
 
+import 'drift_executor_wait_guard.dart';
 import 'meritrank_lock_probe.dart';
 
 /// Cross-process lock: concurrent `migrateDbSchema` / `run_migrations_once` on
@@ -59,6 +60,13 @@ String _registryFingerprint() {
   }
   return hash.toRadixString(16).padLeft(16, '0');
 }
+
+/// Database-local session defaults for every disposable database, both under
+/// Dart's 30 s test timeout: a SQL-side wait or a transaction left open by a
+/// stuck test ends in a Postgres error instead of a silent hang. Zero would mean
+/// Postgres never gives up.
+const disposablePgLockTimeoutSetting = '15s';
+const disposablePgIdleInTransactionTimeoutSetting = '20s';
 
 var _templateReady = false;
 
@@ -268,9 +276,24 @@ final class DisposablePgTarget {
       await connection.execute(
         'CREATE DATABASE "$databaseName" TEMPLATE "$templateDatabaseName"',
       );
+      await _applySessionBackstops(connection);
     } finally {
       await connection.close();
     }
+  }
+
+  /// Stores the session timeouts on this database, not on the cluster: the
+  /// admin database and every other database keep the server defaults. Only
+  /// sessions opened afterwards pick them up.
+  Future<void> _applySessionBackstops(Connection admin) async {
+    await admin.execute(
+      'ALTER DATABASE "$databaseName" '
+      "SET lock_timeout = '$disposablePgLockTimeoutSetting'",
+    );
+    await admin.execute(
+      'ALTER DATABASE "$databaseName" SET idle_in_transaction_session_timeout '
+      "= '$disposablePgIdleInTransactionTimeoutSetting'",
+    );
   }
 
   Future<void> _recreateUnlocked() async {
@@ -409,6 +432,16 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
       }
       if (lastInclusiveVersion != null) {
         await migrateDbSchemaThrough(writer!, lastInclusiveVersion);
+        // After the schema build, whose advisory lock may queue for long.
+        final admin = await Connection.open(
+          target.adminEnv.pgEndpoint,
+          settings: target.adminEnv.pgEndpointSettings,
+        );
+        try {
+          await target._applySessionBackstops(admin);
+        } finally {
+          await admin.close();
+        }
       }
       final current = await writer!.execute('SELECT current_database()');
       final name = current.first.first as String;
@@ -418,6 +451,8 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
         );
       }
     });
+    _stuckBackendMonitors[target.databaseName] = DbStuckBackendMonitor(target)
+      ..start();
     return DisposablePgWriterSession(target: target, writer: writer!);
   } on Object catch (error, stackTrace) {
     if (writer != null) {
@@ -440,8 +475,22 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
   }
 }
 
-TenturaDb openDisposablePgDatabase(DisposablePgTarget target) =>
-    TenturaDb(target.databaseEnv);
+/// Reports a backend stuck on a lock or in a transaction for the lifetime of the
+/// suite's writer session, by database name.
+final _stuckBackendMonitors = <String, DbStuckBackendMonitor>{};
+
+/// A [TenturaDb] over [target] whose leased scopes fail with a
+/// [DbWaitTimeoutException] instead of waiting forever on their own executor
+/// lock. Pass a null [waitDeadline] for a database that must wait unbounded.
+TenturaDb openDisposablePgDatabase(
+  DisposablePgTarget target, {
+  Duration? waitDeadline = defaultDbWaitDeadline,
+}) => TenturaDb(
+  target.databaseEnv,
+  scopeInterceptor: waitDeadline == null
+      ? null
+      : () => DbWaitGuard.forTarget(target, deadline: waitDeadline),
+);
 
 /// Closes [drift] then [session.writer], then drops the database (locked).
 /// No-op when [session.setupComplete] is false.
@@ -452,6 +501,7 @@ Future<void> tearDownDisposablePgWriter({
   if (!session.setupComplete) {
     return;
   }
+  _stuckBackendMonitors.remove(session.target.databaseName)?.stop();
   try {
     await withDisposablePgLifecycleLock(session.target.adminEnv, () async {
       if (drift != null) {

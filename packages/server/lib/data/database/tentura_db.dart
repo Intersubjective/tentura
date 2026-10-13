@@ -150,32 +150,44 @@ class TenturaDb extends _$TenturaDb {
   static final Object _connectionScopeZoneKey = Object();
   static final Object _readSnapshotZoneKey = Object();
 
-  TenturaDb(Env env) : this._(MainDbPool(env), ownsPool: true);
+  /// [scopeInterceptor] is a test hook: it makes one interceptor per leased
+  /// connection scope, wrapped around that scope's executor.
+  TenturaDb(Env env, {QueryInterceptor Function()? scopeInterceptor})
+    : this._(
+        MainDbPool(env),
+        ownsPool: true,
+        scopeInterceptor: scopeInterceptor,
+      );
 
   TenturaDb.auth(Env env) : this._(MainDbPool.auth(env), ownsPool: true);
 
   @factoryMethod
   TenturaDb.scoped(MainDbPool pool) : this._(pool);
 
-  TenturaDb._(MainDbPool pool, {this._ownsPool = false})
-    : _mainPool = pool,
-      super(
-        DbSpanDatabase(
-          PgDatabase.opened(
-            pool.pool,
-            enableMigrations: false,
-            logStatements: pool.logStatements,
-          ),
-        ),
-      );
+  TenturaDb._(
+    MainDbPool pool, {
+    this._ownsPool = false,
+    this._scopeInterceptor,
+  }) : _mainPool = pool,
+       super(
+         DbSpanDatabase(
+           PgDatabase.opened(
+             pool.pool,
+             enableMigrations: false,
+             logStatements: pool.logStatements,
+           ),
+         ),
+       );
 
   TenturaDb.forTest({required QueryExecutor database})
     : _mainPool = null,
       _ownsPool = false,
+      _scopeInterceptor = null,
       super(database.interceptWith(DbSpanInterceptor()));
 
   final MainDbPool? _mainPool;
   final bool _ownsPool;
+  final QueryInterceptor Function()? _scopeInterceptor;
   late final _PooledDatabaseUser _pooledUser = _PooledDatabaseUser(this);
   late final DbSpanConnectionUser _tracedUser = DbSpanConnectionUser(this);
 
@@ -244,15 +256,18 @@ class TenturaDb extends _$TenturaDb {
     Future<T> admitted() => main.admission.run(
       () {
         Future<T> leased() => main.pool.withConnection((connection) async {
+          final executor = DbSpanDatabase(
+            PgDatabase.opened(
+              connection,
+              enableMigrations: false,
+              logStatements: main.logStatements,
+            ),
+          );
           final scope = _ScopedDatabaseUser(
             this,
-            DbSpanDatabase(
-              PgDatabase.opened(
-                connection,
-                enableMigrations: false,
-                logStatements: main.logStatements,
-              ),
-            ),
+            _scopeInterceptor == null
+                ? executor
+                : executor.interceptWith(_scopeInterceptor()),
           );
           try {
             await trace?.acquired(connection: connection);

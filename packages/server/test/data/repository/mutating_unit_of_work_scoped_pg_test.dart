@@ -221,7 +221,9 @@ WHERE datname = @database AND state LIKE 'idle in transaction%'
           action: (index, before) async {
             expect(before.actor, isEmpty);
             expect(before.token, isEmpty);
-            expect(before.lockTimeout, '0');
+            // The disposable database's own default: scope-local values from
+            // the earlier pair must not have leaked into the reused session.
+            expect(before.lockTimeout, disposablePgLockTimeoutSetting);
             expect(before.statementTimeout, '65s');
             expect(await _probe(harness.database), before);
           },
