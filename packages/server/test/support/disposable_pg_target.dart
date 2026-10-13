@@ -444,7 +444,7 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
         }
       }
       final current = await writer!.execute('SELECT current_database()');
-      final name = current.first.first as String;
+      final name = current.first.first! as String;
       if (name != target.databaseName) {
         throw StateError(
           'Expected database ${target.databaseName}, connected to $name',
@@ -492,8 +492,8 @@ TenturaDb openDisposablePgDatabase(
       : () => DbWaitGuard.forTarget(target, deadline: waitDeadline),
 );
 
-/// Closes [drift] then [session.writer], then drops the database (locked).
-/// No-op when [session.setupComplete] is false.
+/// Closes `drift` then `session.writer`, then drops the database (locked).
+/// No-op when `session.setupComplete` is false.
 Future<void> tearDownDisposablePgWriter({
   required DisposablePgWriterSession session,
   TenturaDb? drift,

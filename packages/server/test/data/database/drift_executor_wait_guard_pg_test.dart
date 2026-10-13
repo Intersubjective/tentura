@@ -51,7 +51,7 @@ Future<void> main() async {
     final clock = Stopwatch()..start();
     while (clock.elapsed < const Duration(seconds: 3)) {
       final rows = await readDbActivity(target);
-      if (!rows.any((Map<String, Object?> row) => row['pid'] == pid)) {
+      if (!rows.any((row) => row['pid'] == pid)) {
         return true;
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -83,11 +83,11 @@ Future<void> main() async {
 
         expect(rows, isNotEmpty);
         expect(
-          rows.map((Map<String, Object?> row) => row['datname']).toSet(),
+          rows.map((row) => row['datname']).toSet(),
           {target.databaseName},
         );
         final mine = rows.singleWhere(
-          (Map<String, Object?> row) => row['pid'] == pid,
+          (row) => row['pid'] == pid,
         );
         expect(mine['state'], 'idle in transaction');
         expect(mine['query'], contains(_previousStatement));
@@ -95,7 +95,7 @@ Future<void> main() async {
         expect(mine['wait_event'], 'ClientRead');
         expect(
           rows.where(
-            (Map<String, Object?> row) =>
+            (row) =>
                 '${row['query']}'.contains('pg_stat_activity'),
           ),
           isEmpty,
@@ -118,7 +118,7 @@ Future<void> main() async {
         final rows = await readDbActivity(target);
         row = rows
             .where(
-              (Map<String, Object?> r) =>
+              (r) =>
                   r['pid'] == waiterPid && r['wait_event'] != null,
             )
             .firstOrNull;
@@ -171,7 +171,7 @@ Future<void> main() async {
         expect(timeout.sql, contains('stale_root_wait'));
         expect(timeout.scopeStack, hasLength(1));
         final mine = timeout.activity.singleWhere(
-          (Map<String, Object?> row) => row['pid'] == pid,
+          (row) => row['pid'] == pid,
         );
         expect(mine['state'], 'idle in transaction');
         expect(mine['query'], contains(_previousStatement));
@@ -230,7 +230,7 @@ Future<void> main() async {
         expect(clock.elapsed, lessThan(_fewSeconds));
         expect(timeout.scopeStack, hasLength(2));
         final mine = timeout.activity.singleWhere(
-          (Map<String, Object?> row) => row['pid'] == pid,
+          (row) => row['pid'] == pid,
         );
         expect(mine['state'], 'idle in transaction');
         expect('${mine['query']}'.toUpperCase(), contains('SAVEPOINT'));
@@ -283,7 +283,7 @@ Future<void> main() async {
         final timeout = failure! as DbWaitTimeoutException;
         expect(clock.elapsed, lessThan(_fewSeconds));
         final waiting = timeout.activity.where(
-          (Map<String, Object?> row) => row['wait_event'] == 'advisory',
+          (row) => row['wait_event'] == 'advisory',
         );
         expect(waiting, hasLength(1));
         expect(waiting.single['state'], 'active');
@@ -296,7 +296,7 @@ Future<void> main() async {
         );
         expect(
           (await readDbActivity(target)).any(
-            (Map<String, Object?> row) => row['pid'] == blockerPid,
+            (row) => row['pid'] == blockerPid,
           ),
           isTrue,
           reason: 'only the waiting backend is aborted, not the lock holder',

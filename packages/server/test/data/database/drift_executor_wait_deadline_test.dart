@@ -214,7 +214,7 @@ void main() {
         final executor = _HangingExecutor(hangOn: {'runSelect'}).interceptWith(
           DbWaitGuard(
             deadline: _deadline,
-            onExpired: (DbWaitTimeoutException timeout) async {
+            onExpired: (timeout) async {
               events.add('aborted:${timeout.operation}');
             },
           ),
