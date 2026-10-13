@@ -194,18 +194,25 @@ class TenturaDb extends _$TenturaDb {
     return scope;
   }
 
+  /// Drift's own zone key for the innermost transaction/savepoint user.
+  static const Symbol _driftZoneRootUserKey = #DatabaseConnectionUser;
+
   @override
   DatabaseConnectionUser get resolvedEngine {
-    final scope = _connectionScope;
-    // Drift's ambient transaction/savepoint takes precedence over the scope.
-    if (scope != null && !identical(scope.attachedDatabase, this)) {
-      return scope.attachedDatabase.resolvedEngine;
+    // The innermost Drift transaction/savepoint takes precedence, whichever
+    // TenturaDb instance over this pool opened it. Drift itself only matches a
+    // zone transaction attached to `this`, so a savepoint opened by another
+    // instance (e.g. a manager prefetch `transaction`) would otherwise resolve
+    // to the bare scoped executor, which waits on the lock the savepoint holds.
+    final fromZone = Zone.current[_driftZoneRootUserKey];
+    if (fromZone is DatabaseConnectionUser) {
+      // Drift marks the getter for overriding; reading it here is the same
+      // check Drift's own resolvedEngine performs.
+      // ignore: invalid_use_of_visible_for_overriding_member
+      final owner = fromZone.attachedDatabase;
+      if (owner is TenturaDb && _sharesScope(owner)) return fromZone;
     }
-    // Resolve Drift's ambient transaction before opening a connection scope.
-    // ignore: invalid_use_of_internal_member
-    final current = super.resolvedEngine;
-    if (!identical(current, this)) return current;
-    return scope ?? (_mainPool == null ? _tracedUser : _pooledUser);
+    return _connectionScope ?? (_mainPool == null ? _tracedUser : _pooledUser);
   }
 
   /// Carries admission metadata between batches without holding a connection.
