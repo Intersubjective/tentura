@@ -5,10 +5,9 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/service/constellation_db_scheduler.dart';
 import 'package:tentura_server/env.dart';
 
-Env _env({required bool pinned, required int connections}) => Env(
+Env _env({required int connections}) => Env(
   environment: Environment.test,
   printEnv: false,
-  driftTransactionPinnedPoolEnabled: pinned,
   maxConnectionCount: connections,
   constellationDbMaxConcurrent: 1,
 );
@@ -80,55 +79,64 @@ _observeFullThenApply(Env env) async {
 
 void main() {
   group(
-    'Constellation DB admission with one configured slot on the effective pool lanes',
+    'Constellation DB admission on the configured pool lanes',
     () {
       for (final mode in [
-        (name: 'statement transactions', pinned: false, connections: 8),
-        (name: 'pinned transactions', pinned: true, connections: 1),
+        (name: 'multiple connections', connections: 8),
+        (name: 'single connection', connections: 1),
       ]) {
         group(mode.name, () {
-          Env env() => _env(pinned: mode.pinned, connections: mode.connections);
+          Env env() => _env(connections: mode.connections);
 
           test(
-            'admits the configured slot count for the single effective DB lane',
+            'uses configured pool capacity and bounded queue defaults',
             () {
               final databaseEnv = env();
-              expect(databaseEnv.pgPoolSettings.maxConnectionCount, 1);
+              expect(
+                databaseEnv.pgPoolSettings.maxConnectionCount,
+                mode.connections,
+              );
               final config = ConstellationDbSchedulerConfig.fromEnv(
                 databaseEnv,
               );
-              expect(config.queueDeadline, const Duration(seconds: 10));
-              expect(config.maxQueued, 1000);
+              expect(config.queueDeadline, const Duration(seconds: 1));
+              expect(config.maxQueued, 32);
               expect(config.maxConcurrent, 1);
             },
           );
 
           test(
-            'starts queued apply immediately after the running FULL',
+            'admits light work during a FULL when a pool slot is free',
             () async {
               final observed = await _observeFullThenApply(env());
-              expect(observed.startedAfterFull, ['full', 'apply']);
+              expect(
+                observed.admittedWhileFullRuns,
+                mode.connections == 1 ? ['full'] : ['full', 'apply'],
+              );
+              expect(
+                observed.startedAfterFull,
+                ['full', 'apply'],
+              );
             },
           );
         });
       }
 
       test(
-        'a multi-lane pinned pool does not change the configured slot count',
+        'a multi-lane pool does not change the configured slot count',
         () {
-          final env = _env(pinned: true, connections: 2);
+          final env = _env(connections: 2);
           expect(env.pgPoolSettings.maxConnectionCount, 2);
           expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 1);
         },
       );
 
       test('a large pool does not lift admission past its own knob', () {
-        final env = _env(pinned: true, connections: 20);
+        final env = _env(connections: 20);
         expect(ConstellationDbSchedulerConfig.fromEnv(env).maxConcurrent, 1);
         final raised = Env(
           environment: Environment.test,
           printEnv: false,
-          driftTransactionPinnedPoolEnabled: true,
           maxConnectionCount: 20,
           constellationDbMaxConcurrent: 3,
         );

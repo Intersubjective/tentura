@@ -9,6 +9,42 @@ import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 
 const _queryCanceled = '57014';
 
+/// Captures Drift's transaction callback without overriding transaction or
+/// changing connection ownership. Ordinary statements create no lifetime span.
+final class DbSpanConnectionUser extends DatabaseConnectionUser {
+  DbSpanConnectionUser(this.attachedDatabase)
+    : super.delegate(attachedDatabase);
+
+  @override
+  final GeneratedDatabase attachedDatabase;
+
+  @override
+  Future<T> doWhenOpened<T>(FutureOr<T> Function(QueryExecutor) fn) {
+    if (DbTransactionTrace.current != null) return super.doWhenOpened(fn);
+    final scope = _DbTransactionTraceScope(attachedDatabase);
+    Future<T> run() async {
+      Object? failure;
+      try {
+        return await super.doWhenOpened(fn);
+      } on Object catch (error) {
+        failure = error;
+        rethrow;
+      } finally {
+        await scope.trace?._finish(failure);
+      }
+    }
+
+    return runZoned(run, zoneValues: {DbTransactionTrace._zoneKey: scope});
+  }
+}
+
+final class _DbTransactionTraceScope {
+  _DbTransactionTraceScope(this.database);
+
+  final GeneratedDatabase database;
+  DbTransactionTrace? trace;
+}
+
 /// The Sentry spans of one outermost database transaction: its lifetime
 /// (`db.transaction`, BEGIN to COMMIT/ROLLBACK), the wait for its pool
 /// connection (`db.pool.acquire`) and, after a statement the server cancelled,
@@ -20,8 +56,11 @@ final class DbTransactionTrace {
   static final Object _zoneKey = Object();
 
   /// The trace of the transaction the caller is running in, if any.
-  static DbTransactionTrace? get current =>
-      Zone.current[_zoneKey] as DbTransactionTrace?;
+  static DbTransactionTrace? get current => switch (Zone.current[_zoneKey]) {
+    final DbTransactionTrace trace => trace,
+    final _DbTransactionTraceScope scope => scope.trace,
+    _ => null,
+  };
 
   /// Starts the trace of a transaction on [db], or returns null when no
   /// Sentry transaction is active or the caller already runs inside a
@@ -55,19 +94,25 @@ final class DbTransactionTrace {
   Future<T> run<T>(Future<T> Function() body) async {
     Object? failure;
     try {
-      return await runZoned(
-        body,
-        zoneValues: {_zoneKey: this, kSentryParentSpanZoneKey: _span},
-      );
+      return await _inZone(body);
     } on Object catch (error) {
       failure = error;
       rethrow;
     } finally {
-      _done = true;
-      await finishSentryDbSpan(_drain);
-      await finishSentryDbSpan(_acquire, failure);
-      await finishSentryDbSpan(_span, failure);
+      await _finish(failure);
     }
+  }
+
+  Future<T> _inZone<T>(Future<T> Function() body) => runZoned(
+    body,
+    zoneValues: {_zoneKey: this, kSentryParentSpanZoneKey: _span},
+  );
+
+  Future<void> _finish(Object? failure) async {
+    _done = true;
+    await finishSentryDbSpan(_drain);
+    await finishSentryDbSpan(_acquire, failure);
+    await finishSentryDbSpan(_span, failure);
   }
 
   /// The backend PID serving [connection], or null if it cannot be read.
@@ -160,7 +205,26 @@ final class DbSpanDatabase extends DelegatedDatabase {
 /// Records every statement as a `db.sql` span with its SQL text (never the
 /// bound arguments), nested under the current transaction span if any.
 final class DbSpanInterceptor extends QueryInterceptor {
-  Future<T> _traced<T>(String sql, Future<T> Function() run) async {
+  @override
+  TransactionExecutor beginTransaction(QueryExecutor parent) {
+    final scope = Zone.current[DbTransactionTrace._zoneKey];
+    if (scope is _DbTransactionTraceScope) {
+      scope.trace ??= DbTransactionTrace.begin(
+        scope.database,
+        leasesConnection: false,
+      );
+    }
+    return super.beginTransaction(parent);
+  }
+
+  Future<T> _traced<T>(String sql, Future<T> Function() run) {
+    final trace = DbTransactionTrace.current;
+    return trace == null
+        ? _runTraced(sql, run)
+        : trace._inZone(() => _runTraced(sql, run));
+  }
+
+  Future<T> _runTraced<T>(String sql, Future<T> Function() run) async {
     final span = startSentryDbSpan('db.sql', description: sql);
     if (span == null) return run();
     try {

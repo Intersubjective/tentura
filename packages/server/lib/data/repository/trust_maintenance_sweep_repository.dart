@@ -20,11 +20,10 @@ class TrustMaintenanceSweepRepository implements TrustMaintenanceSweepPort {
     required String afterSubject,
     required String afterObject,
     required int batchSize,
-  }) =>
-      _db.transaction(() async {
-        final pairs = await _db
-            .customSelect(
-              r'''
+  }) => _db.withTransaction(() async {
+    final pairs = await _db
+        .customSelect(
+          r'''
 SELECT subject_user_id AS s, object_user_id AS o
 FROM (
   SELECT subject AS subject_user_id, object AS object_user_id
@@ -34,27 +33,29 @@ WHERE (subject_user_id, object_user_id) > ($1, $2)
 ORDER BY subject_user_id, object_user_id
 LIMIT $3
 ''',
-              variables: [
-                Variable<String>(afterSubject),
-                Variable<String>(afterObject),
-                Variable(TypedValue(Type.integer, batchSize)),
-              ],
-            )
-            .get();
-        for (final pair in pairs) {
-          await _db.customSelect(
+          variables: [
+            Variable<String>(afterSubject),
+            Variable<String>(afterObject),
+            Variable(TypedValue(Type.integer, batchSize)),
+          ],
+        )
+        .get();
+    for (final pair in pairs) {
+      await _db
+          .customSelect(
             r'SELECT public.trust_project_pair($1, $2)',
             variables: [
               Variable<String>(pair.read<String>('s')),
               Variable<String>(pair.read<String>('o')),
             ],
-          ).getSingle();
-        }
-        return [
-          for (final pair in pairs)
-            (pair.read<String>('s'), pair.read<String>('o')),
-        ];
-      });
+          )
+          .getSingle();
+    }
+    return [
+      for (final pair in pairs)
+        (pair.read<String>('s'), pair.read<String>('o')),
+    ];
+  }, kind: MainDbWorkKind.full);
 
   @override
   Future<void> bumpMrPublishEpoch() =>

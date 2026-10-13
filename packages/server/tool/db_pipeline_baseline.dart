@@ -44,11 +44,11 @@ const _authOperation = 'AuthRefresh';
 const _dsn = 'https://public@o123.ingest.sentry.io/1';
 
 /// One configuration of the DB pipeline under test.
-typedef _Config = ({String name, bool leasePerTransaction, int poolSize});
+typedef _Config = ({String name, int poolSize});
 
 const _configs = <_Config>[
-  (name: 'pinned-session', leasePerTransaction: false, poolSize: 1),
-  (name: 'lease-pool-4', leasePerTransaction: true, poolSize: 4),
+  (name: 'scoped-pool-1', poolSize: 1),
+  (name: 'scoped-pool-4', poolSize: 4),
 ];
 
 double _ms(Duration d) => d.inMicroseconds / 1000;
@@ -171,7 +171,6 @@ Future<Map<String, Object?>> _runConfig(
     environment: Environment.test,
     printEnv: false,
     isDebugModeOn: false,
-    driftTransactionPinnedPoolEnabled: config.leasePerTransaction,
     maxConnectionCount: config.poolSize,
   );
   final db = TenturaDb(env);
@@ -334,7 +333,6 @@ Future<Map<String, Object?>> _runConfig(
   }
   return {
     'config': config.name,
-    'leasePerTransaction': config.leasePerTransaction,
     'poolSize': config.poolSize,
     'schedulerMaxConcurrent': env.constellationDbMaxConcurrent,
     'perOperation': {

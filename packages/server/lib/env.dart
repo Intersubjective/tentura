@@ -21,10 +21,6 @@ bool resolveRealtimeActorEchoEnabled(String? value) =>
 bool resolveAttentionV1ShadowEnabled(String? value) =>
     value?.trim().toLowerCase() == 'true';
 
-/// Opt-in spike (#227): pin one pooled connection per Drift transaction.
-bool resolveDriftTransactionPinnedPoolEnabled(String? value) =>
-    value?.trim().toLowerCase() == 'true';
-
 /// How much longer than the statement bound a request waits for the pool.
 const _pgPoolWaitMargin = Duration(seconds: 5);
 
@@ -151,7 +147,6 @@ class Env {
     double? constellationDbRefreshShare,
     int? constellationDbMaxConcurrent,
     bool? attentionV1ShadowEnabled,
-    bool? driftTransactionPinnedPoolEnabled,
     String? minClientVersion,
 
     // Postgres
@@ -397,11 +392,6 @@ class Env {
                  ) ??
                  30,
            ),
-       driftTransactionPinnedPoolEnabled =
-           driftTransactionPinnedPoolEnabled ??
-           resolveDriftTransactionPinnedPoolEnabled(
-             _env['DRIFT_TRANSACTION_PINNED_POOL_ENABLED'],
-           ),
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
            resolveAttentionV1ShadowEnabled(_env['ATTENTION_V1_SHADOW_ENABLED']),
@@ -424,12 +414,11 @@ class Env {
            maxConnectionAge ??
            int.tryParse(_env['POSTGRES_MAXCONNAGE'] ?? '') ??
            43200,
-       // PgDatabase is isSequential; a multi-connection pool cannot pin the
-       // transaction session across statement boundaries. Force one connection.
+       // Each main scope leases one connection and private Drift executor.
        pgMaxConnectionCount =
            maxConnectionCount ??
            int.tryParse(_env['POSTGRES_MAXCONN'] ?? '') ??
-           1,
+           4,
        pgStatementTimeoutMs =
            pgStatementTimeoutMs ??
            int.tryParse(_env['POSTGRES_STATEMENT_TIMEOUT_MS'] ?? '') ??
@@ -781,9 +770,6 @@ class Env {
   /// QA-only T-07 parity telemetry. It has no product behavior effect.
   final bool attentionV1ShadowEnabled;
 
-  /// Default off. When on, [pgPoolSettings] honors [pgMaxConnectionCount].
-  final bool driftTransactionPinnedPoolEnabled;
-
   /// Minimum Tentura client semver required; `0.0.0` disables the check.
   final String minClientVersion;
 
@@ -852,12 +838,7 @@ class Env {
 
   late final pgPoolSettings = PoolSettings(
     maxConnectionAge: Duration(seconds: pgMaxConnectionAge),
-    // Always 1 for Drift (TENTURA-SERVER-H). POSTGRES_MAXCONN is retained for
-    // ops visibility but must not open a multi-connection pool under
-    // NoTransactionDelegate — see packages/server/WORKAROUNDS.md §4.
-    maxConnectionCount: driftTransactionPinnedPoolEnabled
-        ? pgMaxConnectionCount
-        : 1,
+    maxConnectionCount: max(1, pgMaxConnectionCount),
     maxSessionUse: Duration(seconds: pgMaxConnectionAge),
     // A request waits for the pool behind whatever statement holds it, so the
     // wait must outlast that statement's bound. With the package's 15 s

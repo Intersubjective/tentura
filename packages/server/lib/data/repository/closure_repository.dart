@@ -145,7 +145,7 @@ WHERE beacon_id = $1 AND status = 0
     required String authorId,
     required List<String> helperIds,
     required String title,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     final beaconId =
         (await _database
                 .customSelect(
@@ -185,7 +185,7 @@ VALUES ($1, $2)
       );
     }
     return beaconId;
-  });
+  }, actorUserId: authorId);
 
   @override
   Future<ClosureEpoch> createEpoch({

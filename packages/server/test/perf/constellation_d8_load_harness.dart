@@ -590,7 +590,7 @@ Future<void> _workerMain(_WorkerArgs args) async {
       'reservedRefreshShare': scheduler.config.reservedRefreshShare,
       'retryAfterMs': scheduler.config.retryAfter.inMilliseconds,
     },
-    'pinnedPool': !env.driftTransactionPinnedPoolEnabled,
+    'singleConnectionPerWorker': env.pgPoolSettings.maxConnectionCount == 1,
   });
 }
 
@@ -690,7 +690,7 @@ final class D8Harness {
       'workers': workers,
       'broadcastWindowMs': first['broadcastWindowMs'],
       'scheduler': first['scheduler'],
-      'singleConnectionPerWorker': first['pinnedPool'],
+      'singleConnectionPerWorker': first['singleConnectionPerWorker'],
     };
     for (final spec in sessions) {
       final session = _Session(spec);

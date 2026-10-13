@@ -1,4 +1,3 @@
-
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
@@ -95,10 +94,10 @@ class ImageRepository implements ImageRepositoryPort {
     required String authorId,
   }) async {
     try {
-      await _database.transaction(() async {
+      await _database.withTransaction(() async {
         await _imageObjectGc.enqueue(imageId: imageId, authorId: authorId);
         await deleteOwnedRow(imageId: imageId, authorId: authorId);
-      });
+      }, actorUserId: authorId);
     } catch (compensationError, compensationStackTrace) {
       _logger.severe(
         'ImageRepository compensation failed for image $imageId',
@@ -148,14 +147,16 @@ class ImageRepository implements ImageRepositoryPort {
   );
 
   @override
-  Future<void> deleteAllOf({required String userId}) => _database.transaction(
-    () async {
-      for (final imageId in await listOwnedIds(authorId: userId)) {
-        await _imageObjectGc.enqueue(imageId: imageId, authorId: userId);
-        await deleteOwnedRow(imageId: imageId, authorId: userId);
-      }
-    },
-  );
+  Future<void> deleteAllOf({required String userId}) =>
+      _database.withTransaction(
+        () async {
+          for (final imageId in await listOwnedIds(authorId: userId)) {
+            await _imageObjectGc.enqueue(imageId: imageId, authorId: userId);
+            await deleteOwnedRow(imageId: imageId, authorId: userId);
+          }
+        },
+        actorUserId: userId,
+      );
 
   @override
   Future<List<String>> listOwnedIds({required String authorId}) async {

@@ -70,93 +70,94 @@ ORDER BY 1, 2
     required String operationId,
     int batchSize = AttentionSweepLimits.batchSize,
     int? maxBatches,
-  }) async {
-    final bounded = batchSize.clamp(1, AttentionSweepLimits.maxBatchSize);
+  }) => _database.withWorkContext(
+    () async {
+      final bounded = batchSize.clamp(1, AttentionSweepLimits.maxBatchSize);
 
-    // Persist the frozen membership before releasing the lane. A retry resumes
-    // this snapshot rather than capturing arrivals after the original gesture.
-    final snapshot = await _database.transaction(() async {
-      final inserted = await _database.customUpdate(
-        r'''
+      // Persist the frozen membership before releasing the lane. A retry resumes
+      // this snapshot rather than capturing arrivals after the original gesture.
+      final snapshot = await _database.withTransaction(() async {
+        final inserted = await _database.customUpdate(
+          r'''
 INSERT INTO public.attention_clear_operation
         (id, account_id, surface, status, applied, skipped, failed)
         VALUES ($1, $2, $3, 'pending', 0, 0, 0)
         ON CONFLICT (id) DO NOTHING''',
-        variables: [
-          Variable<String>(operationId),
-          Variable<String>(accountId),
-          const Variable<String>(surface),
-        ],
-        updateKind: UpdateKind.insert,
-      );
-      if (inserted == 0) return null;
-      final rows = await _database
-          .customSelect(captureSql, variables: [Variable<String>(accountId)])
-          .get();
-      final members = [for (final row in rows) row.data];
-      await _database.customUpdate(
-        r'''
+          variables: [
+            Variable<String>(operationId),
+            Variable<String>(accountId),
+            const Variable<String>(surface),
+          ],
+          updateKind: UpdateKind.insert,
+        );
+        if (inserted == 0) return null;
+        final rows = await _database
+            .customSelect(captureSql, variables: [Variable<String>(accountId)])
+            .get();
+        final members = [for (final row in rows) row.data];
+        await _database.customUpdate(
+          r'''
 UPDATE public.attention_clear_operation
         SET capture_snapshot = $2::jsonb WHERE id = $1''',
-        variables: [
-          Variable<String>(operationId),
-          Variable<String>(members.isEmpty ? null : jsonEncode(members)),
-        ],
-      );
-      return members;
-    });
-    if (snapshot == null) {
-      final header = await _operationHeader(operationId);
-      if (header?.owner != accountId) {
-        return _emptyResult(operationId, AttentionClearStatus.denied);
+          variables: [
+            Variable<String>(operationId),
+            Variable<String>(members.isEmpty ? null : jsonEncode(members)),
+          ],
+        );
+        return members;
+      });
+      if (snapshot == null) {
+        final header = await _operationHeader(operationId);
+        if (header?.owner != accountId) {
+          return _emptyResult(operationId, AttentionClearStatus.denied);
+        }
+        if (header!.status == AttentionClearStatus.expired.name) {
+          return _emptyResult(operationId, AttentionClearStatus.expired);
+        }
       }
-      if (header!.status == AttentionClearStatus.expired.name) {
-        return _emptyResult(operationId, AttentionClearStatus.expired);
-      }
-    }
-    // A capture another call is still committing is not ours to finish or to
-    // report on: until it is whole, nothing is decided and the answer is the
-    // non-terminal one.
-    if (!await _capture(
-      operationId: operationId,
-      chunkSize: bounded,
-      snapshot: snapshot,
-    )) {
-      return _emptyResult(operationId, AttentionClearStatus.pending);
-    }
-
-    // Phase 2 — decide the still-pending members, a bounded batch at a time.
-    //
-    // Each batch is its own transaction and takes a row lock on the members it
-    // is about to decide, so a concurrent twin blocks, re-reads, and finds
-    // those rows no longer pending. Every member is therefore decided exactly
-    // once no matter how many callers are in the loop, and both callers leave
-    // only when nothing is pending — which is why they can both report the
-    // same answer.
-    var batches = 0;
-    var clearedHere = 0;
-    while (maxBatches == null || batches < maxBatches) {
-      final batch = await _applyBatch(
-        accountId: accountId,
+      // A capture another call is still committing is not ours to finish or to
+      // report on: until it is whole, nothing is decided and the answer is the
+      // non-terminal one.
+      if (!await _capture(
         operationId: operationId,
-        batchSize: bounded,
-      );
-      if (batch.decided == 0) break;
-      clearedHere += batch.applied;
-      batches++;
-    }
+        chunkSize: bounded,
+        snapshot: snapshot,
+      )) {
+        return _emptyResult(operationId, AttentionClearStatus.pending);
+      }
 
-    final summary = await _summarize(operationId);
+      // Phase 2 — decide the still-pending members, a bounded batch at a time.
+      //
+      // Each batch is its own transaction and takes a row lock on the members it
+      // is about to decide, so a concurrent twin blocks, re-reads, and finds
+      // those rows no longer pending. Every member is therefore decided exactly
+      // once no matter how many callers are in the loop, and both callers leave
+      // only when nothing is pending — which is why they can both report the
+      // same answer.
+      var batches = 0;
+      var clearedHere = 0;
+      while (maxBatches == null || batches < maxBatches) {
+        final batch = await _applyBatch(
+          accountId: accountId,
+          operationId: operationId,
+          batchSize: bounded,
+        );
+        if (batch.decided == 0) break;
+        clearedHere += batch.applied;
+        batches++;
+      }
 
-    // The undo window (U09c, D13) opens the first time this operation clears
-    // anything and moves forward again whenever a resumed call clears more:
-    // a bounded sweep is one gesture, and the window runs from the last thing
-    // it actually swept, not from the call that started it. `GREATEST` keeps
-    // it monotonic, and a call that cleared nothing — a replay, a concurrent
-    // twin, a resume that found everything already decided — leaves it exactly
-    // where it was. Otherwise replaying an id would buy unlimited undo time.
-    await _database.customUpdate(
-      r'''
+      final summary = await _summarize(operationId);
+
+      // The undo window (U09c, D13) opens the first time this operation clears
+      // anything and moves forward again whenever a resumed call clears more:
+      // a bounded sweep is one gesture, and the window runs from the last thing
+      // it actually swept, not from the call that started it. `GREATEST` keeps
+      // it monotonic, and a call that cleared nothing — a replay, a concurrent
+      // twin, a resume that found everything already decided — leaves it exactly
+      // where it was. Otherwise replaying an id would buy unlimited undo time.
+      await _database.customUpdate(
+        r'''
 UPDATE public.attention_clear_operation
    SET status = $2, applied = $3, skipped = $4, failed = $5,
        undo_deadline = CASE
@@ -168,39 +169,42 @@ UPDATE public.attention_clear_operation
        END
  WHERE id = $1
 ''',
-      variables: [
-        Variable<String>(operationId),
-        Variable<String>(summary.status.name),
-        Variable<int>(summary.appliedCount),
-        Variable<int>(summary.skipped.length),
-        Variable<int>(summary.failed.length),
-        Variable<bool>(clearedHere > 0),
-        Variable<double>(
-          AttentionUndoLimits.window.inMilliseconds /
-              Duration.millisecondsPerSecond,
-        ),
-      ],
-      updateKind: UpdateKind.update,
-    );
+        variables: [
+          Variable<String>(operationId),
+          Variable<String>(summary.status.name),
+          Variable<int>(summary.appliedCount),
+          Variable<int>(summary.skipped.length),
+          Variable<int>(summary.failed.length),
+          Variable<bool>(clearedHere > 0),
+          Variable<double>(
+            AttentionUndoLimits.window.inMilliseconds /
+                Duration.millisecondsPerSecond,
+          ),
+        ],
+        updateKind: UpdateKind.update,
+      );
 
-    final deadline = await _undoDeadline(operationId);
-    return AttentionSweepResult(
-      operationId: summary.operationId,
-      appliedReceiptIds: summary.appliedReceiptIds,
-      appliedOutcomeBeaconIds: summary.appliedOutcomeBeaconIds,
-      skipped: summary.skipped,
-      failed: summary.failed,
-      pending: summary.pending,
-      status: summary.status,
-      undoDeadline: deadline,
-      undoToken: deadline == null
-          ? null
-          : AttentionUndoToken(
-              accountId: accountId,
-              operationId: operationId,
-            ).encode(),
-    );
-  }
+      final deadline = await _undoDeadline(operationId);
+      return AttentionSweepResult(
+        operationId: summary.operationId,
+        appliedReceiptIds: summary.appliedReceiptIds,
+        appliedOutcomeBeaconIds: summary.appliedOutcomeBeaconIds,
+        skipped: summary.skipped,
+        failed: summary.failed,
+        pending: summary.pending,
+        status: summary.status,
+        undoDeadline: deadline,
+        undoToken: deadline == null
+            ? null
+            : AttentionUndoToken(
+                accountId: accountId,
+                operationId: operationId,
+              ).encode(),
+      );
+    },
+    actorUserId: accountId,
+    kind: MainDbWorkKind.full,
+  );
 
   Future<DateTime?> _undoDeadline(String operationId) async {
     final row = await _database
@@ -230,7 +234,7 @@ SELECT undo_deadline FROM public.attention_clear_operation WHERE id = $1
     required String accountId,
     required String operationId,
     required int batchSize,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     final pending = await _database
         .customSelect(
           r'''
@@ -680,82 +684,86 @@ RETURNING ii.beacon_id
     required String accountId,
     required String operationId,
     required String undoToken,
-  }) async {
-    final members = await _database
-        .customSelect(
-          r'''
+  }) => _database.withWorkContext(
+    () async {
+      final members = await _database
+          .customSelect(
+            r'''
 SELECT receipt_id, outcome_beacon_id, state
       FROM public.attention_clear_operation_member WHERE operation_id = $1
       ORDER BY receipt_id NULLS LAST, outcome_beacon_id NULLS LAST''',
-          variables: [Variable<String>(operationId)],
-        )
-        .get();
-    final receipts = <String>[];
-    final outcomes = <String>[];
-    final skipped = <AttentionUndoMember>[];
-    final failed = <AttentionUndoMember>[];
-    AttentionUndoRefusal? refusal;
-    for (
-      var start = 0;
-      start < members.length || start == 0;
-      start += AttentionSweepLimits.maxBatchSize
-    ) {
-      final result = await _undoBatch(
-        accountId: accountId,
-        operationId: operationId,
-        members: members
-            .skip(start)
-            .take(AttentionSweepLimits.maxBatchSize)
-            .toList(),
-        // The window is judged once, by the first chunk; later chunks finish
-        // what that decision admitted.
-        checkDeadline: start == 0,
-      );
-      if (result.refusal != null) {
-        if (receipts.isEmpty && outcomes.isEmpty) return result;
-        refusal = result.refusal;
-        for (final row in members.skip(start)) {
-          final receiptId = row.read<String?>('receipt_id');
-          failed.add(
-            AttentionUndoMember(
-              kind: receiptId == null ? 'outcome' : 'receipt',
-              id: receiptId ?? row.read<String>('outcome_beacon_id'),
-              reason: AttentionUndoSkipReason.refused,
-            ),
-          );
+            variables: [Variable<String>(operationId)],
+          )
+          .get();
+      final receipts = <String>[];
+      final outcomes = <String>[];
+      final skipped = <AttentionUndoMember>[];
+      final failed = <AttentionUndoMember>[];
+      AttentionUndoRefusal? refusal;
+      for (
+        var start = 0;
+        start < members.length || start == 0;
+        start += AttentionSweepLimits.maxBatchSize
+      ) {
+        final result = await _undoBatch(
+          accountId: accountId,
+          operationId: operationId,
+          members: members
+              .skip(start)
+              .take(AttentionSweepLimits.maxBatchSize)
+              .toList(),
+          // The window is judged once, by the first chunk; later chunks finish
+          // what that decision admitted.
+          checkDeadline: start == 0,
+        );
+        if (result.refusal != null) {
+          if (receipts.isEmpty && outcomes.isEmpty) return result;
+          refusal = result.refusal;
+          for (final row in members.skip(start)) {
+            final receiptId = row.read<String?>('receipt_id');
+            failed.add(
+              AttentionUndoMember(
+                kind: receiptId == null ? 'outcome' : 'receipt',
+                id: receiptId ?? row.read<String>('outcome_beacon_id'),
+                reason: AttentionUndoSkipReason.refused,
+              ),
+            );
+          }
+          break;
         }
-        break;
+        receipts.addAll(result.restoredReceiptIds);
+        outcomes.addAll(result.restoredOutcomeBeaconIds);
+        skipped.addAll(result.skipped);
+        failed.addAll(result.failed);
       }
-      receipts.addAll(result.restoredReceiptIds);
-      outcomes.addAll(result.restoredOutcomeBeaconIds);
-      skipped.addAll(result.skipped);
-      failed.addAll(result.failed);
-    }
-    final restored = receipts.length + outcomes.length;
-    final refused = skipped.length + failed.length;
-    return AttentionUndoResult(
-      operationId: operationId,
-      restoredReceiptIds: receipts,
-      restoredOutcomeBeaconIds: outcomes,
-      skipped: skipped,
-      failed: failed,
-      refusal: refusal,
-      status: restored > 0
-          ? (refused == 0
-                ? AttentionUndoStatus.complete
-                : AttentionUndoStatus.partial)
-          : (refused > 0
-                ? AttentionUndoStatus.stale
-                : AttentionUndoStatus.complete),
-    );
-  }
+      final restored = receipts.length + outcomes.length;
+      final refused = skipped.length + failed.length;
+      return AttentionUndoResult(
+        operationId: operationId,
+        restoredReceiptIds: receipts,
+        restoredOutcomeBeaconIds: outcomes,
+        skipped: skipped,
+        failed: failed,
+        refusal: refusal,
+        status: restored > 0
+            ? (refused == 0
+                  ? AttentionUndoStatus.complete
+                  : AttentionUndoStatus.partial)
+            : (refused > 0
+                  ? AttentionUndoStatus.stale
+                  : AttentionUndoStatus.complete),
+      );
+    },
+    actorUserId: accountId,
+    kind: MainDbWorkKind.full,
+  );
 
   Future<AttentionUndoResult> _undoBatch({
     required String accountId,
     required String operationId,
     required List<QueryRow> members,
     required bool checkDeadline,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     // The window is a server column compared against the server's clock, and
     // it is read inside the transaction that would restore. Only the first
     // chunk of an undo asks (`checkDeadline`): an undo that began inside the
@@ -1118,7 +1126,7 @@ SELECT capture_snapshot::text AS capture_snapshot, capture_cursor
     for (var start = cursor; start < members.length; start += chunkSize) {
       final chunk = members.skip(start).take(chunkSize).toList();
       final next = start + chunk.length;
-      final claimedChunk = await _database.transaction(() async {
+      final claimedChunk = await _database.withTransaction(() async {
         // The cursor update locks the header and fences concurrent resumptions.
         // It commits with the members, including clearing the final snapshot.
         // `captured_at` moves with it: it is when the capture was last touched.
@@ -1203,7 +1211,7 @@ SELECT capture_snapshot IS NULL AS done, capture_cursor
   Future<int> settleAbandonedCaptures({
     required Duration staleAfter,
     required Duration expireAfter,
-  }) async {
+  }) => _database.withWorkContext(() async {
     final rows = await _database
         .customSelect(
           r'''
@@ -1232,9 +1240,9 @@ SELECT id, account_id, captured_at < now() - make_interval(secs => $2) AS expire
       }
     }
     return settled;
-  }
+  }, kind: MainDbWorkKind.full);
 
-  Future<bool> _expireCapture(String operationId) => _database.transaction(
+  Future<bool> _expireCapture(String operationId) => _database.withTransaction(
     () async {
       // Locks the header, and re-checks under the lock that nobody finished or
       // touched the capture since it was listed.

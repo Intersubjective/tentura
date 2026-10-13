@@ -459,9 +459,8 @@ VALUES (\$1, '$name', \$2,
       database.customStatement(insertSql, [scopeId, stage]);
 }
 
-// Supply two available pool slots independently of the old transaction-
-// pinned spike flag. The pilot must work with the spike disabled; changing
-// that flag or using separate pools would test a different concurrency path.
+// Supply two available pool slots without using separate pools, which would
+// test a different concurrency path.
 final class _ScopePoolEnv extends Env {
   _ScopePoolEnv(Env postgres)
     : super(
@@ -476,7 +475,6 @@ final class _ScopePoolEnv extends Env {
         maxConnectionAge: 3600,
         pgStatementTimeoutMs: 65000,
         maxConnectionCount: 2,
-        driftTransactionPinnedPoolEnabled: false,
       );
 
   final connections = <int, Connection>{};

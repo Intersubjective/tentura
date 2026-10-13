@@ -29,8 +29,9 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
     required String subjectUserId,
     required String objectUserId,
     required int newAmount,
-  }) => _db.transaction(
+  }) => _db.withTransaction(
     () => _setVoteAmountCore(subjectUserId, objectUserId, newAmount),
+    actorUserId: subjectUserId,
   );
 
   @override

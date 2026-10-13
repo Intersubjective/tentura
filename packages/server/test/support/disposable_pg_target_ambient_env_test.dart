@@ -25,8 +25,7 @@ void main() {
   group('disposable PG target isolation from ambient server flags', () {
     for (final env in ['database', 'admin', 'template']) {
       test(
-        '$env Env keeps the transaction pinned pool off when the host '
-        'enables it',
+        '$env Env uses the configured pool capacity with a retired host flag',
         () async {
           final snapshot = await _probe({
             'DRIFT_TRANSACTION_PINNED_POOL_ENABLED': 'true',
@@ -34,20 +33,18 @@ void main() {
           });
           expect(
             snapshot[env],
-            isFalse,
-            reason:
-                'perf budgets must not depend on a host-level pool flag; '
-                'tests that need the flag opt in explicitly',
+            4,
+            reason: 'the retired spike flag must not change pool capacity',
           );
         },
       );
     }
 
     test(
-      'all Envs keep the pinned pool off when the host leaves it unset',
+      'all Envs use the configured pool capacity without a spike flag',
       () async {
         final snapshot = await _probe({'POSTGRES_MAXCONN': '4'});
-        expect(snapshot.values, everyElement(isFalse));
+        expect(snapshot.values, everyElement(4));
       },
     );
   });

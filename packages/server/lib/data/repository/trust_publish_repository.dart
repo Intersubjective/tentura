@@ -73,38 +73,47 @@ LIMIT $1
   }
 
   @override
-  Future<void> publish(PublishRow row) => row.target == 0
-      ? _database
-            .customSelect(
-              r'SELECT public.mr_delete_edge($1, $2)',
-              variables: [
-                Variable<String>(row.subject),
-                Variable<String>(row.object),
-              ],
-            )
-            .get()
-      : _database
-            .customSelect(
-              r"SELECT public.mr_put_edge($1, $2, $3, '', 0)",
-              variables: [
-                Variable<String>(row.subject),
-                Variable<String>(row.object),
-                Variable<double>(row.target),
-              ],
-            )
-            .get();
+  Future<void> publish(PublishRow row) => _database.withConnectionScope(
+    () => row.target == 0
+        ? _database
+              .customSelect(
+                r'SELECT public.mr_delete_edge($1, $2)',
+                variables: [
+                  Variable<String>(row.subject),
+                  Variable<String>(row.object),
+                ],
+              )
+              .get()
+        : _database
+              .customSelect(
+                r"SELECT public.mr_put_edge($1, $2, $3, '', 0)",
+                variables: [
+                  Variable<String>(row.subject),
+                  Variable<String>(row.object),
+                  Variable<double>(row.target),
+                ],
+              )
+              .get(),
+    kind: MainDbWorkKind.full,
+  );
 
   @override
-  Future<void> sync() => _database.customStatement('SELECT public.mr_sync()');
+  Future<void> sync() => _database.withConnectionScope(
+    () => _database.customStatement('SELECT public.mr_sync()'),
+    kind: MainDbWorkKind.full,
+  );
 
   @override
-  Future<void> ack(int token, List<PublishRow> rows) async {
+  Future<void> ack(
+    int token,
+    List<PublishRow> rows,
+  ) => _database.withWorkContext(() async {
     var leaseAccepted = false;
     // The publisher normally supplies 200 rows. Bound callers that supply more
     // as well, rechecking the fencing token on every commit.
     for (var start = 0; start < rows.length; start += 200) {
       final batch = rows.skip(start).take(200).toList();
-      final accepted = await _database.transaction(() async {
+      final accepted = await _database.withTransaction(() async {
         final lease = await _database
             .customSelect(
               r'''
@@ -179,7 +188,7 @@ DELETE FROM public.user_trust_edge e
           ],
         );
         return true;
-      });
+      }, kind: MainDbWorkKind.full);
       if (!accepted) break;
       leaseAccepted = true;
     }
@@ -188,27 +197,28 @@ DELETE FROM public.user_trust_edge e
     await _database.customStatement(
       'UPDATE public.mr_publish_epoch SET epoch = epoch + 1 WHERE id = true',
     );
-  }
+  }, kind: MainDbWorkKind.full);
 
   @override
-  Future<void> fail(List<PublishRow> rows, String error) async {
-    for (final row in rows) {
-      await _database.customUpdate(
-        r'''
+  Future<void> fail(List<PublishRow> rows, String error) =>
+      _database.withWorkContext(() async {
+        for (final row in rows) {
+          await _database.customUpdate(
+            r'''
 UPDATE public.trust_publish_queue
 SET attempts = attempts + 1,
     next_attempt_at = now() + least(3600, 10 * power(2, attempts + 1)) * interval '1 second',
     last_error = $3
 WHERE subject_user_id = $1 AND object_user_id = $2
 ''',
-        variables: [
-          Variable<String>(row.subject),
-          Variable<String>(row.object),
-          Variable<String>(error),
-        ],
-      );
-    }
-  }
+            variables: [
+              Variable<String>(row.subject),
+              Variable<String>(row.object),
+              Variable<String>(error),
+            ],
+          );
+        }
+      }, kind: MainDbWorkKind.full);
 
   @override
   Future<bool> cutoverPending() async {

@@ -373,7 +373,7 @@ WHERE public.beacon_promotions.published_at IS NULL
     try {
       // Savepoint: a unique violation aborts the enclosing transaction, and
       // the conflict lookup below must still be able to run.
-      await _database.transaction(
+      await _database.withTransaction(
         () => _database.customStatement(
           r'''
 INSERT INTO public.beacon_promotions (

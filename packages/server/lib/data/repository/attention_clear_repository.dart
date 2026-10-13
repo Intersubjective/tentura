@@ -29,8 +29,7 @@ class AttentionClearRepository implements AttentionClearPort {
   /// what a clear may touch and what a dot counts cannot drift apart — a dot
   /// the viewer has no way to extinguish is the M1 failure seen from the
   /// other side.
-  static String get _eligibleReceipts =>
-      '''
+  static String get _eligibleReceipts => '''
 SELECT receipt.id, receipt.beacon_id
   FROM public.visible_attention_receipts(\$1) visible
   JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id
@@ -43,7 +42,7 @@ SELECT receipt.id, receipt.beacon_id
     String? beaconId,
     String? receiptId,
     int limit = AttentionClearSnapshotToken.maxMembers,
-  }) async {
+  }) => _database.withConnectionScope(() async {
     final rows = await _database
         .customSelect(
           '''
@@ -100,7 +99,7 @@ SELECT outcome_generation, decision_revision
       outcomeGeneration: outcomeGeneration,
       decisionRevision: decisionRevision,
     );
-  }
+  }, actorUserId: accountId);
 
   @override
   Future<AttentionClearResult> apply({
@@ -111,7 +110,7 @@ SELECT outcome_generation, decision_revision
     required int outcomeGeneration,
     required int decisionRevision,
     required List<String> receiptIds,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     final members = {...receiptIds};
 
     // 1. The operation row. `ON CONFLICT DO NOTHING` is the whole idempotency
@@ -261,14 +260,14 @@ ON CONFLICT (operation_id, receipt_id)
     // null, so undo answers `neverApplied` for exactly the operations that
     // have nothing to reverse, and a clear that did work can be offered back.
     await _database.customUpdate(
-      '''
+      r'''
 UPDATE public.attention_clear_operation
-   SET status = \$2, applied = \$3, skipped = \$4, failed = 0,
+   SET status = $2, applied = $3, skipped = $4, failed = 0,
        undo_deadline = CASE
-         WHEN \$5 THEN now() + make_interval(secs => \$6)
+         WHEN $5 THEN now() + make_interval(secs => $6)
          ELSE undo_deadline
        END
- WHERE id = \$1
+ WHERE id = $1
 ''',
       variables: [
         Variable<String>(operationId),
@@ -299,7 +298,7 @@ UPDATE public.attention_clear_operation
               operationId: operationId,
             ).encode(),
     );
-  });
+  }, actorUserId: accountId);
 
   /// The window as the database holds it — read back rather than computed
   /// here, so the answer is the same clock undo will enforce against.

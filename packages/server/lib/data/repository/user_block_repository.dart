@@ -33,7 +33,7 @@ class UserBlockRepository implements UserBlockRepositoryPort {
     required String blockerId,
     required String blockedId,
     required int cascadeMode,
-  }) => _db.transaction(() async {
+  }) => _db.withTransaction(() async {
     // Mode 0 has nothing to materialize — store status=2 (done) so the
     // cascade worker never claims these rows into a tight no-op loop.
     await _db.customStatement(
@@ -62,7 +62,7 @@ ON CONFLICT DO NOTHING
 ''',
       [blockerId, blockedId],
     );
-  });
+  }, actorUserId: blockerId);
 
   @override
   Future<void> applyWithdrawal({
@@ -102,7 +102,7 @@ SELECT EXISTS (
   Future<void> unblock({
     required String blockerId,
     required String blockedId,
-  }) => _db.transaction(() async {
+  }) => _db.withTransaction(() async {
     final affectedPairs = await _db
         .customSelect(
           r'''
@@ -141,7 +141,7 @@ WHERE blocker_id = $1 AND blocked_id = $2
       );
       await _invalidateWitnessWindows(blockerId, pair);
     }
-  });
+  }, actorUserId: blockerId);
 
   @override
   Future<int> countRecentByBlocker({
@@ -170,7 +170,7 @@ WHERE blocker_id = $1 AND updated_at >= $2
   Future<void> promoteToDirect({
     required String blockerId,
     required String blockedId,
-  }) => _db.transaction(() async {
+  }) => _db.withTransaction(() async {
     await _db.customStatement(
       r'''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
@@ -192,7 +192,7 @@ ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
 ''',
       [blockerId, blockedId],
     );
-  });
+  }, actorUserId: blockerId);
 
   @override
   Future<List<UserBlockIntentEntity>> listIntents(String blockerId) async {
@@ -207,8 +207,9 @@ ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
     required String blockerId,
     required String originId,
   }) async {
-    final rows = await _db.customSelect(
-      r'''
+    final rows = await _db
+        .customSelect(
+          r'''
 SELECT blocker_id, blocked_id, origin_id, created_at
 FROM public.user_block
 WHERE blocker_id = $1
@@ -216,12 +217,13 @@ WHERE blocker_id = $1
   AND blocked_id <> origin_id
 ORDER BY blocked_id
 ''',
-      variables: [
-        Variable<String>(blockerId),
-        Variable<String>(originId),
-      ],
-      readsFrom: {_db.userBlocks},
-    ).get();
+          variables: [
+            Variable<String>(blockerId),
+            Variable<String>(originId),
+          ],
+          readsFrom: {_db.userBlocks},
+        )
+        .get();
     return rows.map(_blockRowToEntity).toList(growable: false);
   }
 
@@ -369,10 +371,7 @@ WHERE public.block_hides($1, peer)
       if (byBlocker != 0) return byBlocker;
       return a.blockedId.compareTo(b.blockedId);
     });
-    return rows
-        .take(limit)
-        .map(_intentToEntity)
-        .toList(growable: false);
+    return rows.take(limit).map(_intentToEntity).toList(growable: false);
   }
 
   @override
@@ -383,174 +382,181 @@ WHERE public.block_hides($1, peer)
   }) async {
     if (limit <= 0) return 0;
 
-    return _db.transaction(() async {
-      final intent = await _db.managers.userBlockIntents
-          .filter(
-            (row) =>
-                row.blockerId.id(blockerId) & row.blockedId.id(blockedId),
-          )
-          .getSingleOrNull();
-      if (intent == null) return 0;
-      if (intent.cascadeStatus == 2 || intent.cascadeStatus == 3) return 0;
-      // Heal legacy mode-0 rows left at status 0/1 (pre-fix inserts).
-      if (intent.cascadeMode <= 0) {
-        await _finishCascadeIntent(
-          blockerId: blockerId,
-          blockedId: blockedId,
-          materializedDelta: 0,
-          capped: false,
-          done: true,
-        );
-        return 0;
-      }
+    return _db.withTransaction(
+      () async {
+        final intent = await _db.managers.userBlockIntents
+            .filter(
+              (row) =>
+                  row.blockerId.id(blockerId) & row.blockedId.id(blockedId),
+            )
+            .getSingleOrNull();
+        if (intent == null) return 0;
+        if (intent.cascadeStatus == 2 || intent.cascadeStatus == 3) return 0;
+        // Heal legacy mode-0 rows left at status 0/1 (pre-fix inserts).
+        if (intent.cascadeMode <= 0) {
+          await _finishCascadeIntent(
+            blockerId: blockerId,
+            blockedId: blockedId,
+            materializedDelta: 0,
+            capped: false,
+            done: true,
+          );
+          return 0;
+        }
 
-      if (intent.cascadeStatus == 0) {
-        await _db.customStatement(
-          r'''
+        if (intent.cascadeStatus == 0) {
+          await _db.customStatement(
+            r'''
 UPDATE public.user_block_intent
 SET cascade_status = 1,
     cascade_snapshot_at = COALESCE(cascade_snapshot_at, now()),
     updated_at = now()
 WHERE blocker_id = $1 AND blocked_id = $2
 ''',
-          [blockerId, blockedId],
-        );
-      }
+            [blockerId, blockedId],
+          );
+        }
 
-      final candidates = await _db
-          .customSelect(
-            r'''
+        final candidates = await _db
+            .customSelect(
+              r'''
 SELECT user_id
 FROM public.block_cascade_candidates($1, $2, $3::smallint, $4::integer, $5::integer)
 ''',
-            variables: [
-              Variable<String>(blockerId),
-              Variable<String>(blockedId),
-              Variable<int>(intent.cascadeMode),
-              Variable<int>(_cascadeMaxDepth),
-              Variable<int>(_cascadeMaxRows + 1),
-            ],
-            readsFrom: {},
-          )
-          .map((row) => row.read<String>('user_id'))
-          .get();
+              variables: [
+                Variable<String>(blockerId),
+                Variable<String>(blockedId),
+                Variable<int>(intent.cascadeMode),
+                Variable<int>(_cascadeMaxDepth),
+                Variable<int>(_cascadeMaxRows + 1),
+              ],
+              readsFrom: {},
+            )
+            .map((row) => row.read<String>('user_id'))
+            .get();
 
-      final rowCapped = candidates.length > _cascadeMaxRows;
-      final effectiveCandidates = rowCapped
-          ? candidates.take(_cascadeMaxRows).toList(growable: false)
-          : candidates;
+        final rowCapped = candidates.length > _cascadeMaxRows;
+        final effectiveCandidates = rowCapped
+            ? candidates.take(_cascadeMaxRows).toList(growable: false)
+            : candidates;
 
-      final existing = await _db.customSelect(
-        r'''
+        final existing = await _db
+            .customSelect(
+              r'''
 SELECT blocked_id
 FROM public.user_block
 WHERE blocker_id = $1 AND origin_id = $2
 ''',
-        variables: [
-          Variable<String>(blockerId),
-          Variable<String>(blockedId),
-        ],
-        readsFrom: {_db.userBlocks},
-      ).map((row) => row.read<String>('blocked_id')).get();
-      final existingSet = existing.toSet();
+              variables: [
+                Variable<String>(blockerId),
+                Variable<String>(blockedId),
+              ],
+              readsFrom: {_db.userBlocks},
+            )
+            .map((row) => row.read<String>('blocked_id'))
+            .get();
+        final existingSet = existing.toSet();
 
-      final pending = [
-        for (final userId in effectiveCandidates)
-          if (!existingSet.contains(userId)) userId,
-      ];
-      final batch = pending.take(limit).toList(growable: false);
-      if (batch.isEmpty) {
-        final caughtUp = await catchUpCascadeIntent(
-          blockerId: blockerId,
-          blockedId: blockedId,
-        );
-        if (caughtUp > 0) {
-          await _db.customStatement(
-            r'''
+        final pending = [
+          for (final userId in effectiveCandidates)
+            if (!existingSet.contains(userId)) userId,
+        ];
+        final batch = pending.take(limit).toList(growable: false);
+        if (batch.isEmpty) {
+          final caughtUp = await catchUpCascadeIntent(
+            blockerId: blockerId,
+            blockedId: blockedId,
+          );
+          if (caughtUp > 0) {
+            await _db.customStatement(
+              r'''
 UPDATE public.user_block_intent
 SET materialized_count = materialized_count + $3,
     updated_at = now()
 WHERE blocker_id = $1 AND blocked_id = $2
 ''',
-            [blockerId, blockedId, caughtUp],
+              [blockerId, blockedId, caughtUp],
+            );
+            return caughtUp;
+          }
+
+          final capped =
+              rowCapped ||
+              await _isDepthCapped(
+                blockerId: blockerId,
+                blockedId: blockedId,
+                cascadeMode: intent.cascadeMode,
+              );
+          await _finishCascadeIntent(
+            blockerId: blockerId,
+            blockedId: blockedId,
+            materializedDelta: 0,
+            capped: capped,
+            done: true,
           );
-          return caughtUp;
+          return 0;
         }
 
-        final capped =
-            rowCapped ||
-            await _isDepthCapped(
-              blockerId: blockerId,
-              blockedId: blockedId,
-              cascadeMode: intent.cascadeMode,
-            );
-        await _finishCascadeIntent(
-          blockerId: blockerId,
-          blockedId: blockedId,
-          materializedDelta: 0,
-          capped: capped,
-          done: true,
-        );
-        return 0;
-      }
-
-      for (final userId in batch) {
-        await _db.customStatement(
-          r'''
+        for (final userId in batch) {
+          await _db.customStatement(
+            r'''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
 VALUES ($1, $2, $3)
 ON CONFLICT DO NOTHING
 ''',
-          [blockerId, userId, blockedId],
-        );
-        await applyWithdrawal(blockerId: blockerId, blockedId: userId);
-      }
+            [blockerId, userId, blockedId],
+          );
+          await applyWithdrawal(blockerId: blockerId, blockedId: userId);
+        }
 
-      final done = batch.length == pending.length;
-      if (done) {
-        final caughtUp = await catchUpCascadeIntent(
-          blockerId: blockerId,
-          blockedId: blockedId,
-        );
-        if (caughtUp > 0) {
-          await _db.customStatement(
-            r'''
+        final done = batch.length == pending.length;
+        if (done) {
+          final caughtUp = await catchUpCascadeIntent(
+            blockerId: blockerId,
+            blockedId: blockedId,
+          );
+          if (caughtUp > 0) {
+            await _db.customStatement(
+              r'''
 UPDATE public.user_block_intent
 SET materialized_count = materialized_count + $3,
     updated_at = now()
 WHERE blocker_id = $1 AND blocked_id = $2
 ''',
-            [blockerId, blockedId, caughtUp + batch.length],
+              [blockerId, blockedId, caughtUp + batch.length],
+            );
+            return caughtUp + batch.length;
+          }
+
+          final capped =
+              rowCapped ||
+              await _isDepthCapped(
+                blockerId: blockerId,
+                blockedId: blockedId,
+                cascadeMode: intent.cascadeMode,
+              );
+          await _finishCascadeIntent(
+            blockerId: blockerId,
+            blockedId: blockedId,
+            materializedDelta: batch.length,
+            capped: capped,
+            done: true,
           );
-          return caughtUp + batch.length;
+          return batch.length;
         }
 
-        final capped =
-            rowCapped ||
-            await _isDepthCapped(
-              blockerId: blockerId,
-              blockedId: blockedId,
-              cascadeMode: intent.cascadeMode,
-            );
         await _finishCascadeIntent(
           blockerId: blockerId,
           blockedId: blockedId,
           materializedDelta: batch.length,
-          capped: capped,
-          done: true,
+          capped: false,
+          done: false,
         );
         return batch.length;
-      }
-
-      await _finishCascadeIntent(
-        blockerId: blockerId,
-        blockedId: blockedId,
-        materializedDelta: batch.length,
-        capped: false,
-        done: false,
-      );
-      return batch.length;
-    });
+      },
+      actorUserId: blockerId,
+      kind: MainDbWorkKind.full,
+    );
   }
 
   @override
@@ -560,8 +566,7 @@ WHERE blocker_id = $1 AND blocked_id = $2
   }) async {
     final intent = await _db.managers.userBlockIntents
         .filter(
-          (row) =>
-              row.blockerId.id(blockerId) & row.blockedId.id(blockedId),
+          (row) => row.blockerId.id(blockerId) & row.blockedId.id(blockedId),
         )
         .getSingleOrNull();
     final snapshotAt = intent?.cascadeSnapshotAt?.dateTime;
@@ -630,9 +635,10 @@ SELECT blocked_id FROM inserted
     final cursorBlocked = afterCursor?.blockedId ?? '';
     final cursorOrigin = afterCursor?.originId ?? '';
 
-    return _db.transaction(() async {
-      final candidates = await _db.customSelect(
-        r'''
+    return _db.withTransaction(() async {
+      final candidates = await _db
+          .customSelect(
+            r'''
 WITH candidates AS (
   SELECT ub.blocker_id, ub.blocked_id, ub.origin_id
   FROM public.user_block ub
@@ -653,14 +659,15 @@ SELECT
   ) AS unattached
 FROM candidates c
 ''',
-        variables: [
-          Variable<String>(cursorBlocker),
-          Variable<String>(cursorBlocked),
-          Variable<String>(cursorOrigin),
-          Variable(TypedValue(Type.integer, limit)),
-        ],
-        readsFrom: {_db.userBlocks},
-      ).get();
+            variables: [
+              Variable<String>(cursorBlocker),
+              Variable<String>(cursorBlocked),
+              Variable<String>(cursorOrigin),
+              Variable(TypedValue(Type.integer, limit)),
+            ],
+            readsFrom: {_db.userBlocks},
+          )
+          .get();
 
       if (candidates.isEmpty) {
         return (
@@ -689,8 +696,9 @@ FROM candidates c
         );
       }
 
-      final deleted = await _db.customSelect(
-        r'''
+      final deleted = await _db
+          .customSelect(
+            r'''
 DELETE FROM public.user_block ub
 USING (
   SELECT *
@@ -702,22 +710,23 @@ WHERE ub.blocker_id = r.blocker_id
   AND ub.origin_id = r.origin_id
 RETURNING ub.blocker_id, ub.blocked_id
 ''',
-        variables: [
-          Variable<List<String>>(
-            releasable.map((r) => r.read<String>('blocker_id')).toList(),
-            PgTypes.textArray,
-          ),
-          Variable<List<String>>(
-            releasable.map((r) => r.read<String>('blocked_id')).toList(),
-            PgTypes.textArray,
-          ),
-          Variable<List<String>>(
-            releasable.map((r) => r.read<String>('origin_id')).toList(),
-            PgTypes.textArray,
-          ),
-        ],
-        readsFrom: {_db.userBlocks},
-      ).get();
+            variables: [
+              Variable<List<String>>(
+                releasable.map((r) => r.read<String>('blocker_id')).toList(),
+                PgTypes.textArray,
+              ),
+              Variable<List<String>>(
+                releasable.map((r) => r.read<String>('blocked_id')).toList(),
+                PgTypes.textArray,
+              ),
+              Variable<List<String>>(
+                releasable.map((r) => r.read<String>('origin_id')).toList(),
+                PgTypes.textArray,
+              ),
+            ],
+            readsFrom: {_db.userBlocks},
+          )
+          .get();
 
       for (final row in deleted) {
         final blockerId = row.read<String>('blocker_id');
@@ -753,7 +762,7 @@ SELECT EXISTS (
         lastExaminedCandidate: lastExaminedCandidate,
         reachedTail: reachedTail,
       );
-    });
+    }, kind: MainDbWorkKind.full);
   }
 
   Future<bool> _isDepthCapped({

@@ -70,7 +70,7 @@ SELECT legacy_seen_completed_at IS NOT NULL AS done
   @override
   Future<AttentionCutoverBatch> convertLegacySeenBatch({
     required int batchSize,
-  }) async {
+  }) => _database.withWorkContext(() async {
     // One statement, so the conversion and the cursor that records it commit
     // together or not at all. An interruption can therefore only land on a
     // batch boundary, and a restart resumes from a cursor that never describes
@@ -138,7 +138,7 @@ SELECT
       scanned: row.read<int>('scanned'),
       converted: row.read<int>('converted'),
     );
-  }
+  }, kind: MainDbWorkKind.full);
 
   @override
   Future<void> markLegacySeenComplete() => _database.customStatement('''
@@ -181,7 +181,7 @@ UPDATE public.attention_cutover
     required int batchSize,
   }) {
     final live = AttentionDismissibleSql.liveObligation('o');
-    return _database.transaction(() async {
+    return _database.withTransaction(() async {
       final candidates = await _database
           .customSelect(
             '''
@@ -257,9 +257,9 @@ UPDATE public.notification_outbox o
       }
 
       await _database.customStatement(
-        '''
+        r'''
 UPDATE public.attention_cutover
-   SET obligation_key_cursor = \$1
+   SET obligation_key_cursor = $1
  WHERE id
 ''',
         [candidates.last.read<String>('id')],
@@ -269,7 +269,7 @@ UPDATE public.attention_cutover
         scanned: candidates.length,
         converted: converted,
       );
-    });
+    }, kind: MainDbWorkKind.full);
   }
 
   /// U18b gate 2 — historical placement, for the subset that proves itself.
@@ -286,7 +286,7 @@ UPDATE public.attention_cutover
   @override
   Future<AttentionCutoverBatch> demoteLegacyPlacementBatch({
     required int batchSize,
-  }) async {
+  }) => _database.withWorkContext(() async {
     final primary = AttentionDismissibleSql.primaryPlacement('o');
     final timelineOnly = [
       for (final eventType in AttentionEventType.values)
@@ -345,7 +345,7 @@ SELECT
       scanned: row.read<int>('scanned'),
       converted: row.read<int>('converted'),
     );
-  }
+  }, kind: MainDbWorkKind.full);
 
   /// The key a stored row **proves**, or `null` — which is a row left alone.
   ///
@@ -371,8 +371,7 @@ SELECT
       'occurrence_event_type',
     );
     if (occurrenceEventType == null) return null;
-    if (row.readNullable<String>('payload_event_type') !=
-        occurrenceEventType) {
+    if (row.readNullable<String>('payload_event_type') != occurrenceEventType) {
       return null;
     }
     if (row.read<int>('collapsed_count') != 1) return null;
@@ -444,9 +443,8 @@ SELECT
     return done ?? false;
   }
 
-  Future<void> _markPhaseComplete(String column) =>
-      _database.customStatement(
-        'UPDATE public.attention_cutover SET $column = now() '
-        'WHERE id AND $column IS NULL',
-      );
+  Future<void> _markPhaseComplete(String column) => _database.customStatement(
+    'UPDATE public.attention_cutover SET $column = now() '
+    'WHERE id AND $column IS NULL',
+  );
 }

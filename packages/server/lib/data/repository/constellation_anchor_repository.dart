@@ -17,27 +17,24 @@ class ConstellationAnchorRepository
   /// Attempts within the existing five-second transaction retry budget.
   static const int applyBatchMaxAttempts = 10;
 
-  ConstellationAnchorRepository(this._db, [this._admission]);
+  ConstellationAnchorRepository(
+    this._db, [
+    @ignoreParam ConstellationDbAdmissionPort? _,
+  ]);
 
   @FactoryMethod()
   ConstellationAnchorRepository.injected(
-    this._db,
-    ConstellationDbAdmissionPort admission,
-  ) : _admission = admission;
+    this._db, [
+    @ignoreParam ConstellationDbAdmissionPort? _,
+  ]);
 
   final TenturaDb _db;
-  final ConstellationDbAdmissionPort? _admission;
 
   @override
   Future<AnchorApplyBatchResult> applyBatch({
     required String viewerId,
     required List<AnchorApplyOp> ops,
-  }) => _admission == null
-      ? _applyBatchInTx(viewerId: viewerId, ops: ops)
-      : _admission.run(
-          ConstellationDbWorkKind.apply,
-          () => _applyBatchInTx(viewerId: viewerId, ops: ops),
-        );
+  }) => _applyBatchInTx(viewerId: viewerId, ops: ops);
 
   Future<AnchorApplyBatchResult> _applyBatchInTx({
     required String viewerId,

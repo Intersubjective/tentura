@@ -46,7 +46,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         final days = validateStaleAfterDays(staleAfterDays);
         final staleAtValue = computeStaleAt(now.dateTime.toUtc(), days);
 
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final item =
               await _db.managers.coordinationItems.createReturning((o) => o(
                     id: id,
@@ -112,7 +112,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String actorId,
   }) =>
       _db.withMutatingUser(actorId, () async {
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final now = PgDateTime(DateTime.timestamp());
           final rows = await (_db.select(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
@@ -156,7 +156,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String acceptedById,
   }) =>
       _db.withMutatingUser(actorId, () async {
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final now = PgDateTime(DateTime.timestamp());
           final rows = await (_db.select(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
@@ -199,7 +199,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String newTargetPersonId,
   }) =>
       _db.withMutatingUser(actorId, () async {
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final now = PgDateTime(DateTime.timestamp());
           final rows = await (_db.select(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
@@ -378,7 +378,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     int? staleAfterDays,
   }) =>
       _db.withMutatingUser(actorId, () async {
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final rows =
               await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).get();
           if (rows.isEmpty) {
@@ -500,7 +500,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String body = '',
   }) =>
       _db.withMutatingUser(actorId, () async {
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final rows = await (_db.select(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
               .get();
@@ -619,7 +619,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     int? staleAfterDays,
   }) =>
       _db.withMutatingUser(actorId, () async {
-        return _db.transaction(() async {
+        return _db.withTransaction(() async {
           final rows = await (_db.select(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
               .get();

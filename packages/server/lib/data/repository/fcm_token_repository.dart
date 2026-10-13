@@ -38,30 +38,32 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
     final appUuid = UuidValue.fromString(appId);
     final refreshedAt = PgDateTime(DateTime.timestamp());
 
-    await _database.transaction(() async {
-      await _database.into(_database.fcmTokens).insert(
-        FcmTokensCompanion.insert(
-          userId: userId,
-          appId: appUuid,
-          token: token,
-          platform: platform,
-          lastRefreshedAt: Value(refreshedAt),
-        ),
-        onConflict: DoUpdate(
-          (_) => FcmTokensCompanion(
-            token: Value(token),
-            platform: Value(platform),
-            lastRefreshedAt: Value(refreshedAt),
-          ),
-        ),
-      );
+    await _database.withTransaction(() async {
+      await _database
+          .into(_database.fcmTokens)
+          .insert(
+            FcmTokensCompanion.insert(
+              userId: userId,
+              appId: appUuid,
+              token: token,
+              platform: platform,
+              lastRefreshedAt: Value(refreshedAt),
+            ),
+            onConflict: DoUpdate(
+              (_) => FcmTokensCompanion(
+                token: Value(token),
+                platform: Value(platform),
+                lastRefreshedAt: Value(refreshedAt),
+              ),
+            ),
+          );
 
       await _database.customStatement(
         'DELETE FROM fcm_token WHERE token = \$1 '
         'AND NOT (user_id = \$2 AND app_id = \$3::uuid)',
         [token, userId, appId],
       );
-    });
+    }, actorUserId: userId);
   }
 
   @override
@@ -72,10 +74,9 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
   Future<void> deleteByUserAndApp({
     required String userId,
     required String appId,
-  }) =>
-      _database.managers.fcmTokens
-          .filter(
-            (f) => f.userId.id(userId) & f.appId(UuidValue.fromString(appId)),
-          )
-          .delete();
+  }) => _database.managers.fcmTokens
+      .filter(
+        (f) => f.userId.id(userId) & f.appId(UuidValue.fromString(appId)),
+      )
+      .delete();
 }

@@ -12,9 +12,9 @@ void main() {
   );
   stdout.writeln(
     jsonEncode({
-      'database': target.databaseEnv.driftTransactionPinnedPoolEnabled,
-      'admin': target.adminEnv.driftTransactionPinnedPoolEnabled,
-      'template': target.templateEnv.driftTransactionPinnedPoolEnabled,
+      'database': target.databaseEnv.pgPoolSettings.maxConnectionCount,
+      'admin': target.adminEnv.pgPoolSettings.maxConnectionCount,
+      'template': target.templateEnv.pgPoolSettings.maxConnectionCount,
     }),
   );
 }

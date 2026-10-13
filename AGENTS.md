@@ -144,35 +144,8 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-12
-review due: 2026-10-19
-
-### alloy:lesson:attention_receipt_missing_from_custom_types
-When adding or wiring a server custom GraphQL object type, register it in the top-level list in packages/server/lib/api/controllers/graphql/custom_types.dart; a missing entry breaks runtime queries (e.g. AttentionFeed) even if the type definition exists elsewhere.
-
-### alloy:lesson:drift_pg_pool_savepoint_25p01_pin_connection
-Sentry 25P01 "SAVEPOINT can only be used in transaction blocks" (TENTURA-SERVER-G/H) is pool reuse, not a misplaced transaction. TenturaDb uses PgDatabase.opened(Pool) with Drift's NoTransactionDelegate, so BEGIN/SAVEPOINT/COMMIT and each statement are separate Pool.execute calls. Pool releases the connection after every statement, and with maxConnectionAge/maxSessionUse it may swap in a fresh session between BEGIN and SAVEPOINT. The fix is a _PinnedPoolSession wrapper in tentura_db.dart: TenturaDb.transaction() pins one pool connection (pool.withConnection held open) for the whole transaction and unpins in finally. TenturaDb.forTest keeps _pinnedSession null and delegates to super. Reproduce with pg tests that set Env maxConnectionAge: 1 and sleep 2.5s inside a transaction, then compare pg_backend_pid() and backend_start before and after the stall (read_snapshot_connection_age_pg_test, constellation_field_connection_age_pg_test). Related trap: a unique violation inside a transaction aborts it, so a follow-up conflict lookup needs its own savepoint (_database.transaction around the INSERT in beacon_hierarchy_command_repository). Verify with the pg non-mr suite plus the targeted constellation pg tests. Run them wrapped and serial. The verifier's 5-check budget running out after green checks is fine, so finish.
-
-### alloy:lesson:new_v2_mutation_must_not_resolve_di_in_constructor
-A new V2 GraphQL mutation class (e.g. MutationPost in packages/server/lib/api/controllers/graphql/mutation/) must not call GetIt.I<UseCase>() in its constructor or field initializers. `mutationsAll` is evaluated in non-DI tests such as mutation_beacon_people_test ("mutationsAll contains MarkBeaconPeopleSeen"), so an eager lookup fails there with "not registered". Take an optional injected use case in the constructor and resolve it lazily in a getter (`_injected ?? GetIt.I<X>()`). Related gotchas from tentura-brd4.13: (1) Upload args via InputFieldUpload.fieldNullable arrive as null when unset, so the Upload input type and optional list/string args need null-tolerant validate/deserialize overrides. (2) A new custom GraphQL result type must be registered in custom_types.dart. (3) Adding a ctor dependency or port method to BeaconRoomCase or BeaconRepositoryPort means regenerating the *.mocks.dart files with build_runner and updating the repository mock. (4) In pg tests that use real dispatch, recipients must be mutually visible, or the "not mutually visible" case fails on setup rather than on the code under test.
-
-### alloy:lesson:pg_test_slow_setup_belongs_in_setupall_and_cross_process_lock_dir_fixed_path
-In the tentura-j0q landing bead (trial merge tentura-acz), the full wrapped pg suite (`dart test --tags pg --exclude-tags mr`) was flaky for two real reasons.
-
-1. Pg tests that did recreate/migrate/seed and drop/close inside the timed test body (30s) timed out under load. This hit review_obligation_backfill_pg_test.dart and settlement_kind_constraint_pg_test.dart. Move that work into setUpAll and tearDownAll, and keep only the assertions in the test body.
-
-2. IsolatedHasuraSession's cross-process port-claim lock dir must not derive from Directory.systemTemp. Nested landing runs set a private TMPDIR, so they get a separate lock namespace and the Hasura port race (18080–18280) comes back. Use a fixed shared path (`/tmp/tentura_hasura_ports`, with systemTemp only on Windows).
-
-Bookkeeping added on top as a lock-in, after the real fixes:
-- a tentura_<bead>_landing_check_test.dart plus a pg acceptance probe;
-- the AGENTS.md HTML marker;
-- the agents_alloy_memory_olc_landing_tail.txt fixture;
-- a new path list in the fx7 landing test.
-
-Checks:
-- Run the literal acceptance command first, and run wrapped suites serially.
-- If a wrapped run passes but exits non-zero, check for a full /tmp before editing code.
-- Nested landing tests must skip themselves when TENTURA_U6E_NESTED_SUITE, CI or TEST_TARGET=server is set.
+reviewed: 2026-10-13
+review due: 2026-10-20
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

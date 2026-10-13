@@ -66,22 +66,27 @@ RETURNING token
         )
         .get();
     return [
-      for (final r in rows) (r.read<String>('subject'), r.read<String>('object')),
+      for (final r in rows)
+        (r.read<String>('subject'), r.read<String>('object')),
     ];
   }
 
   @override
-  Future<void> projectPairs(int token, List<(String, String)> pairs) async {
-    await _requireLease(token);
-    for (final (subject, object) in pairs) {
-      await _database
-          .customSelect(
-            r'SELECT public.trust_project_pair($1, $2)',
-            variables: [Variable<String>(subject), Variable<String>(object)],
-          )
-          .get();
-    }
-  }
+  Future<void> projectPairs(int token, List<(String, String)> pairs) =>
+      _database.withWorkContext(() async {
+        await _requireLease(token);
+        for (final (subject, object) in pairs) {
+          await _database
+              .customSelect(
+                r'SELECT public.trust_project_pair($1, $2)',
+                variables: [
+                  Variable<String>(subject),
+                  Variable<String>(object),
+                ],
+              )
+              .get();
+        }
+      }, kind: MainDbWorkKind.full);
 
   @override
   Future<bool> banWallsDone() async {
@@ -109,16 +114,20 @@ RETURNING token
   }
 
   @override
-  Future<void> projectBanPairs(List<(String, String)> pairs) async {
-    for (final (subject, object) in pairs) {
-      await _database
-          .customSelect(
-            r'SELECT public.trust_project_pair($1, $2)',
-            variables: [Variable<String>(subject), Variable<String>(object)],
-          )
-          .get();
-    }
-  }
+  Future<void> projectBanPairs(List<(String, String)> pairs) =>
+      _database.withWorkContext(() async {
+        for (final (subject, object) in pairs) {
+          await _database
+              .customSelect(
+                r'SELECT public.trust_project_pair($1, $2)',
+                variables: [
+                  Variable<String>(subject),
+                  Variable<String>(object),
+                ],
+              )
+              .get();
+        }
+      }, kind: MainDbWorkKind.full);
 
   @override
   Future<void> markBanWallsDone() => _database.customUpdate(
@@ -126,25 +135,25 @@ RETURNING token
   );
 
   @override
-  Future<void> reset(int token) async {
+  Future<void> reset(int token) => _database.withWorkContext(() async {
     await _requireLease(token);
     await _database.customStatement('SELECT public.mr_reset()');
-  }
+  }, kind: MainDbWorkKind.full);
 
   @override
-  Future<void> init(int token) async {
+  Future<void> init(int token) => _database.withWorkContext(() async {
     await _requireLease(token);
     await _database.customStatement('SELECT public.meritrank_init()');
-  }
+  }, kind: MainDbWorkKind.full);
 
   @override
-  Future<void> sync(int token) async {
+  Future<void> sync(int token) => _database.withWorkContext(() async {
     await _requireLease(token);
     await _database.customStatement('SELECT public.mr_sync()');
-  }
+  }, kind: MainDbWorkKind.full);
 
   @override
-  Future<void> finish(int token) => _database.transaction(() async {
+  Future<void> finish(int token) => _database.withTransaction(() async {
     final lease = await _database
         .customSelect(
           r'''
@@ -166,7 +175,7 @@ UPDATE public.trust_cutover_state
 SET status = 'done', owner = NULL, updated_at = now() WHERE id = 1
 ''',
     );
-  });
+  }, kind: MainDbWorkKind.full);
 
   Future<void> _requireLease(int token) async {
     final rows = await _database

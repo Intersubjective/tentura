@@ -62,12 +62,13 @@ WHERE viewer_explicitly_trusts_subject
           RawPeerFact(
             peerId: row.read<String>('peer_id'),
             forwardMr: row.read<double>('forward_mr'),
-            explicitlyTrusted: row.read<bool>('viewer_explicitly_trusts_subject'),
+            explicitlyTrusted: row.read<bool>(
+              'viewer_explicitly_trusts_subject',
+            ),
           ),
       ],
       trustedScores: [
-        for (final row in trustedRows)
-          row.read<double>('forward_mr'),
+        for (final row in trustedRows) row.read<double>('forward_mr'),
       ],
     );
   }
@@ -77,7 +78,7 @@ WHERE viewer_explicitly_trusts_subject
     required String egoId,
     required String normalizedContext,
     required List<WitnessWeight> weights,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     final epoch = await _currentEpoch();
 
     await _database.customStatement(
@@ -106,7 +107,7 @@ INSERT INTO public.ego_witness_window (
         ],
       );
     }
-  });
+  }, actorUserId: egoId);
 
   @override
   Future<List<WitnessWeight>> cachedWindow({
@@ -145,14 +146,15 @@ ORDER BY w.witness_user_id
   }
 
   @override
-  Future<void> invalidateFor({required String userId}) => _database.customStatement(
-    r'''
+  Future<void> invalidateFor({required String userId}) =>
+      _database.customStatement(
+        r'''
 DELETE FROM public.ego_witness_window
 WHERE ego_user_id = $1
    OR witness_user_id = $1
 ''',
-    [userId],
-  );
+        [userId],
+      );
 
   @override
   Future<void> bumpMrEpoch() async {
@@ -179,16 +181,14 @@ WHERE computed_at < now() - make_interval(mins => $1::integer)
   );
 
   Future<BigInt> _currentEpoch() async {
-    final row = await _database
-        .customSelect(
-          r'''
+    final row = await _database.customSelect(
+      r'''
 SELECT epoch
 FROM public.mr_publish_epoch
 WHERE id = true
 ''',
-          readsFrom: {},
-        )
-        .getSingle();
+      readsFrom: {},
+    ).getSingle();
     return row.read<BigInt>('epoch');
   }
 }

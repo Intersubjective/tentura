@@ -695,7 +695,7 @@ VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::t
     required BeaconStatus toStatus,
     required String reason,
     required String? actorId,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     await _database.managers.beacons
         .filter((e) => e.id.equals(beaconId))
         .update(
@@ -711,7 +711,7 @@ VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::t
       reason: reason,
       actorId: actorId,
     );
-  });
+  }, actorUserId: actorId);
 
   @override
   Future<void> addImage({
@@ -786,7 +786,7 @@ WHERE user_id = $1 AND created_at >= $2
     required String id,
     required String actorId,
   }) => _database.withMutatingUser(actorId, () async {
-    return _database.transaction(() async {
+    return _database.withTransaction(() async {
       final existing = await _database.managers.beacons
           .filter(
             (e) => e.id.equals(id) & e.userId.id.equals(actorId),
@@ -829,7 +829,7 @@ WHERE user_id = $1 AND created_at >= $2
     required String childBeaconId,
     required String actorId,
   }) => _database.withMutatingUser(actorId, () async {
-    return _database.transaction(() async {
+    return _database.withTransaction(() async {
       final existing = await _database.managers.beacons
           .filter(
             (e) => e.id.equals(childBeaconId) & e.userId.id.equals(actorId),

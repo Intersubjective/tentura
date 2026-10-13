@@ -45,25 +45,24 @@ class UserAvailabilityRepository implements UserAvailabilityRepositoryPort {
   Future<void> setLimited({
     required String userId,
     required bool isLimited,
-  }) =>
-      _database.withMutatingUser(userId, () async {
-        await _acquireLock(userId);
-        if (isLimited) {
-          await _database.customStatement(
-            r'''
+  }) => _database.withMutatingUser(userId, () async {
+    await _acquireLock(userId);
+    if (isLimited) {
+      await _database.customStatement(
+        r'''
 INSERT INTO public.user_availability (user_id, is_limited, updated_at)
 VALUES ($1, true, now())
 ON CONFLICT (user_id) DO UPDATE SET
   is_limited = EXCLUDED.is_limited,
   updated_at = now()
 ''',
-            [userId],
-          );
-          return;
-        }
+        [userId],
+      );
+      return;
+    }
 
-        await _database.customStatement(
-          r'''
+    await _database.customStatement(
+      r'''
 WITH limited_clear AS (
   UPDATE public.user_availability
      SET is_limited = false,
@@ -76,29 +75,28 @@ DELETE FROM public.user_availability
  WHERE user_id = $1
    AND resume_on IS NULL
 ''',
-          [userId],
-        );
-      });
+      [userId],
+    );
+  });
 
   @override
   Future<void> pause({
     required String userId,
     required DateTime resumeOn,
-  }) =>
-      _database.withMutatingUser(userId, () async {
-        await _acquireLock(userId);
-        final resumeDateIso = _isoUtcCalendarDate(resumeOn);
-        await _database.customStatement(
-          r'''
+  }) => _database.withMutatingUser(userId, () async {
+    await _acquireLock(userId);
+    final resumeDateIso = _isoUtcCalendarDate(resumeOn);
+    await _database.customStatement(
+      r'''
 INSERT INTO public.user_availability (user_id, resume_on, updated_at)
 VALUES ($1, $2::date, now())
 ON CONFLICT (user_id) DO UPDATE SET
   resume_on = EXCLUDED.resume_on,
   updated_at = now()
 ''',
-          [userId, resumeDateIso],
-        );
-      });
+      [userId, resumeDateIso],
+    );
+  });
 
   @override
   Future<void> resume({required String userId}) =>
@@ -156,7 +154,7 @@ UPDATE public.user_availability
 ''',
         [todayIso],
       );
-    });
+    }, kind: MainDbWorkKind.full);
   }
 
   Future<void> _acquireLock(String userId) => _database.customStatement(

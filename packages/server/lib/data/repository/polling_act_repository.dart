@@ -25,37 +25,36 @@ class PollingActRepository implements PollingActRepositoryPort {
     required String pollType,
     required bool allowRevote,
     int? score,
-  }) =>
-      _database.transaction(() async {
-        switch (pollType) {
-          case 'single':
-            await _handleSingle(
-              authorId: authorId,
-              pollingId: pollingId,
-              variantId: variantIds.first,
-              allowRevote: allowRevote,
-            );
-          case 'multiple':
-            for (final id in variantIds) {
-              await _handleMultipleVariant(
-                authorId: authorId,
-                pollingId: pollingId,
-                variantId: id,
-                allowRevote: allowRevote,
-              );
-            }
-          case 'range':
-            for (final id in variantIds) {
-              await _handleRangeVariant(
-                authorId: authorId,
-                pollingId: pollingId,
-                variantId: id,
-                allowRevote: allowRevote,
-                score: score,
-              );
-            }
+  }) => _database.withTransaction(() async {
+    switch (pollType) {
+      case 'single':
+        await _handleSingle(
+          authorId: authorId,
+          pollingId: pollingId,
+          variantId: variantIds.first,
+          allowRevote: allowRevote,
+        );
+      case 'multiple':
+        for (final id in variantIds) {
+          await _handleMultipleVariant(
+            authorId: authorId,
+            pollingId: pollingId,
+            variantId: id,
+            allowRevote: allowRevote,
+          );
         }
-      });
+      case 'range':
+        for (final id in variantIds) {
+          await _handleRangeVariant(
+            authorId: authorId,
+            pollingId: pollingId,
+            variantId: id,
+            allowRevote: allowRevote,
+            score: score,
+          );
+        }
+    }
+  }, actorUserId: authorId);
 
   Future<void> _handleSingle({
     required String authorId,
@@ -64,22 +63,22 @@ class PollingActRepository implements PollingActRepositoryPort {
     required bool allowRevote,
   }) async {
     if (!allowRevote) {
-      final existing = await (_database.select(_database.pollingActs)
-            ..where(
-              (a) =>
-                  a.pollingId.equals(pollingId) & a.authorId.equals(authorId),
-            ))
-          .get();
+      final existing =
+          await (_database.select(_database.pollingActs)..where(
+                (a) =>
+                    a.pollingId.equals(pollingId) & a.authorId.equals(authorId),
+              ))
+              .get();
       if (existing.isNotEmpty) return;
     } else {
-      await (_database.delete(_database.pollingActs)
-            ..where(
-              (a) =>
-                  a.pollingId.equals(pollingId) & a.authorId.equals(authorId),
-            ))
+      await (_database.delete(_database.pollingActs)..where(
+            (a) => a.pollingId.equals(pollingId) & a.authorId.equals(authorId),
+          ))
           .go();
     }
-    await _database.into(_database.pollingActs).insert(
+    await _database
+        .into(_database.pollingActs)
+        .insert(
           PollingActsCompanion.insert(
             authorId: authorId,
             pollingId: pollingId,
@@ -94,28 +93,29 @@ class PollingActRepository implements PollingActRepositoryPort {
     required String variantId,
     required bool allowRevote,
   }) async {
-    final existing = await (_database.select(_database.pollingActs)
-          ..where(
-            (a) =>
-                a.pollingId.equals(pollingId) &
-                a.authorId.equals(authorId) &
-                a.pollingVariantId.equals(variantId),
-          ))
-        .get();
+    final existing =
+        await (_database.select(_database.pollingActs)..where(
+              (a) =>
+                  a.pollingId.equals(pollingId) &
+                  a.authorId.equals(authorId) &
+                  a.pollingVariantId.equals(variantId),
+            ))
+            .get();
 
     if (existing.isNotEmpty) {
       if (allowRevote) {
-        await (_database.delete(_database.pollingActs)
-              ..where(
-                (a) =>
-                    a.pollingId.equals(pollingId) &
-                    a.authorId.equals(authorId) &
-                    a.pollingVariantId.equals(variantId),
-              ))
+        await (_database.delete(_database.pollingActs)..where(
+              (a) =>
+                  a.pollingId.equals(pollingId) &
+                  a.authorId.equals(authorId) &
+                  a.pollingVariantId.equals(variantId),
+            ))
             .go();
       }
     } else {
-      await _database.into(_database.pollingActs).insert(
+      await _database
+          .into(_database.pollingActs)
+          .insert(
             PollingActsCompanion.insert(
               authorId: authorId,
               pollingId: pollingId,
@@ -133,17 +133,19 @@ class PollingActRepository implements PollingActRepositoryPort {
     required int? score,
   }) async {
     if (!allowRevote) {
-      final existing = await (_database.select(_database.pollingActs)
-            ..where(
-              (a) =>
-                  a.pollingId.equals(pollingId) &
-                  a.authorId.equals(authorId) &
-                  a.pollingVariantId.equals(variantId),
-            ))
-          .get();
+      final existing =
+          await (_database.select(_database.pollingActs)..where(
+                (a) =>
+                    a.pollingId.equals(pollingId) &
+                    a.authorId.equals(authorId) &
+                    a.pollingVariantId.equals(variantId),
+              ))
+              .get();
       if (existing.isNotEmpty) return;
     }
-    await _database.into(_database.pollingActs).insertOnConflictUpdate(
+    await _database
+        .into(_database.pollingActs)
+        .insertOnConflictUpdate(
           PollingActsCompanion.insert(
             authorId: authorId,
             pollingId: pollingId,

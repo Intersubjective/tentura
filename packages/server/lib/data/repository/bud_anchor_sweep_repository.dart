@@ -129,5 +129,6 @@ WHERE actor_user_id = $1 AND client_command_id = $2
         Variable.withString(clientCommandId),
       ],
     ),
+    kind: MainDbWorkKind.full,
   );
 }

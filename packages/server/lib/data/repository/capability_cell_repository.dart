@@ -26,9 +26,7 @@ class CapabilityCellRepository implements CapabilityCellPort {
     required List<String> tagSlugs,
     required List<WitnessWeight> admittedWitnesses,
   }) async {
-    if (subjectIds.isEmpty ||
-        tagSlugs.isEmpty ||
-        admittedWitnesses.isEmpty) {
+    if (subjectIds.isEmpty || tagSlugs.isEmpty || admittedWitnesses.isEmpty) {
       return const [];
     }
 
@@ -93,7 +91,8 @@ WHERE c.observer_user_id = ANY($1::text[])
     ];
   }
 
-  Future<List<({String observer, String subject, String tag})>> _selectStaleTriples({
+  Future<List<({String observer, String subject, String tag})>>
+  _selectStaleTriples({
     required List<String> witnessIds,
     required List<String> subjectIds,
     required List<String> tagSlugs,
@@ -220,10 +219,11 @@ WHERE observer_user_id = $1
   );
 
   @override
-  Future<int> gcOrphanGenerations({int limit = 100}) async {
-    final candidates = await _database
-        .customSelect(
-          r'''
+  Future<int> gcOrphanGenerations({int limit = 100}) =>
+      _database.withWorkContext(() async {
+        final candidates = await _database
+            .customSelect(
+              r'''
 SELECT g.observer_user_id, g.subject_user_id, g.tag_slug
 FROM public.capability_evidence_generation AS g
 WHERE NOT EXISTS (
@@ -244,23 +244,23 @@ AND NOT EXISTS (
 ORDER BY g.observer_user_id, g.subject_user_id, g.tag_slug
 LIMIT $1
 ''',
-          variables: [Variable<int>(limit)],
-        )
-        .get();
+              variables: [Variable<int>(limit)],
+            )
+            .get();
 
-    var deleted = 0;
-    for (final row in candidates) {
-      final observer = row.read<String>('observer_user_id');
-      final subject = row.read<String>('subject_user_id');
-      final tag = row.read<String>('tag_slug');
-      final removed = await _database.transaction(() async {
-        await _database.customStatement(
-          r'SELECT public.cap_cell_lock($1, $2, $3)',
-          [observer, subject, tag],
-        );
+        var deleted = 0;
+        for (final row in candidates) {
+          final observer = row.read<String>('observer_user_id');
+          final subject = row.read<String>('subject_user_id');
+          final tag = row.read<String>('tag_slug');
+          final removed = await _database.withTransaction(() async {
+            await _database.customStatement(
+              r'SELECT public.cap_cell_lock($1, $2, $3)',
+              [observer, subject, tag],
+            );
 
-        return _database.customUpdate(
-          r'''
+            return _database.customUpdate(
+              r'''
 DELETE FROM public.capability_evidence_generation AS g
 WHERE g.observer_user_id = $1
   AND g.subject_user_id = $2
@@ -281,18 +281,18 @@ WHERE g.observer_user_id = $1
       AND c.tag_slug = g.tag_slug
   )
 ''',
-          variables: [
-            Variable<String>(observer),
-            Variable<String>(subject),
-            Variable<String>(tag),
-          ],
-          updateKind: UpdateKind.delete,
-        );
-      });
-      deleted += removed;
-    }
-    return deleted;
-  }
+              variables: [
+                Variable<String>(observer),
+                Variable<String>(subject),
+                Variable<String>(tag),
+              ],
+              updateKind: UpdateKind.delete,
+            );
+          }, kind: MainDbWorkKind.full);
+          deleted += removed;
+        }
+        return deleted;
+      }, kind: MainDbWorkKind.full);
 
   @override
   Future<DateTime?> nextExpiryAt(CellRef ref) async {

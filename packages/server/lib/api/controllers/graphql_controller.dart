@@ -6,6 +6,7 @@ import 'package:shelf_multipart/shelf_multipart.dart';
 import 'package:tentura_server/app/sentry/sentry_error_classifier.dart';
 import 'package:tentura_server/app/sentry/sentry_request_context.dart';
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/data/service/main_db_scope_admission.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 
@@ -59,21 +60,22 @@ final class GraphqlController extends BaseController {
     }
 
     try {
-      final response = await (env.isDebugModeOn
-              ? graphqlSchema
-              : _graphqlSchema)
-          .parseAndExecute(
-            operationName: requestJson['operationName'] as String?,
-            requestJson['query'] as String? ?? '',
-            variableValues:
-                (requestJson['variables'] as Map<String, dynamic>?) ?? {},
-            globalVariables: {
-              kGlobalInputQueryJwt:
-                  request.context[kGlobalInputQueryJwt] as JwtEntity?,
-              kGlobalInputQueryContext: request.headers[kHeaderQueryContext],
-              kGlobalInputQueryFile: fileBytes,
-            },
-          );
+      final jwt = request.context[kGlobalInputQueryJwt] as JwtEntity?;
+      final response = await MainDbWorkContext.run(
+        () => (env.isDebugModeOn ? graphqlSchema : _graphqlSchema)
+            .parseAndExecute(
+              operationName: requestJson['operationName'] as String?,
+              requestJson['query'] as String? ?? '',
+              variableValues:
+                  (requestJson['variables'] as Map<String, dynamic>?) ?? {},
+              globalVariables: {
+                kGlobalInputQueryJwt: jwt,
+                kGlobalInputQueryContext: request.headers[kHeaderQueryContext],
+                kGlobalInputQueryFile: fileBytes,
+              },
+            ),
+        actorUserId: jwt?.sub,
+      );
 
       switch (response) {
         case final Map<String, dynamic> query:

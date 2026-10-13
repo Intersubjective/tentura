@@ -53,7 +53,7 @@ class UserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
-  }) => _database.transaction<UserEntity>(() async {
+  }) => _database.withTransaction<UserEntity>(() async {
     final user = await _database.managers.users.createReturning(
       (o) => o(
         displayName: displayName,
@@ -208,7 +208,7 @@ class UserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
-  }) => _database.transaction<UserEntity>(() async {
+  }) => _database.withTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingle();
@@ -362,7 +362,7 @@ class UserRepository implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) => _database.transaction<UserEntity>(
+  }) => _database.withTransaction<UserEntity>(
     () => _createUserWithCredential(
       type: type,
       identifier: identifier,
@@ -382,7 +382,7 @@ class UserRepository implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) => _database.transaction<UserEntity>(() async {
+  }) => _database.withTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingle();
@@ -560,7 +560,7 @@ class UserRepository implements UserRepositoryPort {
     required String identifier,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) async {
+  }) => _database.withWorkContext(() async {
     final existingOwner = await _findCredentialOwner(
       type: type,
       identifier: identifier,
@@ -577,7 +577,7 @@ class UserRepository implements UserRepositoryPort {
     }
 
     try {
-      return await _database.transaction<String>(() async {
+      return await _database.withTransaction<String>(() async {
         await _database.managers.accountCredentials.create(
           (o) => o(
             accountId: accountId,
@@ -594,7 +594,7 @@ class UserRepository implements UserRepositoryPort {
           contacts: contacts,
         );
         return accountId;
-      });
+      }, actorUserId: accountId);
     } on UniqueViolationException catch (_) {
       final contactOwner = await _findConflictingContactOwner(
         contacts: AssertedContact.authoritativeOnly(contacts),
@@ -611,7 +611,7 @@ class UserRepository implements UserRepositoryPort {
       }
       rethrow;
     }
-  }
+  }, actorUserId: accountId);
 
   //
   //
@@ -622,7 +622,7 @@ class UserRepository implements UserRepositoryPort {
     required String identifier,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
-  }) async {
+  }) => _database.withWorkContext(() async {
     final authoritative = AssertedContact.authoritativeOnly(contacts);
 
     // Idempotent: the credential is already linked to this exact account.
@@ -652,7 +652,7 @@ class UserRepository implements UserRepositoryPort {
     }
 
     try {
-      return await _database.transaction<AccountCredentialEntity>(() async {
+      return await _database.withTransaction<AccountCredentialEntity>(() async {
         final row = await _database.managers.accountCredentials.createReturning(
           (o) => o(
             accountId: accountId,
@@ -669,7 +669,7 @@ class UserRepository implements UserRepositoryPort {
           contacts: authoritative,
         );
         return _credentialModelToEntity(row);
-      });
+      }, actorUserId: accountId);
     } on UniqueViolationException catch (_) {
       // Lost a race — re-resolve ownership and map to the right 409.
       final raced = await _findCredentialRow(
@@ -690,7 +690,7 @@ class UserRepository implements UserRepositoryPort {
       }
       rethrow;
     }
-  }
+  }, actorUserId: accountId);
 
   //
   //
@@ -815,7 +815,7 @@ class UserRepository implements UserRepositoryPort {
   Future<void> removeCredential({
     required String accountId,
     required String credentialId,
-  }) => _database.transaction(() async {
+  }) => _database.withTransaction(() async {
     // Lock the account's credential rows so concurrent removals serialize —
     // otherwise two deletes of different rows could both pass the
     // last-credential guard and leave the account with none.
@@ -847,7 +847,7 @@ class UserRepository implements UserRepositoryPort {
     await _database.managers.accountCredentials
         .filter((e) => e.accountId.id(accountId) & e.id(credentialId))
         .delete();
-  });
+  }, actorUserId: accountId);
 
   //
   //
@@ -904,7 +904,7 @@ class UserRepository implements UserRepositoryPort {
     required String invitationId,
     required String userId,
     bool bindFriendship = true,
-  }) => _database.transaction<bool>(() async {
+  }) => _database.withTransaction<bool>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .getSingle();
@@ -969,19 +969,20 @@ class UserRepository implements UserRepositoryPort {
     }
 
     return true;
-  });
+  }, actorUserId: userId);
 
   Future<void> _applyReciprocalTrustEdges(
     String userA,
     String userB,
   ) async {
-    final pairs = [
-      [userA, userB],
-      [userB, userA],
-    ]..sort((x, y) {
-        final c = x[0].compareTo(y[0]);
-        return c != 0 ? c : x[1].compareTo(y[1]);
-      });
+    final pairs =
+        [
+          [userA, userB],
+          [userB, userA],
+        ]..sort((x, y) {
+          final c = x[0].compareTo(y[0]);
+          return c != 0 ? c : x[1].compareTo(y[1]);
+        });
     for (final pair in pairs) {
       await _database.customStatement(
         r'SELECT public.trust_project_pair($1, $2)',

@@ -49,21 +49,20 @@ class PollingRepository implements PollingRepositoryPort {
     String pollType = 'single',
     bool isAnonymous = true,
     bool allowRevote = true,
-  }) =>
-      _database.transaction(() async {
-        final polling = await _database.managers.pollings.createReturning(
-          (o) => o(
-            id: Value(PollingEntity.newId),
-            authorId: authorId,
-            question: question,
-            pollType: Value(pollType),
-            isAnonymous: Value(isAnonymous),
-            allowRevote: Value(allowRevote),
-          ),
-        );
-        await _database.managers.pollingVariants.bulkCreate(
-          (o) => variants.map((d) => o(pollingId: polling.id, description: d)),
-        );
-        return polling.id;
-      });
+  }) => _database.withTransaction(() async {
+    final polling = await _database.managers.pollings.createReturning(
+      (o) => o(
+        id: Value(PollingEntity.newId),
+        authorId: authorId,
+        question: question,
+        pollType: Value(pollType),
+        isAnonymous: Value(isAnonymous),
+        allowRevote: Value(allowRevote),
+      ),
+    );
+    await _database.managers.pollingVariants.bulkCreate(
+      (o) => variants.map((d) => o(pollingId: polling.id, description: d)),
+    );
+    return polling.id;
+  }, actorUserId: authorId);
 }

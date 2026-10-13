@@ -73,23 +73,18 @@ final class ConstellationFieldRepository
   ConstellationFieldRepository(
     this._database,
     this._profiles, {
-    @ignoreParam
-    @visibleForTesting
-    Future<void> Function(TenturaDb db)? snapshotOpenProbe,
-  }) : _admission = null,
-       _snapshotOpenProbe = snapshotOpenProbe;
+    @ignoreParam @visibleForTesting this._snapshotOpenProbe,
+  });
 
   @FactoryMethod()
   ConstellationFieldRepository.injected(
     this._database,
-    this._profiles,
-    ConstellationDbAdmissionPort admission,
-  ) : _admission = admission,
-      _snapshotOpenProbe = null;
+    this._profiles, [
+    @ignoreParam ConstellationDbAdmissionPort? _,
+  ]) : _snapshotOpenProbe = null;
 
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
-  final ConstellationDbAdmissionPort? _admission;
   final Future<void> Function(TenturaDb db)? _snapshotOpenProbe;
 
   @override
@@ -98,13 +93,10 @@ final class ConstellationFieldRepository
     required String context,
     required ConstellationFieldReadParams params,
   }) {
-    final admission = _admission;
-    if (admission == null) {
-      return _readSnapshotInTx(viewerId, context, params);
-    }
-    return admission.run(
-      ConstellationDbWorkKind.full,
+    return _database.withConnectionScope(
       () => _readSnapshotInTx(viewerId, context, params),
+      actorUserId: viewerId,
+      kind: MainDbWorkKind.full,
     );
   }
 

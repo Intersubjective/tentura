@@ -1,18 +1,8 @@
 import 'dart:async';
 import 'dart:math' show max;
 
-import 'package:drift/backends.dart'
-    show
-        DatabaseDelegate,
-        DbVersionDelegate,
-        DelegatedDatabase,
-        NoVersionDelegate,
-        QueryDelegate,
-        QueryResult,
-        SupportedTransactionDelegate,
-        TransactionDelegate;
 import 'package:drift/drift.dart';
-import 'package:postgres/postgres.dart';
+import 'package:postgres/postgres.dart' show ServerException;
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
@@ -33,6 +23,8 @@ import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import 'db_pipeline_trace.dart';
+import 'main_db_pool.dart';
+import '../service/main_db_scope_admission.dart';
 import 'postgres_serialization_retry.dart';
 import 'custom_types/mentions_text_array_type.dart';
 import 'table/account_credentials.dart';
@@ -90,11 +82,12 @@ import 'table/user_trust_edges.dart';
 import 'table/vote_users.dart';
 
 export 'package:drift/drift.dart';
+export '../service/main_db_scope_admission.dart' show MainDbWorkKind;
 export 'package:postgres/src/exceptions.dart';
 
 part 'tentura_db.g.dart';
 
-@singleton
+@injectable
 @DriftDatabase(
   tables: [
     AccountCredentials,
@@ -156,66 +149,43 @@ class TenturaDb extends _$TenturaDb {
   static final Object _mutatingTransactionZoneKey = Object();
   static final Object _connectionScopeZoneKey = Object();
 
+  TenturaDb(Env env) : this._(MainDbPool(env), ownsPool: true);
+
+  TenturaDb.auth(Env env) : this._(MainDbPool.auth(env), ownsPool: true);
+
   @factoryMethod
-  TenturaDb(Env env)
-    // Pool must keep maxConnectionCount == 1. Drift issues
-    // BEGIN/COMMIT/SAVEPOINT via NoTransactionDelegate as ordinary
-    // session.execute() calls; Pool.execute releases the connection after each
-    // statement, and the pool may replace an aged connection between two
-    // statements (maxConnectionAge / maxSessionUse). That put SAVEPOINT on a
-    // fresh session outside the transaction (25P01: TENTURA-SERVER-G/H).
-    // _PinnedPoolSession holds one pool connection for a whole transaction.
-    // With DRIFT_TRANSACTION_PINNED_POOL_ENABLED (spike #227) the executor
-    // itself leases a connection per transaction, so the pool may be larger.
-    : this._(
-        Pool<dynamic>.withEndpoints(
-          [env.pgEndpoint],
-          settings: env.pgPoolSettings,
-        ),
-        env,
-      );
+  TenturaDb.scoped(MainDbPool pool) : this._(pool);
 
-  TenturaDb._(Pool<dynamic> pool, Env env)
-    : this._session(
-        env.driftTransactionPinnedPoolEnabled ? null : _PinnedPoolSession(pool),
-        pool,
-        env,
-      );
-
-  TenturaDb._session(_PinnedPoolSession? session, Pool<dynamic> pool, Env env)
-    : _pinnedSession = session,
-      _pool = pool,
+  TenturaDb._(MainDbPool pool, {this._ownsPool = false})
+    : _mainPool = pool,
       super(
         DbSpanDatabase(
-          session == null
-              ? _TransactionPinnedPgDatabase(
-                  pool,
-                  logStatements: env.isDebugModeOn,
-                )
-              : PgDatabase.opened(
-                  session,
-                  enableMigrations: false,
-                  logStatements: env.isDebugModeOn,
-                ),
+          PgDatabase.opened(
+            pool.pool,
+            enableMigrations: false,
+            logStatements: pool.logStatements,
+          ),
         ),
       );
 
   TenturaDb.forTest({required QueryExecutor database})
-    : _pinnedSession = null,
-      _pool = null,
+    : _mainPool = null,
+      _ownsPool = false,
       super(database.interceptWith(DbSpanInterceptor()));
 
-  final _PinnedPoolSession? _pinnedSession;
+  final MainDbPool? _mainPool;
+  final bool _ownsPool;
+  late final _PooledDatabaseUser _pooledUser = _PooledDatabaseUser(this);
+  late final DbSpanConnectionUser _tracedUser = DbSpanConnectionUser(this);
 
-  /// Owned here: neither `PgDatabase.opened` nor the spike executor closes the
-  /// session it was given, so without this the pool's connections outlive the
-  /// database.
-  final Pool<dynamic>? _pool;
+  bool _sharesScope(TenturaDb other) =>
+      identical(other, this) ||
+      (_mainPool != null && identical(other._mainPool, _mainPool));
 
   _ScopedDatabaseUser? get _connectionScope {
     final scope = Zone.current[_connectionScopeZoneKey];
     if (scope is! _ScopedDatabaseUser ||
-        !identical(scope.attachedDatabase, this)) {
+        !identical(scope.attachedDatabase._mainPool, _mainPool)) {
       return null;
     }
     if (!scope.isActive) {
@@ -228,83 +198,98 @@ class TenturaDb extends _$TenturaDb {
   DatabaseConnectionUser get resolvedEngine {
     final scope = _connectionScope;
     // Drift's ambient transaction/savepoint takes precedence over the scope.
+    if (scope != null && !identical(scope.attachedDatabase, this)) {
+      return scope.attachedDatabase.resolvedEngine;
+    }
+    // Resolve Drift's ambient transaction before opening a connection scope.
     // ignore: invalid_use_of_internal_member
     final current = super.resolvedEngine;
-    return identical(current, this) ? scope ?? current : current;
+    if (!identical(current, this)) return current;
+    return scope ?? (_mainPool == null ? _tracedUser : _pooledUser);
   }
+
+  /// Carries admission metadata between batches without holding a connection.
+  Future<T> withWorkContext<T>(
+    Future<T> Function() action, {
+    String? actorUserId,
+    MainDbWorkKind kind = MainDbWorkKind.interactive,
+  }) => MainDbWorkContext.run(
+    action,
+    actorUserId: actorUserId,
+    kind: kind,
+  );
 
   /// Gives all repositories using this database a private Drift executor over
   /// one leased connection. Nested calls retain the current transaction/lease.
-  Future<T> withConnectionScope<T>(Future<T> Function() action) {
-    final pool = _pool;
-    if (pool == null || !identical(resolvedEngine, this)) {
+  Future<T> withConnectionScope<T>(
+    Future<T> Function() action, {
+    String? actorUserId,
+    MainDbWorkKind? kind,
+  }) {
+    final main = _mainPool;
+    if (main == null || !identical(resolvedEngine, _pooledUser)) {
       return action();
     }
-    final trace = DbTransactionTrace.begin(this, leasesConnection: true);
-    Future<T> leased() => pool.withConnection((connection) async {
-      final root = executor;
-      final scope = _ScopedDatabaseUser(
-        this,
-        DbSpanDatabase(
-          PgDatabase.opened(
-            connection,
-            enableMigrations: false,
-            logStatements: root is DelegatedDatabase && root.logStatements,
-          ),
-        ),
-      );
-      try {
-        await trace?.acquired(connection: connection);
-        return await runZoned(
-          action,
-          zoneValues: {_connectionScopeZoneKey: scope},
-        );
-      } on Object {
-        // Do not reuse a session if transaction cleanup left its state unknown.
-        await connection.close();
-        rethrow;
-      } finally {
-        scope.isActive = false;
-        await scope.executor.close();
-      }
-    });
-    return trace == null ? leased() : trace.run(leased);
+    final work = MainDbWorkContext.current;
+    return main.admission.run(
+      () {
+        final trace = DbTransactionTrace.begin(this, leasesConnection: true);
+        Future<T> leased() => main.pool.withConnection((connection) async {
+          final scope = _ScopedDatabaseUser(
+            this,
+            DbSpanDatabase(
+              PgDatabase.opened(
+                connection,
+                enableMigrations: false,
+                logStatements: main.logStatements,
+              ),
+            ),
+          );
+          try {
+            await trace?.acquired(connection: connection);
+            return await runZoned(
+              action,
+              zoneValues: {_connectionScopeZoneKey: scope},
+            );
+          } on Object catch (error) {
+            if (error is ServerException && error.code == '57014') {
+              trace?.statementCancelled();
+            }
+            // A failed rollback must not return a dirty session to the pool.
+            if (connection.isOpen &&
+                (error is TimeoutException || error is! ServerException)) {
+              await connection.close();
+            }
+            rethrow;
+          } finally {
+            scope.isActive = false;
+            await scope.executor.close();
+          }
+        });
+        return trace == null ? leased() : trace.run(leased);
+      },
+      kind: kind ?? work?.kind ?? MainDbWorkKind.interactive,
+      actorUserId: actorUserId ?? work?.actorUserId,
+    );
   }
 
-  @override
-  Future<T> transaction<T>(
+  /// A transaction boundary with its own executor and connection lease.
+  /// Drift owns BEGIN, nested SAVEPOINTs and COMMIT/ROLLBACK within that scope.
+  Future<T> withTransaction<T>(
     Future<T> Function() action, {
     bool requireNew = false,
-  }) {
-    final trace = DbTransactionTrace.begin(
-      this,
-      leasesConnection: _pool != null,
-    );
-    if (trace == null) {
-      return _transaction(action, requireNew: requireNew);
-    }
-    return trace.run(() => _transaction(action, requireNew: requireNew));
-  }
-
-  Future<T> _transaction<T>(
-    Future<T> Function() action, {
-    required bool requireNew,
-  }) async {
-    final session = _pinnedSession;
-    if (session == null || _connectionScope != null) {
-      return super.transaction(action, requireNew: requireNew);
-    }
-    final trace = DbTransactionTrace.current;
-    await session.pin(probeBackendPid: trace != null);
-    try {
-      if (trace != null) {
-        await trace.acquired(backendPid: session.pinnedBackendPid);
-      }
-      return await super.transaction(action, requireNew: requireNew);
-    } finally {
-      session.unpin();
-    }
-  }
+    String? actorUserId,
+    MainDbWorkKind? kind,
+  }) => withConnectionScope(
+    () {
+      final owner = _connectionScope?.attachedDatabase ?? this;
+      final trace = DbTransactionTrace.begin(owner, leasesConnection: false);
+      Future<T> run() => owner.transaction(action, requireNew: requireNew);
+      return trace == null ? run() : trace.run(run);
+    },
+    actorUserId: actorUserId,
+    kind: kind,
+  );
 
   @override
   int get schemaVersion => 1;
@@ -313,7 +298,7 @@ class TenturaDb extends _$TenturaDb {
   /// [withMutatingSystem] on this database (including nested re-entry).
   bool get isInAmbientMutatingTransaction {
     final current = Zone.current[_mutatingTransactionZoneKey];
-    return current is _MutatingTransactionContext && identical(current.db, this);
+    return current is _MutatingTransactionContext && _sharesScope(current.db);
   }
 
   /// The connector's per-backend `mr_rpc_attempts()` counter on the connection
@@ -335,7 +320,7 @@ class TenturaDb extends _$TenturaDb {
     Future<T> Function() action,
   ) async {
     final current = Zone.current[_mutatingTransactionZoneKey];
-    if (current is _MutatingTransactionContext && identical(current.db, this)) {
+    if (current is _MutatingTransactionContext && _sharesScope(current.db)) {
       if (current.actorUserId != userId) {
         throw StateError(
           'Nested mutating actor mismatch: '
@@ -344,7 +329,7 @@ class TenturaDb extends _$TenturaDb {
       }
       return action();
     }
-    return transaction(() async {
+    return withTransaction(() async {
       // `customStatement` binds raw Dart values; do not pass drift `Variable`
       // here (unlike `customSelect`).
       await customStatement(
@@ -354,10 +339,13 @@ class TenturaDb extends _$TenturaDb {
       return runZoned(
         action,
         zoneValues: {
-          _mutatingTransactionZoneKey: _MutatingTransactionContext(this, userId),
+          _mutatingTransactionZoneKey: _MutatingTransactionContext(
+            this,
+            userId,
+          ),
         },
       );
-    });
+    }, actorUserId: userId);
   }
 
   /// Like [withMutatingUser] but in a REPEATABLE READ READ WRITE transaction,
@@ -374,7 +362,7 @@ class TenturaDb extends _$TenturaDb {
     Future<void> Function(Duration)? sleep,
   }) {
     final current = Zone.current[_mutatingTransactionZoneKey];
-    if (current is _MutatingTransactionContext && identical(current.db, this)) {
+    if (current is _MutatingTransactionContext && _sharesScope(current.db)) {
       if (!current.repeatableRead) {
         return Future.error(
           StateError('Cannot enter repeatable read inside read committed'),
@@ -385,7 +373,7 @@ class TenturaDb extends _$TenturaDb {
     final clock = Stopwatch()..start();
     var attempt = 0;
     return withPostgresBoundedRetry(
-      () => transaction(() async {
+      () => withTransaction(() async {
         final budget = attempt++ == 0 ? deadline : deadline - clock.elapsed;
         final budgetMs = max(1, budget.inMilliseconds);
         await customStatement(
@@ -406,7 +394,7 @@ class TenturaDb extends _$TenturaDb {
             ),
           },
         );
-      }),
+      }, actorUserId: userId),
       deadline: deadline,
       maxAttempts: maxAttempts,
       sleep: sleep,
@@ -416,12 +404,12 @@ class TenturaDb extends _$TenturaDb {
   /// System-owned mutation transaction with an explicitly empty actor scope.
   /// One PostgreSQL MVCC snapshot for repeatable-read field reads (C4).
   Future<T> withReadSnapshot<T>(Future<T> Function() action) {
-    return transaction(() async {
+    return withTransaction(() async {
       await customStatement(
         'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY',
       );
       return action();
-    });
+    }, kind: MainDbWorkKind.full);
   }
 
   /// Makes the rest of the current transaction keep its first visible-set
@@ -430,9 +418,12 @@ class TenturaDb extends _$TenturaDb {
     "SELECT set_config('tentura_visibility.frozen', 'on', true)",
   );
 
-  Future<T> withMutatingSystem<T>(Future<T> Function() action) {
+  Future<T> withMutatingSystem<T>(
+    Future<T> Function() action, {
+    MainDbWorkKind? kind,
+  }) {
     final current = Zone.current[_mutatingTransactionZoneKey];
-    if (current is _MutatingTransactionContext && identical(current.db, this)) {
+    if (current is _MutatingTransactionContext && _sharesScope(current.db)) {
       if (current.actorUserId != null) {
         throw StateError(
           'Cannot enter a system mutation inside an actor mutation',
@@ -440,13 +431,14 @@ class TenturaDb extends _$TenturaDb {
       }
       return action();
     }
-    return transaction(
+    return withTransaction(
       () => runZoned(
         action,
         zoneValues: {
           _mutatingTransactionZoneKey: _MutatingTransactionContext(this, null),
         },
       ),
+      kind: kind,
     );
   }
 
@@ -455,11 +447,10 @@ class TenturaDb extends _$TenturaDb {
     try {
       await super.close();
     } finally {
-      await _pool?.close();
+      if (_ownsPool) await _mainPool?.close();
     }
   }
 
-  @disposeMethod
   Future<void> dispose() => close();
 }
 
@@ -484,261 +475,17 @@ final class _ScopedDatabaseUser extends DatabaseConnectionUser {
   bool isActive = true;
 }
 
-/// [Session] over a [Pool] that, while pinned, runs every statement on one
-/// pool connection so a transaction never spans two backend sessions.
-final class _PinnedPoolSession implements Session {
-  _PinnedPoolSession(this._pool);
-
-  final Pool<dynamic> _pool;
-
-  Session? _pinned;
-  Completer<void>? _release;
-  Future<void>? _pinning;
-  int _pins = 0;
-
-  String? _pinnedBackendPid;
-
-  /// The backend PID of the pinned connection, when the pin was asked to probe
-  /// it (a traced transaction created the pin).
-  String? get pinnedBackendPid => _pinnedBackendPid;
-
-  /// Runs a statement on the pinned connection or on the pool.
-  ///
-  /// The choice and the pool request happen in one synchronous step. While a
-  /// pin is being acquired the statement waits for it and then decides again:
-  /// by then that pin may be released, or another one may be on its way.
-  /// Going to the pool after an await could queue this statement, which holds
-  /// Drift's executor lock, behind a pin whose transaction waits for that
-  /// lock: a deadlock until the pool's connect timeout (TENTURA-SERVER-V/W).
-  Future<T> _route<T>(
-    Future<T> Function(Session pinned) onPinned,
-    Future<T> Function() onPool,
-  ) {
-    if (_pins == 0) return onPool();
-    final pinned = _pinned;
-    if (pinned != null) return onPinned(pinned);
-    return _pinning!
-        .then<void>((_) {}, onError: (Object _) {})
-        .then((_) => _route(onPinned, onPool));
-  }
-
-  /// [probeBackendPid] reads the PID while the new pin has the connection to
-  /// itself; later, a probe would land inside a transaction another pin began.
-  Future<void> pin({bool probeBackendPid = false}) async {
-    _pins++;
-    if (_pins > 1) {
-      await _pinning;
-      return;
-    }
-    final ready = Completer<void>();
-    final release = _release = Completer<void>();
-    _pinning = ready.future;
-    unawaited(
-      _pool
-          .withConnection((connection) async {
-            if (probeBackendPid) {
-              _pinnedBackendPid = await DbTransactionTrace.backendPid(
-                connection,
-              );
-            }
-            _pinned = connection;
-            ready.complete();
-            return release.future;
-          })
-          .catchError((Object e, StackTrace st) {
-            if (!ready.isCompleted) ready.completeError(e, st);
-          }),
-    );
-    try {
-      await ready.future;
-    } catch (_) {
-      _pins = 0;
-      rethrow;
-    }
-  }
-
-  void unpin() {
-    if (_pins == 0) return;
-    if (--_pins > 0) return;
-    _pinned = null;
-    _pinnedBackendPid = null;
-    _release?.complete();
-    _release = null;
-  }
+/// Routes inherited Drift operations through the same admission and lease as
+/// explicit scopes, including the full lifetime of a transaction or batch.
+final class _PooledDatabaseUser extends DatabaseConnectionUser {
+  _PooledDatabaseUser(this.attachedDatabase) : super.delegate(attachedDatabase);
 
   @override
-  bool get isOpen => _pool.isOpen;
+  final TenturaDb attachedDatabase;
 
   @override
-  Future<void> get closed => _pool.closed;
-
-  @override
-  Future<Statement> prepare(Object query) => _route(
-    (pinned) => pinned.prepare(query),
-    () => _pool.prepare(query),
-  );
-
-  @override
-  Future<Result> execute(
-    Object query, {
-    Object? parameters,
-    bool ignoreRows = false,
-    QueryMode? queryMode,
-    Duration? timeout,
-  }) {
-    return _route(
-      (pinned) => pinned.execute(
-        query,
-        parameters: parameters,
-        ignoreRows: ignoreRows,
-        queryMode: queryMode,
-        timeout: timeout,
-      ),
-      () => _executeOnPool(
-        query,
-        parameters: parameters,
-        ignoreRows: ignoreRows,
-        queryMode: queryMode,
-        timeout: timeout,
-      ),
-    );
-  }
-
-  Future<Result> _executeOnPool(
-    Object query, {
-    required Object? parameters,
-    required bool ignoreRows,
-    required QueryMode? queryMode,
-    required Duration? timeout,
-  }) async {
-    // Pool.execute disposes its connection whenever the statement throws. A
-    // statement cancelled by statement_timeout (57014) leaves the connection
-    // healthy, so report server errors out of the callback and rethrow them
-    // after the connection went back to the pool.
-    final (result, error, trace) = await _pool.withConnection((
-      connection,
-    ) async {
-      try {
-        final result = await connection.execute(
-          query,
-          parameters: parameters,
-          ignoreRows: ignoreRows,
-          queryMode: queryMode,
-          timeout: timeout,
-        );
-        return (result, null, null);
-      } on ServerException catch (e, s) {
-        return (null, e, s);
-      }
-    });
-    if (error != null) Error.throwWithStackTrace(error, trace!);
-    return result!;
-  }
-}
-
-/// Spike (#227): a Postgres [DelegatedDatabase] whose transactions each lease
-/// one pooled connection ([Connection.runTx]) and run nested transactions as
-/// savepoints on it, so a multi-connection pool cannot split a transaction.
-final class _TransactionPinnedPgDatabase extends DelegatedDatabase {
-  _TransactionPinnedPgDatabase(Pool<dynamic> pool, {super.logStatements})
-    : super(_TransactionPinnedDelegate(pool), isSequential: true);
-
-  @override
-  SqlDialect get dialect => SqlDialect.postgres;
-}
-
-final class _TransactionPinnedDelegate extends DatabaseDelegate {
-  _TransactionPinnedDelegate(Pool<dynamic> pool)
-    : _root = PgDatabase.opened(
-        _PinnedPoolSession(pool),
-        enableMigrations: false,
-      ).delegate,
-      transactionDelegate = _PinnedTransactionDelegate(pool);
-
-  final DatabaseDelegate _root;
-
-  @override
-  final TransactionDelegate transactionDelegate;
-
-  @override
-  final DbVersionDelegate versionDelegate = const NoVersionDelegate();
-
-  @override
-  Future<bool> get isOpen async => await _root.isOpen;
-
-  @override
-  Future<void> open(QueryExecutorUser user) => _root.open(user);
-
-  @override
-  Future<void> close() => _root.close();
-
-  @override
-  Future<void> runBatched(BatchedStatements statements) =>
-      _root.runBatched(statements);
-
-  @override
-  Future<void> runCustom(String statement, List<Object?> args) =>
-      _root.runCustom(statement, args);
-
-  @override
-  Future<int> runInsert(String statement, List<Object?> args) =>
-      _root.runInsert(statement, args);
-
-  @override
-  Future<int> runUpdate(String statement, List<Object?> args) =>
-      _root.runUpdate(statement, args);
-
-  @override
-  Future<QueryResult> runSelect(String statement, List<Object?> args) =>
-      _root.runSelect(statement, args);
-}
-
-final class _PinnedTransactionDelegate extends SupportedTransactionDelegate {
-  _PinnedTransactionDelegate(this._pool);
-
-  final Pool<dynamic> _pool;
-  var _savepoints = 0;
-
-  @override
-  Future<void> startTransaction(Future<void> Function(QueryDelegate) run) {
-    final trace = DbTransactionTrace.current;
-    return _pool.withConnection((connection) async {
-      await trace?.acquired(connection: connection);
-      await connection.runTx((tx) async {
-        final delegate = PgDatabase.opened(
-          tx,
-          enableMigrations: false,
-        ).delegate;
-        await delegate.open(const _NoopExecutorUser());
-        await run(delegate);
-      });
-    });
-  }
-
-  @override
-  Future<void> Function(
-    QueryDelegate outer,
-    Future<void> Function(QueryDelegate) block,
-  )
-  get startNested => (outer, block) async {
-    final name = 'tentura_sp_${_savepoints++}';
-    await outer.runCustom('SAVEPOINT $name', const []);
-    try {
-      await block(outer);
-    } catch (_) {
-      await outer.runCustom('ROLLBACK TO SAVEPOINT $name', const []);
-      rethrow;
-    }
-    await outer.runCustom('RELEASE SAVEPOINT $name', const []);
-  };
-}
-
-final class _NoopExecutorUser implements QueryExecutorUser {
-  const _NoopExecutorUser();
-
-  @override
-  int get schemaVersion => 1;
-
-  @override
-  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {}
+  Future<T> doWhenOpened<T>(FutureOr<T> Function(QueryExecutor e) fn) =>
+      attachedDatabase.withConnectionScope(
+        () => attachedDatabase.resolvedEngine.doWhenOpened(fn),
+      );
 }

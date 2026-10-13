@@ -6,7 +6,38 @@ import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
-enum MainDbWorkKind { interactive, full }
+enum MainDbWorkKind { interactive, refresh, full }
+
+/// Admission metadata follows a request or batch loop without leasing a pool
+/// connection. Each database scope still acquires and releases independently.
+final class MainDbWorkContext {
+  const MainDbWorkContext._(this.actorUserId, this.kind);
+
+  static final Object _zoneKey = Object();
+
+  final String? actorUserId;
+  final MainDbWorkKind kind;
+
+  static MainDbWorkContext? get current =>
+      Zone.current[_zoneKey] as MainDbWorkContext?;
+
+  static Future<T> run<T>(
+    Future<T> Function() action, {
+    String? actorUserId,
+    MainDbWorkKind kind = MainDbWorkKind.interactive,
+  }) {
+    final actor = actorUserId?.trim();
+    return runZoned(
+      action,
+      zoneValues: {
+        _zoneKey: MainDbWorkContext._(
+          actor == null || actor.isEmpty ? null : actor,
+          kind,
+        ),
+      },
+    );
+  }
+}
 
 /// One waiting queue for the pool. Admission precedes connection acquisition.
 final class MainDbScopeAdmission {
@@ -15,6 +46,8 @@ final class MainDbScopeAdmission {
     this.maxQueued = 32,
     this.maxQueuedPerActor = 4,
     this.maxHeavy = 1,
+    this.reservedRefreshShare = 0.3,
+    this.reservedInteractiveSlot = false,
     this.interactiveDeadline = const Duration(milliseconds: 250),
     this.fullDeadline = const Duration(seconds: 1),
     this.retryAfter = const Duration(seconds: 2),
@@ -24,6 +57,10 @@ final class MainDbScopeAdmission {
   final int maxQueued;
   final int maxQueuedPerActor;
   final int maxHeavy;
+  final double reservedRefreshShare;
+  // Standalone admission can reserve an extra write slot. Pool-backed scopes
+  // always stay within maxConcurrent, which is their connection budget.
+  final bool reservedInteractiveSlot;
   final Duration interactiveDeadline;
   final Duration fullDeadline;
   final Duration retryAfter;
@@ -32,6 +69,8 @@ final class MainDbScopeAdmission {
   final _actors = <String, int>{};
   int _running = 0;
   int _heavy = 0;
+  int _interactive = 0;
+  double _refreshCredit = 0;
   bool _closed = false;
 
   int get queued => _waiting.length;
@@ -41,11 +80,16 @@ final class MainDbScopeAdmission {
     Future<T> Function() body, {
     MainDbWorkKind kind = MainDbWorkKind.interactive,
     String? actorUserId,
+    String? workClass,
   }) {
     final actor = actorUserId?.trim();
+    _pump();
+    final startsImmediately = _canStart(kind);
     if (_closed ||
-        _waiting.length >= maxQueued ||
-        (actor != null && (_actors[actor] ?? 0) >= maxQueuedPerActor)) {
+        (!startsImmediately &&
+            (_waiting.length >= maxQueued ||
+                (actor != null &&
+                    (_actors[actor] ?? 0) >= maxQueuedPerActor)))) {
       return Future.error(_retryLater());
     }
     final result = Completer<T>();
@@ -57,7 +101,7 @@ final class MainDbScopeAdmission {
     waiter
       ..waitSpan = startSentryDbSpan(
         'db.admission.wait',
-        tags: {'work.class': kind.name},
+        tags: {'work.class': workClass ?? kind.name},
       )
       ..refuse = result.completeError
       ..timer = Timer(budget, () => _expire(waiter))
@@ -69,6 +113,7 @@ final class MainDbScopeAdmission {
         } finally {
           _running--;
           if (kind == MainDbWorkKind.full) _heavy--;
+          if (kind == MainDbWorkKind.interactive) _interactive--;
           _pump();
         }
       });
@@ -107,13 +152,15 @@ final class MainDbScopeAdmission {
       // Check the deadline here too: a ready slot may precede the timer's turn.
       if (_clock.elapsed >= waiter.deadline) {
         _expire(waiter);
-        continue;
       }
-      if (_running >= maxConcurrent) break;
-      if (waiter.kind == MainDbWorkKind.full && _heavy >= maxHeavy) continue;
+    }
+    while (true) {
+      final waiter = _pick();
+      if (waiter == null) return;
       _remove(waiter);
       _running++;
       if (waiter.kind == MainDbWorkKind.full) _heavy++;
+      if (waiter.kind == MainDbWorkKind.interactive) _interactive++;
       unawaited(finishSentryDbSpan(waiter.waitSpan));
       final start = waiter.start!;
       waiter
@@ -122,6 +169,38 @@ final class MainDbScopeAdmission {
       // Each body runs in the submitting request's zone.
       scheduleMicrotask(() => unawaited(start()));
     }
+  }
+
+  bool _canStart(MainDbWorkKind kind) {
+    if (kind == MainDbWorkKind.full && _heavy >= maxHeavy) return false;
+    return _running < maxConcurrent ||
+        (reservedInteractiveSlot &&
+            kind == MainDbWorkKind.interactive &&
+            _interactive == 0);
+  }
+
+  _AdmissionWaiter? _pick() {
+    _AdmissionWaiter? interactive;
+    _AdmissionWaiter? refresh;
+    for (final waiter in _waiting) {
+      if (waiter.kind == MainDbWorkKind.interactive) {
+        interactive ??= waiter;
+      } else if (_canStart(waiter.kind)) {
+        refresh ??= waiter;
+      }
+    }
+    if (interactive == null) _refreshCredit = 0;
+    final writeOk = interactive != null && _canStart(interactive.kind);
+    if (!writeOk && refresh == null) return null;
+    if (interactive != null &&
+        _waiting.any((w) => w.kind != MainDbWorkKind.interactive)) {
+      _refreshCredit += reservedRefreshShare;
+      if (refresh != null && _refreshCredit >= 1) {
+        _refreshCredit -= 1;
+        return refresh;
+      }
+    }
+    return writeOk ? interactive : refresh;
   }
 
   void close() {
