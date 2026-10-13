@@ -103,6 +103,10 @@ SELECT EXISTS (
     required String blockerId,
     required String blockedId,
   }) => _db.withJoinedTransaction(() async {
+    // Hierarchy scope before any intent/block row, as in cascade batches.
+    await _db.customStatement(
+      "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+    );
     final affectedPairs = await _db
         .customSelect(
           r'''
@@ -384,13 +388,31 @@ WHERE public.block_hides($1, peer)
 
     return _db.withTransaction(
       () async {
-        final intent = await _db.managers.userBlockIntents
-            .filter(
-              (row) =>
-                  row.blockerId.id(blockerId) & row.blockedId.id(blockedId),
+        // Lock order matches unblock: hierarchy scope first, then the intent
+        // row, which is revalidated before any candidate is computed.
+        await _db.customStatement(
+          "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+        );
+        final intentRow = await _db
+            .customSelect(
+              r'''
+SELECT cascade_status, cascade_mode
+FROM public.user_block_intent
+WHERE blocker_id = $1 AND blocked_id = $2
+FOR UPDATE
+''',
+              variables: [
+                Variable<String>(blockerId),
+                Variable<String>(blockedId),
+              ],
+              readsFrom: {},
             )
             .getSingleOrNull();
-        if (intent == null) return 0;
+        if (intentRow == null) return 0;
+        final intent = (
+          cascadeStatus: intentRow.read<int>('cascade_status'),
+          cascadeMode: intentRow.read<int>('cascade_mode'),
+        );
         if (intent.cascadeStatus == 2 || intent.cascadeStatus == 3) return 0;
         // Heal legacy mode-0 rows left at status 0/1 (pre-fix inserts).
         if (intent.cascadeMode <= 0) {
