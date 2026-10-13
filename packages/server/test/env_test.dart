@@ -91,10 +91,10 @@ void main() {
   });
 
   group('pgPoolSettings', () {
-    test('forces maxConnectionCount to 1 for Drift statement transactions', () {
+    test('honors the configured maxConnectionCount', () {
       final env = Env(maxConnectionCount: 20, maxConnectionAge: 600);
       expect(env.pgMaxConnectionCount, 20);
-      expect(env.pgPoolSettings.maxConnectionCount, 1);
+      expect(env.pgPoolSettings.maxConnectionCount, 20);
       expect(env.pgPoolSettings.maxConnectionAge, const Duration(seconds: 600));
     });
 

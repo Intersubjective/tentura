@@ -238,9 +238,10 @@ class TenturaDb extends _$TenturaDb {
       return action();
     }
     final work = MainDbWorkContext.current;
-    return main.admission.run(
+    // Begun before admission so a queued scope's wait counts as acquire time.
+    final trace = DbTransactionTrace.begin(this, leasesConnection: true);
+    Future<T> admitted() => main.admission.run(
       () {
-        final trace = DbTransactionTrace.begin(this, leasesConnection: true);
         Future<T> leased() => main.pool.withConnection((connection) async {
           final scope = _ScopedDatabaseUser(
             this,
@@ -273,11 +274,12 @@ class TenturaDb extends _$TenturaDb {
             await scope.executor.close();
           }
         });
-        return trace == null ? leased() : trace.run(leased);
+        return leased();
       },
       kind: kind ?? work?.kind ?? MainDbWorkKind.interactive,
       actorUserId: actorUserId ?? work?.actorUserId,
     );
+    return trace == null ? admitted() : trace.run(admitted);
   }
 
   /// A transaction boundary with its own executor and connection lease.

@@ -88,6 +88,7 @@ Future<void> main() async {
           printEnv: false,
           isDebugModeOn: true,
           workersCount: 1,
+          maxConnectionCount: 1,
         );
         // Exercise the generated application graph, rather than constructing a
         // repository with a test-only second connection that production lacks.

@@ -175,7 +175,10 @@ void main() {
             getIt.get<TenturaDb>(instanceName: 'auth'),
             same(authDatabase),
           );
-          expect(getIt.get<TenturaDb>(), same(mainDatabase));
+          // Main handles are scoped per consumer, never the auth singleton.
+          final anotherMain = getIt.get<TenturaDb>();
+          addTearDown(anotherMain.close);
+          expect(anotherMain, isNot(same(authDatabase)));
         },
         tags: ['pg'],
       );
