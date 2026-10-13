@@ -34,6 +34,7 @@ const _copy = 'Bplancase_cp1';
 const _a = 'PS00000000000a';
 const _b = 'PS00000000000b';
 const _c = 'PS00000000000c';
+const _d = 'PS00000000000d';
 
 final _t0 = DateTime.utc(2030, 1, 10, 9);
 
@@ -428,6 +429,202 @@ WHERE beacon_id = '$_request' AND type = ${BeaconActivityEventTypeBits.planCantM
       expect(steps.last['startAt'], isNull);
     },
   );
+
+  group('chronological plan order on every write', () {
+    Future<List<String>> liveIds([String beacon = _request]) async {
+      final v = await plan.view(beaconId: beacon, viewerId: _author);
+      return [
+        for (final s in (v['steps']! as List).cast<Map<String, Object?>>())
+          s['id']! as String,
+      ];
+    }
+
+    Future<List<String>> changedStepIds(int seq) async {
+      final rows = await writer.execute('''
+SELECT changes_json::text FROM public.beacon_plan_revision
+WHERE beacon_id = '$_request' AND seq = $seq
+''');
+      return [
+        for (final c in jsonDecode(rows.single[0]! as String) as List)
+          (c as Map)['stepId']! as String,
+      ];
+    }
+
+    test('save stores timed steps chronologically, untimed followers '
+        'staying after their timed step', () async {
+      await save([
+        _s(_a, startMin: 120),
+        _s(_b),
+        _s(_c, startMin: 0),
+        _s(_d),
+      ]);
+      expect(await liveIds(), [_c, _d, _a, _b]);
+    });
+
+    test('save keeps leading untimed steps first', () async {
+      await save([_s(_a, startMin: 60), _s(_b), _s(_c, startMin: 0)]);
+      expect(await liveIds(), [_c, _a, _b]);
+      await save([
+        _s(_d),
+        _s(_c, startMin: 0),
+        _s(_a, startMin: 60),
+        _s(_b),
+      ], base: 1);
+      expect(await liveIds(), [_d, _c, _a, _b]);
+    });
+
+    test('a merged save is stored chronologically', () async {
+      await save([_s(_a, startMin: 0), _s(_b, startMin: 60)]);
+      await save([
+        _s(_a, startMin: 0),
+        _s(_b, startMin: 60, title: 'B2'),
+      ], base: 1);
+      final merged = await save(
+        [_s(_a, startMin: 120), _s(_b, startMin: 60)],
+        base: 1,
+        actor: _helper,
+      );
+      expect(merged.kind, PlanSaveOutcomeKind.merged);
+      expect(await liveIds(), [_b, _a]);
+    });
+
+    test('cant make reschedule puts the step after a later step', () async {
+      await save([
+        _s(_a, who: _helper, startMin: 0),
+        _s(_b, startMin: 60),
+        _s(_c, startMin: 120),
+      ]);
+      await plan.cantMake(
+        actorId: _helper,
+        stepId: _a,
+        option: PlanCantMakeOption.reschedule,
+        baseSeq: 1,
+        newStartAt: _t0.add(const Duration(minutes: 180)),
+      );
+      expect(await liveIds(), [_b, _c, _a]);
+    });
+
+    test('restoring an out-of-order revision stores it in order', () async {
+      await save([_s(_a, startMin: 0), _s(_b, startMin: 60)]);
+      // History written before ordering was enforced.
+      await writer.execute(
+        Sql.named(
+          'UPDATE public.beacon_plan_revision '
+          r'SET steps_json = @steps::text::jsonb '
+          "WHERE beacon_id = '$_request' AND seq = 1",
+        ),
+        parameters: {
+          'steps': _json([_s(_b, startMin: 60), _s(_a, startMin: 0)]),
+        },
+      );
+      await save([_s(_a, startMin: 0)], base: 1);
+      await plan.restore(
+        actorId: _author,
+        beaconId: _request,
+        fromSeq: 1,
+        baseSeq: 2,
+      );
+      expect(await liveIds(), [_a, _b]);
+    });
+
+    test('copy stores the target plan chronologically after the given '
+        'times are applied', () async {
+      await save([_s(_a, startMin: 0), _s(_b, startMin: 60)]);
+      await database.transaction(
+        () => plan.copyPlan(
+          actorId: _author,
+          sourceBeaconId: _request,
+          targetBeaconId: _copy,
+          stepTimes: {
+            _a: (startAt: _t0.add(const Duration(days: 7)), endAt: null),
+            _b: (startAt: _t0.add(const Duration(days: 1)), endAt: null),
+          },
+        ),
+      );
+      final copied = await plan.view(beaconId: _copy, viewerId: _author);
+      expect(
+        [
+          for (final s in (copied['steps']! as List).cast<Map<String, Object?>>())
+            s['title'],
+        ],
+        ['Step $_b', 'Step $_a'],
+      );
+    });
+
+    test('a reschedule asks no confirmation from people whose own steps '
+        'only changed position', () async {
+      await save([
+        _s(_a, who: _helper, startMin: 0),
+        _s(_b, who: _member, startMin: 60),
+        _s(_c, who: _helper, startMin: 120),
+      ]);
+      await plan.ack(actorId: _helper, beaconId: _request, uptoSeq: 1);
+      await plan.ack(actorId: _member, beaconId: _request, uptoSeq: 1);
+
+      await save([
+        _s(_a, who: _helper, startMin: 180),
+        _s(_b, who: _member, startMin: 60),
+        _s(_c, who: _helper, startMin: 120),
+      ], base: 1);
+
+      expect(await liveIds(), [_b, _c, _a]);
+      expect((await _member_(writer, _member))['pending_from_seq'], isNull);
+      expect((await _member_(writer, _helper))['pending_from_seq'], 2);
+      expect((await changedStepIds(2)).toSet(), {_a});
+    });
+
+    test('a revision that only reorders steps asks no confirmation from '
+        'anyone', () async {
+      await save([
+        _s(_a, who: _helper, startMin: 0),
+        _s(_b, who: _member, startMin: 60),
+      ]);
+      await plan.ack(actorId: _helper, beaconId: _request, uptoSeq: 1);
+      await plan.ack(actorId: _member, beaconId: _request, uptoSeq: 1);
+      // A plan stored before ordering was enforced: same content, swapped
+      // positions.
+      await writer.execute('''
+UPDATE public.coordination_item SET ordering = 3 - ordering
+WHERE beacon_id = '$_request' AND kind = ${BeaconPlanConsts.stepKind}
+''');
+      expect(await liveIds(), [_b, _a]);
+
+      final outcome = await save([
+        _s(_b, who: _member, startMin: 60),
+        _s(_a, who: _helper, startMin: 0),
+      ], base: 1);
+
+      expect(outcome.kind, PlanSaveOutcomeKind.applied);
+      expect(outcome.revisionSeq, 2);
+      expect(await liveIds(), [_a, _b]);
+      expect((await _member_(writer, _helper))['pending_from_seq'], isNull);
+      expect((await _member_(writer, _member))['pending_from_seq'], isNull);
+      expect(
+        (await changedStepIds(2)).toSet().difference({_a, _b}),
+        isEmpty,
+      );
+    });
+
+    test('a cant make reschedule adds no change lines for steps that only '
+        'shifted position', () async {
+      await save([
+        _s(_a, who: _helper, startMin: 0),
+        _s(_b, who: _member, startMin: 60),
+        _s(_c, startMin: 120),
+      ]);
+      await plan.ack(actorId: _member, beaconId: _request, uptoSeq: 1);
+      await plan.cantMake(
+        actorId: _helper,
+        stepId: _a,
+        option: PlanCantMakeOption.reschedule,
+        baseSeq: 1,
+        newStartAt: _t0.add(const Duration(minutes: 180)),
+      );
+      expect(await liveIds(), [_b, _c, _a]);
+      expect((await _member_(writer, _member))['pending_from_seq'], isNull);
+      expect((await changedStepIds(2)).toSet(), {_a});
+    });
+  });
 
   test('plan steps never fire the per-row coordination_item notify', () async {
     final triggers = await writer.execute('''

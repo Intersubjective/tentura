@@ -406,6 +406,7 @@ class BeaconPlanCase extends UseCaseBase {
         if (merged.length > BeaconPlanConsts.maxSteps) {
           throw const PlanTooLargeException();
         }
+        merged = merged.chronological();
         if (merged.sameAs(theirs)) {
           return PlanSaveOutcome(
             kind: PlanSaveOutcomeKind.noop,
@@ -493,7 +494,7 @@ class BeaconPlanCase extends UseCaseBase {
             s.copyWith(assigneeId: () => null)
           else
             s,
-      ]);
+      ]).chronological();
       if (restored.sameAs(theirs)) {
         return PlanSaveOutcome(
           kind: PlanSaveOutcomeKind.noop,
@@ -679,7 +680,7 @@ class BeaconPlanCase extends UseCaseBase {
                 )
               else
                 s,
-          ]);
+          ]).chronological();
           _validateSnapshot(changed);
         case PlanCantMakeOption.handover:
           if (toUserId == null ||
@@ -882,7 +883,7 @@ class BeaconPlanCase extends UseCaseBase {
         ),
       );
     }
-    final snapshot = PlanSnapshot(steps);
+    final snapshot = PlanSnapshot(steps).chronological();
     await _repo.insertRevision(
       beaconId: targetBeaconId,
       seq: 1,
