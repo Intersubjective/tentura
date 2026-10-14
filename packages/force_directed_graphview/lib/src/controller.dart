@@ -39,6 +39,7 @@ class GraphController<N, E> with ChangeNotifier {
   LazyBuilding? _lazyBuilding;
   TransformationController? _transformationController;
   final ValueNotifier<int> _cameraRevision = ValueNotifier<int>(0);
+  final ValueNotifier<int> _topologyRevision = ValueNotifier<int>(0);
   GraphCanvasSize? _size;
   Size? _lastLayoutConstraints;
 
@@ -134,6 +135,9 @@ class GraphController<N, E> with ChangeNotifier {
 
   /// Increments on every camera transform change (pan/zoom/fit/jump).
   ValueListenable<int> get cameraRevision => _cameraRevision;
+
+  /// Changes only when layout-affecting node/edge topology changes.
+  ValueListenable<int> get topologyRevision => _topologyRevision;
 
   /// Revision of the scene captured by [renderSnapshot].
   int get sceneRevision => _scene.sceneRevision;
@@ -655,8 +659,20 @@ class GraphController<N, E> with ChangeNotifier {
       return false;
     });
     // Commit every value before any listener observes this scene revision.
-    for (final position in changed) {
-      position._publish();
+    void publishSceneValues() {
+      if (_disposed) return;
+      _topologyRevision.value = _scene.topologyRevision;
+      for (final position in changed) {
+        if (position.hasListeners) position._publish();
+      }
+    }
+
+    // View deactivation can clear a drag while the widget tree is building.
+    final scheduler = _schedulerBindingOrNull();
+    if (scheduler?.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      scheduler!.addPostFrameCallback((_) => publishSceneValues());
+    } else {
+      publishSceneValues();
     }
     final generation = ++_publicationGeneration;
     final topologyRevision = _scene.topologyRevision;
@@ -1293,6 +1309,7 @@ class GraphController<N, E> with ChangeNotifier {
     _ticker?.dispose();
     _ticker = null;
     _cameraRevision.dispose();
+    _topologyRevision.dispose();
     for (final position in _nodePositions.values) {
       position.dispose();
     }

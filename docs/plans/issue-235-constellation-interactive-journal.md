@@ -1513,3 +1513,12 @@ the five rewritten pg files; custom lints; non-pg `test/api` and `test/domain`
 **Blocker.** The analyzer still cannot pass while `test/node_drag_gesture_test.dart:13-14` retains the unused `viewportSize` and `canvasSize` locals. The current instruction explicitly leaves that filed defect out of scope, so both locals and their diagnostics remain unchanged.
 
 **Formatting.** The non-mutating formatter check reports existing formatting differences in both the unchanged baseline and repaired test file (checked with the package's Dart 3.0 language version). The source repair remains one line; `git diff --check` passes.
+
+
+## UNIT U34 — client part 2/2 (tentura-s7gl.67) — 2026-10-14
+
+**Changed.** The body BlocBuilder no longer depends on `graphRevision`. Each node presentation subscribes to its own `GraphController.positionListenableForId` through a `ValueListenableBuilder<Offset>`, so a drag move rebuilds only the node widgets whose position changed. `GraphController` now publishes changed per-node positions after the frame when a scene update lands in the persistent-callbacks phase (view deactivation can clear a drag mid-build), and skips nodes nobody listens to.
+
+**Verified.** `constellation_node_position_rebuild_test.dart` (build counters: a `graphRevision`-only emission rebuilds neither the body nor GraphView; one drag move rebuilds only the dragged cluster's node widgets), the constellation client tests, the graph package tests, client custom lints and the client analyzer baseline.
+
+**Not done here: the N=300 profile-web drag-frame measurement (< 8 ms).** It needs a real browser in profile mode, which the Alloy sandbox cannot start. It belongs to tentura-s7gl.71 (profile web benchmark at N=100/300/600, recorded here). An unreviewed draft harness from the s7gl.67 run is parked in git stash ("DRAFT profile-web drag bench for s7gl.71"); its evidence gate test pins source fingerprints and artifact age, so it must not land on main as is.

@@ -529,7 +529,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
       child: BlocBuilder<ConstellationCubit, ConstellationState>(
         buildWhen: (previous, current) =>
             previous.status != current.status ||
-            previous.graphRevision != current.graphRevision ||
             previous.loadError != current.loadError ||
             previous.selectedPersonId != current.selectedPersonId ||
             previous.selectedRequestId != current.selectedRequestId ||
@@ -587,8 +586,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
               if (resolved == null || cubit.layoutEgoId.isEmpty) {
                 return const SizedBox.shrink();
               }
-
-              final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
 
               final panelVisible =
                   state.selectedPersonId != null ||
@@ -654,12 +651,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                 : 1,
                             sizing: StackFit.expand,
                             children: [
-                              _buildGraphStack(
-                                context,
-                                cubit,
-                                state,
-                                layoutAlgorithm,
-                                panelVisible,
+                              ValueListenableBuilder<int>(
+                                valueListenable:
+                                    cubit.graphController.topologyRevision,
+                                builder: (context, _, _) => _buildGraphStack(
+                                  context,
+                                  cubit,
+                                  cubit.state,
+                                  cubit.graphSceneLayoutAlgorithm,
+                                  panelVisible,
+                                ),
                               ),
                               const ConstellationTextView(),
                             ],
@@ -909,13 +910,18 @@ class _ConstellationBodyState extends State<ConstellationBody>
             if (mapNode is! _ConstellationMapNode) {
               return mapNode;
             }
-            return _wrapConstellationMapNodeSemantics(
-              context: context,
-              cubit: cubit,
-              state: state,
-              node: node,
-              panelVisible: panelVisible,
-              mapNode: mapNode,
+            return ValueListenableBuilder<Offset>(
+              valueListenable: cubit.graphController.positionListenableForId(
+                node.graphNodeId,
+              ),
+              builder: (context, _, _) => _wrapConstellationMapNodeSemantics(
+                context: context,
+                cubit: cubit,
+                state: state,
+                node: node,
+                panelVisible: panelVisible,
+                mapNode: mapNode,
+              ),
             );
           },
         ),
