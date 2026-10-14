@@ -16,7 +16,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// It is the house event sub-card ([AttentionMiniCard]): author avatar, the
 /// event line, its age, and the ×. The dismissal lives in
 /// [OfferAcceptedDismissals], so dismissing it in one place dismisses it in
-/// both and it stays dismissed.
+/// both and on every device of the account, and it stays dismissed.
 class OfferAcceptedEventSubcard extends StatelessWidget {
   const OfferAcceptedEventSubcard({
     required this.beaconId,
@@ -52,10 +52,11 @@ class OfferAcceptedEventSubcard extends StatelessWidget {
   Widget build(BuildContext context) {
     final dismissals = store ?? OfferAcceptedDismissals.instance;
     final l10n = L10n.of(context)!;
+    unawaited(dismissals.ensureLoadedFor(viewerId));
     return ListenableBuilder(
       listenable: dismissals,
       builder: (context, _) {
-        if (dismissals.isDismissed(viewerId: viewerId, beaconId: beaconId)) {
+        if (!dismissals.shouldShow(viewerId: viewerId, beaconId: beaconId)) {
           return const SizedBox.shrink();
         }
         final name = author.shownName.trim();

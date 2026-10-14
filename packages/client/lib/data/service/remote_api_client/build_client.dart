@@ -334,6 +334,8 @@ class _V2RoutingLink extends Link {
     'RoomMessageDelete',
     'MarkThreadSeen',
     'MarkBeaconPeopleSeen',
+    'OfferAcceptedDismissals',
+    'DismissOfferAccepted',
     'BeaconFactCardList',
     'BeaconFactCardPin',
     'BeaconFactCardCorrect',

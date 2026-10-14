@@ -68,6 +68,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInboxRoomContextRow,
   gqlTypeBeaconRoomSeenResult,
   gqlTypeBeaconPeopleSeenResult,
+  gqlTypeOfferAcceptedDismissals,
   gqlTypeTagCount,
   gqlTypeTagBeaconRef,
   gqlTypeCapabilityForViewer,
@@ -691,6 +692,17 @@ final gqlTypeBeaconRoomSeenResult =
         // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
         field('threadItemId', graphQLString),
         field('seenAt', graphQLString.nonNullable()),
+      ]);
+
+/// B077b — the viewer's account-wide «offer accepted» sub-card dismissals.
+final gqlTypeOfferAcceptedDismissals =
+    GraphQLObjectType('OfferAcceptedDismissals', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field(
+          'beaconIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
       ]);
 
 /// Result of marking the beacon People tab as seen (author/steward watermark).
