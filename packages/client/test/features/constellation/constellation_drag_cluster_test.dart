@@ -36,7 +36,7 @@ void main() {
   });
 
   group('constellationLimitClusterDelta', () {
-    test('scales delta so a companion stays inside the envelope', () {
+    test('does not limit the parent by a companion near the envelope', () {
       const parentStart = (x: 2048.0, y: 2048.0);
       // Companion near +10 units edge (2048 + 10*170 = 3748).
       const companionStart = (x: 3700.0, y: 2048.0);
@@ -45,15 +45,17 @@ void main() {
         proposedParent: (x: 2048 + 500, y: 2048),
         companionStarts: const [companionStart],
       );
-      expect(limited.x, lessThan(500));
-      expect(limited.x, greaterThan(0));
-      final companionNext = (
-        x: companionStart.x + limited.x,
-        y: companionStart.y + limited.y,
+      expect(limited.x, closeTo(500, 1e-6));
+    });
+
+    test('a companion follows the parent but stops inside the envelope', () {
+      const companionStart = (x: 3700.0, y: 2048.0);
+      final next = constellationCompanionPosition(
+        companionStart: companionStart,
+        parentDelta: (x: 500.0, y: 100.0),
       );
-      final units =
-          (companionNext.x - 2048) / 170;
-      expect(units, lessThanOrEqualTo(10.0001));
+      expect((next.x - 2048) / 170, closeTo(10, 1e-3));
+      expect(next.y, closeTo(2148, 1e-6));
     });
   });
 

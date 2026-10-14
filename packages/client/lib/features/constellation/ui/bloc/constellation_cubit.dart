@@ -867,11 +867,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required String nodeId,
     required Offset sceneCentre,
   }) {
-    if (isClosed || _interaction.draggingNodeId != nodeId) {
+    if (isClosed) {
       return;
     }
     final target = state.activePlacementTarget;
     if (target == null) {
+      return;
+    }
+    // The held node is named by its domain id (gesture layer) or graph id.
+    final dragging = _interaction.draggingNodeId;
+    if (dragging == null ||
+        (dragging != nodeId &&
+            nodeId != constellationGraphNodeIdForTarget(target))) {
       return;
     }
     _interaction.updateDragPresentation(target, sceneCentre);
@@ -1063,7 +1070,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (start == null) {
         continue;
       }
-      final centre = start + parentDelta;
+      final centre = _interaction.clusterCentreFor(
+        entry.key,
+        parentGraphId,
+        (x: parentDelta.dx, y: parentDelta.dy),
+      );
       final companionTarget = entry.value;
       companions.add((
         target: companionTarget,
@@ -1183,9 +1194,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (start == null) {
         continue;
       }
-      final centre = Offset(
-        start.dx + limited.x,
-        start.dy + limited.y,
+      final centre = _interaction.clusterCentreFor(
+        graphId,
+        parentGraphId,
+        limited,
       );
       final token = graphController.activePresentationTokenForNode(graphId);
       if (token != null) {

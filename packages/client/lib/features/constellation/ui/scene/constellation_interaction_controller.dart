@@ -76,10 +76,7 @@ class ConstellationInteractionController {
       if (start == null) {
         continue;
       }
-      final centre = Offset(
-        start.dx + limited.x,
-        start.dy + limited.y,
-      );
+      final centre = clusterCentreFor(graphId, parentGraphId, limited);
       final token = _graphController.activePresentationTokenForNode(graphId);
       if (token != null) {
         updates[token] = centre;
@@ -206,6 +203,24 @@ class ConstellationInteractionController {
       clusterStartCentres[graphId] = Offset(fallback.x, fallback.y);
       return;
     }
+  }
+
+  /// Where [graphId] rests when the parent moved by [parentDelta]: the parent
+  /// at the delta itself, a companion following it but stopping at the edges.
+  Offset clusterCentreFor(
+    GraphNodeId graphId,
+    GraphNodeId parentGraphId,
+    ConstellationPoint parentDelta,
+  ) {
+    final start = clusterStartCentres[graphId]!;
+    if (graphId == parentGraphId) {
+      return Offset(start.dx + parentDelta.x, start.dy + parentDelta.y);
+    }
+    final point = constellationCompanionPosition(
+      companionStart: (x: start.dx, y: start.dy),
+      parentDelta: parentDelta,
+    );
+    return Offset(point.x, point.y);
   }
 
   Iterable<ConstellationPoint> companionClusterStarts(

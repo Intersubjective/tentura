@@ -82,7 +82,52 @@ bool constellationAnchorAdoptedAt({
   return false;
 }
 
-/// Scene delta that keeps a rigid cluster inside the envelope and canvas.
+bool _centreValid(ConstellationPoint centre, ConstellationSize size) =>
+    constellationPointWithinEnvelope(centre) &&
+    constellationBoundsWithinCanvas(
+      constellationRenderedBounds(centre: centre, size: size),
+    );
+
+/// Moves [start] by [delta] one axis at a time, stopping each axis at the last
+/// valid position, so a body pressed against a wall keeps sliding along it.
+ConstellationPoint _slideWithinBounds(
+  ConstellationPoint start,
+  ConstellationPoint delta,
+  ConstellationSize size,
+) {
+  double settle(double raw, bool Function(double) valid) {
+    if (valid(raw)) {
+      return raw;
+    }
+    var lo = 0.0;
+    var hi = 1.0;
+    for (var i = 0; i < 30; i++) {
+      final mid = (lo + hi) / 2;
+      if (valid(raw * mid)) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return raw * lo;
+  }
+
+  final dx = settle(
+    delta.x,
+    (d) => _centreValid((x: start.x + d, y: start.y), size),
+  );
+  final dy = settle(
+    delta.y,
+    (d) => _centreValid((x: start.x + dx, y: start.y + d), size),
+  );
+  return (x: start.x + dx, y: start.y + dy);
+}
+
+/// Scene delta for the dragged parent, limited by the parent's own bounds only
+/// (the envelope and the canvas); pinned companions never limit it.
+///
+/// [companionStarts] is accepted for call-site symmetry and ignored: each
+/// companion is limited on its own by [constellationCompanionPosition].
 ConstellationPoint constellationLimitClusterDelta({
   required ConstellationPoint parentStart,
   required ConstellationPoint proposedParent,
@@ -90,45 +135,21 @@ ConstellationPoint constellationLimitClusterDelta({
   ConstellationSize parentSize = kConstellationDragPersonBodySize,
   ConstellationSize companionSize = kConstellationDragRequestBodySize,
 }) {
-  final raw = (
-    x: proposedParent.x - parentStart.x,
-    y: proposedParent.y - parentStart.y,
+  final parent = _slideWithinBounds(
+    parentStart,
+    (
+      x: proposedParent.x - parentStart.x,
+      y: proposedParent.y - parentStart.y,
+    ),
+    parentSize,
   );
-
-  bool valid(ConstellationPoint centre, {required ConstellationSize size}) {
-    return constellationPointWithinEnvelope(centre) &&
-        constellationBoundsWithinCanvas(
-          constellationRenderedBounds(centre: centre, size: size),
-        );
-  }
-
-  bool clusterOk(ConstellationPoint delta) {
-    final parent = (x: parentStart.x + delta.x, y: parentStart.y + delta.y);
-    if (!valid(parent, size: parentSize)) {
-      return false;
-    }
-    for (final start in companionStarts) {
-      final next = (x: start.x + delta.x, y: start.y + delta.y);
-      if (!valid(next, size: companionSize)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  if (clusterOk(raw)) {
-    return raw;
-  }
-  var lo = 0.0;
-  var hi = 1.0;
-  for (var i = 0; i < 24; i++) {
-    final mid = (lo + hi) / 2;
-    final scaled = (x: raw.x * mid, y: raw.y * mid);
-    if (clusterOk(scaled)) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-  return (x: raw.x * lo, y: raw.y * lo);
+  return (x: parent.x - parentStart.x, y: parent.y - parentStart.y);
 }
+
+/// Where a pinned companion rests when its parent moved by [parentDelta]: it
+/// follows the parent and stops at the envelope and canvas edges by itself.
+ConstellationPoint constellationCompanionPosition({
+  required ConstellationPoint companionStart,
+  required ConstellationPoint parentDelta,
+  ConstellationSize companionSize = kConstellationDragRequestBodySize,
+}) => _slideWithinBounds(companionStart, parentDelta, companionSize);
