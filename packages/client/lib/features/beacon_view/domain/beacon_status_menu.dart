@@ -44,6 +44,10 @@ enum BeaconStatusMenuDisabledReason {
   terminalState,
   cancelHasCommitters,
   reopenLimitReached,
+
+  /// The request is «Needs more help» (where a reopen lands it): marking
+  /// «Enough help» is the step before wrapping up or closing (B081).
+  markEnoughHelpFirst,
 }
 
 class ClosureMenuSnapshot {
@@ -299,6 +303,15 @@ bool _closeBlocked(BeaconStatusMenuInput input) =>
     input.closureReadiness == BeaconClosureReadiness.blocked &&
     !input.allowForceCloseWhenBlocked;
 
+/// Why a blocked close path is disabled. «Needs more help» counts as a
+/// closure-blocking state, but it is the author's own status, not a blocker
+/// they can find anywhere: name the step that clears it (B081).
+BeaconStatusMenuDisabledReason _closeBlockedReason(
+  BeaconStatusMenuInput input,
+) => input.beacon.status == BeaconStatus.needsMoreHelp
+    ? BeaconStatusMenuDisabledReason.markEnoughHelpFirst
+    : BeaconStatusMenuDisabledReason.blocked;
+
 BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
   final review = input.closure;
@@ -336,12 +349,12 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   }
 
   if (_closeBlocked(input)) {
-    return const BeaconStatusMenuRow(
+    return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
       isSelected: false,
       isEnabled: false,
-      disabledReason: BeaconStatusMenuDisabledReason.blocked,
+      disabledReason: _closeBlockedReason(input),
     );
   }
 
@@ -403,12 +416,12 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (_closeBlocked(input)) {
-    return const BeaconStatusMenuRow(
+    return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
       isEnabled: false,
-      disabledReason: BeaconStatusMenuDisabledReason.blocked,
+      disabledReason: _closeBlockedReason(input),
     );
   }
 
