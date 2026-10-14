@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -57,6 +58,9 @@ class _ConstellationViewportOverlayState
   Locale? _cacheLocale;
   Brightness? _cacheBrightness;
   double? _cacheTextScaleKey;
+  List<Object?>? _placementKey;
+  ConstellationPresentationFrame? _placementFrame;
+  Offset _placementOrigin = Offset.zero;
 
   void _maybeClearLabelCache(BuildContext context, int nodeCount) {
     final locale = Localizations.localeOf(context);
@@ -310,16 +314,55 @@ class _ConstellationViewportOverlayState
               );
             }
 
-            final frame = computeConstellationPresentationFrame(
+            // Exact scale buckets preserve marker geometry during zoom.
+            // Translation is excluded; placement includes offscreen nodes
+            // so a pan can reveal them without another collision pass.
+            final placementKey = <Object?>[
+              controller,
+              controller.sceneRevision,
+              scale,
+              viewport,
+              _detail,
+              rtl,
+              gap,
+              Theme.of(context),
+              _cacheLocale,
+              _cacheTextScaleKey,
+              for (final input in inputs)
+                (
+                  input.id,
+                  input.bodyDiameter,
+                  input.badgeOverhang,
+                  input.labelSize,
+                  input.priority,
+                  input.ring,
+                  input.labelCandidate,
+                ),
+              for (final chip in chipInputs)
+                (chip.authorId, chip.authorGraphId, chip.size),
+            ];
+            final origin = controller.sceneToViewportLocal(Offset.zero);
+            if (_placementFrame == null ||
+                !listEquals(_placementKey, placementKey)) {
+              _placementKey = placementKey;
+              _placementOrigin = origin;
+              _placementFrame = computeConstellationPresentationFrame(
+                snapshot: snapshot,
+                cameraRevision: controller.cameraRevision.value,
+                detail: _detail,
+                viewport: viewport,
+                nodesInPaintOrder: inputs,
+                chips: chipInputs,
+                gap: gap,
+                minTarget: kMinInteractiveDimension,
+                rtl: rtl,
+                cullToViewport: false,
+              );
+            }
+            final frame = _placementFrame!.translated(
               snapshot: snapshot,
               cameraRevision: controller.cameraRevision.value,
-              detail: _detail,
-              viewport: viewport,
-              nodesInPaintOrder: inputs,
-              chips: chipInputs,
-              gap: gap,
-              minTarget: kMinInteractiveDimension,
-              rtl: rtl,
+              delta: origin - _placementOrigin,
             );
             widget.frameHolder.frame = frame;
 

@@ -98,6 +98,27 @@ final class ConstellationPresentationFrame {
   final Map<GraphNodeId, Rect> tapTargets;
   final Map<String, Rect> chips;
   final Set<GraphNodeId> forcedLabels;
+
+  ConstellationPresentationFrame translated({
+    required Object snapshot,
+    required int cameraRevision,
+    required Offset delta,
+  }) {
+    Map<K, Rect> shift<K>(Map<K, Rect> rects) => {
+      for (final entry in rects.entries) entry.key: entry.value.shift(delta),
+    };
+    return ConstellationPresentationFrame(
+      snapshot: snapshot,
+      cameraRevision: cameraRevision,
+      detail: detail,
+      paintOrder: paintOrder,
+      bodies: shift(bodies),
+      labels: shift(labels),
+      tapTargets: shift(tapTargets),
+      chips: shift(chips),
+      forcedLabels: forcedLabels,
+    );
+  }
 }
 
 ConstellationPresentationFrame computeConstellationPresentationFrame({
@@ -110,6 +131,7 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
   required double gap,
   required double minTarget,
   required bool rtl,
+  bool cullToViewport = true,
 }) {
   final viewportRect = Offset.zero & viewport;
   final paintOrder = nodesInPaintOrder.map((n) => n.id).toList(growable: false);
@@ -130,7 +152,7 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     final cullGrow =
         math.max(node.labelSize.width, node.labelSize.height) + gap;
     final cullRect = body.inflate(cullGrow);
-    if (!cullRect.overlaps(viewportRect)) {
+    if (cullToViewport && !cullRect.overlaps(viewportRect)) {
       culled.add(node.id);
       continue;
     }
@@ -145,7 +167,7 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     );
   }
 
-  final occupied = <Rect>[];
+  final occupied = _OccupiedGrid();
   for (final id in paintOrder) {
     final decorated = decoratedBodies[id];
     if (decorated != null) {
@@ -176,7 +198,11 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
       _chipRectAbove(body, chip.size, gap),
     ];
     final placed =
-        _firstFittingCandidate(candidates, viewportRect, occupied) ??
+        _firstFittingCandidate(
+          candidates,
+          cullToViewport ? viewportRect : null,
+          occupied,
+        ) ??
         candidates.first;
     placedChips[chip.authorId] = placed;
     occupied.add(placed.inflate(1));
@@ -206,7 +232,11 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
       _labelRectEnd(body, node.labelSize, gap, rtl: rtl),
       _labelRectStart(body, node.labelSize, gap, rtl: rtl),
     ];
-    final placed = _firstFittingCandidate(candidates, viewportRect, occupied);
+    final placed = _firstFittingCandidate(
+      candidates,
+      cullToViewport ? viewportRect : null,
+      occupied,
+    );
     if (placed != null) {
       labels[node.id] = placed;
       occupied.add(placed.inflate(1));
@@ -241,14 +271,19 @@ Rect _symmetricMinTargetRect(Rect body, double minTarget) {
   );
 }
 
+/// Number of label/chip placement searches run; lets tests assert pan reuse.
+@visibleForTesting
+int constellationPlacementCount = 0;
+
 Rect? _firstFittingCandidate(
   List<Rect> candidates,
-  Rect viewport,
-  List<Rect> occupied,
+  Rect? viewport,
+  _OccupiedGrid occupied,
 ) {
+  constellationPlacementCount++;
   for (final candidate in candidates) {
-    if (!_rectFullyInside(candidate, viewport)) continue;
-    if (!_intersectsAny(candidate, occupied)) {
+    if (viewport != null && !_rectFullyInside(candidate, viewport)) continue;
+    if (!occupied.intersects(candidate)) {
       return candidate;
     }
   }
@@ -262,11 +297,41 @@ bool _rectFullyInside(Rect inner, Rect outer) {
       inner.bottom <= outer.bottom;
 }
 
-bool _intersectsAny(Rect rect, List<Rect> others) {
-  for (final other in others) {
-    if (rect.overlaps(other)) return true;
+/// Screen-space collision broad phase; cell size does not affect placement.
+final class _OccupiedGrid {
+  static const _cellSize = 64.0;
+  final _cells = <(int, int), List<Rect>>{};
+
+  Iterable<(int, int)> _keys(Rect rect) sync* {
+    for (
+      var x = (rect.left / _cellSize).floor();
+      x <= (rect.right / _cellSize).floor();
+      x++
+    ) {
+      for (
+        var y = (rect.top / _cellSize).floor();
+        y <= (rect.bottom / _cellSize).floor();
+        y++
+      ) {
+        yield (x, y);
+      }
+    }
   }
-  return false;
+
+  void add(Rect rect) {
+    for (final key in _keys(rect)) {
+      (_cells[key] ??= []).add(rect);
+    }
+  }
+
+  bool intersects(Rect rect) {
+    for (final key in _keys(rect)) {
+      for (final other in _cells[key] ?? const <Rect>[]) {
+        if (rect.overlaps(other)) return true;
+      }
+    }
+    return false;
+  }
 }
 
 Rect _rectUnion(Rect a, Rect b) {
