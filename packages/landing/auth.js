@@ -10,10 +10,23 @@ export class EmailLinkError extends Error {
   }
 }
 
+// Same rule as the server's kAuthEmailPattern (email_auth_util.dart). The
+// server answers {ok:true} even for a malformed address (it never reveals
+// whether a link went out), so the page would claim "Link sent" for "nope".
+const EMAIL_PATTERN = /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/;
+
+/** Whether a normalized (trimmed, lower-cased) address can receive a link. */
+export function isValidEmailFormat(normalized) {
+  return EMAIL_PATTERN.test(normalized);
+}
+
 /** Start magic-link sign-in/signup; server always responds generically when accepted. */
 export async function startEmailMagicLink({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
   if (!normalized) throw new EmailLinkError('Please enter your email.');
+  if (!isValidEmailFormat(normalized)) {
+    throw new EmailLinkError('Please enter a valid email address.');
+  }
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
   let res;
