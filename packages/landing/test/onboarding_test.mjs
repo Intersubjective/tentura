@@ -152,11 +152,14 @@ test('pager clamps page index and hidden controls actually hide', () => {
   assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
 });
 
-test('pager Back stays visible on first slide and returns to name step', () => {
-  // Page 0 Back must not be hidden — it returns to the name step.
-  assert.doesNotMatch(onboardingJs, /back\.hidden\s*=\s*page\s*===\s*0/);
-  assert.match(onboardingJs, /onBackFromFirstPage/);
-  assert.match(onboardingJs, /onboarding_back/);
+test('U085: pager hides Back on the first slide (the name is already saved)', () => {
+  assert.match(onboardingJs, /back\.hidden\s*=\s*page\s*===\s*0/);
+  // No path from the pager back into the name step any more.
+  assert.doesNotMatch(onboardingJs, /onBackFromFirstPage/);
+});
+
+test('U085: the name step says the name can be changed later in Profile', () => {
+  assert.match(onboardingJs, /You can change your name any time in Profile\./);
 });
 
 /**
@@ -287,7 +290,7 @@ function installDomFake() {
   return FakeNode;
 }
 
-test('save name then Back from page 1 restores saved prefill', async () => {
+test('U085: save name, then the pager starts with no Back; Back on step 2 returns to step 1', async () => {
   installDomFake();
   const events = [];
   let patchedName = null;
@@ -337,16 +340,13 @@ test('save name then Back from page 1 restores saved prefill', async () => {
 
   const back = card.querySelector('.pager-back');
   assert.ok(back);
-  assert.equal(back.hidden, false);
-  back.click();
+  assert.equal(back.hidden, true, 'no Back on step 1');
 
-  const revisited = card.querySelector('#display-name');
-  assert.ok(revisited, 'name step re-rendered');
-  assert.equal(revisited.value, 'Ada Lovelace');
-  assert.equal(
-    card.querySelectorAll('.hint-link').length,
-    0,
-    'Skip for now hidden on revisit',
-  );
-  assert.ok(events.some((e) => e.name === 'onboarding_back'));
+  const next = card.querySelector('.btn-primary');
+  next.click();
+  assert.equal(back.hidden, false, 'Back shows from step 2');
+  back.click();
+  assert.equal(back.hidden, true, 'back on step 1');
+  assert.equal(card.querySelector('#display-name'), null, 'name step not re-rendered');
+  assert.ok(!events.some((e) => e.name === 'onboarding_back'));
 });

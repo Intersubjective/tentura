@@ -183,7 +183,6 @@ export function renderPostSignup({
         track,
         openProductUrl,
         storage,
-        onBackFromFirstPage: () => showName({ revisit: true }),
       }),
     );
   };
@@ -287,6 +286,11 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
       { class: 'signup-form', onsubmit: onSubmit, autocomplete: 'off' },
       el('label', { class: 'field-label', for: 'display-name' }, 'Your name'),
       input,
+      el(
+        'p',
+        { class: 'hint name-change-hint' },
+        'You can change your name any time in Profile.',
+      ),
       submit,
       errorEl,
     ),
@@ -307,12 +311,7 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
   return { root: el('div', { class: 'content' }, ...children), input };
 }
 
-function renderOnboardingPager({
-  track,
-  openProductUrl,
-  storage,
-  onBackFromFirstPage,
-}) {
+function renderOnboardingPager({ track, openProductUrl, storage }) {
   let page = 0;
 
   const title = el('h1', {});
@@ -361,20 +360,16 @@ function renderOnboardingPager({
       ),
     );
     const isLast = page === ONBOARDING_PAGES.length - 1;
+    // U085: the name is already saved, and the name step says it can be
+    // changed in Profile — so step 1 has nothing to go back to.
+    back.hidden = page === 0;
     next.hidden = isLast;
     next.textContent = 'Next';
     openApp.hidden = !isLast;
     track('onboarding_view', { page: page + 1 });
   };
 
-  back.addEventListener('click', () => {
-    if (page === 0) {
-      track('onboarding_back', { page: 1 });
-      onBackFromFirstPage();
-      return;
-    }
-    show(page - 1);
-  });
+  back.addEventListener('click', () => show(page - 1));
   next.addEventListener('click', () => show(page + 1));
   show(0);
 
