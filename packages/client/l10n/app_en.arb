@@ -1615,7 +1615,7 @@
   "@constellationRequestStatusEnoughHelp": {
     "context": "ConstellationRequestStatusMarker"
   },
-  "constellationRequestStatusWrappingUp": "Wrapping up",
+  "constellationRequestStatusWrappingUp": "Final check",
   "@constellationRequestStatusWrappingUp": {
     "context": "ConstellationRequestStatusMarker"
   },
@@ -1659,7 +1659,7 @@
   "@graphLegendConstellationRequestStatusEnoughHelp": {
     "description": "Constellation legend: enough help status"
   },
-  "graphLegendConstellationRequestStatusWrappingUp": "Wrapping up",
+  "graphLegendConstellationRequestStatusWrappingUp": "Final check",
   "@graphLegendConstellationRequestStatusWrappingUp": {
     "description": "Constellation legend: wrapping up status"
   },
@@ -2405,7 +2405,7 @@
   "@inboxEmptyHint": {
     "context": "InboxScreen"
   },
-  "inboxNeedsMe": "Needs me",
+  "inboxNeedsMe": "Waiting on you",
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
@@ -2626,7 +2626,7 @@
   "@beaconLifecycleCancelled": {
     "context": "InboxItemTile"
   },
-  "beaconLifecycleReviewOpen": "Wrapping up",
+  "beaconLifecycleReviewOpen": "Final check",
   "@beaconLifecycleReviewOpen": {
     "context": "InboxItemTile"
   },
@@ -2634,7 +2634,7 @@
   "@cancelBeacon": {
     "context": "BeaconOverflowMenu"
   },
-  "actionStopWatching": "Return to Needs me",
+  "actionStopWatching": "Return to Waiting on you",
   "@actionStopWatching": {
     "context": "InboxItemTile"
   },
@@ -3744,7 +3744,7 @@
       }
     }
   },
-  "activityMovedToStream": "Moved to the stream",
+  "activityMovedToStream": "Moved down to your Activity feed",
   "@activityMovedToStream": {
     "context": "InboxScreen"
   },
@@ -3941,7 +3941,7 @@
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
-  "beaconFactsRowLabel": "Facts",
+  "beaconFactsRowLabel": "Address & details",
   "@beaconFactsRowLabel": {
     "context": "BeaconViewScreen"
   },
@@ -4320,7 +4320,7 @@
   "labelWithdrawReasonRequired": "Why are you stepping back?",
   "coordinationNeutral": "—",
   "coordinationMoreHelpNeeded": "More or different help needed",
-  "coordinationEnoughHelp": "Enough help committed",
+  "coordinationEnoughHelp": "Enough help",
   "coordinationUseful": "Useful",
   "coordinationOverlapping": "Overlapping",
   "coordinationNeedDifferentSkill": "Need different skill",
@@ -4352,7 +4352,7 @@
   "labelBeaconTabActivity": "Timeline",
   "labelBeaconTabLog": "Log",
   "labelBeaconTabThreads": "Threads",
-  "labelBeaconTabNow": "Now",
+  "labelBeaconTabNow": "Overview",
   "labelBeaconTabChat": "Chat",
   "beaconChildRequestsTitle": "Child requests",
   "beaconCreateChildRequest": "Create child request",
@@ -4473,7 +4473,7 @@
   "beaconYouActionUpdate": "Update",
   "beaconYouActionWithdraw": "Withdraw",
   "beaconYouActionResolve": "Resolve",
-  "beaconHudNoCurrentLine": "Nothing noted yet",
+  "beaconHudNoCurrentLine": "No next step yet",
   "beaconHudEditCurrentLineTitle": "Next step",
   "beaconHudEditNowLine": "Edit next step",
   "beaconHudSituationPanelTitle": "Situation",
@@ -4590,9 +4590,9 @@
   "beaconCloseSheetReadyReviewTitle": "Close and wrap up?",
   "beaconCloseSheetReadyReviewBody": "Helpers who committed will get a review window to acknowledge contributions.",
   "beaconCloseSheetReadyImmediateBody": "This marks the request complete with no review window.",
-  "beaconCloseSheetReviewWrappingUpBody": "Some items still need your judgment before wrapping up.",
-  "beaconCloseSheetPrematureReviewBody": "There is not enough completion evidence yet. Wrapping up now may skip coordination context.",
-  "beaconCloseSheetBranchWrappingUp": "Outcome: Wrapping up (review window)",
+  "beaconCloseSheetReviewWrappingUpBody": "Some items still need your judgment before the final check.",
+  "beaconCloseSheetPrematureReviewBody": "There is not enough completion evidence yet. Starting the final check now may skip coordination context.",
+  "beaconCloseSheetBranchWrappingUp": "Outcome: Final check (review window)",
   "beaconCloseSheetBranchClosedImmediate": "Outcome: Closed immediately",
   "beaconReviewExtendAction": "Extend review",
   "beaconReviewReopenAction": "Reopen",
@@ -4637,7 +4637,7 @@
     "description": "My Work section header for finished requests without live obligations"
   },
   "myWorkFinishedHint": "Finished requests stay here until you archive them.",
-  "myWorkStatusWrappingUp": "Wrapping up",
+  "myWorkStatusWrappingUp": "Final check",
   "myWorkStatusCancelled": "Cancelled",
   "beaconClosurePanelTitleReady": "Close the loop",
   "beaconClosurePanelTitleReview": "Review before closing",
@@ -4653,7 +4653,7 @@
   "beaconPeopleLensRoomMembersHeading": "Discussion participants",
   "beaconPeopleLensActiveHelpersHeading": "Active helpers",
   "beaconPeopleLensWillingToHelpHeading": "Willing to help",
-  "beaconPeopleLensNotFittingHeading": "Not fitting",
+  "beaconPeopleLensNotFittingHeading": "Declined offers",
   "beaconPeopleLensWithdrawnHeading": "Withdrawn",
   "beaconPeopleLensNeedsAttentionHeading": "Needs coordination",
   "beaconCtaUpdateStatus": "Update status",
@@ -4696,7 +4696,7 @@
   "requestStatusActivityOpen": "open for offers",
   "requestStatusActivityMoreHelp": "needing more help",
   "requestStatusActivityEnoughHelp": "having enough help",
-  "requestStatusActivityWrappingUp": "wrapping up",
+  "requestStatusActivityWrappingUp": "final check",
   "requestStatusActivityClosed": "closed",
   "requestStatusActivityCancelled": "cancelled",
   "requestStatusActivityDraft": "draft",
@@ -4783,7 +4783,7 @@
   "beaconStatusRowDraft": "Draft",
   "beaconStatusRowOpen": "Open",
   "beaconStatusRowPublish": "Publish",
-  "beaconStatusRowWrappingUp": "Wrapping up",
+  "beaconStatusRowWrappingUp": "Final check",
   "beaconStatusRowClosed": "Closed",
   "beaconStatusRowCancelled": "Cancelled",
   "beaconStatusHintPublishFirst": "Publish the request first",
@@ -4792,7 +4792,7 @@
   "beaconStatusHintNoCommitters": "No committed helpers to review yet",
   "beaconStatusHintCancelHasOffers": "Can't cancel after help was offered",
   "beaconStatusCancelHasCommitters": "Can't cancel — someone committed; close instead",
-  "beaconStatusHintCancelWrappingUp": "Request is wrapping up",
+  "beaconStatusHintCancelWrappingUp": "Request is in final check",
   "beaconStatusHintBlocked": "Resolve open blockers first",
   "beaconStatusHintNotReadyToClose": "Not ready to close yet",
   "beaconStatusHintAuthorOnly": "Only the request author can change this",
@@ -6081,7 +6081,7 @@
   "@beaconPhaseBlockerNeedsClearing": {
     "description": "STATUS slot2 for blocked phase — action cue, not group diffusion"
   },
-  "beaconPhaseWrappingUp": "Wrapping up",
+  "beaconPhaseWrappingUp": "Final check",
   "beaconPhaseNeedsMoreHelp": "Needs more help",
   "beaconPhaseEnoughHelpInMotion": "Enough help — in motion",
   "beaconPhaseOffersAwaitingAuthor": "Offers awaiting author",
@@ -6780,7 +6780,7 @@
   "@updatesFallbackTitleHierarchyStatusChanged": {
     "description": "Event label: a parent or child request of this one changed status."
   },
-  "closureAuthorTitle": "Sum up",
+  "closureAuthorTitle": "Close & sum up",
   "@closureAuthorTitle": {
     "description": "Author closure screen title."
   },
@@ -7635,7 +7635,7 @@
   },
   "beaconShowcaseReadMore": "Read more",
   "beaconShowcaseShowLess": "Show less",
-  "beaconShowcaseTeamLabel": "IN ON IT",
+  "beaconShowcaseTeamLabel": "HELPING",
   "beaconShowcaseTeamEmpty": "Nobody yet. Be the first",
   "beaconShowcaseTeamNoAcquaintances": "{count, plural, =1{1 person is helping} other{{count} people are helping}}",
   "@beaconShowcaseTeamNoAcquaintances": {
@@ -7664,7 +7664,7 @@
       }
     }
   },
-  "beaconShowcaseTeamSheetTitle": "In on it",
+  "beaconShowcaseTeamSheetTitle": "Helping",
   "beaconShowcaseTeamHidden": "{count, plural, =1{1 more you can't see} other{{count} more you can't see}}",
   "@beaconShowcaseTeamHidden": {
     "placeholders": {

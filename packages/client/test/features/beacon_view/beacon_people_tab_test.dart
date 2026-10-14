@@ -123,7 +123,7 @@ void main() {
     expect(find.text('Forwards'), findsOneWidget);
     expect(find.text('Active helpers (1)'), findsOneWidget);
     expect(find.text('Willing to help (1)'), findsOneWidget);
-    expect(find.textContaining('Not fitting'), findsNothing);
+    expect(find.textContaining('Declined offers'), findsNothing);
 
     final forwardsTop = tester.getTopLeft(find.text('Forwards')).dy;
     final helpersTop = tester.getTopLeft(find.text('Active helpers (1)')).dy;
@@ -278,7 +278,7 @@ void main() {
           await tester.tap(find.textContaining('Forwards ('));
           await tester.pumpAndSettle();
           if (bucket == 'not fitting') {
-            await tester.tap(find.text('Not fitting (1)'));
+            await tester.tap(find.text('Declined offers (1)'));
             await tester.pumpAndSettle();
           }
           expect(find.text('Helper'), findsOneWidget);
@@ -401,7 +401,7 @@ void main() {
     expect(find.text('Helper'), findsOneWidget);
   });
 
-  testWidgets('Not fitting fold is collapsed by default', (tester) async {
+  testWidgets('Declined offers fold is collapsed by default', (tester) async {
     _state = _peopleState(
       helpOffers: [
         TimelineHelpOffer(
@@ -424,9 +424,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Not fitting (1)'), findsOneWidget);
+    expect(find.text('Declined offers (1)'), findsOneWidget);
     expect(find.text('Rejected'), findsNothing);
-    await tester.tap(find.text('Not fitting (1)'));
+    await tester.tap(find.text('Declined offers (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Rejected'), findsOneWidget);
   });
@@ -475,7 +475,7 @@ void main() {
     // Author view: pending offers open first, settled helpers collapsed.
     expect(find.text('Helper'), findsOneWidget);
     expect(find.text('Author'), findsNothing);
-    await tester.tap(find.text('Not fitting (1)'));
+    await tester.tap(find.text('Declined offers (1)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Rejected'), findsOneWidget);

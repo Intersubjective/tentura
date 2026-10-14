@@ -1570,7 +1570,7 @@
   "@constellationRequestStatusEnoughHelp": {
     "context": "ConstellationRequestStatusMarker"
   },
-  "constellationRequestStatusWrappingUp": "Завершение",
+  "constellationRequestStatusWrappingUp": "Финальная проверка",
   "@constellationRequestStatusWrappingUp": {
     "context": "ConstellationRequestStatusMarker"
   },
@@ -1614,7 +1614,7 @@
   "@graphLegendConstellationRequestStatusEnoughHelp": {
     "description": "Constellation legend: enough help status"
   },
-  "graphLegendConstellationRequestStatusWrappingUp": "Завершение",
+  "graphLegendConstellationRequestStatusWrappingUp": "Финальная проверка",
   "@graphLegendConstellationRequestStatusWrappingUp": {
     "description": "Constellation legend: wrapping up status"
   },
@@ -2325,7 +2325,7 @@
   "@inboxEmptyHint": {
     "context": "InboxScreen"
   },
-  "inboxNeedsMe": "Ждёт меня",
+  "inboxNeedsMe": "Ждёт вас",
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
@@ -2529,7 +2529,7 @@
   "@beaconLifecycleCancelled": {
     "context": "InboxItemTile"
   },
-  "beaconLifecycleReviewOpen": "Завершение",
+  "beaconLifecycleReviewOpen": "Финальная проверка",
   "@beaconLifecycleReviewOpen": {
     "context": "InboxItemTile"
   },
@@ -2537,7 +2537,7 @@
   "@cancelBeacon": {
     "context": "BeaconOverflowMenu"
   },
-  "actionStopWatching": "Вернуть в «Ждёт меня»",
+  "actionStopWatching": "Вернуть в «Ждёт вас»",
   "@actionStopWatching": {
     "context": "InboxItemTile"
   },
@@ -3647,7 +3647,7 @@
       }
     }
   },
-  "activityMovedToStream": "Перемещено в ленту",
+  "activityMovedToStream": "Перемещено ниже, в ленту «Активность»",
   "@activityMovedToStream": {
     "context": "InboxScreen"
   },
@@ -3841,7 +3841,7 @@
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
-  "beaconFactsRowLabel": "Факты",
+  "beaconFactsRowLabel": "Адрес и детали",
   "@beaconFactsRowLabel": {
     "context": "BeaconViewScreen"
   },
@@ -4249,7 +4249,7 @@
   "labelBeaconTabActivity": "Хронология",
   "labelBeaconTabLog": "Журнал",
   "labelBeaconTabThreads": "Темы",
-  "labelBeaconTabNow": "Сейчас",
+  "labelBeaconTabNow": "Обзор",
   "labelBeaconTabChat": "Чат",
   "beaconChildRequestsTitle": "Дочерние запросы",
   "beaconCreateChildRequest": "Создать дочерний запрос",
@@ -4342,7 +4342,7 @@
   "beaconYouActionUpdate": "Обновить",
   "beaconYouActionWithdraw": "Отозвать",
   "beaconYouActionResolve": "Решить",
-  "beaconHudNoCurrentLine": "Пока не указано",
+  "beaconHudNoCurrentLine": "Следующего шага пока нет",
   "beaconHudEditCurrentLineTitle": "Следующий шаг",
   "beaconHudEditNowLine": "Изменить следующий шаг",
   "beaconHudSituationPanelTitle": "Ситуация",
@@ -4459,9 +4459,9 @@
   "beaconCloseSheetReadyReviewTitle": "Закрыть и завершить?",
   "beaconCloseSheetReadyReviewBody": "Помощники с подтверждённым участием получат окно для признания вклада.",
   "beaconCloseSheetReadyImmediateBody": "Запрос будет отмечен завершённым без окна отзыва.",
-  "beaconCloseSheetReviewWrappingUpBody": "Часть сигналов всё ещё требует вашего решения перед завершением.",
-  "beaconCloseSheetPrematureReviewBody": "Недостаточно сигналов завершения. Раннее завершение может обойти контекст координации.",
-  "beaconCloseSheetBranchWrappingUp": "Итог: завершение (окно отзыва)",
+  "beaconCloseSheetReviewWrappingUpBody": "Часть сигналов всё ещё требует вашего решения перед финальной проверкой.",
+  "beaconCloseSheetPrematureReviewBody": "Недостаточно сигналов завершения. Ранняя финальная проверка может обойти контекст координации.",
+  "beaconCloseSheetBranchWrappingUp": "Итог: финальная проверка (окно отзыва)",
   "beaconCloseSheetBranchClosedImmediate": "Итог: закрыт сразу",
   "beaconReviewExtendAction": "Продлить отзыв",
   "beaconReviewReopenAction": "Открыть снова",
@@ -4506,7 +4506,7 @@
     "description": "My Work section header for finished requests without live obligations"
   },
   "myWorkFinishedHint": "Завершённые запросы остаются здесь, пока вы их не архивируете.",
-  "myWorkStatusWrappingUp": "Завершение",
+  "myWorkStatusWrappingUp": "Финальная проверка",
   "myWorkStatusCancelled": "Отменён",
   "myWorkUnarchive": "Вернуть из архива",
   "@myWorkUnarchive": {
@@ -4526,7 +4526,7 @@
   "beaconPeopleLensRoomMembersHeading": "Участники обсуждения",
   "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
   "beaconPeopleLensWillingToHelpHeading": "Готовы помочь",
-  "beaconPeopleLensNotFittingHeading": "Не подходят",
+  "beaconPeopleLensNotFittingHeading": "Отклонённые предложения",
   "beaconPeopleLensWithdrawnHeading": "Отозваны",
   "beaconPeopleLensNeedsAttentionHeading": "Нужна координация",
   "beaconCtaUpdateStatus": "Статус",
@@ -4569,7 +4569,7 @@
   "requestStatusActivityOpen": "открытый для предложений",
   "requestStatusActivityMoreHelp": "нуждающийся в помощи",
   "requestStatusActivityEnoughHelp": "с достаточной помощью",
-  "requestStatusActivityWrappingUp": "на завершении",
+  "requestStatusActivityWrappingUp": "на финальной проверке",
   "requestStatusActivityClosed": "закрытый",
   "requestStatusActivityCancelled": "отменённый",
   "requestStatusActivityDraft": "черновик",
@@ -4656,7 +4656,7 @@
   "beaconStatusRowDraft": "Черновик",
   "beaconStatusRowOpen": "Открыт",
   "beaconStatusRowPublish": "Опубликовать",
-  "beaconStatusRowWrappingUp": "Завершение",
+  "beaconStatusRowWrappingUp": "Финальная проверка",
   "beaconStatusRowClosed": "Закрыт",
   "beaconStatusRowCancelled": "Отменён",
   "beaconStatusHintPublishFirst": "Сначала опубликуйте запрос",
@@ -4665,7 +4665,7 @@
   "beaconStatusHintNoCommitters": "Пока нет участников для проверки",
   "beaconStatusHintCancelHasOffers": "Нельзя отменить после предложений помощи",
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",
-  "beaconStatusHintCancelWrappingUp": "Запрос завершается",
+  "beaconStatusHintCancelWrappingUp": "Запрос на финальной проверке",
   "beaconStatusHintBlocked": "Сначала устраните блокеры",
   "beaconStatusHintNotReadyToClose": "Пока рано закрывать",
   "beaconStatusHintAuthorOnly": "Только автор запроса может это изменить",
@@ -5636,7 +5636,7 @@
   "beaconLineagePreviewRetry": "Повторить",
   "beaconPhaseBlocked": "Заблокировано",
   "beaconPhaseBlockerNeedsClearing": "снять блок",
-  "beaconPhaseWrappingUp": "Завершение",
+  "beaconPhaseWrappingUp": "Финальная проверка",
   "beaconPhaseNeedsMoreHelp": "Нужна помощь",
   "beaconPhaseEnoughHelpInMotion": "В работе",
   "beaconPhaseOffersAwaitingAuthor": "Ждут автора",
@@ -6132,7 +6132,7 @@
   "updatesFallbackTitleObligationEnded": "Окно оценки закрылось",
   "updatesFallbackTitleCommitmentReleased": "Участие завершено",
   "updatesFallbackTitleHierarchyStatusChanged": "Статус связанного запроса изменился",
-  "closureAuthorTitle": "Подвести итоги",
+  "closureAuthorTitle": "Закрыть и подвести итоги",
   "closureAuthorOutcomeDone": "Выполнено",
   "closureAuthorOutcomeNotDone": "Не выполнено",
   "closureAuthorOutcomeCantJudge": "Не могу судить",
@@ -6401,12 +6401,12 @@
   "beaconShowcaseViaMore": "Переслал(а) {name} и ещё {count}",
   "beaconShowcaseReadMore": "Читать дальше",
   "beaconShowcaseShowLess": "Свернуть",
-  "beaconShowcaseTeamLabel": "В ДЕЛЕ",
+  "beaconShowcaseTeamLabel": "ПОМОГАЮТ",
   "beaconShowcaseTeamEmpty": "Пока никого. Будьте первым",
   "beaconShowcaseTeamNoAcquaintances": "{count, plural, =1{Помогает 1 человек} few{Помогают {count} человека} other{Помогают {count} человек}}",
   "beaconShowcaseAcquaintances": "Ваши знакомые: {names}",
   "beaconShowcaseAcquaintancesMore": "Ваши знакомые: {names} и ещё {count}",
-  "beaconShowcaseTeamSheetTitle": "В деле",
+  "beaconShowcaseTeamSheetTitle": "Помогают",
   "beaconShowcaseTeamHidden": "{count, plural, =1{Ещё 1 скрыт от вас} few{Ещё {count} скрыты от вас} other{Ещё {count} скрыты от вас}}",
   "beaconShowcaseAcquaintanceTag": "знакомый",
   "beaconShowcaseOfferPending": "Ваше предложение у автора",

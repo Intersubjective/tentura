@@ -133,7 +133,7 @@ void main() {
   testWidgets('People is labeled at index 3 when not split', (tester) async {
     await tester.pumpWidget(
       _harness(
-        width: 480,
+        width: 560,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.now,
@@ -143,7 +143,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Overview'), findsOneWidget);
     expect(find.text('Plan'), findsOneWidget);
     expect(find.text('Chat'), findsOneWidget);
     expect(find.text('People'), findsOneWidget);
@@ -152,7 +152,7 @@ void main() {
   testWidgets('People sits at index 1 when split', (tester) async {
     await tester.pumpWidget(
       _harness(
-        width: 360,
+        width: 420,
         child: BeaconSurfaceTabs(
           isSplit: true,
           selectedSurface: BeaconSurface.now,
@@ -163,7 +163,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Chat'), findsNothing);
-    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Overview'), findsOneWidget);
     expect(find.text('People'), findsOneWidget);
     expect(find.byIcon(Icons.people_outline), findsOneWidget);
     expect(find.byIcon(Icons.forum_outlined), findsNothing);
@@ -173,7 +173,7 @@ void main() {
     final selected = <BeaconSurface>[];
     await tester.pumpWidget(
       _harness(
-        width: 480,
+        width: 560,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.now,
@@ -299,7 +299,7 @@ void main() {
     final reselected = <BeaconSurface>[];
     await tester.pumpWidget(
       _harness(
-        width: 480,
+        width: 560,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.room,

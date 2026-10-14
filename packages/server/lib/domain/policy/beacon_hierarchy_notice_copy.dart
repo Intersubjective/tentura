@@ -43,7 +43,7 @@ abstract final class BeaconHierarchyNoticeCopy {
   );
 
   static String _statusAction(BeaconStatus status) => switch (status) {
-    BeaconStatus.reviewOpen => 'entered Wrapping up',
+    BeaconStatus.reviewOpen => 'entered Final check',
     BeaconStatus.closed => 'was closed',
     BeaconStatus.cancelled => 'was cancelled',
     BeaconStatus.deleted => 'was deleted',
