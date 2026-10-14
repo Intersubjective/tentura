@@ -25,7 +25,6 @@ lib/data/database/tentura_db.dart | TenturaDb.isInAmbientMutatingTransaction | w
 lib/data/database/tentura_db.dart | TenturaDb.isInAmbientMutatingTransaction | withMutatingSystem | data database TenturaDb | Ambient-transaction probe: references the wrapper to detect an open mutating scope; opens nothing
 lib/data/database/tentura_db.dart | TenturaDb.withMutatingUser | withTransaction | data database TenturaDb | Wrapper composition: this boundary is built on withTransaction inside the database class
 lib/data/database/tentura_db.dart | TenturaDb.withMutatingRepeatableRead | withMutatingUser | data database TenturaDb | Wrapper composition: this boundary is built on withMutatingUser inside the database class
-lib/data/database/tentura_db.dart | TenturaDb.withMutatingRepeatableRead | withMutatingUser | data database TenturaDb | Wrapper composition: this boundary is built on withMutatingUser inside the database class
 lib/data/database/tentura_db.dart | TenturaDb.withMutatingRepeatableRead | withTransaction | data database TenturaDb | Wrapper composition: this boundary is built on withTransaction inside the database class
 lib/data/database/tentura_db.dart | TenturaDb.withReadSnapshot | withTransaction | data database TenturaDb | Wrapper composition: this boundary is built on withTransaction inside the database class
 lib/data/database/tentura_db.dart | TenturaDb.withMutatingSystem | withTransaction | data database TenturaDb | Wrapper composition: this boundary is built on withTransaction inside the database class

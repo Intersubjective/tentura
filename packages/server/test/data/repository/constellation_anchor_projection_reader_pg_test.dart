@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
@@ -93,6 +94,39 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
           coordinateSpaceVersion: 1,
         ),
       );
+
+  // Seed writes in the caller's transaction without entering the batch API,
+  // which owns its repeatable-read transaction and rejects nesting.
+  Future<void> pinInTransaction(
+    ConstellationAnchorTarget target,
+    double x,
+    double y,
+  ) async {
+    await db.customStatement(
+      r'''
+INSERT INTO public.constellation_anchor_cursor (viewer_id)
+VALUES ($1) ON CONFLICT DO NOTHING''',
+      [viewer],
+    );
+    final isPerson = target.kind == ConstellationAnchorTargetKind.person;
+    await db.customStatement(
+      r'''
+INSERT INTO public.constellation_anchor (
+  id, viewer_id, person_id, beacon_id, x_units, y_units,
+  coordinate_space_version, revision, placed_at
+) VALUES ($1, $2, $3, $4, $5, $6, 1, 0, now())
+ON CONFLICT (viewer_id, target_kind, target_id) DO UPDATE
+SET x_units = EXCLUDED.x_units, y_units = EXCLUDED.y_units''',
+      [
+        generateId('CA'),
+        viewer,
+        if (isPerson) target.id else null,
+        if (isPerson) null else target.id,
+        x,
+        y,
+      ],
+    );
+  }
 
   Future<ConstellationAnchorProjection> anchorsSnapshotProjection({
     ConstellationFieldMembershipFilters filters =
@@ -278,8 +312,16 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
         ConstellationAnchorProjection? inside;
         try {
           await db.withMutatingRepeatableRead(viewer, () async {
-            await pin(ConstellationAnchorTarget.person(relay), 7, -7);
-            await pin(ConstellationAnchorTarget.person(pinnedPerson), 2, 3);
+            await pinInTransaction(
+              ConstellationAnchorTarget.person(relay),
+              7,
+              -7,
+            );
+            await pinInTransaction(
+              ConstellationAnchorTarget.person(pinnedPerson),
+              2,
+              3,
+            );
             inside = await reader.read(
               viewerId: viewer,
               context: ctx,
@@ -323,8 +365,16 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
 
         ConstellationAnchorProjection? inside;
         await db.withMutatingRepeatableRead(viewer, () async {
-          await pin(ConstellationAnchorTarget.person(pinnedPerson), 4, 4);
-          await pin(ConstellationAnchorTarget.beacon('Bcaprojopen01'), -2, 6);
+          await pinInTransaction(
+            ConstellationAnchorTarget.person(pinnedPerson),
+            4,
+            4,
+          );
+          await pinInTransaction(
+            ConstellationAnchorTarget.beacon('Bcaprojopen01'),
+            -2,
+            6,
+          );
           inside = await reader.read(
             viewerId: viewer,
             context: ctx,

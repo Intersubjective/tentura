@@ -417,6 +417,7 @@ class TenturaDb extends _$TenturaDb {
   /// [deadline]). Each attempt's statements are bounded by the request budget
   /// through a transaction-local `statement_timeout`: [deadline] on the first
   /// attempt, what is left of it on a retry.
+  /// Must start outside any transaction so retries release it before sleeping.
   Future<T> withMutatingRepeatableRead<T>(
     String userId,
     Future<T> Function() action, {
@@ -424,14 +425,10 @@ class TenturaDb extends _$TenturaDb {
     int maxAttempts = 3,
     Future<void> Function(Duration)? sleep,
   }) {
-    final current = Zone.current[_mutatingTransactionZoneKey];
-    if (current is _MutatingTransactionContext && _sharesScope(current.db)) {
-      if (!current.repeatableRead) {
-        return Future.error(
-          StateError('Cannot enter repeatable read inside read committed'),
-        );
-      }
-      return withMutatingUser(userId, action);
+    if (resolvedEngine.executor is TransactionExecutor) {
+      return Future.error(
+        StateError('Cannot enter repeatable read inside an open transaction'),
+      );
     }
     final clock = Stopwatch()..start();
     var attempt = 0;
