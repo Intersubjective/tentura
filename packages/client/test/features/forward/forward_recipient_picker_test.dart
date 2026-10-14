@@ -145,6 +145,83 @@ void main() {
     );
   }
 
+  testWidgets('recipient checkbox is named after the person (B071)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u1',
+              displayName: 'Alex',
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+        ],
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ForwardCubit>.value(value: cubit),
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+          ],
+          child: Scaffold(
+            body: BlocBuilder<ForwardCubit, ForwardState>(
+              builder: (context, state) => ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+                onSendPressed: () {},
+                sendEnabled: state.selectedIds.isNotEmpty,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final checkbox = find.byKey(
+      TestIds.key(TestIds.forwardRecipientCheckbox('u1')),
+    );
+    expect(
+      tester.getSemantics(checkbox),
+      isSemantics(
+        label: 'Alex',
+        hasCheckedState: true,
+        isChecked: false,
+        hasTapAction: true,
+        onTapHint: 'Select',
+      ),
+    );
+
+    await tester.tap(checkbox);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(checkbox),
+      isSemantics(label: 'Alex', isChecked: true, onTapHint: 'Remove'),
+    );
+    handle.dispose();
+  });
+
   testWidgets('embedded ForwardRecipientPicker hides standalone send CTA', (
     tester,
   ) async {

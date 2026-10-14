@@ -308,6 +308,7 @@ class ForwardRecipientRow extends StatelessWidget {
                 TestIds.forwardRecipientCheckbox(candidate.id),
               ),
               identifier: TestIds.forwardRecipientCheckbox(candidate.id),
+              name: profileWithContactOverlay(candidate.profile).shownName,
               isSelected: isSelected,
               enabled: checkboxEnabled,
               onTap: onToggle,
@@ -506,6 +507,7 @@ class _CapabilityHintChip extends StatelessWidget {
 class _ForwardRowCheckbox extends StatelessWidget {
   const _ForwardRowCheckbox({
     required this.identifier,
+    required this.name,
     required this.isSelected,
     required this.enabled,
     required this.onTap,
@@ -513,6 +515,9 @@ class _ForwardRowCheckbox extends StatelessWidget {
   });
 
   final String identifier;
+
+  /// The candidate's name: every row's checkbox used to read just "Select".
+  final String name;
   final bool isSelected;
   final bool enabled;
   final VoidCallback? onTap;
@@ -525,13 +530,17 @@ class _ForwardRowCheckbox extends StatelessWidget {
     final borderColor = enabled
         ? (isSelected ? tt.info : tt.textMuted)
         : tt.border;
+    final l10n = L10n.of(context)!;
+    // Named after the person, as a checkbox: "Vadim, checked". The action
+    // word (Select / Remove) is the tap hint.
     return Semantics(
       identifier: identifier,
-      label: isSelected
-          ? L10n.of(context)!.forwardCandidateRemove
-          : L10n.of(context)!.forwardCandidateSelect,
-      button: true,
+      label: name,
       checked: isSelected,
+      enabled: enabled,
+      onTapHint: isSelected
+          ? l10n.forwardCandidateRemove
+          : l10n.forwardCandidateSelect,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
