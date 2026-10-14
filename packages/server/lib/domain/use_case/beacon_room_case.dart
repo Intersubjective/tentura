@@ -816,6 +816,7 @@ class BeaconRoomCase extends UseCaseBase {
           ..._emptyOpenBlockerBatchFields(),
           'publicFactSnippet': factSnippet,
           'planSliceJson': null,
+          ..._emptyLatestActivityBatchFields(),
         });
         continue;
       }
@@ -835,6 +836,7 @@ class BeaconRoomCase extends UseCaseBase {
         viewerUserId: userId,
       );
       final blockerFields = await _openBlockerBatchFields(openBlocker);
+      final latest = await _room.latestRoomActivity(bid);
       out.add({
         'beaconId': bid,
         'isRoomMember': true,
@@ -847,10 +849,24 @@ class BeaconRoomCase extends UseCaseBase {
         ...blockerFields,
         'publicFactSnippet': factSnippet,
         'planSliceJson': null,
+        // U087 — the Requests list's "Recent" order and "latest" line.
+        'lastActivityAt': latest.lastActivityAt?.toUtc().toIso8601String(),
+        'lastMessageAt': latest.lastMessageAt?.toUtc().toIso8601String(),
+        'lastMessageText': latest.lastMessageBody,
+        'lastMessageAuthorId': latest.lastMessageAuthorId,
+        'lastMessageAuthorName': latest.lastMessageAuthorName,
       });
     }
     return _attachPlanSlices(userId: userId, rows: out);
   }
+
+  static Map<String, Object?> _emptyLatestActivityBatchFields() => const {
+    'lastActivityAt': null,
+    'lastMessageAt': null,
+    'lastMessageText': null,
+    'lastMessageAuthorId': null,
+    'lastMessageAuthorName': null,
+  };
 
   /// Fills `planSliceJson` (Request plan, #220 §4.9) on the [rows] the
   /// viewer may read (`isRoomMember`), with one batched read.

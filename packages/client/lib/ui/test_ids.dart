@@ -52,6 +52,10 @@ abstract final class TestIds {
   static String myWorkWhatsNew(String beaconId) =>
       'my_work.whats_new.$beaconId';
 
+  /// U087 — the card's latest-message line.
+  static String myWorkLatestMessage(String beaconId) =>
+      'my_work.latest_message.$beaconId';
+
   /// Stable Updates feed row identity for integration and WebDriver proofs.
   static String updatesReceipt(String receiptId) =>
       'updates-receipt-$receiptId';

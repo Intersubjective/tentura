@@ -3712,6 +3712,9 @@
     "context": "MyWorkScreen"
   },
   "myWorkLastEventYou": "вы",
+  "myWorkLatestMessage": "{name}: {text}",
+  "myWorkLatestSomeone": "кто-то",
+  "myWorkUnreadCount": "{count, plural, one{{count} новое} few{{count} новых} many{{count} новых} other{{count} новых}}",
   "@myWorkLastEventYou": {
     "context": "MyWorkScreen",
     "description": "Mid-sentence label for the current user on My Desk last-event rows"

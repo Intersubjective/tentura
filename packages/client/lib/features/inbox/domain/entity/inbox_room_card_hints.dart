@@ -21,5 +21,13 @@ abstract class InboxRoomCardHints with _$InboxRoomCardHints {
 
     /// The viewer's share of the Request plan (#220 §4.9); null without one.
     PlanViewerSlice? planSlice,
+
+    /// U087 — latest change in the discussion (message, next step, logged
+    /// event) and the latest member message.
+    DateTime? lastActivityAt,
+    DateTime? lastMessageAt,
+    @Default('') String lastMessageText,
+    @Default('') String lastMessageAuthorId,
+    @Default('') String lastMessageAuthorName,
   }) = _InboxRoomCardHints;
 }

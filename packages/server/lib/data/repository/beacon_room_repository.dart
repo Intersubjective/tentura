@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
+import 'package:tentura_server/domain/entity/room_latest_activity.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -1503,6 +1504,55 @@ SELECT public.emit_realtime_entity_change(
               .filter((e) => e.beaconId.id(beaconId))
               .getSingleOrNull())
           ?.toRecord();
+
+  @override
+  Future<RoomLatestActivity> latestRoomActivity(String beaconId) async {
+    final row = await _db
+        .customSelect(
+          r'''
+SELECT
+  GREATEST(
+    (SELECT max(m.created_at) FROM public.beacon_room_message m
+      WHERE m.beacon_id = $1 AND m.thread_item_id IS NULL),
+    (SELECT s.updated_at FROM public.beacon_room_state s
+      WHERE s.beacon_id = $1),
+    (SELECT max(e.created_at) FROM public.beacon_activity_event e
+      WHERE e.beacon_id = $1)
+  ) AS last_activity_at,
+  lm.created_at AS last_message_at,
+  lm.body AS last_message_body,
+  lm.author_id AS last_message_author_id,
+  u.display_name AS last_message_author_name
+FROM (SELECT 1) AS one
+LEFT JOIN LATERAL (
+  SELECT m.created_at, m.body, m.author_id
+  FROM public.beacon_room_message m
+  WHERE m.beacon_id = $1
+    AND m.thread_item_id IS NULL
+    AND m.system_message_kind IS NULL
+    AND m.author_id IS NOT NULL
+    AND btrim(m.body) <> ''
+  ORDER BY m.created_at DESC, m.id DESC
+  LIMIT 1
+) lm ON true
+LEFT JOIN public."user" u ON u.id = lm.author_id
+''',
+          variables: [Variable.withString(beaconId)],
+        )
+        .getSingle();
+    DateTime? at(String column) => switch (row.data[column]) {
+      final DateTime d => d.toUtc(),
+      final PgDateTime d => d.dateTime.toUtc(),
+      _ => null,
+    };
+    return RoomLatestActivity(
+      lastActivityAt: at('last_activity_at'),
+      lastMessageAt: at('last_message_at'),
+      lastMessageBody: row.data['last_message_body'] as String?,
+      lastMessageAuthorId: row.data['last_message_author_id'] as String?,
+      lastMessageAuthorName: row.data['last_message_author_name'] as String?,
+    );
+  }
 
   // DORMANT(item-threads): item-thread seen upsert branch when threadItemId is non-null.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
