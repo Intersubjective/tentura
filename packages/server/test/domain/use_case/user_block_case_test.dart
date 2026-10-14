@@ -581,7 +581,7 @@ void main() {
         );
 
     test(
-      'blocked helper on the blocker\'s request loses room access',
+      "blocked helper on the blocker's request loses room access",
       () async {
         const beaconId = 'B-mine';
         final rooms = _RecordingRooms();
@@ -611,7 +611,7 @@ void main() {
     );
 
     test(
-      'blocker helping on the blocked author\'s request leaves the room',
+      "blocker helping on the blocked author's request leaves the room",
       () async {
         const beaconId = 'B-theirs';
         final rooms = _RecordingRooms();
@@ -641,7 +641,7 @@ void main() {
     );
 
     test(
-      'offers on other people\'s requests and withdrawn offers are left alone',
+      "offers on other people's requests and withdrawn offers are left alone",
       () async {
         final rooms = _RecordingRooms();
         final case_ = _buildCase(
