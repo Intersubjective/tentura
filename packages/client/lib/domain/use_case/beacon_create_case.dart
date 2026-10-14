@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:uuid/uuid.dart';
@@ -183,6 +184,17 @@ class BeaconCreateCase {
       );
     }
 
+    // An edit that leaves the media as the server has it needs no
+    // BeaconSetMedia: when that extra call failed ("retry later"), the saved
+    // edit looked like a failure and the editor stayed open (B080).
+    if (kind == _Save.edit && _mediaUnchanged(command, written)) {
+      return BeaconSaveResult(
+        beacon: written,
+        images: command.images,
+        coverThumb: command.coverThumb,
+      );
+    }
+
     return _reconcile(
       beaconId: written.id,
       images: command.images,
@@ -190,6 +202,25 @@ class BeaconCreateCase {
       coverThumb: command.coverThumb,
       coverSource: command.coverSource,
     );
+  }
+
+  /// Whether [command] asks for exactly the media [server] already has: the
+  /// same uploaded images in the same order, the same effective cover (as
+  /// [_reconcile] would send it), the same cover thumb and cover source.
+  static bool _mediaUnchanged(BeaconSaveCommand command, Beacon server) {
+    final ids = [for (final image in command.images) image.id];
+    if (ids.any((id) => id.isEmpty)) return false;
+    final serverIds = [for (final image in server.images) image.id];
+    if (!listEquals(ids, serverIds)) return false;
+    final cover = command.coverKey;
+    final effectiveCover = ids.isEmpty
+        ? null
+        : (ids.contains(cover) ? cover : ids.first);
+    if (effectiveCover != server.coverImageId) return false;
+    final thumbId = command.coverThumb?.id;
+    if (thumbId != null && thumbId.isEmpty) return false;
+    if (thumbId != server.coverThumb?.id) return false;
+    return command.coverSource == server.coverSource;
   }
 
   /// Stages every local image, then publishes media exactly once.

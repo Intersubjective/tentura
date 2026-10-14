@@ -77,6 +77,65 @@ void main() {
     });
   });
 
+  group('saveEdit with unchanged media (B080)', () {
+    // Editing the title of a request whose media did not change must not
+    // depend on a second, unnecessary BeaconSetMedia call: when that call
+    // failed with "retry later" the edit was saved but the editor stayed open.
+    test('no images on either side: setMedia is not called', () async {
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          coverSource: BeaconCoverSource.photo,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      final result = await sut.saveEdit(_command(id: 'b-1'));
+
+      expect(write.updatedFields, hasLength(1));
+      expect(write.setMediaCalls, isEmpty);
+      expect(result.beacon.title, 'Move a piano');
+    });
+
+    test('same server images and cover: setMedia is not called', () async {
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          images: const [_server],
+          coverImageId: 'srv-1',
+          coverSource: BeaconCoverSource.photo,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      final result = await sut.saveEdit(
+        _command(id: 'b-1', images: const [_server], coverKey: 'srv-1'),
+      );
+
+      expect(write.setMediaCalls, isEmpty);
+      expect(result.images.map((e) => e.id), ['srv-1']);
+    });
+
+    test('a changed cover still publishes media', () async {
+      const second = ImageEntity(id: 'srv-2', authorId: 'author-1');
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          images: const [_server, second],
+          coverImageId: 'srv-1',
+          coverSource: BeaconCoverSource.photo,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      await sut.saveEdit(
+        _command(id: 'b-1', images: const [_server, second], coverKey: 'srv-2'),
+      );
+
+      expect(write.setMediaCalls.single.coverImageId, 'srv-2');
+    });
+  });
+
   group('media reconciliation', () {
     test('every local image is staged; none rides along with create', () async {
       final write = FakeBeaconWritePort()..stageIds.addAll(['s1', 's2']);
