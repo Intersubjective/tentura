@@ -23,8 +23,25 @@ void main() {
         for (final bg in [p.bg, p.surface]) {
           expect(_contrast(p.text, bg), greaterThanOrEqualTo(4.5));
           expect(_contrast(p.textMuted, bg), greaterThanOrEqualTo(4.5));
-          expect(_contrast(p.textFaint, bg), greaterThanOrEqualTo(3));
+          // textFaint carries timestamps, day headers and card meta, so it
+          // is held to the text minimum, not the 3:1 non-text one.
+          expect(_contrast(p.textFaint, bg), greaterThanOrEqualTo(4.5));
         }
+      });
+
+      test('secondary text stays readable on sunken surfaces', () {
+        // The composer, hovered rows and inset fields sit on surfaceSunken.
+        expect(
+          _contrast(p.textMuted, p.surfaceSunken),
+          greaterThanOrEqualTo(4.5),
+        );
+      });
+
+      test('faint text stays lighter than muted text', () {
+        expect(
+          _contrast(p.textFaint, p.surface),
+          lessThan(_contrast(p.textMuted, p.surface)),
+        );
       });
 
       test('brand pairs are readable', () {

@@ -104,10 +104,12 @@ class TenturaColorPalette {
 
   final Color text;
 
-  /// Secondary text (≥ 4.5:1).
+  /// Secondary text (≥ 4.5:1 on [bg], [surface] and [surfaceSunken]).
   final Color textMuted;
 
-  /// Hints, decorative glyphs (≥ 3:1).
+  /// Tertiary text — hints, timestamps, day headers, card meta — and
+  /// decorative glyphs. It is used for text, so it keeps ≥ 4.5:1 on [bg] and
+  /// [surface] (WCAG 1.4.3); it stays lighter than [textMuted].
   final Color textFaint;
 
   // --- Semantic tones --------------------------------------------------------
@@ -234,8 +236,8 @@ class TenturaColorPalette {
     borderSubtle: Color(0xFFF1F5F9),
     borderStrong: Color(0xFFCBD5E1),
     text: Color(0xFF0F172A),
-    textMuted: Color(0xFF64748B),
-    textFaint: Color(0xFF748399),
+    textMuted: Color(0xFF52637A),
+    textFaint: Color(0xFF64748B),
     good: Color(0xFF047857),
     goodContainer: Color(0xFFD1FAE5),
     onGoodContainer: Color(0xFF065F46),
@@ -337,7 +339,7 @@ class TenturaColorPalette {
     borderStrong: Color(0xFF3B4D61),
     text: Color(0xFFE2E8F0),
     textMuted: Color(0xFF94A3B8),
-    textFaint: Color(0xFF6B7C93),
+    textFaint: Color(0xFF7D8DA3),
     good: Color(0xFF34D399),
     goodContainer: Color(0xFF0F3D30),
     onGoodContainer: Color(0xFFA7F3D0),
