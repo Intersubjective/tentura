@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -663,39 +664,42 @@ class _InvitesSegmentList extends StatelessWidget {
     final name = addressee == null || addressee.isEmpty
         ? invitation.id
         : addressee;
-    return _InviteListTile(
+    // "Waiting · Just now" keeps counting while the list is open (U092).
+    return RelativeTimestampTicker(
       key: ValueKey(invitation),
-      emphasize: emphasize,
-      title: name,
-      subtitle: invitePendingSubtitle(
-        l10n: l10n,
-        when: invitation.createdAt,
-        now: DateTime.now(),
-      ),
-      onEdit: () async {
-        final newName = await InvitationAddresseeDialog.show(
+      builder: (_) => _InviteListTile(
+        emphasize: emphasize,
+        title: name,
+        subtitle: invitePendingSubtitle(
+          l10n: l10n,
+          when: invitation.createdAt,
+          now: RelativeTimestampTicker.now(),
+        ),
+        onEdit: () async {
+          final newName = await InvitationAddresseeDialog.show(
+            context,
+            initialName: addressee ?? '',
+            isEdit: true,
+          );
+          if (newName == null) return;
+          await invitationCubit.updateInvitation(
+            id: invitation.id,
+            addresseeName: newName,
+          );
+        },
+        onDelete: () async {
+          if (await InvitationRemoveDialog.show(context) ?? false) {
+            await invitationCubit.deleteInvitationById(invitation.id);
+          }
+        },
+        onTap: () => ShareCodeDialog.show(
           context,
-          initialName: addressee ?? '',
-          isEdit: true,
-        );
-        if (newName == null) return;
-        await invitationCubit.updateInvitation(
-          id: invitation.id,
-          addresseeName: newName,
-        );
-      },
-      onDelete: () async {
-        if (await InvitationRemoveDialog.show(context) ?? false) {
-          await invitationCubit.deleteInvitationById(invitation.id);
-        }
-      },
-      onTap: () => ShareCodeDialog.show(
-        context,
-        header: l10n.labelInvitationCode,
-        link: inviteShareUri(invitation.id),
-        caption: invitation.beaconId == null || invitation.beaconId!.isEmpty
-            ? l10n.invitationDualPurposeBody
-            : null,
+          header: l10n.labelInvitationCode,
+          link: inviteShareUri(invitation.id),
+          caption: invitation.beaconId == null || invitation.beaconId!.isEmpty
+              ? l10n.invitationDualPurposeBody
+              : null,
+        ),
       ),
     );
   }

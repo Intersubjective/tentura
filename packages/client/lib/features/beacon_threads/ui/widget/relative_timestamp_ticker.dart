@@ -2,15 +2,30 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-/// Rebuilds [child] when wall-clock relative-time labels may change — at each
-/// minute boundary (separate from `StaleDeadlineTicker`'s deadline cadence).
+/// Rebuilds [builder] every [interval] so relative-time labels ("Just now",
+/// "2m ago") keep counting while a screen stays open (U092). Compute ages
+/// against [RelativeTimestampTicker.now] inside [builder].
+///
+/// The builder runs in this state's `build`, so each tick produces fresh
+/// widgets; a fixed `child` would be reused as the same instance and never
+/// rebuild.
 class RelativeTimestampTicker extends StatefulWidget {
   const RelativeTimestampTicker({
-    required this.child,
+    required this.builder,
+    this.interval = const Duration(seconds: 30),
     super.key,
   });
 
-  final Widget child;
+  final WidgetBuilder builder;
+
+  final Duration interval;
+
+  /// Tests pin the wall clock here.
+  @visibleForTesting
+  static DateTime Function()? debugClock;
+
+  /// The wall clock relative-time labels should use.
+  static DateTime now() => (debugClock ?? DateTime.now)();
 
   @override
   State<RelativeTimestampTicker> createState() =>
@@ -23,29 +38,20 @@ class _RelativeTimestampTickerState extends State<RelativeTimestampTicker> {
   @override
   void initState() {
     super.initState();
-    _schedule();
+    _start();
   }
 
-  void _schedule() {
+  @override
+  void didUpdateWidget(RelativeTimestampTicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.interval != widget.interval) _start();
+  }
+
+  void _start() {
     _timer?.cancel();
-    final now = DateTime.now();
-    final nextMinute = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      now.hour,
-      now.minute,
-    ).add(const Duration(minutes: 1));
-    final delay =
-        nextMinute.difference(now) + const Duration(milliseconds: 200);
-    _timer = Timer(
-      delay.isNegative ? Duration.zero : delay,
-      () {
-        if (!mounted) return;
-        setState(() {});
-        _schedule();
-      },
-    );
+    _timer = Timer.periodic(widget.interval, (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -55,5 +61,5 @@ class _RelativeTimestampTickerState extends State<RelativeTimestampTicker> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => widget.builder(context);
 }

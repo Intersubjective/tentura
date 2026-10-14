@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -56,7 +57,12 @@ class BeaconHudPinnedBlock extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => now != null
+      ? _build(context)
+      // Keeps "Just now" / "2m ago" on the step row counting (U092).
+      : RelativeTimestampTicker(builder: _build);
+
+  Widget _build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
@@ -183,7 +189,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
             editor,
             compactRelativeTimeAgo(
               when: cue.updatedAt,
-              now: now ?? DateTime.now(),
+              now: now ?? RelativeTimestampTicker.now(),
               l10n: l10n,
             ),
           );
