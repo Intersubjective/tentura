@@ -2,6 +2,7 @@
 @Tags(['perf', 'pg', 'mr'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,8 +11,53 @@ import 'package:test/test.dart';
 
 import '../support/constellation_apply_batch_perf_fixture.dart';
 import '../support/disposable_pg_target.dart';
+import '../support/pg_wait.dart';
 import 'perf_fixture_report_expectations.dart';
 import 'perf_fixtures.dart';
+
+/// Hold a read-only backend active throughout recording so WAL attribution is
+/// deterministic even when this suite shares a cluster with other workloads.
+Future<T> _withActiveSession<T>(
+  Connection writer,
+  Connection other,
+  Future<T> Function() record,
+) async {
+  int? pid;
+  try {
+    pid =
+        (await other.execute('SELECT pg_backend_pid()')).single.single! as int;
+    final sleeping = other.execute('SELECT pg_sleep(600)');
+    unawaited(sleeping.then<void>((_) {}, onError: (Object _) {}));
+    final deadline = DateTime.now().add(kStableStateWait);
+    while (true) {
+      final active = await writer.execute(
+        Sql.named('''
+SELECT 1 FROM pg_stat_activity
+WHERE datname = current_database() AND pid = @pid
+  AND state = 'active' AND wait_event = 'PgSleep'
+'''),
+        parameters: {'pid': pid},
+      );
+      if (active.isNotEmpty) break;
+      if (DateTime.now().isAfter(deadline)) {
+        throw TimeoutException('WAL attribution backend did not become active');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    return await record();
+  } finally {
+    try {
+      if (pid != null) {
+        await writer.execute(
+          Sql.named('SELECT pg_cancel_backend(@pid)'),
+          parameters: {'pid': pid},
+        );
+      }
+    } finally {
+      await other.close();
+    }
+  }
+}
 
 Iterable<Map<String, Object?>> _objects(Object? value) sync* {
   if (value is Map<String, Object?>) {
@@ -103,10 +149,13 @@ void main() {
         // Remove stale evidence and always invoke the matrix's real recorder.
         final stale = File('build/perf/${fixture.name}.json');
         if (stale.existsSync()) stale.deleteSync();
-        final written = await fixture.record(
-          session: session,
-          seed: seed,
-          attempts: 30,
+        final written = await _withActiveSession(
+          session.writer,
+          await Connection.open(
+            target.databaseEnv.pgEndpoint,
+            settings: target.databaseEnv.pgEndpointSettings,
+          ),
+          () => fixture.record(session: session, seed: seed, attempts: 30),
         );
         expectReportWritten(fixture, written: written, minAttempts: 30);
         final report =
@@ -159,7 +208,10 @@ void main() {
           'total',
         );
         expect(walBytes / rows, greaterThan(0));
-        expect(report['walAttribution'], 'quiet-cluster');
+        // Cluster LSN deltas include unrelated sessions' WAL. The controlled
+        // active backend requires honest cluster-total reporting, while the row
+        // footprint and executed mutation plans above remain workload-specific.
+        expect(report['walAttribution'], 'cluster-total');
         _expectExecutedMutationPlans(report);
       }, timeout: const Timeout(Duration(minutes: 60)));
     }
