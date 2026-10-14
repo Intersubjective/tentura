@@ -6732,6 +6732,15 @@
       }
     }
   },
+  "activityTombstoneFromLine": "From {name}",
+  "@activityTombstoneFromLine": {
+    "description": "Activity outcome row: who the request came to you from (the last forwarder, or the author who sent it)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "attentionCardForwardedByMany": "{count, plural, one{Forwarded by {name} and 1 more} other{Forwarded by {name} and {count} more}}",
   "@attentionCardForwardedByMany": {
     "description": "For You card: several note-less forwarders; count is how many besides name.",

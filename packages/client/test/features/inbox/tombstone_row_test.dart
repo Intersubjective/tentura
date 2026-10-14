@@ -29,6 +29,8 @@ AttentionReceipt _tombstone({
   AttentionForwardOutcome outcome = AttentionForwardOutcome.helping,
   bool seen = true,
   List<AttentionReceipt> events = const [],
+  String? beaconAuthorId,
+  String? beaconAuthorName,
 }) => AttentionReceipt(
   id: 't1',
   category: 'forward',
@@ -46,6 +48,8 @@ AttentionReceipt _tombstone({
   forwardOutcome: outcome,
   eventTotal: events.length,
   eventsPreview: events,
+  beaconAuthorId: beaconAuthorId,
+  beaconAuthorName: beaconAuthorName,
 );
 
 Widget _host(
@@ -241,5 +245,74 @@ void main() {
     // A long header at 2x has silently unbuilt the items under it before.
     expect(find.byKey(const ValueKey('next')), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('the forwarder is not presented as the author (B076)', () {
+    const nina = Profile(id: 'u-nina', displayName: 'Nina Mover');
+
+    testWidgets("a forward of someone else's request says Forwarded by", (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          TombstoneRow(
+            receipt: _tombstone(
+              beaconAuthorId: 'u-author',
+              beaconAuthorName: 'Tab QA',
+            ),
+            forwarder: nina,
+            onOpenBeacon: () {},
+            onDismiss: () {},
+          ),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('By Nina Mover'), findsNothing);
+      expect(find.text('Forwarded by Nina Mover'), findsOneWidget);
+    });
+
+    testWidgets('the author sending it themselves reads From the author', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          TombstoneRow(
+            receipt: _tombstone(
+              beaconAuthorId: 'u-nina',
+              beaconAuthorName: 'Nina Mover',
+            ),
+            forwarder: nina,
+            onOpenBeacon: () {},
+            onDismiss: () {},
+          ),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('From Nina Mover'), findsOneWidget);
+    });
+
+    testWidgets('an unknown author never turns the forwarder into one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          TombstoneRow(
+            receipt: _tombstone(),
+            forwarder: nina,
+            onOpenBeacon: () {},
+            onDismiss: () {},
+          ),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('By Nina Mover'), findsNothing);
+      expect(find.text('From Nina Mover'), findsOneWidget);
+    });
   });
 }
