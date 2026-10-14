@@ -1,0 +1,34 @@
+# U088 — the Request lobby (server: BeaconLobby, item-thread scope kind 7).
+query BeaconLobby($beaconId: String!) {
+  BeaconLobby(beaconId: $beaconId) {
+    beaconId
+    lobbyId
+    isAuthor
+    canPost
+    bannedUserIds
+  }
+}
+
+query BeaconLobbyMessages($beaconId: String!, $lobbyId: String!) {
+  RoomMessageList(beaconId: $beaconId, threadItemId: $lobbyId) {
+    id
+    authorId
+    authorTitle
+    body
+    createdAt
+  }
+}
+
+mutation BeaconLobbyPost($beaconId: String!, $lobbyId: String!, $body: String!) {
+  RoomMessageCreate(beaconId: $beaconId, body: $body, threadItemId: $lobbyId) {
+    id
+  }
+}
+
+mutation BeaconLobbyBan($beaconId: String!, $userId: String!) {
+  BeaconLobbyBan(beaconId: $beaconId, userId: $userId)
+}
+
+mutation BeaconLobbyUnban($beaconId: String!, $userId: String!) {
+  BeaconLobbyUnban(beaconId: $beaconId, userId: $userId)
+}

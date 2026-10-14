@@ -7153,5 +7153,18 @@
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",
-  "skipToContent": "Перейти к содержимому"
+  "skipToContent": "Перейти к содержимому",
+  "beaconLobbyTitle": "Лобби",
+  "beaconLobbyEntrySubtitle": "Вопросы до начала помощи. Видят только автор и те, кто предложил помощь.",
+  "beaconLobbyEmpty": "Сообщений пока нет. Спросите автора о запросе.",
+  "beaconLobbyComposerHint": "Написать в лобби",
+  "beaconLobbySend": "Отправить",
+  "beaconLobbyUnavailable": "Лобби доступно только автору и тем, у кого есть действующее предложение помощи.",
+  "beaconLobbyRetry": "Повторить",
+  "beaconLobbyBanAction": "Удалить из лобби",
+  "beaconLobbyBanConfirmTitle": "Удалить {name} из лобби?",
+  "beaconLobbyBanConfirmBody": "Этот человек не сможет читать и писать здесь, пока вы его не вернёте. Его предложение помощи останется.",
+  "beaconLobbyBannedHeading": "Удалены из лобби ({count})",
+  "beaconLobbyUnbanAction": "Вернуть",
+  "beaconLobbyActionFailed": "Не получилось. Попробуйте ещё раз."
 }
