@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart'
     show PgDateTime, PgTypes, UuidValue;
@@ -711,7 +713,52 @@ VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::t
       reason: reason,
       actorId: actorId,
     );
+    await _insertStatusChangedRoomLine(
+      beaconId: beaconId,
+      fromStatus: fromStatus,
+      toStatus: toStatus,
+      reason: reason,
+      actorId: actorId,
+    );
   }, actorUserId: actorId);
+
+  /// U090 — the discussion says when a Request's status changed, so a member
+  /// coming back sees it there instead of a header that silently changed.
+  ///
+  /// A system line (`system_message_kind` set): it bumps no activity and
+  /// counts as no unread message, like the other system lines. Requests
+  /// only — a Post has its own closed notice — and not for a deletion.
+  Future<void> _insertStatusChangedRoomLine({
+    required String beaconId,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
+    required String reason,
+    required String? actorId,
+  }) async {
+    if (fromStatus == toStatus || toStatus == BeaconStatus.deleted) return;
+    await _database.customInsert(
+      r'''
+INSERT INTO public.beacon_room_message
+  (beacon_id, author_id, body, system_message_kind, system_payload)
+SELECT b.id, $2, '', $3, $4::text::jsonb
+FROM public.beacon b
+WHERE b.id = $1 AND b.kind = 0
+''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(actorId),
+        const Variable<int>(BeaconRoomSystemMessageKind.statusChanged),
+        Variable<String>(
+          jsonEncode({
+            'version': 1,
+            'fromStatus': fromStatus.smallintValue,
+            'toStatus': toStatus.smallintValue,
+            'reason': reason,
+          }),
+        ),
+      ],
+    );
+  }
 
   @override
   Future<void> addImage({

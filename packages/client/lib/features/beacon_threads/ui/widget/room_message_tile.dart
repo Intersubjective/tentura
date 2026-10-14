@@ -57,6 +57,7 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 VoidCallback? _linkedCoordinationItemOnTap(
   BuildContext context,
@@ -225,6 +226,47 @@ class RoomMessageTile extends StatelessWidget {
       return null;
     }
   }
+
+  /// `statusChanged` system payload (server contract, U090):
+  /// `{version: 1, fromStatus, toStatus, reason}` with smallint statuses.
+  /// Null for any other row or an unreadable payload.
+  @visibleForTesting
+  static ({BeaconStatus from, BeaconStatus to})? statusChangedPayload(
+    RoomMessage m,
+  ) {
+    if (m.systemMessageKind != BeaconRoomSystemMessageKind.statusChanged) {
+      return null;
+    }
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['version'] != 1) return null;
+      final from = decoded['fromStatus'];
+      final to = decoded['toStatus'];
+      if (from is! int || to is! int) return null;
+      return (
+        from: BeaconStatus.fromSmallint(from),
+        to: BeaconStatus.fromSmallint(to),
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Status names as the status sheet shows them.
+  static String _statusLineLabel(L10n l10n, BeaconStatus status) =>
+      switch (status) {
+        BeaconStatus.draft => l10n.beaconStatusRowDraft,
+        BeaconStatus.open => l10n.beaconStatusRowOpen,
+        BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+        BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+        BeaconStatus.reviewOpen => l10n.beaconStatusRowWrappingUp,
+        BeaconStatus.closed => l10n.beaconStatusRowClosed,
+        BeaconStatus.cancelled => l10n.beaconStatusRowCancelled,
+        BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
+      };
 
   static bool isFactEditOrUnpinLine(RoomMessage m) =>
       m.semanticMarker == BeaconRoomSemanticMarker.factEdited ||
@@ -598,6 +640,34 @@ class RoomMessageTile extends StatelessWidget {
                   l10n: l10n,
                 ),
         ),
+      );
+    }
+
+    if (message.systemMessageKind ==
+        BeaconRoomSystemMessageKind.statusChanged) {
+      final change = statusChangedPayload(message);
+      if (change == null) return const SizedBox.shrink();
+      final from = _statusLineLabel(l10n, change.from);
+      final to = _statusLineLabel(l10n, change.to);
+      final actorName = message.authorId.isEmpty
+          ? ''
+          : SelfUserHighlight.displayName(
+              l10n,
+              message.author,
+              myProfile.id,
+            ).trim();
+      final actor = actorName.isNotEmpty || message.authorId.isEmpty
+          ? actorName
+          : _participantDisplayName(
+              participants: participants,
+              userId: message.authorId,
+              viewer: myProfile,
+              l10n: l10n,
+            );
+      return _ConvertedToRequestNotice(
+        text: actor.isEmpty
+            ? l10n.roomStatusChangedAutomatic(from, to)
+            : l10n.roomStatusChangedByActor(actor, from, to),
       );
     }
 

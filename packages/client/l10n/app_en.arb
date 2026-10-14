@@ -5118,6 +5118,31 @@
       }
     }
   },
+  "roomStatusChangedByActor": "{actor} changed the status: {from} → {to}",
+  "@roomStatusChangedByActor": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedAutomatic": "Status changed: {from} → {to}",
+  "@roomStatusChangedAutomatic": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomViewerAdmittedByActor": "You were admitted to the discussion by {actorName}",
   "@beaconRoomViewerAdmittedByActor": {
     "placeholders": {
