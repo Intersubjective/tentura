@@ -126,4 +126,17 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('route'), findsOneWidget);
   });
+
+  testWidgets('the account entry is reachable by keyboard and screen reader', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, selectedTab: HomeTab.work);
+
+    expect(
+      tester.getSemantics(find.byKey(HomeRailAccountFooter.footerKey)),
+      isSemantics(isButton: true, isFocusable: true, hasTapAction: true),
+    );
+    semantics.dispose();
+  });
 }

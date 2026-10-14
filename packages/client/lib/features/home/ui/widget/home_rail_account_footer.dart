@@ -129,10 +129,16 @@ class HomeRailAccountFooter extends StatelessWidget {
             endIndent: tt.cardGap,
           ),
         ),
+        // excludeSemantics drops the InkWell's own node, so this node has to
+        // carry what it provided: without `focusable` the entry is not in
+        // the web tab order, and without `onTap` assistive tech cannot
+        // activate it.
         Semantics(
           button: true,
+          focusable: true,
           selected: selected,
           label: name.isEmpty ? l10n.profile : '${l10n.profile}, $name',
+          onTap: onPressed,
           excludeSemantics: true,
           child: Tooltip(
             message: name.isEmpty ? l10n.profile : name,
