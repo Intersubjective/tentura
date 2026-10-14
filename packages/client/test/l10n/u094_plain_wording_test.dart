@@ -78,25 +78,26 @@ void main() {
   });
 
   group('U094 plain wording (RU)', () {
+    // RU words re-chosen by the Russian reader test (u094_ru_wording_test.dart).
     test('same terms, consistent RU', () {
       expect(ru.labelBeaconTabNow, 'Обзор');
       expect(ru.beaconShowcaseTeamLabel, 'ПОМОГАЮТ');
       expect(ru.beaconShowcaseTeamSheetTitle, 'Помогают');
       expect(ru.beaconHudNoCurrentLine, 'Следующего шага пока нет');
-      expect(ru.beaconFactsRowLabel, 'Адрес и детали');
-      expect(ru.inboxNeedsMe, 'Ждёт вас');
-      expect(ru.actionStopWatching, 'Вернуть в «Ждёт вас»');
+      expect(ru.beaconFactsRowLabel, 'Адрес и подробности');
+      expect(ru.inboxNeedsMe, 'Нужен ваш ответ');
+      expect(ru.actionStopWatching, 'Вернуть в «Нужен ваш ответ»');
       expect(ru.activityMovedToStream, 'Перемещено ниже, в ленту «Активность»');
       expect(
         const MovedToInboxMessage().toRu,
         'Предложение отозвано. Обновления по нему останутся во вкладке «Слежу».',
       );
-      expect(ru.coordinationEnoughHelp, 'Достаточно помощи');
-      expect(ru.beaconPhaseWrappingUp, 'Финальная проверка');
-      expect(ru.beaconStatusRowWrappingUp, 'Финальная проверка');
-      expect(ru.myWorkStatusWrappingUp, 'Финальная проверка');
+      expect(ru.coordinationEnoughHelp, 'Помощи хватает');
+      expect(ru.beaconPhaseWrappingUp, 'Подводим итоги');
+      expect(ru.beaconStatusRowWrappingUp, 'Подводим итоги');
+      expect(ru.myWorkStatusWrappingUp, 'Подводим итоги');
       expect(ru.beaconPeopleLensNotFittingHeading, 'Отклонённые предложения');
-      expect(ru.closureAuthorTitle, 'Закрыть и подвести итоги');
+      expect(ru.closureAuthorTitle, 'Подвести итоги и закрыть');
     });
   });
 }
