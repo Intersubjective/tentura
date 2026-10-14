@@ -5,10 +5,13 @@ import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
@@ -30,9 +33,10 @@ final class FriendsCase extends UseCaseBase {
     this._contacts,
     this._auth,
     this._realtime, {
+    BlockCase? blockCase,
     required super.env,
     required super.logger,
-  });
+  }) : _blockCase = blockCase;
 
   final CapabilityRepositoryPort _capabilities;
   final InvitationRepository _invitations;
@@ -42,6 +46,7 @@ final class FriendsCase extends UseCaseBase {
   final ContactsCase _contacts;
   final AuthCase _auth;
   final RealtimeSyncCase _realtime;
+  final BlockCase? _blockCase;
 
   Stream<String> get accountChanges => _auth.currentAccountChanges();
 
@@ -50,6 +55,11 @@ final class FriendsCase extends UseCaseBase {
       .map((event) => event.value as Profile);
 
   Stream<void> get contactChanges => _contacts.changes;
+
+  /// Blocks and unblocks made on this device. A block keeps the trust row on
+  /// the server, so the list drops the person locally and refetches (B056).
+  Stream<RepositoryEvent<BlockIntent>> get blockChanges =>
+      _blockCase?.changes ?? const Stream.empty();
 
   Stream<void> get projectionChanges => MergeStream<void>([
     _realtime

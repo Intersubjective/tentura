@@ -67,6 +67,86 @@ void main() {
       },
     );
 
+    // B056: blocking from the open profile used to keep the loaded profile
+    // (trust toggle on, "Send a request") because the block event only
+    // scheduled a silent refetch, and a refetch failure after the first load
+    // is swallowed. The profile must switch to the blocked state at once.
+    test('blocking the open profile switches to the blocked state', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      // After the block the server hides the person from the viewer.
+      harness.profiles.error = const ProfileFetchException('U-friend');
+      harness.blockCase.emitChange(
+        RepositoryEventCreate(
+          BlockIntent(blocked: const Profile(id: 'U-friend')),
+        ),
+      );
+      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(harness.cubit.state.isBlockedFallback, isTrue);
+      expect(harness.cubit.state.blockedProfile?.id, 'U-friend');
+      expect(harness.cubit.state.blockedProfile?.displayName, 'Helper Two');
+      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test('a block of someone else leaves the open profile alone', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      harness.blockCase.emitChange(
+        RepositoryEventCreate(
+          BlockIntent(blocked: const Profile(id: 'U-other')),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(harness.cubit.state.isBlockedFallback, isFalse);
+      expect(harness.cubit.state.profile.displayName, 'Helper Two');
+    });
+
+    test('unblocking from elsewhere restores the full profile', () async {
+      harness
+        ..profiles.error = const ProfileFetchException('U-friend')
+        ..blockCase.fetchMyBlocksResult = [
+          BlockIntent(
+            blocked: const Profile(id: 'U-friend', displayName: 'Helper Two'),
+          ),
+        ]
+        ..start(id: 'U-friend');
+      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+
+      harness.profiles
+        ..error = null
+        ..result = const Profile(id: 'U-friend', displayName: 'Helper Two');
+      harness.blockCase.emitChange(
+        RepositoryEventDelete(
+          BlockIntent(blocked: const Profile(id: 'U-friend')),
+        ),
+      );
+      await harness.waitFor(() => !harness.cubit.state.isBlockedFallback);
+
+      expect(harness.cubit.state.blockedProfile, isNull);
+      expect(harness.cubit.state.profile.displayName, 'Helper Two');
+    });
+
     test(
       'ProfileFetchException without direct block keeps loadError path',
       () async {

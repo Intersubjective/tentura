@@ -14,6 +14,7 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
@@ -24,6 +25,7 @@ import 'package:tentura/features/like/data/repository/like_remote_repository.dar
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
+import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
 import '../contacts/contacts_case_test.dart';
 
 void main() {
@@ -151,6 +153,75 @@ void main() {
       expect(harness.effects.emitted, isEmpty);
     });
 
+    // B056: blocking someone left them under People › Trusted ("You trust
+    // each other") until a full reload, because nothing in the Friends list
+    // listened to blocks.
+    test('blocking a friend removes them from the list at once', () async {
+      harness.friendsRepository.result = [
+        _friend('friend-1'),
+        _friend('friend-2'),
+      ];
+      harness.signIn();
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-2'),
+      );
+      // Hold the refetch so only the local reaction to the block can act.
+      final refetch = Completer<Iterable<Profile>>();
+      harness.friendsRepository.pending.add(refetch);
+
+      harness.blockCase.emitChange(
+        RepositoryEventCreate(
+          BlockIntent(blocked: const Profile(id: 'friend-2')),
+        ),
+      );
+      await harness.waitFor(
+        () => !harness.cubit.state.friends.containsKey('friend-2'),
+      );
+
+      expect(harness.cubit.state.friends.keys, ['friend-1']);
+      refetch.complete([_friend('friend-1')]);
+    });
+
+    test(
+      'a failed refetch after a block does not bring the person back',
+      () async {
+        harness.friendsRepository.result = [_friend('friend-1')];
+        harness.signIn();
+        await harness.waitFor(
+          () => harness.cubit.state.friends.containsKey('friend-1'),
+        );
+        harness.friendsRepository.error = StateError('offline');
+
+        harness.blockCase.emitChange(
+          RepositoryEventCreate(
+            BlockIntent(blocked: const Profile(id: 'friend-1')),
+          ),
+        );
+        await harness.waitFor(() => harness.cubit.state.friends.isEmpty);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(harness.cubit.state.friends, isEmpty);
+        expect(harness.effects.emitted, isEmpty);
+      },
+    );
+
+    test('unblocking refetches the list', () async {
+      harness.friendsRepository.result = const [];
+      harness.signIn();
+      await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 1);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      harness.friendsRepository.result = [_friend('friend-1')];
+      harness.blockCase.emitChange(
+        RepositoryEventDelete(
+          BlockIntent(blocked: const Profile(id: 'friend-1')),
+        ),
+      );
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+    });
+
     test('mutations are delegated through FriendsCase', () async {
       final profile = _friend('friend-1');
 
@@ -193,6 +264,7 @@ final class _FriendsHarness {
       contactsCase,
       authCase,
       realtimeCase,
+      blockCase: blockCase,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -208,6 +280,7 @@ final class _FriendsHarness {
   final friendsRepository = _FakeFriendsRepository();
   final presence = _FakePresenceRepository();
   final effects = FakeUiEffectPort();
+  final blockCase = FakeBlockCase();
 
   late final AuthCase authCase;
   late final TestRealtimeSyncPort realtimePort;

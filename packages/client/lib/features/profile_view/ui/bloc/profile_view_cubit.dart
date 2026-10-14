@@ -48,7 +48,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
         );
     _blockChangesSub = _blockCase.changes
         .where((event) => event.id == id)
-        .listen((_) => _scheduleSilentFetch(), cancelOnError: false);
+        .listen(_onBlockChanged, cancelOnError: false);
     unawaited(fetch());
   }
 
@@ -160,6 +160,29 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
       return null;
     }
     return null;
+  }
+
+  /// Blocking this person (from this screen or elsewhere) switches to the
+  /// blocked state at once (B056). A silent refetch is not enough: the server
+  /// now hides the profile, and a failed refetch after the first load keeps
+  /// the old state, so trust and request actions stayed on screen.
+  void _onBlockChanged(RepositoryEvent<BlockIntent> event) {
+    if (isClosed) return;
+    if (event is RepositoryEventCreate<BlockIntent>) {
+      _refreshTimer?.cancel();
+      _fetchSequence++;
+      final current = state.profile;
+      final blocked = Profile(
+        id: _profileId,
+        displayName: current.displayName.isNotEmpty
+            ? current.displayName
+            : event.value.blocked.displayName,
+        image: current.image ?? event.value.blocked.image,
+      );
+      emit(ProfileViewState(profile: blocked, blockedProfile: blocked));
+      return;
+    }
+    _scheduleSilentFetch();
   }
 
   Future<void> unblockBlockedProfile() async {

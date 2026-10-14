@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
@@ -50,9 +52,13 @@ class FakeBlockCase implements BlockCase {
   List<BlockIntent> fetchMyBlocksResult = const [];
   Object? fetchMyBlocksError;
   final unblockCalls = <String>[];
+  final _changes = StreamController<RepositoryEvent<BlockIntent>>.broadcast();
 
   @override
-  Stream<RepositoryEvent<BlockIntent>> get changes => const Stream.empty();
+  Stream<RepositoryEvent<BlockIntent>> get changes => _changes.stream;
+
+  /// Simulates [BlockRepository] announcing a block or unblock.
+  void emitChange(RepositoryEvent<BlockIntent> event) => _changes.add(event);
 
   @override
   Future<List<BlockIntent>> fetchMyBlocks() {
