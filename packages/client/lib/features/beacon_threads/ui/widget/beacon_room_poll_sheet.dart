@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
@@ -63,6 +64,14 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
       _isAnonymous != _initialIsAnonymous ||
       _allowRevote != _initialAllowRevote;
 
+  /// Whether another non-empty option already has the text [value].
+  bool _isDuplicateAt(int index, String value) {
+    for (var i = 0; i < _variants.length; i++) {
+      if (i != index && _variants[i].trim() == value) return true;
+    }
+    return false;
+  }
+
   Future<void> _send() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final q = _question.trim();
@@ -70,7 +79,20 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
         .map((v) => v.trim())
         .where((v) => v.isNotEmpty)
         .toList();
-    if (q.isEmpty || vs.length < 2) return;
+    PollingInputExceptions? invalid;
+    if (q.isEmpty) {
+      invalid = const PollingQuestionTooShortException();
+    } else if (vs.length < 2) {
+      invalid = const PollingTooFewVariantsException();
+    }
+    if (invalid != null) {
+      showSnackBar(
+        context,
+        isError: true,
+        text: invalid.toL10n(L10n.of(context)!.localeName),
+      );
+      return;
+    }
 
     setState(() => _sending = true);
     try {
@@ -106,113 +128,114 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
       isDirty: _isDirty,
       useRootNavigator: true,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.sectionGap,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.beaconRoomCreatePoll,
-                style: theme.textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.sectionGap),
-              PollingQuestionInput(
-                labelText: l10n.pollQuestionFieldLabel,
-                onChanged: (v) => setState(() => _question = v),
-              ),
-              SizedBox(height: tt.sectionGap),
-              Text(
-                l10n.pollOptionsLabel,
-                style: theme.textTheme.labelLarge,
-              ),
-              SizedBox(height: tt.rowGap),
-              ..._variants.asMap().entries.map(
-                (entry) {
-                  final idx = entry.key;
-                  return Padding(
-                    key: ValueKey(idx),
-                    padding: EdgeInsets.only(bottom: tt.rowGap),
-                    child: PollingVariantInput(
-                      labelText: l10n.optionLabel(idx + 1),
-                      onChanged: (v) => setState(() => _variants[idx] = v),
-                      onRemove: _variants.length > 2
-                          ? () => setState(() => _variants.removeAt(idx))
-                          : () {},
-                    ),
-                  );
-                },
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.add),
-                label: Text(l10n.addOptionButton),
-                onPressed: _variants.length < 10
-                    ? () => setState(() => _variants.add(''))
-                    : null,
-              ),
-              SizedBox(height: tt.sectionGap),
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.beaconRoomCreatePoll,
+                  style: theme.textTheme.titleMedium,
+                ),
+                SizedBox(height: tt.sectionGap),
+                PollingQuestionInput(
+                  labelText: l10n.pollQuestionFieldLabel,
+                  onChanged: (v) => setState(() => _question = v),
+                ),
+                SizedBox(height: tt.sectionGap),
+                Text(
+                  l10n.pollOptionsLabel,
+                  style: theme.textTheme.labelLarge,
+                ),
+                SizedBox(height: tt.rowGap),
+                ..._variants.asMap().entries.map(
+                  (entry) {
+                    final idx = entry.key;
+                    return Padding(
+                      key: ValueKey(idx),
+                      padding: EdgeInsets.only(bottom: tt.rowGap),
+                      child: PollingVariantInput(
+                        labelText: l10n.optionLabel(idx + 1),
+                        isDuplicate: (v) => _isDuplicateAt(idx, v),
+                        onChanged: (v) => setState(() => _variants[idx] = v),
+                        onRemove: _variants.length > 2
+                            ? () => setState(() => _variants.removeAt(idx))
+                            : () {},
+                      ),
+                    );
+                  },
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.addOptionButton),
+                  onPressed: _variants.length < 10
+                      ? () => setState(() => _variants.add(''))
+                      : null,
+                ),
+                SizedBox(height: tt.sectionGap),
 
-              // Poll type selector
-              Align(
-                child: SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(
-                      value: 'single',
-                      label: Text(l10n.beaconRoomPollTypeSingle),
+                // Poll type selector
+                Align(
+                  child: SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment(
+                        value: 'single',
+                        label: Text(l10n.beaconRoomPollTypeSingle),
+                      ),
+                      ButtonSegment(
+                        value: 'multiple',
+                        label: Text(l10n.beaconRoomPollTypeMultiple),
+                      ),
+                      ButtonSegment(
+                        value: 'range',
+                        label: Text(l10n.beaconRoomPollTypeRange),
+                      ),
+                    ],
+                    selected: {_pollType},
+                    onSelectionChanged: (s) =>
+                        setState(() => _pollType = s.first),
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
                     ),
-                    ButtonSegment(
-                      value: 'multiple',
-                      label: Text(l10n.beaconRoomPollTypeMultiple),
-                    ),
-                    ButtonSegment(
-                      value: 'range',
-                      label: Text(l10n.beaconRoomPollTypeRange),
-                    ),
-                  ],
-                  selected: {_pollType},
-                  onSelectionChanged: (s) =>
-                      setState(() => _pollType = s.first),
-                  style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
-              ),
-              SizedBox(height: tt.rowGap),
+                SizedBox(height: tt.rowGap),
 
-              // Anonymous / open toggle
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.beaconRoomPollAnonymousTitle),
-                subtitle: Text(l10n.beaconRoomPollAnonymousSubtitle),
-                value: _isAnonymous,
-                onChanged: (v) => setState(() => _isAnonymous = v),
-              ),
+                // Anonymous / open toggle
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l10n.beaconRoomPollAnonymousTitle),
+                  subtitle: Text(l10n.beaconRoomPollAnonymousSubtitle),
+                  value: _isAnonymous,
+                  onChanged: (v) => setState(() => _isAnonymous = v),
+                ),
 
-              // Allow revote toggle
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.beaconRoomPollAllowRevoteTitle),
-                value: _allowRevote,
-                onChanged: (v) => setState(() => _allowRevote = v),
-              ),
+                // Allow revote toggle
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l10n.beaconRoomPollAllowRevoteTitle),
+                  value: _allowRevote,
+                  onChanged: (v) => setState(() => _allowRevote = v),
+                ),
 
-              SizedBox(height: tt.rowGap),
-              FilledButton(
-                onPressed: _sending ? null : _send,
-                child: Text(l10n.beaconRoomSendPollButton),
-              ),
-            ],
+                SizedBox(height: tt.rowGap),
+                FilledButton(
+                  onPressed: _sending ? null : _send,
+                  child: Text(l10n.beaconRoomSendPollButton),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }
