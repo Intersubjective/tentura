@@ -50,6 +50,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'beacon_view_state.dart';
 
+/// Marks a background refresh slice that failed and keeps its current value.
+const Object _keptSlice = Object();
+
 class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   BeaconViewCubit({
     required String id,
@@ -1208,16 +1211,25 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       final isMember = beacon.accessLevel?.isMember ?? true;
       final skipRoom = !isMember;
       final canReadAdmittedHelpers = beacon.canReadAdmittedHelpers;
+      // On a background refresh of an already loaded request, a slice that
+      // fails (e.g. "Constellation database busy") keeps its current value
+      // instead of dropping the whole refresh, so fresh slices such as the
+      // room state (next step) still reach the screen (B079).
+      Future<Object?> keepOnError(Future<Object?> slice) => retainLoadedContext
+          ? slice.then<Object?>(
+              (value) => value,
+              onError: (Object _) => _keptSlice,
+            )
+          : slice;
       final results = await Future.wait([
         // Without involvement access the viewer still sees their own offer
         // (a declined offerer loses access but must learn why).
-        if (skipInvolvement)
-          _fetchMyHelpOfferAsList(beaconId)
-        else
-          _case.fetchHelpOffersWithCoordination(
-            beaconId: beaconId,
-          ),
-        _case.fetchInboxContextForBeacon(beaconId),
+        keepOnError(
+          skipInvolvement
+              ? _fetchMyHelpOfferAsList(beaconId)
+              : _case.fetchHelpOffersWithCoordination(beaconId: beaconId),
+        ),
+        keepOnError(_case.fetchInboxContextForBeacon(beaconId)),
         _case.fetchFactCards(beaconId),
         if (skipRoom)
           Future.value(const <BeaconParticipant>[])
@@ -1231,7 +1243,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           Future.value(const <BeaconActivityEvent>[])
         else
           _case.fetchRoomActivityEvents(beaconId),
-        _case.fetchDisplayStatus(beaconId),
+        keepOnError(_case.fetchDisplayStatus(beaconId)),
         if (canReadAdmittedHelpers)
           _case.fetchAdmittedHelpers(beaconId)
         else
@@ -1244,8 +1256,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           Future.value(const <String>{}),
       ]);
 
-      final helpOffers =
-          results[0]!
+      final helpOffersKept = identical(results[0], _keptSlice);
+      final helpOffers = helpOffersKept
+          ? null
+          : results[0]!
               as List<
                 ({
                   String beaconId,
@@ -1271,8 +1285,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
                   String? authorSeenAt,
                 })
               >;
-      final inboxCtx =
-          results[1]!
+      final inboxKept = identical(results[1], _keptSlice);
+      final inboxCtx = inboxKept
+          ? null
+          : results[1]!
               as ({
                 InboxItemStatus? status,
                 InboxProvenance provenance,
@@ -1282,34 +1298,41 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       final roomParticipants = results[3]! as List<BeaconParticipant>;
       final beaconRoomCue = results[4] as BeaconRoomState?;
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
-      final displayStatus = results[6] as BeaconDisplayStatusDto?;
+      final displayStatus = identical(results[6], _keptSlice)
+          ? state.displayStatus
+          : results[6] as BeaconDisplayStatusDto?;
       final admittedHelperRoster = results[7]! as List<Profile>;
       final teamAcquaintanceIds = results[8]! as Set<String>;
       final openCoordinationBlocker = beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
 
-      final isHelpOffered = helpOffers
-          .where((c) => c.status == 0)
-          .any((c) => c.userId == myUserId);
+      final isHelpOffered = helpOffers == null
+          ? state.isHelpOffered
+          : helpOffers
+                .where((c) => c.status == 0)
+                .any((c) => c.userId == myUserId);
 
-      final helpOffersList = timelineHelpOffersFromRemote(helpOffers);
+      final helpOffersList = helpOffers == null
+          ? state.helpOffers
+          : _mergeLocalAuthorSeen(timelineHelpOffersFromRemote(helpOffers));
 
-      final helpOfferTimeline = <TimelineEntry>[
-        for (final c in helpOffers)
-          ...helpOfferRowsToTimelineEntries(beacon: beacon, row: c),
-      ];
-
-      final timeline = <TimelineEntry>[
-        ...helpOfferTimeline,
-        if (beacon.statusChangedAt != null)
-          TimelineBeaconCoordinationStatusChanged(
-            author: beacon.author,
-            status: beacon.status,
-            at: beacon.statusChangedAt!,
-          ),
-        TimelineCreation(author: beacon.author, createdAt: beacon.createdAt),
-      ]..sort();
+      final timeline = helpOffers == null
+          ? state.timeline
+          : (<TimelineEntry>[
+              for (final c in helpOffers)
+                ...helpOfferRowsToTimelineEntries(beacon: beacon, row: c),
+              if (beacon.statusChangedAt != null)
+                TimelineBeaconCoordinationStatusChanged(
+                  author: beacon.author,
+                  status: beacon.status,
+                  at: beacon.statusChangedAt!,
+                ),
+              TimelineCreation(
+                author: beacon.author,
+                createdAt: beacon.createdAt,
+              ),
+            ]..sort());
 
       ClosureState? closureState;
       if (beacon.status == BeaconStatus.reviewOpen) {
@@ -1326,11 +1349,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
         state.copyWith(
           beacon: beacon,
           timeline: timeline,
-          helpOffers: _mergeLocalAuthorSeen(helpOffersList),
+          helpOffers: helpOffersList,
           isHelpOffered: isHelpOffered,
-          inboxStatus: inboxCtx.status,
-          forwardProvenance: inboxCtx.provenance,
-          inboxLatestNotePreview: inboxCtx.latestNotePreview,
+          inboxStatus: inboxCtx == null ? state.inboxStatus : inboxCtx.status,
+          forwardProvenance: inboxCtx?.provenance ?? state.forwardProvenance,
+          inboxLatestNotePreview:
+              inboxCtx?.latestNotePreview ?? state.inboxLatestNotePreview,
           factCards: factCards,
           pinnedFactsSeenAt: _case.pinnedFactsSeenAt(beaconId, myUserId),
           roomParticipants: roomParticipants,
