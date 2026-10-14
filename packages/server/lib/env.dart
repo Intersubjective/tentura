@@ -180,6 +180,10 @@ class Env {
     Duration? trustSweepRetry,
     int? trustSweepBatchSize,
     Duration? trustSweepTimeBudget,
+    int? contactResolutionBatchSize,
+    int? contactResolutionRunRowBudget,
+    Duration? contactResolutionRunTimeBudget,
+    Duration? contactResolutionSweepInterval,
     bool? trustNoisyWallEnabled,
     bool? trustBudRouteCreditEnabled,
 
@@ -489,6 +493,32 @@ class Env {
              minutes:
                  int.tryParse(_env['TRUST_SWEEP_TIME_BUDGET_MINUTES'] ?? '') ??
                  5,
+           ),
+       contactResolutionBatchSize =
+           contactResolutionBatchSize ??
+           int.tryParse(_env['CONTACT_RESOLUTION_BATCH_SIZE'] ?? '') ??
+           25,
+       contactResolutionRunRowBudget =
+           contactResolutionRunRowBudget ??
+           int.tryParse(_env['CONTACT_RESOLUTION_RUN_ROW_BUDGET'] ?? '') ??
+           5000,
+       contactResolutionRunTimeBudget =
+           contactResolutionRunTimeBudget ??
+           Duration(
+             seconds:
+                 int.tryParse(
+                   _env['CONTACT_RESOLUTION_RUN_TIME_BUDGET_SECONDS'] ?? '',
+                 ) ??
+                 60,
+           ),
+       contactResolutionSweepInterval =
+           contactResolutionSweepInterval ??
+           Duration(
+             minutes:
+                 int.tryParse(
+                   _env['CONTACT_RESOLUTION_SWEEP_INTERVAL_MINUTES'] ?? '',
+                 ) ??
+                 10,
            ),
        trustNoisyWallEnabled =
            trustNoisyWallEnabled ??
@@ -882,6 +912,18 @@ class Env {
   final int trustSweepBatchSize;
 
   final Duration trustSweepTimeBudget;
+
+  /// Contact resolution sweep: rows per claim+record+project transaction.
+  final int contactResolutionBatchSize;
+
+  /// Rows one sweep run may resolve before a later run picks up the rest.
+  final int contactResolutionRunRowBudget;
+
+  /// A run starts no new chunk once this much time has elapsed.
+  final Duration contactResolutionRunTimeBudget;
+
+  /// Cadence of the contact resolution sweep.
+  final Duration contactResolutionSweepInterval;
 
   /// Publishes the noisy-contact wall to MeritRank. Off by default: noisy
   /// evidence is still recorded, the projection just ignores it. Written to

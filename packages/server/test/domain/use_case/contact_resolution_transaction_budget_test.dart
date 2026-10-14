@@ -15,9 +15,13 @@ void main() {
   group('Ignored contact resolution transaction budgets', () {
     test('a full contact sweep records and projects evidence with constant SQL',
         () async {
+      var backlogServed = false;
       final recorder = TransactionStatementRecorder(
         select: (sql, arguments) {
           if (!sql.contains('UPDATE public.beacon_forward_edge')) return [];
+          // The 200 due contacts leave the table once claimed.
+          if (backlogServed) return [];
+          backlogServed = true;
           return List.generate(200, (index) => {
             'id': 'forward-$index',
             'beacon_id': 'beacon-$index',

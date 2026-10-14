@@ -68,3 +68,28 @@ Measured on perf DB `tentura_test_lane_hold_perf`. Samples: `docs/performance/la
 | user_erasure_published | 1201 | 5569.405 | 1682.228 |
 | user_erasure_drafts | 1201 | 2213.326 | 173.879 |
 | contact_resolution | 200 | 1496.415 | 1422.579 |
+
+## Contact resolution sweep: chunked drain (tentura-ev3z.18)
+
+The sweep used to claim up to 200 expired contact edges, record evidence and
+project trust in ONE transaction: worst lane hold 1422-1496 ms (table above),
+about 7 ms per `trust_project_pair` call.
+
+`ContactResolutionSweepCase.run()` now loops chunk by chunk, each chunk (claim,
+record, project) in its own transaction, oldest deadline first, until the
+backlog is empty or the row/time budget is spent. The default chunk is 25 rows,
+so the expected worst hold is about 25 x 7 ms = ~175 ms (derived from the
+per-pair cost above; not re-measured on the perf-DB clone).
+
+| Chunk size | Before worst lane hold (ms) | After worst lane hold (ms, estimated) |
+| --- | --- | --- |
+| 200 -> 25 | 1422.579 | ~175 |
+
+Env knobs:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CONTACT_RESOLUTION_BATCH_SIZE` | 25 | rows per transaction |
+| `CONTACT_RESOLUTION_RUN_ROW_BUDGET` | 5000 | rows one run may resolve |
+| `CONTACT_RESOLUTION_RUN_TIME_BUDGET_SECONDS` | 60 | no new chunk after this |
+| `CONTACT_RESOLUTION_SWEEP_INTERVAL_MINUTES` | 10 | sweep cadence |

@@ -249,7 +249,7 @@ final class TaskWorkerCase extends UseCaseBase {
     () async {
       final now = DateTime.timestamp();
       if (now.difference(_lastContactResolutionSweep) <
-          const Duration(hours: 1)) {
+          env.contactResolutionSweepInterval) {
         return;
       }
       _lastContactResolutionSweep = now;

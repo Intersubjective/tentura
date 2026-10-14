@@ -1,11 +1,15 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/forward_edge_repository.dart';
+import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
@@ -15,6 +19,7 @@ import 'package:tentura_server/domain/port/notification_preference_repository_po
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
+import 'package:tentura_server/domain/use_case/contact_resolution_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/task_worker_case.dart';
@@ -23,6 +28,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/recording_beacon_hierarchy_outbox.dart';
+import '../../support/transaction_statement_recorder.dart';
 import '../../support/test_attention_harness.dart';
 
 Uint8List _png(int width, int height) =>
@@ -171,6 +177,7 @@ TaskWorkerCase _worker({
   required NotificationOutboxRepositoryPort outbox,
   UserAvailabilityCase? userAvailabilityCase,
   BeaconHierarchyDeliveryCase? beaconHierarchyDelivery,
+  ContactResolutionSweepCase? contactResolutionSweep,
   Env? env,
 }) =>
     TaskWorkerCase(
@@ -180,6 +187,7 @@ TaskWorkerCase _worker({
       outbox,
       userAvailabilityCase: userAvailabilityCase,
       beaconHierarchyDelivery: beaconHierarchyDelivery,
+      contactResolutionSweep: contactResolutionSweep,
       env: env ?? _testEnv(),
       logger: Logger('test'),
     );
@@ -331,6 +339,61 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
       await worker.dispose();
       await expectLater(runFuture, completes);
+    });
+  });
+
+  group('TaskWorkerCase contact resolution sweep cadence', () {
+    /// Worker over an empty contact backlog; returns the claim queries seen.
+    Future<int> claimsWithin({required Duration interval}) async {
+      final claims = <String>[];
+      final recorder = TransactionStatementRecorder(
+        select: (sql, arguments) {
+          if (sql.contains('UPDATE public.beacon_forward_edge')) {
+            claims.add(sql);
+          }
+          return [];
+        },
+      );
+      final database = TenturaDb.forTest(database: recorder);
+      addTearDown(database.close);
+      final env = Env(
+        environment: Environment.test,
+        printEnv: false,
+        taskOnEmptyDelay: Duration.zero,
+        contactResolutionSweepInterval: interval,
+      );
+      final worker = _worker(
+        tasks: _FakeTaskRepo(),
+        images: _FakeImageRepo(),
+        digest: _digestCase(_CountingOutbox()),
+        outbox: _CountingOutbox(),
+        contactResolutionSweep: ContactResolutionSweepCase(
+          unitOfWork: MutatingUnitOfWork(database),
+          forwardEdgeRepository: ForwardEdgeRepository(database),
+          trustLedger: TrustLedgerRepository(database),
+          env: env,
+          logger: Logger('test'),
+        ),
+        env: env,
+      );
+
+      unawaited(worker.run());
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await worker.dispose();
+      return claims.length;
+    }
+
+    test('sweeps again after the configured interval, not once an hour',
+        () async {
+      expect(
+        await claimsWithin(interval: const Duration(milliseconds: 10)),
+        greaterThanOrEqualTo(3),
+      );
+    });
+
+    test('a long configured interval keeps the sweep to one run per burst',
+        () async {
+      expect(await claimsWithin(interval: const Duration(hours: 1)), 1);
     });
   });
 }

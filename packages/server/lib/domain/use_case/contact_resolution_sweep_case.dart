@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -11,8 +13,9 @@ import '_use_case_base.dart';
 /// B2: forwards still unanswered after their deadline become `noisy`
 /// recipient→sender evidence (Arch §6). Runs hourly.
 ///
-/// Claim, resolve-as-ignored and evidence write share one transaction, so a
-/// failed batch is retried whole and a second run finds nothing to claim.
+/// Each chunk's claim, resolve-as-ignored, evidence write and projection share
+/// one bounded transaction, so a failed chunk is retried whole. A run loops
+/// chunk by chunk until the backlog is empty or its row/time budget is spent.
 @Singleton(order: 3)
 final class ContactResolutionSweepCase extends UseCaseBase {
   ContactResolutionSweepCase({
@@ -30,24 +33,37 @@ final class ContactResolutionSweepCase extends UseCaseBase {
   final TrustLedgerPort _ledger;
 
   Future<void> run() async {
+    final batchSize = env.contactResolutionBatchSize;
+    final rowBudget = env.contactResolutionRunRowBudget;
+    final timeBudget = env.contactResolutionRunTimeBudget;
+    final stopwatch = Stopwatch()..start();
+    var processed = 0;
     try {
-      await _uow.run<void>(
-        action: () async {
-          final ignored = await _forwardEdges.claimIgnoredContacts();
-          if (ignored.isEmpty) return;
-          await _ledger.record([
-            for (final c in ignored)
-              LedgerEvidence(
-                subjectId: c.recipientId,
-                objectId: c.senderId,
-                kind: TrustEvidenceKind.noisy,
-                count: 1,
-                sourceKey: 'contact:${c.edgeId}:noisy',
-                beaconId: c.beaconId,
-              ),
-          ]);
-        },
-      );
+      while (processed < rowBudget && stopwatch.elapsed < timeBudget) {
+        final limit = min(batchSize, rowBudget - processed);
+        final claimed = await _uow.run<int>(
+          action: () async {
+            final ignored = await _forwardEdges.claimIgnoredContacts(
+              limit: limit,
+            );
+            if (ignored.isEmpty) return 0;
+            await _ledger.record([
+              for (final c in ignored)
+                LedgerEvidence(
+                  subjectId: c.recipientId,
+                  objectId: c.senderId,
+                  kind: TrustEvidenceKind.noisy,
+                  count: 1,
+                  sourceKey: 'contact:${c.edgeId}:noisy',
+                  beaconId: c.beaconId,
+                ),
+            ]);
+            return ignored.length;
+          },
+        );
+        processed += claimed;
+        if (claimed < limit) break;
+      }
     } catch (e, s) {
       logger.severe('contact resolution sweep failed', e, s);
     }
