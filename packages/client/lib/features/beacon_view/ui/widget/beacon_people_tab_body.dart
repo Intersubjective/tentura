@@ -303,11 +303,14 @@ class BeaconPeopleTabBody extends StatelessWidget {
       for (final c in state.helpOffers) {
         if (c.user.id == row.userId && !c.isWithdrawn) return c;
       }
+      // No help offer behind this row (e.g. the author): there is nothing
+      // that could have been edited, so do not derive an "edited" marker
+      // from the participant row's timestamp.
       return TimelineHelpOffer(
         user: row.profile,
         message: '',
         createdAt: beacon.createdAt,
-        updatedAt: row.participant?.updatedAt ?? beacon.updatedAt,
+        updatedAt: beacon.createdAt,
       );
     }
 
@@ -372,7 +375,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 }
               }
             : null,
-        onEdit: row.userId == state.myProfile.id && !c.isWithdrawn
+        // Edit and Withdraw act on the viewer's own help offer; a row without
+        // one (the author's own card) has nothing to edit or withdraw.
+        onEdit: isMine && hasHelpOffer && !c.isWithdrawn
             ? () async {
                 await beaconViewRunEditHelpOfferDialog(
                   context,
@@ -400,7 +405,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
               }
             : null,
         onWithdraw:
-            row.userId == state.myProfile.id &&
+            isMine &&
+                hasHelpOffer &&
                 !c.isWithdrawn &&
                 beacon.allowsWithdrawWhileHelpOffered
             ? () async {
