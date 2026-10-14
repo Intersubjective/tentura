@@ -37,8 +37,10 @@ class PlanEditCubit extends Cubit<PlanEditState> {
   final BeaconPlanCase _case;
   final String Function() _newStepId;
 
-  /// A fresh, empty step (not yet in the draft).
-  PlanStepSnapshot newStep() => PlanStepSnapshot(id: _newStepId(), title: '');
+  /// A fresh, empty step (not yet in the draft), optionally starting at
+  /// [startAt].
+  PlanStepSnapshot newStep({DateTime? startAt}) =>
+      PlanStepSnapshot(id: _newStepId(), title: '', startAt: startAt);
 
   /// Adds or replaces [step] and keeps the draft chronological. When that
   /// changes the step's place, its id is reported in `movedStepId`.

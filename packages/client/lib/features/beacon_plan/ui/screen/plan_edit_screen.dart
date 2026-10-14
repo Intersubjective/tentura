@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/plan/plan.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import '../../domain/use_case/beacon_plan_case.dart';
 import '../bloc/plan_edit_cubit.dart';
@@ -71,7 +72,7 @@ class PlanEditScreen extends StatelessWidget {
   /// step positions: [newIndex] is the slot after the dragged row is removed.
   void _reorder(
     PlanEditCubit cubit,
-    List<PlanListItem> items,
+    List<Object> items,
     int oldIndex,
     int newIndex,
   ) {
@@ -134,7 +135,8 @@ class PlanEditScreen extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<PlanEditCubit>();
         final validation = _validationText(state.validationError, l10n);
-        final items = buildPlanEditItems(state.steps);
+        final items = _withDayAdds(buildPlanEditItems(state.steps));
+        final atLimit = state.steps.length >= PlanLimits.maxSteps;
         // Not a route of its own: a system back (Android) closes the editor
         // rather than the Request.
         return PopScope(
@@ -184,85 +186,132 @@ class PlanEditScreen extends StatelessWidget {
                       ),
                     ),
                   Expanded(
-                    child: ReorderableListView.builder(
-                      buildDefaultDragHandles: false,
-                      itemCount: items.length,
-                      onReorderItem: (o, n) => _reorder(cubit, items, o, n),
-                      footer: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: tt.screenHPadding,
-                          vertical: tt.rowGap,
-                        ),
-                        child: Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: TenturaTextAction(
-                            key: addKey,
-                            label: l10n.planEditAddStep,
-                            icon: const Icon(Icons.add),
-                            flushStart: true,
-                            onPressed: state.steps.length >= PlanLimits.maxSteps
-                                ? null
-                                : () => _editStep(
-                                    context,
-                                    cubit.newStep(),
-                                    isNew: true,
+                    child: _MovedStepScroll(
+                      builder: (context, scrollController) =>
+                          ReorderableListView.builder(
+                            scrollController: scrollController,
+                            buildDefaultDragHandles: false,
+                            itemCount: items.length,
+                            onReorderItem: (o, n) =>
+                                _reorder(cubit, items, o, n),
+                            footer: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: tt.screenHPadding,
+                                vertical: tt.rowGap,
+                              ),
+                              child: Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: TenturaTextAction(
+                                  key: addKey,
+                                  label: l10n.planEditAddStep,
+                                  icon: const Icon(Icons.add),
+                                  flushStart: true,
+                                  onPressed: atLimit
+                                      ? null
+                                      : () => _editStep(
+                                          context,
+                                          cubit.newStep(),
+                                          isNew: true,
+                                        ),
+                                ),
+                              ),
+                            ),
+                            itemBuilder: (context, i) {
+                              final item = items[i];
+                              if (item is _DayAdd) {
+                                return Padding(
+                                  key: ValueKey('day-add-$i'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: tt.screenHPadding,
                                   ),
-                          ),
-                        ),
-                      ),
-                      itemBuilder: (context, i) {
-                        final item = items[i];
-                        if (item is! PlanEditStep) {
-                          return PlanDayHeader(
-                            key: ValueKey('day-$i'),
-                            day: (item as PlanListDay).day,
-                          );
-                        }
-                        final step = item.step;
-                        final problem = validatePlanStep(step);
-                        final untimed =
-                            step.startAt == null && step.endAt == null;
-                        return ListTile(
-                          key: ValueKey(step.id),
-                          titleAlignment: ListTileTitleAlignment.top,
-                          leading: untimed
-                              ? ReorderableDragStartListener(
-                                  index: i,
-                                  child: Semantics(
-                                    container: true,
-                                    label: l10n.planEditReorderHandle,
-                                    child: Icon(
-                                      Icons.drag_handle,
-                                      size: tt.avatarTinySize,
+                                  child: Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: TenturaTextAction(
+                                      label: l10n.planEditAddStep,
+                                      icon: const Icon(Icons.add),
+                                      flushStart: true,
+                                      onPressed: atLimit
+                                          ? null
+                                          : () => _editStep(
+                                              context,
+                                              cubit.newStep(
+                                                startAt: item.day.lastAt,
+                                              ),
+                                              isNew: true,
+                                            ),
                                     ),
                                   ),
-                                )
-                              : null,
-                          title: Text(
-                            step.title.trim().isEmpty ? '—' : step.title,
-                            style: TenturaText.body(
-                              problem == null ? tt.text : tt.danger,
-                            ),
+                                );
+                              }
+                              if (item is! PlanEditStep) {
+                                return PlanDayHeader(
+                                  key: ValueKey('day-$i'),
+                                  day: (item as PlanListDay).day,
+                                );
+                              }
+                              final step = item.step;
+                              final problem = validatePlanStep(step);
+                              final untimed =
+                                  step.startAt == null && step.endAt == null;
+                              final moved = step.id == state.movedStepId;
+                              final tile = ListTile(
+                                titleAlignment: ListTileTitleAlignment.top,
+                                leading: untimed
+                                    ? ReorderableDragStartListener(
+                                        index: i,
+                                        child: Semantics(
+                                          container: true,
+                                          label: l10n.planEditReorderHandle,
+                                          child: Icon(
+                                            Icons.drag_handle,
+                                            size: tt.avatarTinySize,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                                title: Text(
+                                  step.title.trim().isEmpty ? '—' : step.title,
+                                  style: TenturaText.body(
+                                    problem == null ? tt.text : tt.danger,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  [
+                                    planStepWhenLabel(
+                                      startAt: step.startAt,
+                                      endAt: step.endAt,
+                                      l10n: l10n,
+                                    ),
+                                    people.nameOf(step.assigneeId, l10n),
+                                  ].join(' · '),
+                                  style: TenturaText.bodySmall(tt.textMuted),
+                                ),
+                                trailing: IconButton(
+                                  tooltip: l10n.planEditDeleteStep,
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () => cubit.removeStep(step.id),
+                                ),
+                                onTap: () =>
+                                    _editStep(context, step, isNew: false),
+                              );
+                              // A new key per move re-runs the scroll and flash
+                              // when the same step moves again.
+                              return FocusFlashHighlight(
+                                key: ValueKey(
+                                  moved
+                                      ? '${step.id}#${state.movedSeq}'
+                                      : step.id,
+                                ),
+                                active: moved,
+                                // The flash paints a background: give the tile its own
+                                // Material so its ink stays visible.
+                                child: Material(
+                                  type: MaterialType.transparency,
+                                  child: tile,
+                                ),
+                              );
+                            },
                           ),
-                          subtitle: Text(
-                            [
-                              planStepWhenLabel(
-                                startAt: step.startAt,
-                                endAt: step.endAt,
-                                l10n: l10n,
-                              ),
-                              people.nameOf(step.assigneeId, l10n),
-                            ].join(' · '),
-                            style: TenturaText.bodySmall(tt.textMuted),
-                          ),
-                          trailing: IconButton(
-                            tooltip: l10n.planEditDeleteStep,
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => cubit.removeStep(step.id),
-                          ),
-                          onTap: () => _editStep(context, step, isNew: false),
-                        );
-                      },
                     ),
                   ),
                   SafeArea(
@@ -287,4 +336,74 @@ class PlanEditScreen extends StatelessWidget {
       },
     );
   }
+}
+
+/// The add action closing a day group; continues from the day's latest time.
+class _DayAdd {
+  const _DayAdd(this.day);
+
+  final PlanEditDay day;
+}
+
+/// [items] with a [_DayAdd] after the last step of each day.
+List<Object> _withDayAdds(List<PlanListItem> items) {
+  final rows = <Object>[];
+  PlanEditDay? open;
+  for (final item in items) {
+    if (item is PlanEditDay) {
+      if (open != null) rows.add(_DayAdd(open));
+      open = item;
+    }
+    rows.add(item);
+  }
+  if (open != null) rows.add(_DayAdd(open));
+  return rows;
+}
+
+/// Hands [builder] a scroll controller and, when the cubit reports a moved
+/// step, jumps near its row so the lazy list builds it (the row itself then
+/// scrolls precisely into view and flashes).
+class _MovedStepScroll extends StatefulWidget {
+  const _MovedStepScroll({required this.builder});
+
+  final Widget Function(BuildContext context, ScrollController controller)
+  builder;
+
+  @override
+  State<_MovedStepScroll> createState() => _MovedStepScrollState();
+}
+
+class _MovedStepScrollState extends State<_MovedStepScroll> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onMoved(BuildContext context, PlanEditState state) {
+    if (!_controller.hasClients) return;
+    final rows = _withDayAdds(buildPlanEditItems(state.steps));
+    final at = rows.indexWhere(
+      (r) => r is PlanEditStep && r.step.id == state.movedStepId,
+    );
+    if (at < 0) return;
+    final position = _controller.position;
+    final extent = position.maxScrollExtent + position.viewportDimension;
+    _controller.jumpTo(
+      (extent * at / rows.length).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocListener<PlanEditCubit, PlanEditState>(
+        listenWhen: (p, c) => p.movedSeq != c.movedSeq,
+        listener: _onMoved,
+        child: widget.builder(context, _controller),
+      );
 }
