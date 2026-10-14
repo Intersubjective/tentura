@@ -17,7 +17,10 @@ import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
+import 'package:tentura/features/my_work/domain/my_work_offer_accepted.dart';
+import 'package:tentura/ui/widget/offer_accepted_event_subcard.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -239,8 +242,15 @@ Widget? _composeMyWorkFooter(
   required MyWorkCardViewModel vm,
   Widget? existingFooter,
   bool suppressReviewHelpOffersFallback = false,
+  String? currentUserId,
 }) {
   final now = DateTime.now();
+  // B077: the helper's «your offer was accepted» event leads the footer as
+  // its own sub-card until dismissed; the matching receipt is not repeated in
+  // the generic rows under it.
+  final offerAcceptedAt = currentUserId == null
+      ? null
+      : myWorkOfferAcceptedAt(vm);
   final view = myWorkCardAttentionView(
     beaconId: vm.beaconId,
     attention: context.select<MyWorkCubit, MyWorkBeaconAttention?>(
@@ -252,8 +262,40 @@ Widget? _composeMyWorkFooter(
   );
   final planRows = view.hasPlanRows ? _myWorkPlanRows(context, vm, now) : null;
   final obligations = view.obligations;
-  final optionalEvents = view.optionalEvents;
-  final optionalTotal = view.optionalTotal;
+  final acceptedReceipts = offerAcceptedAt == null
+      ? const <AttentionReceipt>[]
+      : [
+          for (final r in view.optionalEvents)
+            if (r.presentationKey == OfferAcceptedEventSubcard.presentationKey)
+              r,
+        ];
+  final optionalEvents = [
+    for (final r in view.optionalEvents)
+      if (!acceptedReceipts.contains(r)) r,
+  ];
+  final optionalTotal = view.optionalTotal - acceptedReceipts.length;
+  final acceptedEvent = offerAcceptedAt == null
+      ? null
+      : OfferAcceptedEventSubcard(
+          key: ValueKey('offer-accepted-${vm.beaconId}'),
+          beaconId: vm.beaconId,
+          viewerId: currentUserId!,
+          author: vm.beacon.author,
+          acceptedAt: offerAcceptedAt,
+          requestTitle: vm.beacon.title,
+          // One gesture: the receipt behind it is cleared too, so the
+          // Updates feed and the card's count agree with what was dismissed.
+          onDismissed: () {
+            for (final r in acceptedReceipts) {
+              unawaited(
+                context.read<MyWorkCubit>().clearOptionalEvent(
+                  vm.beaconId,
+                  r.id,
+                ),
+              );
+            }
+          },
+        );
   final showObligations = myWorkObligationBlockVisible(
     vm: vm,
     obligations: obligations,
@@ -261,7 +303,7 @@ Widget? _composeMyWorkFooter(
     suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
     hasPlanRows: planRows != null,
   );
-  if (!showObligations && existingFooter == null) {
+  if (!showObligations && existingFooter == null && acceptedEvent == null) {
     return null;
   }
   final tt = context.tt;
@@ -269,6 +311,7 @@ Widget? _composeMyWorkFooter(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      ?acceptedEvent,
       if (showObligations)
         MyWorkObligationBlock(
           vm: vm,
@@ -697,6 +740,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
         context,
         vm: vm,
         existingFooter: _myWorkArchiveFooter(context, vm),
+        currentUserId: currentUserId,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
