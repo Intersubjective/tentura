@@ -7,6 +7,7 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/auth_google_controller.dart';
+import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     show AccountCredentialEntity, CredentialType;
@@ -161,6 +162,29 @@ void main() {
   }
 
   Future<String> readBody(Response response) => response.readAsString();
+
+  test('cancelled Google consent returns to the landing page (B073)', () async {
+    final response = await controller.callback(
+      Request(
+        'GET',
+        Uri.parse(
+          'http://localhost/api/auth/google/callback'
+          '?error=access_denied&state=state123',
+        ),
+      ),
+    );
+    expect(response.statusCode, 302);
+    expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
+    expect(setCookieHeader(response), contains(kCookieOAuthStateName));
+  });
+
+  test('callback without code or state returns to the landing page', () async {
+    final response = await controller.callback(
+      Request('GET', Uri.parse('http://localhost/api/auth/google/callback')),
+    );
+    expect(response.statusCode, 302);
+    expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
+  });
 
   test('linkIntent returns a signed link/start URL', () async {
     final response = await controller.linkIntent(

@@ -214,7 +214,10 @@ final class AuthGoogleController extends BaseController {
         authMethod: 'google',
         request: request,
       );
-      return Response.badRequest(body: 'missing code or state');
+      // Google sends the person back with `?error=access_denied` (no code)
+      // when they cancel. Land them on the start page like every other failed
+      // callback below, not on a bare 400 text page with no way back.
+      return _oauthStateError();
     }
     final oauthCookie = readCookie(request, kCookieOAuthStateName);
     if (oauthCookie == null || oauthCookie.isEmpty) {
