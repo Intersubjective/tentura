@@ -29,6 +29,7 @@ class GraphController<N, E> with ChangeNotifier {
 
   final _nodes = <N>{};
   final _edges = <E>{};
+  final _nodePositions = <GraphNodeId, _NodePositionListenable>{};
 
   // Region of canvas that is building its nodes now
   Rect? _effectiveViewport;
@@ -165,6 +166,15 @@ class GraphController<N, E> with ChangeNotifier {
       throw StateError('Node $id has no layout position yet');
     }
     return Offset(point.x, point.y);
+  }
+
+  /// Stable displayed position for a positioned node, disposed on removal.
+  ValueListenable<Offset> positionListenableForId(GraphNodeId id) {
+    if (_disposed) throw StateError('GraphController is disposed');
+    return _nodePositions.putIfAbsent(
+      id,
+      () => _NodePositionListenable(getPositionForId(id)),
+    );
   }
 
   /// Like [getPositionForId] but returns null when the node has no layout position.
@@ -627,6 +637,27 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   void _onSceneStateChanged() {
+    final snapshot = renderSnapshot;
+    final changed = <_NodePositionListenable>[];
+    _nodePositions.removeWhere((id, position) {
+      if (!snapshot.topology.nodesById.containsKey(id)) {
+        position.dispose();
+        return true;
+      }
+      final point = snapshot.resolvePosition(id);
+      if (point != null) {
+        final next = Offset(point.x, point.y);
+        if (position.value != next) {
+          position._value = next;
+          changed.add(position);
+        }
+      }
+      return false;
+    });
+    // Commit every value before any listener observes this scene revision.
+    for (final position in changed) {
+      position._publish();
+    }
     final generation = ++_publicationGeneration;
     final topologyRevision = _scene.topologyRevision;
     _relayoutInFlight = _scene.layoutOutcome is GraphLayoutOutcomeRunning;
@@ -683,6 +714,8 @@ class GraphController<N, E> with ChangeNotifier {
       notifyListeners();
     }
 
+    // Request the frame before the deferred publication updates its consumers.
+    _schedulerBindingOrNull()?.ensureVisualUpdate();
     scheduleMicrotask(apply);
   }
 
@@ -1260,6 +1293,22 @@ class GraphController<N, E> with ChangeNotifier {
     _ticker?.dispose();
     _ticker = null;
     _cameraRevision.dispose();
+    for (final position in _nodePositions.values) {
+      position.dispose();
+    }
+    _nodePositions.clear();
     super.dispose();
   }
+}
+
+class _NodePositionListenable extends ChangeNotifier
+    implements ValueListenable<Offset> {
+  _NodePositionListenable(this._value);
+
+  Offset _value;
+
+  @override
+  Offset get value => _value;
+
+  void _publish() => notifyListeners();
 }

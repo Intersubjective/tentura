@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/scene/graph_ids.dart';
@@ -8,7 +9,7 @@ import 'package:force_directed_graphview/src/widget/labels_view.dart';
 import 'package:force_directed_graphview/src/widget/nodes_view.dart';
 
 /// One immutable scene capture shared by paint and hit testing for a frame.
-class GraphSceneRenderScope extends InheritedWidget {
+class GraphSceneRenderScope extends InheritedModel<bool> {
   /// { @nodoc }
   const GraphSceneRenderScope({
     required this.snapshot,
@@ -31,10 +32,22 @@ class GraphSceneRenderScope extends InheritedWidget {
     return scope!;
   }
 
+  /// Scene membership and payloads, independent of position-only changes.
+  static GraphSceneRenderScope membershipOf(BuildContext context) =>
+      InheritedModel.inheritFrom<GraphSceneRenderScope>(context, aspect: true)!;
+
   @override
   bool updateShouldNotify(GraphSceneRenderScope oldWidget) =>
       snapshot != oldWidget.snapshot ||
       orderedNodeIds != oldWidget.orderedNodeIds;
+
+  @override
+  bool updateShouldNotifyDependent(
+    GraphSceneRenderScope oldWidget,
+    Set<bool> dependencies,
+  ) =>
+      snapshot.topology != oldWidget.snapshot.topology ||
+      !setEquals(orderedNodeIds.toSet(), oldWidget.orderedNodeIds.toSet());
 }
 
 /// { @nodoc }

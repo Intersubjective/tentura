@@ -15,16 +15,13 @@ class NodesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final configuration = InheritedConfiguration.configurationOf(context);
-    final scope = GraphSceneRenderScope.of(context);
+    final scope = GraphSceneRenderScope.membershipOf(context);
 
-    return CustomMultiChildLayout(
-      delegate: _NodesLayoutDelegate(
-        snapshot: scope.snapshot,
-        orderedNodeIds: scope.orderedNodeIds,
-      ),
-      children: [
+    return _NodesLayout(
+      children: {
         for (final id in scope.orderedNodeIds)
-          LayoutId(
+          id: LayoutId(
+            key: ValueKey<String>(id),
             id: id,
             child: RepaintBoundary(
               key: ValueKey<String>(id),
@@ -34,6 +31,26 @@ class NodesView extends StatelessWidget {
               ),
             ),
           ),
+      },
+    );
+  }
+}
+
+class _NodesLayout extends StatelessWidget {
+  const _NodesLayout({required this.children});
+
+  final Map<GraphNodeId, Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = GraphSceneRenderScope.of(context);
+    return CustomMultiChildLayout(
+      delegate: _NodesLayoutDelegate(
+        snapshot: scope.snapshot,
+        orderedNodeIds: scope.orderedNodeIds,
+      ),
+      children: [
+        for (final id in scope.orderedNodeIds) children[id]!,
       ],
     );
   }

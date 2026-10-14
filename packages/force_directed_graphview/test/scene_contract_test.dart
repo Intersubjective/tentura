@@ -33,7 +33,7 @@ GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>
 GraphController<Node<int>, Edge<Node<int>, String>> _intStringEdgeController() =>
     GraphController(
       nodeIdOf: testIntNodeId,
-      edgeIdOf: (edge) => (edge as Edge<Node<int>, String>).data,
+      edgeIdOf: (edge) => edge.data,
       nodeSizeOf: (node) => node.size,
       nodeSimulationFixedOf: (node) => node.pinned,
       edgeSourceOf: (edge) => edge.source,
