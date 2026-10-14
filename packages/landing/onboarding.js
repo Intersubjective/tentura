@@ -38,6 +38,33 @@ export const ONBOARDING_PAGES = [
   },
 ];
 
+/** Label of the seed-recovery text link on the signed-out pages (U084). */
+export const RECOVER_SEED_LINK_LABEL =
+  'Restore an account from your recovery seed';
+
+/**
+ * Copy for the invite landing a signed-out person sees (U084): what Tentura
+ * is (the same words as the first onboarding page), why the friend sent the
+ * link, and how to sign up, without leading with seed recovery.
+ * @param {{ inviterName: string, beaconTitle?: string|null, inApp: boolean }} args
+ */
+export function inviteLandingCopy({ inviterName, beaconTitle, inApp }) {
+  const title = String(beaconTitle ?? '').trim();
+  return {
+    about: ONBOARDING_PAGES[0].body,
+    why: title
+      ? `${inviterName} wants you in on a request: “${title}”. ` +
+        'Join to see it, offer help or pass it on.'
+      : `${inviterName} trusts you and wants you in their network, ` +
+        'so you can ask each other for a hand.',
+    signUp: inApp
+      ? 'Open this link in your browser, or create an account with email.'
+      : 'Create an account with email or Google. ' +
+        'Already have an account? Sign in the same way.',
+    recoverLink: RECOVER_SEED_LINK_LABEL,
+  };
+}
+
 /** `?signed_in=1` — session cookie set after email/OAuth auth. */
 export function isSignedInReturn(search) {
   return new URLSearchParams(search || '').get('signed_in') === '1';
