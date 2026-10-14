@@ -6,8 +6,11 @@ import 'package:tentura/data/service/remote_api_client/auth_loss_classifier.dart
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
-import 'package:tentura/domain/exception/server_exception.dart' hide ServerException;
+import 'package:tentura/domain/exception/server_exception.dart'
+    hide ServerException;
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
+import 'package:tentura/features/constellation/domain/exception.dart';
 
 void main() {
   group('mapRemoteFailure', () {
@@ -59,12 +62,14 @@ void main() {
       expect(mapped, isA<ConnectionUplinkException>());
     });
 
-    test('a non-connectivity StateError surfaces its text, not "no internet"',
-        () {
-      final mapped = mapRemoteFailure(StateError('No element'));
-      expect(mapped, isA<RemoteApiException>());
-      expect((mapped as RemoteApiException).toEn, contains('No element'));
-    });
+    test(
+      'a non-connectivity StateError surfaces its text, not "no internet"',
+      () {
+        final mapped = mapRemoteFailure(StateError('No element'));
+        expect(mapped, isA<RemoteApiException>());
+        expect((mapped as RemoteApiException).toEn, contains('No element'));
+      },
+    );
 
     test('an unrecognized error surfaces its text, not "no internet"', () {
       final mapped = mapRemoteFailure(Exception('Deserialization failed: foo'));
@@ -75,28 +80,31 @@ void main() {
       );
     });
 
-    test('ServerException with GraphQL errors surfaces them, not "no internet"',
-        () {
-      final mapped = mapRemoteFailure(
-        const ServerException(
-          statusCode: 400,
-          parsedResponse: Response(
-            response: {},
-            errors: [
-              GraphQLError(
-                message: "field 'addressee_name' not found in type: 'invitation'",
-              ),
-            ],
+    test(
+      'ServerException with GraphQL errors surfaces them, not "no internet"',
+      () {
+        final mapped = mapRemoteFailure(
+          const ServerException(
+            statusCode: 400,
+            parsedResponse: Response(
+              response: {},
+              errors: [
+                GraphQLError(
+                  message:
+                      "field 'addressee_name' not found in type: 'invitation'",
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-      expect(mapped, isA<RemoteApiException>());
-      expect(
-        (mapped as RemoteApiException).toEn,
-        contains("field 'addressee_name' not found"),
-      );
-      expect(mapped.toEn, contains('HTTP 400'));
-    });
+        );
+        expect(mapped, isA<RemoteApiException>());
+        expect(
+          (mapped as RemoteApiException).toEn,
+          contains("field 'addressee_name' not found"),
+        );
+        expect(mapped.toEn, contains('HTTP 400'));
+      },
+    );
 
     test('ServerException with auth-loss GraphQL error maps to auth loss', () {
       final mapped = mapRemoteFailure(
@@ -126,36 +134,39 @@ void main() {
       expect(mapped, isA<AuthSessionLostException>());
     });
 
-    test('ServerException from a socket failure keeps the no-internet mapping',
-        () {
-      final mapped = mapRemoteFailure(
-        ServerException(
-          originalException: Exception('SocketException: refused'),
-        ),
-      );
-      expect(mapped, isA<ConnectionUplinkException>());
-    });
+    test(
+      'ServerException from a socket failure keeps the no-internet mapping',
+      () {
+        final mapped = mapRemoteFailure(
+          ServerException(
+            originalException: Exception('SocketException: refused'),
+          ),
+        );
+        expect(mapped, isA<ConnectionUplinkException>());
+      },
+    );
 
     test(
-        'ServerException re-wrapping a RemoteApiException surfaces its message',
-        () {
-      // Reproduces the real bug: ErrorLink throws RemoteApiException for a
-      // GraphQL error, and ferry re-wraps it as a ServerException with a null
-      // parsedResponse. The original message must survive, not the wrapper's
-      // toString().
-      final mapped = mapRemoteFailure(
-        const ServerException(
-          originalException: RemoteApiException(
-            "Invalid argument (value): Unsupported type: Instance of 'PgDateTime'",
+      'ServerException re-wrapping a RemoteApiException surfaces its message',
+      () {
+        // Reproduces the real bug: ErrorLink throws RemoteApiException for a
+        // GraphQL error, and ferry re-wraps it as a ServerException with a null
+        // parsedResponse. The original message must survive, not the wrapper's
+        // toString().
+        final mapped = mapRemoteFailure(
+          const ServerException(
+            originalException: RemoteApiException(
+              "Invalid argument (value): Unsupported type: Instance of 'PgDateTime'",
+            ),
           ),
-        ),
-      );
-      expect(mapped, isA<RemoteApiException>());
-      expect(
-        (mapped as RemoteApiException).toEn,
-        contains("Unsupported type: Instance of 'PgDateTime'"),
-      );
-    });
+        );
+        expect(mapped, isA<RemoteApiException>());
+        expect(
+          (mapped as RemoteApiException).toEn,
+          contains("Unsupported type: Instance of 'PgDateTime'"),
+        );
+      },
+    );
 
     test('unparseable response body surfaces a malformed-response message', () {
       final mapped = mapRemoteFailure(
@@ -199,16 +210,18 @@ void main() {
       expect(mapped, isA<AuthSessionLostException>());
     });
 
-    test('auth-loss GraphQL error in a list takes precedence over later errors',
-        () {
-      final mapped = mapRemoteFailure(
-        const [
-          GraphQLError(message: 'Contact name must be 3–32 characters'),
-          GraphQLError(message: 'Could not verify JWT: JWTExpired'),
-        ],
-      );
-      expect(mapped, isA<AuthSessionLostException>());
-    });
+    test(
+      'auth-loss GraphQL error in a list takes precedence over later errors',
+      () {
+        final mapped = mapRemoteFailure(
+          const [
+            GraphQLError(message: 'Contact name must be 3–32 characters'),
+            GraphQLError(message: 'Could not verify JWT: JWTExpired'),
+          ],
+        );
+        expect(mapped, isA<AuthSessionLostException>());
+      },
+    );
 
     test('raw exception text with jwt markers maps to auth loss', () {
       for (final message in [
@@ -275,6 +288,30 @@ void main() {
   });
 
   group('mapRemoteFailure — pass-through', () {
+    const typedFailures = <Exception>[
+      BatonNotFoundException(),
+      BatonNotAuthorException(),
+      BatonNotCandidateException(),
+      BatonNotCollectingException(),
+      BatonInvalidCandidatesException(),
+      BatonAlreadyActiveException(),
+      BatonTakerNotAvailableException(),
+      BatonMessageNotEligibleException(),
+      ConstellationInvalidTargetException(),
+      ConstellationInvalidCoordinatesException(),
+      ConstellationUnsupportedCoordinateSpaceException(),
+      ConstellationTargetUnavailableException(),
+    ];
+    for (final original in typedFailures) {
+      test('${original.runtimeType} passes through unchanged', () {
+        expect(mapRemoteFailure(original), same(original));
+        expect(
+          mapRemoteFailure(ServerException(originalException: original)),
+          same(original),
+        );
+      });
+    }
+
     test('already-classified auth exceptions pass through unchanged', () {
       const authLost = AuthSessionLostException();
       const authRejected = SessionAuthRejectedException();

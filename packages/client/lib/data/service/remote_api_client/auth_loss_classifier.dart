@@ -9,7 +9,9 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
+import 'package:tentura/features/constellation/domain/exception.dart';
 
 import 'exception.dart';
 import 'session_fetch.dart';
@@ -34,6 +36,13 @@ Exception mapRemoteFailure(Object? error) {
   // Typed by `throwIfBeaconHierarchyError` in the error link (nested
   // Requests, Post budding, author invites); callers catch these by type.
   if (error is BeaconHierarchyException) {
+    return error;
+  }
+  // Typed by the error link; preserve their identity for caller catches.
+  if (error is BatonException) {
+    return error;
+  }
+  if (error is ConstellationException) {
     return error;
   }
   if (error is AuthSessionLostException) {
