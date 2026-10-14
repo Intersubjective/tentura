@@ -144,8 +144,14 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-13
-review due: 2026-10-20
+reviewed: 2026-10-14
+review due: 2026-10-21
+
+### alloy:lesson:attention_receipt_missing_from_custom_types
+When adding or wiring a server custom GraphQL object type, register it in the top-level list in packages/server/lib/api/controllers/graphql/custom_types.dart; a missing entry breaks runtime queries (e.g. AttentionFeed) even if the type definition exists elsewhere.
+
+### alloy:lesson:check_commands_run_under_bash_not_sh
+Alloy and CI check scripts run under bash; mapfile and process substitution fail under dash/sh—re-run checks with bash or use portable shell.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

@@ -56,7 +56,8 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
          fullDeadline: config.queueDeadline,
          retryAfter: config.retryAfter,
          enforceReentryGuard: false,
-       );
+       ),
+       _carriesMetadataOnly = false;
 
   ConstellationDbScheduler.fromEnv(Env env)
     : config = ConstellationDbSchedulerConfig.fromEnv(env),
@@ -64,7 +65,8 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
       _admission = MainDbScopeAdmission(
         maxConcurrent: env.pgPoolSettings.maxConnectionCount ?? 4,
         enforceReentryGuard: false,
-      );
+      ),
+      _carriesMetadataOnly = false;
 
   @FactoryMethod()
   ConstellationDbScheduler.injected(MainDbPool pool)
@@ -72,11 +74,16 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
         maxConcurrent: pool.admission.maxConcurrent,
       ),
       _now = DateTime.now,
-      _admission = pool.admission;
+      _admission = pool.admission,
+      _carriesMetadataOnly = true;
 
   final ConstellationDbSchedulerConfig config;
   final DateTime Function() _now;
   final MainDbScopeAdmission _admission;
+
+  /// Over a pool's admission the connection scope takes the slot; admitting
+  /// here as well would double-admit the work and wait on its own capacity.
+  final bool _carriesMetadataOnly;
   final stats = ConstellationDbSchedulerStats();
 
   int get queued => _admission.queued;
@@ -85,26 +92,37 @@ class ConstellationDbScheduler implements ConstellationDbAdmissionPort {
   @override
   Future<T> run<T>(ConstellationDbWorkKind kind, Future<T> Function() body) {
     final enqueuedAt = _now();
-    return _admission.run(
-      () async {
-        final queueAge = _now().difference(enqueuedAt);
-        if (queueAge > stats.maxQueueAge) stats.maxQueueAge = queueAge;
-        final value = await body();
-        if (kind == ConstellationDbWorkKind.full) {
-          stats.completedFull++;
-          final staleness = _now().difference(enqueuedAt);
-          if (staleness > stats.maxFullStaleness) {
-            stats.maxFullStaleness = staleness;
-          }
+    Future<T> work() async {
+      final queueAge = _now().difference(enqueuedAt);
+      if (queueAge > stats.maxQueueAge) stats.maxQueueAge = queueAge;
+      final value = await body();
+      if (kind == ConstellationDbWorkKind.full) {
+        stats.completedFull++;
+        final staleness = _now().difference(enqueuedAt);
+        if (staleness > stats.maxFullStaleness) {
+          stats.maxFullStaleness = staleness;
         }
-        return value;
-      },
-      kind: switch (kind) {
-        ConstellationDbWorkKind.apply => MainDbWorkKind.interactive,
-        ConstellationDbWorkKind.anchors => MainDbWorkKind.refresh,
-        ConstellationDbWorkKind.full => MainDbWorkKind.full,
-      },
-      actorUserId: MainDbWorkContext.current?.actorUserId,
+      }
+      return value;
+    }
+
+    final workKind = switch (kind) {
+      ConstellationDbWorkKind.apply => MainDbWorkKind.interactive,
+      ConstellationDbWorkKind.anchors => MainDbWorkKind.refresh,
+      ConstellationDbWorkKind.full => MainDbWorkKind.full,
+    };
+    final actorUserId = MainDbWorkContext.current?.actorUserId;
+    if (_carriesMetadataOnly) {
+      return MainDbWorkContext.run(
+        work,
+        actorUserId: actorUserId,
+        kind: workKind,
+      );
+    }
+    return _admission.run(
+      work,
+      kind: workKind,
+      actorUserId: actorUserId,
       workClass: kind.name,
     );
   }
