@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'mr'])
 library;
 
 import 'dart:convert';
@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../support/beacon_hierarchy_fixture.dart';
+import '../support/disposable_pg_target.dart' show isPgTestsRequired;
 import '../support/hasura_pg_jwt_keys.dart';
 import '../support/isolated_hasura_session.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
@@ -27,6 +28,11 @@ Future<void> main() async {
       : !dockerReachable
       ? 'Docker not available for isolated Hasura'
       : false;
+  if (skipReason != false && isPgTestsRequired()) {
+    throw StateError(
+      'Required Hasura test dependencies unavailable: $skipReason',
+    );
+  }
 
   group('beacon access level Hasura exposure — disposable Postgres', () {
     late BeaconHierarchyDisposablePgTarget target;

@@ -3,6 +3,7 @@ import 'package:ferry/ferry.dart' show Link, NextLink;
 import 'package:gql_exec/gql_exec.dart';
 
 import 'exception.dart';
+import 'fetch_cancellation_link.dart';
 
 enum AuthHeaderMode { anon, bearer }
 
@@ -31,6 +32,7 @@ class AuthLink extends Link {
     assert(forward != null, 'NextLink forward is null!');
     final withAuth = request.context.entry<HttpAuthHeaders>()?.withAuth ?? true;
     final token = withAuth ? await getToken() : null;
+    request.context.entry<FetchCancellation>()?.check();
     if (withAuth && (token == null || token.isEmpty)) {
       throw const AuthenticationNoKeyException();
     }

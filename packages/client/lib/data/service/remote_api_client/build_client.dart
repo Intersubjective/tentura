@@ -5,7 +5,6 @@ import 'package:ferry/ferry.dart'
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
 import 'package:gql_http_link/gql_http_link.dart';
 import 'package:gql_error_link/gql_error_link.dart';
-import 'package:gql_dedupe_link/gql_dedupe_link.dart';
 import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -16,6 +15,7 @@ import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_alr
 import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
+import 'fetch_cancellation_link.dart';
 import 'auth_loss_classifier.dart';
 import 'package:tentura/features/constellation/data/model/constellation_error_mapper.dart';
 import 'package:tentura/features/closure/data/model/closure_error_mapper.dart';
@@ -40,8 +40,12 @@ Future<Client> buildClient({
     kHeaderUserAgent: params.userAgent,
   };
 
-  final hasuraHttpClient = httpClient ?? _createGraphqlHttpClient();
-  final tenturaV2HttpClient = httpClient ?? _createGraphqlHttpClient();
+  final hasuraHttpClient = AbortableGraphqlHttpClient(
+    httpClient ?? _createGraphqlHttpClient(),
+  );
+  final tenturaV2HttpClient = AbortableGraphqlHttpClient(
+    httpClient ?? _createGraphqlHttpClient(),
+  );
 
   return Client(
     defaultFetchPolicies: {
@@ -54,7 +58,8 @@ Future<Client> buildClient({
 
       _HasuraSetofScalarFixLink(),
 
-      DedupeLink(),
+      CancellableDedupeLink(),
+      FetchCancellationLink(),
 
       AuthLink(getToken),
 
@@ -145,11 +150,15 @@ class _TimeoutLink extends Link {
     }
     return stream.timeout(
       timeout,
-      onTimeout: (sink) => sink.addError(
-        mapRemoteFailure(
-          TimeoutException('GraphQL request timed out', timeout),
-        ),
-      ),
+      onTimeout: (sink) {
+        sink
+          ..addError(
+            mapRemoteFailure(
+              TimeoutException('GraphQL request timed out', timeout),
+            ),
+          )
+          ..close();
+      },
     );
   }
 }

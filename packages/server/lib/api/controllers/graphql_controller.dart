@@ -8,6 +8,7 @@ import 'package:tentura_server/app/sentry/sentry_request_context.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/data/service/main_db_scope_admission.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 import 'graphql/input/_input_types.dart';
@@ -61,6 +62,18 @@ final class GraphqlController extends BaseController {
 
     try {
       final jwt = request.context[kGlobalInputQueryJwt] as JwtEntity?;
+      final context = RequestContext.current;
+      context?.actor = jwt?.sub;
+      if (operationName == 'ConstellationFieldFetch') {
+        context?.classify(RequestOperationClass.full);
+      } else if (const {
+        'BeaconAddImage',
+        'BeaconStageImage',
+        'BeaconSetMedia',
+      }.contains(operationName)) {
+        context?.classify(RequestOperationClass.upload);
+      }
+      context?.check();
       final response = await MainDbWorkContext.run(
         () => (env.isDebugModeOn ? graphqlSchema : _graphqlSchema)
             .parseAndExecute(

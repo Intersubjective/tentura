@@ -5,6 +5,7 @@ import 'package:sentry/sentry.dart';
 import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/request_context.dart';
 
 enum MainDbWorkKind { interactive, refresh, full }
 
@@ -88,6 +89,12 @@ final class MainDbScopeAdmission {
     String? actorUserId,
     String? workClass,
   }) {
+    final request = RequestContext.current;
+    try {
+      request?.check();
+    } on Object catch (error, stack) {
+      return Future.error(error, stack);
+    }
     final actor = actorUserId?.trim();
     if (enforceReentryGuard) {
       final held = Zone.current[_slotZoneKey];
@@ -142,6 +149,21 @@ final class MainDbScopeAdmission {
       });
     _waiting.add(waiter);
     if (actor != null) _actors[actor] = (_actors[actor] ?? 0) + 1;
+    waiter.cancelRegistration = request?.onCancel(() {
+      if (!_waiting.contains(waiter)) return;
+      _remove(waiter);
+      Object? error;
+      try {
+        request.check();
+      } on Object catch (cancelled) {
+        error = cancelled;
+      }
+      unawaited(finishSentryDbSpan(waiter.waitSpan, error));
+      waiter.start = null;
+      waiter.refuse!(error!);
+      waiter.refuse = null;
+      _pump();
+    });
     _pump();
     return result.future;
   }
@@ -149,6 +171,7 @@ final class MainDbScopeAdmission {
   void _remove(_AdmissionWaiter waiter) {
     _waiting.remove(waiter);
     waiter.timer?.cancel();
+    waiter.cancelRegistration?.call();
     final actor = waiter.actor;
     if (actor != null) {
       final count = _actors[actor]! - 1;
@@ -250,5 +273,6 @@ final class _AdmissionWaiter {
   Future<void> Function()? start;
   void Function(Object)? refuse;
   Timer? timer;
+  void Function()? cancelRegistration;
   ISentrySpan? waitSpan;
 }

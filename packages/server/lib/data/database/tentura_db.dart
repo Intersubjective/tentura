@@ -24,6 +24,8 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import 'db_pipeline_trace.dart';
 import 'main_db_pool.dart';
+import 'request_db_scope.dart';
+import 'package:tentura_server/domain/request_context.dart';
 import '../service/main_db_scope_admission.dart';
 import 'postgres_serialization_retry.dart';
 import 'custom_types/mentions_text_array_type.dart';
@@ -246,6 +248,8 @@ class TenturaDb extends _$TenturaDb {
     String? actorUserId,
     MainDbWorkKind? kind,
   }) {
+    final request = RequestContext.current;
+    request?.check();
     final main = _mainPool;
     if (main == null || !identical(resolvedEngine, _pooledUser)) {
       return action();
@@ -256,18 +260,25 @@ class TenturaDb extends _$TenturaDb {
     Future<T> admitted() => main.admission.run(
       () {
         Future<T> leased() => main.pool.withConnection((connection) async {
+          request?.check();
+          final requestScope = request == null
+              ? null
+              : await RequestDbScope.open(connection, main, request);
           final executor = DbSpanDatabase(
             PgDatabase.opened(
-              connection,
+              requestScope ?? connection,
               enableMigrations: false,
               logStatements: main.logStatements,
             ),
           );
+          final scopedExecutor = requestScope == null
+              ? executor
+              : executor.interceptWith(requestScope);
           final scope = _ScopedDatabaseUser(
             this,
             _scopeInterceptor == null
-                ? executor
-                : executor.interceptWith(_scopeInterceptor()),
+                ? scopedExecutor
+                : scopedExecutor.interceptWith(_scopeInterceptor()),
           );
           try {
             await trace?.acquired(connection: connection);
@@ -287,7 +298,11 @@ class TenturaDb extends _$TenturaDb {
             rethrow;
           } finally {
             scope.isActive = false;
-            await scope.executor.close();
+            try {
+              await scope.executor.close();
+            } finally {
+              await requestScope?.release();
+            }
           }
         });
         return leased();

@@ -3,6 +3,7 @@ import 'dart:math' show Random;
 import 'package:postgres/postgres.dart' show ServerException;
 
 import 'package:tentura_server/app/sentry/sentry_db_span.dart';
+import 'package:tentura_server/domain/request_context.dart';
 
 /// Retries [action] once after PostgreSQL deadlock (`40P01`) or serialization
 /// failure (`40001`). The failed attempt must run inside a transaction that
@@ -12,14 +13,15 @@ Future<T> withPostgresDeadlockOrSerializationRetry<T>(
   int maxRetries = 1,
   bool Function(Object error)? isRetryable,
 }) async {
-  final retryable =
-      isRetryable ?? isPostgresDeadlockOrSerializationFailure;
+  final retryable = isRetryable ?? isPostgresDeadlockOrSerializationFailure;
   var attempts = 0;
   while (true) {
+    RequestContext.current?.check();
     attempts++;
     try {
       return await action();
     } on Object catch (error) {
+      RequestContext.current?.check();
       if (attempts > maxRetries || !retryable(error)) {
         rethrow;
       }

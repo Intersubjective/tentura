@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'package:shelf_plus/shelf_plus.dart';
+import 'package:tentura_server/api/http/request_context_io_adapter.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/api/root_router.dart';
@@ -21,7 +22,7 @@ Future<void> serveWeb(({SendPort sendPort, Env env}) params) async {
       final rootRouter = await getIt.getAsync<RootRouter>();
 
       final webServer = await shelfRun(
-        rootRouter.routeHandler,
+        () => requestContextIoAdapter(rootRouter.routeHandler()),
         onStarted: (address, port) => print(
           '${Isolate.current.debugName} web server listen [$address:$port]',
         ),
