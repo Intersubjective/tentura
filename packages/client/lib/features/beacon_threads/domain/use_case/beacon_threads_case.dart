@@ -24,6 +24,7 @@ import '../entity/beacon_room_invalidation.dart';
 import '../entity/request_thread.dart';
 import '../entity/room_seen_outcome.dart';
 import '../entity/room_unread_snapshot.dart';
+import '../now_line_changed_exception.dart';
 import '../room_read_watermark_store.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
@@ -327,13 +328,28 @@ base class BeaconThreadsCase extends UseCaseBase {
     String beaconId,
   ) async => const [];
 
+  /// Saves the request's next step. With [expectedLine] (the line the editor
+  /// opened with) the save is refused with [NowLineChangedException] when the
+  /// server's line has changed to something else meanwhile, instead of
+  /// silently overwriting someone else's edit (B085).
   Future<void> updateRoomNowLine({
     required String beaconId,
     required String currentLine,
-  }) => _room.updateRoomNowLine(
-    beaconId: beaconId,
-    text: currentLine,
-  );
+    String? expectedLine,
+  }) async {
+    if (expectedLine != null) {
+      final server = (await _room.fetchBeaconRoomState(beaconId))
+          .currentLine
+          .trim();
+      if (server != expectedLine.trim() && server != currentLine.trim()) {
+        throw NowLineChangedException(currentLine: server);
+      }
+    }
+    await _room.updateRoomNowLine(
+      beaconId: beaconId,
+      text: currentLine,
+    );
+  }
 
   Future<CoordinationItem?> fetchCurrentCoordinationPlan(
     String beaconId,
