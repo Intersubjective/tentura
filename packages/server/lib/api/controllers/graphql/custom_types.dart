@@ -226,6 +226,20 @@ final gqlTypeAttentionSurfaceSummary =
         field('forYouSweepEligible', graphQLBoolean.nonNullable()),
       ]);
 
+/// U088 — what `BeaconLobby` returns: the lobby's thread scope id and what
+/// the caller may do there (the author also gets the banned list).
+final gqlTypeBeaconLobby = GraphQLObjectType('BeaconLobby', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('lobbyId', graphQLString.nonNullable()),
+    field('isAuthor', graphQLBoolean.nonNullable()),
+    field('canPost', graphQLBoolean.nonNullable()),
+    field(
+      'bannedUserIds',
+      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    ),
+  ]);
+
 final gqlTypeAttentionReconcileResult =
     GraphQLObjectType('AttentionReconcileResult', null)
       ..fields.addAll([
