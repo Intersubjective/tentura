@@ -60,9 +60,12 @@ class PollingRepository implements PollingRepositoryPort {
         allowRevote: Value(allowRevote),
       ),
     );
-    await _database.managers.pollingVariants.bulkCreate(
-      (o) => variants.map((d) => o(pollingId: polling.id, description: d)),
-    );
+    // Individual inserts: Drift batch() is forbidden on TenturaDb.
+    for (final d in variants) {
+      await _database.managers.pollingVariants.create(
+        (o) => o(pollingId: polling.id, description: d),
+      );
+    }
     return polling.id;
   }, actorUserId: authorId);
 }

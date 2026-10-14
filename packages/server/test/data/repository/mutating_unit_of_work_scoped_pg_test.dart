@@ -147,17 +147,16 @@ FROM public.scoped_mutation_probe ORDER BY scope_id, repository
                     throwsA(same(abortSavepoint)),
                   );
                   expect(await _probe(harness.database), before);
-                  await harness.database.batch((batch) {
-                    batch
-                      ..customStatement(harness.left.insertSql, [
-                        scopeId,
-                        'batch',
-                      ])
-                      ..customStatement(harness.right.insertSql, [
-                        scopeId,
-                        'batch',
-                      ]);
-                  });
+                  // Drift batch() is forbidden on TenturaDb; plain statements
+                  // must stay on the same scoped lease and actor.
+                  await harness.database.customStatement(
+                    harness.left.insertSql,
+                    [scopeId, 'statement'],
+                  );
+                  await harness.database.customStatement(
+                    harness.right.insertSql,
+                    [scopeId, 'statement'],
+                  );
                 }, requireNew: true);
                 expect(await _probe(harness.database), before);
               },
@@ -174,12 +173,11 @@ FROM public.scoped_mutation_probe ORDER BY repository, stage
 ''');
         final committed = pair.outcomes[0].probe!;
         expect(rows.map((row) => row.toList()), [
-          ['scope_0', 'left', 'batch', _actors[0], committed.pid, committed.tx],
           ['scope_0', 'left', 'outer', _actors[0], committed.pid, committed.tx],
           [
             'scope_0',
-            'right',
-            'batch',
+            'left',
+            'statement',
             _actors[0],
             committed.pid,
             committed.tx,
@@ -188,6 +186,14 @@ FROM public.scoped_mutation_probe ORDER BY repository, stage
             'scope_0',
             'right',
             'nested_commit',
+            _actors[0],
+            committed.pid,
+            committed.tx,
+          ],
+          [
+            'scope_0',
+            'right',
+            'statement',
             _actors[0],
             committed.pid,
             committed.tx,

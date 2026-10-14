@@ -272,11 +272,12 @@ class UserRepository implements UserRepositoryPort {
       inviteeId: user.id,
     );
 
-    await _database.managers.voteUsers.bulkCreate(
-      (o) => [
-        o(subject: user.id, object: invitation.userId, amount: 1),
-        o(subject: invitation.userId, object: user.id, amount: 1),
-      ],
+    // Individual inserts: Drift batch() is forbidden on TenturaDb.
+    await _database.managers.voteUsers.create(
+      (o) => o(subject: user.id, object: invitation.userId, amount: 1),
+    );
+    await _database.managers.voteUsers.create(
+      (o) => o(subject: invitation.userId, object: user.id, amount: 1),
     );
     await _applyReciprocalTrustEdges(user.id, invitation.userId);
 
@@ -447,11 +448,12 @@ class UserRepository implements UserRepositoryPort {
       inviteeId: user.id,
     );
 
-    await _database.managers.voteUsers.bulkCreate(
-      (o) => [
-        o(subject: user.id, object: invitation.userId, amount: 1),
-        o(subject: invitation.userId, object: user.id, amount: 1),
-      ],
+    // Individual inserts: Drift batch() is forbidden on TenturaDb.
+    await _database.managers.voteUsers.create(
+      (o) => o(subject: user.id, object: invitation.userId, amount: 1),
+    );
+    await _database.managers.voteUsers.create(
+      (o) => o(subject: invitation.userId, object: user.id, amount: 1),
     );
     await _applyReciprocalTrustEdges(user.id, invitation.userId);
 
@@ -957,11 +959,14 @@ class UserRepository implements UserRepositoryPort {
     }
 
     if (bindFriendship) {
-      await _database.managers.voteUsers.bulkCreate(
-        (o) => [
-          o(subject: invitation.userId, object: userId, amount: 1),
-          o(subject: userId, object: invitation.userId, amount: 1),
-        ],
+      // Individual inserts: Drift batch() is forbidden on TenturaDb.
+      await _database.managers.voteUsers.create(
+        (o) => o(subject: invitation.userId, object: userId, amount: 1),
+        mode: InsertMode.insertOrIgnore,
+        onConflict: DoNothing(),
+      );
+      await _database.managers.voteUsers.create(
+        (o) => o(subject: userId, object: invitation.userId, amount: 1),
         mode: InsertMode.insertOrIgnore,
         onConflict: DoNothing(),
       );

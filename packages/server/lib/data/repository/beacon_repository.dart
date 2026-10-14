@@ -274,16 +274,16 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     }
 
     if (imageIds != null && imageIds.isNotEmpty) {
-      await _database.managers.beaconImages.bulkCreate(
-        (o) => [
-          for (var i = 0; i < imageIds.length; i++)
-            o(
-              beaconId: beacon.id,
-              imageId: UuidValue.fromString(imageIds[i]),
-              position: Value(i),
-            ),
-        ],
-      );
+      // Individual inserts: Drift batch() is forbidden on TenturaDb.
+      for (var i = 0; i < imageIds.length; i++) {
+        await _database.managers.beaconImages.create(
+          (o) => o(
+            beaconId: beacon.id,
+            imageId: UuidValue.fromString(imageIds[i]),
+            position: Value(i),
+          ),
+        );
+      }
       // Set cover last so the composite membership FK sees the attachment
       // row inserted just above (same transaction, same-tx visibility).
       final effectiveCover = coverImageId ?? imageIds.first;

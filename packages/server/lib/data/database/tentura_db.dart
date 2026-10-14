@@ -187,6 +187,18 @@ class TenturaDb extends _$TenturaDb {
       _scopeInterceptor = null,
       super(database.interceptWith(DbSpanInterceptor()));
 
+  /// Drift batches manage their own transaction and prepared statements.
+  /// Keep server writes on the explicitly scoped transaction path instead.
+  @override
+  Future<void> batch(FutureOr<void> Function(Batch batch) runInBatch) =>
+      Future.error(
+        UnsupportedError(
+          'TenturaDb.batch() is forbidden: Drift batch transactions and '
+          'prepared statements bypass the scoped connection safeguards. '
+          'Use withTransaction() and individual statements instead.',
+        ),
+      );
+
   final MainDbPool? _mainPool;
   final bool _ownsPool;
   final QueryInterceptor Function()? _scopeInterceptor;
