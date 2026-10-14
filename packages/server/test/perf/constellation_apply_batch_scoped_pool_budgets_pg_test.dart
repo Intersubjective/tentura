@@ -1,7 +1,7 @@
 // applyBatch through the production-wired main pool (MainDbPool leasing one
 // connection per scope, capacity 4 as dev runs it) must meet the same warm
 // budgets as the raw-pool measurement.
-@Tags(['perf', 'pg', 'mr'])
+@Tags(['perf', 'pg', 'mr', 'multi-connection'])
 library;
 
 import 'package:injectable/injectable.dart' show Environment;

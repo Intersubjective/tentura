@@ -446,7 +446,7 @@ Future<void> main() async {
         },
       );
     },
-    tags: ['pg'],
+    tags: ['pg', 'multi-connection'],
     skip: unavailable ?? false,
   );
 }

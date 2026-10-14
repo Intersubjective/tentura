@@ -1,6 +1,6 @@
 // `perf` suites are timing-sensitive, so like `mr` suites they run serialised
 // (`-j 1`) and outside the default and plain-`pg` runs.
-@Tags(['perf', 'pg', 'mr'])
+@Tags(['perf', 'pg', 'mr', 'multi-connection'])
 library;
 
 import 'package:test/test.dart';

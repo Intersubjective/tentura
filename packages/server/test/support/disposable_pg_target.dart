@@ -21,6 +21,20 @@ import 'meritrank_lock_probe.dart';
 /// version skew). Serialize recreate → migrate and close → drop at the harness.
 const _lifecycleAdvisoryLockKey = 'tentura_disposable_pg_lifecycle';
 
+/// Environment variable that forces every disposable-target Env to this many
+/// pooled connections (and constellation DB admission slots), whatever
+/// `POSTGRES_MAXCONN` says. CI sets it to 1 so a scope that re-enters its own
+/// lease hangs or fails deterministically instead of using a spare connection.
+const testPoolSizeEnvVar = 'TENTURA_TEST_PG_POOL_SIZE';
+
+/// The pool size forced by [testPoolSizeEnvVar], or null when unset/invalid.
+int? testPoolSizeOverride([Map<String, String>? environment]) {
+  final size = int.tryParse(
+    (environment ?? Platform.environment)[testPoolSizeEnvVar] ?? '',
+  );
+  return size == null || size < 1 ? null : size;
+}
+
 /// Name of the template database disposable targets are cloned from.
 ///
 /// Keyed by a fingerprint of the migration registry, so adding a migration
@@ -185,6 +199,8 @@ final class DisposablePgTarget {
             '${_nameSeq++}';
     validateDisposableDatabaseName(databaseName, envVarName);
 
+    final poolSize = testPoolSizeOverride();
+
     Env envFor(String database) => Env(
       environment: Environment.test,
       pgHost: host,
@@ -194,6 +210,8 @@ final class DisposablePgTarget {
       pgPassword: password,
       printEnv: false,
       isDebugModeOn: false,
+      maxConnectionCount: poolSize,
+      constellationDbMaxConcurrent: poolSize,
     );
 
     return DisposablePgTarget(

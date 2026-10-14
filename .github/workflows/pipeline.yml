@@ -153,7 +153,14 @@ jobs:
                   # itself, so the `mr_*` references in function bodies no
                   # longer need the extension present at migrate time.
                   dart run bin/utils/run_migrations_once.dart
-                  dart test --tags pg --exclude-tags mr
+                  # Pool-size-1 mode: every disposable database gets one pooled
+                  # connection and one admission slot, so a scope that
+                  # re-enters its own lease hangs or fails here instead of
+                  # using a spare connection. Tests that deliberately size
+                  # their own pool carry `multi-connection` and run next, with
+                  # the normal pool.
+                  TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection
+                  dart test --tags multi-connection --exclude-tags mr
                   ;;
                 client-a)
                   # client-a/client-b split packages/client/test in two to run

@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 library;
 
 import 'package:injectable/injectable.dart' show Environment;

@@ -555,7 +555,10 @@ Future<void> main() async {
       }, skip: skipReason);
     });
 
-    group('membership hook racing finalize', () {
+    // These cases hold two scopes at once, one waiting on the other's
+    // per-request lock, so they need more than one pooled connection and stay
+    // out of the pool-size-1 CI run.
+    group('membership hook racing finalize', tags: ['multi-connection'], () {
       const cases = <(String, CommitmentEventKind, CommitmentEventKind?)>[
         ('withdraw', CommitmentEventKind.withdrawnByHelper, null),
         ('release', CommitmentEventKind.releasedByAuthor, null),

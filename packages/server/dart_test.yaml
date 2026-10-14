@@ -8,6 +8,11 @@ tags:
       tests can see each other's graph state. Run them with `-j 1`, separately
       from the rest of the pg suite. Some reach it indirectly — `public.graph`,
       `person_visibility_peers` and friends call `mr_*` internally.
+  multi-connection:
+    description: >-
+      Deliberately sizes its own pool above one connection (overlap, admission
+      and sizing tests). Excluded from the pool-size-1 CI run, which sets
+      `TENTURA_TEST_PG_POOL_SIZE=1`; run it separately with the normal pool.
   perf:
     description: >-
       Perf recorder and fixtures (issue #235 U41). Timings come from a real
