@@ -9393,5 +9393,31 @@
   "myWorkPlanSomeone": "Someone",
   "@myWorkPlanSomeone": {
     "description": "My Work plan row (#220): stands for the person who changed the plan when their name is unknown."
-  }
+  },
+  "beaconLobbyTitle": "Lobby",
+  "@beaconLobbyTitle": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyEntrySubtitle": "Questions before helping. Only the author and people who offered help see it.",
+  "@beaconLobbyEntrySubtitle": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyEmpty": "No messages yet. Ask the author anything about the request.",
+  "@beaconLobbyEmpty": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyComposerHint": "Write to the lobby",
+  "@beaconLobbyComposerHint": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbySend": "Send",
+  "@beaconLobbySend": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyUnavailable": "The lobby is only for the author and people with an active help offer.",
+  "@beaconLobbyUnavailable": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyRetry": "Try again",
+  "@beaconLobbyRetry": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyBanAction": "Remove from lobby",
+  "@beaconLobbyBanAction": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyBanConfirmTitle": "Remove {name} from the lobby?",
+  "@beaconLobbyBanConfirmTitle": {"description": "U088 Request lobby", "context": "BeaconLobbyView", "placeholders": {"name": {"type": "String"}}},
+  "beaconLobbyBanConfirmBody": "They won't be able to read or write here until you let them back in. Their help offer stays.",
+  "@beaconLobbyBanConfirmBody": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyBannedHeading": "Removed from lobby ({count})",
+  "@beaconLobbyBannedHeading": {"description": "U088 Request lobby", "context": "BeaconLobbyView", "placeholders": {"count": {"type": "int"}}},
+  "beaconLobbyUnbanAction": "Let back in",
+  "@beaconLobbyUnbanAction": {"description": "U088 Request lobby", "context": "BeaconLobbyView"},
+  "beaconLobbyActionFailed": "That didn't work. Try again.",
+  "@beaconLobbyActionFailed": {"description": "U088 Request lobby", "context": "BeaconLobbyView"}
 }

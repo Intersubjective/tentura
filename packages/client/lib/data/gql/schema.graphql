@@ -3795,6 +3795,8 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
+  BeaconLobbyBan(beaconId: String!, userId: String!): Boolean!
+  BeaconLobbyUnban(beaconId: String!, userId: String!): Boolean!
   BeaconFactCardCorrect(attachmentsJson: String, baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, newText: String!): Int!
   BeaconFactCardAttachmentUpload(beaconId: String!, file: v2_Upload!): String!
   BeaconFactCardPin(beaconId: String!, factText: String!, sourceMessageId: String, visibility: Int!): Boolean!
@@ -4731,6 +4733,7 @@ input polling_variant_stream_cursor_value_input {
 }
 
 type query_root {
+  BeaconLobby(beaconId: String!): v2_BeaconLobby!
   BeaconActivityEventList(beaconId: String!): [v2_BeaconActivityEventRow!]
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
   BeaconFactCardRevisions(before: String, beaconId: String!, factCardId: String!): v2_BeaconFactCardRevisionsPage!
@@ -8457,6 +8460,14 @@ type v2_image {
   height: Int!
   id: String!
   width: Int!
+}
+
+type v2_BeaconLobby {
+  bannedUserIds: [String!]!
+  beaconId: String!
+  canPost: Boolean!
+  isAuthor: Boolean!
+  lobbyId: String!
 }
 
 type v2_InboxRoomContextRow {
