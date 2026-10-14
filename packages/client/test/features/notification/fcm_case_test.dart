@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/notification/domain/entity/fcm_test_send_result.dart';
 import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
+import 'package:tentura/features/notification/domain/entity/notification_permission_status.dart';
 import 'package:tentura/features/notification/domain/entity/notification_permissions.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/port/fcm_local_repository_port.dart';
@@ -400,8 +401,21 @@ class FakeFcmLocal implements FcmLocalRepositoryPort {
   @override
   Future<NotificationPermissions> requestPermission() async {
     requestPermissionCalls++;
+    if (permissionAfterRequest != null) {
+      status = permissionAfterRequest!;
+    }
     return permissionResult;
   }
+
+  /// What [permissionStatus] reads; granted keeps the older tests' path.
+  NotificationPermissionStatus status = NotificationPermissionStatus.granted;
+
+  /// When set, [requestPermission] moves [status] here (the person answered
+  /// the system prompt).
+  NotificationPermissionStatus? permissionAfterRequest;
+
+  @override
+  Future<NotificationPermissionStatus> permissionStatus() async => status;
 }
 
 class FakeFcmRemote implements FcmRemoteRepositoryPort {
@@ -486,4 +500,15 @@ class FakeSettings implements SettingsRepositoryPort {
 
   @override
   Future<void> setLocalePreference(String value) async {}
+
+  bool notificationPromptDismissed = false;
+
+  @override
+  Future<bool> getNotificationPromptDismissed() async =>
+      notificationPromptDismissed;
+
+  @override
+  Future<void> setNotificationPromptDismissed(bool value) async {
+    notificationPromptDismissed = value;
+  }
 }
