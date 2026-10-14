@@ -224,6 +224,40 @@ VALUES ('$_beacon', '$_author', 'closure notifications', '',
       skip: skipReason,
     );
 
+    test(
+      'cancelled (reopen) clears the epoch closure_opened rows (B082)',
+      () async {
+        await openWithMembers();
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.opened(_beacon, 1),
+        );
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.cancelled(_beacon, 1),
+        );
+
+        final opened = await rows('''
+SELECT account_id, clear_reason, cleared_at IS NOT NULL
+FROM public.notification_outbox
+WHERE source_event_key LIKE 'closure_opened:$_beacon:1:%'
+ORDER BY account_id
+''');
+        expect(opened, isNotEmpty);
+        for (final r in opened) {
+          expect(r[2], isTrue, reason: 'opened row for ${r[0]} still active');
+          expect(r[1], 'sweep');
+        }
+        final cancelled = await rows('''
+SELECT count(*) FROM public.notification_outbox
+WHERE source_event_key LIKE 'closure_cancelled:$_beacon:1:%'
+  AND cleared_at IS NULL
+''');
+        expect(cancelled.single.single, greaterThan(0));
+      },
+      skip: skipReason,
+    );
+
     test('finalized carries codes only and is idempotent', () async {
       await openWithMembers();
       await sql('''

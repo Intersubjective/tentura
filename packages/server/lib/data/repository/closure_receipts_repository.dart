@@ -4,6 +4,7 @@ import 'package:tentura_root/consts.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_dismissible_sql.dart';
 
 /// A17: writes the closure receipts (Arch §9) straight into
 /// `notification_outbox`, one row per recipient, inside the caller's
@@ -47,7 +48,27 @@ class ClosureReceiptsRepository implements ClosureReceiptsPort {
   );
 
   @override
-  Future<void> cancelled(String beaconId, int epoch) => _write(
+  Future<void> cancelled(String beaconId, int epoch) async {
+    // The epoch's "Time to sum up — The closing window is open" receipts
+    // stop being true the moment it is cancelled (a reopen): clear them, so
+    // the Requests list doesn't keep advising a closing window that no
+    // longer exists (B082). Optional receipts only; 'sweep' is the
+    // system-clear reason.
+    await _database.customStatement(
+      '''
+UPDATE public.notification_outbox AS outbox
+SET cleared_at = now(), clear_reason = 'sweep'
+WHERE outbox.beacon_id = \$1::text
+  AND outbox.source_event_key LIKE
+      'closure_opened:' || \$1::text || ':' || \$2::int || ':%'
+  AND ${AttentionDismissibleSql.activeOptional('outbox')}
+''',
+      [beaconId, epoch],
+    );
+    await _writeCancelled(beaconId, epoch);
+  }
+
+  Future<void> _writeCancelled(String beaconId, int epoch) => _write(
     beaconId,
     epoch,
     type: 'closure_cancelled',
