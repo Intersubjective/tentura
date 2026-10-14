@@ -57,6 +57,8 @@ class BeaconInvolvedPeopleFacePile extends StatelessWidget {
       size: metaAvatar,
       starredProfileId: beacon.author.id,
       selfUserId: currentUserId,
+      // U093: who on the team is here right now.
+      showPresence: true,
       semanticsLabel: l10n.facepileSemantics(
         display.visible.length,
         display.overflow,

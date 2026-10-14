@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
 
 /// Overlapping mini-avatars with circular `+N` overflow (inbox forwarders style).
 ///
@@ -22,6 +25,7 @@ class OverlappingPeopleAvatars extends StatelessWidget {
     this.overflowBadgeTextColor,
     this.overflowRingColor,
     this.semanticsLabel,
+    this.showPresence = false,
     super.key,
   });
 
@@ -42,6 +46,10 @@ class OverlappingPeopleAvatars extends StatelessWidget {
   final Color? overflowRingColor;
   final String? semanticsLabel;
 
+  /// Live online dot per face from [PresenceCubit] (when one is provided),
+  /// the same dot as on chat avatars (U093).
+  final bool showPresence;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -59,10 +67,12 @@ class OverlappingPeopleAvatars extends StatelessWidget {
     final step = avatarSize - overlap;
     final width = avatarSize + (n - 1) * step;
     final theme = Theme.of(context);
-    final label = semanticsLabel ?? _defaultSemanticsLabel(
-      profiles.length,
-      overflowCount,
-    );
+    final label =
+        semanticsLabel ??
+        _defaultSemanticsLabel(
+          profiles.length,
+          overflowCount,
+        );
 
     final selfIndex = selfUserId == null
         ? -1
@@ -81,6 +91,7 @@ class OverlappingPeopleAvatars extends StatelessWidget {
                   starredProfileId != null &&
                   profiles[i].id == starredProfileId,
               isSelf: false,
+              showPresence: showPresence,
             ),
           ),
       if (selfIndex >= 0)
@@ -94,6 +105,7 @@ class OverlappingPeopleAvatars extends StatelessWidget {
                 starredProfileId != null &&
                 profiles[selfIndex].id == starredProfileId,
             isSelf: true,
+            showPresence: showPresence,
           ),
         ),
       if (overflowCount > 0)
@@ -153,6 +165,7 @@ class _PeopleAvatarSlot extends StatelessWidget {
     required this.size,
     required this.showStar,
     required this.isSelf,
+    required this.showPresence,
   });
 
   final Profile profile;
@@ -160,17 +173,37 @@ class _PeopleAvatarSlot extends StatelessWidget {
   final double? size;
   final bool showStar;
   final bool isSelf;
+  final bool showPresence;
+
+  Widget _avatar({required bool isOnline}) => TenturaAvatarStackRing(
+    child: TenturaAvatar(
+      profile: profile,
+      sizeBucket: sizeBucket,
+      size: size,
+      showAuthorStar: showStar,
+      isSelf: isSelf,
+      isOnline: isOnline,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return TenturaAvatarStackRing(
-      child: TenturaAvatar(
-        profile: profile,
-        sizeBucket: sizeBucket,
-        size: size,
-        showAuthorStar: showStar,
-        isSelf: isSelf,
-      ),
+    if (!showPresence || !_hasPresence(context)) {
+      return _avatar(isOnline: false);
+    }
+    return BlocSelector<PresenceCubit, Map<String, UserPresenceStatus>, bool>(
+      selector: (state) => state[profile.id] == UserPresenceStatus.online,
+      builder: (_, isOnline) => _avatar(isOnline: isOnline),
     );
+  }
+
+  /// Previews and tests may build the pile without presence data.
+  static bool _hasPresence(BuildContext context) {
+    try {
+      context.read<PresenceCubit>();
+      return true;
+    } on ProviderNotFoundException {
+      return false;
+    }
   }
 }
