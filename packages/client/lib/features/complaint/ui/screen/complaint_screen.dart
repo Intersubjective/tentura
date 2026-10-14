@@ -11,8 +11,15 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../bloc/complaint_cubit.dart';
 import '../../domain/util/feedback_email.dart';
 
-String? _validateRequired(String? value, String message) {
-  if (value == null || value.trim().isEmpty) return message;
+/// The details field is labelled "Details, minimum 3 characters".
+const kComplaintDetailsMinLength = 3;
+
+/// [message] when [value] is shorter than [kComplaintDetailsMinLength]
+/// characters after trimming (empty included), else `null`.
+@visibleForTesting
+String? validateComplaintDetails(String? value, String message) {
+  final details = value?.trim() ?? '';
+  if (details.characters.length < kComplaintDetailsMinLength) return message;
   return null;
 }
 
@@ -173,7 +180,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                             alignLabelWithHint: true,
                           ),
                           validator: (v) =>
-                              _validateRequired(v, l10n.provideDetails),
+                              validateComplaintDetails(v, l10n.provideDetails),
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           onChanged: cubit.setDetails,
                         ),
