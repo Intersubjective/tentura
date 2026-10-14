@@ -42,9 +42,11 @@ fragment BeaconModel on beacon {
     }
   }
   # Offers made through the participant path (BeaconParticipantOfferHelp) live
-  # in beacon_participant, not beacon_help_offer; 1 = offered, 5 = admitted.
+  # in beacon_participant, not beacon_help_offer; 1 = offered, 5 = committed.
+  # Withdrawing or being removed keeps the status and only drops room_access
+  # to 0 (none); 5 = left. Those helpers are gone and must not be counted.
   participant_help_offers: beacon_participants(
-    where: { status: { _in: [1, 5] } }
+    where: { status: { _in: [1, 5] }, room_access: { _nin: [0, 5] } }
   ) {
     id
   }
