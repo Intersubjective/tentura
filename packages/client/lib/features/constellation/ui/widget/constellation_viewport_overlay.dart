@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -61,6 +62,34 @@ class _ConstellationViewportOverlayState
   List<Object?>? _placementKey;
   ConstellationPresentationFrame? _placementFrame;
   Offset _placementOrigin = Offset.zero;
+  // Label plates at `_placementOrigin`; a pan only translates this layer.
+  Widget? _labelLayer;
+  // Chip widgets built for the same placement; a pan only moves their rects.
+  final _chipByAuthor = <String, Widget>{};
+  // Scale and viewport size: the camera facts a translation leaves alone.
+  late final ValueNotifier<(double, Size?)> _cameraShape;
+
+  @override
+  void initState() {
+    super.initState();
+    final controller = widget.cubit.graphController;
+    _cameraShape = ValueNotifier(_shapeOf(controller));
+    controller.cameraRevision.addListener(_onCamera);
+  }
+
+  @override
+  void dispose() {
+    widget.cubit.graphController.cameraRevision.removeListener(_onCamera);
+    _cameraShape.dispose();
+    super.dispose();
+  }
+
+  (double, Size?) _shapeOf(GraphController<NodeDetails, EdgeDetails> c) =>
+      (c.cameraScale, c.viewportSize);
+
+  void _onCamera() {
+    _cameraShape.value = _shapeOf(widget.cubit.graphController);
+  }
 
   void _maybeClearLabelCache(BuildContext context, int nodeCount) {
     final locale = Localizations.localeOf(context);
@@ -139,10 +168,7 @@ class _ConstellationViewportOverlayState
         }
         final controller = widget.cubit.graphController;
         return ListenableBuilder(
-          listenable: Listenable.merge([
-            controller,
-            controller.cameraRevision,
-          ]),
+          listenable: Listenable.merge([controller, _cameraShape]),
           builder: (context, _) {
             if (!controller.canLayout) {
               widget.frameHolder.frame = null;
@@ -188,6 +214,7 @@ class _ConstellationViewportOverlayState
             final rtl = Directionality.of(context) == TextDirection.rtl;
 
             final inputs = <ConstellationFrameNodeInput>[];
+            final labelTexts = <String>[];
             for (final graphId in order) {
               final node = nodeByGraphId[graphId];
               if (node == null) {
@@ -261,6 +288,7 @@ class _ConstellationViewportOverlayState
                   ? badgeOverhangViewport
                   : 0.0;
 
+              labelTexts.add(labelText);
               inputs.add(
                 ConstellationFrameNodeInput(
                   id: graphId,
@@ -280,6 +308,7 @@ class _ConstellationViewportOverlayState
               ...widget.cubit.expandedExtraCountByAuthor.keys,
             };
             final chipInputs = <ConstellationFrameChipInput>[];
+            final chipContents = <(String?, int)>[];
             for (final authorId in chipAuthors) {
               GraphNodeId? authorGraphId;
               for (final graphId in order) {
@@ -305,6 +334,10 @@ class _ConstellationViewportOverlayState
                 context,
                 chipLabel,
               );
+              chipContents.add((
+                widget.cubit.profileForPersonId(authorId)?.shownName,
+                hidden,
+              ));
               chipInputs.add(
                 ConstellationFrameChipInput(
                   authorId: authorId,
@@ -340,12 +373,16 @@ class _ConstellationViewportOverlayState
                 ),
               for (final chip in chipInputs)
                 (chip.authorId, chip.authorGraphId, chip.size),
+              ...labelTexts,
+              ...chipContents,
             ];
             final origin = controller.sceneToViewportLocal(Offset.zero);
             if (_placementFrame == null ||
                 !listEquals(_placementKey, placementKey)) {
               _placementKey = placementKey;
               _placementOrigin = origin;
+              _labelLayer = null;
+              _chipByAuthor.clear();
               _placementFrame = computeConstellationPresentationFrame(
                 snapshot: snapshot,
                 cameraRevision: controller.cameraRevision.value,
@@ -359,118 +396,145 @@ class _ConstellationViewportOverlayState
                 cullToViewport: false,
               );
             }
-            final frame = _placementFrame!.translated(
-              snapshot: snapshot,
-              cameraRevision: controller.cameraRevision.value,
-              delta: origin - _placementOrigin,
-            );
-            widget.frameHolder.frame = frame;
-
-            final labelWidgets = <Widget>[];
-            for (final graphId in frame.paintOrder) {
-              final labelRect = frame.labels[graphId];
-              if (labelRect == null) {
-                continue;
-              }
-              final node = nodeByGraphId[graphId];
-              if (node == null) {
-                continue;
-              }
-              final (text, maxLines, plateWidth) = switch (node) {
-                FieldPersonNode(:final person) => (
-                  person.shownName,
-                  1,
-                  tt.graphLabelMaxWidthPerson,
-                ),
-                FieldBeaconNode(request: final request?) => (
-                  request.title.isEmpty ? l10n.beaconViewTitle : request.title,
-                  2,
-                  tt.graphLabelMaxWidthRequest,
-                ),
-                _ => ('', 1, tt.graphLabelMaxWidthPerson),
-              };
-              labelWidgets.add(
-                Positioned.fromRect(
-                  rect: labelRect,
-                  child: IgnorePointer(
-                    child: ExcludeSemantics(
-                      child: _LabelPlate(
-                        key: ValueKey('constellation.label.$graphId'),
-                        text: text,
-                        maxLines: maxLines,
-                        plateWidth: plateWidth,
-                        style: labelStyle,
-                        padding: labelPadding,
+            final placed = _placementFrame!;
+            _labelLayer ??= () {
+              final labelWidgets = <Widget>[];
+              for (final graphId in placed.paintOrder) {
+                final labelRect = placed.labels[graphId];
+                if (labelRect == null) {
+                  continue;
+                }
+                final node = nodeByGraphId[graphId];
+                if (node == null) {
+                  continue;
+                }
+                final (text, maxLines, plateWidth) = switch (node) {
+                  FieldPersonNode(:final person) => (
+                    person.shownName,
+                    1,
+                    tt.graphLabelMaxWidthPerson,
+                  ),
+                  FieldBeaconNode(request: final request?) => (
+                    request.title.isEmpty
+                        ? l10n.beaconViewTitle
+                        : request.title,
+                    2,
+                    tt.graphLabelMaxWidthRequest,
+                  ),
+                  _ => ('', 1, tt.graphLabelMaxWidthPerson),
+                };
+                labelWidgets.add(
+                  Positioned.fromRect(
+                    rect: labelRect,
+                    child: IgnorePointer(
+                      child: ExcludeSemantics(
+                        child: _LabelPlate(
+                          key: ValueKey('constellation.label.$graphId'),
+                          text: text,
+                          maxLines: maxLines,
+                          plateWidth: plateWidth,
+                          style: labelStyle,
+                          padding: labelPadding,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }
-
-            final chipWidgets = <Widget>[];
-            for (final entry in frame.chips.entries) {
-              final authorId = entry.key;
-              final rect = entry.value;
-              final person = widget.cubit.profileForPersonId(authorId);
-              final authorName = person?.shownName ?? authorId;
-              final hidden =
-                  widget.cubit.overflowHiddenCountByAuthor[authorId] ?? 0;
-              chipWidgets.add(
-                Positioned.fromRect(
-                  rect: rect,
-                  child: ConstellationOverflowGroup(
-                    authorId: authorId,
-                    authorName: authorName,
-                    hiddenCount: hidden,
-                  ),
-                ),
-              );
-            }
-
-            final postChipWidgets = <Widget>[];
-            if (selectedRequestId != null) {
-              final count =
-                  widget.cubit.postOverflowCountByPostId[selectedRequestId] ??
-                  0;
-              final postGraphId = 'fr:$selectedRequestId';
-              final scenePoint =
-                  count > 0 && nodeByGraphId.containsKey(postGraphId)
-                  ? snapshot.resolvePosition(postGraphId)
-                  : null;
-              if (scenePoint != null) {
-                final centre = controller.sceneToViewportLocal(
-                  Offset(scenePoint.x, scenePoint.y),
-                );
-                final chipSize = constellationOverflowChipSize(
-                  context,
-                  '+$count',
-                );
-                final radius = nodeByGraphId[postGraphId]!.size * scale / 2;
-                postChipWidgets.add(
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH(
-                      centre.dx + radius + gap,
-                      centre.dy - chipSize.height / 2,
-                      chipSize.width,
-                      chipSize.height,
-                    ),
-                    child: ConstellationPostOverflowChip(
-                      postId: selectedRequestId,
-                      hiddenCount: count,
-                    ),
-                  ),
                 );
               }
-            }
+              return Stack(
+                clipBehavior: Clip.none,
+                children: labelWidgets,
+              );
+            }();
 
-            return Stack(
-              clipBehavior: Clip.hardEdge,
-              children: [
-                ...labelWidgets,
-                ...chipWidgets,
-                ...postChipWidgets,
-              ],
+            // A pure pan only moves the cached layers; nothing above re-runs.
+            return ValueListenableBuilder<int>(
+              valueListenable: controller.cameraRevision,
+              builder: (context, _, _) {
+                final origin = controller.sceneToViewportLocal(Offset.zero);
+                final frame = _placementFrame!.translated(
+                  snapshot: snapshot,
+                  cameraRevision: controller.cameraRevision.value,
+                  delta: origin - _placementOrigin,
+                );
+                widget.frameHolder.frame = frame;
+
+                final chipWidgets = <Widget>[];
+                for (final entry in frame.chips.entries) {
+                  final authorId = entry.key;
+                  chipWidgets.add(
+                    Positioned.fromRect(
+                      rect: entry.value,
+                      child: _chipByAuthor.putIfAbsent(authorId, () {
+                        final person = widget.cubit.profileForPersonId(
+                          authorId,
+                        );
+                        final authorName = person?.shownName ?? authorId;
+                        final hidden =
+                            widget
+                                .cubit
+                                .overflowHiddenCountByAuthor[authorId] ??
+                            0;
+                        return ConstellationOverflowGroup(
+                          authorId: authorId,
+                          authorName: authorName,
+                          hiddenCount: hidden,
+                        );
+                      }),
+                    ),
+                  );
+                }
+
+                final postChipWidgets = <Widget>[];
+                if (selectedRequestId != null) {
+                  final count =
+                      widget
+                          .cubit
+                          .postOverflowCountByPostId[selectedRequestId] ??
+                      0;
+                  final postGraphId = 'fr:$selectedRequestId';
+                  final scenePoint =
+                      count > 0 && nodeByGraphId.containsKey(postGraphId)
+                      ? snapshot.resolvePosition(postGraphId)
+                      : null;
+                  if (scenePoint != null) {
+                    final centre = controller.sceneToViewportLocal(
+                      Offset(scenePoint.x, scenePoint.y),
+                    );
+                    final chipSize = constellationOverflowChipSize(
+                      context,
+                      '+$count',
+                    );
+                    final radius = nodeByGraphId[postGraphId]!.size * scale / 2;
+                    postChipWidgets.add(
+                      Positioned.fromRect(
+                        rect: Rect.fromLTWH(
+                          centre.dx + radius + gap,
+                          centre.dy - chipSize.height / 2,
+                          chipSize.width,
+                          chipSize.height,
+                        ),
+                        child: ConstellationPostOverflowChip(
+                          postId: selectedRequestId,
+                          hiddenCount: count,
+                        ),
+                      ),
+                    );
+                  }
+                }
+
+                return Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    Transform.translate(
+                      offset: origin - _placementOrigin,
+                      child: RepaintBoundary(child: _labelLayer),
+                    ),
+                    ...chipWidgets,
+                    ...postChipWidgets,
+                  ],
+                );
+              },
             );
           },
         );

@@ -1522,3 +1522,25 @@ the five rewritten pg files; custom lints; non-pg `test/api` and `test/domain`
 **Verified.** `constellation_node_position_rebuild_test.dart` (build counters: a `graphRevision`-only emission rebuilds neither the body nor GraphView; one drag move rebuilds only the dragged cluster's node widgets), the constellation client tests, the graph package tests, client custom lints and the client analyzer baseline.
 
 **Not done here: the N=300 profile-web drag-frame measurement (< 8 ms).** It needs a real browser in profile mode, which the Alloy sandbox cannot start. It belongs to tentura-s7gl.71 (profile web benchmark at N=100/300/600, recorded here). An unreviewed draft harness from the s7gl.67 run is parked in git stash ("DRAFT profile-web drag bench for s7gl.71"); its evidence gate test pins source fingerprints and artifact age, so it must not land on main as is.
+
+
+## UNIT U35 — partial — 2026-10-15 (tentura-s7gl.68, pan-frame repair)
+
+**Changed.** Added a scene-level `RepaintBoundary` in `GraphLayoutView`, so a camera translation reuses the graph's retained layers without walking the whole scene paint tree. Geometry, endpoint and style changes continue to invalidate the relevant descendants. Client version and tracked web cache-buster are synchronized at **7.41.9**. Tests edited: none.
+
+**Verification.** Serial wrapped headless runs executed the unchanged N=300 pan benchmark, all six edge-repaint discipline tests, and the existing combined-node-semantics assertion: **8 passed, 0 failed**, twice. Mean pan frame was **7.1012 ms** and **6.7780 ms**, both below 8 ms, with **0 edge repaints**. The benchmark wrote `packages/client/build/bench/constellation_pan_frame.json`. Endpoint movement, style changes and zoom-out still repaint edges; pure pans, unchanged rebuilds and pans after zoom reuse them. Logs: `/tmp/u35-headless-final.log` and `/tmp/u35-headless-repeat.log`. `git diff --check` passed.
+
+**Limitations.** The standard Flutter launcher cannot write the SDK cache in this sandbox. Invoking its cached tool snapshot reached test loading but localhost socket creation was denied (`127.0.0.1:0`, `Operation not permitted`). A temporary headless runner under `/tmp` registered the unchanged tests with `test_api`, enabled assertions, ran group setup/teardown and reported failures; its repeat run used the standard software-rendering and test-font engine flags. These are widget-test timings, not profile-web evidence. The requested standard commands and the full constellation check remain Alloy's verification responsibility; no full suite, task-tracking or git mutations were run here.
+
+## UNIT U35 — partial — 2026-10-15 (tentura-s7gl.68, focused follow-up)
+
+**Changed.** Removed leftover `DBGKEY` diagnostics from the overlay placement-cache invalidation path. The retained-layer implementation and benchmark assertions are unchanged. Tests edited: none. The separately filed parallel-run timing flake (`tentura-ta6a`) remains outside this task's scope.
+
+**Verification.** Recompiled the existing temporary headless runner against the current sources, then ran it serially through `run_with_test_cleanup.sh`: **8 passed, 0 failed** (six edge-repaint checks, the N=300 pan benchmark and combined-node semantics). Mean pan frame: **7.5893 ms**, **0 edge repaints**; artifact: `packages/client/build/bench/constellation_pan_frame.json`; log: `/tmp/u35-current-headless.log`. `git diff --check` passed; client version and web cache-buster both remain **7.41.9**.
+
+**Limitations.** The standard focused Flutter run remains blocked by read-only SDK files; the cached launcher reaches the localhost socket denial. The client custom-lint attempt was stopped after the analyzer failed to write `~/.dartServer/.plugin_manager/.../pubspec.yaml` on the read-only filesystem, so lint and analyzer-baseline verification remain outstanding. Logs: `/tmp/u35-current-focused.log`, `/tmp/u35-current-cached.log`, `/tmp/u35-current-lints.log`. No full suite or git mutations were run.
+
+
+## UNIT U35 — done — 2026-10-15 (tentura-s7gl.68, host verification)
+
+Landed after verification on the host (the Alloy sandbox could not run the standard Flutter launcher). Full client suite: 5943 passed; the only failure was the N=300 pan-frame bench under the parallel directory run (`tentura-ta6a`, 16.4 ms). Fixed in the bench, budget unchanged at 8 ms: it now disables the Flutter semantics pass (about 4 ms per frame, not part of a pan's paint cost) and records the median frame instead of the mean. Alone 2.3 ms; inside the whole `test/features/constellation` run 6.2 ms; 866 constellation tests pass. Client custom lints and analyzer baseline (1917 <= 2040) are clean.

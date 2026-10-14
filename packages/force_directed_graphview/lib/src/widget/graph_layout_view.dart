@@ -82,17 +82,24 @@ class GraphLayoutView extends StatelessWidget {
           orderedNodeIds: orderedNodeIds,
           child: SizedBox.fromSize(
             size: controller.canvasSize,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (backgroundBuilder != null)
-                  RepaintBoundary(
-                    child: backgroundBuilder(context),
-                  ),
-                const EdgesView(),
-                const LabelsView(),
-                const NodesView(),
-              ],
+            // Camera transforms reuse the whole scene's layers. Geometry and
+            // style changes still invalidate the affected descendants.
+            child: RepaintBoundary(
+              child: Semantics(
+                  container: true,
+                  explicitChildNodes: true,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (backgroundBuilder != null)
+                        RepaintBoundary(
+                          child: backgroundBuilder(context),
+                        ),
+                      const EdgesView(),
+                      const LabelsView(),
+                      const NodesView(),
+                    ],
+                  )),
             ),
           ),
         );

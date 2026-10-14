@@ -84,6 +84,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
   late final GraphController<NodeDetails, EdgeDetails> _graphController;
   late ConstellationDetailLevel _detail;
 
+  // Edges only depend on the camera through the stroke compensation (zoom
+  // below 1), so pans and zooms above 1 must not repaint them.
+  late final ValueNotifier<double> _edgeStrokeScale;
+
   @override
   void initState() {
     super.initState();
@@ -93,6 +97,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       _graphController.cameraScale,
       ConstellationDetailLevel.normal,
     );
+    _edgeStrokeScale = ValueNotifier(_strokeScale());
     _graphController.cameraRevision.addListener(_onCamera);
     WidgetsBinding.instance.addObserver(this);
   }
@@ -101,6 +106,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _graphController.cameraRevision.removeListener(_onCamera);
+    _edgeStrokeScale.dispose();
     if (!kReleaseMode) ConstellationPerf.stopFrameReporting();
     super.dispose();
   }
@@ -113,8 +119,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
   }
 
+  double _strokeScale() {
+    final scale = _graphController.cameraScale;
+    return scale < 1 ? scale : 1;
+  }
+
   // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
   void _onCamera() {
+    _edgeStrokeScale.value = _strokeScale();
     final next = nextConstellationDetailLevel(
       _graphController.cameraScale,
       _detail,
@@ -820,7 +832,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
             tt: context.tt,
             scheme: Theme.of(context).colorScheme,
-            repaint: cubit.graphController.cameraRevision,
+            repaint: _edgeStrokeScale,
             cameraScale: () => cubit.graphController.cameraScale,
           ),
           nodeBuilder: (_, node) {
@@ -1122,6 +1134,7 @@ class _ConstellationMapNode extends StatelessWidget {
   }
 }
 
+@immutable
 class ConstellationEdgePainter
     implements RepaintingEdgePainter<NodeDetails, EdgeDetails> {
   const ConstellationEdgePainter({
@@ -1140,6 +1153,31 @@ class ConstellationEdgePainter
   @override
   final Listenable repaint;
   final double Function() cameraScale;
+
+  // Painting depends only on these inputs (and the scene), so equal painters
+  // paint identically and the render layer can skip redundant repaints.
+  // Theme objects are rebuilt without value equality, so compare the colours
+  // constellationEdgeStyle reads.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationEdgePainter &&
+          repaint == other.repaint &&
+          tt.graphEdgePath == other.tt.graphEdgePath &&
+          scheme.tertiary == other.scheme.tertiary &&
+          scheme.secondary == other.scheme.secondary &&
+          (identical(edgeKindByPair, other.edgeKindByPair) ||
+              mapEquals(edgeKindByPair, other.edgeKindByPair)) &&
+          (identical(edgeFadeBySemanticId, other.edgeFadeBySemanticId) ||
+              mapEquals(edgeFadeBySemanticId, other.edgeFadeBySemanticId));
+
+  @override
+  int get hashCode => Object.hash(
+    repaint,
+    tt.graphEdgePath,
+    scheme.tertiary,
+    scheme.secondary,
+  );
 
   @visibleForTesting
   static double effectiveWidth(double width, double cameraScale) {
