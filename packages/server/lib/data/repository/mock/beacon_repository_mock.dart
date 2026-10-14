@@ -514,9 +514,11 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     final currentAttached = {for (final image in b.images) image.id: image};
     final staged = stagesByBeaconId[beaconId] ?? const <String, DateTime>{};
     final desired = imageIds.toSet();
+    // A staged cover thumbnail is promoted, not discarded (B006).
+    final keptStages = {...desired, ?coverThumbImageId};
     final removed = [
       ...currentAttached.keys.where((id) => !desired.contains(id)),
-      ...staged.keys.where((id) => !desired.contains(id)),
+      ...staged.keys.where((id) => !keptStages.contains(id)),
     ];
     stagesByBeaconId[beaconId]?.removeWhere((id, _) => !desired.contains(id));
     storageById[beaconId] = b.copyWith(
