@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -13,6 +14,8 @@ import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart'
+    show beaconViewOpenClosureReview;
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -295,6 +298,12 @@ Future<void> beaconViewDispatchStatusMenuAction(
       if (confirmed) await cubit.closeBeaconNow();
     case BeaconStatusMenuAction.extendReview:
       await cubit.extendReview();
+    case BeaconStatusMenuAction.openReview:
+      if (!context.mounted) return;
+      // Leave the sheet first; the review is a page of its own.
+      final router = context.router;
+      Navigator.of(context).pop();
+      await beaconViewOpenClosureReview(router, cubit);
     case BeaconStatusMenuAction.reopen:
       if (!context.mounted) return;
       final ok = await showBeaconReopenConfirmSheet(context: context);

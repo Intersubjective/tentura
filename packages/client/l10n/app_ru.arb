@@ -4475,7 +4475,7 @@
   "beaconNeedsMoreHelpRevertTitle": "Нужна ещё помощь?",
   "beaconNeedsMoreHelpRevertBody": "Возврат в «Открыт» и отметка, что нужна ещё помощь. Заметки отзыва сохраняются как черновики, где это ещё уместно.",
   "beaconNeedsMoreHelpRevertConfirm": "Нужна ещё помощь",
-  "beaconReviewCloseNowBlocked": "«Закрыть сейчас» доступно, когда каждый обязательный рецензент завершил или пропустил отзыв.",
+  "beaconReviewCloseNowBlocked": "Сначала подведите итоги: отметьте, как справился каждый помощник. Если помощников трое или больше, «Закрыть сейчас» также ждёт их ответа или двух дней.",
   "beaconDeleteBlockedTitle": "Нельзя удалить",
   "beaconDeleteBlockedBody": "У этого запроса были подтверждённые помощники. Архивируйте его в «Запросах».",
   "beaconDeleteDraftTitle": "Удалить черновик?",
@@ -4661,7 +4661,7 @@
   "beaconStatusRowCancelled": "Отменён",
   "beaconStatusHintPublishFirst": "Сначала опубликуйте запрос",
   "beaconStatusHintFinishReviewFirst": "Сначала завершите период проверки",
-  "beaconStatusHintReopenLimitReached": "Повторное открытие уже использовано — закройте сейчас или дождитесь окончания проверки",
+  "beaconStatusHintReopenLimitReached": "Повторное открытие уже использовано — подведите итоги и закройте запрос",
   "beaconStatusHintNoCommitters": "Пока нет участников для проверки",
   "beaconStatusHintCancelHasOffers": "Нельзя отменить после предложений помощи",
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",
@@ -6787,5 +6787,8 @@
   "planCopyNoTimes": "В плане нет шагов со временем — время задавать не нужно",
   "planCopyNoAssignees": "Исполнители не копируются",
   "planCopyConfirm": "Продолжить",
-  "myWorkPlanSomeone": "Кто-то"
+  "myWorkPlanSomeone": "Кто-то",
+  "closureHelperTitle": "Итоги",
+  "closureHelperOpenReview": "Открыть итоги",
+  "beaconHudActEffectSumUp": "Отметьте, как справился каждый помощник, и закройте запрос"
 }

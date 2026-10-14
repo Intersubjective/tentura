@@ -208,4 +208,96 @@ void main() {
     );
     expect(_row(rows, BeaconStatusMenuRowId.cancelled).isEnabled, isTrue);
   });
+
+  group('B041: wrapping up again after a Reopen is never a dead end', () {
+    // Second round: the one Reopen is spent, nobody has reviewed yet.
+    final afterReopen = _input(
+      beacon: _beacon(status: BeaconStatus.reviewOpen),
+      hasCommitters: true,
+      closure: const ClosureMenuSnapshot(
+        extensionsUsed: 0,
+        canCloseNow: false,
+        canReopen: false,
+      ),
+    );
+
+    test('the current "Wrapping up" step opens the review for the author', () {
+      final wrapping = _row(
+        buildBeaconStatusMenuRows(afterReopen),
+        BeaconStatusMenuRowId.wrappingUp,
+      );
+      expect(wrapping.isSelected, isTrue);
+      expect(wrapping.isEnabled, isTrue);
+      expect(wrapping.action, BeaconStatusMenuAction.openReview);
+    });
+
+    test('not for someone who cannot manage the lifecycle', () {
+      final wrapping = _row(
+        buildBeaconStatusMenuRows(
+          _input(
+            beacon: _beacon(status: BeaconStatus.reviewOpen),
+            canManageLifecycle: false,
+            closure: const ClosureMenuSnapshot(extensionsUsed: 0),
+          ),
+        ),
+        BeaconStatusMenuRowId.wrappingUp,
+      );
+      expect(wrapping.isEnabled, isFalse);
+    });
+
+    test('nor before the closure snapshot has loaded', () {
+      final wrapping = _row(
+        buildBeaconStatusMenuRows(
+          _input(beacon: _beacon(status: BeaconStatus.reviewOpen)),
+        ),
+        BeaconStatusMenuRowId.wrappingUp,
+      );
+      expect(wrapping.isEnabled, isFalse);
+    });
+
+    test('"More help" no longer offers a reopen the server will refuse', () {
+      final moreHelp = _row(
+        buildBeaconStatusMenuRows(afterReopen),
+        BeaconStatusMenuRowId.moreHelp,
+      );
+      expect(moreHelp.isEnabled, isFalse);
+      expect(
+        moreHelp.disabledReason,
+        BeaconStatusMenuDisabledReason.reopenLimitReached,
+      );
+    });
+
+    test('first round: "More help" still reopens', () {
+      final moreHelp = _row(
+        buildBeaconStatusMenuRows(
+          _input(
+            beacon: _beacon(status: BeaconStatus.reviewOpen),
+            closure: const ClosureMenuSnapshot(
+              extensionsUsed: 0,
+              canReopen: true,
+            ),
+          ),
+        ),
+        BeaconStatusMenuRowId.moreHelp,
+      );
+      expect(moreHelp.isEnabled, isTrue);
+    });
+
+    test('once the review allows it, Close now is enabled again', () {
+      final rows = buildBeaconStatusMenuRows(
+        _input(
+          beacon: _beacon(status: BeaconStatus.reviewOpen),
+          hasCommitters: true,
+          closure: const ClosureMenuSnapshot(
+            extensionsUsed: 0,
+            canCloseNow: true,
+            canReopen: false,
+          ),
+        ),
+      );
+      final closed = _row(rows, BeaconStatusMenuRowId.closed);
+      expect(closed.isEnabled, isTrue);
+      expect(closed.action, BeaconStatusMenuAction.closeNow);
+    });
+  });
 }

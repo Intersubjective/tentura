@@ -40,6 +40,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onOpenItemDiscussion,
     this.onOpenPinnedFacts,
     this.onForward,
+    this.onOpenClosureReview,
     this.showHudRows = true,
     super.key,
   });
@@ -79,6 +80,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   /// Opens the pinned facts sheet.
   final VoidCallback? onOpenPinnedFacts;
 
+  /// Opens the wrap-up review for a member while the Request wraps up.
+  final VoidCallback? onOpenClosureReview;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -96,6 +100,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             onEditHelpOffer: onEditHelpOffer,
             onWatch: onWatch,
             onStopWatching: onStopWatching,
+            onOpenClosureReview: onOpenClosureReview,
           )
         : const BeaconHelperHudActions();
     final showForwardCta = state.beacon.viewerCanForward && onForward != null;
