@@ -56,9 +56,11 @@ final class RemoteApiRetryLaterException extends GenericException {
 
   final Duration retryAfter;
 
+  // U094: shown to people when a request is turned away for a moment;
+  // plain words, no server or database names.
   @override
-  String get toEn => 'RETRY_LATER';
+  String get toEn => 'Busy right now. Try again in a few seconds.';
 
   @override
-  String get toRu => toEn;
+  String get toRu => 'Сервер занят. Попробуйте ещё раз через несколько секунд.';
 }
