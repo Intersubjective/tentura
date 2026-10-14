@@ -118,6 +118,68 @@ void main() {
         userId: anyNamed('userId'),
       ),
     ).thenAnswer((_) async => null);
+    when(
+      roomRepo.listAdmittedUserIds(any),
+    ).thenAnswer((_) async => const <String>[]);
+  });
+
+  group('B075 coordinating starts with the first admitted helper', () {
+    HelpOfferEntity offer() => HelpOfferEntity(
+      beaconId: beaconId,
+      userId: offererId,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    for (final viewer in [authorId, strangerId]) {
+      test('pending offer, nobody admitted: lookingForHelpers ($viewer)',
+          () async {
+        when(helpOfferRepo.fetchByBeaconId(beaconId))
+            .thenAnswer((_) async => [offer()]);
+
+        final result = await case_.displayStatuses(
+          beaconIds: [beaconId],
+          viewerId: viewer,
+        );
+
+        expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+        expect(
+          result.single.slot2Kind,
+          isNot(BeaconDisplaySlot2Kind.noOffersYet),
+          reason: 'an offer exists, so "no offers yet" would be wrong',
+        );
+      });
+
+      test('first accepted helper: coordinating ($viewer)', () async {
+        when(helpOfferRepo.fetchByBeaconId(beaconId))
+            .thenAnswer((_) async => [offer()]);
+        when(
+          coordinationRepo.coordinationResponseTypeByOfferUserId(beaconId),
+        ).thenAnswer((_) async => {offererId: 0});
+        when(roomRepo.listAdmittedUserIds(beaconId))
+            .thenAnswer((_) async => [offererId]);
+
+        final result = await case_.displayStatuses(
+          beaconIds: [beaconId],
+          viewerId: viewer,
+        );
+
+        expect(result.single.phase, BeaconDisplayPhase.coordinating);
+      });
+    }
+
+    test('author listed as a room participant does not count as a helper',
+        () async {
+      when(roomRepo.listAdmittedUserIds(beaconId))
+          .thenAnswer((_) async => [authorId]);
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+    });
   });
 
   group('BeaconDisplayCase', () {
@@ -239,7 +301,8 @@ void main() {
         viewerId: authorId,
       );
 
-      expect(result.single.phase, BeaconDisplayPhase.coordinating);
+      // B075: an unreviewed offer alone is not a team yet.
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
       expect(result.single.phase, isNot(BeaconDisplayPhase.offersAwaitingAuthor));
       expect(
         result.single.suggestedAction,

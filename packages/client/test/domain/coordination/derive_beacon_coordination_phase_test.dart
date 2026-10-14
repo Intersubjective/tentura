@@ -13,12 +13,14 @@ Beacon _beacon({
   BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
   int unansweredHelpOfferCount = 0,
+  int admittedHelperCount = 0,
 }) => Beacon.empty.copyWith(
   id: 'b1',
   title: 'Test',
   status: status,
   helpOfferCount: helpOfferCount,
   unansweredHelpOfferCount: unansweredHelpOfferCount,
+  admittedHelperCount: admittedHelperCount,
   createdAt: _t,
   updatedAt: _t,
 );
@@ -125,10 +127,11 @@ void main() {
     expect(result.rowHarmony.showBlockedTitleInNowSubline, isTrue);
   });
 
-  test('open with unanswered offers is coordinating not awaiting author', () {
+  test('open with unanswered offers and a helper is coordinating not awaiting author', () {
     final beacon = _beacon(
       helpOfferCount: 2,
       unansweredHelpOfferCount: 2,
+      admittedHelperCount: 1,
     );
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
@@ -146,7 +149,7 @@ void main() {
   test('public tier never exposes offersAwaitingAuthor', () {
     final result = deriveBeaconCoordinationPhase(
       BeaconCoordinationPhaseInput(
-        beacon: _beacon(helpOfferCount: 2),
+        beacon: _beacon(helpOfferCount: 2, admittedHelperCount: 1),
         tier: BeaconVisibilityTier.public,
         now: _t,
         hasUnreviewedOffers: true,
@@ -154,6 +157,52 @@ void main() {
     );
     expect(result.phase, isNot(BeaconCoordinationPhase.offersAwaitingAuthor));
     expect(result.phase, BeaconCoordinationPhase.coordinating);
+  });
+
+  group('B075 coordinating starts with the first accepted helper', () {
+    for (final tier in BeaconVisibilityTier.values) {
+      test('offers but nobody accepted yet: lookingForHelpers ($tier)', () {
+        final beacon = _beacon(helpOfferCount: 1, unansweredHelpOfferCount: 1);
+        final result = deriveBeaconCoordinationPhase(
+          BeaconCoordinationPhaseInput(
+            beacon: beacon,
+            tier: tier,
+            now: _t,
+            hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
+          ),
+        );
+        expect(result.phase, BeaconCoordinationPhase.lookingForHelpers);
+        expect(
+          result.slot2Kind,
+          isNot(BeaconPhaseSlot2Kind.noOffersYet),
+          reason: 'an offer exists, so "no offers yet" would be wrong',
+        );
+      });
+
+      test('first accepted helper: coordinating ($tier)', () {
+        final result = deriveBeaconCoordinationPhase(
+          BeaconCoordinationPhaseInput(
+            beacon: _beacon(helpOfferCount: 1, admittedHelperCount: 1),
+            tier: tier,
+            now: _t,
+          ),
+        );
+        expect(result.phase, BeaconCoordinationPhase.coordinating);
+      });
+    }
+
+    test('author still sees reviewOffers while looking for helpers', () {
+      final beacon = _beacon(helpOfferCount: 1, unansweredHelpOfferCount: 1);
+      final result = deriveBeaconCoordinationPhase(
+        BeaconCoordinationPhaseInput(
+          beacon: beacon,
+          tier: BeaconVisibilityTier.coordination,
+          now: _t,
+          hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
+        ),
+      );
+      expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
+    });
   });
 
   test('public tier more help uses coordinationStatus', () {

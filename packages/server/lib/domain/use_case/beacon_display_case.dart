@@ -79,11 +79,18 @@ final class BeaconDisplayCase extends UseCaseBase {
             ?.closesAt;
       }
 
+      final admittedHelperCount =
+          (await _beaconRoomRepository.listAdmittedUserIds(beaconId))
+              .where((id) => id != beacon.author.id)
+              .toSet()
+              .length;
+
       final derived = deriveBeaconDisplayStatus(
         BeaconDisplayStatusInput(
           status: beacon.status,
           tier: tier,
           helpOfferCount: activeOffers,
+          admittedHelperCount: admittedHelperCount,
           hasUnreviewedOffers: hasUnreviewed,
           reviewClosesAt: reviewClosesAt,
           updatedAt: beacon.updatedAt,

@@ -56,6 +56,13 @@ fragment BeaconModel on beacon {
       count
     }
   }
+  # B075: "Coordinating" starts with the first admitted (accepted) helper, so
+  # every surface that derives the status needs this count.
+  admitted_helpers_aggregate {
+    aggregate {
+      count
+    }
+  }
   can_read_content
   can_read_involvement
   can_read_admitted_helpers

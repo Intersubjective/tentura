@@ -47,6 +47,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
           (i.help_offers_aggregate.aggregate?.count ?? 0) +
           i.participant_help_offers.length,
       unansweredHelpOfferCount: i.unanswered_help_offers.aggregate?.count ?? 0,
+      admittedHelperCount: i.admitted_helpers_aggregate.aggregate?.count ?? 0,
       primaryNeedSlug: i.primary_need_slug,
       coverImageId: i.cover_image_id,
       coverSource: BeaconCoverSource.fromWireOrPhoto(i.cover_source),

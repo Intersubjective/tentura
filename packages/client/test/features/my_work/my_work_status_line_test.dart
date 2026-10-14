@@ -46,7 +46,29 @@ void main() {
     );
   }
 
-  testWidgets('authored open with unanswered offers shows coordinating', (
+  testWidgets('B075: authored open with offers but nobody accepted is still looking', (
+    tester,
+  ) async {
+    final l10n = await loadL10n(tester);
+    final now = DateTime.utc(2026, 6, 22, 12);
+    final vm = MyWorkCardViewModel(
+      beaconId: 'n',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredActive,
+      beacon: Beacon.empty.copyWith(
+        id: 'n',
+        status: BeaconStatus.open,
+        helpOfferCount: 1,
+        unansweredHelpOfferCount: 1,
+        updatedAt: now,
+      ),
+    );
+    final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
+    expect(line.slot1, contains(l10n.beaconPhaseLookingForHelpers));
+    expect(line.slot1, isNot(contains(l10n.beaconPhaseCoordinating)));
+  });
+
+  testWidgets('authored open with unanswered offers and an accepted helper shows coordinating', (
     tester,
   ) async {
     final l10n = await loadL10n(tester);
@@ -60,6 +82,7 @@ void main() {
         status: BeaconStatus.open,
         helpOfferCount: 2,
         unansweredHelpOfferCount: 2,
+        admittedHelperCount: 1,
         updatedAt: now,
       ),
     );

@@ -837,6 +837,8 @@ void main() {
         env: env,
         logger: Logger('RequestOnlyGuardsTest'),
       );
+      when(roomRepo.listAdmittedUserIds(any))
+          .thenAnswer((_) async => const <String>[]);
       when(mockBeaconRepo.getBeaconById(beaconId: _beaconId)).thenAnswer(
         (_) async => _beacon(kind: BeaconKind.post),
       );
