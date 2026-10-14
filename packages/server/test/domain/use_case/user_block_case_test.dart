@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
@@ -44,8 +45,7 @@ final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   Future<T> run<T>({
     required Future<T> Function() action,
     String? actorUserId,
-  }) =>
-      action();
+  }) => action();
 }
 
 final class _RecordingUoW extends Fake implements MutatingUnitOfWorkPort {
@@ -74,8 +74,7 @@ final class _FakeBlocks extends Fake implements UserBlockRepositoryPort {
   Future<int> countRecentByBlocker({
     required String blockerId,
     required Duration window,
-  }) async =>
-      recentCount;
+  }) async => recentCount;
 
   @override
   Future<void> block({
@@ -140,7 +139,8 @@ final class _FakeHelpOffers extends Fake implements HelpOfferRepositoryPort {
   }
 }
 
-final class _FakeForwardEdges extends Fake implements ForwardEdgeRepositoryPort {
+final class _FakeForwardEdges extends Fake
+    implements ForwardEdgeRepositoryPort {
   final Map<String, List<ForwardEdgeEntity>> edgesByRecipientId;
 
   _FakeForwardEdges([this.edgesByRecipientId = const {}]);
@@ -151,8 +151,7 @@ final class _FakeForwardEdges extends Fake implements ForwardEdgeRepositoryPort 
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,
-  }) async =>
-      edgesByRecipientId[recipientId] ?? [];
+  }) async => edgesByRecipientId[recipientId] ?? [];
 
   @override
   Future<void> cancel(String edgeId, String senderId) async {
@@ -164,8 +163,7 @@ final class _RecordingInbox extends Fake implements InboxRepositoryPort {
   final upsertWatchingCalls =
       <({String senderId, String beaconId, bool touchForwardOrdering})>[];
   final tombstoneCalls = <({String userId, String beaconId})>[];
-  final markForwardCancelledCalls =
-      <({String beaconId, String recipientId})>[];
+  final markForwardCancelledCalls = <({String beaconId, String recipientId})>[];
 
   @override
   Future<void> upsertWatchingForSender({
@@ -217,8 +215,7 @@ final class _FakeContacts extends Fake implements UserContactRepositoryPort {
   Future<bool> delete({
     required String viewerId,
     required String subjectId,
-  }) async =>
-      false;
+  }) async => false;
 }
 
 final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
@@ -234,15 +231,34 @@ final class _FakeBeacons extends Fake implements BeaconRepositoryPort {
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
-  }) async =>
-      BeaconEntity(
-        id: beaconId,
-        title: 't',
-        author: UserEntity(id: authorIdByBeaconId[beaconId] ?? 'unused'),
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
-        status: statusByBeaconId[beaconId] ?? BeaconStatus.open,
-      );
+  }) async => BeaconEntity(
+    id: beaconId,
+    title: 't',
+    author: UserEntity(id: authorIdByBeaconId[beaconId] ?? 'unused'),
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+    status: statusByBeaconId[beaconId] ?? BeaconStatus.open,
+  );
+}
+
+final class _RecordingRooms extends Fake implements BeaconRoomRepositoryPort {
+  final revokeCalls =
+      <({String beaconId, String offerUserId, String authorUserId})>[];
+
+  @override
+  Future<void> revokeOfferUserBeaconRoomAccess({
+    required String beaconId,
+    required String offerUserId,
+    required String authorUserId,
+  }) async {
+    revokeCalls.add(
+      (
+        beaconId: beaconId,
+        offerUserId: offerUserId,
+        authorUserId: authorUserId,
+      ),
+    );
+  }
 }
 
 UserBlockCase _buildCase({
@@ -255,27 +271,28 @@ UserBlockCase _buildCase({
   BeaconRepositoryPort? beacons,
   RecordingCommitmentRepository? commitment,
   InboxRepositoryPort? inbox,
+  BeaconRoomRepositoryPort? rooms,
   int blockRateLimitPerDay = 50,
-}) =>
-    UserBlockCase(
-      unitOfWork ?? _PassThroughUoW(),
-      blocks,
-      helpOffers ?? _FakeHelpOffers(),
-      forwardEdges ?? _FakeForwardEdges(),
-      contacts ?? _FakeContacts(),
-      users,
-      beacons ?? _FakeBeacons(),
-      commitment ?? RecordingCommitmentRepository(),
-      inbox ?? _RecordingInbox(),
-      _NoopCapabilityEvidence(),
-      FakeBeaconHierarchyRepository(),
-      trustLedger: TrustLedgerRepositoryMock(),
-      env: Env(
-        environment: Environment.test,
-        blockRateLimitPerDay: blockRateLimitPerDay,
-      ),
-      logger: Logger('UserBlockCaseTest'),
-    );
+}) => UserBlockCase(
+  unitOfWork ?? _PassThroughUoW(),
+  blocks,
+  helpOffers ?? _FakeHelpOffers(),
+  forwardEdges ?? _FakeForwardEdges(),
+  contacts ?? _FakeContacts(),
+  users,
+  beacons ?? _FakeBeacons(),
+  commitment ?? RecordingCommitmentRepository(),
+  inbox ?? _RecordingInbox(),
+  _NoopCapabilityEvidence(),
+  FakeBeaconHierarchyRepository(),
+  trustLedger: TrustLedgerRepositoryMock(),
+  roomRepository: rooms ?? _RecordingRooms(),
+  env: Env(
+    environment: Environment.test,
+    blockRateLimitPerDay: blockRateLimitPerDay,
+  ),
+  logger: Logger('UserBlockCaseTest'),
+);
 
 void main() {
   const blockerId = 'U-blocker';
@@ -323,24 +340,27 @@ void main() {
     expect(blocks.blockCalls, 0);
   });
 
-  test('rate limit rejects when recent blocks reach env.blockRateLimitPerDay', () async {
-    final blocks = _FakeBlocks()..recentCount = 50;
-    final case_ = _buildCase(
-      blocks: blocks,
-      users: _FakeUsers({blockerId, blockedId}),
-      blockRateLimitPerDay: 50,
-    );
+  test(
+    'rate limit rejects when recent blocks reach env.blockRateLimitPerDay',
+    () async {
+      final blocks = _FakeBlocks()..recentCount = 50;
+      final case_ = _buildCase(
+        blocks: blocks,
+        users: _FakeUsers({blockerId, blockedId}),
+        blockRateLimitPerDay: 50,
+      );
 
-    await expectLater(
-      case_.block(
-        blockerId: blockerId,
-        blockedId: blockedId,
-        cascadeMode: 0,
-      ),
-      throwsA(isA<RateLimitedException>()),
-    );
-    expect(blocks.blockCalls, 0);
-  });
+      await expectLater(
+        case_.block(
+          blockerId: blockerId,
+          blockedId: blockedId,
+          cascadeMode: 0,
+        ),
+        throwsA(isA<RateLimitedException>()),
+      );
+      expect(blocks.blockCalls, 0);
+    },
+  );
 
   test('failure during cleanup propagates from unit of work', () async {
     final blocks = _FakeBlocks();
@@ -544,4 +564,112 @@ void main() {
       ]);
     },
   );
+
+  // B059: the block withdrew the helper's offer but left their participant
+  // row committed with room access. After an unblock the author still saw
+  // them under Active helpers while the helper's Requests tab (active offers
+  // only) was empty. Withdrawal by block must also take the room access away,
+  // as an ordinary withdrawal (HelpOfferCase.withdraw) does.
+  group('help-offer cleanup revokes room access (B059)', () {
+    HelpOfferEntity offer(String beaconId, String userId, {int status = 0}) =>
+        HelpOfferEntity(
+          beaconId: beaconId,
+          userId: userId,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+          status: status,
+        );
+
+    test(
+      'blocked helper on the blocker\'s request loses room access',
+      () async {
+        const beaconId = 'B-mine';
+        final rooms = _RecordingRooms();
+        final case_ = _buildCase(
+          blocks: _FakeBlocks(),
+          users: _FakeUsers({blockerId, blockedId}),
+          helpOffers: _FakeHelpOffers({
+            blockedId: [offer(beaconId, blockedId)],
+          }),
+          rooms: rooms,
+          beacons: _FakeBeacons(
+            authorIdByBeaconId: {beaconId: blockerId},
+            statusByBeaconId: {beaconId: BeaconStatus.open},
+          ),
+        );
+
+        await case_.block(
+          blockerId: blockerId,
+          blockedId: blockedId,
+          cascadeMode: 0,
+        );
+
+        expect(rooms.revokeCalls, [
+          (beaconId: beaconId, offerUserId: blockedId, authorUserId: blockerId),
+        ]);
+      },
+    );
+
+    test(
+      'blocker helping on the blocked author\'s request leaves the room',
+      () async {
+        const beaconId = 'B-theirs';
+        final rooms = _RecordingRooms();
+        final case_ = _buildCase(
+          blocks: _FakeBlocks(),
+          users: _FakeUsers({blockerId, blockedId}),
+          helpOffers: _FakeHelpOffers({
+            blockerId: [offer(beaconId, blockerId)],
+          }),
+          rooms: rooms,
+          beacons: _FakeBeacons(
+            authorIdByBeaconId: {beaconId: blockedId},
+            statusByBeaconId: {beaconId: BeaconStatus.open},
+          ),
+        );
+
+        await case_.block(
+          blockerId: blockerId,
+          blockedId: blockedId,
+          cascadeMode: 0,
+        );
+
+        expect(rooms.revokeCalls, [
+          (beaconId: beaconId, offerUserId: blockerId, authorUserId: blockerId),
+        ]);
+      },
+    );
+
+    test(
+      'offers on other people\'s requests and withdrawn offers are left alone',
+      () async {
+        final rooms = _RecordingRooms();
+        final case_ = _buildCase(
+          blocks: _FakeBlocks(),
+          users: _FakeUsers({blockerId, blockedId}),
+          helpOffers: _FakeHelpOffers({
+            blockedId: [
+              offer('B-third-party', blockedId),
+              offer('B-mine-old', blockedId, status: 1),
+            ],
+          }),
+          rooms: rooms,
+          beacons: _FakeBeacons(
+            authorIdByBeaconId: {
+              'B-third-party': 'U-someone-else',
+              'B-mine-old': blockerId,
+            },
+          ),
+        );
+
+        await case_.block(
+          blockerId: blockerId,
+          blockedId: blockedId,
+          cascadeMode: 0,
+        );
+
+        expect(rooms.revokeCalls, isEmpty);
+      },
+    );
+  });
 }

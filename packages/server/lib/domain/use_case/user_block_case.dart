@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/author_invite_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
@@ -48,6 +49,7 @@ final class UserBlockCase extends UseCaseBase {
     ClosureCase? closureCase,
     AuthorInvitePort? authorInvites,
     AttentionSystemSettlementPort? attentionSystemSettlement,
+    BeaconRoomRepositoryPort? roomRepository,
     required super.env,
     required super.logger,
   }) : _trustLedger = trustLedger,
@@ -56,7 +58,8 @@ final class UserBlockCase extends UseCaseBase {
        _witnessWindow = witnessWindow,
        _closureCase = closureCase,
        _authorInvites = authorInvites,
-       _attentionSystemSettlement = attentionSystemSettlement;
+       _attentionSystemSettlement = attentionSystemSettlement,
+       _roomRepository = roomRepository;
 
   final MutatingUnitOfWorkPort _unitOfWork;
   final UserBlockRepositoryPort _blocks;
@@ -76,6 +79,7 @@ final class UserBlockCase extends UseCaseBase {
   final ClosureCase? _closureCase;
   final AuthorInvitePort? _authorInvites;
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
+  final BeaconRoomRepositoryPort? _roomRepository;
 
   Future<void> block({
     required String blockerId,
@@ -83,7 +87,11 @@ final class UserBlockCase extends UseCaseBase {
     required int cascadeMode,
   }) {
     if (blockerId == blockedId) {
-      throw ArgumentError.value(blockedId, 'blockedId', 'cannot block yourself');
+      throw ArgumentError.value(
+        blockedId,
+        'blockedId',
+        'cannot block yourself',
+      );
     }
     return _unitOfWork.run(
       actorUserId: blockerId,
@@ -112,32 +120,30 @@ final class UserBlockCase extends UseCaseBase {
   Future<void> unblock({
     required String blockerId,
     required String blockedId,
-  }) =>
-      _unitOfWork.run(
-        actorUserId: blockerId,
-        action: () async {
-          await _hierarchyRepository.lockMutationScope();
-          await _blocks.unblock(
-            blockerId: blockerId,
-            blockedId: blockedId,
-          );
-          await _invalidateWitnessWindows(blockerId, blockedId);
-          await _trustLedger.project([(blockerId, blockedId)]);
-        },
+  }) => _unitOfWork.run(
+    actorUserId: blockerId,
+    action: () async {
+      await _hierarchyRepository.lockMutationScope();
+      await _blocks.unblock(
+        blockerId: blockerId,
+        blockedId: blockedId,
       );
+      await _invalidateWitnessWindows(blockerId, blockedId);
+      await _trustLedger.project([(blockerId, blockedId)]);
+    },
+  );
 
   /// Promote an inherited block to a direct block (metadata only; no cleanup).
   Future<void> promoteToDirect({
     required String blockerId,
     required String blockedId,
-  }) =>
-      _unitOfWork.run(
-        actorUserId: blockerId,
-        action: () => _blocks.promoteToDirect(
-          blockerId: blockerId,
-          blockedId: blockedId,
-        ),
-      );
+  }) => _unitOfWork.run(
+    actorUserId: blockerId,
+    action: () => _blocks.promoteToDirect(
+      blockerId: blockerId,
+      blockedId: blockedId,
+    ),
+  );
 
   Future<void> _invalidateWitnessWindows(
     String blockerId,
@@ -242,6 +248,16 @@ final class UserBlockCase extends UseCaseBase {
         withdrawReason: kBlockWithdrawReason,
         mutatingUserId: blockerId,
       );
+      // Leave the room too, as an ordinary withdrawal does
+      // (HelpOfferCase.withdraw). Otherwise the participant row stays
+      // committed with room access, and after an unblock the author still
+      // lists an "Active helper" whose offer is withdrawn, while the helper's
+      // Requests tab (active offers only) no longer shows the request (B059).
+      await _roomRepository?.revokeOfferUserBeaconRoomAccess(
+        beaconId: beaconId,
+        offerUserId: offererId,
+        authorUserId: blockerId,
+      );
       final beaconAfter = await _beacons.getBeaconById(beaconId: beaconId);
       if (beaconAfter.status.isOpenFamily) {
         await _inbox.upsertWatchingForSender(
@@ -275,9 +291,9 @@ final class UserBlockCase extends UseCaseBase {
   }) async {
     final cached = cache[beaconId];
     if (cached != null) return cached;
-    final authorId = (await _beacons.getBeaconById(beaconId: beaconId))
-        .author
-        .id;
+    final authorId = (await _beacons.getBeaconById(
+      beaconId: beaconId,
+    )).author.id;
     cache[beaconId] = authorId;
     return authorId;
   }
