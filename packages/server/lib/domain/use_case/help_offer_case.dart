@@ -441,6 +441,14 @@ final class HelpOfferCase extends UseCaseBase {
           message: message,
           withdrawReason: withdrawReason,
         );
+        // Tell the room who left and why while the helper is still a member
+        // (the line also pushes to the others as a room message) (B084).
+        await _roomRepository.recordParticipantLeft(
+          beaconId: beaconId,
+          userId: userId,
+          withdrawReason: withdrawReason,
+          note: message,
+        );
         await _roomRepository.revokeOfferUserBeaconRoomAccess(
           beaconId: beaconId,
           offerUserId: userId,

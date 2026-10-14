@@ -261,6 +261,51 @@ void main() {
     });
   });
 
+  group('withdraw leaves a trace in the room (B084)', () {
+    test(
+      'records the leave line with reason and note before revoking access',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+        when(
+          helpOfferRepo.withdraw(
+            beaconId: 'B1',
+            userId: 'U1',
+            withdrawReason: 'timing',
+            message: 'Saturday fell through',
+          ),
+        ).thenAnswer((_) => Future.value());
+        when(
+          inboxRepo.upsertWatchingForSender(
+            senderId: 'U1',
+            beaconId: 'B1',
+            touchForwardOrdering: false,
+          ),
+        ).thenAnswer((_) => Future.value());
+
+        await case_.withdraw(
+          beaconId: 'B1',
+          userId: 'U1',
+          withdrawReason: 'timing',
+          message: 'Saturday fell through',
+        );
+
+        verifyInOrder([
+          roomRepo.recordParticipantLeft(
+            beaconId: 'B1',
+            userId: 'U1',
+            withdrawReason: 'timing',
+            note: 'Saturday fell through',
+          ),
+          roomRepo.revokeOfferUserBeaconRoomAccess(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            authorUserId: 'U1',
+          ),
+        ]);
+      },
+    );
+  });
+
   group('offerHelp', () {
     test('rejects when beacon not OPEN', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.closed));

@@ -207,6 +207,17 @@ abstract class BeaconRoomRepositoryPort {
     required String authorUserId,
   });
 
+  /// A helper who is in the room leaves it by withdrawing: post the
+  /// `participantLeft` system line (reason key + optional note) so the others
+  /// see who left and why. No-op when [userId] is not an admitted helper.
+  /// Call before [revokeOfferUserBeaconRoomAccess] (B084).
+  Future<void> recordParticipantLeft({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String note = '',
+  });
+
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

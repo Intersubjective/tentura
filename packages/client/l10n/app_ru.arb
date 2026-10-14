@@ -4943,6 +4943,31 @@
       }
     }
   },
+  "beaconRoomParticipantLeft": "{name} покинул(а) запрос ({reason})",
+  "@beaconRoomParticipantLeft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeftWithNote": "{name} покинул(а) запрос ({reason}): «{note}»",
+  "@beaconRoomParticipantLeftWithNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomViewerAdmittedByActor": "Вас допустил(а) в обсуждение {actorName}",
   "@beaconRoomViewerAdmittedByActor": {
     "placeholders": {

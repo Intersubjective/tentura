@@ -1376,6 +1376,39 @@ RETURNING *
   }
 
   @override
+  Future<void> recordParticipantLeft({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String note = '',
+  }) => _db.withMutatingUser(userId, () async {
+    final existing = await findParticipant(beaconId: beaconId, userId: userId);
+    // Only someone who was in the room leaves it; an addressee of a converted
+    // Post keeps access (leaving is `postLeave`).
+    if (existing == null ||
+        existing.roomAccess != RoomAccessBits.admitted ||
+        existing.role == BeaconParticipantRoleBits.addressee) {
+      return;
+    }
+    final trimmedNote = note.trim();
+    await _db.managers.beaconRoomMessages.create(
+      (o) => o(
+        id: generateId('R'),
+        beaconId: beaconId,
+        authorId: Value(userId),
+        body: const Value(''),
+        semanticMarker: const Value(BeaconRoomSemanticMarker.participantLeft),
+        systemPayload: Value(<String, Object?>{
+          'leftUserId': userId,
+          'withdrawReason': withdrawReason,
+          if (trimmedNote.isNotEmpty) 'note': trimmedNote,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+  });
+
+  @override
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

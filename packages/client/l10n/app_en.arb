@@ -5118,6 +5118,31 @@
       }
     }
   },
+  "beaconRoomParticipantLeft": "{name} left the request ({reason})",
+  "@beaconRoomParticipantLeft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeftWithNote": "{name} left the request ({reason}): “{note}”",
+  "@beaconRoomParticipantLeftWithNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomViewerAdmittedByActor": "You were admitted to the discussion by {actorName}",
   "@beaconRoomViewerAdmittedByActor": {
     "placeholders": {
