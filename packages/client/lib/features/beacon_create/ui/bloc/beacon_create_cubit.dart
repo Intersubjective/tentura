@@ -22,6 +22,7 @@ import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -513,7 +514,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final beacon = await _case.fetchById(id);
-      if (beacon.status != BeaconStatus.open) {
+      // Same gate as the Edit menu item and the server: open family
+      // (open, needs more help, enough help) or wrapping up.
+      if (!beaconAllowsEdit(beacon)) {
         _emitSnackError(Exception('Only open requests can be edited'));
         return;
       }
