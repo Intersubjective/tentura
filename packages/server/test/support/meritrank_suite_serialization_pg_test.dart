@@ -1,4 +1,5 @@
 @Tags(['pg', 'mr'])
+@Timeout(Duration(minutes: 20))
 library;
 
 import 'package:test/test.dart';

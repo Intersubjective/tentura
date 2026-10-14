@@ -169,7 +169,8 @@ Future<void> _ensureTemplateUnlocked(Env adminEnv, Env templateEnv) async {
 /// Disposable Postgres target for tagged PG tests.
 ///
 /// Resolves [databaseName] from [envVarName] when set; otherwise
-/// `[defaultNamePrefix]_<pid>_<random>_<seq>`.
+/// `[defaultNamePrefix]_<pid>_<random>_<seq>`, trimming the prefix to fit
+/// PostgreSQL's 63-character identifier limit.
 final class DisposablePgTarget {
   const DisposablePgTarget({
     required this.adminEnv,
@@ -194,9 +195,7 @@ final class DisposablePgTarget {
     final databaseName =
         databaseNameOverride ??
         Platform.environment[envVarName] ??
-        '${defaultNamePrefix}_${pid}_'
-            '${Random().nextInt(1 << 30)}_'
-            '${_nameSeq++}';
+        _newDatabaseName(defaultNamePrefix);
     validateDisposableDatabaseName(databaseName, envVarName);
 
     final poolSize = testPoolSizeOverride();
@@ -230,6 +229,12 @@ final class DisposablePgTarget {
   final String envVarName;
 
   static int _nameSeq = Random().nextInt(1 << 20);
+
+  static String _newDatabaseName(String prefix) {
+    final suffix = '${pid}_${Random().nextInt(1 << 30)}_${_nameSeq++}';
+    final prefixLength = min(prefix.length, 63 - suffix.length - 1);
+    return '${prefix.substring(0, prefixLength)}_$suffix';
+  }
 
   static void validateDisposableDatabaseName(
     String databaseName,

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:postgres/postgres.dart';
 
+import '../support/meritrank_lock_probe.dart' show meritRankSuiteLockKey;
 import 'perf_report.dart';
 
 /// WAL generated between [WalMeter.start] and [WalMeter.stop], and whether the
@@ -18,6 +19,7 @@ final class WalMeasurement {
 /// WAL is cluster-wide, so the figure is [WalAttribution.quietCluster] only
 /// when no other client session was active at either end of the window;
 /// otherwise it is labelled [WalAttribution.clusterTotal].
+/// Suites waiting for the MeritRank suite lock are not competing workload.
 final class WalMeter {
   WalMeter(this._probe);
 
@@ -57,8 +59,25 @@ final class WalMeter {
 
   Future<bool> _otherSessionsActive() async {
     final rows = await _probe.execute(
-      "SELECT 1 FROM pg_stat_activity WHERE backend_type = 'client backend' "
-      "AND state = 'active' AND pid <> pg_backend_pid() LIMIT 1",
+      // Queued suites cannot provision their databases or write WAL until the
+      // measured suite releases this lock. PostgreSQL still marks them active.
+      Sql.named('''
+SELECT 1 FROM pg_stat_activity AS activity
+WHERE backend_type = 'client backend'
+  AND state = 'active' AND pid <> pg_backend_pid()
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_locks AS queued
+    WHERE queued.pid = activity.pid AND queued.database = activity.datid
+      AND queued.locktype = 'advisory' AND NOT queued.granted
+      AND queued.objsubid = 1
+      AND queued.classid::bigint =
+        ((hashtext(@suiteLock)::bigint >> 32) & 4294967295)
+      AND queued.objid::bigint =
+        (hashtext(@suiteLock)::bigint & 4294967295)
+  )
+LIMIT 1
+'''),
+      parameters: {'suiteLock': meritRankSuiteLockKey},
     );
     return rows.isNotEmpty;
   }

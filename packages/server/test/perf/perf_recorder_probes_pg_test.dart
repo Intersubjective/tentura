@@ -14,6 +14,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 
 import '../support/disposable_pg_target.dart';
 import '../support/pg_wait.dart';
+import 'perf_instruments.dart';
 import 'perf_recorder.dart';
 
 const _lockRowSql =
@@ -342,10 +343,28 @@ Future<void> main() async {
             ),
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        release.complete();
-        await holder;
-        await attempt;
+        Connection? probe;
+        try {
+          probe = await Connection.open(
+            target.databaseEnv.pgEndpoint,
+            settings: target.databaseEnv.pgEndpointSettings,
+          );
+          final lockProbe = PerfLockProbe(probe);
+          final clock = Stopwatch()..start();
+          // Start the timed hold only once the statement is actually blocked.
+          while (await lockProbe.waitingLockCount() == 0) {
+            if (clock.elapsed >= kStableStateWait) {
+              throw TimeoutException('Cursor lock waiter did not start');
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        } finally {
+          release.complete();
+          await probe?.close();
+          await holder;
+          await attempt;
+        }
 
         final wait = section('cursorWaitMs')['p95']! as num;
         final hold = section('cursorHoldMs')['p95']! as num;
