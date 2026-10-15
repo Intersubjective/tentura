@@ -1,7 +1,9 @@
 # import '/data/gql/user_model.graphql'
 
 query FriendsFetch {
-  vote_user(where: {amount: {_gt: 0}}) {
+  vote_user(
+    where: {amount: {_gt: 0}, user: {id: {_is_null: false}}}
+  ) {
     user {
       ...UserModel
     }
