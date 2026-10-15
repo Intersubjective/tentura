@@ -58,6 +58,9 @@ class ClosureReviewPage extends StatelessWidget {
     return Scaffold(
       appBar: TenturaTopBar.of(
         context,
+        // Pushed over the Request, and TenturaTopBar implies no leading: give
+        // it an explicit back control (helpers' Done/Skip do not close it).
+        leading: const BackButton(),
         title: Text(
           _isAuthor ? l10n.closureAuthorTitle : l10n.closureHelperTitle,
         ),
@@ -67,13 +70,16 @@ class ClosureReviewPage extends StatelessWidget {
               value: authorCubit,
               create: () => ClosureAuthorCubit.fromGetIt(beaconId: beaconId),
               child: BlocListener<ClosureAuthorCubit, ClosureAuthorState>(
-                // Close now finalizes the epoch; Return to work cancels it
-                // (the state then reads as not found). Either way the review
-                // is over: go back to the Request, which reloads.
+                // The review is over when the author's own Close now / Return
+                // to work went through, or a reload shows the epoch moved on
+                // (e.g. finalized at its deadline): go back to the Request,
+                // which reloads. A failed reload (timeout, offline) is not an
+                // ending: the author stays on the page with their summary.
                 listenWhen: (p, c) =>
-                    p.data != null &&
-                    (c.data?.status != p.data?.status ||
-                        (p.loadError == null && c.loadError != null)),
+                    (!p.ended && c.ended) ||
+                    (p.data != null &&
+                        c.data != null &&
+                        c.data!.status != p.data!.status),
                 listener: (context, _) => Navigator.of(context).maybePop(),
                 child: const ClosureAuthorView(),
               ),

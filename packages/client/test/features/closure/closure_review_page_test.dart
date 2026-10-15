@@ -2,6 +2,8 @@
 // was reopened once can still be closed through it: record the outcomes, then
 // Close now. The page leaves once the review is over.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
@@ -75,6 +77,68 @@ final class _SecondRoundRepository implements ClosureRepository {
   }) async {
     closeNowEpochs.add(expectedEpoch);
     status = 1; // finalized
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// First round (Return to work still available). [failNextFetch] makes the
+/// reload after the next write fail once, like a timeout; after [reopen] the
+/// server answers not-found, as it does for a cancelled epoch.
+final class _FirstRoundRepository implements ClosureRepository {
+  final members = const [
+    ClosureMember(id: 'u1', displayName: 'Ann'),
+    ClosureMember(id: 'u2', displayName: 'Bob'),
+    ClosureMember(id: 'u3', displayName: 'Cy'),
+  ];
+  final outcomes = <String, ClosureOutcome>{};
+  bool failNextFetch = false;
+  bool cancelled = false;
+  int fetches = 0;
+  final reopenEpochs = <int>[];
+
+  @override
+  Future<ClosureState> fetchState(String beaconId) async {
+    fetches++;
+    if (cancelled) throw Exception('Id not found: [$beaconId]');
+    if (failNextFetch) {
+      failNextFetch = false;
+      throw TimeoutException('closureState');
+    }
+    return ClosureState(
+      epoch: 1,
+      status: 0,
+      role: ClosureRole.author,
+      members: members,
+      closesAt: DateTime.utc(2030, 1, 10, 12),
+      outcomes: Map.of(outcomes),
+      earlyCloseAt: DateTime.utc(2030, 1, 5, 12),
+      canReopen: true,
+    );
+  }
+
+  @override
+  Future<void> saveOutcome({
+    required String beaconId,
+    required int expectedEpoch,
+    required String helperId,
+    required ClosureOutcome? outcome,
+  }) async {
+    if (outcome == null) {
+      outcomes.remove(helperId);
+    } else {
+      outcomes[helperId] = outcome;
+    }
+  }
+
+  @override
+  Future<void> reopen({
+    required String beaconId,
+    required int expectedEpoch,
+  }) async {
+    reopenEpochs.add(expectedEpoch);
+    cancelled = true;
   }
 
   @override
@@ -188,5 +252,94 @@ void main() {
     expect(find.text('Wrap-up'), findsOneWidget);
     expect(find.byType(ClosureHelperView), findsOneWidget);
     expect(find.byType(ClosureAuthorView), findsNothing);
+  });
+
+  testWidgets(
+    'the pushed page has a back control that returns to the Request',
+    (tester) async {
+      final repo = _SecondRoundRepository(role: ClosureRole.voter);
+      final cubit = ClosureHelperCubit(
+        _case(repo),
+        beaconId: _beaconId,
+        viewerId: 'u1',
+        author: const ClosureMember(id: 'uAuthor', displayName: 'Author'),
+      );
+      addTearDown(cubit.close);
+      await _pumpHostAndOpen(
+        tester,
+        () => ClosureReviewPage(
+          beaconId: _beaconId,
+          role: ClosureRole.voter,
+          viewerId: 'u1',
+          author: const ClosureMember(id: 'uAuthor', displayName: 'Author'),
+          helperCubit: cubit,
+        ),
+      );
+
+      expect(find.byType(BackButton), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(ClosureReviewPage), findsNothing);
+      expect(find.text('request'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a failed reload after a write keeps the author on the review', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final repo = _FirstRoundRepository();
+    final cubit = ClosureAuthorCubit(_case(repo), beaconId: _beaconId);
+    addTearDown(cubit.close);
+    await _pumpHostAndOpen(
+      tester,
+      () => ClosureReviewPage(
+        beaconId: _beaconId,
+        role: ClosureRole.author,
+        viewerId: 'uAuthor',
+        author: const ClosureMember(id: 'uAuthor', displayName: 'Author'),
+        authorCubit: cubit,
+      ),
+    );
+    expect(find.byType(ClosureAuthorView), findsOneWidget);
+
+    repo.failNextFetch = true;
+    await tester.tap(find.bySemanticsLabel('Ann: Done').first);
+    await _settle(tester);
+
+    expect(repo.outcomes, {'u1': ClosureOutcome.done});
+    expect(cubit.state.loadError, isA<TimeoutException>());
+    expect(find.byType(ClosureReviewPage), findsOneWidget);
+    expect(find.byType(ClosureAuthorView), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('Return to work ends the review and the page goes back', (
+    tester,
+  ) async {
+    final repo = _FirstRoundRepository();
+    final cubit = ClosureAuthorCubit(_case(repo), beaconId: _beaconId);
+    addTearDown(cubit.close);
+    await _pumpHostAndOpen(
+      tester,
+      () => ClosureReviewPage(
+        beaconId: _beaconId,
+        role: ClosureRole.author,
+        viewerId: 'uAuthor',
+        author: const ClosureMember(id: 'uAuthor', displayName: 'Author'),
+        authorCubit: cubit,
+      ),
+    );
+    final fetchesBefore = repo.fetches;
+
+    await tester.tap(find.text('Return to work'));
+    await _settle(tester);
+
+    expect(repo.reopenEpochs, [1]);
+    expect(cubit.state.ended, isTrue);
+    // Nothing to reload for a cancelled epoch.
+    expect(repo.fetches, fetchesBefore);
+    expect(find.byType(ClosureReviewPage), findsNothing);
+    expect(find.text('request'), findsOneWidget);
   });
 }
