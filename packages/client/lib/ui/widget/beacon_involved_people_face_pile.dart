@@ -15,6 +15,7 @@ class BeaconInvolvedPeopleFacePile extends StatelessWidget {
     required this.currentUserId,
     this.helperCount,
     this.onTap,
+    this.showPresence = false,
     super.key,
   });
 
@@ -25,6 +26,11 @@ class BeaconInvolvedPeopleFacePile extends StatelessWidget {
   /// Non-author helper total for overflow. Defaults to [involvedProfiles.length].
   final int? helperCount;
   final VoidCallback? onTap;
+
+  /// Online dots per face (U093). Only where the screen also watches the
+  /// team's presence (the request header); elsewhere a dot would show only
+  /// for people some other screen happens to watch.
+  final bool showPresence;
 
   static bool hasVisibleProfiles({
     required Beacon beacon,
@@ -57,8 +63,7 @@ class BeaconInvolvedPeopleFacePile extends StatelessWidget {
       size: metaAvatar,
       starredProfileId: beacon.author.id,
       selfUserId: currentUserId,
-      // U093: who on the team is here right now.
-      showPresence: true,
+      showPresence: showPresence,
       semanticsLabel: l10n.facepileSemantics(
         display.visible.length,
         display.overflow,

@@ -34,11 +34,12 @@ class _PresenceCubit extends Mock implements PresenceCubit {
       Stream<Map<String, UserPresenceStatus>>.value(_state);
 }
 
-Widget _pile({PresenceCubit? presence}) {
+Widget _pile({PresenceCubit? presence, bool showPresence = true}) {
   final pile = BeaconInvolvedPeopleFacePile(
     beacon: Beacon.empty.copyWith(id: 'B1', author: _author),
     involvedProfiles: const [_nina, _omar],
     currentUserId: 'viewer',
+    showPresence: showPresence,
   );
   return MaterialApp(
     theme: TenturaTheme.light(),
@@ -92,6 +93,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TenturaAvatar), findsNWidgets(3));
+    expect(find.byType(TenturaPresenceDot), findsNothing);
+  });
+
+  testWidgets('other piles (My Work cards, threads) show no dots by default', (
+    tester,
+  ) async {
+    // Only the request header watches the team's presence; elsewhere a dot
+    // would appear for whoever another screen happens to watch.
+    await tester.pumpWidget(
+      _pile(
+        presence: _PresenceCubit(const {'u-nina': UserPresenceStatus.online}),
+        showPresence: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.byType(TenturaPresenceDot), findsNothing);
   });
 }

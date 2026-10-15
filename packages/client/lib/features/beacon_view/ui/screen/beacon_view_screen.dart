@@ -1027,6 +1027,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           currentUserId: beaconState.myProfile.id,
                           helperCount: beaconState.beacon.admittedHelperCount,
                           onTap: openPeople,
+                          // U093: BeaconViewCubit watches the team's presence.
+                          showPresence: true,
                         ),
                       ),
                     ),
