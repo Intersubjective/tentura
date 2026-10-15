@@ -1711,6 +1711,13 @@ class BeaconRoomCase extends UseCaseBase {
         description: 'At least 2 poll variants required',
       );
     }
+    final seenVariants = <String>{};
+    for (final v in validVariants) {
+      final key = v.replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+      if (!seenVariants.add(key)) {
+        throw const PollDuplicateVariantException();
+      }
+    }
     final resolvedPollType = pollType ?? 'single';
     if (!const {'single', 'multiple', 'range'}.contains(resolvedPollType)) {
       throw const BeaconCreateException(description: 'Invalid poll type');

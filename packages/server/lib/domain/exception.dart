@@ -278,6 +278,17 @@ final class BeaconFactCardAlreadyPinnedException extends ExceptionBase {
       };
 }
 
+/// Two poll options are equal after trim / case / whitespace normalisation.
+final class PollDuplicateVariantException extends ExceptionBase {
+  const PollDuplicateVariantException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.pollDuplicateVariant,
+        ),
+        description: description ?? 'Poll options must be distinct',
+      );
+}
+
 /// `primaryNeedSlug` is not one of the 37 allowed capability slugs.
 final class BeaconPrimaryNeedInvalidException extends ExceptionBase {
   const BeaconPrimaryNeedInvalidException({String? description})

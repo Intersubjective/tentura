@@ -118,6 +118,7 @@ enum BeaconExceptionCode {
   planTooLarge, // 1343
   planDisabled, // 1344
   planInvalid, // 1345
+  pollDuplicateVariant, // 1346
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
