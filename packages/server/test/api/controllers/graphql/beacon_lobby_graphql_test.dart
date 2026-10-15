@@ -3,6 +3,7 @@ import 'package:graphql_server2/graphql_server2.dart';
 import 'package:mockito/mockito.dart' show Fake;
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_beacon_lobby.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_beacon_lobby.dart';
@@ -88,16 +89,32 @@ void main() {
     expect(lobbyCase.calls, ['open B1 Uauthor']);
   });
 
-  test('BeaconLobbyBan / BeaconLobbyUnban forward the caller as author',
-      () async {
-    final ban = await run(
-      'mutation { BeaconLobbyBan(beaconId: "B1", userId: "Unina") }',
+  test(
+    'BeaconLobbyBan / BeaconLobbyUnban forward the caller as author',
+    () async {
+      final ban = await run(
+        'mutation { BeaconLobbyBan(beaconId: "B1", userId: "Unina") }',
+      );
+      final unban = await run(
+        'mutation { BeaconLobbyUnban(beaconId: "B1", userId: "Unina") }',
+      );
+      expect(ban['BeaconLobbyBan'], isTrue);
+      expect(unban['BeaconLobbyUnban'], isTrue);
+      expect(lobbyCase.calls, [
+        'ban B1 Uauthor Unina',
+        'unban B1 Uauthor Unina',
+      ]);
+    },
+  );
+
+  test('bannedUserIds is a list type without an outer non-null wrapper', () {
+    final type = gqlTypeBeaconLobby.fields
+        .firstWhere((f) => f.name == 'bannedUserIds')
+        .type;
+    expect(type, isA<GraphQLListType>());
+    expect(
+      (type as GraphQLListType).ofType,
+      isA<GraphQLNonNullableType>(),
     );
-    final unban = await run(
-      'mutation { BeaconLobbyUnban(beaconId: "B1", userId: "Unina") }',
-    );
-    expect(ban['BeaconLobbyBan'], isTrue);
-    expect(unban['BeaconLobbyUnban'], isTrue);
-    expect(lobbyCase.calls, ['ban B1 Uauthor Unina', 'unban B1 Uauthor Unina']);
   });
 }

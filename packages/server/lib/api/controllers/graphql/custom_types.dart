@@ -233,10 +233,8 @@ final gqlTypeBeaconLobby = GraphQLObjectType('BeaconLobby', null)
     field('lobbyId', graphQLString.nonNullable()),
     field('isAuthor', graphQLBoolean.nonNullable()),
     field('canPost', graphQLBoolean.nonNullable()),
-    field(
-      'bannedUserIds',
-      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-    ),
+    // Never `.nonNullable()` on a list type (project GraphQL rule).
+    field('bannedUserIds', GraphQLListType(graphQLString.nonNullable())),
   ]);
 
 final gqlTypeAttentionReconcileResult =

@@ -6,8 +6,12 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/beacon_lobby_repository.dart';
@@ -16,13 +20,16 @@ import 'package:tentura_server/data/repository/coordination_item_repository.dart
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
+import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -40,6 +47,59 @@ class _FakeRemoteStorage extends Fake implements RemoteStoragePort {}
 class _FakePolling extends Fake implements PollingRepositoryPort {}
 
 class _FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {}
+
+/// Records whom each directed room notice (which carries the message text)
+/// would reach.
+final class _RecordingIntents extends Fake implements AttentionIntentCase {
+  final mentioned = <String>{};
+  final directed = <String>{};
+
+  static const _intent = AttentionDispatchIntent(
+    eventType: AttentionEventType.relayReceived,
+    sourceEventKey: 'test',
+    actorUserId: null,
+    priority: NotificationPriority.high,
+    kind: NotificationKind.needsMe,
+    title: '',
+    body: '',
+    actionUrl: '',
+    collapseKey: '',
+    recipients: [],
+  );
+
+  @override
+  Future<AttentionDispatchIntent> roomMentioned({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required Set<String> recipientUserIds,
+    required String excerpt,
+    required String sourceEventKey,
+    String? threadItemId,
+  }) async {
+    mentioned.addAll(recipientUserIds);
+    return _intent;
+  }
+
+  @override
+  Future<AttentionDispatchIntent> roomMessagePosted({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required Set<String> recipientUserIds,
+    required String excerpt,
+    required String sourceEventKey,
+    String? threadItemId,
+  }) async {
+    directed.addAll(recipientUserIds);
+    return _intent;
+  }
+}
+
+final class _NoopDispatch implements AttentionDispatchPort {
+  @override
+  Future<void> record(AttentionDispatchIntent intent) async {}
+}
 
 /// U088 — a "lobby" per Request: a discussion for the people who offered
 /// help (and the author), before or without admission to the main
@@ -74,7 +134,12 @@ Future<void> main() async {
         'status) VALUES (@b, @u, @m, @s) ON CONFLICT (beacon_id, user_id) '
         'DO UPDATE SET status = EXCLUDED.status',
       ),
-      parameters: {'b': beaconId, 'u': userId, 'm': 'I have a van', 's': status},
+      parameters: {
+        'b': beaconId,
+        'u': userId,
+        'm': 'I have a van',
+        's': status,
+      },
     );
 
     Future<List<String>> lobbyBodies(String viewer, String lobbyId) async {
@@ -86,6 +151,34 @@ Future<void> main() async {
       return [for (final r in rows) r['body']! as String];
     }
 
+    BeaconRoomCase buildRooms({
+      AttentionIntentCase? intents,
+      FakeBeaconHierarchyRepository? hierarchy,
+    }) => BeaconRoomCase(
+      room,
+      CoordinationItemRepository(db),
+      _FakeFactCards(),
+      _FakeImages(),
+      _FakeTasks(),
+      _FakeRemoteStorage(),
+      _FakePolling(),
+      _FakeUploadQuota(),
+      FakeUserBlockRepository(),
+      PassThroughMutatingUnitOfWork(),
+      hierarchy ?? FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
+      attentionIntents: intents,
+      attention: intents == null
+          ? null
+          : TransactionalAttentionCase(
+              PassThroughMutatingUnitOfWork(),
+              _NoopDispatch(),
+            ),
+      lobby: lobby,
+      env: Env(environment: Environment.test),
+      logger: Logger('beacon_lobby_pg_test'),
+    );
+
     setUpAll(() async {
       if (skipReason != null) return;
       session = await setUpDisposablePgWriter(target: target);
@@ -93,23 +186,7 @@ Future<void> main() async {
       db = TenturaDb(target.databaseEnv);
       room = BeaconRoomRepository(db);
       lobby = BeaconLobbyRepository(db);
-      rooms = BeaconRoomCase(
-        room,
-        CoordinationItemRepository(db),
-        _FakeFactCards(),
-        _FakeImages(),
-        _FakeTasks(),
-        _FakeRemoteStorage(),
-        _FakePolling(),
-        _FakeUploadQuota(),
-        FakeUserBlockRepository(),
-        PassThroughMutatingUnitOfWork(),
-        FakeBeaconHierarchyRepository(),
-        const ProductionDiscussionProductPolicy(),
-        lobby: lobby,
-        env: Env(environment: Environment.test),
-        logger: Logger('beacon_lobby_pg_test'),
-      );
+      rooms = buildRooms();
     });
 
     tearDownAll(() async {
@@ -150,111 +227,132 @@ Future<void> main() async {
       expect([for (final r in kinds) r[0]], [coordinationItemKindLobby]);
     });
 
-    test('the author and people who offered help can open it; others not',
-        () async {
-      await offer(ninaId);
-      await offer(omarId, status: 1); // withdrawn
-      expect(
-        (await rooms.beaconLobby(beaconId: beaconId, userId: ninaId))['canPost'],
-        isTrue,
-      );
-      await expectLater(
-        rooms.beaconLobby(beaconId: beaconId, userId: strangerId),
-        throwsA(isA<UnauthorizedException>()),
-      );
-      await expectLater(
-        rooms.beaconLobby(beaconId: beaconId, userId: omarId),
-        throwsA(isA<UnauthorizedException>()),
-      );
-    });
+    test(
+      'the author and people who offered help can open it; others not',
+      () async {
+        await offer(ninaId);
+        await offer(omarId, status: 1); // withdrawn
+        expect(
+          (await rooms.beaconLobby(
+            beaconId: beaconId,
+            userId: ninaId,
+          ))['canPost'],
+          isTrue,
+        );
+        await expectLater(
+          rooms.beaconLobby(beaconId: beaconId, userId: strangerId),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        await expectLater(
+          rooms.beaconLobby(beaconId: beaconId, userId: omarId),
+          throwsA(isA<UnauthorizedException>()),
+        );
+      },
+    );
 
-    test('lobby messages stay in the lobby, out of the main discussion',
-        () async {
-      await offer(ninaId);
-      final lobbyId = (await rooms.beaconLobby(
-        beaconId: beaconId,
-        userId: ninaId,
-      ))['lobbyId']! as String;
-      await rooms.createMessage(
-        beaconId: beaconId,
-        userId: ninaId,
-        body: 'Which Saturday?',
-        threadItemId: lobbyId,
-      );
-      await rooms.createMessage(
-        beaconId: beaconId,
-        userId: authorId,
-        body: 'The 18th',
-        threadItemId: lobbyId,
-      );
-      expect(await lobbyBodies(authorId, lobbyId), unorderedEquals([
-        'Which Saturday?',
-        'The 18th',
-      ]));
-      expect(await lobbyBodies(ninaId, lobbyId), hasLength(2));
-      final main = await rooms.listMessages(beaconId: beaconId, userId: authorId);
-      expect([for (final m in main) m['body']], isNot(contains('Which Saturday?')));
-      await expectLater(
-        rooms.listMessages(
-          beaconId: beaconId,
-          userId: strangerId,
-          threadItemId: lobbyId,
-        ),
-        throwsA(isA<UnauthorizedException>()),
-      );
-    });
-
-    test('the author bans a person: no reading, no posting, until let back in',
-        () async {
-      await offer(ninaId);
-      final lobbyId = (await rooms.beaconLobby(
-        beaconId: beaconId,
-        userId: authorId,
-      ))['lobbyId']! as String;
-
-      await rooms.banFromLobby(
-        beaconId: beaconId,
-        userId: authorId,
-        bannedUserId: ninaId,
-      );
-      await expectLater(
-        rooms.listMessages(
+    test(
+      'lobby messages stay in the lobby, out of the main discussion',
+      () async {
+        await offer(ninaId);
+        final lobbyId =
+            (await rooms.beaconLobby(
+                  beaconId: beaconId,
+                  userId: ninaId,
+                ))['lobbyId']!
+                as String;
+        await rooms.createMessage(
           beaconId: beaconId,
           userId: ninaId,
+          body: 'Which Saturday?',
           threadItemId: lobbyId,
-        ),
-        throwsA(isA<UnauthorizedException>()),
-      );
-      await expectLater(
-        rooms.createMessage(
+        );
+        await rooms.createMessage(
           beaconId: beaconId,
-          userId: ninaId,
-          body: 'hello?',
+          userId: authorId,
+          body: 'The 18th',
           threadItemId: lobbyId,
-        ),
-        throwsA(isA<UnauthorizedException>()),
-      );
-      final forAuthor = await rooms.beaconLobby(
-        beaconId: beaconId,
-        userId: authorId,
-      );
-      expect(forAuthor['bannedUserIds'], [ninaId]);
+        );
+        expect(
+          await lobbyBodies(authorId, lobbyId),
+          unorderedEquals([
+            'Which Saturday?',
+            'The 18th',
+          ]),
+        );
+        expect(await lobbyBodies(ninaId, lobbyId), hasLength(2));
+        final main = await rooms.listMessages(
+          beaconId: beaconId,
+          userId: authorId,
+        );
+        expect([
+          for (final m in main) m['body'],
+        ], isNot(contains('Which Saturday?')));
+        await expectLater(
+          rooms.listMessages(
+            beaconId: beaconId,
+            userId: strangerId,
+            threadItemId: lobbyId,
+          ),
+          throwsA(isA<UnauthorizedException>()),
+        );
+      },
+    );
 
-      // Withdrawing and offering again does not lift the ban.
-      await offer(ninaId, status: 1);
-      await offer(ninaId);
-      await expectLater(
-        rooms.beaconLobby(beaconId: beaconId, userId: ninaId),
-        throwsA(isA<UnauthorizedException>()),
-      );
+    test(
+      'the author bans a person: no reading, no posting, until let back in',
+      () async {
+        await offer(ninaId);
+        final lobbyId =
+            (await rooms.beaconLobby(
+                  beaconId: beaconId,
+                  userId: authorId,
+                ))['lobbyId']!
+                as String;
 
-      await rooms.unbanFromLobby(
-        beaconId: beaconId,
-        userId: authorId,
-        bannedUserId: ninaId,
-      );
-      expect(await lobbyBodies(ninaId, lobbyId), isEmpty);
-    });
+        await rooms.banFromLobby(
+          beaconId: beaconId,
+          userId: authorId,
+          bannedUserId: ninaId,
+        );
+        await expectLater(
+          rooms.listMessages(
+            beaconId: beaconId,
+            userId: ninaId,
+            threadItemId: lobbyId,
+          ),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        await expectLater(
+          rooms.createMessage(
+            beaconId: beaconId,
+            userId: ninaId,
+            body: 'hello?',
+            threadItemId: lobbyId,
+          ),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        final forAuthor = await rooms.beaconLobby(
+          beaconId: beaconId,
+          userId: authorId,
+        );
+        expect(forAuthor['bannedUserIds'], [ninaId]);
+
+        // Withdrawing and offering again does not lift the ban.
+        await offer(ninaId, status: 1);
+        await offer(ninaId);
+        await expectLater(
+          rooms.beaconLobby(beaconId: beaconId, userId: ninaId),
+          throwsA(isA<UnauthorizedException>()),
+        );
+
+        await rooms.unbanFromLobby(
+          beaconId: beaconId,
+          userId: authorId,
+          bannedUserId: ninaId,
+        );
+        expect(await lobbyBodies(ninaId, lobbyId), isEmpty);
+      },
+    );
 
     test('only the author bans, and not themselves', () async {
       await offer(ninaId);
@@ -276,6 +374,84 @@ Future<void> main() async {
         throwsA(isA<IdWrongException>()),
       );
     });
+
+    test(
+      'lobby text reaches only lobby members: no @mention or reply notice '
+      'for a main-discussion member without lobby access',
+      () async {
+        // Nina and Omar are both admitted to the main discussion; only Nina
+        // offered help, so only Nina is in the lobby.
+        await writer.execute(
+          "UPDATE public.\"user\" SET handle = 'nina' WHERE id = '$ninaId'",
+        );
+        await writer.execute(
+          "UPDATE public.\"user\" SET handle = 'omar' WHERE id = '$omarId'",
+        );
+        await writer.execute(
+          'INSERT INTO public.beacon_participant (id, beacon_id, user_id, '
+          "role, status, room_access) VALUES ('Plobbypart01', '$beaconId', "
+          "'$ninaId', 0, 0, 3), ('Plobbypart02', '$beaconId', '$omarId', 0, "
+          '0, 3)',
+        );
+        await offer(ninaId);
+        final intents = _RecordingIntents();
+        final notifying = buildRooms(intents: intents);
+        final lobbyId =
+            (await notifying.beaconLobby(
+                  beaconId: beaconId,
+                  userId: authorId,
+                ))['lobbyId']!
+                as String;
+
+        await notifying.createMessage(
+          beaconId: beaconId,
+          userId: authorId,
+          body: '@omar @nina which Saturday?',
+          threadItemId: lobbyId,
+        );
+        expect(intents.mentioned, {ninaId});
+
+        // Nina withdraws her offer, so she leaves the lobby; a reply to her
+        // old lobby message must not carry the lobby text to her.
+        final ninaMessage = await notifying.createMessage(
+          beaconId: beaconId,
+          userId: ninaId,
+          body: 'The 18th works',
+          threadItemId: lobbyId,
+        );
+        await offer(ninaId, status: 1);
+        await notifying.createMessage(
+          beaconId: beaconId,
+          userId: authorId,
+          body: 'Great, see you then',
+          threadItemId: lobbyId,
+          replyToMessageId: ninaMessage['id']! as String,
+        );
+        expect(intents.directed, isEmpty);
+      },
+    );
+
+    test(
+      'a closed Request: the lobby opens read-only (canPost false)',
+      () async {
+        await offer(ninaId);
+        final open = await rooms.beaconLobby(
+          beaconId: beaconId,
+          userId: ninaId,
+        );
+        expect(open['canPost'], isTrue);
+
+        final closedRooms = buildRooms(
+          hierarchy: FakeBeaconHierarchyRepository()
+            ..statusOverride = BeaconStatus.closed,
+        );
+        final closed = await closedRooms.beaconLobby(
+          beaconId: beaconId,
+          userId: ninaId,
+        );
+        expect(closed['canPost'], isFalse);
+      },
+    );
 
     test('other item threads stay disabled (DB guard)', () async {
       await writer.execute(
