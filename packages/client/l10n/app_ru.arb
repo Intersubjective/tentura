@@ -6794,11 +6794,10 @@
   "beaconLobbyComposerHint": "Написать в лобби",
   "beaconLobbySend": "Отправить",
   "beaconLobbyUnavailable": "Лобби доступно только автору и тем, у кого есть действующее предложение помощи.",
-  "beaconLobbyRetry": "Повторить",
-  "beaconLobbyBanAction": "Удалить из лобби",
-  "beaconLobbyBanConfirmTitle": "Удалить {name} из лобби?",
+  "beaconLobbyBanAction": "Убрать из лобби",
+  "beaconLobbyBanConfirmTitle": "Убрать из лобби: {name}?",
   "beaconLobbyBanConfirmBody": "Этот человек не сможет читать и писать здесь, пока вы его не вернёте. Его предложение помощи останется.",
-  "beaconLobbyBannedHeading": "Удалены из лобби ({count})",
+  "beaconLobbyBannedHeading": "Убраны из лобби",
   "beaconLobbyUnbanAction": "Вернуть",
-  "beaconLobbyActionFailed": "Не получилось. Попробуйте ещё раз."
+  "beaconLobbySomeone": "Кто-то"
 }

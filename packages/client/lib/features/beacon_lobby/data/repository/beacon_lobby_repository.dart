@@ -2,14 +2,15 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 
-import '../../domain/beacon_lobby_gateway.dart';
 import '../../domain/entity/beacon_lobby.dart';
+import '../../domain/port/beacon_lobby_port.dart';
 import '../gql/_g/beacon_lobby.req.gql.dart';
 
 /// U088 — the lobby over the existing item-thread room API
 /// (`RoomMessageList` / `RoomMessageCreate` with `threadItemId` = lobby id).
-@LazySingleton(as: BeaconLobbyGateway)
-class BeaconLobbyRepository implements BeaconLobbyGateway {
+/// A denial arrives as `BeaconLobbyUnavailableException` (error link, 1346).
+@LazySingleton(as: BeaconLobbyPort, env: [Environment.dev, Environment.prod])
+class BeaconLobbyRepository implements BeaconLobbyPort {
   BeaconLobbyRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
@@ -25,7 +26,7 @@ class BeaconLobbyRepository implements BeaconLobbyGateway {
       lobbyId: l.lobbyId,
       isAuthor: l.isAuthor,
       canPost: l.canPost,
-      bannedUserIds: l.bannedUserIds.toList(),
+      bannedUserIds: l.bannedUserIds?.toList() ?? const [],
     );
   }
 
@@ -56,12 +57,12 @@ class BeaconLobbyRepository implements BeaconLobbyGateway {
           createdAt: DateTime.tryParse(m.createdAt)?.toLocal(),
         ),
     ];
-    out.sort((a, b) {
-      final at = a.createdAt, bt = b.createdAt;
+    return out..sort((a, b) {
+      final at = a.createdAt;
+      final bt = b.createdAt;
       if (at == null || bt == null) return 0;
       return at.compareTo(bt);
     });
-    return out;
   }
 
   @override

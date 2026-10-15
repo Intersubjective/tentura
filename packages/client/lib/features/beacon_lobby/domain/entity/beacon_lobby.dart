@@ -1,37 +1,32 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'beacon_lobby.freezed.dart';
+
 /// U088 — the Request lobby, as the viewer sees it.
-class BeaconLobbyInfo {
-  const BeaconLobbyInfo({
-    required this.beaconId,
-    required this.lobbyId,
-    required this.isAuthor,
-    required this.canPost,
-    this.bannedUserIds = const [],
-  });
+@freezed
+abstract class BeaconLobbyInfo with _$BeaconLobbyInfo {
+  const factory BeaconLobbyInfo({
+    required String beaconId,
 
-  final String beaconId;
+    /// Thread scope id of the lobby (server `coordination_item` kind 7).
+    required String lobbyId,
+    required bool isAuthor,
 
-  /// Thread scope id of the lobby (server `coordination_item` kind 7).
-  final String lobbyId;
+    /// False once the Request is closed: the lobby stays readable.
+    required bool canPost,
 
-  final bool isAuthor;
-  final bool canPost;
-
-  /// Only filled for the author.
-  final List<String> bannedUserIds;
+    /// Only filled for the author.
+    @Default(<String>[]) List<String> bannedUserIds,
+  }) = _BeaconLobbyInfo;
 }
 
-class BeaconLobbyMessage {
-  const BeaconLobbyMessage({
-    required this.id,
-    required this.authorId,
-    required this.authorName,
-    required this.body,
-    this.createdAt,
-  });
-
-  final String id;
-  final String authorId;
-  final String authorName;
-  final String body;
-  final DateTime? createdAt;
+@freezed
+abstract class BeaconLobbyMessage with _$BeaconLobbyMessage {
+  const factory BeaconLobbyMessage({
+    required String id,
+    required String authorId,
+    required String authorName,
+    required String body,
+    DateTime? createdAt,
+  }) = _BeaconLobbyMessage;
 }
