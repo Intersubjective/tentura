@@ -165,7 +165,11 @@ final class PerfFixtureCase {
   /// The work one measured attempt does.
   final PerfCaseWork worker;
 
-  Future<PerfFixtureSeed> seed(Connection writer) => seeder(writer);
+  Future<PerfFixtureSeed> seed(Connection writer) async {
+    final seed = await seeder(writer);
+    if (requiresMeritRank) await _mirrorTrustEdges(writer);
+    return seed;
+  }
 
   /// Runs [attempts] measured attempts against the seeded database of
   /// [session] and writes `build/perf/<name>.json`.
@@ -402,23 +406,9 @@ PerfFixtureCase _trustCase(PerfFixture fixture, String kind) =>
       worker: (run, scope, _) => _fullRead(run, scope),
     );
 
-/// The trust-edge read of FULL and ANCHORS: `constellation_trust_edges` over
-/// the viewer and its complete, unblocked visible set, as
-/// `ConstellationAnchorProjectionReader.visiblePeers` computes it (issue #235
-/// U44).
-///
-/// The trust fixtures put their edges into MeritRank only, so the trust
-/// tables would be empty and the plan would read nothing. After the timed
-/// attempts the MeritRank edges among the fixture users are therefore
-/// mirrored into `user_trust_edge` with a positive weight and both trust
-/// tables are analysed, so the plan reads one trust row per fixture edge.
-/// The arguments are literals, so the planner inlines the SQL function and
-/// the plan shows its scans of `user_trust_edge`, `vote_user` and
-/// `user_block`.
-Future<List<PerfExplainSpec>> _trustEdgeExplains(
-  Connection writer,
-  PerfFixtureSeed seed,
-) async {
+/// Mirrors fixture trust edges and updates planner statistics before any
+/// warm-up or timed attempts, including fixtures without trust-edge EXPLAINs.
+Future<void> _mirrorTrustEdges(Connection writer) async {
   await writer.runTx((tx) async {
     // A bulk fixture load, not a relationship change clients must hear of.
     await tx.execute(
@@ -434,6 +424,17 @@ ON CONFLICT (subject, object) DO NOTHING
 ''');
   });
   await writer.execute('ANALYZE public.user_trust_edge, public.vote_user');
+}
+
+/// The trust-edge read of FULL and ANCHORS: `constellation_trust_edges` over
+/// the viewer and its complete, unblocked visible set, as
+/// `ConstellationAnchorProjectionReader.visiblePeers` computes it (issue #235
+/// U44). Literal arguments let the planner inline the function and show its
+/// scans of `user_trust_edge`, `vote_user` and `user_block`.
+Future<List<PerfExplainSpec>> _trustEdgeExplains(
+  Connection writer,
+  PerfFixtureSeed seed,
+) async {
   final visible = await writer.execute(
     Sql.named('''
 WITH blocked AS (
