@@ -220,9 +220,7 @@ class BeaconRoomCase extends UseCaseBase {
     await _requireRequest(beaconId);
     if (lobby == null ||
         !await _canUseLobby(beaconId: beaconId, userId: userId)) {
-      throw const UnauthorizedException(
-        description: 'The lobby is for people who offered help',
-      );
+      throw const BeaconLobbyAccessException();
     }
     final authorId = await _room.beaconAuthorUserId(beaconId);
     if (authorId == null || authorId.isEmpty) {

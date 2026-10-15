@@ -242,11 +242,11 @@ Future<void> main() async {
         );
         await expectLater(
           rooms.beaconLobby(beaconId: beaconId, userId: strangerId),
-          throwsA(isA<UnauthorizedException>()),
+          throwsA(isA<BeaconLobbyAccessException>()),
         );
         await expectLater(
           rooms.beaconLobby(beaconId: beaconId, userId: omarId),
-          throwsA(isA<UnauthorizedException>()),
+          throwsA(isA<BeaconLobbyAccessException>()),
         );
       },
     );
@@ -343,7 +343,7 @@ Future<void> main() async {
         await offer(ninaId);
         await expectLater(
           rooms.beaconLobby(beaconId: beaconId, userId: ninaId),
-          throwsA(isA<UnauthorizedException>()),
+          throwsA(isA<BeaconLobbyAccessException>()),
         );
 
         await rooms.unbanFromLobby(
