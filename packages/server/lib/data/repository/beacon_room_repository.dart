@@ -1520,7 +1520,8 @@ SELECT
       WHERE e.beacon_id = $1)
   ) AS last_activity_at,
   lm.created_at AS last_message_at,
-  lm.body AS last_message_body,
+  -- The Requests card shows one clipped line; don't ship whole bodies.
+  left(lm.body, 200) AS last_message_body,
   lm.author_id AS last_message_author_id,
   u.display_name AS last_message_author_name
 FROM (SELECT 1) AS one

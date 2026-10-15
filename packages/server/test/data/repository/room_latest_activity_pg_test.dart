@@ -96,10 +96,18 @@ Future<void> main() async {
     });
 
     test('latest member message wins, with its author name', () async {
-      await message('M1', author: authorId, body: 'Hi all',
-          at: '2026-01-02T10:00:00Z');
-      await message('M2', author: ninaId, body: 'Parking sorted?',
-          at: '2026-01-02T11:00:00Z');
+      await message(
+        'M1',
+        author: authorId,
+        body: 'Hi all',
+        at: '2026-01-02T10:00:00Z',
+      );
+      await message(
+        'M2',
+        author: ninaId,
+        body: 'Parking sorted?',
+        at: '2026-01-02T11:00:00Z',
+      );
       final a = await room.latestRoomActivity(beaconId);
       expect(a.lastMessageBody, 'Parking sorted?');
       expect(a.lastMessageAuthorId, ninaId);
@@ -108,20 +116,49 @@ Future<void> main() async {
       expect(a.lastActivityAt, DateTime.utc(2026, 1, 2, 11));
     });
 
-    test('a system line counts as activity but is not the latest message',
-        () async {
-      await message('M1', author: ninaId, body: 'Parking sorted?',
-          at: '2026-01-02T11:00:00Z');
-      await message('S1', author: authorId, body: '',
-          at: '2026-01-02T12:00:00Z', systemKind: 7);
-      final a = await room.latestRoomActivity(beaconId);
-      expect(a.lastMessageBody, 'Parking sorted?');
-      expect(a.lastActivityAt, DateTime.utc(2026, 1, 2, 12));
-    });
+    test(
+      'a long latest message comes back clipped to 200 characters',
+      () async {
+        await message(
+          'M1',
+          author: ninaId,
+          body: 'x' * 5000,
+          at: '2026-01-02T10:00:00Z',
+        );
+        final a = await room.latestRoomActivity(beaconId);
+        expect(a.lastMessageBody, 'x' * 200);
+      },
+    );
+
+    test(
+      'a system line counts as activity but is not the latest message',
+      () async {
+        await message(
+          'M1',
+          author: ninaId,
+          body: 'Parking sorted?',
+          at: '2026-01-02T11:00:00Z',
+        );
+        await message(
+          'S1',
+          author: authorId,
+          body: '',
+          at: '2026-01-02T12:00:00Z',
+          systemKind: 7,
+        );
+        final a = await room.latestRoomActivity(beaconId);
+        expect(a.lastMessageBody, 'Parking sorted?');
+        expect(a.lastActivityAt, DateTime.utc(2026, 1, 2, 12));
+      },
+    );
 
     test('a next-step edit counts as activity', () async {
-      await message('M1', author: ninaId, body: 'Parking sorted?',
-          at: '2026-01-02T11:00:00Z');
+      await message(
+        'M1',
+        author: ninaId,
+        body: 'Parking sorted?',
+        at: '2026-01-02T11:00:00Z',
+      );
       await writer.execute(
         'INSERT INTO public.beacon_room_state (beacon_id, current_line, '
         "updated_at, updated_by) VALUES ('$beaconId', 'Van at 10', "
