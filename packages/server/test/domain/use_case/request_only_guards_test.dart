@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -837,8 +838,8 @@ void main() {
         env: env,
         logger: Logger('RequestOnlyGuardsTest'),
       );
-      when(roomRepo.listAdmittedUserIds(any))
-          .thenAnswer((_) async => const <String>[]);
+      when(roomRepo.listParticipants(any))
+          .thenAnswer((_) async => const <BeaconParticipantRecord>[]);
       when(mockBeaconRepo.getBeaconById(beaconId: _beaconId)).thenAnswer(
         (_) async => _beacon(kind: BeaconKind.post),
       );

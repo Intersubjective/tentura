@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
@@ -79,9 +80,18 @@ final class BeaconDisplayCase extends UseCaseBase {
             ?.closesAt;
       }
 
+      // Same rule as the `beacon_admitted_helper` view the client counts
+      // (m0210): admitted, not the author, and not a Post addressee kept
+      // after a conversion — an addressee is not a helper (B075).
       final admittedHelperCount =
-          (await _beaconRoomRepository.listAdmittedUserIds(beaconId))
-              .where((id) => id != beacon.author.id)
+          (await _beaconRoomRepository.listParticipants(beaconId))
+              .where(
+                (p) =>
+                    p.roomAccess == RoomAccessBits.admitted &&
+                    p.role != BeaconParticipantRoleBits.addressee &&
+                    p.userId != beacon.author.id,
+              )
+              .map((p) => p.userId)
               .toSet()
               .length;
 
