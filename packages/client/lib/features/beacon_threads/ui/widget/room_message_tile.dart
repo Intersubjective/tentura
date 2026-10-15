@@ -649,6 +649,13 @@ class RoomMessageTile extends StatelessWidget {
       if (change == null) return const SizedBox.shrink();
       final from = _statusLineLabel(l10n, change.from);
       final to = _statusLineLabel(l10n, change.to);
+      if (message.authorId.isNotEmpty && message.authorId == myProfile.id) {
+        // Own change: a dedicated string, so RU reads «Вы изменили», not
+        // «Вы изменил(а)».
+        return _ConvertedToRequestNotice(
+          text: l10n.roomStatusChangedBySelf(from, to),
+        );
+      }
       final actorName = message.authorId.isEmpty
           ? ''
           : SelfUserHighlight.displayName(

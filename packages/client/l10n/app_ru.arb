@@ -4957,6 +4957,17 @@
       }
     }
   },
+  "roomStatusChangedBySelf": "Вы изменили статус: {from} → {to}",
+  "@roomStatusChangedBySelf": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
   "roomStatusChangedAutomatic": "Статус изменился: {from} → {to}",
   "@roomStatusChangedAutomatic": {
     "placeholders": {

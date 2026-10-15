@@ -46,11 +46,12 @@ RoomMessage _statusLine({
   required int to,
   String reason = 'enoughHelp',
   bool automatic = false,
+  Profile author = _author,
 }) => RoomMessage(
   id: 'R-status',
   beaconId: 'B1',
-  authorId: automatic ? '' : _author.id,
-  author: automatic ? const Profile() : _author,
+  authorId: automatic ? '' : author.id,
+  author: automatic ? const Profile() : author,
   body: '',
   createdAt: DateTime.utc(2026, 10, 14, 9),
   systemMessageKind: BeaconRoomSystemMessageKind.statusChanged,
@@ -147,6 +148,32 @@ void main() {
 
     expect(
       find.textContaining('Tab QA изменил(а) статус', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('own change reads «Вы изменили» in ru, "You changed" in en', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        _statusLine(from: 0, to: 5, author: _viewer),
+        locale: const Locale('ru'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Вы изменили статус', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.textContaining('изменил(а)', findRichText: true), findsNothing);
+
+    await tester.pumpWidget(
+      _harness(_statusLine(from: 0, to: 5, author: _viewer)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('You changed the status', findRichText: true),
       findsOneWidget,
     );
   });
