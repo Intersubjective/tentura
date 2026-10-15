@@ -31,19 +31,62 @@ class CodeUnitLengthLimitingTextInputFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     if (newValue.text.length <= maxLength) return newValue;
+    // An IME is still composing (CJK, phonetic input): the composing text can
+    // run long before it commits to fewer code units. Per the
+    // TextInputFormatter contract, leave it alone until composition ends.
+    if (newValue.composing.isValid && !newValue.composing.isCollapsed) {
+      return newValue;
+    }
     // Already over the cap (e.g. a draft saved before the cap existed):
     // allow edits that do not make it longer.
     if (oldValue.text.length > maxLength &&
         newValue.text.length <= oldValue.text.length) {
       return newValue;
     }
-    final text = truncate(newValue.text, maxLength);
+    // Trim only what this edit inserted, so text that was already accepted
+    // is never removed: neither the tail after a mid-text insertion nor a
+    // final grapheme the edit extended (e.g. a skin-tone modifier added to
+    // an emoji at the cap).
+    final old = oldValue.text;
+    final text = newValue.text;
+    final prefix = _commonPrefix(old, text);
+    final suffix = _commonSuffix(old, text, prefix);
+    final inserted = text.substring(prefix, text.length - suffix);
+    final room = maxLength - (text.length - inserted.length);
+    final kept = room <= 0 ? '' : truncate(inserted, room);
+    if (kept.isEmpty) return oldValue;
+    final result =
+        text.substring(0, prefix) + kept + text.substring(text.length - suffix);
     return TextEditingValue(
-      text: text,
-      selection: newValue.selection.copyWith(
-        baseOffset: newValue.selection.baseOffset.clamp(0, text.length),
-        extentOffset: newValue.selection.extentOffset.clamp(0, text.length),
-      ),
+      text: result,
+      selection: TextSelection.collapsed(offset: prefix + kept.length),
     );
   }
+
+  /// Code units [a] and [b] share at the start, never ending inside a
+  /// surrogate pair.
+  static int _commonPrefix(String a, String b) {
+    final n = a.length < b.length ? a.length : b.length;
+    var i = 0;
+    while (i < n && a.codeUnitAt(i) == b.codeUnitAt(i)) {
+      i++;
+    }
+    if (i > 0 && i < b.length && _isLowSurrogate(b.codeUnitAt(i))) i--;
+    return i;
+  }
+
+  /// Code units [a] and [b] share at the end, not overlapping the first
+  /// [prefix] units and never starting inside a surrogate pair.
+  static int _commonSuffix(String a, String b, int prefix) {
+    final n = (a.length < b.length ? a.length : b.length) - prefix;
+    var i = 0;
+    while (i < n &&
+        a.codeUnitAt(a.length - 1 - i) == b.codeUnitAt(b.length - 1 - i)) {
+      i++;
+    }
+    if (i > 0 && _isLowSurrogate(b.codeUnitAt(b.length - i))) i--;
+    return i;
+  }
+
+  static bool _isLowSurrogate(int unit) => unit >= 0xDC00 && unit <= 0xDFFF;
 }
