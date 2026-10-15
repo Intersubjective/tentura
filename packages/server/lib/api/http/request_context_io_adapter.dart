@@ -9,6 +9,11 @@ import 'package:uuid/uuid.dart';
 /// after reading the body lets us observe the peer closing during the handler,
 /// while Shelf still parses the incoming HTTP request and supports WebSockets.
 Handler requestContextIoAdapter(Handler handler) => (request) async {
+  // Upgraded connections outlive the request budget: their callbacks would
+  // inherit the zone and fail with an expired deadline, so run them without.
+  if (request.headers['upgrade']?.toLowerCase() == 'websocket') {
+    return handler(request);
+  }
   final context = RequestContext(requestId: const Uuid().v4());
   if (request.url.path.startsWith('api/v2/session/')) {
     context.classify(RequestOperationClass.auth);

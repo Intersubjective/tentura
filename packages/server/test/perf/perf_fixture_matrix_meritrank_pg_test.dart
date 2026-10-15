@@ -54,5 +54,49 @@ Future<void> main() async {
         skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected',
       );
     }
+    for (final c in PerfFixtureMatrix.cases.where((c) => c.requiresMeritRank)) {
+      test(
+        '${c.name} seeds one trust row per mirrored MeritRank edge',
+        () async {
+          final session = await setUpDisposablePgWriter(
+            target: target,
+            createPgmer2Extension: true,
+          );
+          addTearDown(() => tearDownDisposablePgWriter(session: session));
+
+          await c.seed(session.writer);
+          await requireNonEmptyMeritRankGraph(session.writer);
+
+          // Observe the seed before record(), warm-up, workers or EXPLAIN can
+          // change the database. Upf users form the shared trust fixture;
+          // fallback-score cases also add separate Upg users and votes.
+          final counts = (await session.writer.execute('''
+SELECT
+  (SELECT count(*)::int FROM mr_edgelist() e
+   WHERE e.src LIKE 'Upf%' AND e.dst LIKE 'Upf%'
+     AND e.src <> e.dst AND e.weight > 0),
+  (SELECT count(*)::int FROM public.user_trust_edge
+   WHERE subject LIKE 'Upf%' AND object LIKE 'Upf%')
+''')).single;
+          final mirroredMeritRankEdges = counts[0]! as int;
+          final trustRows = counts[1]! as int;
+
+          expect(
+            mirroredMeritRankEdges,
+            greaterThan(0),
+            reason: '${c.name} must seed a nonempty trust graph',
+          );
+          expect(
+            trustRows,
+            mirroredMeritRankEdges,
+            reason:
+                '${c.name} must mirror the trust graph during seeding, '
+                'before the first timed attempt',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 10)),
+        skip: skipReason,
+      );
+    }
   });
 }
