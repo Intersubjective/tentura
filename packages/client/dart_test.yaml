@@ -1,0 +1,4 @@
+tags:
+  # Wall-clock frame-budget benchmarks; load-sensitive. The strict budget is
+  # enforced only with TENTURA_ENFORCE_BENCH_BUDGET=1 in a serial run (-j 1).
+  bench:
