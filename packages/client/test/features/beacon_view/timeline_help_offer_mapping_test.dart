@@ -16,6 +16,7 @@ HelpOfferWithCoordinationRow _row({
   String? authorSeenAt,
   int status = 0,
   int? admissionAction,
+  String? withdrawReason,
 }) => (
   beaconId: 'Bauthorseen01',
   userId: _offerer.id,
@@ -24,7 +25,7 @@ HelpOfferWithCoordinationRow _row({
   helpType: null,
   roleLabel: null,
   status: status,
-  withdrawReason: null,
+  withdrawReason: withdrawReason,
   createdAt: _createdAt,
   updatedAt: _createdAt,
   responseType: null,
@@ -74,6 +75,19 @@ void main() {
     ]).single;
     expect(offer.isWithdrawn, isFalse);
     expect(offer.admissionAction, HelpOfferAdmissionAction.remove);
+  });
+
+  test('a removed helper who then withdrew is withdrawn, not re-admittable',
+      () {
+    // The server refuses to re-admit an offer withdrawn after the removal.
+    final offer = timelineHelpOffersFromRemote([
+      _row(
+        status: 1,
+        admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
+        withdrawReason: 'other',
+      ),
+    ]).single;
+    expect(offer.isWithdrawn, isTrue);
   });
 
   test('status 1 without a removal still maps to withdrawn', () {

@@ -31,11 +31,14 @@ typedef HelpOfferWithCoordinationRow = ({
 
 /// An author removal deactivates the offer (status 1) so it stops counting,
 /// but the helper did not withdraw: the row stays a removed, re-admittable
-/// offer, as it looked before the server change (#401).
+/// offer, as it looked before the server change (#401). A helper who withdraws
+/// after being removed sets a withdraw reason; the server no longer re-admits
+/// that offer, so it is withdrawn here too.
 bool _isWithdrawnRow(HelpOfferWithCoordinationRow c) =>
     c.status == 1 &&
-    HelpOfferAdmissionAction.tryFromInt(c.admissionAction) !=
-        HelpOfferAdmissionAction.remove;
+    !(HelpOfferAdmissionAction.tryFromInt(c.admissionAction) ==
+            HelpOfferAdmissionAction.remove &&
+        c.withdrawReason == null);
 
 List<TimelineHelpOffer> timelineHelpOffersFromRemote(
   List<HelpOfferWithCoordinationRow> helpOffers,
