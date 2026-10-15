@@ -9420,6 +9420,10 @@
   },
   "notificationPermissionBlocked": "Blocked in this browser. To allow them, open the site settings (the icon left of the address bar) and set Notifications to Allow.",
   "@notificationPermissionBlocked": {
-    "description": "Notification settings: the browser permission is denied."
+    "description": "Notification settings: the browser permission is denied (in a browser tab)."
+  },
+  "notificationPermissionBlockedApp": "Blocked for this app. To allow them, turn on notifications for Tentura in your device's settings (on a computer: the app's menu › App info).",
+  "@notificationPermissionBlockedApp": {
+    "description": "Notification settings: the permission is denied in an installed app (home-screen or desktop PWA, or native), which has no address bar."
   }
 }

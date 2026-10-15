@@ -42,6 +42,7 @@ Future<_Harness> _pump(
   Widget? child,
   Locale locale = const Locale('en'),
   bool settingsTile = false,
+  bool? inBrowserTab,
 }) async {
   FcmCubit.debugAsksOnLoad = false;
   addTearDown(() => FcmCubit.debugAsksOnLoad = null);
@@ -56,7 +57,10 @@ Future<_Harness> _pump(
       home: TenturaResponsiveScope(
         child: Scaffold(
           body: settingsTile
-              ? NotificationPermissionDeviceTile(cubit: h.cubit)
+              ? NotificationPermissionDeviceTile(
+                  cubit: h.cubit,
+                  inBrowserTab: inBrowserTab,
+                )
               : NotificationPermissionPromptFrame(
                   cubit: h.cubit,
                   child: child ?? const Text('home'),
@@ -235,9 +239,48 @@ void main() {
         tester,
         NotificationPermissionStatus.denied,
         settingsTile: true,
+        inBrowserTab: true,
       );
       expect(find.textContaining('open the site settings'), findsOneWidget);
       expect(_allow, findsNothing);
+    });
+
+    // Review on #411: an installed PWA (e.g. from the iOS home screen) has
+    // no address bar, so the browser-chrome steps can't be followed there.
+    testWidgets('blocked in an installed app: points to device settings', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        NotificationPermissionStatus.denied,
+        settingsTile: true,
+        inBrowserTab: false,
+      );
+      expect(find.textContaining("your device's settings"), findsOneWidget);
+      expect(find.textContaining('address bar'), findsNothing);
+      expect(_allow, findsNothing);
+    });
+
+    testWidgets('blocked in an installed app: Russian copy', (tester) async {
+      await _pump(
+        tester,
+        NotificationPermissionStatus.denied,
+        settingsTile: true,
+        inBrowserTab: false,
+        locale: const Locale('ru'),
+      );
+      expect(find.textContaining('настройках устройства'), findsOneWidget);
+    });
+
+    testWidgets('outside a web build the app copy is the default', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        NotificationPermissionStatus.denied,
+        settingsTile: true,
+      );
+      expect(find.textContaining('Blocked for this app'), findsOneWidget);
     });
 
     testWidgets('granted: nothing to show', (tester) async {
