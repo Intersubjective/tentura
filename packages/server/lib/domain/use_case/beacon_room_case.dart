@@ -1045,26 +1045,7 @@ class BeaconRoomCase extends UseCaseBase {
       beaconId: beaconId,
       userIds: userIds,
     );
-    final titlesByUserId = userIds.isEmpty
-        ? <String, String>{}
-        : await _room.userTitlesByIds(userIds);
-
-    final handlesByUserId = userIds.isEmpty
-        ? <String, String>{}
-        : await _room.userHandlesByIds(userIds);
-
-    final picMetaByUserId = userIds.isEmpty
-        ? const <
-            String,
-            ({
-              bool hasPicture,
-              int picHeight,
-              int picWidth,
-              String blurHash,
-              String imageId,
-            })
-          >{}
-        : await _room.userPicMetaByIds(userIds);
+    final profileByUserId = await _room.userProfilesByIds(userIds);
     final helpOfferHintsByUserId = await _room.activeHelpOfferHintsByUserId(
       beaconId,
     );
@@ -1074,13 +1055,13 @@ class BeaconRoomCase extends UseCaseBase {
             'id': r.id,
             'beaconId': r.beaconId,
             'userId': r.userId,
-            'userTitle': titlesByUserId[r.userId] ?? '',
-            'userHandle': handlesByUserId[r.userId] ?? '',
-            'userHasPicture': picMetaByUserId[r.userId]?.hasPicture ?? false,
-            'userPicHeight': picMetaByUserId[r.userId]?.picHeight ?? 0,
-            'userPicWidth': picMetaByUserId[r.userId]?.picWidth ?? 0,
-            'userBlurHash': picMetaByUserId[r.userId]?.blurHash ?? '',
-            'userImageId': picMetaByUserId[r.userId]?.imageId ?? '',
+            'userTitle': profileByUserId[r.userId]?.title ?? '',
+            'userHandle': profileByUserId[r.userId]?.handle ?? '',
+            'userHasPicture': profileByUserId[r.userId]?.hasPicture ?? false,
+            'userPicHeight': profileByUserId[r.userId]?.picHeight ?? 0,
+            'userPicWidth': profileByUserId[r.userId]?.picWidth ?? 0,
+            'userBlurHash': profileByUserId[r.userId]?.blurHash ?? '',
+            'userImageId': profileByUserId[r.userId]?.imageId ?? '',
             'role': r.role,
             'status': r.status,
             'roomAccess': r.roomAccess,

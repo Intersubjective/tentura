@@ -1144,6 +1144,37 @@ RETURNING *
     >
   >
   userPicMetaByIds(Iterable<String> userIds) async {
+    final profiles = await userProfilesByIds(userIds);
+    return {
+      for (final e in profiles.entries)
+        e.key: (
+          hasPicture: e.value.hasPicture,
+          picHeight: e.value.picHeight,
+          picWidth: e.value.picWidth,
+          blurHash: e.value.blurHash,
+          imageId: e.value.imageId,
+        ),
+    };
+  }
+
+  /// Title, handle and picture meta per user id from a single `user` read
+  /// (plus one `image` read when any user has a picture).
+  @override
+  Future<
+    Map<
+      String,
+      ({
+        String title,
+        String handle,
+        bool hasPicture,
+        int picHeight,
+        int picWidth,
+        String blurHash,
+        String imageId,
+      })
+    >
+  >
+  userProfilesByIds(Iterable<String> userIds) async {
     final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) {
       return {};
@@ -1169,30 +1200,18 @@ RETURNING *
       }
     }
 
-    final out =
-        <
-          String,
-          ({
-            bool hasPicture,
-            int picHeight,
-            int picWidth,
-            String blurHash,
-            String imageId,
-          })
-        >{};
-
-    for (final u in users) {
-      final imgUuid = u.imageId;
-      final img = imgUuid != null ? imageByUuid[imgUuid] : null;
-      out[u.id] = (
-        hasPicture: imgUuid != null && img != null,
-        picHeight: img?.height ?? 0,
-        picWidth: img?.width ?? 0,
-        blurHash: img?.hash ?? '',
-        imageId: img?.id.toString() ?? '',
-      );
-    }
-    return out;
+    return {
+      for (final u in users)
+        u.id: (
+          title: u.displayName,
+          handle: (u.handle ?? '').trim(),
+          hasPicture: u.imageId != null && imageByUuid[u.imageId] != null,
+          picHeight: imageByUuid[u.imageId]?.height ?? 0,
+          picWidth: imageByUuid[u.imageId]?.width ?? 0,
+          blurHash: imageByUuid[u.imageId]?.hash ?? '',
+          imageId: imageByUuid[u.imageId]?.id.toString() ?? '',
+        ),
+    };
   }
 
   Future<void> participantOfferHelp({

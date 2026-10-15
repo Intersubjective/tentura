@@ -261,4 +261,21 @@ abstract class BeaconRoomRepositoryPort {
   userPicMetaByIds(Iterable<String> userIds);
 
   Future<Map<String, String>> userTitlesByIds(Iterable<String> userIds);
+
+  /// Title, handle and picture meta per user id, read together.
+  Future<
+    Map<
+      String,
+      ({
+        String title,
+        String handle,
+        bool hasPicture,
+        int picHeight,
+        int picWidth,
+        String blurHash,
+        String imageId,
+      })
+    >
+  >
+  userProfilesByIds(Iterable<String> userIds);
 }
