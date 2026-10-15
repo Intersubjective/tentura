@@ -8,6 +8,7 @@ import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_beacon_lobby.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_beacon_lobby.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 /// Records what the GraphQL layer forwards to the lobby use case (U088).
@@ -116,5 +117,9 @@ void main() {
       (type as GraphQLListType).ofType,
       isA<GraphQLNonNullableType>(),
     );
+  });
+
+  test('lobby access denial has its own code (client maps 1347)', () {
+    expect(const BeaconLobbyAccessException().code.codeNumber, 1347);
   });
 }
