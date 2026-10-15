@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/port/trust_preference_repository_port.dart';
@@ -9,10 +11,12 @@ class _FakeTrustPreferenceRepository implements TrustPreferenceRepositoryPort {
   bool enabled = false;
   bool failFetch = false;
   bool failSet = false;
+  Completer<bool>? gate;
   final setCalls = <bool>[];
 
   @override
   Future<bool> fetchNoisyWallEnabled() async {
+    if (gate != null) return gate!.future;
     if (failFetch) throw Exception('fetch failed');
     return enabled;
   }
@@ -20,6 +24,7 @@ class _FakeTrustPreferenceRepository implements TrustPreferenceRepositoryPort {
   @override
   Future<bool> setNoisyWallEnabled({required bool enabled}) async {
     setCalls.add(enabled);
+    if (gate != null) return gate!.future;
     if (failSet) throw Exception('set failed');
     return this.enabled = enabled;
   }
@@ -66,5 +71,31 @@ void main() {
     await cubit.set(enabled: true);
     expect(cubit.state.enabled, isFalse);
     expect(effects.emitted, isNotEmpty);
+  });
+
+  test('closing while fetch is pending raises no StateError', () async {
+    final gate = repo.gate = Completer<bool>();
+    final pending = cubit.fetch();
+    await cubit.close();
+    gate.complete(true);
+    await expectLater(pending, completes);
+  });
+
+  test('closing while fetch is pending then failing raises no StateError',
+      () async {
+    final gate = repo.gate = Completer<bool>();
+    final pending = cubit.fetch();
+    await cubit.close();
+    gate.completeError(Exception('late'));
+    await expectLater(pending, completes);
+    expect(effects.emitted, isEmpty);
+  });
+
+  test('closing while set is pending raises no StateError', () async {
+    final gate = repo.gate = Completer<bool>();
+    final pending = cubit.set(enabled: true);
+    await cubit.close();
+    gate.complete(true);
+    await expectLater(pending, completes);
   });
 }

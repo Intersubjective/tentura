@@ -25,8 +25,10 @@ class NoisyWallCubit extends Cubit<NoisyWallState> {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       final enabled = await _repository.fetchNoisyWallEnabled();
+      if (isClosed) return;
       emit(NoisyWallState(enabled: enabled, status: const StateIsSuccess()));
     } catch (e) {
+      if (isClosed) return;
       _effects.emit(ShowError(e));
       emit(state.copyWith(status: const StateIsSuccess()));
     }
@@ -38,8 +40,10 @@ class NoisyWallCubit extends Cubit<NoisyWallState> {
     emit(NoisyWallState(enabled: enabled, status: const StateIsSuccess()));
     try {
       final stored = await _repository.setNoisyWallEnabled(enabled: enabled);
+      if (isClosed) return;
       emit(NoisyWallState(enabled: stored, status: const StateIsSuccess()));
     } catch (e) {
+      if (isClosed) return;
       emit(NoisyWallState(enabled: previous, status: const StateIsSuccess()));
       _effects.emit(ShowError(e));
     }
