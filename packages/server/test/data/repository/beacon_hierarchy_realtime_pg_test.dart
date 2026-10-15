@@ -10,6 +10,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/pg_notification_recorder.dart';
+import '../../support/pg_wait.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 
 Future<void> main() async {
@@ -25,14 +26,22 @@ Future<void> main() async {
     late BeaconHierarchyFixture fixture;
     late PgNotificationRecorder recorder;
 
+    Future<void> sendBarrier(String token) => writer.execute(
+      Sql.named("SELECT pg_notify('entity_changes', @payload)"),
+      parameters: {
+        'payload': jsonEncode({'entity': 'barrier', 'id': token}),
+      },
+    );
+
     Future<void> drainNotifications() => recorder.drain(
-          sendBarrier: (token) => writer.execute(
-            Sql.named("SELECT pg_notify('entity_changes', @payload)"),
-            parameters: {
-              'payload': jsonEncode({'entity': 'barrier', 'id': token}),
-            },
-          ),
-        );
+      sendBarrier: sendBarrier,
+      timeout: kCompletionWait,
+    );
+
+    Future<void> flushNotifications() => recorder.flush(
+      sendBarrier: sendBarrier,
+      timeout: kCompletionWait,
+    );
 
     setUpAll(() async {
       if (skipReason != false) {
@@ -70,30 +79,27 @@ Future<void> main() async {
       await target.drop();
     });
 
-    Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 50));
-
     Future<List<Map<String, dynamic>>> waitForKind(
       String kind, {
       String? aggregateId,
       int minCount = 1,
       String? actorUserId,
     }) async {
-      final deadline = DateTime.now().add(const Duration(seconds: 3));
-      while (DateTime.now().isBefore(deadline)) {
-        final matches = recorder.messages.where((message) {
-          if (message['entity'] != kind) return false;
-          if (aggregateId != null && message['id'] != aggregateId) return false;
-          return true;
-        }).toList();
-        // Earlier writes (the seed) may notify the same aggregate first; when
-        // an actor is expected, wait for its own notification too.
-        final hasActor =
-            actorUserId == null ||
-            matches.any((message) => message['actor_user_id'] == actorUserId);
-        if (matches.length >= minCount && hasActor) return matches;
-        await settle();
-      }
-      fail('Timed out waiting for $kind notifications');
+      // The barrier follows the committed mutation on the writer connection.
+      // Its arrival proves every earlier notification has been recorded, even
+      // when a busy suite delays delivery beyond the old polling deadline.
+      await flushNotifications();
+      final matches = recorder.messages.where((message) {
+        if (message['entity'] != kind) return false;
+        if (aggregateId != null && message['id'] != aggregateId) return false;
+        return true;
+      }).toList();
+      final hasActor =
+          actorUserId == null ||
+          matches.any((message) => message['actor_user_id'] == actorUserId);
+      expect(matches.length, greaterThanOrEqualTo(minCount));
+      expect(hasActor, isTrue);
+      return matches;
     }
 
     Future<void> seedTree() async {
@@ -101,51 +107,53 @@ Future<void> main() async {
       await seedPublishedHierarchyTree(writer);
     }
 
-    test('child publication notifies parent hierarchy recipients with actor echo',
-        () async {
-      await seedTree();
-      const actor = BeaconHierarchyTopology.aliceId;
-      const childId = 'BhierRtChild01';
-      await writer.execute('BEGIN');
-      await writer.execute(
-        Sql.named(
-          r"SELECT set_config('tentura.mutating_user_id', @actor, true)",
-        ),
-        parameters: {'actor': actor},
-      );
-      await insertPublishedChildBeacon(
-        writer: writer,
-        childId: childId,
-        parentId: BeaconHierarchyTopology.beaconA,
-        ownerId: BeaconHierarchyTopology.bobId,
-        title: 'Secret child title',
-        publishedAt: DateTime.utc(2026, 2, 1),
-      );
-      await writer.execute('COMMIT');
+    test(
+      'child publication notifies parent hierarchy recipients with actor echo',
+      () async {
+        await seedTree();
+        const actor = BeaconHierarchyTopology.aliceId;
+        const childId = 'BhierRtChild01';
+        await writer.execute('BEGIN');
+        await writer.execute(
+          Sql.named(
+            r"SELECT set_config('tentura.mutating_user_id', @actor, true)",
+          ),
+          parameters: {'actor': actor},
+        );
+        await insertPublishedChildBeacon(
+          writer: writer,
+          childId: childId,
+          parentId: BeaconHierarchyTopology.beaconA,
+          ownerId: BeaconHierarchyTopology.bobId,
+          title: 'Secret child title',
+          publishedAt: DateTime.utc(2026, 2, 1),
+        );
+        await writer.execute('COMMIT');
 
-      final changes = await waitForKind(
-        'beacon_hierarchy',
-        aggregateId: BeaconHierarchyTopology.beaconA,
-        actorUserId: actor,
-      );
-      expect(changes, isNotEmpty);
-      for (final payload in changes) {
-        expect(payload['event'], anyOf('insert', 'update'));
-        expect(payload['id'], BeaconHierarchyTopology.beaconA);
-        expect(payload.containsKey('title'), isFalse);
-        expect(payload.containsKey('message'), isFalse);
-        expect(payload['id'], isNot(childId));
-      }
-      expect(
-        changes.any((payload) => payload['actor_user_id'] == actor),
-        isTrue,
-      );
-      final recipients = changes
-          .expand((message) => (message['user_ids']! as List).cast<String>())
-          .toSet();
-      expect(recipients, contains(actor));
-      expect(recipients, contains(BeaconHierarchyTopology.aliceId));
-    });
+        final changes = await waitForKind(
+          'beacon_hierarchy',
+          aggregateId: BeaconHierarchyTopology.beaconA,
+          actorUserId: actor,
+        );
+        expect(changes, isNotEmpty);
+        for (final payload in changes) {
+          expect(payload['event'], anyOf('insert', 'update'));
+          expect(payload['id'], BeaconHierarchyTopology.beaconA);
+          expect(payload.containsKey('title'), isFalse);
+          expect(payload.containsKey('message'), isFalse);
+          expect(payload['id'], isNot(childId));
+        }
+        expect(
+          changes.any((payload) => payload['actor_user_id'] == actor),
+          isTrue,
+        );
+        final recipients = changes
+            .expand((message) => (message['user_ids']! as List).cast<String>())
+            .toSet();
+        expect(recipients, contains(actor));
+        expect(recipients, contains(BeaconHierarchyTopology.aliceId));
+      },
+    );
 
     test('draft child save emits no beacon_hierarchy hint', () async {
       await seedTree();
@@ -166,62 +174,66 @@ INSERT INTO public.beacon (
           'parentId': BeaconHierarchyTopology.beaconA,
         },
       );
-      await settle();
+      await flushNotifications();
       expect(
         recorder.messages.where((m) => m['entity'] == 'beacon_hierarchy'),
         isEmpty,
       );
     });
 
-    test('published child title change notifies parent without leaking title',
-        () async {
-      await seedTree();
-      await drainNotifications();
-      await writer.execute(
-        Sql.named(r'''
+    test(
+      'published child title change notifies parent without leaking title',
+      () async {
+        await seedTree();
+        await drainNotifications();
+        await writer.execute(
+          Sql.named(r'''
 UPDATE public.beacon
 SET title = 'Updated secret title'
 WHERE id = @childId
 '''),
-        parameters: {'childId': BeaconHierarchyTopology.beaconB},
-      );
-      final changes = await waitForKind(
-        'beacon_hierarchy',
-        aggregateId: BeaconHierarchyTopology.beaconA,
-      );
-      final payload = changes.single;
-      expect(payload['event'], 'update');
-      expect(payload.containsKey('title'), isFalse);
-      expect(jsonEncode(payload), isNot(contains('Updated secret title')));
-    });
+          parameters: {'childId': BeaconHierarchyTopology.beaconB},
+        );
+        final changes = await waitForKind(
+          'beacon_hierarchy',
+          aggregateId: BeaconHierarchyTopology.beaconA,
+        );
+        final payload = changes.single;
+        expect(payload['event'], 'update');
+        expect(payload.containsKey('title'), isFalse);
+        expect(jsonEncode(payload), isNot(contains('Updated secret title')));
+      },
+    );
 
-    test('published child description change notifies parent and child',
-        () async {
-      await seedTree();
-      await drainNotifications();
-      await writer.execute(
-        Sql.named(r'''
+    test(
+      'published child description change notifies parent and child',
+      () async {
+        await seedTree();
+        await drainNotifications();
+        await writer.execute(
+          Sql.named(r'''
 UPDATE public.beacon
 SET description = 'Updated secret description'
 WHERE id = @childId
 '''),
-        parameters: {'childId': BeaconHierarchyTopology.beaconB},
-      );
-      final parentChanges = await waitForKind(
-        'beacon_hierarchy',
-        aggregateId: BeaconHierarchyTopology.beaconA,
-      );
-      final childChanges = await waitForKind(
-        'beacon_hierarchy',
-        aggregateId: BeaconHierarchyTopology.beaconB,
-      );
-      expect(parentChanges, isNotEmpty);
-      expect(childChanges, isNotEmpty);
-      expect(
-        jsonEncode([...parentChanges, ...childChanges]),
-        isNot(contains('Updated secret description')),
-      );
-    });
+          parameters: {'childId': BeaconHierarchyTopology.beaconB},
+        );
+        final parentChanges = await waitForKind(
+          'beacon_hierarchy',
+          aggregateId: BeaconHierarchyTopology.beaconA,
+        );
+        final childChanges = await waitForKind(
+          'beacon_hierarchy',
+          aggregateId: BeaconHierarchyTopology.beaconB,
+        );
+        expect(parentChanges, isNotEmpty);
+        expect(childChanges, isNotEmpty);
+        expect(
+          jsonEncode([...parentChanges, ...childChanges]),
+          isNot(contains('Updated secret description')),
+        );
+      },
+    );
 
     test('owner display name change notifies owned beacon hierarchy', () async {
       await seedTree();
@@ -242,11 +254,12 @@ WHERE id = @userId
       expect(jsonEncode(changes), isNot(contains('Alice Renamed')));
     });
 
-    test('participant revocation includes revoked account for cache eviction',
-        () async {
-      await seedTree();
-      await writer.execute(
-        Sql.named(r'''
+    test(
+      'participant revocation includes revoked account for cache eviction',
+      () async {
+        await seedTree();
+        await writer.execute(
+          Sql.named(r'''
 INSERT INTO public.beacon_participant (
   id, beacon_id, user_id, role, status, room_access, created_at, updated_at
 ) VALUES (
@@ -255,53 +268,57 @@ INSERT INTO public.beacon_participant (
 )
 ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
 '''),
-        parameters: {
-          'beaconId': BeaconHierarchyTopology.beaconA,
-          'userId': BeaconHierarchyTopology.frankId,
-          'roomAccess': 3,
-        },
-      );
-      await drainNotifications();
-      await writer.execute(
-        Sql.named(r'''
+          parameters: {
+            'beaconId': BeaconHierarchyTopology.beaconA,
+            'userId': BeaconHierarchyTopology.frankId,
+            'roomAccess': 3,
+          },
+        );
+        await drainNotifications();
+        await writer.execute(
+          Sql.named(r'''
 DELETE FROM public.beacon_participant
 WHERE beacon_id = @beaconId AND user_id = @userId
 '''),
-        parameters: {
-          'beaconId': BeaconHierarchyTopology.beaconA,
-          'userId': BeaconHierarchyTopology.frankId,
-        },
-      );
-      final changes = await waitForKind(
-        'beacon_hierarchy',
-        aggregateId: BeaconHierarchyTopology.beaconA,
-      );
-      final recipients = changes
-          .expand((message) => (message['user_ids']! as List).cast<String>())
-          .toSet();
-      expect(recipients, contains(BeaconHierarchyTopology.frankId));
-    });
+          parameters: {
+            'beaconId': BeaconHierarchyTopology.beaconA,
+            'userId': BeaconHierarchyTopology.frankId,
+          },
+        );
+        final changes = await waitForKind(
+          'beacon_hierarchy',
+          aggregateId: BeaconHierarchyTopology.beaconA,
+        );
+        final recipients = changes
+            .expand((message) => (message['user_ids']! as List).cast<String>())
+            .toSet();
+        expect(recipients, contains(BeaconHierarchyTopology.frankId));
+      },
+    );
 
-    test('parent delete notifies child parent-reference projection owner', () async {
-      await seedTree();
-      await drainNotifications();
-      await writer.execute(
-        Sql.named(r'''
+    test(
+      'parent delete notifies child parent-reference projection owner',
+      () async {
+        await seedTree();
+        await drainNotifications();
+        await writer.execute(
+          Sql.named(r'''
 UPDATE public.beacon
 SET status = @deleted
 WHERE id = @beaconId
 '''),
-        parameters: {
-          'beaconId': BeaconHierarchyTopology.beaconA,
-          'deleted': BeaconStatus.deleted.smallintValue,
-        },
-      );
-      final changes = await waitForKind(
-        'beacon_hierarchy',
-        aggregateId: BeaconHierarchyTopology.beaconB,
-      );
-      expect(changes.single['id'], BeaconHierarchyTopology.beaconB);
-      expect(changes.single.containsKey('title'), isFalse);
-    });
+          parameters: {
+            'beaconId': BeaconHierarchyTopology.beaconA,
+            'deleted': BeaconStatus.deleted.smallintValue,
+          },
+        );
+        final changes = await waitForKind(
+          'beacon_hierarchy',
+          aggregateId: BeaconHierarchyTopology.beaconB,
+        );
+        expect(changes.single['id'], BeaconHierarchyTopology.beaconB);
+        expect(changes.single.containsKey('title'), isFalse);
+      },
+    );
   }, skip: skipReason);
 }

@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-/// Records decoded `entity_changes` payloads and offers a [drain] barrier that
-/// discards everything emitted before the barrier notification is observed.
+/// Records decoded `entity_changes` payloads and offers notification barriers.
 class PgNotificationRecorder {
   PgNotificationRecorder(Stream<String> source) {
     _subscription = source.listen(_onPayload);
@@ -32,6 +31,18 @@ class PgNotificationRecorder {
     required Future<void> Function(String token) sendBarrier,
     Duration timeout = const Duration(seconds: 10),
   }) async {
+    await flush(sendBarrier: sendBarrier, timeout: timeout);
+    messages.clear();
+  }
+
+  /// Waits until all notifications preceding the barrier have been recorded.
+  ///
+  /// Send the barrier on the same connection that performed the writes, after
+  /// committing them. Unlike [drain], this preserves the recorded payloads.
+  Future<void> flush({
+    required Future<void> Function(String token) sendBarrier,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     final token = 'drain-${_barrierCounter++}';
     final seen = Completer<void>();
     _barrierToken = token;
@@ -49,7 +60,6 @@ class PgNotificationRecorder {
       _barrierToken = null;
       _barrierSeen = null;
     }
-    messages.clear();
   }
 
   Future<void> cancel() => _subscription.cancel();

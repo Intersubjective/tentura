@@ -24,11 +24,11 @@ Future<void> main() async {
     late PgNotificationRecorder recorder;
 
     Future<void> notify(String entity, String id) => writer.execute(
-          Sql.named("SELECT pg_notify('entity_changes', @payload)"),
-          parameters: {
-            'payload': jsonEncode({'entity': entity, 'id': id}),
-          },
-        );
+      Sql.named("SELECT pg_notify('entity_changes', @payload)"),
+      parameters: {
+        'payload': jsonEncode({'entity': entity, 'id': id}),
+      },
+    );
 
     Future<void> barrier(String token) => notify('barrier', token);
 
@@ -55,6 +55,21 @@ Future<void> main() async {
       await writer.close();
       await target.drop();
     });
+
+    test(
+      'flush retains every notification preceding a real PG barrier',
+      () async {
+        await recorder.drain(sendBarrier: barrier, timeout: kCompletionWait);
+        for (var i = 0; i < 50; i++) {
+          await notify('beacon_hierarchy', 'retained$i');
+        }
+        await recorder.flush(sendBarrier: barrier, timeout: kCompletionWait);
+        expect(
+          recorder.messages.map((message) => message['id']),
+          List.generate(50, (i) => 'retained$i'),
+        );
+      },
+    );
 
     test('drain drops a burst of notifications sent just before it', () async {
       for (var i = 0; i < 50; i++) {
