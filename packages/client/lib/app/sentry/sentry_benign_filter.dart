@@ -18,6 +18,10 @@ bool isBenignSentryThrowable(Object? error) {
       error is SessionAuthRejectedException) {
     return true;
   }
+  if (error is RemoteApiException &&
+      isBenignSentryExceptionText(error.message)) {
+    return true;
+  }
   if (error is UserInputException || error is PollingInputExceptions) {
     return true;
   }
@@ -211,6 +215,10 @@ bool _isUnlaidOutHitTest({
 final _expectedErrorText = RegExp(
   r'^(?:[^:\n]{1,64}: )*'
   '(?:No Internet connection|Description is required|'
+  r'Plan text must be at most \d+ characters|'
+  'Only open requests can be edited|'
+  'Image is not attached to this request|'
+  r'(?:Auth error: )?there is no correct seed!|'
   r'Id not found: \[[^\]\n]*\])\.?$',
 );
 
