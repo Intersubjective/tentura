@@ -3,6 +3,9 @@
 // database of a real pg test, and the multi-connection tag must keep
 // deliberately multi-connection tests out of that run.
 
+@Tags(['pg'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

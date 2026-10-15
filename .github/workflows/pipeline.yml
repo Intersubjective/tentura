@@ -158,9 +158,11 @@ jobs:
                   # re-enters its own lease hangs or fails here instead of
                   # using a spare connection. Tests that deliberately size
                   # their own pool carry `multi-connection` and run next, with
-                  # the normal pool.
+                  # the normal pool. They assert admission latency, waiter
+                  # caps and RSS under overload, so they must not overlap
+                  # each other: `-j 1`.
                   TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection
-                  dart test --tags multi-connection --exclude-tags mr
+                  dart test --tags multi-connection --exclude-tags mr -j 1
                   ;;
                 client-a)
                   # client-a/client-b split packages/client/test in two to run
