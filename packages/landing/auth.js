@@ -4,9 +4,16 @@
 const API_BASE = (window.TENTURA || {}).apiBase || ''; // '' = same origin
 
 export class EmailLinkError extends Error {
-  constructor(message) {
+  /**
+   * @param {string} message shown inline to the user
+   * @param {{userInput?: boolean}} [opts] userInput: the address the user typed
+   *   was rejected (empty or malformed). Expected input, not a fault, so
+   *   analytics keeps it as a breadcrumb and does not open a Sentry issue.
+   */
+  constructor(message, { userInput = false } = {}) {
     super(message);
     this.name = 'EmailLinkError';
+    this.userInput = userInput;
   }
 }
 
@@ -23,9 +30,9 @@ export function isValidEmailFormat(normalized) {
 /** Start magic-link sign-in/signup; server always responds generically when accepted. */
 export async function startEmailMagicLink({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
-  if (!normalized) throw new EmailLinkError('Please enter your email.');
+  if (!normalized) throw new EmailLinkError('Please enter your email.', { userInput: true });
   if (!isValidEmailFormat(normalized)) {
-    throw new EmailLinkError('Please enter a valid email address.');
+    throw new EmailLinkError('Please enter a valid email address.', { userInput: true });
   }
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
@@ -49,7 +56,7 @@ export async function startEmailMagicLink({ email, code }) {
 /** QA immediate sign-in for allowlisted test domains (dev/staging only). */
 export async function startTestLogin({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
-  if (!normalized) throw new EmailLinkError('Please enter your email.');
+  if (!normalized) throw new EmailLinkError('Please enter your email.', { userInput: true });
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
   let res;
