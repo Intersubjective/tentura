@@ -25,10 +25,11 @@ class WitnessWindowRepository implements WitnessWindowPort {
     final peerRows = await _database
         .customSelect(
           r'''
-SELECT peer_id, forward_mr, viewer_explicitly_trusts_subject
-FROM public.person_visibility_peers($1, $2)
-WHERE forward_mr > 0
-ORDER BY forward_mr DESC, peer_id ASC
+SELECT p.peer_id, p.forward_mr, p.viewer_explicitly_trusts_subject
+FROM public.person_visibility_peers($1, $2) p
+INNER JOIN public."user" u ON u.id = p.peer_id
+WHERE p.forward_mr > 0
+ORDER BY p.forward_mr DESC, p.peer_id ASC
 LIMIT $3
 ''',
           variables: [
@@ -95,7 +96,10 @@ WHERE ego_user_id = $1
         r'''
 INSERT INTO public.ego_witness_window (
   ego_user_id, context, witness_user_id, m, admitted, computed_at, mr_epoch
-) VALUES ($1, $2, $3, $4, $5, now(), $6)
+)
+SELECT $1, $2, u.id, $4, $5, now(), $6
+FROM public."user" u
+WHERE u.id = $3
 ''',
         [
           egoId,
