@@ -10,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/data/repository/offer_accepted_dismissal_repository.dart';
+import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
 import 'package:tentura/data/service/remote_api_client/realtime_socket.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
@@ -157,5 +159,15 @@ void main() {
     expect(op.url.path, '/api/v2/graphql');
     expect(op.variables['beaconId'], 'B3');
     expect(after, {'B1', 'B3'});
+  });
+
+  test('ENV=test has a stub for the port, like every repository', () async {
+    final OfferAcceptedDismissalPort stub =
+        OfferAcceptedDismissalRepositoryMock();
+    expect(await stub.load(viewerId: 'Uhelper00001'), isEmpty);
+    expect(
+      await stub.dismiss(viewerId: 'Uhelper00001', beaconId: 'B3'),
+      {'B3'},
+    );
   });
 }
