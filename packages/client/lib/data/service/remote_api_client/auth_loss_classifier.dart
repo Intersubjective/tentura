@@ -10,6 +10,7 @@ import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
+import 'package:tentura/features/beacon_lobby/domain/exception/beacon_lobby_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/constellation/domain/exception.dart';
@@ -44,6 +45,9 @@ Exception mapRemoteFailure(Object? error) {
     return error;
   }
   if (error is ConstellationException) {
+    return error;
+  }
+  if (error is BeaconLobbyUnavailableException) {
     return error;
   }
   if (error is AuthSessionLostException) {

@@ -8465,7 +8465,7 @@ type v2_image {
 }
 
 type v2_BeaconLobby {
-  bannedUserIds: [String!]!
+  bannedUserIds: [String!]
   beaconId: String!
   canPost: Boolean!
   isAuthor: Boolean!

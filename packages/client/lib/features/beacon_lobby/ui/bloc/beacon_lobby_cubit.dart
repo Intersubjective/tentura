@@ -1,140 +1,165 @@
 import 'dart:async';
 
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import '../../domain/beacon_lobby_gateway.dart';
-import '../../domain/entity/beacon_lobby.dart';
+import '../../domain/exception/beacon_lobby_exception.dart';
+import '../../domain/use_case/beacon_lobby_case.dart';
+import 'beacon_lobby_state.dart';
 
-enum BeaconLobbyStatus { loading, ready, unavailable }
+export 'package:flutter_bloc/flutter_bloc.dart';
 
-class BeaconLobbyState {
-  const BeaconLobbyState({
-    this.status = BeaconLobbyStatus.loading,
-    this.info,
-    this.messages = const [],
-    this.sending = false,
-    this.actionFailed = false,
-  });
+export 'beacon_lobby_state.dart';
 
-  final BeaconLobbyStatus status;
-  final BeaconLobbyInfo? info;
-  final List<BeaconLobbyMessage> messages;
-  final bool sending;
-
-  /// The last post / ban / unban failed (the screen shows a short notice).
-  final bool actionFailed;
-
-  bool get isAuthor => info?.isAuthor ?? false;
-  List<String> get bannedUserIds => info?.bannedUserIds ?? const [];
-
-  BeaconLobbyState copyWith({
-    BeaconLobbyStatus? status,
-    BeaconLobbyInfo? info,
-    List<BeaconLobbyMessage>? messages,
-    bool? sending,
-    bool? actionFailed,
-  }) => BeaconLobbyState(
-    status: status ?? this.status,
-    info: info ?? this.info,
-    messages: messages ?? this.messages,
-    sending: sending ?? this.sending,
-    actionFailed: actionFailed ?? this.actionFailed,
-  );
-}
-
-/// U088 — the Request lobby: load, post, and (author) ban / let back in.
+/// U088 — the Request lobby: load, post, and (author) remove / let back in.
 ///
-/// Lobby messages are not pushed to people outside the main discussion, so
-/// the open screen refreshes every [pollInterval].
+/// No polling: the lobby refetches on the Request's realtime hints and
+/// catch-ups, after the viewer's own actions, and on pull-to-refresh.
 class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
-  BeaconLobbyCubit({
+  BeaconLobbyCubit(
+    this._case,
+    this._effects, {
     required this.beaconId,
-    required BeaconLobbyGateway gateway,
-    this.pollInterval = const Duration(seconds: 20),
-  }) : _gateway = gateway,
-       super(const BeaconLobbyState());
+  }) : super(const BeaconLobbyState()) {
+    _changes = _case
+        .lobbyChanges(beaconId)
+        .listen((_) => unawaited(_refresh()));
+  }
 
   final String beaconId;
-  final Duration pollInterval;
-  final BeaconLobbyGateway _gateway;
-  Timer? _poll;
 
+  final BeaconLobbyCase _case;
+
+  final UiEffectPort _effects;
+
+  late final StreamSubscription<void> _changes;
+
+  bool _refreshing = false;
+
+  bool _refreshAgain = false;
+
+  /// First load, and the retry after a failed one.
   Future<void> load() async {
+    emit(
+      state.copyWith(
+        status: StateStatus.isLoading,
+        unavailable: false,
+        loadError: null,
+      ),
+    );
     try {
-      final info = await _gateway.open(beaconId);
-      final messages = await _gateway.messages(
-        beaconId: beaconId,
-        lobbyId: info.lobbyId,
-      );
+      await _fetch();
+    } on BeaconLobbyUnavailableException {
+      _showUnavailable();
+    } catch (e) {
       if (isClosed) return;
-      emit(
-        state.copyWith(
-          status: BeaconLobbyStatus.ready,
-          info: info,
-          messages: messages,
-        ),
-      );
-      _poll ??= Timer.periodic(pollInterval, (_) => unawaited(refresh()));
-    } catch (_) {
-      if (isClosed) return;
-      _poll?.cancel();
-      _poll = null;
-      emit(
-        BeaconLobbyState(
-          status: BeaconLobbyStatus.unavailable,
-          info: state.info,
-        ),
-      );
+      emit(state.copyWith(status: StateStatus.isSuccess, loadError: e));
     }
   }
 
-  /// Re-reads the lobby; a ban that happened meanwhile ends in unavailable.
-  Future<void> refresh() => load();
+  /// Pull-to-refresh: a failure is shown, the lobby stays as it was.
+  Future<void> refresh() => _refresh(userInitiated: true);
 
-  Future<bool> post(String text) async {
+  Future<void> post(String text) async {
     final body = text.trim();
     final info = state.info;
-    if (body.isEmpty || info == null || state.sending) return false;
-    emit(state.copyWith(sending: true, actionFailed: false));
-    try {
-      await _gateway.post(beaconId: beaconId, lobbyId: info.lobbyId, body: body);
-      final messages = await _gateway.messages(
-        beaconId: beaconId,
-        lobbyId: info.lobbyId,
-      );
-      if (isClosed) return true;
-      emit(state.copyWith(sending: false, messages: messages));
-      return true;
-    } catch (_) {
-      if (isClosed) return false;
-      emit(state.copyWith(sending: false, actionFailed: true));
-      return false;
+    if (body.isEmpty || info == null || !info.canPost || state.sending) {
+      return;
     }
+    emit(state.copyWith(sending: true));
+    try {
+      await _case.post(beaconId: beaconId, lobbyId: info.lobbyId, body: body);
+      if (isClosed) return;
+      emit(state.copyWith(sending: false, postedCount: state.postedCount + 1));
+    } catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(sending: false));
+      _effects.emit(ShowError(e));
+      return;
+    }
+    await _refresh();
   }
 
   Future<void> ban(String userId) => _authorAction(
-    () => _gateway.ban(beaconId: beaconId, userId: userId),
+    () => _case.ban(beaconId: beaconId, userId: userId),
   );
 
   Future<void> unban(String userId) => _authorAction(
-    () => _gateway.unban(beaconId: beaconId, userId: userId),
+    () => _case.unban(beaconId: beaconId, userId: userId),
   );
 
   Future<void> _authorAction(Future<void> Function() run) async {
     if (!state.isAuthor) return;
-    emit(state.copyWith(actionFailed: false));
     try {
       await run();
-      await load();
-    } catch (_) {
-      if (isClosed) return;
-      emit(state.copyWith(actionFailed: true));
+    } catch (e) {
+      if (!isClosed) _effects.emit(ShowError(e));
+      return;
+    }
+    await _refresh();
+  }
+
+  /// Coalesces overlapping refreshes into one more round.
+  Future<void> _refresh({bool userInitiated = false}) async {
+    if (state.info == null && !state.unavailable) return;
+    if (_refreshing) {
+      _refreshAgain = true;
+      return;
+    }
+    _refreshing = true;
+    try {
+      do {
+        _refreshAgain = false;
+        try {
+          await _fetch();
+        } on BeaconLobbyUnavailableException {
+          _showUnavailable();
+        } catch (e) {
+          // A background refresh keeps what is on screen; the next hint or a
+          // pull retries.
+          if (userInitiated && !isClosed) _effects.emit(ShowError(e));
+        }
+      } while (_refreshAgain && !isClosed);
+    } finally {
+      _refreshing = false;
     }
   }
 
+  Future<void> _fetch() async {
+    final info = await _case.open(beaconId);
+    final messages = await _case.messages(
+      beaconId: beaconId,
+      lobbyId: info.lobbyId,
+    );
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        status: StateStatus.isSuccess,
+        info: info,
+        messages: messages,
+        unavailable: false,
+        loadError: null,
+      ),
+    );
+  }
+
+  /// Removed meanwhile (or never allowed): nothing of the lobby stays shown.
+  void _showUnavailable() {
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        status: StateStatus.isSuccess,
+        info: null,
+        messages: const [],
+        unavailable: true,
+        loadError: null,
+      ),
+    );
+  }
+
   @override
-  Future<void> close() {
-    _poll?.cancel();
+  Future<void> close() async {
+    await _changes.cancel();
     return super.close();
   }
 }

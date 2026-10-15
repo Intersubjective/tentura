@@ -51,6 +51,7 @@ const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
 const kPathPostNew = '/post/new';
 const kPathBeaconView = '/beacon/view';
+const kPathBeaconLobby = '/beacon/lobby';
 const kPathBeaconViewAll = '/beacon/all';
 const kPathBeaconInvolvedAll = '/beacon/involved';
 const kPathForwardBeacon = '/forward';
