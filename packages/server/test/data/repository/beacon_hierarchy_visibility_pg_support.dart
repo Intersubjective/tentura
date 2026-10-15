@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -74,6 +75,17 @@ final class HierarchyOnlyViewerHarness {
           userId: anyNamed('userId'),
         ),
       ).thenAnswer((_) async => false);
+      // withdraw() checks the commitment FK target exists (Sentry SERVER-17).
+      when(help.fetchAllByBeaconId(any)).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: childBeaconId,
+            userId: hierarchyOnlyViewerId,
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          ),
+        ],
+      );
       when(
         help.upsert(
           beaconId: anyNamed('beaconId'),

@@ -417,6 +417,15 @@ final class HelpOfferCase extends UseCaseBase {
                 HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
           );
         }
+        // The commitment event FKs to the offer row; a user who never offered
+        // gets a typed error instead of a raw ForeignKeyViolation.
+        final offers = await _helpOfferRepository.fetchAllByBeaconId(beaconId);
+        if (!offers.any((o) => o.userId == userId)) {
+          throw HelpOfferCoordinationException(
+            coordinationCode:
+                HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+          );
+        }
         await _commitmentRepository.record(
           beaconId: beaconId,
           userId: userId,

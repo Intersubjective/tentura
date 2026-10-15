@@ -202,6 +202,16 @@ void main() {
 
     test('allows OPEN (0)', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(helpOfferRepo.fetchAllByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          ),
+        ],
+      );
       when(
         helpOfferRepo.withdraw(
           beaconId: 'B1',

@@ -139,6 +139,11 @@ class _ExitOffers extends Fake implements HelpOfferRepositoryPort {
       active ? [_activeOffer()] : [];
 
   @override
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async => [
+    _activeOffer(),
+  ];
+
+  @override
   Future<void> withdraw({
     required String beaconId,
     required String userId,

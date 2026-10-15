@@ -28,6 +28,9 @@ import 'package:tentura_server/data/repository/user_availability_repository.dart
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
@@ -90,6 +93,42 @@ Future<void> main() async {
     Future<int> needsYou(String accountId) async =>
         (await attentionQuery.surfaceSummary(accountId: accountId))
             .myDeskCount;
+
+    test('withdraw without an offer throws a typed error, writes no event',
+        () async {
+      await expectLater(
+        harness.helpOfferCase.withdraw(
+          beaconId: _beaconId,
+          userId: _helperId,
+          withdrawReason: 'timing',
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) => e.code,
+            'code',
+            isA<HelpOfferCoordinationExceptionCodes>().having(
+              (c) => c.exceptionCode,
+              'exceptionCode',
+              HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+            ),
+          ),
+        ),
+      );
+      expect(await _commitmentEventCount(writer, _helperId), 0);
+    }, skip: skipReason);
+
+    test('a real withdraw still records the commitment event', () async {
+      await harness.helpOfferCase.offerHelp(
+        beaconId: _beaconId,
+        userId: _helperId,
+      );
+      await harness.helpOfferCase.withdraw(
+        beaconId: _beaconId,
+        userId: _helperId,
+        withdrawReason: 'timing',
+      );
+      expect(await _commitmentEventCount(writer, _helperId), greaterThan(0));
+    }, skip: skipReason);
 
     test('helper withdrawal drops the author obligation count', () async {
       await harness.helpOfferCase.offerHelp(
@@ -279,6 +318,17 @@ WHERE outbox.occurrence_id = occ.id
       expect(await needsYou(_authorId), 1);
     }, skip: skipReason);
   }, skip: skipReason);
+}
+
+Future<int> _commitmentEventCount(Connection writer, String userId) async {
+  final rows = await writer.execute(
+    '''
+SELECT count(*) FROM public.beacon_commitment_event
+WHERE beacon_id = '$_beaconId' AND user_id = '$userId'
+AND kind = ${CommitmentEventKind.withdrawnByHelper.smallintValue}
+''',
+  );
+  return (rows.single[0]! as num).toInt();
 }
 
 Future<String?> _helpOfferReceiptId(
