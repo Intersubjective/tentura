@@ -58,6 +58,7 @@ final class FriendsCase extends UseCaseBase {
 
   /// Blocks and unblocks made on this device. A block keeps the trust row on
   /// the server, so the list drops the person locally and refetches (B056).
+  /// Blocks from elsewhere arrive through [projectionChanges].
   Stream<RepositoryEvent<BlockIntent>> get blockChanges =>
       _blockCase?.changes ?? const Stream.empty();
 
@@ -69,6 +70,10 @@ final class FriendsCase extends UseCaseBase {
           RealtimeEntityKind.capability,
         })
         .map((_) {}),
+    // A block made by the other person, or from another session, has no
+    // local BlockCase event; the list query filters hidden people, so a
+    // refetch on the server's block marker is enough (B056 review).
+    _realtime.blockMarkers.map((_) {}),
     _realtime.catchUps.map((_) {}),
     _invitations.changes,
   ]);

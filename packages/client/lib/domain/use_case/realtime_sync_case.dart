@@ -23,6 +23,18 @@ final class RealtimeSyncCase {
   Stream<RealtimeEntityChange> changesFor(Set<RealtimeEntityKind> kinds) =>
       entityChanges.where((change) => kinds.contains(change.kind));
 
+  /// Block and unblock markers addressed to this account, whichever side of
+  /// the block it is on and whichever session made it. The server's
+  /// `user_block` trigger emits `constellation_field` with the blocker's id to
+  /// both parties (m0232); trust and MR changes emit the same kind with id
+  /// [globalConstellationFieldId] to everyone, so those are left out here.
+  Stream<RealtimeEntityChange> get blockMarkers =>
+      changesFor(const {RealtimeEntityKind.constellationField}).where(
+        (change) => change.aggregateId != globalConstellationFieldId,
+      );
+
+  static const globalConstellationFieldId = 'global';
+
   Stream<RealtimeEntityChange> changesForAggregate({
     required Set<RealtimeEntityKind> kinds,
     required String aggregateId,

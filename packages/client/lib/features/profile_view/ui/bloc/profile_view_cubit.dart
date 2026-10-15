@@ -140,6 +140,34 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
           return;
         }
         emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
+      } else if (e is ProfileFetchException) {
+        // Not a transient failure: the server answered and no longer returns
+        // this profile (a block from either side or another session, or a
+        // deleted account). Keeping the loaded profile would leave trust and
+        // request actions the server now rejects (B056 review).
+        final blockedProfile = await _blockedProfileForFetchFailure(e);
+        if (isClosed || sequence != _fetchSequence) return;
+        if (blockedProfile != null) {
+          final current = state.profile;
+          final blocked = Profile(
+            id: _profileId,
+            displayName: blockedProfile.displayName.isNotEmpty
+                ? blockedProfile.displayName
+                : current.displayName,
+            image: blockedProfile.image ?? current.image,
+          );
+          emit(ProfileViewState(profile: blocked, blockedProfile: blocked));
+          return;
+        }
+        // Same state as opening a profile the server does not return.
+        _hasLoaded = false;
+        emit(
+          ProfileViewState(
+            profile: Profile(id: _profileId),
+            loadError: e,
+            status: const StateIsSuccess(),
+          ),
+        );
       } else {
         emit(state.copyWith(status: const StateIsSuccess()));
       }

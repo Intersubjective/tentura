@@ -11,6 +11,7 @@ import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -145,6 +146,107 @@ void main() {
 
       expect(harness.cubit.state.blockedProfile, isNull);
       expect(harness.cubit.state.profile.displayName, 'Helper Two');
+    });
+
+    // B056 review: a block from another session of this account, or by the
+    // other person, has no local BlockCase event. The server's block marker
+    // (constellation_field with the blocker's id) triggers a refetch, and a
+    // refetch the server answers without the profile is not kept stale.
+    test('a block from another session reaches the open profile', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      harness.profiles.error = const ProfileFetchException('U-friend');
+      harness.blockCase.fetchMyBlocksResult = [
+        BlockIntent(
+          blocked: const Profile(id: 'U-friend', displayName: 'Helper Two'),
+        ),
+      ];
+      harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-viewer'));
+      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+
+      expect(harness.cubit.state.blockedProfile?.id, 'U-friend');
+      expect(harness.cubit.state.blockedProfile?.displayName, 'Helper Two');
+      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test('a block by the other person drops the stale profile', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      harness.profiles.error = const ProfileFetchException('U-friend');
+      harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-friend'));
+      await harness.waitFor(() => harness.cubit.state.loadError != null);
+
+      // The same state as opening a profile the server does not return:
+      // nothing of the loaded profile (trust, request actions) is kept.
+      expect(harness.cubit.state.loadError, isA<ProfileFetchException>());
+      expect(harness.cubit.state.profile, const Profile(id: 'U-friend'));
+      expect(harness.cubit.state.blockedProfile, isNull);
+      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test(
+      'a transient refetch failure still keeps the loaded profile',
+      () async {
+        harness
+          ..profiles.result = const Profile(
+            id: 'U-friend',
+            displayName: 'Helper Two',
+            myVote: 1,
+          )
+          ..start(id: 'U-friend');
+        await harness.waitFor(
+          () => harness.cubit.state.profile.displayName == 'Helper Two',
+        );
+        final calls = harness.profiles.fetchCalls;
+
+        harness.profiles.error = StateError('offline');
+        harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-friend'));
+        await harness.waitFor(() => harness.profiles.fetchCalls > calls);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
+        expect(harness.cubit.state.loadError, isNull);
+      },
+    );
+
+    test('the global constellation marker does not refetch', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+      final calls = harness.profiles.fetchCalls;
+
+      harness.realtimePort.emitChange(
+        _blockMarker(
+          blockerId: RealtimeSyncCase.globalConstellationFieldId,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(harness.profiles.fetchCalls, calls);
     });
 
     test(
@@ -555,3 +657,13 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+/// The server's `user_block` trigger marker (m0232): `constellation_field`
+/// with the blocker's id, sent to both parties.
+RealtimeEntityChange _blockMarker({required String blockerId}) =>
+    RealtimeEntityChange(
+      kind: RealtimeEntityKind.constellationField,
+      aggregateId: blockerId,
+      operation: RealtimeOperation.update,
+      source: RealtimeChangeSource.serverInvalidation,
+    );

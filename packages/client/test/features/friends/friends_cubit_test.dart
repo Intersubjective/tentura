@@ -205,6 +205,77 @@ void main() {
       },
     );
 
+    // B056 review: a block that started while the first load was in flight
+    // (the person not listed yet) must still invalidate that load.
+    test('a block during the first load cannot be undone by it', () async {
+      final first = Completer<Iterable<Profile>>();
+      final refetch = Completer<Iterable<Profile>>();
+      harness.friendsRepository.pending.addAll([first, refetch]);
+      harness.signIn();
+      await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 1);
+
+      harness.blockCase.emitChange(
+        RepositoryEventCreate(
+          BlockIntent(blocked: const Profile(id: 'friend-2')),
+        ),
+      );
+      first.complete([_friend('friend-1'), _friend('friend-2')]);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(harness.cubit.state.friends.containsKey('friend-2'), isFalse);
+
+      await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 2);
+      refetch.complete([_friend('friend-1')]);
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+      expect(harness.cubit.state.friends.keys, ['friend-1']);
+    });
+
+    // B056 review: when the other person blocks the viewer, or the viewer
+    // blocks from another session, no local block event exists. The server's
+    // block marker (constellation_field with the blocker's id) refetches;
+    // the list query already leaves out people hidden by a block.
+    test('a server block marker refetches Trusted', () async {
+      harness.friendsRepository.result = [_friend('friend-1')];
+      harness.signIn();
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+
+      harness.friendsRepository.result = const [];
+      harness.realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationField,
+          aggregateId: 'friend-1',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await harness.waitFor(() => harness.cubit.state.friends.isEmpty);
+    });
+
+    test('the global constellation marker does not refetch', () async {
+      harness.friendsRepository.result = [_friend('friend-1')];
+      harness.signIn();
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+      final calls = harness.friendsRepository.fetchCalls;
+
+      harness.realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationField,
+          aggregateId: RealtimeSyncCase.globalConstellationFieldId,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(harness.friendsRepository.fetchCalls, calls);
+    });
+
     test('unblocking refetches the list', () async {
       harness.friendsRepository.result = const [];
       harness.signIn();

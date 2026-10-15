@@ -130,15 +130,17 @@ class FriendsCubit extends Cubit<FriendsState> {
     _scheduleSilentFetch();
   }
 
-  /// A blocked person leaves the list at once; the refetch that follows
-  /// starts a new fetch sequence, so a load already in flight (which may
-  /// still list them) cannot put them back.
+  /// A blocked person leaves the list at once. Every block starts a new
+  /// fetch sequence, also when the person is not listed yet (the first load
+  /// may still be in flight), so a load that started before the block cannot
+  /// put them back; the refetch that follows has the server's answer.
   void _onBlockChanged(RepositoryEvent<BlockIntent> event) {
     if (isClosed) return;
-    if (event is RepositoryEventCreate<BlockIntent> &&
-        state.friends.containsKey(event.id)) {
+    if (event is RepositoryEventCreate<BlockIntent>) {
       _fetchSequence++;
-      emit(state.copyWith(friends: {...state.friends}..remove(event.id)));
+      if (state.friends.containsKey(event.id)) {
+        emit(state.copyWith(friends: {...state.friends}..remove(event.id)));
+      }
     }
     _scheduleSilentFetch();
   }
