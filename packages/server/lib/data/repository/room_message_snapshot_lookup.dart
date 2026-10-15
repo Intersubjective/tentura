@@ -31,6 +31,12 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
     if (row == null) {
       return null;
     }
+    // A thread-scoped message (the Request lobby, U088) goes to the beacon's
+    // room recipients as a bare hint: its text is not painted to people who
+    // may have no access to that thread. They refetch through the gated API.
+    if (row.threadItemId != null) {
+      return null;
+    }
     if (row.linkedNextMoveId != null ||
         row.linkedFactCardId != null ||
         row.linkedPollingId != null ||

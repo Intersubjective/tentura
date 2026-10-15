@@ -18,6 +18,7 @@ import 'package:tentura_server/data/repository/beacon_lobby_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/room_message_snapshot_lookup.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
@@ -428,6 +429,45 @@ Future<void> main() async {
           replyToMessageId: ninaMessage['id']! as String,
         );
         expect(intents.directed, isEmpty);
+      },
+    );
+
+    test(
+      'realtime paints no lobby text to the room (bare hint only)',
+      () async {
+        await offer(ninaId);
+        final lobbyId =
+            (await rooms.beaconLobby(
+                  beaconId: beaconId,
+                  userId: ninaId,
+                ))['lobbyId']!
+                as String;
+        final inLobby = await rooms.createMessage(
+          beaconId: beaconId,
+          userId: ninaId,
+          body: 'Only for the lobby',
+          threadItemId: lobbyId,
+        );
+        final inRoom = await rooms.createMessage(
+          beaconId: beaconId,
+          userId: authorId,
+          body: 'For the whole room',
+        );
+        final lookup = RoomMessageSnapshotLookup(db);
+        expect(
+          await lookup.findEligibleInsert(
+            messageId: inLobby['id']! as String,
+            beaconId: beaconId,
+          ),
+          isNull,
+        );
+        expect(
+          (await lookup.findEligibleInsert(
+            messageId: inRoom['id']! as String,
+            beaconId: beaconId,
+          ))?.body,
+          'For the whole room',
+        );
       },
     );
 
