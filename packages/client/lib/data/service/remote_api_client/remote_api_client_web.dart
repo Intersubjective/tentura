@@ -9,6 +9,7 @@ import 'auth_loss_classifier.dart';
 import 'build_client.dart';
 import 'exception.dart';
 import 'remote_api_client_base.dart';
+import 'retry_rejected_read.dart';
 
 abstract base class RemoteApiClient extends RemoteApiClientBase {
   RemoteApiClient({
@@ -94,6 +95,27 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     )?
     forward,
   ]) {
+    final client = _gqlClient;
+    if (client == null) {
+      throw const AuthenticationNoKeyException();
+    }
+    // Only a read is re-sent when the server answers with its admission
+    // backoff; a mutation is never repeated.
+    return isReadOperation(request)
+        ? retryRejectedRead(() {
+            if (!identical(client, _gqlClient)) {
+              throw GraphQLNoDataException(
+                label: request.operation.operationName,
+              );
+            }
+            return _requestOnce(request);
+          })
+        : _requestOnce(request);
+  }
+
+  Stream<OperationResponse<TData, TVars>> _requestOnce<TData, TVars>(
+    OperationRequest<TData, TVars> request,
+  ) {
     final client = _gqlClient;
     if (client == null) {
       throw const AuthenticationNoKeyException();

@@ -4,6 +4,7 @@ import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -58,7 +59,7 @@ final class BeaconAuthorInvitesCubit extends Cubit<BeaconAuthorInvitesState> {
     } on Object catch (error) {
       if (isClosed) return;
       emit(state.copyWith(status: const StateIsSuccess()));
-      _effects.emit(ShowError(error));
+      _effects.emit(ShowError(unwrapRetryLater(error)));
     }
   }
 

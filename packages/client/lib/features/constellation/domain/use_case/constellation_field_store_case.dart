@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -524,10 +525,12 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         ),
       );
     } on Object catch (error, stackTrace) {
-      if (error is RemoteApiRetryLaterException &&
+      // A loader reading in parallel wraps the rejection in a ParallelWaitError.
+      final failure = unwrapRetryLater(error);
+      if (failure is RemoteApiRetryLaterException &&
           generation == _state.generation &&
           paramsGeneration == _paramsGeneration) {
-        _retryNotBefore = _clock.now().add(error.retryAfter);
+        _retryNotBefore = _clock.now().add(failure.retryAfter);
         _queued = true;
       }
       logger.warning('Constellation FULL refresh failed', error, stackTrace);

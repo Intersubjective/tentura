@@ -6,6 +6,7 @@ import 'package:ferry/ferry.dart'
 import 'package:gql_exec/gql_exec.dart';
 
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
@@ -47,6 +48,19 @@ Exception mapRemoteFailure(Object? error) {
   }
   if (error is AuthSessionLostException) {
     return error;
+  }
+  if (error is ParallelWaitError) {
+    final causes = parallelWaitCauses(error)?.map(mapRemoteFailure).toList();
+    if (causes != null) {
+      // Retrying cannot recover a lost session, so it wins over a sibling.
+      if (causes.any((c) => c is AuthSessionLostException)) {
+        return const AuthSessionLostException();
+      }
+      final retryLater = combinedRetryLater(causes);
+      if (retryLater != null) {
+        return retryLater;
+      }
+    }
   }
   if (error is SessionAuthRejectedException) {
     return error;
@@ -217,10 +231,15 @@ Exception? _mapServerException(gql.ServerException error) {
   return null;
 }
 
+/// Server admission backoff: `ConstellationExceptionCode.retryLater` goes out
+/// as the numeric-string code 1704 (the store tests also use `RETRY_LATER`).
+bool _isRetryLaterCode(Object? code) =>
+    code == 'RETRY_LATER' || code?.toString() == '1704';
+
 RemoteApiRetryLaterException? _retryLater(List<GraphQLError> errors) {
   for (final error in errors) {
     final delay = error.extensions?['retryAfterMs'];
-    if (error.extensions?['code'] == 'RETRY_LATER' &&
+    if (_isRetryLaterCode(error.extensions?['code']) &&
         delay is int &&
         delay > 0) {
       return RemoteApiRetryLaterException(Duration(milliseconds: delay));
