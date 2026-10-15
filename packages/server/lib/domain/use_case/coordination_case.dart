@@ -174,10 +174,15 @@ final class CoordinationCase extends UseCaseBase {
     return null;
   }
 
-  Future<({BeaconEntity beacon, HelpOfferEntity offer})> _prepareAdmissionAction({
+  /// [allowRemoved]: also accept an offer that an author removal
+  /// deactivated (see [_removedOfferFor]); the result says so, and the caller
+  /// re-activates it as it lets the helper back in.
+  Future<({BeaconEntity beacon, HelpOfferEntity offer, bool removed})>
+  _prepareAdmissionAction({
     required String beaconId,
     required String offerUserId,
     required String actorUserId,
+    bool allowRemoved = false,
   }) async {
     final beacon = await _ensureAuthorOrSteward(
       beaconId: beaconId,
@@ -204,12 +209,63 @@ final class CoordinationCase extends UseCaseBase {
         break;
       }
     }
-    if (offer == null) {
+    if (offer != null) return (beacon: beacon, offer: offer, removed: false);
+    final removed = allowRemoved
+        ? await _removedOfferFor(beaconId: beaconId, userId: offerUserId)
+        : null;
+    if (removed == null) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
       );
     }
-    return (beacon: beacon, offer: offer);
+    return (beacon: beacon, offer: removed, removed: true);
+  }
+
+  /// The offer of a helper the author removed, while they are still out:
+  /// removal deactivates the offer (so it stops counting as active, like a
+  /// decline) without an exit reason, and the pair's last exit or return is
+  /// `removedFromChat`. A withdrawal or block cleanup after the removal sets
+  /// a reason and ends the pair, so that offer stays inactive.
+  Future<HelpOfferEntity?> _removedOfferFor({
+    required String beaconId,
+    required String userId,
+  }) async {
+    HelpOfferEntity? row;
+    for (final candidate in await _helpOfferRepository.fetchAllByBeaconId(
+      beaconId,
+    )) {
+      if (candidate.userId == userId) {
+        row = candidate;
+        break;
+      }
+    }
+    if (row == null || !row.isWithdrawn || row.withdrawReason != null) {
+      return null;
+    }
+    final events = await _eventsForPair(beaconId: beaconId, userId: userId);
+    return _isRemovedAndStillOut(events) ? row : null;
+  }
+
+  bool _isRemovedAndStillOut(List<CommitmentEvent> events) {
+    final sorted = [...events]..sort((a, b) => a.seq.compareTo(b.seq));
+    var out = false;
+    for (final event in sorted) {
+      switch (event.kind) {
+        case CommitmentEventKind.removedFromChat:
+          out = true;
+        case CommitmentEventKind.readmittedToChat:
+        case CommitmentEventKind.withdrawnByHelper:
+        case CommitmentEventKind.releasedByAuthor:
+        case CommitmentEventKind.blockedCleanup:
+        case CommitmentEventKind.unansweredAtClose:
+          out = false;
+        case CommitmentEventKind.offered:
+        case CommitmentEventKind.acknowledged:
+        case CommitmentEventKind.acknowledgementSoftened:
+          break;
+      }
+    }
+    return out;
   }
 
   String _validateReason(String reason) {
@@ -394,8 +450,21 @@ final class CoordinationCase extends UseCaseBase {
           beaconId: beaconId,
           offerUserId: offerUserId,
           actorUserId: actorUserId,
+          allowRemoved: true,
         );
         final beacon = prepared.beacon;
+        if (prepared.removed) {
+          // Letting a removed helper back in: their offer counts again.
+          await _helpOfferRepository.reactivate(
+            beaconId: beaconId,
+            userId: offerUserId,
+          );
+          await _recordReadmittedToChatIfTransition(
+            beaconId: beaconId,
+            userId: offerUserId,
+            actorUserId: actorUserId,
+          );
+        }
         // The actor (author or steward) is the confirming author; the offer
         // checked above is the helper's confirmation, so step (a) is a no-op.
         final snap = await _admission.admitWithConfirmations(
@@ -543,6 +612,9 @@ final class CoordinationCase extends UseCaseBase {
       actorUserId: actorUserId,
       action: (transaction) async {
         await _hierarchyRepository.lockMutationScope();
+        // Lock order (Arch §0): hierarchy, then the child lock, ahead of the
+        // offer row, as decline and the helper's withdrawal take them.
+        await _closureCase?.lockRequest(beaconId);
         // Snapshot before access revocation so the terminal receipt survives.
         final intent = await _attentionIntents!.offerRemoved(
           receiverId: offerUserId,
@@ -556,6 +628,14 @@ final class CoordinationCase extends UseCaseBase {
           offerUserId: offerUserId,
           actorUserId: actorUserId,
           reason: trimmedReason,
+        );
+        // Maintainer's call on #401: a removed helper's offer stops counting
+        // as active (as after a decline); accepting them again re-activates
+        // it. No exit reason is set, which is what tells the two apart from a
+        // withdrawal.
+        await _helpOfferRepository.deactivate(
+          beaconId: beaconId,
+          userId: offerUserId,
         );
         await _recordRemovedFromChatIfTransition(
           beaconId: beaconId,
@@ -710,7 +790,13 @@ final class CoordinationCase extends UseCaseBase {
       );
     }
     final active = await _helpOfferRepository.fetchByBeaconId(beaconId);
-    if (!active.any((c) => c.userId == offerUserId)) {
+    // Inviting a removed helper back in also re-activates their offer.
+    final readmitsRemoved =
+        !active.any((c) => c.userId == offerUserId) &&
+        inviteToRoom &&
+        await _removedOfferFor(beaconId: beaconId, userId: offerUserId) !=
+            null;
+    if (!active.any((c) => c.userId == offerUserId) && !readmitsRemoved) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
       );
@@ -746,7 +832,17 @@ final class CoordinationCase extends UseCaseBase {
         offerUserId: offerUserId,
         authorUserId: authorUserId,
       );
+      await _helpOfferRepository.deactivate(
+        beaconId: beaconId,
+        userId: offerUserId,
+      );
     } else if (inviteToRoom) {
+      if (readmitsRemoved) {
+        await _helpOfferRepository.reactivate(
+          beaconId: beaconId,
+          userId: offerUserId,
+        );
+      }
       await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
         beaconId: beaconId,
         offerUserId: offerUserId,

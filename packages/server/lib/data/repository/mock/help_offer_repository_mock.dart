@@ -33,6 +33,10 @@ class HelpOfferRepositoryMock implements HelpOfferRepositoryPort {
       Future.value();
 
   @override
+  Future<void> reactivate({required String beaconId, required String userId}) =>
+      Future.value();
+
+  @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) =>
       Future.value(const []);
 

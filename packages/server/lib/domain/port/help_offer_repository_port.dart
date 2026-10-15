@@ -24,6 +24,11 @@ abstract class HelpOfferRepositoryPort {
   /// Ends the active offer grant without changing its message or exit reason.
   Future<void> deactivate({required String beaconId, required String userId});
 
+  /// Re-activates an offer that [deactivate] ended without an exit reason
+  /// (an author removal), when the author lets the helper back in. A
+  /// withdrawn offer (it has a `withdraw_reason`) is left alone.
+  Future<void> reactivate({required String beaconId, required String userId});
+
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId);
 
   Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId);
