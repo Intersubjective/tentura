@@ -10,9 +10,6 @@ import 'support/int_graph_controller.dart';
 import 'support/settle_graph_layout.dart';
 
 void main() {
-  const viewportSize = Size(800, 600);
-  const canvasSize = Size(500, 500);
-
   testWidgets('orderedRenderNodeIds respects configured paint order',
       (tester) async {
     final controller = testIntIntGraphController();
