@@ -144,17 +144,11 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-15
-review due: 2026-10-22
+reviewed: 2026-10-16
+review due: 2026-10-23
 
-### alloy:lesson:new_server_test_files_analyzer_baseline_gate
-Confirmed again in tentura-s7gl.74 (U41 part 3, perf baseline journal): a new server architecture test file (constellation_server_perf_baseline_journal_test.dart) added two `unnecessary_raw_strings` infos that pushed `scripts/check-analyze-baseline.sh packages/server` over budget, so attempt #1 was judged repair. Run `dart analyze <new test file>` before finishing and fix every info (raw strings, unused/unsorted imports) in new test files; never raise the baseline. Journal-only perf beads (docs + a journal-shape architecture test + scripts/perf/*.py) need no packages/server/lib edits, so the regression is `dart test --exclude-tags pg` plus the analyze-baseline gate. Real-data dev baseline (pg_stat_statements/auto_explain) needs the owner: record it as a follow-up in the journal rather than claiming it done.
-
-### alloy:lesson:pg_pool_size_one_ci_mode
-tentura-ev3z.27: CI runs the pg suite twice: `TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection`, then `dart test --tags multi-connection --exclude-tags mr`. The override lives in packages/server/test/support/disposable_pg_target.dart; it forces pool size 1 and one admission slot on every disposable DB Env. Any new pg test that sizes its own pool above 1 (maxConnectionCount:, pgMaxConnectionCount, POSTGRES_MAXCONN), or that consumes a fixture which does, MUST carry the `multi-connection` tag (declared in packages/server/dart_test.yaml). An architecture test (test/architecture/pg_pool_size_one_ci_mode_test.dart) parses pipeline.yml's pg branch and enforces this tagging. Support files with 'disposable_pg_target' or 'single_connection_cross_handle_probe' in the path are exempt. Child-process probes (dart test via Process.run, or a probe main()) must strip TENTURA_TEST_PG_POOL_SIZE from the inherited env unless they set it deliberately. Traps: new test files in this task added 2 analyzer infos (use_null_aware_elements, 1840 vs 1838) and cost a repair iteration, so run `dart analyze` on new test files first and never raise the baseline. The scratch-branch re-entry acceptance check was only covered by a pg test of cross-handle lease behaviour under pool 1, not by a literal scratch branch. The mr-suite failure on constellation_apply_batch_budgets_pg_test is the known load flake, so rerun it alone with -j1.
-
-### check-hints-plain-name-quoting
-flutter test --plain-name values containing spaces MUST be quoted in check commands (e.g. --plain-name='wire mapping of Post fields'), never --plain-name=wire mapping of Post fields unquoted -- the shell splits the unquoted value into separate words, which flutter test then tries to load as nonexistent test files, producing phantom 'Does not exist' failures that look like real test failures and have twice caused Alloy to wrongly override a correct 'done' judge verdict (tentura-brd4.38, tentura-brd4.39).
+### alloy:lesson:flutter_test_no_dash_n_flag
+Never pass `-n` to `flutter test` (it is not a supported flag and fails immediately); use `--plain-name` with shell quoting when filtering by test name.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->
