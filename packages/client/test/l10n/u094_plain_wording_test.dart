@@ -1,5 +1,8 @@
 // U094: plain words, checked against fresh test readers (see
 // fixes/U094.md and findings/round2/U094_wording_test.md).
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
@@ -50,30 +53,34 @@ void main() {
     });
 
     test('no retired jargon is left in any EN string', () {
-      // Retired labels must not survive as whole labels anywhere.
+      // Scan every EN value in the ARB, not a hand-picked key list (#542
+      // review: `beaconCloseSheetEvidenceEnoughHelp` slipped through), and
+      // keep the closing stage under one name: the actions say "final
+      // check" like the status, not "wrap up".
       final retired = RegExp(
         r'IN ON IT|In on it|Nothing noted yet|Needs me|Not fitting|'
-        r'Moved to the stream|Wrapping up|wrapping up|Enough help committed$',
+        r'Moved to the stream|[Ww]rapping up|[Ww]rap up|Enough help committed',
       );
-      final values = <String>[
-        en.labelBeaconTabNow,
-        en.beaconShowcaseTeamLabel,
-        en.beaconShowcaseTeamSheetTitle,
-        en.beaconHudNoCurrentLine,
-        en.inboxNeedsMe,
-        en.actionStopWatching,
-        en.activityMovedToStream,
-        en.beaconPeopleLensNotFittingHeading,
-        en.beaconPhaseWrappingUp,
-        en.beaconStatusHintCancelWrappingUp,
-        en.beaconCloseSheetBranchWrappingUp,
-        en.beaconCloseSheetReviewWrappingUpBody,
-        en.beaconCloseSheetPrematureReviewBody,
-        en.coordinationEnoughHelp,
+      final arb =
+          jsonDecode(File('l10n/app_en.arb').readAsStringSync())
+              as Map<String, dynamic>;
+      final offenders = [
+        for (final MapEntry(:key, :value) in arb.entries)
+          if (!key.startsWith('@') &&
+              value is String &&
+              retired.hasMatch(value))
+            '$key: $value',
       ];
-      for (final v in values) {
-        expect(retired.hasMatch(v), isFalse, reason: v);
-      }
+      expect(offenders, isEmpty);
+    });
+
+    test('closing-stage actions use the status name', () {
+      expect(en.beaconHudActWrapUpForReview, 'Start final check');
+      expect(
+        en.beaconCloseSheetReadyReviewTitle,
+        'Close and start the final check?',
+      );
+      expect(en.beaconCloseSheetEvidenceEnoughHelp, 'Marked: enough help');
     });
   });
 
