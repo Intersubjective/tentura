@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/capability/capability_evidence_models.dart
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 
 import '../database/tentura_db.dart';
+import 'witness_peer_sql.dart';
 
 @Injectable(
   as: WitnessWindowPort,
@@ -24,14 +25,11 @@ class WitnessWindowRepository implements WitnessWindowPort {
   }) async {
     final peerRows = await _database
         .customSelect(
-          r'''
-SELECT p.peer_id, p.forward_mr, p.viewer_explicitly_trusts_subject
-FROM public.person_visibility_peers($1, $2) p
-INNER JOIN public."user" u ON u.id = p.peer_id
-WHERE p.forward_mr > 0
-ORDER BY p.forward_mr DESC, p.peer_id ASC
-LIMIT $3
-''',
+          witnessPeerTopKSql(
+            egoExpr: r'$1',
+            contextExpr: r'$2',
+            limitExpr: r'$3',
+          ),
           variables: [
             Variable<String>(egoId),
             Variable<String>(normalizedContext),
