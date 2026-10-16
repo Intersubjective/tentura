@@ -45,13 +45,14 @@ RoomMessage _statusLine({
   required int from,
   required int to,
   String reason = 'enoughHelp',
-  bool automatic = false,
+  // No author on the line: a system change or a deleted account.
+  bool authorless = false,
   Profile author = _author,
 }) => RoomMessage(
   id: 'R-status',
   beaconId: 'B1',
-  authorId: automatic ? '' : author.id,
-  author: automatic ? const Profile() : author,
+  authorId: authorless ? '' : author.id,
+  author: authorless ? const Profile() : author,
   body: '',
   createdAt: DateTime.utc(2026, 10, 14, 9),
   systemMessageKind: BeaconRoomSystemMessageKind.statusChanged,
@@ -105,7 +106,7 @@ void main() {
   testWidgets('an automatic change has no actor', (tester) async {
     await tester.pumpWidget(
       _harness(
-        _statusLine(from: 5, to: 6, reason: 'closureExpired', automatic: true),
+        _statusLine(from: 5, to: 6, reason: 'closureExpired', authorless: true),
       ),
     );
     await tester.pumpAndSettle();
@@ -125,7 +126,7 @@ void main() {
     // author_id is ON DELETE SET NULL: the line loses its actor, but the
     // reason says a person made it, so it must not read as automatic.
     await tester.pumpWidget(
-      _harness(_statusLine(from: 1, to: 3, automatic: true)),
+      _harness(_statusLine(from: 1, to: 3, authorless: true)),
     );
     await tester.pumpAndSettle();
     expect(
@@ -142,7 +143,7 @@ void main() {
 
     await tester.pumpWidget(
       _harness(
-        _statusLine(from: 1, to: 3, automatic: true),
+        _statusLine(from: 1, to: 3, authorless: true),
         locale: const Locale('ru'),
       ),
     );
