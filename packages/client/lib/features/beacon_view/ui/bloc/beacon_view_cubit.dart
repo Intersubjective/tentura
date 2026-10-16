@@ -1237,6 +1237,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           _case.fetchRoomParticipants(beaconId),
         if (skipRoom)
           Future<BeaconRoomState?>.value()
+        else if (retainLoadedContext)
+          // A failed room-state fetch must not blank the next step.
+          keepOnError(_case.fetchRoomStateOrThrow(beaconId))
         else
           _case.fetchRoomStateIfAllowed(beaconId),
         if (skipRoom || skipInvolvement)
@@ -1296,14 +1299,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
               });
       final factCards = results[2]! as List<BeaconFactCard>;
       final roomParticipants = results[3]! as List<BeaconParticipant>;
-      final beaconRoomCue = results[4] as BeaconRoomState?;
+      final roomCueKept = identical(results[4], _keptSlice);
+      final beaconRoomCue = roomCueKept
+          ? state.beaconRoomCue
+          : results[4] as BeaconRoomState?;
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
       final displayStatus = identical(results[6], _keptSlice)
           ? state.displayStatus
           : results[6] as BeaconDisplayStatusDto?;
       final admittedHelperRoster = results[7]! as List<Profile>;
       final teamAcquaintanceIds = results[8]! as Set<String>;
-      final openCoordinationBlocker = beaconRoomCue != null
+      final openCoordinationBlocker = roomCueKept
+          ? state.openCoordinationBlocker
+          : beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
 
