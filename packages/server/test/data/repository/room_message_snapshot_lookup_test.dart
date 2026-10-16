@@ -22,9 +22,7 @@ Future<void> main() async {
     isDebugModeOn: false,
   );
   final reachable = await _canConnect(env);
-  final skipReason = reachable
-      ? false
-      : 'Postgres not reachable for lookup test';
+  final skipReason = reachable ? false : 'Postgres not reachable for lookup test';
 
   late TenturaDb database;
   late RoomMessageSnapshotLookup lookup;

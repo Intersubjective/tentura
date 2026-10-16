@@ -53,6 +53,7 @@ void main() {
       );
       expect(roomReplyExcerpt('', pollQuestion: '  '), isNull);
       expect(roomReplyExcerpt('text', pollQuestion: 'Q'), 'text');
+      expect(roomReplyExcerpt('📊'), '📊');
     });
   });
 }

@@ -497,7 +497,6 @@ JOIN public.beacon_fact_card_revision r
               .get();
     final pollQuestionById = {for (final p in parentPolls) p.id: p.question};
 
-
     return msgs.map((m) {
       final id = m.id;
       final userRow = userById[m.authorId];

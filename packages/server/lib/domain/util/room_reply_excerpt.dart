@@ -11,14 +11,15 @@ const kRoomReplyExcerptMaxChars = 160;
 /// A poll message has no body: pass its [pollQuestion] and the excerpt is
 /// `📊 <question>` (#377).
 String? roomReplyExcerpt(String? body, {String? pollQuestion}) {
-  final text = (body ?? '').trim().isNotEmpty || pollQuestion == null
-      ? body
-      : '📊 ${pollQuestion.trim()}';
+  final question = pollQuestion?.trim() ?? '';
+  final text = (body ?? '').trim().isEmpty && question.isNotEmpty
+      ? '📊 $question'
+      : body;
   if (text == null) {
     return null;
   }
   final collapsed = text.trim().replaceAll(RegExp(r'\s+'), ' ');
-  if (collapsed.isEmpty || collapsed == '📊') {
+  if (collapsed.isEmpty) {
     return null;
   }
   final runes = collapsed.runes;
