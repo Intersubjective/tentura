@@ -6732,6 +6732,24 @@
       }
     }
   },
+  "activityTombstoneFromLine": "From {name}",
+  "@activityTombstoneFromLine": {
+    "description": "Activity outcome row: who the request came to you from — the author who sent it to you directly, or the last forwarder when the author is unknown (both read the same on purpose)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activityTombstoneAuthorLine": "By {name}",
+  "@activityTombstoneAuthorLine": {
+    "description": "Activity outcome row: the request's real author, shown before 'Forwarded by …' when someone else forwarded it, or alone when the forwarder is unknown",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "attentionCardForwardedByMany": "{count, plural, one{Forwarded by {name} and 1 more} other{Forwarded by {name} and {count} more}}",
   "@attentionCardForwardedByMany": {
     "description": "For You card: several note-less forwarders; count is how many besides name.",

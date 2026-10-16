@@ -56,7 +56,25 @@ class TombstoneRow extends StatelessWidget {
     // Title, then who it came from, then what you did — the order of the
     // Request cards around it, without the quotes they no longer wear.
     final headline = receipt.title;
-    final from = name.isEmpty ? null : l10n.constellationPreviewAuthorLine(name);
+    // The avatar is the last forwarder, who is not necessarily the author:
+    // "By <forwarder>" credited Nina with Tab QA's request (B076).
+    final authorId = receipt.beaconAuthorId;
+    final forwardedOthersRequest =
+        authorId != null &&
+        authorId.isNotEmpty &&
+        profile != null &&
+        profile.id != authorId;
+    // #505: keep the real author on the row — "By Tab QA · Forwarded by
+    // Nina Mover", as the live card read before the offer.
+    final authorName = receipt.beaconAuthorName?.trim() ?? '';
+    final authorLine = authorName.isEmpty
+        ? null
+        : l10n.activityTombstoneAuthorLine(authorName);
+    final from = name.isEmpty
+        ? authorLine
+        : forwardedOthersRequest
+        ? [authorLine, l10n.attentionCardForwardedBy(name)].nonNulls.join(' · ')
+        : l10n.activityTombstoneFromLine(name);
     final sentence = activityForwardOutcomeLabel(l10n, receipt.forwardOutcome);
     final localCreatedAt = receipt.createdAt.toLocal();
     // #189: the card's short age, so a tombstone and the card beside it
