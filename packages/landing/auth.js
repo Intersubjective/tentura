@@ -20,7 +20,7 @@ export class EmailLinkError extends Error {
 // Same rule as the server's kAuthEmailPattern (email_auth_util.dart). The
 // server answers {ok:true} even for a malformed address (it never reveals
 // whether a link went out), so the page would claim "Link sent" for "nope".
-const EMAIL_PATTERN = /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/;
+export const EMAIL_PATTERN = /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/;
 
 /** Whether a normalized (trimmed, lower-cased) address can receive a link. */
 export function isValidEmailFormat(normalized) {
@@ -45,6 +45,14 @@ export async function startEmailMagicLink({ email, code }) {
     });
   } catch (e) {
     throw new EmailLinkError(`Could not reach the server (${e}).`);
+  }
+  if (res.status === 400) {
+    // The server is the authority on the format (it checks before any rate
+    // limit or account lookup, so this reveals nothing about accounts).
+    const data = await res.json().catch(() => null);
+    if (data?.error === 'invalid_email') {
+      throw new EmailLinkError('Please enter a valid email address.', { userInput: true });
+    }
   }
   if (!res.ok) {
     throw new EmailLinkError('Something went wrong. Please try again.');

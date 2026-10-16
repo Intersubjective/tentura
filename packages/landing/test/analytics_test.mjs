@@ -78,6 +78,7 @@ test('trackError skips captureException for empty-email EmailLinkError', async (
   initAnalytics();
   const err = new Error('Please enter your email.');
   err.name = 'EmailLinkError';
+  err.userInput = true;
   trackError('qa_test_login_error', err);
   assert.equal(exceptions.length, 0);
   const real = new Error('Could not reach the server (x).');

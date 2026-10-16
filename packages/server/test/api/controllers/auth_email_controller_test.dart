@@ -361,6 +361,20 @@ void main() {
     expect(body['attemptId'], startsWith('E'));
   });
 
+  test('POST start answers 400 invalid_email for a malformed address', () async {
+    final res = await controller.start(
+      Request(
+        'POST',
+        Uri.parse('https://dev.tentura.io/api/v2/auth/email/start'),
+        body: '{"email":"nope"}',
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+    expect(res.statusCode, 400);
+    final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+    expect(body, {'ok': false, 'error': 'invalid_email'});
+  });
+
   group('testLogin', () {
     Request qaRequest(String body) => Request(
       'POST',

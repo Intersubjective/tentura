@@ -138,10 +138,7 @@ export function track(event, data = {}) {
 
 function isUserInputEmailError(err) {
   if (!err || err.name !== 'EmailLinkError') return false;
-  if (err.userInput === true) return true;
-  // Errors built without the flag (older callers, tests) still match by text.
-  return err.message === 'Please enter your email.' ||
-    err.message === 'Please enter a valid email address.';
+  return err.userInput === true;
 }
 
 export function trackError(event, err, data = {}) {

@@ -30,3 +30,30 @@ test('isValidEmailFormat accepts what the server accepts', async () => {
     assert.equal(isValidEmailFormat(email), false, email);
   }
 });
+
+test('EMAIL_PATTERN is the server kAuthEmailPattern, byte for byte', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { EMAIL_PATTERN } = await import('../auth.js');
+  const dart = await readFile(
+    new URL('../../server/lib/domain/util/email_auth_util.dart', import.meta.url),
+    'utf8',
+  );
+  const m = dart.match(/kAuthEmailPattern\s*=\s*(?:RegExp\()?\s*r'([^']+)'/);
+  assert.ok(m, 'kAuthEmailPattern literal not found in email_auth_util.dart');
+  assert.equal(EMAIL_PATTERN.source, m[1]);
+});
+
+test('a server 400 invalid_email becomes the inline format message', async () => {
+  globalThis.window = globalThis;
+  globalThis.TENTURA = globalThis.TENTURA ?? { apiBase: '' };
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ ok: false, error: 'invalid_email' }), { status: 400 });
+  const { startEmailMagicLink } = await import('../auth.js');
+  await assert.rejects(
+    startEmailMagicLink({ email: 'a@example.com' }),
+    (err) =>
+      err.name === 'EmailLinkError' &&
+      err.userInput === true &&
+      err.message === 'Please enter a valid email address.',
+  );
+});
