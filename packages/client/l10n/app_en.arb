@@ -3208,11 +3208,11 @@
   "@myWorkFilterDrafts": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortRecent": "Recent",
+  "myWorkSortRecent": "Newest first",
   "@myWorkSortRecent": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortOldest": "Oldest",
+  "myWorkSortOldest": "Oldest first",
   "@myWorkSortOldest": {
     "context": "MyWorkScreen"
   },
