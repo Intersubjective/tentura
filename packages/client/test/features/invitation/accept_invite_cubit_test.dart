@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/invitation/domain/entity/invite_preview.dart';
 import 'package:tentura/features/invitation/domain/port/invitation_accept_port.dart';
@@ -85,6 +86,28 @@ void main() {
       );
       expect(cubit.state.pendingBeacon?.id, 'B1');
     });
+
+    test(
+      'existing-user confirmation carries the inviter photo (#388)',
+      () async {
+        repo.previewResult = InvitePreview(
+          codeStatus: InviteCodeStatus.available,
+          callerStatus: InviteCallerStatus.existingUser,
+          inviter: InvitePreviewInviter.fromJson({
+            'id': 'U1',
+            'displayName': 'Alice',
+            'image': '$kImageServer/$kImagesPath/U1/img42.$kImageExt',
+          }),
+        );
+        await cubit.start('Iabc123');
+        final inviter = cubit.state.pendingInviter!;
+        expect(inviter.hasAvatar, isTrue);
+        expect(
+          inviter.avatarUrl,
+          '$kImageServer/$kImagesPath/U1/img42.$kImageExt',
+        );
+      },
+    );
 
     test('confirmAccept with beacon navigates to inbox tab', () async {
       repo.previewResult = const InvitePreview(

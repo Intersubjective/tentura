@@ -1,4 +1,5 @@
 import 'package:test/test.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/invitation/domain/entity/invite_preview.dart';
 
 void main() {
@@ -35,5 +36,31 @@ void main() {
     });
     expect(preview.callerStatus, InviteCallerStatus.anonymous);
     expect(preview.codeStatus, InviteCodeStatus.invalid);
+  });
+
+  // #388: the accept dialog showed initials although the preview carries the
+  // inviter's photo.
+  test('the inviter photo URL yields its image id', () {
+    final inviter = InvitePreviewInviter.fromJson({
+      'id': 'U1',
+      'displayName': 'Alice',
+      'image': '$kImageServer/$kImagesPath/U1/img42.$kImageExt',
+    });
+    expect(inviter.imageId, 'img42');
+  });
+
+  test("no photo, or a URL that is not this inviter's, yields none", () {
+    expect(
+      InvitePreviewInviter.fromJson({'id': 'U1', 'displayName': 'A'}).imageId,
+      isNull,
+    );
+    expect(
+      InvitePreviewInviter.fromJson({
+        'id': 'U1',
+        'displayName': 'A',
+        'image': 'https://example.com/a.png',
+      }).imageId,
+      isNull,
+    );
   });
 }

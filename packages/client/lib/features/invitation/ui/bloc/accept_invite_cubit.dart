@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import '../../data/repository/invitation_repository.dart';
 
 import 'package:tentura/app/platform/landing_redirect.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -164,6 +165,10 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
             pendingInviter: Profile(
               id: inviter.id,
               displayName: inviter.displayName,
+              image: switch (inviter.imageId) {
+                final String imageId => ImageEntity(id: imageId),
+                null => null,
+              },
             ),
             pendingBeacon: preview.beacon,
           ),
