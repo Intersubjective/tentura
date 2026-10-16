@@ -64,10 +64,16 @@ class TombstoneRow extends StatelessWidget {
         authorId.isNotEmpty &&
         profile != null &&
         profile.id != authorId;
-    final from = name.isEmpty
+    // #505: keep the real author on the row — "By Tab QA · Forwarded by
+    // Nina Mover", as the live card read before the offer.
+    final authorName = receipt.beaconAuthorName?.trim() ?? '';
+    final authorLine = authorName.isEmpty
         ? null
+        : l10n.activityTombstoneAuthorLine(authorName);
+    final from = name.isEmpty
+        ? authorLine
         : forwardedOthersRequest
-        ? l10n.attentionCardForwardedBy(name)
+        ? [authorLine, l10n.attentionCardForwardedBy(name)].nonNulls.join(' · ')
         : l10n.activityTombstoneFromLine(name);
     final sentence = activityForwardOutcomeLabel(l10n, receipt.forwardOutcome);
     final localCreatedAt = receipt.createdAt.toLocal();

@@ -6123,6 +6123,7 @@
   "attentionEventStatusChanged": "Статус: {status}",
   "attentionCardForwardedBy": "Переслано: {name}",
   "activityTombstoneFromLine": "От {name}",
+  "activityTombstoneAuthorLine": "Автор: {name}",
   "attentionCardForwardedByMany": "{count, plural, one{Переслано: {name} и ещё {count}} few{Переслано: {name} и ещё {count}} many{Переслано: {name} и ещё {count}} other{Переслано: {name} и ещё {count}}}",
   "attentionEventTrustGivenUp": "Вы доверяете больше",
   "attentionEventTrustGivenDown": "Вы доверяете меньше",

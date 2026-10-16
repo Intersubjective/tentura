@@ -270,7 +270,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('By Nina Mover'), findsNothing);
-      expect(find.text('Forwarded by Nina Mover'), findsOneWidget);
+      // #505: the real author stays on the row (red on the base, which
+      // showed only "Forwarded by Nina Mover").
+      expect(
+        find.text('By Tab QA · Forwarded by Nina Mover'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the author sending it themselves reads From the author', (
@@ -313,6 +318,27 @@ void main() {
 
       expect(find.text('By Nina Mover'), findsNothing);
       expect(find.text('From Nina Mover'), findsOneWidget);
+    });
+
+    testWidgets('without a resolved forwarder the author is still shown', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          TombstoneRow(
+            receipt: _tombstone(
+              beaconAuthorId: 'u-author',
+              beaconAuthorName: 'Tab QA',
+            ),
+            onOpenBeacon: () {},
+            onDismiss: () {},
+          ),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('By Tab QA'), findsOneWidget);
     });
   });
 }
