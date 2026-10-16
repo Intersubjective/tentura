@@ -9,7 +9,10 @@ import 'package:test/test.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/schema.dart';
 import 'package:tentura_server/app/di.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
@@ -206,6 +209,51 @@ VALUES (@b, @h1, 'I can help', 0), (@b, @h2, 'Me too', 0),
         expect((await list(_helperId))['beaconIds'], [_otherBeaconId]);
       },
     );
+
+    Future<void> admit(String userId, String beaconId) => writer.execute(
+      Sql.named('''
+INSERT INTO public.beacon_participant
+  (id, beacon_id, user_id, role, status, room_access)
+VALUES (@id, @b, @u, @role, 0, @admitted)
+'''),
+      parameters: {
+        'id': 'P$userId',
+        'b': beaconId,
+        'u': userId,
+        'role': BeaconParticipantRoleBits.helper,
+        'admitted': RoomAccessBits.admitted,
+      },
+    );
+
+    // #537 review: under #511's rule "accepted" means admitted, so taking the
+    // helper out of the room ends the acceptance like a withdrawal does.
+    test('the author removing the helper from the room clears it', () async {
+      await admit(_helperId, _beaconId);
+      await dismiss(_helperId, _beaconId);
+      await dismiss(_helperId, _otherBeaconId);
+
+      await getIt<CoordinationRepositoryPort>().removeFromRoom(
+        beaconId: _beaconId,
+        offerUserId: _helperId,
+        actorUserId: _authorId,
+        reason: 'other',
+      );
+
+      expect((await list(_helperId))['beaconIds'], [_otherBeaconId]);
+    });
+
+    test('revoking room access from coordination clears it', () async {
+      await admit(_helperId, _beaconId);
+      await dismiss(_helperId, _beaconId);
+
+      await getIt<BeaconRoomRepositoryPort>().revokeOfferUserBeaconRoomAccess(
+        beaconId: _beaconId,
+        offerUserId: _helperId,
+        authorUserId: _authorId,
+      );
+
+      expect((await list(_helperId))['beaconIds'], isEmpty);
+    });
 
     test('someone with no offer on the Request cannot record one', () async {
       await expectLater(dismiss(_strangerId, _beaconId), throwsA(anything));

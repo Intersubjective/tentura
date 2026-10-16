@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'offer_accepted_dismissal_repository.dart';
 
 @Injectable(
   as: HelpOfferRepositoryPort,
@@ -74,23 +75,12 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
-    await _clearOfferAcceptedDismissal(beaconId: beaconId, userId: userId);
+    await clearOfferAcceptedDismissal(
+      _database,
+      beaconId: beaconId,
+      userId: userId,
+    );
   });
-
-  /// B077b: a dismissal of the «offer accepted» sub-card belongs to the
-  /// acceptance it hid. A withdrawn (or deactivated) offer ends that
-  /// acceptance, so a re-offer that is accepted again shows a fresh card on
-  /// every device. Same transaction as the status write.
-  Future<void> _clearOfferAcceptedDismissal({
-    required String beaconId,
-    required String userId,
-  }) => _database.customStatement(
-    r'''
-DELETE FROM public.offer_accepted_dismissal
-WHERE user_id = $1 AND beacon_id = $2
-''',
-    [userId, beaconId],
-  );
 
   @override
   Future<void> deactivate({
@@ -105,7 +95,11 @@ WHERE user_id = $1 AND beacon_id = $2
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
-    await _clearOfferAcceptedDismissal(beaconId: beaconId, userId: userId);
+    await clearOfferAcceptedDismissal(
+      _database,
+      beaconId: beaconId,
+      userId: userId,
+    );
   }
 
   @override

@@ -55,3 +55,20 @@ ORDER BY dismissed_at, beacon_id
     return [for (final r in rows) r.read<String>('beacon_id')];
   }
 }
+
+/// B077b: a dismissal of the «offer accepted» sub-card belongs to the
+/// acceptance it hid. Withdrawing or deactivating the offer, or the author
+/// taking the helper out of the room, ends that acceptance, so a later
+/// acceptance shows a fresh card on every device. Runs inside the caller's
+/// transaction, next to the write that ends the acceptance.
+Future<void> clearOfferAcceptedDismissal(
+  TenturaDb db, {
+  required String beaconId,
+  required String userId,
+}) => db.customStatement(
+  r'''
+DELETE FROM public.offer_accepted_dismissal
+WHERE user_id = $1 AND beacon_id = $2
+''',
+  [userId, beaconId],
+);

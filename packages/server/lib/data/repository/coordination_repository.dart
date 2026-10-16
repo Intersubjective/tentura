@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
 import 'help_offer_admission_repository.dart';
+import 'offer_accepted_dismissal_repository.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 @Injectable(
@@ -105,6 +106,11 @@ class CoordinationRepository implements CoordinationRepositoryPort {
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
+    await clearOfferAcceptedDismissal(
+      _database,
+      beaconId: beaconId,
+      userId: offerUserId,
+    );
   }
 
   Future<void> _insertParticipantRemovedActivityEvent({
