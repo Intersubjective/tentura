@@ -19,6 +19,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/recording_commitment_repository.dart';
+import '../../support/commitment_gates_harness.dart';
 
 /// B1 step 3: block and unblock use cases call
 /// `TrustLedgerPort.project([(blocker, blocked)])` inside the unit of work,
@@ -124,6 +125,7 @@ void main() {
     _Inbox(),
     _Evidence(),
     FakeBeaconHierarchyRepository(),
+    roomRepository: RecordingRoomAccessRepository(),
     trustLedger: ledger,
     env: Env(environment: Environment.test),
     logger: Logger('UserBlockCaseTrustProjectionTest'),

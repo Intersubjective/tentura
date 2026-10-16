@@ -51,7 +51,7 @@ final class UserBlockCase extends UseCaseBase {
     ClosureCase? closureCase,
     AuthorInvitePort? authorInvites,
     AttentionSystemSettlementPort? attentionSystemSettlement,
-    BeaconRoomRepositoryPort? roomRepository,
+    required BeaconRoomRepositoryPort roomRepository,
     TransactionalAttentionCase? attention,
     BeaconPlanCase? beaconPlan,
     required super.env,
@@ -85,7 +85,7 @@ final class UserBlockCase extends UseCaseBase {
   final ClosureCase? _closureCase;
   final AuthorInvitePort? _authorInvites;
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
-  final BeaconRoomRepositoryPort? _roomRepository;
+  final BeaconRoomRepositoryPort _roomRepository;
   final TransactionalAttentionCase? _attention;
   final BeaconPlanCase? _beaconPlan;
 
@@ -273,7 +273,7 @@ final class UserBlockCase extends UseCaseBase {
       // committed with room access, and after an unblock the author still
       // lists an "Active helper" whose offer is withdrawn, while the helper's
       // Requests tab (active offers only) no longer shows the request (B059).
-      await _roomRepository?.revokeOfferUserBeaconRoomAccess(
+      await _roomRepository.revokeOfferUserBeaconRoomAccess(
         beaconId: beaconId,
         offerUserId: offererId,
         authorUserId: blockerId,
