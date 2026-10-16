@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
+import 'package:tentura/domain/coordination/viewer_offer_accepted.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
@@ -164,15 +165,18 @@ class BeaconPeopleTabBody extends StatelessWidget {
     final isObserver = beacon.accessLevel == BeaconAccessLevel.observer;
 
     // B077: the helper whose offer was accepted sees it here too, as the same
-    // dismissible event sub-card as on their Requests tab.
+    // dismissible event sub-card as on their Requests tab, by the same rule
+    // (isViewerOfferAccepted).
     final myAcceptedOffer = state.isAuthorOrSteward
         ? null
         : state.helpOffers
               .where(
                 (c) =>
                     c.user.id == state.myProfile.id &&
-                    !c.isWithdrawn &&
-                    c.roomAccess == RoomAccessBits.admitted,
+                    isViewerOfferAccepted(
+                      hasActiveOffer: !c.isWithdrawn,
+                      viewerAccessReasons: beacon.accessReasons,
+                    ),
               )
               .firstOrNull;
     final offerAcceptedEvent = myAcceptedOffer == null

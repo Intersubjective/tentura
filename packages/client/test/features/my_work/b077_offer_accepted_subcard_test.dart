@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
@@ -51,8 +52,10 @@ final class _RecordingPort implements OfferAcceptedDismissalPort {
   Future<void> save(Set<String> keys) async => stored = {...keys};
 }
 
-Beacon _openBeacon(String id) => Beacon.empty.copyWith(
+Beacon _openBeacon(String id, {bool admitted = false}) => Beacon.empty.copyWith(
   id: id,
+  // The viewer's access reasons: admitted to the room (bit 4) once accepted.
+  accessReasons: admitted ? BeaconAccessReason.admitted.bit : 0,
   title: 'Moving day $id',
   updatedAt: DateTime(2026, 9, 5),
   status: BeaconStatus.open,
@@ -162,7 +165,10 @@ void main() {
     tester,
   ) async {
     final cubit = await _cubitFor(
-      _row(_openBeacon('open-1'), response: CoordinationResponseType.useful),
+      _row(
+        _openBeacon('open-1', admitted: true),
+        response: CoordinationResponseType.useful,
+      ),
     );
     addTearDown(cubit.close);
     await _pumpDesk(tester, cubit);
@@ -195,7 +201,10 @@ void main() {
     tester,
   ) async {
     final cubit = await _cubitFor(
-      _row(_openBeacon('open-1'), response: CoordinationResponseType.useful),
+      _row(
+        _openBeacon('open-1', admitted: true),
+        response: CoordinationResponseType.useful,
+      ),
     );
     addTearDown(cubit.close);
     await _pumpDesk(tester, cubit);
@@ -236,5 +245,29 @@ void main() {
     addTearDown(cubit.close);
     await _pumpDesk(tester, cubit);
     expect(find.byType(AttentionMiniCard), findsNothing);
+  });
+
+  // Review of #511, Blocking 1: one rule on both surfaces — admitted to the
+  // room. Fails on da235b1, which read the author's response instead.
+  testWidgets('no sub-card for a useful response without room admission', (
+    tester,
+  ) async {
+    final cubit = await _cubitFor(
+      _row(_openBeacon('open-4'), response: CoordinationResponseType.useful),
+    );
+    addTearDown(cubit.close);
+    await _pumpDesk(tester, cubit);
+    expect(find.byType(AttentionMiniCard), findsNothing);
+  });
+
+  testWidgets('sub-card once admitted, even with no author response', (
+    tester,
+  ) async {
+    final cubit = await _cubitFor(
+      _row(_openBeacon('open-5', admitted: true)),
+    );
+    addTearDown(cubit.close);
+    await _pumpDesk(tester, cubit);
+    expect(find.byType(AttentionMiniCard), findsOneWidget);
   });
 }
