@@ -350,3 +350,37 @@ test('save name then Back from page 1 restores saved prefill', async () => {
   );
   assert.ok(events.some((e) => e.name === 'onboarding_back'));
 });
+
+// #424: on the last page "Continue to Tentura" and "Skip — open Tentura"
+// both opened the product.
+test('pager hides Skip on the last page, where Continue is the exit', async () => {
+  installDomFake();
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+  globalThis.window = globalThis;
+
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'Ada' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: () => {},
+    openProductUrl: () => '/app/',
+    storage: fakeStorage(),
+    nameOnly: false,
+  });
+  // Unchanged name: straight to the pager.
+  card.querySelector('FORM').submit();
+  await new Promise((r) => setTimeout(r, 0));
+
+  const pager = card.querySelector('.pager');
+  assert.ok(pager);
+  const skip = pager.querySelector('.hint-link');
+  const next = pager
+    .querySelectorAll('BUTTON')
+    .find((b) => b.textContent === 'Next');
+  assert.equal(skip.hidden, false, 'Skip offered on page 1');
+  for (let i = 1; i < ONBOARDING_PAGES.length; i++) next.click();
+  assert.equal(skip.hidden, true, 'no Skip next to Continue on the last page');
+});

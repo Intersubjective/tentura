@@ -364,6 +364,8 @@ function renderOnboardingPager({
     next.hidden = isLast;
     next.textContent = 'Next';
     openApp.hidden = !isLast;
+    // On the last page Continue is the exit; a Skip beside it did the same.
+    skip.hidden = isLast;
     track('onboarding_view', { page: page + 1 });
   };
 
