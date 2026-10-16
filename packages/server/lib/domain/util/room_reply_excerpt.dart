@@ -7,12 +7,18 @@ const kRoomReplyExcerptMaxChars = 160;
 /// (ZWJ sequences, skin-tone modifiers) is deliberately *not* promised — the
 /// server has no `characters` dependency and a clipped ZWJ sequence degrades
 /// to two visible glyphs, which is acceptable in a 160-char preview.
-String? roomReplyExcerpt(String? body) {
-  if (body == null) {
+///
+/// A poll message has no body: pass its [pollQuestion] and the excerpt is
+/// `📊 <question>` (#377).
+String? roomReplyExcerpt(String? body, {String? pollQuestion}) {
+  final text = (body ?? '').trim().isNotEmpty || pollQuestion == null
+      ? body
+      : '📊 ${pollQuestion.trim()}';
+  if (text == null) {
     return null;
   }
-  final collapsed = body.trim().replaceAll(RegExp(r'\s+'), ' ');
-  if (collapsed.isEmpty) {
+  final collapsed = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (collapsed.isEmpty || collapsed == '📊') {
     return null;
   }
   final runes = collapsed.runes;

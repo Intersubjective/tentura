@@ -102,6 +102,9 @@ Future<void> main() async {
         'DELETE FROM public.beacon_room_message WHERE id LIKE \'Rreplypg%\'',
       );
       await database.customStatement(
+        "DELETE FROM public.polling WHERE id LIKE 'Preplypgpoll%'",
+      );
+      await database.customStatement(
         'DELETE FROM public.beacon_participant '
         'WHERE beacon_id LIKE \'Breplypg%\'',
       );
@@ -265,6 +268,48 @@ ON CONFLICT DO NOTHING
         replyToAuthorId: parentAuthorId,
         replyToAuthorTitle: parentAuthorId,
         replyToBodyExcerpt: 'Parent body for round-trip',
+        replyToHasAttachments: false,
+      );
+    },
+    skip: skipReason,
+  );
+
+  // #377: replying to a poll quoted "Original message is unavailable".
+  test(
+    'a reply to a poll quotes the poll question',
+    () async {
+      await seedBaseRoom();
+      await database.customStatement(
+        '''
+INSERT INTO public.polling (id, author_id, question)
+VALUES ('Preplypgpoll1', '$parentAuthorId', 'Which day works for the move?')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      final poll = await room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: parentAuthorId,
+        body: '',
+        linkedPollingId: 'Preplypgpoll1',
+      );
+      final reply = await room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: replyAuthorId,
+        body: 'Saturday',
+        replyToMessageId: poll.id,
+      );
+
+      final rows = await room.listMessagesEnriched(
+        beaconId: beaconId,
+        viewerUserId: viewerId,
+        limit: 10,
+      );
+      expectReplyFields(
+        rows.firstWhere((r) => r['id'] == reply.id),
+        replyToMessageId: poll.id,
+        replyToAuthorId: parentAuthorId,
+        replyToAuthorTitle: parentAuthorId,
+        replyToBodyExcerpt: '📊 Which day works for the move?',
         replyToHasAttachments: false,
       );
     },
@@ -687,7 +732,6 @@ Future<bool> _canConnect(Env env) async {
     return false;
   }
 }
-
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

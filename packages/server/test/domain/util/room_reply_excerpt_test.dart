@@ -44,5 +44,15 @@ void main() {
       expect(excerpt!.runes.length, kRoomReplyExcerptMaxChars + 1);
       expect(excerpt.contains('\uFFFD'), isFalse);
     });
+
+    // #377: a poll has no body; the quote names its question instead.
+    test('a poll with no body is quoted by its question', () {
+      expect(
+        roomReplyExcerpt('', pollQuestion: '  Which day\n works? '),
+        '📊 Which day works?',
+      );
+      expect(roomReplyExcerpt('', pollQuestion: '  '), isNull);
+      expect(roomReplyExcerpt('text', pollQuestion: 'Q'), 'text');
+    });
   });
 }

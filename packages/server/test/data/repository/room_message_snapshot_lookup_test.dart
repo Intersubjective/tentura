@@ -22,7 +22,9 @@ Future<void> main() async {
     isDebugModeOn: false,
   );
   final reachable = await _canConnect(env);
-  final skipReason = reachable ? false : 'Postgres not reachable for lookup test';
+  final skipReason = reachable
+      ? false
+      : 'Postgres not reachable for lookup test';
 
   late TenturaDb database;
   late RoomMessageSnapshotLookup lookup;
@@ -46,6 +48,9 @@ Future<void> main() async {
         'DELETE FROM public.beacon_room_message '
         'WHERE id IN (\'Rlookup000001\', \'Rlookup000002\', \'Rlookup000003\', '
         '\'Rlookupparent1\', \'Rlookupother1\')',
+      );
+      await database.customStatement(
+        "DELETE FROM public.polling WHERE id = 'Plookuppoll01'",
       );
       await database.customStatement(
         'DELETE FROM public.beacon_participant WHERE beacon_id IN '
@@ -217,6 +222,61 @@ WHERE id = 'Rlookup000002'
       expect(snapshot?.replyToAuthorTitle, 'Parent author');
       expect(snapshot?.replyToBodyExcerpt, 'parent body');
       expect(snapshot?.replyToHasAttachments, isFalse);
+    },
+    skip: skipReason,
+  );
+
+  // #377: the live snapshot of a reply to a poll quotes its question.
+  test(
+    'findEligibleInsert quotes a poll parent by its question',
+    () async {
+      await database.customStatement(
+        '''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES
+  ('Ulookup000001', 'Lookup author', 'lookup-author-key'),
+  ('Ulookup000002', 'Parent author', 'lookup-parent-key')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      await database.customStatement(
+        '''
+INSERT INTO public.beacon (id, user_id, title, description)
+VALUES ('Blookup000001', 'Ulookup000001', 'Lookup', 'Lookup test')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      await database.customStatement(
+        '''
+INSERT INTO public.polling (id, author_id, question)
+VALUES ('Plookuppoll01', 'Ulookup000002', 'Lunch?')
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      await database.customStatement(
+        '''
+INSERT INTO public.beacon_room_message (
+  id, beacon_id, author_id, body, linked_polling_id
+) VALUES
+  ('Rlookupparent1', 'Blookup000001', 'Ulookup000002', '', 'Plookuppoll01'),
+  ('Rlookup000002', 'Blookup000001', 'Ulookup000001', 'reply body', NULL)
+ON CONFLICT (id) DO NOTHING
+''',
+      );
+      await database.customStatement(
+        '''
+UPDATE public.beacon_room_message
+SET reply_to_message_id = 'Rlookupparent1'
+WHERE id = 'Rlookup000002'
+''',
+      );
+
+      final snapshot = await lookup.findEligibleInsert(
+        messageId: 'Rlookup000002',
+        beaconId: 'Blookup000001',
+      );
+
+      expect(snapshot?.replyToBodyExcerpt, '📊 Lunch?');
     },
     skip: skipReason,
   );
