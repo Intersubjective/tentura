@@ -106,6 +106,30 @@ void main() {
     await c.close();
   });
 
+  test(
+    "a removed person's earlier messages stay in the author's lobby",
+    () async {
+      final port = FakeLobbyPort(viewerId: 'Uauthor');
+      port.messagesList.add(
+        const BeaconLobbyMessage(
+          id: 'M0',
+          authorId: 'Unina',
+          authorName: 'Nina',
+          body: 'I can bring a ladder',
+        ),
+      );
+      final c = cubitFor(port);
+      await c.load();
+      await c.ban('Unina');
+      expect(c.state.bannedUserIds, ['Unina']);
+      expect(
+        [for (final m in c.state.messages) m.body],
+        ['I can bring a ladder'],
+      );
+      await c.close();
+    },
+  );
+
   test('a realtime hint for this Request refetches the lobby once', () async {
     final port = FakeLobbyPort(viewerId: 'Uauthor');
     final c = cubitFor(port);
