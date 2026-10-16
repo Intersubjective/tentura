@@ -116,6 +116,12 @@ class TestSettingsRepository implements SettingsRepositoryPort {
 
   @override
   Future<void> setLocalePreference(String value) async {}
+
+  @override
+  Future<bool> getNotificationPromptDismissed() async => false;
+
+  @override
+  Future<void> setNotificationPromptDismissed(bool value) async {}
 }
 
 AuthCase buildTestAuthCase(

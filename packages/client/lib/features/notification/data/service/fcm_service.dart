@@ -6,6 +6,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/data/service/firebase_client_config.dart';
 import 'package:tentura/data/service/service_base.dart';
 
+import '../../domain/entity/notification_permission_status.dart';
 import '../../domain/entity/notification_permissions.dart';
 import '../../fcm_debug_log.dart';
 import 'browser_notification_permission.dart';
@@ -74,6 +75,37 @@ class FcmService extends ServiceBase {
 
   //
   //
+  /// Current permission, without showing a prompt. On web this reads the
+  /// browser's own `Notification.permission` (see [requestPermission] for why
+  /// the plugin's answer isn't trusted there).
+  Future<NotificationPermissionStatus> permissionStatus() async {
+    try {
+      final browserStatus = browserNotificationPermissionStatus();
+      if (browserStatus != null) {
+        if (browserStatus == NotificationPermissionStatus.unsupported ||
+            !await FirebaseMessaging.instance.isSupported()) {
+          return NotificationPermissionStatus.unsupported;
+        }
+        return browserStatus;
+      }
+      final settings = await FirebaseMessaging.instance
+          .getNotificationSettings();
+      return switch (settings.authorizationStatus) {
+        AuthorizationStatus.authorized ||
+        AuthorizationStatus.provisional => NotificationPermissionStatus.granted,
+        AuthorizationStatus.denied => NotificationPermissionStatus.denied,
+        AuthorizationStatus.notDetermined =>
+          NotificationPermissionStatus.notDetermined,
+      };
+    } on Object catch (e, st) {
+      if (!_isUnsupportedBrowserMessaging(e)) rethrow;
+      logger.fine('FCM permissionStatus unsupported browser', e, st);
+      return NotificationPermissionStatus.unsupported;
+    }
+  }
+
+  //
+  //
   Future<String?> getToken() async {
     fcmLog(
       'FcmService: getToken vapidKeyLen=${env.firebaseVapidKey.length}',
@@ -116,6 +148,11 @@ final class _FcmServiceFake implements FcmService {
     fcmLog('FcmService: fake getToken → null');
     return Future.value();
   }
+
+  /// No Firebase config means no push: nothing worth asking permission for.
+  @override
+  Future<NotificationPermissionStatus> permissionStatus() =>
+      Future.value(NotificationPermissionStatus.unsupported);
 
   @override
   Future<NotificationPermissions> requestPermission() {

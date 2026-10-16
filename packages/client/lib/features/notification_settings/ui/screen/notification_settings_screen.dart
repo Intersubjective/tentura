@@ -12,6 +12,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/notification/ui/widget/notification_permission_device_tile.dart';
 
 @RoutePage()
 class NotificationSettingsScreen extends StatelessWidget
@@ -56,6 +57,7 @@ class NotificationSettingsScreen extends StatelessWidget
                 child: ListView(
                   children: [
                     _SectionHeader(label: l10n.notificationSettingsPush),
+                    const NotificationPermissionDeviceTile(),
                     for (final c in NotificationSettingsCategory.values)
                       SwitchListTile(
                         title: Text(_categoryLabel(l10n, c)),

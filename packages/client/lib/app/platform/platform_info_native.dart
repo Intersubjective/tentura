@@ -11,3 +11,6 @@ String get platformName =>
             : Platform.isMacOS
                 ? 'macos'
                 : 'android';
+
+/// Native builds are never an installed web app.
+bool get isInstalledWebApp => false;

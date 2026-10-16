@@ -7,9 +7,10 @@ import 'package:tentura/features/settings/domain/port/settings_repository_port.d
 import '../entity/fcm_registration_info.dart';
 import '../entity/fcm_test_send_result.dart';
 import '../entity/last_fcm_registration.dart';
+import '../entity/notification_permission_status.dart';
+import '../entity/notification_permissions.dart';
 import '../port/fcm_local_repository_port.dart';
 import '../port/fcm_remote_repository_port.dart';
-import '../entity/notification_permissions.dart';
 import 'package:tentura/features/notification/fcm_debug_log.dart';
 
 @singleton
@@ -39,6 +40,17 @@ class FcmCase {
     fcmLog('FcmCase: requestPermission');
     return _fcmLocalRepository.requestPermission();
   }
+
+  /// Current permission, read without prompting.
+  Future<NotificationPermissionStatus> permissionStatus() =>
+      _fcmLocalRepository.permissionStatus();
+
+  /// Whether the person closed the in-app notification prompt on this device.
+  Future<bool> isPermissionPromptDismissed() =>
+      _settingsRepository.getNotificationPromptDismissed();
+
+  Future<void> dismissPermissionPrompt() =>
+      _settingsRepository.setNotificationPromptDismissed(true);
 
   ///
   /// Syncs the device FCM token for [accountId]. When [forceRegister] is true

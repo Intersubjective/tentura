@@ -1,4 +1,9 @@
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
+
 import 'package:web/web.dart' as web;
+
+import '../../domain/entity/notification_permission_status.dart';
 
 /// Reads `Notification.permission` straight from the browser, bypassing
 /// firebase_messaging's own interpretation entirely.
@@ -15,5 +20,20 @@ bool? browserNotificationPermissionGranted() {
     'granted' => true,
     'denied' => false,
     _ => null,
+  };
+}
+
+/// The browser's `Notification.permission`, read without prompting.
+///
+/// Safari outside a home-screen PWA has no `Notification` global at all, so
+/// check before touching it.
+NotificationPermissionStatus browserNotificationPermissionStatus() {
+  if (!globalContext.has('Notification')) {
+    return NotificationPermissionStatus.unsupported;
+  }
+  return switch (web.Notification.permission) {
+    'granted' => NotificationPermissionStatus.granted,
+    'denied' => NotificationPermissionStatus.denied,
+    _ => NotificationPermissionStatus.notDetermined,
   };
 }

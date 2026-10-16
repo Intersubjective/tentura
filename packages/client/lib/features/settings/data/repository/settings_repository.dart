@@ -169,9 +169,36 @@ class SettingsRepository implements SettingsRepositoryPort {
         ),
       );
 
+  ///
+  /// In-app notification permission prompt
+  ///
+  @override
+  Future<bool> getNotificationPromptDismissed() => _database.managers.settings
+      .filter((f) => f.key.equals(_kNotificationPromptDismissedKey))
+      .getSingleOrNull()
+      .then((v) => v?.valueBool ?? false);
+
+  //
+  //
+  @override
+  Future<void> setNotificationPromptDismissed(bool value) =>
+      _database.managers.settings.create(
+        (o) => o(
+          key: _kNotificationPromptDismissedKey,
+          valueBool: Value(value),
+        ),
+        mode: InsertMode.insertOrReplace,
+        onConflict: DoUpdate(
+          (_) => SettingsCompanion(
+            valueBool: Value(value),
+          ),
+        ),
+      );
+
   static const _kAppIdKey = 'appId';
   static const _kLastFcmRegistrationKey = 'lastFcmRegistration';
   static const _kThemeModeKey = 'themeMode';
   static const _kLocalePreferenceKey = 'localePreference';
   static const _kIsIntroEnabledKey = 'isIntroEnabled';
+  static const _kNotificationPromptDismissedKey = 'notificationPromptDismissed';
 }
