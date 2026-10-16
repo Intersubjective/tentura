@@ -1,4 +1,6 @@
+import 'package:rxdart/rxdart.dart';
 import 'package:test/test.dart';
+
 
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -391,7 +393,16 @@ void main() {
       cubit = InvitationCubit(
         invitationRepository: repo,
         effects: effects,
-        realtime: realtime.case_,
+        // Mirrors FriendsCase.invitationServerChanges.
+        serverChanges: MergeStream<void>([
+          realtime.case_
+              .changesFor(const {
+                RealtimeEntityKind.relationship,
+                RealtimeEntityKind.contact,
+              })
+              .map((_) {}),
+          realtime.case_.catchUps.map((_) {}),
+        ]),
       );
       await cubit.fetch();
     });
@@ -435,6 +446,36 @@ void main() {
         expect(cubit.state.acceptedInvitations.map((e) => e.id), ['Iabc123']);
       },
     );
+
+    test('a background refetch shows no loading state', () async {
+      // Fails on the base: every pushed refetch emitted isLoading, which
+      // flashed the People loading bar.
+      final statuses = <StateStatus>[];
+      final sub = cubit.stream.listen((s) => statuses.add(s.status));
+      addTearDown(sub.cancel);
+      acceptOnServer();
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.relationship,
+          aggregateId: 'U-inviter',
+          operation: RealtimeOperation.insert,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await waitFor(() => cubit.state.pendingCount == 1);
+      expect(statuses, isNot(contains(StateStatus.isLoading)));
+    });
+
+    test('loading more accepted invites updates the pending badge', () async {
+      // Fails on the base: fetchMoreAccepted dropped pending_count (#502).
+      // Any non-empty page leaves acceptedHasReachedMax false.
+      repo.acceptedResult = List.generate(2, (i) => _accepted('Ia$i'));
+      await cubit.fetch();
+      expect(cubit.state.acceptedHasReachedMax, isFalse);
+      repo.pendingCountResult = 1;
+      await cubit.fetchMoreAccepted();
+      expect(cubit.state.pendingCount, 1);
+    });
 
     test('a reconnect catch-up refetches', () async {
       acceptOnServer();

@@ -3,12 +3,9 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
-import 'package:rxdart/rxdart.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
-import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -22,7 +19,7 @@ class InvitationCubit extends Cubit<InvitationState> {
   InvitationCubit({
     InvitationRepository? invitationRepository,
     UiEffectPort? effects,
-    RealtimeSyncCase? realtime,
+    Stream<void>? serverChanges,
   }) : _invitationRepository =
            invitationRepository ?? GetIt.I<InvitationRepository>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
@@ -30,26 +27,13 @@ class InvitationCubit extends Cubit<InvitationState> {
     _repoChanges = _invitationRepository.changes.listen((_) {
       unawaited(fetch());
     });
-    // Unit tests that do not wire realtime leave it unregistered.
-    final sync =
-        realtime ??
-        (GetIt.I.isRegistered<RealtimeSyncCase>()
-            ? GetIt.I<RealtimeSyncCase>()
-            : null);
-    if (sync != null) {
-      // Someone accepting an invitation is a server-side change: the server
-      // pushes `relationship` to the inviter (B074). Catch-ups cover a push
-      // missed while offline.
-      _serverChanges = MergeStream<void>([
-        sync
-            .changesFor(const {
-              RealtimeEntityKind.relationship,
-              RealtimeEntityKind.contact,
-            })
-            .map((_) {}),
-        sync.catchUps.map((_) {}),
-      ]).listen((_) => _scheduleSilentFetch(), cancelOnError: false);
-    }
+    // Only the People screen passes server changes (FriendsCase
+    // .invitationServerChanges); other hosts, e.g. the forward picker, stay
+    // off realtime.
+    _serverChanges = serverChanges?.listen(
+      (_) => _scheduleSilentFetch(),
+      cancelOnError: false,
+    );
   }
 
   final InvitationRepository _invitationRepository;
@@ -69,6 +53,10 @@ class InvitationCubit extends Cubit<InvitationState> {
 
   static const _refreshDebounce = Duration(milliseconds: 100);
 
+  /// A background refetch is running. It does not emit `isLoading`, so the
+  /// People loading bar does not flash on every push.
+  bool _silentInFlight = false;
+
   void _scheduleSilentFetch() {
     if (isClosed) return;
     _refreshTimer?.cancel();
@@ -76,7 +64,7 @@ class InvitationCubit extends Cubit<InvitationState> {
       _refreshTimer = null;
       if (isClosed) return;
       // A load in progress may predate the change; try again after it.
-      if (state.isLoading) {
+      if (state.isLoading || _silentInFlight) {
         _scheduleSilentFetch();
         return;
       }
@@ -91,13 +79,19 @@ class InvitationCubit extends Cubit<InvitationState> {
   /// [showError] is false for background refetches: a failure there keeps
   /// the visible lists without a snackbar.
   Future<void> fetch({bool showError = true}) async {
-    if (state.isLoading) {
+    if (state.isLoading || _silentInFlight) {
       return;
     }
 
     // Keep the current lists while loading — a failed refetch must not
-    // wipe what the user already sees (counts, list rows).
-    emit(state.copyWith(status: StateStatus.isLoading));
+    // wipe what the user already sees (counts, list rows). A background
+    // refetch shows no loading state and keeps the current status.
+    final silent = !showError;
+    if (silent) {
+      _silentInFlight = true;
+    } else {
+      emit(state.copyWith(status: StateStatus.isLoading));
+    }
 
     try {
       final result = await _invitationRepository.fetchMine();
@@ -116,11 +110,11 @@ class InvitationCubit extends Cubit<InvitationState> {
         ),
       );
     } catch (e) {
-      if (showError) {
-        _emitSnackError(e);
-      } else if (!isClosed) {
-        emit(state.copyWith(status: StateStatus.isSuccess));
-      }
+      // A silent failure leaves the state alone: no snackbar, and an earlier
+      // error state is not turned into an empty "success".
+      if (showError) _emitSnackError(e);
+    } finally {
+      if (silent) _silentInFlight = false;
     }
   }
 
@@ -170,6 +164,9 @@ class InvitationCubit extends Cubit<InvitationState> {
       emit(
         state.copyWith(
           acceptedInvitations: accepted,
+          // pending_count is computed on every call; the badge follows
+          // the latest server answer (#502: 2 on the server, badge 3).
+          pendingCount: result.pendingCount,
           acceptedHasReachedMax: result.accepted.length < kFetchListOffset,
           status: StateStatus.isSuccess,
         ),

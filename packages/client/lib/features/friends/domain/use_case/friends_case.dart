@@ -63,6 +63,20 @@ final class FriendsCase extends UseCaseBase {
     _invitations.changes,
   ]);
 
+  /// Server-side changes that can move the Invitations lists: someone
+  /// accepting an invite pushes `relationship` to the inviter (B074);
+  /// `contact` also fires on the user's own contact edits, which the
+  /// debounced refetch absorbs. Catch-ups cover a push missed offline.
+  Stream<void> get invitationServerChanges => MergeStream<void>([
+    _realtime
+        .changesFor(const {
+          RealtimeEntityKind.relationship,
+          RealtimeEntityKind.contact,
+        })
+        .map((_) {}),
+    _realtime.catchUps.map((_) {}),
+  ]);
+
   Future<FriendsSnapshot> load() async {
     await _contacts.refresh();
     final profiles = await _friends.fetch();
