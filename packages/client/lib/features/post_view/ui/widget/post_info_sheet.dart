@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
@@ -228,7 +229,7 @@ class PostInfoSheet extends StatelessWidget {
             SizedBox(height: tt.rowGap),
             PostParticipantsList(
               viewerId: viewerId,
-              participants: participants,
+              participants: withPostAuthor(participants, beacon),
               forwardEdges: state.forwardEdges,
               onInvite: canForward ? () => pick(PostAction.forward) : null,
               onForwardsGraph: () => pick(PostAction.forwardsGraph),
