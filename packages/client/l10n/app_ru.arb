@@ -6676,6 +6676,7 @@
   "planFieldStart": "Начало",
   "planFieldEnd": "Конец",
   "planFieldClearTime": "Без времени",
+  "planFieldClearTimeOf": "Очистить время: {field}",
   "planDiscardTitle": "Отменить изменения?",
   "planDiscardBody": "Несохранённые правки пропадут.",
   "planDiscardConfirm": "Отменить правки",

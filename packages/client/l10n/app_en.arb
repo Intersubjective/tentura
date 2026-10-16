@@ -8617,6 +8617,15 @@
   "@planFieldClearTime": {
     "description": "Clears a step time."
   },
+  "planFieldClearTimeOf": "Clear time: {field}",
+  "@planFieldClearTimeOf": {
+    "description": "Tooltip / screen-reader label of the x that clears a plan step's start or end time; field is the field label (Start / End).",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
   "planDiscardTitle": "Discard changes?",
   "@planDiscardTitle": {
     "description": "Leaving the editor with unsaved edits."
