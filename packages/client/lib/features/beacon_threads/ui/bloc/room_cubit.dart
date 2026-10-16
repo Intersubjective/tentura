@@ -41,6 +41,7 @@ import '../../domain/exception/beacon_fact_card_exceptions.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
 import '../message/beacon_room_fact_messages.dart';
 import '../message/discussion_read_only_message.dart';
+import '../message/now_line_changed_message.dart';
 import '../util/room_reply_excerpt.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
@@ -1053,7 +1054,11 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on NowLineChangedException catch (e) {
-      _showSnackError(e);
+      // The editor has closed, so "save again" (the exception's own text)
+      // does not apply here.
+      _showSnackError(
+        NowLineChangedElsewhereMessage(currentLine: e.currentLine),
+      );
       // Drop the optimistic line: show what is really saved now.
       await load();
     } on Object catch (e) {

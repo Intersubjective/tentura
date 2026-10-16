@@ -7,8 +7,11 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
 
+import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 
 // B085 (QA round 2): two people edit the next step at once; the second
@@ -155,6 +158,30 @@ void main() {
 
       expect(repo.writes, isEmpty);
     });
+
+    // Fails before the #531 follow-up: the sheet is already closed on this
+    // path, yet the snackbar said "Save again", which there is no way to do.
+    test(
+      'a stale save says to reopen Update plan, not to save again',
+      () async {
+        final repo = _NowLineRepo(serverLine: 'AUTHOR version');
+        final effects = FakeUiEffectPort();
+        final cubit = roomCubitForTest(repo, effects: effects);
+        addTearDown(cubit.close);
+
+        await cubit.updatePlan('NINA version', expectedLine: 'Van at 9:45');
+
+        final shown = effects.emitted
+            .whereType<ShowError>()
+            .map((e) => e.error)
+            .whereType<Localizable>()
+            .single;
+        expect(shown.toEn, contains('AUTHOR version'));
+        expect(shown.toEn, contains('Update plan'));
+        expect(shown.toEn, isNot(contains('Save again')));
+        expect(shown.toRu, contains('Обновить план'));
+      },
+    );
 
     test('saves when the line is unchanged', () async {
       final repo = _NowLineRepo(serverLine: 'Van at 9:45');
