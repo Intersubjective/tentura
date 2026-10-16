@@ -354,6 +354,42 @@ Future<void> main() async {
       },
     );
 
+    test(
+      'removing someone keeps what they already wrote: the author and the '
+      "lobby still see a removed person's earlier lobby messages",
+      () async {
+        await offer(ninaId);
+        await offer(omarId);
+        final lobbyId =
+            (await rooms.beaconLobby(
+                  beaconId: beaconId,
+                  userId: authorId,
+                ))['lobbyId']!
+                as String;
+        await rooms.createMessage(
+          beaconId: beaconId,
+          userId: ninaId,
+          body: 'I can bring a ladder',
+          threadItemId: lobbyId,
+        );
+
+        await rooms.banFromLobby(
+          beaconId: beaconId,
+          userId: authorId,
+          bannedUserId: ninaId,
+        );
+
+        expect(
+          await lobbyBodies(authorId, lobbyId),
+          contains('I can bring a ladder'),
+        );
+        expect(
+          await lobbyBodies(omarId, lobbyId),
+          contains('I can bring a ladder'),
+        );
+      },
+    );
+
     test('only the author bans, and not themselves', () async {
       await offer(ninaId);
       await offer(omarId);
