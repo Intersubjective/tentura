@@ -56,7 +56,7 @@ final class BeaconViewCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-    PresenceRepository? presenceRepository,
+    required PresenceRepository presenceRepository,
   }) : _presence = presenceRepository;
 
   final BeaconRepository _beaconRepository;
@@ -81,7 +81,7 @@ final class BeaconViewCase extends UseCaseBase {
 
   final RealtimeSyncCase _realtimeSyncCase;
 
-  final PresenceRepository? _presence;
+  final PresenceRepository _presence;
 
   static final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
@@ -103,10 +103,10 @@ final class BeaconViewCase extends UseCaseBase {
   /// Online status for the request header's team face pile (U093): the
   /// presence service reports only peers someone asked for.
   void watchTeamPresence(String beaconId, Set<String> userIds) =>
-      _presence?.watch(_teamPresenceKey(beaconId), userIds);
+      _presence.watch(_teamPresenceKey(beaconId), userIds);
 
   void unwatchTeamPresence(String beaconId) =>
-      _presence?.unwatch(_teamPresenceKey(beaconId));
+      _presence.unwatch(_teamPresenceKey(beaconId));
 
   /// Author/steward People-tab watermarks (`people_seen` frames).
   Stream<RealtimeEntityChange> get peopleSeenChanges =>
