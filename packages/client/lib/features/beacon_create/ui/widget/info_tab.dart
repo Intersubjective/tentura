@@ -555,7 +555,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         },
         child: ListView(
           children: [
-            _titleField(context, tt),
+            // Room above the field for its floating label, which sits half
+            // over the top border and was clipped by the list (#339).
+            Padding(
+              padding: EdgeInsets.only(top: tt.rowGap),
+              child: _titleField(context, tt),
+            ),
             SizedBox(height: tt.sectionGap + tt.rowGap),
             _descriptionField(context, tt),
             SizedBox(height: tt.sectionGap + tt.rowGap),
