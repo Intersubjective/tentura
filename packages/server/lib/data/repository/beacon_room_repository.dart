@@ -1531,7 +1531,10 @@ SELECT
   ) AS last_activity_at,
   lm.created_at AS last_message_at,
   -- The Requests card shows one clipped line; don't ship whole bodies.
-  left(lm.body, 200) AS last_message_body,
+  -- Collapse whitespace before the cut, so a body that is mostly blank lines
+  -- still reaches the 160-rune clip (and its "…") when it was cut here.
+  left(regexp_replace(btrim(lm.body), '\s+', ' ', 'g'), 200)
+    AS last_message_body,
   lm.author_id AS last_message_author_id,
   u.display_name AS last_message_author_name
 FROM unnest($1::text[]) AS ids(beacon_id)
@@ -1553,10 +1556,10 @@ LEFT JOIN public."user" u ON u.id = lm.author_id
         .get();
     DateTime? at(Map<String, Object?> data, String column) =>
         switch (data[column]) {
-      final DateTime d => d.toUtc(),
-      final PgDateTime d => d.dateTime.toUtc(),
-      _ => null,
-    };
+          final DateTime d => d.toUtc(),
+          final PgDateTime d => d.dateTime.toUtc(),
+          _ => null,
+        };
     return {
       for (final row in rows)
         row.data['beacon_id']! as String: RoomLatestActivity(
@@ -1568,7 +1571,6 @@ LEFT JOIN public."user" u ON u.id = lm.author_id
         ),
     };
   }
-
 
   // DORMANT(item-threads): item-thread seen upsert branch when threadItemId is non-null.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.

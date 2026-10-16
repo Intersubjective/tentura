@@ -169,6 +169,22 @@ Future<void> main() async {
     );
 
     test(
+      'blank lines are collapsed before the 200-character cut (#541 review)',
+      () async {
+        await message(
+          'M1',
+          author: ninaId,
+          body: '${'x' * 100}${'\n' * 150}${'y' * 50}',
+          at: '2026-01-02T10:00:00Z',
+        );
+        final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+        // Cut first, collapse later would drop every "y" and leave 100 "x"s
+        // with no sign that the text was cut.
+        expect(a.lastMessageBody, '${'x' * 100} ${'y' * 50}');
+      },
+    );
+
+    test(
       'a system line counts as activity but is not the latest message',
       () async {
         await message(
