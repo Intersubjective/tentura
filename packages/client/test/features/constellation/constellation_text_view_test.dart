@@ -272,6 +272,25 @@ void main() {
       },
     );
 
+    // #354: tapping a text-view card selected it but showed nothing.
+    testWidgets('tapping a request card opens its preview', (tester) async {
+      final cubit = await _loadCubit(_multiAuthorField());
+      await _pumpBody(tester, cubit);
+      await tester.tap(find.text('Text'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const Key('constellation.text.request.req-a1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedRequestId, 'req-a1');
+      expect(
+        find.byKey(const Key('constellation.request_preview')),
+        findsOneWidget,
+      );
+    });
+
     test(
       'setViewMode preserves selection and filters without reloading',
       () async {
