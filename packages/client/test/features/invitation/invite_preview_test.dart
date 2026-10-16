@@ -62,5 +62,13 @@ void main() {
       }).imageId,
       isNull,
     );
+    expect(
+      InvitePreviewInviter.fromJson({
+        'id': 'U1',
+        'displayName': 'A',
+        'image': '$kImageServer/$kImagesPath/U2/img42.$kImageExt',
+      }).imageId,
+      isNull,
+    );
   });
 }
