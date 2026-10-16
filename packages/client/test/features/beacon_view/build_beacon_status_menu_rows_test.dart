@@ -136,6 +136,42 @@ void main() {
     expect(moreHelp.action, BeaconStatusMenuAction.setCoordinationMoreHelp);
   });
 
+  // #384: "Enough help" could be set on a request nobody had committed to;
+  // the HUD already offers it only once someone has.
+  test('open with no committers disables enough help with a reason', () {
+    final rows = buildBeaconStatusMenuRows(_input());
+    final enough = _row(rows, BeaconStatusMenuRowId.enoughHelp);
+    expect(enough.isEnabled, isFalse);
+    expect(
+      enough.disabledReason,
+      BeaconStatusMenuDisabledReason.noHelpersYet,
+    );
+  });
+
+  test('open with committers enables enough help', () {
+    final rows = buildBeaconStatusMenuRows(_input(hasCommitters: true));
+    expect(_row(rows, BeaconStatusMenuRowId.enoughHelp).isEnabled, isTrue);
+  });
+
+  test('enough help already set stays selected without committers', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(beacon: _beacon(status: BeaconStatus.enoughHelp)),
+    );
+    final enough = _row(rows, BeaconStatusMenuRowId.enoughHelp);
+    expect(enough.isSelected, isTrue);
+    expect(enough.isEnabled, isTrue);
+  });
+
+  test('a non-author still sees the author-only reason', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(canSetCoordination: false),
+    );
+    expect(
+      _row(rows, BeaconStatusMenuRowId.enoughHelp).disabledReason,
+      BeaconStatusMenuDisabledReason.lifecycleAuthorOnly,
+    );
+  });
+
   test('review open disables enough help row', () {
     final rows = buildBeaconStatusMenuRows(
       _input(

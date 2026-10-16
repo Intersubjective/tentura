@@ -4663,6 +4663,7 @@
   "beaconStatusHintFinishReviewFirst": "Сначала завершите период проверки",
   "beaconStatusHintReopenLimitReached": "Повторное открытие уже использовано — закройте сейчас или дождитесь окончания проверки",
   "beaconStatusHintNoCommitters": "Пока нет участников для проверки",
+  "beaconStatusHintNoHelpersYet": "Пока никто не взялся помочь",
   "beaconStatusHintCancelHasOffers": "Нельзя отменить после предложений помощи",
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",
   "beaconStatusHintCancelWrappingUp": "Запрос завершается",

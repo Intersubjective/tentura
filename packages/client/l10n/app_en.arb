@@ -4790,6 +4790,7 @@
   "beaconStatusHintFinishReviewFirst": "Finish the review period first",
   "beaconStatusHintReopenLimitReached": "Already reopened once — close now or wait for the review window",
   "beaconStatusHintNoCommitters": "No committed helpers to review yet",
+  "beaconStatusHintNoHelpersYet": "No one has committed to help yet",
   "beaconStatusHintCancelHasOffers": "Can't cancel after help was offered",
   "beaconStatusCancelHasCommitters": "Can't cancel — someone committed; close instead",
   "beaconStatusHintCancelWrappingUp": "Request is wrapping up",
