@@ -53,7 +53,12 @@ class CodeUnitLengthLimitingTextInputFormatter extends TextInputFormatter {
     final suffix = _commonSuffix(old, text, prefix);
     final inserted = text.substring(prefix, text.length - suffix);
     final room = maxLength - (text.length - inserted.length);
-    final kept = room <= 0 ? '' : truncate(inserted, room);
+    final fit = room <= 0 ? 0 : truncate(inserted, room).length;
+    // The cut must also be a character boundary of the whole new text: an
+    // insertion that extends the character before it (e.g. ZWJ + 👧 after
+    // 👨‍👩) would otherwise leave a dangling, invisible joiner.
+    final end = _boundaryAtOrBefore(text, prefix + fit, prefix);
+    final kept = end == null ? '' : text.substring(prefix, end);
     if (kept.isEmpty) return oldValue;
     final result =
         text.substring(0, prefix) + kept + text.substring(text.length - suffix);
@@ -61,6 +66,18 @@ class CodeUnitLengthLimitingTextInputFormatter extends TextInputFormatter {
       text: result,
       selection: TextSelection.collapsed(offset: prefix + kept.length),
     );
+  }
+
+  /// The last character boundary of [text] in [floor]..[limit], or null.
+  static int? _boundaryAtOrBefore(String text, int limit, int floor) {
+    var offset = 0;
+    var best = floor == 0 ? 0 : null;
+    for (final char in text.characters) {
+      offset += char.length;
+      if (offset > limit) break;
+      if (offset >= floor) best = offset;
+    }
+    return best;
   }
 
   /// Code units [a] and [b] share at the start, never ending inside a

@@ -53,32 +53,38 @@ void main() {
     }
   });
 
-  testWidgets('a pasted description with emoji is capped where it still saves', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_infoTabHarness(cubit));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'a pasted description with emoji is capped where it still saves',
+    (
+      tester,
+    ) async {
+      await tester.pumpWidget(_infoTabHarness(cubit));
+      await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(TestIds.key(TestIds.requestTitle)),
-      'Help me move 📦',
-    );
-    // 1 500 emoji: 1 500 characters, 3 000 UTF-16 code units.
-    await tester.enterText(
-      find.byKey(TestIds.key(TestIds.requestDescription)),
-      '🙂' * 1500,
-    );
-    await tester.pump();
+      await tester.enterText(
+        find.byKey(TestIds.key(TestIds.requestTitle)),
+        'Help me move 📦',
+      );
+      // 1 500 emoji: 1 500 characters, 3 000 UTF-16 code units.
+      await tester.enterText(
+        find.byKey(TestIds.key(TestIds.requestDescription)),
+        '🙂' * 1500,
+      );
+      await tester.pump();
 
-    final description = cubit.state.description;
-    expect(description.length, lessThanOrEqualTo(kBeaconDescriptionMaxLength));
-    expect(description.length, kBeaconDescriptionMaxLength);
-    expect(cubit.state.publishBlocker, isNull);
-    expect(
-      find.text('$kBeaconDescriptionMaxLength/$kBeaconDescriptionMaxLength'),
-      findsOneWidget,
-    );
-  });
+      final description = cubit.state.description;
+      expect(
+        description.length,
+        lessThanOrEqualTo(kBeaconDescriptionMaxLength),
+      );
+      expect(description.length, kBeaconDescriptionMaxLength);
+      expect(cubit.state.publishBlocker, isNull);
+      expect(
+        find.text('$kBeaconDescriptionMaxLength/$kBeaconDescriptionMaxLength'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('a title of emoji is capped where it still saves', (
     tester,

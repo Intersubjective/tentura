@@ -96,4 +96,10 @@ void main() {
       expect(type('abcdef', 'abcdefg').text, 'abcdef');
     },
   );
+
+  test('extending a joined emoji at the cap leaves no dangling joiner', () {
+    // 👨‍👩 is 5 code units; ZWJ + 👧 inserts 3 with 1 unit of room. Cutting
+    // the insertion alone would keep only the invisible ZWJ.
+    expect(type('👨\u200D👩', '👨\u200D👩\u200D👧').text, '👨\u200D👩');
+  });
 }
