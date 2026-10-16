@@ -3529,6 +3529,15 @@
   "@myWorkOfferClosedWithoutResponse": {
     "context": "MyWorkScreen"
   },
+  "facepileOnlineCount": "{count} online",
+  "@facepileOnlineCount": {
+    "description": "Appended to the face pile's screen-reader label: how many of the shown people are online now.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "facepileSemantics": "{visible, plural, one{1 person shown} other{{visible} people shown}}{more, plural, =0{} other{, {more} more}}",
   "@facepileSemantics": {
     "description": "Accessibility label for overlapping avatar facepile",

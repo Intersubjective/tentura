@@ -3432,6 +3432,15 @@
   "@myWorkOfferClosedWithoutResponse": {
     "context": "MyWorkScreen"
   },
+  "facepileOnlineCount": "{count} в сети",
+  "@facepileOnlineCount": {
+    "description": "Appended to the face pile's screen-reader label: how many of the shown people are online now.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "facepileSemantics": "{visible, plural, one{Показан 1 человек} few{Показано {visible} человека} many{Показано {visible} человек} other{Показано {visible} человек}}{more, plural, =0{} one{, ещё {more}} few{, ещё {more}} many{, ещё {more}} other{, ещё {more}}}",
   "@facepileSemantics": {
     "description": "Accessibility label for overlapping avatar facepile",

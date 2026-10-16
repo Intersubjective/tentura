@@ -1015,11 +1015,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             child: showBeaconContent
                 ? Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: Semantics(
-                      button: true,
-                      label: l10n.beaconHudPeopleRowSemantics,
-                      onTap: openPeople,
-                      child: ExcludeSemantics(
+                    // The pile's own label ("3 people, 2 online") is merged
+                    // into the People button's (U093 review).
+                    child: MergeSemantics(
+                      child: Semantics(
+                        button: true,
+                        label: l10n.beaconHudPeopleRowSemantics,
+                        onTap: openPeople,
                         child: BeaconInvolvedPeopleFacePile(
                           beacon: beaconState.beacon,
                           involvedProfiles:

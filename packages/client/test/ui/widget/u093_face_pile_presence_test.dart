@@ -111,4 +111,26 @@ void main() {
 
     expect(find.byType(TenturaPresenceDot), findsNothing);
   });
+
+  testWidgets('screen readers hear how many are online, not just a colour', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _pile(
+        presence: _PresenceCubit(const {
+          'u-author': UserPresenceStatus.online,
+          'u-nina': UserPresenceStatus.online,
+          'u-omar': UserPresenceStatus.offline,
+        }),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel(RegExp(r', 2 online$')), findsOneWidget);
+
+    await tester.pumpWidget(_pile(presence: _PresenceCubit(const {})));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel(RegExp('online')), findsNothing);
+    semantics.dispose();
+  });
 }

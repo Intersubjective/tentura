@@ -6,6 +6,7 @@ import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Overlapping mini-avatars with circular `+N` overflow (inbox forwarders style).
 ///
@@ -74,6 +75,10 @@ class OverlappingPeopleAvatars extends StatelessWidget {
           overflowCount,
         );
 
+    // One lookup per pile, not per face; previews and tests may build the
+    // pile without presence data.
+    final presence = showPresence ? _presenceOf(context) : null;
+
     final selfIndex = selfUserId == null
         ? -1
         : profiles.indexWhere((p) => p.id == selfUserId);
@@ -91,7 +96,7 @@ class OverlappingPeopleAvatars extends StatelessWidget {
                   starredProfileId != null &&
                   profiles[i].id == starredProfileId,
               isSelf: false,
-              showPresence: showPresence,
+              presence: presence,
             ),
           ),
       if (selfIndex >= 0)
@@ -105,7 +110,7 @@ class OverlappingPeopleAvatars extends StatelessWidget {
                 starredProfileId != null &&
                 profiles[selfIndex].id == starredProfileId,
             isSelf: true,
-            showPresence: showPresence,
+            presence: presence,
           ),
         ),
       if (overflowCount > 0)
@@ -132,21 +137,46 @@ class OverlappingPeopleAvatars extends StatelessWidget {
         ),
     ];
 
-    return Semantics(
-      container: true,
-      label: label,
-      // Avatars/Text still publish semantics; keep a single merged node on web.
-      child: ExcludeSemantics(
-        child: SizedBox(
-          width: width,
-          height: avatarSize,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: stackChildren,
-          ),
-        ),
+    final pile = SizedBox(
+      width: width,
+      height: avatarSize,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: stackChildren,
       ),
     );
+    Widget labelled(String text) => Semantics(
+      container: true,
+      label: text,
+      // Avatars/Text still publish semantics; keep a single merged node on web.
+      child: ExcludeSemantics(child: pile),
+    );
+    if (presence == null) return labelled(label);
+    // The dot is colour only: say "N online" too (U093 review).
+    return BlocSelector<PresenceCubit, Map<String, UserPresenceStatus>, int>(
+      bloc: presence,
+      selector: (state) => onlineCount(state, profiles),
+      builder: (context, online) {
+        final onlineText = online == 0
+            ? null
+            : L10n.of(context)?.facepileOnlineCount(online);
+        return labelled(onlineText == null ? label : '$label, $onlineText');
+      },
+    );
+  }
+
+  /// How many of [profiles] [state] reports online.
+  static int onlineCount(
+    Map<String, UserPresenceStatus> state,
+    Iterable<Profile> profiles,
+  ) => profiles.where((p) => state[p.id] == UserPresenceStatus.online).length;
+
+  static PresenceCubit? _presenceOf(BuildContext context) {
+    try {
+      return context.read<PresenceCubit>();
+    } on ProviderNotFoundException {
+      return null;
+    }
   }
 
   static String _defaultSemanticsLabel(int visibleCount, int overflowCount) {
@@ -165,7 +195,7 @@ class _PeopleAvatarSlot extends StatelessWidget {
     required this.size,
     required this.showStar,
     required this.isSelf,
-    required this.showPresence,
+    required this.presence,
   });
 
   final Profile profile;
@@ -173,7 +203,9 @@ class _PeopleAvatarSlot extends StatelessWidget {
   final double? size;
   final bool showStar;
   final bool isSelf;
-  final bool showPresence;
+
+  /// Null: no dot (presence off, or no presence data in this tree).
+  final PresenceCubit? presence;
 
   Widget _avatar({required bool isOnline}) => TenturaAvatarStackRing(
     child: TenturaAvatar(
@@ -188,22 +220,12 @@ class _PeopleAvatarSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!showPresence || !_hasPresence(context)) {
-      return _avatar(isOnline: false);
-    }
+    final presence = this.presence;
+    if (presence == null) return _avatar(isOnline: false);
     return BlocSelector<PresenceCubit, Map<String, UserPresenceStatus>, bool>(
+      bloc: presence,
       selector: (state) => state[profile.id] == UserPresenceStatus.online,
       builder: (_, isOnline) => _avatar(isOnline: isOnline),
     );
-  }
-
-  /// Previews and tests may build the pile without presence data.
-  static bool _hasPresence(BuildContext context) {
-    try {
-      context.read<PresenceCubit>();
-      return true;
-    } on ProviderNotFoundException {
-      return false;
-    }
   }
 }
