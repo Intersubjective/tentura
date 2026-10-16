@@ -9,7 +9,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// B077 — «Your help was accepted · <author>» as an event sub-card, shown to
+/// B077 — «Your help was accepted · `author`» as an event sub-card, shown to
 /// the helper inside the Request card on the Requests tab and on the Request
 /// screen's People tab until they dismiss it with ×.
 ///

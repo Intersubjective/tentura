@@ -4,9 +4,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -66,6 +66,10 @@ BeaconViewState _state({int? roomAccess, CoordinationResponseType? response}) =>
         author: _author,
         createdAt: _t,
         updatedAt: _t,
+        // The server derives the viewer's access reasons from room_access.
+        accessReasons: roomAccess == RoomAccessBits.admitted
+            ? BeaconAccessReason.admitted.bit
+            : 0,
       ),
       myProfile: _helper,
       helpOffers: [
@@ -119,9 +123,9 @@ void main() {
     GetIt.I.registerSingleton<OfferAcceptedDismissals>(store);
   });
 
-  tearDown(() {
+  tearDown(() async {
     if (GetIt.I.isRegistered<OfferAcceptedDismissals>()) {
-      GetIt.I.unregister<OfferAcceptedDismissals>();
+      await GetIt.I.unregister<OfferAcceptedDismissals>();
     }
   });
 

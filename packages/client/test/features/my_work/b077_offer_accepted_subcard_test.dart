@@ -33,8 +33,9 @@ const _viewerId = 'helper-1';
 
 final class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
-  ProfileState get state =>
-      const ProfileState(profile: Profile(id: _viewerId, displayName: 'Me'));
+  ProfileState get state => const ProfileState(
+    profile: Profile(id: _viewerId, displayName: 'Me'),
+  );
 
   @override
   Stream<ProfileState> get stream =>

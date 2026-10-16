@@ -9,7 +9,10 @@ void main() {
 
     test('admitted with an active offer is accepted', () {
       expect(
-        isViewerOfferAccepted(hasActiveOffer: true, viewerAccessReasons: admitted),
+        isViewerOfferAccepted(
+          hasActiveOffer: true,
+          viewerAccessReasons: admitted,
+        ),
         isTrue,
       );
     });
