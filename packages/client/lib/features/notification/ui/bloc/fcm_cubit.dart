@@ -125,10 +125,26 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
   /// Asks for notification permission. Call it straight from a tap handler:
   /// browsers only show their prompt inside a user gesture.
   Future<void> requestPermissionFromUser() async {
-    final permissions = await _fcmCase.requestPermission();
-    final status = permissions.authorized
-        ? NotificationPermissionStatus.granted
-        : await _fcmCase.permissionStatus();
+    // Called through unawaited(...) from tap handlers: a plugin error must not
+    // escape as an uncaught zone error. Re-read the status so the prompt
+    // reflects what the browser now says.
+    final NotificationPermissions permissions;
+    final NotificationPermissionStatus status;
+    try {
+      permissions = await _fcmCase.requestPermission();
+      status = permissions.authorized
+          ? NotificationPermissionStatus.granted
+          : await _fcmCase.permissionStatus();
+    } catch (e, st) {
+      fcmLog('FcmCubit: user-requested permission failed: $e');
+      fcmLog('FcmCubit: stack: $st');
+      try {
+        await _refreshPermissionStatus();
+      } catch (e) {
+        fcmLog('FcmCubit: permission status read failed: $e');
+      }
+      return;
+    }
     if (isClosed) return;
     emit(
       state.copyWith(

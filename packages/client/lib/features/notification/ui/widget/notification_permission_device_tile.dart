@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -49,6 +48,7 @@ class NotificationPermissionDeviceTile extends StatelessWidget {
             title: Text(l10n.notificationPermissionDeviceTitle),
             subtitle: Text(l10n.notificationPermissionDeviceOff),
             trailing: TenturaTextAction(
+              minInteractive: true,
               label: l10n.notificationPromptAllow,
               onPressed: () => unawaited(fcmCubit.requestPermissionFromUser()),
               semanticsIdentifier: 'notification-permission-allow',

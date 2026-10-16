@@ -46,8 +46,10 @@ class NotificationPermissionPromptFrame extends StatelessWidget {
                 child: NotificationPermissionBanner(
                   // Called straight from the tap: the browser shows its
                   // prompt only inside a user gesture.
-                  onAllow: () => unawaited(fcmCubit.requestPermissionFromUser()),
-                  onDismiss: () => unawaited(fcmCubit.dismissPermissionPrompt()),
+                  onAllow: () =>
+                      unawaited(fcmCubit.requestPermissionFromUser()),
+                  onDismiss: () =>
+                      unawaited(fcmCubit.dismissPermissionPrompt()),
                 ),
               ),
             Expanded(
@@ -119,7 +121,7 @@ class NotificationPermissionBanner extends StatelessWidget {
                           SizedBox(height: tt.tightGap),
                           Text(
                             l10n.notificationPromptBody,
-                            style: TenturaText.bodySmall(tt.textMuted),
+                            style: TenturaText.bodyMedium(tt.textMuted),
                           ),
                         ],
                       ),
@@ -133,12 +135,14 @@ class NotificationPermissionBanner extends StatelessWidget {
                   alignment: WrapAlignment.end,
                   children: [
                     TenturaTextAction(
+                      minInteractive: true,
                       label: l10n.notificationPromptDismiss,
                       tone: TenturaTone.neutral,
                       onPressed: onDismiss,
                       semanticsIdentifier: 'notification-prompt-dismiss',
                     ),
                     TenturaTextAction(
+                      minInteractive: true,
                       label: l10n.notificationPromptAllow,
                       onPressed: onAllow,
                       semanticsIdentifier: 'notification-prompt-allow',

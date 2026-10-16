@@ -383,6 +383,9 @@ class FakeFcmLocal implements FcmLocalRepositoryPort {
   String? token;
   int getTokenCalls = 0;
   int requestPermissionCalls = 0;
+
+  /// Thrown by [requestPermission] when set (a plugin error).
+  Object? requestPermissionError;
   NotificationPermissions permissionResult = const NotificationPermissions(
     authorized: true,
   );
@@ -401,6 +404,7 @@ class FakeFcmLocal implements FcmLocalRepositoryPort {
   @override
   Future<NotificationPermissions> requestPermission() async {
     requestPermissionCalls++;
+    if (requestPermissionError case final error?) throw error;
     if (permissionAfterRequest != null) {
       status = permissionAfterRequest!;
     }

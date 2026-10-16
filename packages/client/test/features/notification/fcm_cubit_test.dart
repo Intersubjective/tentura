@@ -146,6 +146,29 @@ void main() {
       });
     });
 
+    test('a plugin error on "Turn on" is caught and the status re-read', () {
+      fakeAsync((async) {
+        final t = build(NotificationPermissionStatus.notDetermined);
+        t.local.requestPermissionError = StateError('plugin failed');
+        addTearDown(t.cubit.close);
+        async.flushMicrotasks();
+
+        Object? escaped;
+        runZonedGuarded(
+          () => unawaited(t.cubit.requestPermissionFromUser()),
+          (e, _) => escaped = e,
+        );
+        t.local.status = NotificationPermissionStatus.denied;
+        async.flushMicrotasks();
+
+        expect(escaped, isNull);
+        expect(t.remote.registerCalls, 0);
+        expect(t.cubit.state.permissionStatus,
+            NotificationPermissionStatus.denied);
+        expect(t.cubit.state.showsPermissionPrompt, isFalse);
+      });
+    });
+
     test('"Not now" hides the prompt and is remembered on the device', () {
       fakeAsync((async) {
         final t = build(NotificationPermissionStatus.notDetermined);
