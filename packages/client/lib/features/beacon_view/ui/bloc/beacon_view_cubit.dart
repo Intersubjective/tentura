@@ -42,6 +42,7 @@ import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_message.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
+import '../message/beacon_status_messages.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
 import 'timeline_help_offer_mapping.dart';
@@ -474,8 +475,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   Future<void> extendReview() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _case.beaconExtendReview(state.beacon.id);
+      final result = await _case.beaconExtendReview(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
+      final closesAt = DateTime.tryParse(result.closesAt);
+      if (!state.hasError && closesAt != null) {
+        _effects.emit(ShowMessage(ReviewExtendedMessage(closesAt)));
+      }
     } catch (e) {
       _showSnackError(e);
     }
