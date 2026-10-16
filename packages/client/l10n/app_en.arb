@@ -3232,7 +3232,7 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAll": "No authored or help-offered work yet",
+  "myWorkEmptyAll": "No requests or help offers yet",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
@@ -3244,11 +3244,11 @@
   "@myWorkEmptyHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyArchived": "No archived items",
+  "myWorkEmptyArchived": "No archived requests",
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveTitle": "No active work yet",
+  "myWorkEmptyActiveTitle": "No active requests yet",
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },

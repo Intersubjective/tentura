@@ -1174,7 +1174,7 @@ Future<void> pumpBounded(
 String currentAppUrl() => GetIt.I<RootRouter>().currentUrl;
 
 /// English [L10n.myWorkEmptyActiveTitle] — this suite hardcodes English strings.
-const _myWorkEmptyActiveTitle = 'No active work yet';
+const _myWorkEmptyActiveTitle = 'No active requests yet';
 
 /// Waits until [HomeActivationCubit] has hydrated latches for [accountId] and
 /// both My Work and Inbox projections have settled (or Inbox failed).
