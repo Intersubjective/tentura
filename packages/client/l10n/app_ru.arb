@@ -4553,6 +4553,7 @@
   "beaconStatusRowOutcomeMoreHelp": "Просит сеть о дополнительных откликах",
   "beaconStatusRowOutcomeEnoughHelp": "Сигнал достаточной помощи; запрос открыт",
   "beaconStatusRowOutcomeWrappingUp": "Окно отзыва для участников",
+  "beaconStatusRowOutcomeSumUp": "Подвести итоги и закрыть",
   "beaconStatusRowOutcomeClosed": "Запрос закрыт; обсуждение только для чтения",
   "beaconStatusRowOutcomeCancelled": "Запрос отменён; координация прекращена",
   "timelineRequestStatusChanged": "{author} отметил(а) запрос как {status}",

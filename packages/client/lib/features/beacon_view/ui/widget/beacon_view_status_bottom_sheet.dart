@@ -166,7 +166,7 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
         ? beaconStatusMenuOpenRowLabel(l10n, beacon)
         : beaconStatusMenuRowLabel(l10n, row.id);
     final hint = beaconStatusMenuDisabledReasonLabel(l10n, row.disabledReason);
-    final outcome = beaconStatusMenuRowOutcomeLabel(l10n, row.id);
+    final outcome = beaconStatusMenuRowOutcomeLabel(l10n, row);
     final subtitle = !row.isEnabled && hint.isNotEmpty ? hint : outcome;
 
     return Column(
@@ -300,10 +300,9 @@ Future<void> beaconViewDispatchStatusMenuAction(
       await cubit.extendReview();
     case BeaconStatusMenuAction.openReview:
       if (!context.mounted) return;
-      // Leave the sheet first; the review is a page of its own.
-      final router = context.router;
-      Navigator.of(context).pop();
-      await beaconViewOpenClosureReview(router, cubit);
+      // The row tile has already closed the sheet; popping again here would
+      // remove the Request page under it.
+      await beaconViewOpenClosureReview(context.router, cubit);
     case BeaconStatusMenuAction.reopen:
       if (!context.mounted) return;
       final ok = await showBeaconReopenConfirmSheet(context: context);

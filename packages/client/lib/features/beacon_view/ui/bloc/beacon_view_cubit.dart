@@ -458,9 +458,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
 
   /// Reloads the Request after the wrap-up review page closes: Close now or
   /// Return to work there may have changed its lifecycle.
+  /// Runs as a background refresh so author HUD actions do not flicker off
+  /// and on when the page closes with no change (plain Back).
   Future<void> refreshAfterClosureReview() async {
     try {
-      await _fetchBeaconByIdWithTimeline();
+      await _fetchBeaconByIdWithTimeline(background: true);
     } catch (e) {
       _showSnackError(e);
     }

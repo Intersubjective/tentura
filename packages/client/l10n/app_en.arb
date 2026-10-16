@@ -4680,6 +4680,7 @@
   "beaconStatusRowOutcomeMoreHelp": "Asks network for more responses",
   "beaconStatusRowOutcomeEnoughHelp": "Signals sufficient help; stays open",
   "beaconStatusRowOutcomeWrappingUp": "Review window for contributors",
+  "beaconStatusRowOutcomeSumUp": "Sum up and close",
   "beaconStatusRowOutcomeClosed": "Request is closed; discussion is read-only",
   "beaconStatusRowOutcomeCancelled": "Request is cancelled; no further coordination",
   "timelineRequestStatusChanged": "{author} marked the request as {status}",
