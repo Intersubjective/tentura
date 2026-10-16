@@ -2,8 +2,10 @@
 // worker isolates that each run the production constellation read and write
 // path on one database connection, as a server web worker does:
 //
-// * `TenturaDb(env)` (one pinned connection), `ConstellationDbScheduler`
-//   (production config from `Env`), `ConstellationFieldRepository.injected`,
+// * one `MainDbPool(env)` per worker and `TenturaDb.scoped(pool)`, as the
+//   server's DI wires them: admission is the pool's `MainDbScopeAdmission`,
+//   taken in `withConnectionScope` (the repositories ignore the old
+//   `ConstellationDbAdmissionPort`), `ConstellationFieldRepository.injected`,
 //   the isolate-scoped single-flight of `ConstellationFieldCase`,
 //   `ConstellationAnchorRepository.injected` (lock-first `applyBatch`),
 //   `DriftUserProfileBatchLookup`, and the GraphQL mapping + JSON encoding;
@@ -12,8 +14,8 @@
 //   `env.constellationFieldBroadcastWindow`, re-armed when markers arrived).
 //
 // Not exercised: HTTP/WebSocket framing, GraphQL parsing and auth. A measuring
-// decorator around the scheduler and a measuring `TenturaDb` subclass record
-// admission, scheduler dispatch, Drift lane acquisition, the MeritRank
+// `TenturaDb` subclass records scope entry (before pool admission), the
+// admitted and leased scope start, Drift lane acquisition, the MeritRank
 // visible-set statement, the statement span and execution end; they add clock
 // reads only and change no decision.
 
@@ -30,16 +32,16 @@ import 'package:postgres/postgres.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
+import 'package:tentura_server/data/database/main_db_pool.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
-import 'package:tentura_server/data/service/constellation_db_scheduler.dart';
+import 'package:tentura_server/data/service/main_db_scope_admission.dart';
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
-import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
@@ -270,42 +272,51 @@ final class _Probe {
   _Computation? computation;
 }
 
-/// Records admission (scheduler entry) and execution start/end around the
-/// production scheduler; the scheduling itself is the scheduler's.
-final class _TimedAdmission implements ConstellationDbAdmissionPort {
-  _TimedAdmission(this._inner, this._worker);
-
-  final ConstellationDbScheduler _inner;
-  final int _worker;
-  var _seq = 0;
-
-  @override
-  Future<T> run<T>(ConstellationDbWorkKind kind, Future<T> Function() body) {
-    final computation = _Computation(
-      'w$_worker-${kind.name}-${++_seq}',
-      _nowMs(),
-    );
-    final probe = Zone.current[_probeKey];
-    if (probe is _Probe) probe.computation = computation;
-    // A queued body is started from whichever zone releases the lane, so
-    // re-enter the caller's zone for `_TimedDb` to find this computation.
-    final callerZone = Zone.current;
-    return _inner.run(kind, () async {
-      computation.startedMs = _nowMs();
-      try {
-        return await callerZone.run(body);
-      } finally {
-        computation.executedMs = _nowMs();
-      }
-    });
-  }
-}
-
 /// `TenturaDb` that stamps the current computation (found through the zone
 /// the production code runs in) when its transaction gets the lane and around
 /// its statements. It issues the same statements as the production class.
 final class _TimedDb extends TenturaDb {
-  _TimedDb(super.env);
+  _TimedDb(super.pool, this._worker) : super.scoped();
+
+  final int _worker;
+  var _seq = 0;
+
+  /// The outermost scope of a measured call opens its computation: entry is
+  /// before pool admission, the action starts once admitted and leased. The
+  /// admission re-enters the caller's zone, so nested calls find the probe.
+  @override
+  Future<T> withConnectionScope<T>(
+    Future<T> Function() action, {
+    String? actorUserId,
+    MainDbWorkKind? kind,
+  }) {
+    final probe = Zone.current[_probeKey];
+    if (probe is! _Probe || probe.computation != null) {
+      return super.withConnectionScope(
+        action,
+        actorUserId: actorUserId,
+        kind: kind,
+      );
+    }
+    final workKind =
+        kind ?? MainDbWorkContext.current?.kind ?? MainDbWorkKind.interactive;
+    final computation = probe.computation = _Computation(
+      'w$_worker-${workKind.name}-${++_seq}',
+      _nowMs(),
+    );
+    return super.withConnectionScope(
+      () async {
+        computation.startedMs = _nowMs();
+        try {
+          return await action();
+        } finally {
+          computation.executedMs = _nowMs();
+        }
+      },
+      actorUserId: actorUserId,
+      kind: kind,
+    );
+  }
 
   static _Computation? get _computation {
     final probe = Zone.current[_probeKey];
@@ -385,23 +396,49 @@ Future<void> _workerMain(_WorkerArgs args) async {
   final worker = args.worker;
   final toMain = args.toMain;
   final env = _envFor(args.pg);
-  final db = _TimedDb(env);
+  final pool = MainDbPool(env);
+  final db = _TimedDb(pool, worker);
   final profiles = DriftUserProfileBatchLookup(
     db,
     UserAvailabilityRepository(db),
   );
-  final scheduler = ConstellationDbScheduler.fromEnv(env);
-  final admission = _TimedAdmission(scheduler, worker);
   final fieldCase = ConstellationFieldCase(
-    ConstellationFieldRepository.injected(db, profiles, admission),
+    ConstellationFieldRepository.injected(db, profiles),
     env: env,
     logger: Logger('D8Worker$worker'),
   );
-  final anchors = ConstellationAnchorRepository.injected(
-    db,
-    admission,
-  );
+  final anchors = ConstellationAnchorRepository.injected(db);
   final computations = Expando<_Computation>();
+
+  // Event-loop lag probe: a 5 ms timer's lateness is how long synchronous
+  // work held this isolate. Stalls are kept as (end, lag) for write records.
+  final stalls = <(double, double)>[];
+  // Every stall of the run, absolute clock, for the GC-versus-work analysis.
+  final allStalls = <List<double>>[];
+  var expectedTickMs = _nowMs() + 5;
+  final lagProbe = Timer.periodic(const Duration(milliseconds: 5), (_) {
+    final now = _nowMs();
+    final lag = now - expectedTickMs;
+    expectedTickMs = now + 5;
+    if (lag >= 10) {
+      stalls.add((now, lag));
+      if (allStalls.length < 200000) allStalls.add([now, lag]);
+      if (stalls.length > 4000) stalls.removeRange(0, 2000);
+    }
+  });
+  // Longest single stall and total stalled time overlapping [from, to].
+  (double, double) stallsBetween(double? from, double? to) {
+    if (from == null || to == null) return (0, 0);
+    var longest = 0.0;
+    var total = 0.0;
+    for (final (end, lag) in stalls) {
+      final overlap = min(end, to) - max(end - lag, from);
+      if (overlap <= 0) continue;
+      total += overlap;
+      if (lag > longest) longest = lag;
+    }
+    return (longest, total);
+  }
 
   // Fan-out as in WebsocketPathEntityChanges: one broadcast per window.
   final notifications = await PgNotificationService.create(
@@ -529,7 +566,11 @@ Future<void> _workerMain(_WorkerArgs args) async {
         zoneValues: {_probeKey: probe},
       );
       jsonEncode(constellationAnchorsApplyResultToGqlMap(result));
+      final c = probe.computation;
+      final (stallMax, stallTotal) = stallsBetween(c?.admittedMs, c?.startedMs);
       toMain.send({
+        'loopStallMaxMs': stallMax,
+        'loopStallTotalMs': stallTotal,
         'type': 'writeDone',
         'req': message['req'],
         'worker': worker,
@@ -563,17 +604,17 @@ Future<void> _workerMain(_WorkerArgs args) async {
         unawaited(write(message));
       case 'stop':
         broadcastTimer?.cancel();
+        lagProbe.cancel();
         await listening.cancel();
         await notifications.dispose();
         await db.close();
+        await pool.close();
         toMain.send({
           'type': 'stopped',
           'worker': worker,
           'markers': markers,
           'broadcasts': broadcasts,
-          'schedulerCompletedFull': scheduler.stats.completedFull,
-          'schedulerMaxQueueAgeMs':
-              scheduler.stats.maxQueueAge.inMicroseconds / 1000,
+          'loopStalls': allStalls,
         });
         inbox.close();
     }
@@ -583,12 +624,19 @@ Future<void> _workerMain(_WorkerArgs args) async {
     'worker': worker,
     'port': inbox.sendPort,
     'broadcastWindowMs': env.constellationFieldBroadcastWindow.inMilliseconds,
-    'scheduler': {
-      'maxConcurrent': scheduler.config.maxConcurrent,
-      'maxQueued': scheduler.config.maxQueued,
-      'queueDeadlineMs': scheduler.config.queueDeadline.inMilliseconds,
-      'reservedRefreshShare': scheduler.config.reservedRefreshShare,
-      'retryAfterMs': scheduler.config.retryAfter.inMilliseconds,
+    'admission': {
+      'source': 'MainDbPool.admission (withConnectionScope)',
+      'poolSize': env.pgPoolSettings.maxConnectionCount,
+      'maxConcurrent': pool.admission.maxConcurrent,
+      'maxHeavy': pool.admission.maxHeavy,
+      'maxQueued': pool.admission.maxQueued,
+      'maxQueuedPerActor': pool.admission.maxQueuedPerActor,
+      'reservedRefreshShare': pool.admission.reservedRefreshShare,
+      'reservedInteractiveSlot': pool.admission.reservedInteractiveSlot,
+      'interactiveDeadlineMs':
+          pool.admission.interactiveDeadline.inMilliseconds,
+      'fullDeadlineMs': pool.admission.fullDeadline.inMilliseconds,
+      'retryAfterMs': pool.admission.retryAfter.inMilliseconds,
     },
     'singleConnectionPerWorker': env.pgPoolSettings.maxConnectionCount == 1,
   });
@@ -689,7 +737,7 @@ final class D8Harness {
     harness.workerConfig = {
       'workers': workers,
       'broadcastWindowMs': first['broadcastWindowMs'],
-      'scheduler': first['scheduler'],
+      'admission': first['admission'],
       'singleConnectionPerWorker': first['singleConnectionPerWorker'],
     };
     for (final spec in sessions) {
@@ -855,6 +903,8 @@ final class D8Harness {
         'encodedAtMs': reply['encodedMs'],
         'completedAtMs': completedAt,
         'status': reply['status'],
+        'admissionLoopStallMaxMs': reply['loopStallMaxMs'],
+        'admissionLoopStallTotalMs': reply['loopStallTotalMs'],
         if (reply['ok'] != true) 'error': reply['error'],
       };
       if (completedAt > recording.endMs) {
@@ -1176,6 +1226,7 @@ final class D8Harness {
         if (w[key] != null) key: r.rel(w[key]! as double),
     };
     final evidence = <String, Object?>{
+      'clockOriginMs': r.t0Ms,
       'scenario': scenario.label,
       'level': level.name,
       'planScale': scale,
@@ -1242,4 +1293,25 @@ Map<String, Object?> d8ProcessFacts() => {
   'harnessProcessors': Platform.numberOfProcessors,
   'harnessExecutable': Platform.executable.split('/').last,
   'dartVersion': Platform.version.split(' ').first,
+  'processStartEpochMs': _processStartEpochMs(),
 };
+
+/// This process's start time on the epoch clock (Linux `/proc`, 10 ms
+/// resolution), so VM GC log times can be put on the harness clock.
+double? _processStartEpochMs() {
+  try {
+    final stat = File('/proc/self/stat').readAsStringSync();
+    final ticks = int.parse(
+      stat.substring(stat.lastIndexOf(')') + 2).split(' ')[19],
+    );
+    final bootSeconds = int.parse(
+      File('/proc/stat')
+          .readAsLinesSync()
+          .firstWhere((line) => line.startsWith('btime '))
+          .split(' ')[1],
+    );
+    return bootSeconds * 1000.0 + ticks * 10.0;
+  } on Object {
+    return null;
+  }
+}

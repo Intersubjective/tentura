@@ -1544,3 +1544,185 @@ the five rewritten pg files; custom lints; non-pg `test/api` and `test/domain`
 ## UNIT U35 — done — 2026-10-15 (tentura-s7gl.68, host verification)
 
 Landed after verification on the host (the Alloy sandbox could not run the standard Flutter launcher). Full client suite: 5943 passed; the only failure was the N=300 pan-frame bench under the parallel directory run (`tentura-ta6a`, 16.4 ms). Fixed in the bench, budget unchanged at 8 ms: it now disables the Flutter semantics pass (about 4 ms per frame, not part of a pan's paint cost) and records the median frame instead of the mean. Alone 2.3 ms; inside the whole `test/features/constellation` run 6.2 ms; 866 constellation tests pass. Client custom lints and analyzer baseline (1917 <= 2040) are clean.
+
+## UNIT U26 — blocked (part 2/3: full host measurement after y5ot and ev3z) — 2026-10-16 (tentura-s7gl.61)
+
+**Verdict: release gate BLOCKED.** Measured on the host, with fresh evidence for every item the gate asks for. Three things fail:
+- **U41: 25 of 28 fixtures within their frozen p95.** The over-budget ones are `v1000_dense` FULL (5,489 ms against 250), `v300_dense` FULL (477 against 250) and `scenario_multi_worker_tabs` (131 against 70, a miss in every run so far).
+- **D8 write p95: 615–1,660 ms against the 70 ms budget** in all three scenarios and both levels. Write p50 is 35–224 ms.
+- **30 % headroom is not shown.** Measured for reads and freshness, not for writes: at 1,300 sessions (1.3 × D8), 4.32 FULL/s was served in full and staleness held, but writes still miss the budget there too.
+
+Freshness holds everywhere at 1,000 sessions: max staleness 85–257 s against 300 s, with 0 unacknowledged session × publication pairs. No target was changed; no MeritRank code was touched.
+
+### Host, stack, code
+
+- **Machine:** the owner's workstation: i5-12600K, `nproc` 16, 61.5 GiB. The generator shares the process (and isolate group) with the 16 workers, as in the 2026-10-10 local entry.
+- **Stack:** a fresh pair of perf containers per step (`.local/d8-run/stack.sh`, `u26_gate_run.sh`):
+  - `vbulavintsev/meritrank-service:v0.12.0@sha256:6f68dd7b…`, with the `compose.prod.yaml` environment plus an explicit `MERITRANK_SNAPSHOTS_MB=256` (the image default);
+  - `vbulavintsev/postgres-tentura:v0.9.1@sha256:698db471…` (pgmer2 0.9.1), with the `compose.prod.yaml` command flags and `MERITRANK_RECV_TIMEOUT_MSEC=10000`;
+  - cache 300.
+
+  Each step's `*.deployment.json` records the image digests, both environments, the commit and the working-tree diff hash.
+- **Commit:** `efe83d5df`, plus the test-only harness changes listed under Changes. The effective admission is the per-worker main-DB pool's (`MainDbScopeAdmission`):
+  - pool size 4 (`POSTGRES_MAXCONN` default), `maxConcurrent` 4, `maxHeavy` 1;
+  - `maxQueued` 32, `maxQueuedPerActor` 4, refresh share 0.3, no reserved interactive slot;
+  - interactive deadline 250 ms, FULL deadline 1 s, retry after 2 s.
+
+### U41 fixtures, 30 attempts each (first measurement with y5ot's realistic trust tables)
+
+| Fixture | p50 ms | p95 ms | Budget | Within |
+|---|---|---|---|---|
+| `v100_sparse` / `v100_dense` | 18.7 / 64.1 | 30.9 / 107.1 | 250 | yes / yes |
+| `v300_sparse` / `v300_dense` | 24.8 / 441.6 | 50.1 / **476.6** | 250 | yes / **no** |
+| `v1000_sparse` / `v1000_dense` | 35.8 / 4,888 | 80.3 / **5,489** | 250 | yes / **no** |
+| `fallback_*` (8) | 11.4–30.9 | 19.1–85.6 | 250 | yes |
+| `candidates_c100/c1000/c10000` | 2.0–4.7 | 3.0–7.0 | 250 | yes |
+| `scenario_trust_churn` | 12.7 | 32.6 | 250 | yes |
+| `anchors_a0/a20/a200` | 4.2–4.7 | 10.8–18.2 | 65 | yes |
+| `apply_batch_b1` (hold p95 15.9) | 5.7 | 23.5 | 70 | yes |
+| `scenario_aged_logs` / `scenario_failure_injection` | 3.4 / 6.9 | 15.0 / 20.1 | 70 | yes |
+| `scenario_multi_worker_tabs` | 95.9 | **130.7** | 70 | **no** |
+| `apply_batch_b64` (hold p95 22.6) / `batch_b16` / `scenario_rejection_ratio` | 16.3 / 10.7 / 40.3 | 25.4 / 33.8 / 87.3 | 300 | yes |
+
+- **Why the dense fixtures fail now.** These fixtures are complete trust graphs: every ordered pair is trusted, which gives 999,000 `user_trust_edge` rows at V = 1000. y5ot now mirrors those edges before the timed attempts. The `constellation_trust_edges` statement then returns 983,072 rows and sorts them on disk (external merge, 36 MB), which is the whole 4.8 s. Nothing caps the edges of a FULL.
+- **Owner decision needed.** The options are to cap the edges per FULL, or to declare complete graphs out of scope and recalibrate these two read budgets. The plan allows the recalibration only with owner approval.
+
+### D8 load at the declared population (1,000 sessions, W = 16, both levels, fresh stack per scenario)
+
+| Scenario | Level | FULL/s | Max / p95 staleness s | Unack. | `RETRY_LATER` | Writes | Write p50 / p95 ms |
+|---|---|---|---|---|---|---|---|
+| publication burst | load | 3.32 | 84.6 / 72.4 | 0 | 6,792 | 41 | 35 / **648** |
+| publication burst | capacity | 3.33 | 93.8 / 80.9 | 0 | 7,781 | 70 | 42 / **617** |
+| reconnect burst | load | 3.32 | 222.5 / 212.7 | 0 | 18,872 | 43 | 129 / **1,492** |
+| reconnect burst | capacity | 3.33 | 256.9 / 239.1 | 0 | 17,062 | 70 | 87 / **1,234** |
+| concurrent tabs | load | 3.32 | 104.5 / 82.8 | 0 | 7,456 | 41 | 224 / **615** |
+| concurrent tabs | capacity | 3.33 | 142.5 / 129.9 | 0 | 15,575 | 70 | 53 / **1,660** |
+
+- `freshnessHolds` is true in all six; `writesHold` is false in all six.
+- The reconnect burst has the thinnest freshness margin: 257 s against 300 s at capacity.
+- **What the capacity level can and can't show.** At the 5-minute lazy cadence (953a), the `capacity` level offers exactly D8 demand. Its window FULL/s (3.33) is therefore demand-bound, and it cannot show the 30 % headroom by construction. A 1,300-session run (1.3 × D8) was added for headroom (next section).
+
+### Headroom: 1,300 sessions (1.3 × D8)
+
+`TENTURA_D8_SMOKE_SESSIONS=1300`, publication burst, both levels. The harness labels any population other than 1,000 as `smoke`, so the report is `d8_publication_burst_1300.json`.
+
+| Level | FULL/s (window) | Max / p95 staleness s | Unack. | `RETRY_LATER` | Writes | Write p50 / p95 ms |
+|---|---|---|---|---|---|---|
+| load | **4.32** | 97.7 / 85.6 | 0 | 12,000 | 53 | 158 / 829 |
+| capacity | **4.32** | 142.6 / 127.1 | 0 | 22,667 | 91 | 34 / 751 |
+
+- **Reads and freshness: 30 % headroom shown.** 4.32 FULL/s is 1.3 × the D8 demand of 3.33. All of it was served, with staleness at half the bound.
+- **Writes: still over budget.** Write p95 is 751–829 ms at 1.3 × D8, against 617–648 ms at 1.0 × D8 in the same scenario.
+
+### Where the write time goes: event-loop stalls on the worker isolate
+
+The write itself is cheap: execution p50 is 31–63 ms. Its p95 is made of three things:
+1. **The main→worker hop:** p95 227–629 ms. The generator shares the process.
+2. **Long DB spans in bursts:** p95 194–537 ms, with host CPU up to 98 %.
+3. **"Admission wait":** p95 up to 756 ms.
+
+**The admission wait is not slot contention.**
+- **One FULL, three free slots.** In this morning's publication burst, every slow wait had exactly one FULL running on that worker and no other write, so 3 of 4 slots were free.
+- **Lag probe.** A test-only probe was added: a 5 ms timer per worker, where a tick that fires 10 ms or more late counts as a stall. In writes that waited more than 100 ms, 83–95 % of the wait overlaps event-loop stalls of the write's own worker isolate. The worst cases:
+  - 1,277 ms waited, 1,256 ms stalled, longest single stall 665 ms;
+  - 1,239 / 1,209 / 498;
+  - 756 / 732 / 512.
+
+  The pool had admitted the write; the isolate could not run it.
+
+**Where the stalls come from (GC-versus-FULL experiment).** Publication burst, load level, run as `dart --verbose_gc test/perf/constellation_d8_load_pg_test.dart` under the cleanup wrapper (`gcexp_*`). Every stall of 10 ms or more was exported per worker. The VM GC log was put on the harness clock using the process start time from `/proc`, which has about 10 ms error. The run itself matched the others: write p95 580 ms, max staleness 88.6 s.
+
+| Test | Result |
+|---|---|
+| Long stalls (≥ 100 ms) in the 1,205 s window, 16 workers | 3,848 (1,536 of 300 ms or more), 1,100 s stalled in total |
+| GC pauses | 18,864, all logged for the isolate group (`main`); total 75.5 s; max 43.7 ms, p99 15 ms, p50 3.2 ms. Scavenges 62 s, mark-sweep 10 s |
+| Long-stall time covered by a GC pause (merged intervals, no padding) | **35 %** |
+| Long stalls with no FULL of that worker's own in flight (scope start → encoded) | **0** |
+| When they occur | only 30–90 s after each publication burst, while the hint-driven FULLs run |
+| Host CPU during long stalls | p50 74 %, p90 83 %, so not CPU starvation |
+
+**Reading.** Both causes are real, and both come from the FULLs:
+- **About two-thirds is synchronous Dart work of the worker's own FULL.** That is row decoding and the snapshot build: about 145 KB and ~1,000 peers per response, with a FULL scope p50 of 0.6 s and p95 of 2.5 s.
+- **About one-third is GC pauses shared by all 16 isolates of the group.** These are many short scavenges driven by the allocation of every worker's FULLs. This explains why a long stall usually hits all workers at once: a median of 15 of 15 other workers were stalled during it.
+
+No single GC pause comes near the 500–665 ms stalls; those are long synchronous stretches with scavenges inside them.
+
+**Implication.** Admission, the pool or slot tuning cannot fix the write p95. That was confirmed by the experiment below. Making the FULL build yield removes about two-thirds of it. `Isolate.run` stays in the same isolate group, so it would keep the GC third. Only taking FULL work out of the request process, or cutting its allocation, removes both. Every request on a worker (other GraphQL calls, WebSocket traffic) waits through the same stalls, not just constellation writes.
+
+**Caveat.** `dart test` runs JIT; the server ships an AOT `.exe` (`packages/server/Dockerfile`). The synchronous share may differ in AOT, and it was not measured there. The generator also lives in the same isolate group and adds its allocation to the shared GC.
+
+### Experiment: reserved interactive slot (reverted)
+
+- **The change.** `MainDbPool(env)` got `reservedInteractiveSlot: true`, plus one extra pool connection so the reserved slot can lease. The auth pool was unchanged. The server `test/data/database` and `test/data/service` suites passed (771).
+- **The result, publication burst:**
+  - write p95 1,242 / 1,260 ms (load / capacity), against 648 / 617 without the change;
+  - max staleness 95 / 138 s, against 85 / 94;
+  - `RETRY_LATER` 8,742 / 16,384, against 6,792 / 7,781;
+  - the probe showed the admission waits were still stall (1,476 ms waited, 1,444 stalled).
+- **Verdict.** It doesn't help: the extra connection per worker adds Postgres contention. The change was reverted, and nothing of it is in the tree. Raw: `u26_host_20261016/reserved_slot/` and `reserved_slot_run.diff`.
+
+### Owner decisions needed
+
+1. **Write budget.** Judge the 70 ms on execution, with admission and hop tracked separately, or keep it end to end. Execution p95 is 200–590 ms here, so even that is not met under burst.
+2. **Write latency, fix by cause** (about two-thirds synchronous FULL work on the request isolate, one-third group-wide GC from FULL allocation; the strongest single fix is moving FULL computation out of the request process):
+   - make the FULL build yield, or move it off the request isolate;
+   - run workers as separate processes, and/or cut allocation on the FULL path.
+3. **Dense trust graphs.** Cap the edges per FULL, or declare complete graphs out of scope and recalibrate `v300_dense` / `v1000_dense`.
+4. **Headroom proof.** Accept the 1.3 × D8 population run as the 30 % headroom evidence, replacing the demand-bound capacity level.
+
+### Harness defects found and fixed (test-only)
+
+- **Instrumentation went blind after ev3z.** Since ev3z (`3306e13aa` and later), `ConstellationFieldRepository.injected` and `ConstellationAnchorRepository.injected` ignore `ConstellationDbAdmissionPort`. Admission now happens in `TenturaDb.withConnectionScope` through `MainDbPool`.
+  - **Effect.** The D8 harness still wrapped the dead port and built `ConstellationDbScheduler.fromEnv`, so every response came back without a computation. The first run today recorded 0 completed FULLs and 0 writes, although 4,000 FULLs and all writes succeeded. Raw: `u26_host_20261016/broken_harness_run/`.
+  - **Fix.** The worker now builds `MainDbPool(env)` plus `TenturaDb.scoped(pool)`, as the server's DI does. The timing probe moved into a `withConnectionScope` override, which stamps scope entry and the admitted-and-leased start. The report records the effective pool admission settings.
+- **Evidence check assumed a MeritRank call.** The evidence expectation computed component percentiles over every write and required the MeritRank endpoints; since U50 a write makes no MeritRank call. It now uses the model's rule: only writes that recorded both endpoints.
+- **Additions.** The event-loop lag probe (per-write `admissionLoopStallMaxMs` / `admissionLoopStallTotalMs`, per-worker `loopStalls`), `clockOriginMs` per level and `processStartEpochMs`.
+- **Verified.** Smoke run, the D8 model and write-latency unit tests (44 pass) and `dart analyze test/perf` (only a pre-existing info).
+
+### Evidence
+
+`packages/server/build/perf/u26_host_20261016/` (gitignored, `SHA256SUMS`):
+- `fixtures/` (28 reports, 30 attempts each);
+- `d8_publication_burst.json`, `d8_reconnect_burst.json`, `d8_concurrent_tabs.json` and `d8_publication_burst_1300.json`, each with its run log, host and load record, docker stats, CPU samples, `pg_stat_statements`, and the MeritRank and Postgres logs;
+- `gcexp_*` with the VM GC log;
+- `reserved_slot/`, `broken_harness_run/` and `harness_fix_smoke_*` (not evidence).
+
+Report SHA-256 (all 123 files are in `SHA256SUMS`):
+- `d8_publication_burst.json`: `c1c65306343f608b1b01444e3427cdecdfe71b4cc5f8e08ab4fc48cab73f6a37`;
+- `d8_reconnect_burst.json`: `8ee9d43c406edcfb0313ee57002dfe84b5528cc9034ddf37bee4d4cabe726856`;
+- `d8_concurrent_tabs.json`: `d869ab5c52493451ab8188652cf271198741c9d9dea367ef4c248df99a651596`;
+- `d8_publication_burst_1300.json`: `cdcd881882212e5862cc5c68fed72a8e22493387f95720c0b55b3864d401001c`;
+- `gcexp_d8_publication_burst.json`: `4c8f626dfe0891b0b713d7f4a9f34bd586537bba7f2207389402d3de73d632e4`.
+
+### Changes
+
+- `packages/server/test/perf/constellation_d8_load_harness.dart`: worker wiring and the timing probe (above), the lag probe, the stall export, the clock origin and the process start.
+- `packages/server/test/perf/constellation_d8_write_evidence_expectations.dart`: component percentiles only over writes with both endpoints.
+- `packages/server/test/perf/constellation_d8_load_model.dart`: the comment on what the write endpoints now mean.
+- No production code and no target changed. MeritRank was untouched. The 2026-10-16 Alloy stash (`stash@{0}`, the release-evidence gate test) stays unlanded. Its capacity check (capacity-level FULL/s ≥ 1.3 × demand) cannot pass at the 5-minute cadence by construction, so the owner's headroom decision (4) has to come first.
+
+## UNIT U26 — accepted by owner (part 2/3) — 2026-10-16 (tentura-s7gl.61)
+
+**Owner decision (2026-10-16).** Keep the current limits (the frozen U41 budgets, the 70 ms write budget, D8) and the current design. The measured performance is good enough to release. The gaps are filed as #553. This closes part 2/3; part 3/3 (`tentura-s7gl.62`) is unblocked.
+
+**Landed with the decision: narrowed FULL trust-edge query.** `ConstellationFieldSnapshotReader.read` behaves as follows:
+- **When no anchor projection has loaded the full edge set,** it asks `constellation_trust_edges` only for the graph's nodes: the ≤ `kConstellationPeerCap` graph peers plus the viewer.
+- **Otherwise** it filters the loaded set, as before.
+
+The rows are the same, because an edge's tier depends only on its endpoints (m0231). A snapshot still makes at most one trust-edge query (#233). The test is `test/data/repository/constellation_full_trust_edges_scope_pg_test.dart`: 260 visible peers through a SQL visibility stub. It failed first (261 nodes requested instead of 201) and passes after. All 28 constellation server test files pass (319 tests).
+
+**Re-measured** (same host and stack; raw `u26_host_20261016/narrow_edges/`, change in `narrow_edges_run.diff`):
+
+| Metric | Before | After narrowing |
+|---|---|---|
+| D8 publication burst, load level: FULL scope p50 / p95 | 404 / 763 ms | **67 / 196 ms** |
+| … write p50 / p95 | 35 / 648 ms | **13 / 81 ms** |
+| … max staleness, `RETRY_LATER` | 84.6 s, 6,792 | **56.5 s, 2,597** |
+| U41 `v1000_dense` p50 / p95 | 4,888 / 5,489 ms | 361 / 890 ms |
+| U41 `v300_dense` p50 / p95 | 442 / 477 ms | 229 / 271 ms |
+
+**Measurement caveat.** An unrelated job from another project (`vite-node tools/tune.ts`) loaded the host in bursts during these runs, with a 1-minute load average up to 36–43.
+- The load-level D8 window was mostly quiet: median load 5.1, one spike. Its numbers stand.
+- The capacity level was not quiet: write p95 499 ms, with the slowest writes falling inside load spikes of 17–43. It is not used as evidence.
+- The U41 re-run overlapped a spike, so its `fallback_*` slowdowns are noise. The dense-fixture gains are far above that noise.
+- `reconnect_burst` and `concurrent_tabs` were not re-run after the narrowing; the owner closed the gate first.

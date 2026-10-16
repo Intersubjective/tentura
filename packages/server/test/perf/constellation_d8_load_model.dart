@@ -28,10 +28,12 @@ const d8ReadsPerWrite = 100;
 const d8WriteMinimumSamples = 30;
 
 /// Write latency components: the recorded clock endpoints each is measured
-/// between. `startedAtMs` is the scheduler's dispatch BEFORE the Drift lane,
-/// `laneAcquiredAtMs` the first moment the transaction owns the lane. The MR
-/// call is the visible-set statement; the DB span runs from the first to the
-/// last statement of the transaction, so it contains the MR call.
+/// between. `schedulerAdmittedAtMs` is the entry to the main-pool connection
+/// scope, `startedAtMs` the moment the pool admission granted it a slot and
+/// leased a connection (BEFORE the transaction), `laneAcquiredAtMs` the first
+/// moment the transaction runs. The MR call is the visible-set statement (none
+/// in a write since U50); the DB span runs from the first to the last
+/// statement of the transaction.
 const d8WriteComponents = {
   'MainToWorker': ('admittedAtMs', 'receivedAtMs'),
   'AdmissionWait': ('schedulerAdmittedAtMs', 'startedAtMs'),

@@ -92,10 +92,13 @@ void expectD8WriteEvidence(
     );
   }
   for (final entry in d8WriteComponentEndpoints.entries) {
+    // As the model: only writes that recorded both endpoints (no MeritRank
+    // endpoints since U50).
     final durations = [
       for (final write in writes)
-        (write[entry.value.$2]! as num).toDouble() -
-            (write[entry.value.$1]! as num).toDouble(),
+        if (write[entry.value.$1] != null && write[entry.value.$2] != null)
+          (write[entry.value.$2]! as num).toDouble() -
+              (write[entry.value.$1]! as num).toDouble(),
     ];
     expect(
       summary['write${entry.key}P50Ms'],

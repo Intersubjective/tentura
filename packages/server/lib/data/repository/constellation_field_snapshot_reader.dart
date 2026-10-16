@@ -122,16 +122,24 @@ final class ConstellationFieldSnapshotReader {
 
     final requests = [...ownRequests, ...peerRequests];
 
+    // The graph only draws edges among its capped peers and the viewer. Reuse
+    // the full set when the anchor projection already loaded it; otherwise
+    // ask for these nodes only, which returns the same rows (an edge's tier
+    // depends on its own endpoints only).
     final edgeNodeIds = {...graphPeers.ids, viewerId};
-    final edges = [
-      for (final edge in await _trustEdges(
-        viewerId: viewerId,
-        context: context,
-        visiblePeerIds: visiblePeerIds,
-      ))
-        if (edgeNodeIds.contains(edge.src) && edgeNodeIds.contains(edge.dst))
-          edge,
-    ];
+    final allTrustEdges = _allTrustEdges;
+    final edges = allTrustEdges == null
+        ? await _repo.trustEdges(
+            viewerId: viewerId,
+            context: context,
+            nodeIds: edgeNodeIds,
+          )
+        : [
+            for (final edge in await allTrustEdges)
+              if (edgeNodeIds.contains(edge.src) &&
+                  edgeNodeIds.contains(edge.dst))
+                edge,
+          ];
 
     final profileIds = {...graphPeers.ids, ...reservedPeerIds};
     for (final request in requests) {
@@ -167,10 +175,11 @@ final class ConstellationFieldSnapshotReader {
 
   final _profileById = <String, ConstellationPeerRecord?>{};
 
-  /// Trust edges among the viewer and every visible peer, fetched once per
-  /// snapshot. Callers that need a smaller node set filter it: edges only
-  /// ever join allowed nodes (the viewer and its visible peers), so the
-  /// subset query would return exactly the filtered rows.
+  /// Trust edges among the viewer and every visible peer, fetched at most
+  /// once per snapshot, for the anchors' support closure (path resolution
+  /// over the whole visible graph). A smaller node set filters it when it is
+  /// already loaded: edges only ever join allowed nodes (the viewer and its
+  /// visible peers), so the subset query would return exactly those rows.
   Future<List<ConstellationEdgeRecord>> _trustEdges({
     required String viewerId,
     required String context,
@@ -380,8 +389,9 @@ ORDER BY m.beacon_id, m.person_id
             beaconAlias: 'b',
           )
         : null;
-    final rows = await _database.customSelect(
-      '''
+    final rows = await _database
+        .customSelect(
+          '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
@@ -392,11 +402,12 @@ WHERE b.user_id = \$1
   ${participation == null ? '' : 'AND ($participation)'}
 ORDER BY b.id
 ''',
-      variables: [
-        Variable.withString(viewerId),
-        Variable(TypedValue(Type.integerArray, statusArray)),
-      ],
-    ).get();
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.integerArray, statusArray)),
+          ],
+        )
+        .get();
     return rows.map(readConstellationRequestRow).toList(growable: false);
   }
 
@@ -433,8 +444,9 @@ ORDER BY b.id
     String? lastUserId;
     String? lastId;
     while (eligible.length <= cap) {
-      final candidates = await _database.customSelect(
-        '''
+      final candidates = await _database
+          .customSelect(
+            '''
 SELECT b.user_id AS user_id, b.id AS id
 FROM public.beacon b
 WHERE b.user_id = ANY(\$2::text[])
@@ -449,18 +461,19 @@ WHERE b.user_id = ANY(\$2::text[])
 ORDER BY b.user_id, b.id
 LIMIT \$5
 ''',
-        variables: [
-          Variable.withString(viewerId),
-          peersVariable,
-          statusVariable,
-          excludedVariable,
-          Variable.withInt(kConstellationDiscoverableScanBatch),
-          if (lastId != null) ...[
-            Variable.withString(lastUserId!),
-            Variable.withString(lastId),
-          ],
-        ],
-      ).get();
+            variables: [
+              Variable.withString(viewerId),
+              peersVariable,
+              statusVariable,
+              excludedVariable,
+              Variable.withInt(kConstellationDiscoverableScanBatch),
+              if (lastId != null) ...[
+                Variable.withString(lastUserId!),
+                Variable.withString(lastId),
+              ],
+            ],
+          )
+          .get();
       if (candidates.isEmpty) {
         break;
       }
@@ -468,19 +481,21 @@ LIMIT \$5
       lastUserId = candidates.last.read<String>('user_id');
       lastId = batchIds.last;
 
-      final rows = await _database.customSelect(
-        '''
+      final rows = await _database
+          .customSelect(
+            '''
 SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
 ORDER BY b.user_id, b.id
 ''',
-        variables: [
-          Variable.withString(viewerId),
-          Variable(TypedValue(Type.textArray, batchIds)),
-        ],
-      ).get();
+            variables: [
+              Variable.withString(viewerId),
+              Variable(TypedValue(Type.textArray, batchIds)),
+            ],
+          )
+          .get();
       eligible.addAll(rows.map(readConstellationRequestRow));
       if (candidates.length < kConstellationDiscoverableScanBatch) {
         break;
