@@ -33,7 +33,14 @@ class ClosureReceiptsRepository implements ClosureReceiptsPort {
   );
 
   @override
-  Future<void> finalized(String beaconId, int epoch) => _write(
+  Future<void> finalized(String beaconId, int epoch) async {
+    // Same cause as a reopen: once the Request is closed, "The closing window
+    // is open" and "Finish your review" are no longer true.
+    await _retireEpochReceipts(beaconId, epoch);
+    await _writeFinalized(beaconId, epoch);
+  }
+
+  Future<void> _writeFinalized(String beaconId, int epoch) => _write(
     beaconId,
     epoch,
     type: 'closure_finalized',
@@ -49,24 +56,33 @@ class ClosureReceiptsRepository implements ClosureReceiptsPort {
 
   @override
   Future<void> cancelled(String beaconId, int epoch) async {
-    // The epoch's "Time to sum up — The closing window is open" receipts
-    // stop being true the moment it is cancelled (a reopen): clear them, so
-    // the Requests list doesn't keep advising a closing window that no
-    // longer exists (B082). Optional receipts only; 'sweep' is the
-    // system-clear reason.
-    await _database.customStatement(
-      '''
-UPDATE public.notification_outbox AS outbox
-SET cleared_at = now(), clear_reason = 'sweep'
-WHERE outbox.beacon_id = \$1::text
-  AND outbox.source_event_key LIKE
-      'closure_opened:' || \$1::text || ':' || \$2::int || ':%'
-  AND ${AttentionDismissibleSql.activeOptional('outbox')}
-''',
-      [beaconId, epoch],
-    );
+    await _retireEpochReceipts(beaconId, epoch);
     await _writeCancelled(beaconId, epoch);
   }
+
+  /// The epoch's "Time to sum up — The closing window is open" and "Finish
+  /// your review" receipts stop being true the moment the epoch ends (a
+  /// reopen cancels it, or it is finalized): clear them, so the Requests list
+  /// doesn't keep advising a closing window that no longer exists (B082).
+  /// Optional receipts only; 'sweep' is the system-clear reason, and seen_at
+  /// is set like the other system clears (m0245) for the History read axis.
+  /// Keys are `<type>:<beacon>:<epoch>:<uid>`; split_part matches them
+  /// exactly (no LIKE wildcards in ids).
+  Future<void> _retireEpochReceipts(String beaconId, int epoch) =>
+      _database.customStatement(
+        '''
+UPDATE public.notification_outbox AS outbox
+SET cleared_at = now(), clear_reason = 'sweep',
+    seen_at = COALESCE(outbox.seen_at, now())
+WHERE outbox.beacon_id = \$1::text
+  AND split_part(outbox.source_event_key, ':', 1)
+      IN ('closure_opened', 'closure_draft_reminder')
+  AND split_part(outbox.source_event_key, ':', 2) = \$1::text
+  AND split_part(outbox.source_event_key, ':', 3) = \$2::int::text
+  AND ${AttentionDismissibleSql.activeOptional('outbox')}
+''',
+        [beaconId, epoch],
+      );
 
   Future<void> _writeCancelled(String beaconId, int epoch) => _write(
     beaconId,
