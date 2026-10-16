@@ -22,7 +22,6 @@ import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
-import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -514,10 +513,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final beacon = await _case.fetchById(id);
-      // Same gate as the Edit menu item and the server: open family
-      // (open, needs more help, enough help) or wrapping up.
-      if (!beaconAllowsEdit(beacon)) {
-        _emitSnackError(Exception('Only open requests can be edited'));
+      if (!beacon.status.allowsEdit) {
+        _leaveRefusedEdit(const ShowMessage(BeaconNotEditableMessage()));
         return;
       }
       emit(
@@ -530,7 +527,19 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
       validate();
     } catch (e) {
-      _emitSnackError(e);
+      _leaveRefusedEdit(ShowError(e));
+    }
+  }
+
+  /// Leaves the editor when an edit cannot be loaded, so the screen never
+  /// falls back to an empty create form whose autosave would create a new
+  /// draft (#348).
+  void _leaveRefusedEdit(UiEffect notice) {
+    _effects
+      ..emit(notice)
+      ..emit(const NavigateBack());
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

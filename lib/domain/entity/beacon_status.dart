@@ -47,6 +47,11 @@ enum BeaconStatus {
 
   bool get allowsCoordination => isOpenFamily || this == reviewOpen;
 
+  /// The author may edit the request: open family or wrapping up.
+  /// One rule for the server's updateBeacon gate, the Edit menu and the
+  /// editor.
+  bool get allowsEdit => isOpenFamily || this == reviewOpen;
+
   bool get allowsForward => isOpenFamily;
 
   bool get isReviewWindowOpen => this == reviewOpen;
