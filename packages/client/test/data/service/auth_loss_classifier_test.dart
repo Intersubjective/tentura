@@ -335,7 +335,7 @@ void main() {
 
     test('a status without a GraphQL body or a bad body is not', () {
       final status = mapRemoteFailure(
-        const ServerException(parsedResponse: null, statusCode: 503),
+        const ServerException(statusCode: 503),
       );
       final malformed = mapRemoteFailure(
         const ResponseFormatException(originalException: 'not json'),

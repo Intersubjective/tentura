@@ -147,6 +147,8 @@ const _serverStatusPrefix = 'Server error (HTTP ';
 /// answer to the operation — GraphQL errors it returned — rather than a
 /// transport failure, an HTTP status without a GraphQL body or an unreadable
 /// response. Such a refusal won't change if the same request is sent again.
+/// (An unclassified client-side error also maps to [RemoteApiException] and
+/// counts here; a resend won't fix that either.)
 bool isRemoteRefusal(Object? error) =>
     error is RemoteApiException &&
     !error.message.startsWith(_serverStatusPrefix) &&
