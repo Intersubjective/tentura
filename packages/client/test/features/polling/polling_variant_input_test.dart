@@ -57,7 +57,7 @@ void main() {
     expect(formKey.currentState!.validate(), isFalse);
     await tester.pump();
 
-    expect(find.text('Options must be different'), findsNWidgets(2));
+    expect(find.text('Poll options must be distinct'), findsNWidgets(2));
   });
 
   testWidgets('distinct options validate', (tester) async {
@@ -69,6 +69,6 @@ void main() {
     expect(formKey.currentState!.validate(), isTrue);
     await tester.pump();
 
-    expect(find.text('Options must be different'), findsNothing);
+    expect(find.text('Poll options must be distinct'), findsNothing);
   });
 }

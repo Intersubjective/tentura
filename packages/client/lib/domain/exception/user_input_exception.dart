@@ -63,8 +63,8 @@ final class PollingVariantsNotUniqueException extends PollingInputExceptions {
   const PollingVariantsNotUniqueException();
 
   @override
-  String get toEn => 'Options must be different';
+  String get toEn => 'Poll options must be distinct';
 
   @override
-  String get toRu => 'Варианты ответа должны различаться';
+  String get toRu => 'Варианты ответа в опросе должны различаться';
 }

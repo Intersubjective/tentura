@@ -127,14 +127,14 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
         // The cubit already showed why; keep the draft so nothing is lost.
         setState(() => _sending = false);
       }
-    } on Object catch (e) {
+    } on PollDuplicateVariantException catch (e) {
+      // The only refusal createPoll rethrows; every other one returns false
+      // after the cubit has shown it.
       if (mounted) {
         showSnackBar(
           context,
           isError: true,
-          text: e is PollDuplicateVariantException
-              ? L10n.of(context)!.pollErrorDuplicateVariant
-              : e.toString(),
+          text: L10n.of(context)!.pollErrorDuplicateVariant,
           error: e,
         );
         setState(() => _sending = false);

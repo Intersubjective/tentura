@@ -180,7 +180,7 @@ void main() {
     expect(find.text('Alpha'), findsNothing);
     expect(find.text('Bravo'), findsOneWidget);
     expect(find.text('Charlie'), findsOneWidget);
-    expect(find.text('Options must be different'), findsNothing);
+    expect(find.text('Poll options must be distinct'), findsNothing);
   });
 
   testWidgets('a refused poll keeps the sheet and its draft open', (
@@ -215,6 +215,6 @@ void main() {
     await tester.enterText(_field(2), 'next  monday');
     await tester.pumpAndSettle();
 
-    expect(find.text('Options must be different'), findsWidgets);
+    expect(find.text('Poll options must be distinct'), findsWidgets);
   });
 }
