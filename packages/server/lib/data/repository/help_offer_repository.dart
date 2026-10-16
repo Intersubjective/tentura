@@ -74,7 +74,23 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
+    await _clearOfferAcceptedDismissal(beaconId: beaconId, userId: userId);
   });
+
+  /// B077b: a dismissal of the «offer accepted» sub-card belongs to the
+  /// acceptance it hid. A withdrawn (or deactivated) offer ends that
+  /// acceptance, so a re-offer that is accepted again shows a fresh card on
+  /// every device. Same transaction as the status write.
+  Future<void> _clearOfferAcceptedDismissal({
+    required String beaconId,
+    required String userId,
+  }) => _database.customStatement(
+    r'''
+DELETE FROM public.offer_accepted_dismissal
+WHERE user_id = $1 AND beacon_id = $2
+''',
+    [userId, beaconId],
+  );
 
   @override
   Future<void> deactivate({
@@ -89,6 +105,7 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
+    await _clearOfferAcceptedDismissal(beaconId: beaconId, userId: userId);
   }
 
   @override

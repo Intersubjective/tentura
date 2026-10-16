@@ -13,7 +13,6 @@ import 'package:http/testing.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/data/repository/offer_accepted_dismissal_repository.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
-import 'package:tentura/data/service/remote_api_client/realtime_socket.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
 
@@ -78,7 +77,7 @@ Future<void> _withRemote(
 );
 
 void main() {
-  test('load reads the account\'s dismissals from V2', () async {
+  test("load reads the account's dismissals from V2", () async {
     final sent = <_SentOperation>[];
     late Set<String> loaded;
     await _withRemote(
@@ -105,7 +104,7 @@ void main() {
     expect(loaded, {'B1', 'B2'});
   });
 
-  test('another account\'s answer (account switched) is not taken', () async {
+  test("another account's answer (account switched) is not taken", () async {
     Object? error;
     await _withRemote(
       {

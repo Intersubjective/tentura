@@ -22,7 +22,7 @@ final class _ServerPort implements OfferAcceptedDismissalPort {
   _ServerPort(this.server);
 
   final _Server server;
-  var failLoads = false;
+  bool failLoads = false;
 
   @override
   Future<Set<String>> load({required String viewerId}) async {
@@ -30,11 +30,16 @@ final class _ServerPort implements OfferAcceptedDismissalPort {
     return {...?server.byViewer[viewerId]};
   }
 
+  bool failDismisses = false;
+
   @override
   Future<Set<String>> dismiss({
     required String viewerId,
     required String beaconId,
-  }) async => {...(server.byViewer[viewerId] ??= {})..add(beaconId)};
+  }) async {
+    if (failDismisses) throw StateError('offline');
+    return {...(server.byViewer[viewerId] ??= {})..add(beaconId)};
+  }
 }
 
 Widget _subcard(OfferAcceptedDismissals store) => MaterialApp(
@@ -66,7 +71,7 @@ void main() {
     expect(laptop.isDismissed(viewerId: _viewer, beaconId: 'B2'), isFalse);
   });
 
-  test('nothing shows before the account\'s dismissals are known', () async {
+  test("nothing shows before the account's dismissals are known", () async {
     final server = _Server()..byViewer[_viewer] = {'B1'};
     final laptop = OfferAcceptedDismissals(_ServerPort(server));
 
@@ -105,5 +110,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Tab QA', findRichText: true), findsOneWidget);
+  });
+
+  test('a failed read is tried again on the next load', () async {
+    final server = _Server()..byViewer[_viewer] = {'B1'};
+    final port = _ServerPort(server)..failLoads = true;
+    final store = OfferAcceptedDismissals(port);
+
+    await store.ensureLoadedFor(_viewer);
+    // Safe default while offline: the card shows.
+    expect(store.shouldShow(viewerId: _viewer, beaconId: 'B1'), isTrue);
+
+    port.failLoads = false;
+    await store.ensureLoadedFor(_viewer);
+    expect(store.shouldShow(viewerId: _viewer, beaconId: 'B1'), isFalse);
+  });
+
+  test('a dismissal the server missed is sent again later', () async {
+    final server = _Server();
+    final port = _ServerPort(server);
+    final phone = OfferAcceptedDismissals(port);
+    await phone.ensureLoadedFor(_viewer);
+
+    port.failDismisses = true;
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    expect(phone.isDismissed(viewerId: _viewer, beaconId: 'B1'), isTrue);
+    expect(server.byViewer[_viewer] ?? const <String>{}, isEmpty);
+
+    port.failDismisses = false;
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B2');
+    expect(server.byViewer[_viewer], {'B1', 'B2'});
+  });
+
+  test('a pending dismissal is also sent on the next load', () async {
+    final server = _Server();
+    final port = _ServerPort(server);
+    final phone = OfferAcceptedDismissals(port);
+    await phone.ensureLoadedFor(_viewer);
+
+    port.failDismisses = true;
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    port.failDismisses = false;
+    await phone.ensureLoadedFor(_viewer);
+    expect(server.byViewer[_viewer], {'B1'});
   });
 }

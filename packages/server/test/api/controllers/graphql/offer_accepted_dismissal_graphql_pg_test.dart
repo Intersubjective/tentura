@@ -10,6 +10,7 @@ import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/schema.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/disposable_pg_target.dart';
@@ -30,7 +31,7 @@ mutation DismissOfferAccepted($beaconId: String!) {
 }
 ''';
 
-const _list = r'''
+const _list = '''
 query OfferAcceptedDismissals {
   offerAcceptedDismissals {
     userId
@@ -188,6 +189,23 @@ VALUES (@b, @h1, 'I can help', 0), (@b, @h2, 'Me too', 0),
         {_beaconId, _otherBeaconId},
       );
     });
+
+    test(
+      'withdrawing the offer clears the dismissal, so a re-offer accepted '
+      'again shows a fresh card',
+      () async {
+        await dismiss(_helperId, _beaconId);
+        await dismiss(_helperId, _otherBeaconId);
+
+        await getIt<HelpOfferRepositoryPort>().withdraw(
+          beaconId: _beaconId,
+          userId: _helperId,
+          withdrawReason: 'other',
+        );
+
+        expect((await list(_helperId))['beaconIds'], [_otherBeaconId]);
+      },
+    );
 
     test('someone with no offer on the Request cannot record one', () async {
       await expectLater(dismiss(_strangerId, _beaconId), throwsA(anything));
