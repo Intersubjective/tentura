@@ -258,6 +258,21 @@ void main() {
       },
     );
 
+    // #497: the picker could only be left by tapping outside it.
+    testWidgets('the close button closes the picker', (tester) async {
+      final cubit = _PickerRoomCubit(
+        roomBodyState().copyWith(factCards: [_fact(id: 'f1')]),
+      );
+      await _pumpPickerSheet(tester, cubit: cubit);
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      expect(find.byType(FactPickerSheet), findsOneWidget);
+
+      await tester.tap(find.byTooltip(l10n.buttonClose));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FactPickerSheet), findsNothing);
+    });
+
     testWidgets('search field is absent for exactly 5 facts', (tester) async {
       final facts = List.generate(
         5,

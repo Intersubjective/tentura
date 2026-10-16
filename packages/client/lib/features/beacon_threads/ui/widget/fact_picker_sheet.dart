@@ -80,9 +80,21 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                l10n.beaconRoomFactPickerTitle,
-                style: Theme.of(context).textTheme.titleSmall,
+              // A way out besides the scrim (#497).
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.beaconRoomFactPickerTitle,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: l10n.buttonClose,
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: Icon(Icons.close, size: tt.iconSize),
+                  ),
+                ],
               ),
               SizedBox(height: tt.rowGap),
               if (showSearch) ...[
