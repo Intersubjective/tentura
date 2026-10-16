@@ -3838,6 +3838,22 @@
       "count": {"type": "int"}
     }
   },
+  "myWorkLatestMessageSemantics": "Latest message. {name}: {text}{details}",
+  "@myWorkLatestMessageSemantics": {
+    "context": "MyWorkScreen",
+    "description": "U087: screen-reader label for the latest-message line on a Requests card. details is empty or starts with a separator ('. ', or a space after a message that already ends a sentence) and holds the spoken age and the unread count",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      },
+      "details": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkLastEventSemantics": "{event} by {actor}, {ago}{authorSuffix}",
   "@myWorkLastEventSemantics": {
     "context": "MyWorkScreen",

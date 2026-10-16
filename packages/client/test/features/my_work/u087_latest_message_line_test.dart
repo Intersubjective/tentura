@@ -85,4 +85,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2 новых'), findsOneWidget);
   });
+
+  testWidgets('screen readers hear one sentence with the spoken age '
+      '(#541 review)', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(_harness(_vm()));
+    await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel(
+        'Latest message. Nina: Parking sorted? I also bring blankets. '
+        '1 minute ago, 2 new',
+      ),
+      findsOneWidget,
+    );
+    // The abbreviated visible parts are not read as separate nodes.
+    expect(find.bySemanticsLabel('2 new'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp(r'\b1m\b')), findsNothing);
+    semantics.dispose();
+  });
+
+  testWidgets('ru screen-reader sentence', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(_harness(_vm(), locale: const Locale('ru')));
+    await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel(
+        'Последнее сообщение. Nina: Parking sorted? I also bring blankets. '
+        '1 минуту назад, 2 новых',
+      ),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
 }

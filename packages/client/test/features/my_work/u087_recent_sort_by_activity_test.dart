@@ -28,8 +28,8 @@ MyWorkCardViewModel _card(
   beacon: Beacon.empty.copyWith(
     id: id,
     title: id,
-    createdAt: DateTime.utc(2026, 1, 1),
-    updatedAt: DateTime.utc(2026, 1, 1),
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
   ),
   roomLastActivityAt: roomLastActivityAt,
   lastActivityEvent: lastEventAt == null
@@ -94,7 +94,7 @@ void main() {
 
   test('Recent: activity older than the entry does not push a card down', () {
     final cards = [
-      _card('quiet', roomLastActivityAt: DateTime.utc(2026, 10, 1)),
+      _card('quiet', roomLastActivityAt: DateTime.utc(2026, 10)),
       _card('busy'),
       _card('old'),
     ];

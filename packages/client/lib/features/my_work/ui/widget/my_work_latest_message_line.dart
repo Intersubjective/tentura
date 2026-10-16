@@ -43,6 +43,22 @@ class MyWorkLatestMessageLine extends StatelessWidget {
         ? ''
         : ' · ${cardRelativeAge(when: at, now: now ?? DateTime.now(), l10n: l10n)}';
     final unread = vm.roomUnreadCount;
+    // One spoken sentence for the whole line (#541 review): the visible
+    // text uses abbreviations ("1m") meant for the eye.
+    final details = [
+      if (at != null)
+        cardRelativeAgeSpoken(when: at, now: now ?? DateTime.now(), l10n: l10n),
+      if (unread > 0) l10n.myWorkUnreadCount(unread),
+    ].join(', ');
+    // A message that already ends a sentence gets no second full stop.
+    final separator = RegExp(r'[.!?…]$').hasMatch(text.trimRight())
+        ? ' '
+        : '. ';
+    final semanticsLabel = l10n.myWorkLatestMessageSemantics(
+      name,
+      text,
+      details.isEmpty ? '' : '$separator$details',
+    );
     final style = theme.textTheme.bodySmall!.copyWith(
       color: unread > 0
           ? scheme.onSurface
@@ -50,27 +66,33 @@ class MyWorkLatestMessageLine extends StatelessWidget {
     );
     return Padding(
       padding: EdgeInsets.only(top: tt.tightGap),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '${l10n.myWorkLatestMessage(name, text)}$age',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: style,
-            ),
-          ),
-          if (unread > 0) ...[
-            SizedBox(width: tt.tightGap),
-            Text(
-              l10n.myWorkUnreadCount(unread),
-              style: theme.textTheme.labelSmall!.copyWith(
-                color: scheme.primary,
-                fontWeight: FontWeight.w600,
+      child: Semantics(
+        container: true,
+        label: semanticsLabel,
+        child: ExcludeSemantics(
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${l10n.myWorkLatestMessage(name, text)}$age',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
               ),
-            ),
-          ],
-        ],
+              if (unread > 0) ...[
+                SizedBox(width: tt.tightGap),
+                Text(
+                  l10n.myWorkUnreadCount(unread),
+                  style: theme.textTheme.labelSmall!.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
