@@ -558,6 +558,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     );
   }
 
+  /// A failed save also drops the previous save's time, so the footer does
+  /// not say "Draft saved" beside the failure (#494).
+  BeaconCreateState get _afterFailedSave =>
+      state.copyWith(isAutosaving: false, lastAutosavedAt: null);
+
   BeaconCreateState _applyServerMedia(
     BeaconCreateState from,
     Beacon beacon,
@@ -1129,21 +1134,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     } on BeaconSaveFailure catch (e) {
       gate.complete(null);
       if (!isClosed) {
-        emit(state.copyWith(isAutosaving: false));
+        emit(_afterFailedSave);
       }
       _emitSaveFailure(e);
       return null;
     } on BeaconChildPromotionConflict catch (e) {
       gate.complete(null);
       if (!isClosed) {
-        emit(state.copyWith(isAutosaving: false));
+        emit(_afterFailedSave);
       }
       _emitChildPromotionConflict(e);
       return null;
     } catch (e) {
       gate.complete(null);
       if (!isClosed) {
-        emit(state.copyWith(isAutosaving: false));
+        emit(_afterFailedSave);
       }
       _emitSnackError(e);
       return null;
@@ -1249,7 +1254,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       }
     } on BeaconSaveFailure catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(isAutosaving: false));
+        emit(_afterFailedSave);
       }
       if (_isAlreadyPublished(e.cause)) {
         emit(state.copyWith(isLive: true, status: const StateIsSuccess()));
@@ -1258,12 +1263,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       _emitSaveFailure(e);
     } on BeaconChildPromotionConflict catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(isAutosaving: false));
+        emit(_afterFailedSave);
       }
       _emitChildPromotionConflict(e);
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(isAutosaving: false));
+        emit(_afterFailedSave);
       }
       _emitSnackError(e);
     }
