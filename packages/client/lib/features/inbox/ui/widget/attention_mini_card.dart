@@ -4,7 +4,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
-import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
@@ -16,6 +15,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// How many capability chips a mini-card renders before it caps.
 ///
@@ -182,11 +182,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
   }
 
   @override
-  Widget build(BuildContext context) =>
-      // The card's age ("2m ago") keeps counting while it is on screen (U092).
-      RelativeTimestampTicker(builder: _build);
-
-  Widget _build(BuildContext context) {
+  Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final profile = widget.actor == null
@@ -218,21 +214,6 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
         ? shownName
         : _eventLine(l10n, scoped.event, shownName);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
-    final now = RelativeTimestampTicker.now();
-    final age = widget.compactAge
-        ? cardRelativeAge(when: widget.receipt.createdAt, now: now, l10n: l10n)
-        : compactRelativeTimeAgo(
-            when: widget.receipt.createdAt,
-            now: now,
-            l10n: l10n,
-          );
-    final spokenAge = widget.compactAge
-        ? cardRelativeAgeSpoken(
-            when: widget.receipt.createdAt,
-            now: now,
-            l10n: l10n,
-          )
-        : age;
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
     // A forward's note comes from provenance, not the receipt; every other
@@ -292,13 +273,13 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
                         // event: beside it, it took the width the event
                         // needed and «Закройте цикл» broke over two lines.
                         child: widget.trailing == null
-                            ? _eventText(eventLine, spokenAge, eventStyle)
+                            ? _eventText(eventLine, eventStyle)
                             : Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _eventText(eventLine, spokenAge, eventStyle),
-                                  _ageText(tt, age, absoluteTime),
+                                  _eventText(eventLine, eventStyle),
+                                  _ageText(tt, absoluteTime),
                                 ],
                               ),
                       ),
@@ -310,7 +291,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
                                 rowConstraints.maxWidth *
                                 kMiniCardAgeWidthShare,
                           ),
-                          child: _ageText(tt, age, absoluteTime),
+                          child: _ageText(tt, absoluteTime),
                         ),
                       ],
                       if (widget.trailing case final trailing?) ...[
@@ -381,30 +362,60 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     );
   }
 
-  Widget _eventText(String eventLine, String age, TextStyle style) => Semantics(
-    // Spoken as one phrase: actor + event + age.
-    label: _semanticsLabel(eventLine, age),
-    excludeSemantics: true,
-    child: Text(
-      eventLine,
-      style: style,
-      maxLines: widget.eventMaxLines,
-      overflow: TextOverflow.ellipsis,
-    ),
-  );
+  // Only the age and the phrase that speaks it tick (U092): the rest of the
+  // card (avatar, payload copy, quote) is not rebuilt every 30 s.
+  Widget _eventText(String eventLine, TextStyle style) =>
+      RelativeTimestampTicker(
+        builder: (context) => Semantics(
+          // Spoken as one phrase: actor + event + age.
+          label: _semanticsLabel(eventLine, _spokenAge(L10n.of(context)!)),
+          excludeSemantics: true,
+          child: Text(
+            eventLine,
+            style: style,
+            maxLines: widget.eventMaxLines,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
 
-  Widget _ageText(TenturaTokens tt, String age, String absoluteTime) => Tooltip(
-    key: AttentionMiniCard.ageTooltipKey,
-    message: absoluteTime,
-    excludeFromSemantics: true,
-    child: Text(
-      age,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TenturaText.withTabular(TenturaText.bodySmall(tt.textMuted)),
-      semanticsLabel: '',
-    ),
-  );
+  Widget _ageText(TenturaTokens tt, String absoluteTime) =>
+      RelativeTimestampTicker(
+        builder: (context) => Tooltip(
+          key: AttentionMiniCard.ageTooltipKey,
+          message: absoluteTime,
+          excludeFromSemantics: true,
+          child: Text(
+            _age(L10n.of(context)!),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TenturaText.withTabular(
+              TenturaText.bodySmall(tt.textMuted),
+            ),
+            semanticsLabel: '',
+          ),
+        ),
+      );
+
+  String _age(L10n l10n) => widget.compactAge
+      ? cardRelativeAge(
+          when: widget.receipt.createdAt,
+          now: RelativeTimestampTicker.now(),
+          l10n: l10n,
+        )
+      : compactRelativeTimeAgo(
+          when: widget.receipt.createdAt,
+          now: RelativeTimestampTicker.now(),
+          l10n: l10n,
+        );
+
+  String _spokenAge(L10n l10n) => widget.compactAge
+      ? cardRelativeAgeSpoken(
+          when: widget.receipt.createdAt,
+          now: RelativeTimestampTicker.now(),
+          l10n: l10n,
+        )
+      : _age(l10n);
 
   void _setHovering(bool value) {
     if (_hovering != value) setState(() => _hovering = value);

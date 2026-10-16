@@ -6,13 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_pinned_block.dart';
+import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// U092 — relative times froze: "Tab QA · Just now" stayed on the Now panel
 /// for minutes because the age was computed once, when the widget was built.
@@ -89,5 +92,52 @@ void main() {
 
     expect(find.textContaining('Tab QA · 2m ago'), findsOneWidget);
     expect(find.textContaining('Just now'), findsNothing);
+  });
+
+  testWidgets('an Activity mini-card age keeps counting while open', (
+    tester,
+  ) async {
+    final receipt = AttentionReceipt(
+      id: 'e1',
+      category: 'requestProgress',
+      kind: 'helpOfferSubmitted',
+      priority: 'normal',
+      title: 'Offered help',
+      body: 'Body',
+      actionUrl: '/#/',
+      createdAt: DateTime.utc(2026, 10, 14, 9),
+      collapsedCount: 1,
+      presentationKey: 'help_offer_submitted',
+      presentationPayloadJson: '{}',
+      surface: AttentionSurface.activity,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: TenturaResponsiveScope(
+            child: AttentionMiniCard(receipt: receipt),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    String age() => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byKey(AttentionMiniCard.ageTooltipKey),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+    expect(age(), 'Just now');
+
+    clock = clock.add(const Duration(minutes: 2));
+    await tester.pump(const Duration(seconds: 31));
+
+    expect(age(), '2m ago');
   });
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -13,6 +12,7 @@ import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import 'beacon_hud_plan_rows.dart';
 
@@ -57,12 +57,7 @@ class BeaconHudPinnedBlock extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => now != null
-      ? _build(context)
-      // Keeps "Just now" / "2m ago" on the step row counting (U092).
-      : RelativeTimestampTicker(builder: _build);
-
-  Widget _build(BuildContext context) {
+  Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
@@ -183,16 +178,21 @@ class BeaconHudPinnedBlock extends StatelessWidget {
 
     final step = cue?.currentLine.trim() ?? '';
     final editor = step.isEmpty ? null : beaconStepEditorName(state);
-    final attribution = editor == null || cue == null
-        ? null
-        : l10n.beaconHudStepAttribution(
-            editor,
-            compactRelativeTimeAgo(
-              when: cue.updatedAt,
-              now: now ?? RelativeTimestampTicker.now(),
-              l10n: l10n,
+    Widget stepLine(DateTime at) => _LabeledLine(
+      label: rowLabel,
+      text: step.isNotEmpty
+          ? step
+          : onEditStep != null
+          ? l10n.beaconHudStepEmptyEditable
+          : l10n.beaconHudNoCurrentLine,
+      color: step.isNotEmpty ? tt.text : tt.textMuted,
+      subline: editor == null || cue == null
+          ? null
+          : l10n.beaconHudStepAttribution(
+              editor,
+              compactRelativeTimeAgo(when: cue.updatedAt, now: at, l10n: l10n),
             ),
-          );
+    );
     entries.add(
       BeaconHudMetadataEntry(
         icon: BeaconHudRowIcons.now,
@@ -204,16 +204,12 @@ class BeaconHudPinnedBlock extends StatelessWidget {
                 onEdit: onEditStep!,
                 editSemanticLabel: l10n.beaconHudEditNowLine,
               ),
-        body: _LabeledLine(
-          label: rowLabel,
-          text: step.isNotEmpty
-              ? step
-              : onEditStep != null
-              ? l10n.beaconHudStepEmptyEditable
-              : l10n.beaconHudNoCurrentLine,
-          color: step.isNotEmpty ? tt.text : tt.textMuted,
-          subline: attribution,
-        ),
+        body: now != null || editor == null
+            ? stepLine(now ?? RelativeTimestampTicker.now())
+            // Only this row's "Nina · 2m ago" ticks, not the whole HUD (U092).
+            : RelativeTimestampTicker(
+                builder: (_) => stepLine(RelativeTimestampTicker.now()),
+              ),
       ),
     );
     return entries;

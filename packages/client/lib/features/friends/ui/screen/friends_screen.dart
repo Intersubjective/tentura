@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -21,6 +20,7 @@ import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialo
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../bloc/friends_cubit.dart';
 import '../invite_pending_subtitle.dart';
@@ -762,7 +762,6 @@ class _InviteListTile extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onTap,
-    super.key,
   });
 
   final bool emphasize;
