@@ -19,6 +19,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/domain/entity/room_status_change.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -222,34 +223,6 @@ class RoomMessageTile extends StatelessWidget {
         'joinedUserId': joinedUserId.trim(),
         'admissionReason': reason is String ? reason.trim() : '',
       };
-    } on Object {
-      return null;
-    }
-  }
-
-  /// `statusChanged` system payload (server contract, U090):
-  /// `{version: 1, fromStatus, toStatus, reason}` with smallint statuses.
-  /// Null for any other row or an unreadable payload.
-  @visibleForTesting
-  static ({BeaconStatus from, BeaconStatus to})? statusChangedPayload(
-    RoomMessage m,
-  ) {
-    if (m.systemMessageKind != BeaconRoomSystemMessageKind.statusChanged) {
-      return null;
-    }
-    final raw = m.systemPayloadJson;
-    if (raw == null || raw.trim().isEmpty) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) return null;
-      if (decoded['version'] != 1) return null;
-      final from = decoded['fromStatus'];
-      final to = decoded['toStatus'];
-      if (from is! int || to is! int) return null;
-      return (
-        from: BeaconStatus.fromSmallint(from),
-        to: BeaconStatus.fromSmallint(to),
-      );
     } on Object {
       return null;
     }
@@ -629,7 +602,7 @@ class RoomMessageTile extends StatelessWidget {
     if (message.systemMessageKind ==
         BeaconRoomSystemMessageKind.convertedToRequest) {
       final authorName = message.author.shownName.trim();
-      return _ConvertedToRequestNotice(
+      return _CenteredSystemNotice(
         text: l10n.roomConvertedToRequestNotice(
           authorName.isNotEmpty
               ? authorName
@@ -645,14 +618,14 @@ class RoomMessageTile extends StatelessWidget {
 
     if (message.systemMessageKind ==
         BeaconRoomSystemMessageKind.statusChanged) {
-      final change = statusChangedPayload(message);
+      final change = RoomStatusChange.fromMessage(message);
       if (change == null) return const SizedBox.shrink();
       final from = _statusLineLabel(l10n, change.from);
       final to = _statusLineLabel(l10n, change.to);
       if (message.authorId.isNotEmpty && message.authorId == myProfile.id) {
         // Own change: a dedicated string, so RU reads «Вы изменили», not
         // «Вы изменил(а)».
-        return _ConvertedToRequestNotice(
+        return _CenteredSystemNotice(
           text: l10n.roomStatusChangedBySelf(from, to),
         );
       }
@@ -671,17 +644,20 @@ class RoomMessageTile extends StatelessWidget {
               viewer: myProfile,
               l10n: l10n,
             );
-      return _ConvertedToRequestNotice(
-        text: actor.isEmpty
+      return _CenteredSystemNotice(
+        text: actor.isNotEmpty
+            ? l10n.roomStatusChangedByActor(actor, from, to)
+            : change.isAutomatic
             ? l10n.roomStatusChangedAutomatic(from, to)
-            : l10n.roomStatusChangedByActor(actor, from, to),
+            // No author on a person's change: their account was deleted.
+            : l10n.roomStatusChangedByFormerMember(from, to),
       );
     }
 
     if (message.semanticMarker == BeaconRoomSemanticMarker.batonTaken) {
       final takerId = batonTakerUserId(message);
       if (takerId == null) return const SizedBox.shrink();
-      return _ConvertedToRequestNotice(
+      return _CenteredSystemNotice(
         text: l10n.batonTookIt(
           _participantDisplayName(
             participants: participants,
@@ -3040,9 +3016,10 @@ class _AuthorRoleLabel extends StatelessWidget {
   }
 }
 
-/// One-line centered notice: the author turned the Post into a Request.
-class _ConvertedToRequestNotice extends StatelessWidget {
-  const _ConvertedToRequestNotice({required this.text});
+/// One-line centered system notice (Post turned into a Request, a status
+/// change, …).
+class _CenteredSystemNotice extends StatelessWidget {
+  const _CenteredSystemNotice({required this.text});
 
   final String text;
 

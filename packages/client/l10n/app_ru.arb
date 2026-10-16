@@ -4957,6 +4957,17 @@
       }
     }
   },
+  "roomStatusChangedByFormerMember": "Бывший участник изменил статус: {from} → {to}",
+  "@roomStatusChangedByFormerMember": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
   "roomStatusChangedBySelf": "Вы изменили статус: {from} → {to}",
   "@roomStatusChangedBySelf": {
     "placeholders": {

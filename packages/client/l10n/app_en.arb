@@ -5132,6 +5132,17 @@
       }
     }
   },
+  "roomStatusChangedByFormerMember": "A former member changed the status: {from} → {to}",
+  "@roomStatusChangedByFormerMember": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
   "roomStatusChangedBySelf": "You changed the status: {from} → {to}",
   "@roomStatusChangedBySelf": {
     "placeholders": {

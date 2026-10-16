@@ -119,6 +119,43 @@ void main() {
     );
   });
 
+  testWidgets('a change by a since-deleted account names a former member', (
+    tester,
+  ) async {
+    // author_id is ON DELETE SET NULL: the line loses its actor, but the
+    // reason says a person made it, so it must not read as automatic.
+    await tester.pumpWidget(
+      _harness(_statusLine(from: 1, to: 3, automatic: true)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'A former member changed the status:',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Status changed:', findRichText: true),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(
+      _harness(
+        _statusLine(from: 1, to: 3, automatic: true),
+        locale: const Locale('ru'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining(
+        'Бывший участник изменил статус:',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('an unreadable payload renders nothing', (tester) async {
     await tester.pumpWidget(
       _harness(
