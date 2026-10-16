@@ -1,24 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import 'package:postgres/postgres.dart' show PgException;
-
 import 'package:tentura_server/domain/exception.dart';
 
-/// Message sent to clients in place of a database driver error.
+/// Message sent to clients in place of an unmapped server error.
 const kUnmappedDatabaseErrorMessage =
     'Something went wrong on the server. Please try again.';
 
 /// The `errors[]` entry for an exception that escaped the GraphQL resolvers
 /// without being mapped to an [ExceptionBase].
 ///
-/// Database driver errors ([PgException], including `ServerException`) carry
-/// the SQL state, table, constraint and key values, e.g.
-/// `23503: … ego_witness_window_witness_user_id_fkey … Key (witness_user_id)=…`.
-/// Those are reported to Sentry by the caller but never sent to the client:
-/// it would show them verbatim. Any other exception keeps its message, since
-/// resolvers still throw plain exceptions with user-facing text.
-Map<String, Object> unmappedGraphqlError(Object error) => switch (error) {
-  PgException() => const UnspecifiedException(
-    description: kUnmappedDatabaseErrorMessage,
-  ).toMap,
-  _ => {'message': error.toString()},
-};
+/// Every such exception is internal: database driver errors (`PgException`,
+/// with SQL state, table, constraint and key values), pool
+/// `TimeoutException`s, admission `StateError`s, drift errors and plain
+/// `Exception`s thrown from `domain/` and `api/`. User-facing errors are
+/// [ExceptionBase]s and never reach this catch-all. The caller reports
+/// [error] to Sentry; the client only gets the generic `1000` entry.
+Map<String, Object> unmappedGraphqlError(Object error) =>
+    const UnspecifiedException(
+      description: kUnmappedDatabaseErrorMessage,
+    ).toMap;

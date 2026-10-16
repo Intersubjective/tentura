@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import 'dart:async';
+
 import 'package:postgres/postgres.dart' show PgException;
 import 'package:test/test.dart';
 
@@ -30,11 +32,20 @@ void main() {
       }
     });
 
-    test('keeps the message of other unmapped exceptions', () {
-      expect(
-        unmappedGraphqlError(StateError('Request is not open.')),
-        {'message': 'Bad state: Request is not open.'},
-      );
+    test('never forwards the text of any other unmapped exception', () {
+      for (final error in <Object>[
+        StateError('Main DB admission re-entry is not allowed'),
+        TimeoutException('pool connect', const Duration(seconds: 5)),
+        Exception('Unexpected type'),
+      ]) {
+        final entry = unmappedGraphqlError(error);
+
+        expect(entry['message'], kUnmappedDatabaseErrorMessage);
+        expect(entry['extensions'], containsPair('code', '1000'));
+        for (final leak in ['Bad state', 'admission', 'pool', 'Unexpected']) {
+          expect(entry.toString(), isNot(contains(leak)));
+        }
+      }
     });
   });
 }
