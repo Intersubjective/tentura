@@ -1,6 +1,3 @@
-import 'package:get_it/get_it.dart';
-import 'package:graphql_schema2/graphql_schema2.dart';
-
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 import '../custom_types.dart';
