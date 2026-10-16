@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/entity/notification_settings.dart';
 import '../bloc/notification_settings_cubit.dart';
@@ -250,7 +251,7 @@ class _QuietHoursControls extends StatelessWidget {
     final current = isStart
         ? settings.quietHoursStart!
         : settings.quietHoursEnd!;
-    final picked = await showTimePicker(
+    final picked = await showAppTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
     );
