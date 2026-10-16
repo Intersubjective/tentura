@@ -20,35 +20,37 @@ Matcher _throwsCoordination(HelpOfferCoordinationExceptionCode code) => throwsA(
 
 void main() {
   group('removal deactivates the offer, re-admission re-activates it', () {
-    test('remove drops the active count; accepting again restores it',
-        () async {
-      final h = CommitmentGatesHarness();
-      await h.offerHelp();
-      await h.acceptOffer();
-      expect(await h.activeOfferCount(), 1);
+    test(
+      'remove drops the active count; accepting again restores it',
+      () async {
+        final h = CommitmentGatesHarness();
+        await h.offerHelp();
+        await h.acceptOffer();
+        expect(await h.activeOfferCount(), 1);
 
-      await h.removeFromRoom();
-      expect(await h.activeOfferCount(), 0);
-      final removed = (await h.helpOfferRepo.fetchAllByBeaconId(
-        h.beaconId,
-      )).single;
-      expect(removed.isWithdrawn, isTrue);
-      expect(removed.withdrawReason, isNull);
+        await h.removeFromRoom();
+        expect(await h.activeOfferCount(), 0);
+        final removed = (await h.helpOfferRepo.fetchAllByBeaconId(
+          h.beaconId,
+        )).single;
+        expect(removed.isWithdrawn, isTrue);
+        expect(removed.withdrawReason, isNull);
 
-      await h.acceptOffer();
-      expect(await h.activeOfferCount(), 1);
-      final events = await h.commitmentRepo.eventsForPair(
-        beaconId: h.beaconId,
-        userId: h.helperId,
-      );
-      expect(
-        events.map((e) => e.kind),
-        containsAllInOrder([
-          CommitmentEventKind.removedFromChat,
-          CommitmentEventKind.readmittedToChat,
-        ]),
-      );
-    });
+        await h.acceptOffer();
+        expect(await h.activeOfferCount(), 1);
+        final events = await h.commitmentRepo.eventsForPair(
+          beaconId: h.beaconId,
+          userId: h.helperId,
+        );
+        expect(
+          events.map((e) => e.kind),
+          containsAllInOrder([
+            CommitmentEventKind.removedFromChat,
+            CommitmentEventKind.readmittedToChat,
+          ]),
+        );
+      },
+    );
 
     test('inviting a removed helper back via setCoordinationResponse '
         're-activates the offer', () async {
@@ -77,22 +79,24 @@ void main() {
       expect(await h.activeOfferCount(), 1);
     });
 
-    test('a removed helper who then withdrew cannot be accepted back',
-        () async {
-      final h = CommitmentGatesHarness();
-      await h.offerHelp();
-      await h.acceptOffer();
-      await h.removeFromRoom();
-      await h.withdrawOffer();
+    test(
+      'a removed helper who then withdrew cannot be accepted back',
+      () async {
+        final h = CommitmentGatesHarness();
+        await h.offerHelp();
+        await h.acceptOffer();
+        await h.removeFromRoom();
+        await h.withdrawOffer();
 
-      await expectLater(
-        h.acceptOffer(),
-        _throwsCoordination(
-          HelpOfferCoordinationExceptionCode.helpOfferNotActive,
-        ),
-      );
-      expect(await h.activeOfferCount(), 0);
-    });
+        await expectLater(
+          h.acceptOffer(),
+          _throwsCoordination(
+            HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+          ),
+        );
+        expect(await h.activeOfferCount(), 0);
+      },
+    );
 
     test('a declined offer still cannot be accepted', () async {
       final h = CommitmentGatesHarness();

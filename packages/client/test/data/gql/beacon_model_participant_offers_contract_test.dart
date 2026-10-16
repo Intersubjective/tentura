@@ -29,7 +29,10 @@ void main() {
     expect(where, contains('status: { _in: [1, 5] }'));
   });
 
-  test('does not count participants whose room access was revoked or who left', () {
-    expect(where, contains('room_access: { _nin: [0, 5] }'));
-  });
+  test(
+    'does not count participants whose room access was revoked or who left',
+    () {
+      expect(where, contains('room_access: { _nin: [0, 5] }'));
+    },
+  );
 }

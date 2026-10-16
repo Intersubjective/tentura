@@ -65,34 +65,40 @@ void main() {
   });
 
   // #401: removal deactivates the offer (status 1) but is not a withdrawal.
-  test('an author-removed offer (status 1, action remove) is not withdrawn',
-      () {
-    final offer = timelineHelpOffersFromRemote([
-      _row(
-        status: 1,
-        admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
-      ),
-    ]).single;
-    expect(offer.isWithdrawn, isFalse);
-    expect(offer.admissionAction, HelpOfferAdmissionAction.remove);
-  });
+  test(
+    'an author-removed offer (status 1, action remove) is not withdrawn',
+    () {
+      final offer = timelineHelpOffersFromRemote([
+        _row(
+          status: 1,
+          admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
+        ),
+      ]).single;
+      expect(offer.isWithdrawn, isFalse);
+      expect(offer.admissionAction, HelpOfferAdmissionAction.remove);
+    },
+  );
 
-  test('a removed helper who then withdrew is withdrawn, not re-admittable',
-      () {
-    // The server refuses to re-admit an offer withdrawn after the removal.
-    final offer = timelineHelpOffersFromRemote([
-      _row(
-        status: 1,
-        admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
-        withdrawReason: 'other',
-      ),
-    ]).single;
-    expect(offer.isWithdrawn, isTrue);
-  });
+  test(
+    'a removed helper who then withdrew is withdrawn, not re-admittable',
+    () {
+      // The server refuses to re-admit an offer withdrawn after the removal.
+      final offer = timelineHelpOffersFromRemote([
+        _row(
+          status: 1,
+          admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
+          withdrawReason: 'other',
+        ),
+      ]).single;
+      expect(offer.isWithdrawn, isTrue);
+    },
+  );
 
   test('status 1 without a removal still maps to withdrawn', () {
-    expect(timelineHelpOffersFromRemote([_row(status: 1)]).single.isWithdrawn,
-        isTrue);
+    expect(
+      timelineHelpOffersFromRemote([_row(status: 1)]).single.isWithdrawn,
+      isTrue,
+    );
     expect(
       timelineHelpOffersFromRemote([
         _row(
