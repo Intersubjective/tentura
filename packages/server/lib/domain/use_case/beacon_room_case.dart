@@ -39,6 +39,7 @@ import 'package:tentura_root/domain/mention_span_validation.dart';
 
 import 'package:tentura_server/domain/util/attachment_filename.dart';
 import 'package:tentura_server/domain/util/room_attachment_storage_key.dart';
+import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
@@ -836,7 +837,6 @@ class BeaconRoomCase extends UseCaseBase {
         viewerUserId: userId,
       );
       final blockerFields = await _openBlockerBatchFields(openBlocker);
-      final latest = await _room.latestRoomActivity(bid);
       out.add({
         'beaconId': bid,
         'isRoomMember': true,
@@ -849,15 +849,42 @@ class BeaconRoomCase extends UseCaseBase {
         ...blockerFields,
         'publicFactSnippet': factSnippet,
         'planSliceJson': null,
-        // U087 — the Requests list's "Recent" order and "latest" line.
-        'lastActivityAt': latest.lastActivityAt?.toUtc().toIso8601String(),
-        'lastMessageAt': latest.lastMessageAt?.toUtc().toIso8601String(),
-        'lastMessageText': latest.lastMessageBody,
-        'lastMessageAuthorId': latest.lastMessageAuthorId,
-        'lastMessageAuthorName': latest.lastMessageAuthorName,
+        ..._emptyLatestActivityBatchFields(),
       });
     }
+    await _attachLatestActivity(out);
     return _attachPlanSlices(userId: userId, rows: out);
+  }
+
+  /// U087 — fills the Requests list's "Recent" order and "latest" line on
+  /// the [rows] the viewer may read (`isRoomMember`), with one batched read
+  /// (#541 review: no per-Request round trip). The message text is clipped
+  /// here with [roomReplyExcerpt] (one line, 160 runes), so long bodies and
+  /// newlines never reach the client.
+  Future<void> _attachLatestActivity(List<Map<String, Object?>> rows) async {
+    final readable = [
+      for (final row in rows)
+        if (row['isRoomMember'] == true) row['beaconId']! as String,
+    ];
+    if (readable.isEmpty) {
+      return;
+    }
+    final byId = await _room.latestRoomActivities(readable);
+    for (final row in rows) {
+      if (row['isRoomMember'] != true) {
+        continue;
+      }
+      final latest = byId[row['beaconId']! as String];
+      if (latest == null) {
+        continue;
+      }
+      row
+        ..['lastActivityAt'] = latest.lastActivityAt?.toUtc().toIso8601String()
+        ..['lastMessageAt'] = latest.lastMessageAt?.toUtc().toIso8601String()
+        ..['lastMessageText'] = roomReplyExcerpt(latest.lastMessageBody)
+        ..['lastMessageAuthorId'] = latest.lastMessageAuthorId
+        ..['lastMessageAuthorName'] = latest.lastMessageAuthorName;
+    }
   }
 
   static Map<String, Object?> _emptyLatestActivityBatchFields() => const {

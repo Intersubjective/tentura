@@ -1506,29 +1506,39 @@ SELECT public.emit_realtime_entity_change(
           ?.toRecord();
 
   @override
-  Future<RoomLatestActivity> latestRoomActivity(String beaconId) async {
-    final row = await _db
+  Future<Map<String, RoomLatestActivity>> latestRoomActivities(
+    Iterable<String> beaconIds,
+  ) async {
+    final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) {
+      return {};
+    }
+    // One round trip for the whole batch (#541 review): each correlated
+    // subquery and the LATERAL pick are served by the
+    // `(beacon_id, created_at DESC)` indexes on the message and event tables.
+    final rows = await _db
         .customSelect(
           r'''
 SELECT
+  ids.beacon_id,
   GREATEST(
     (SELECT max(m.created_at) FROM public.beacon_room_message m
-      WHERE m.beacon_id = $1 AND m.thread_item_id IS NULL),
+      WHERE m.beacon_id = ids.beacon_id AND m.thread_item_id IS NULL),
     (SELECT s.updated_at FROM public.beacon_room_state s
-      WHERE s.beacon_id = $1),
+      WHERE s.beacon_id = ids.beacon_id),
     (SELECT max(e.created_at) FROM public.beacon_activity_event e
-      WHERE e.beacon_id = $1)
+      WHERE e.beacon_id = ids.beacon_id)
   ) AS last_activity_at,
   lm.created_at AS last_message_at,
   -- The Requests card shows one clipped line; don't ship whole bodies.
   left(lm.body, 200) AS last_message_body,
   lm.author_id AS last_message_author_id,
   u.display_name AS last_message_author_name
-FROM (SELECT 1) AS one
+FROM unnest($1::text[]) AS ids(beacon_id)
 LEFT JOIN LATERAL (
   SELECT m.created_at, m.body, m.author_id
   FROM public.beacon_room_message m
-  WHERE m.beacon_id = $1
+  WHERE m.beacon_id = ids.beacon_id
     AND m.thread_item_id IS NULL
     AND m.system_message_kind IS NULL
     AND m.author_id IS NOT NULL
@@ -1538,22 +1548,27 @@ LEFT JOIN LATERAL (
 ) lm ON true
 LEFT JOIN public."user" u ON u.id = lm.author_id
 ''',
-          variables: [Variable.withString(beaconId)],
+          variables: [Variable(TypedValue(Type.textArray, ids))],
         )
-        .getSingle();
-    DateTime? at(String column) => switch (row.data[column]) {
+        .get();
+    DateTime? at(Map<String, Object?> data, String column) =>
+        switch (data[column]) {
       final DateTime d => d.toUtc(),
       final PgDateTime d => d.dateTime.toUtc(),
       _ => null,
     };
-    return RoomLatestActivity(
-      lastActivityAt: at('last_activity_at'),
-      lastMessageAt: at('last_message_at'),
-      lastMessageBody: row.data['last_message_body'] as String?,
-      lastMessageAuthorId: row.data['last_message_author_id'] as String?,
-      lastMessageAuthorName: row.data['last_message_author_name'] as String?,
-    );
+    return {
+      for (final row in rows)
+        row.data['beacon_id']! as String: RoomLatestActivity(
+          lastActivityAt: at(row.data, 'last_activity_at'),
+          lastMessageAt: at(row.data, 'last_message_at'),
+          lastMessageBody: row.data['last_message_body'] as String?,
+          lastMessageAuthorId: row.data['last_message_author_id'] as String?,
+          lastMessageAuthorName: row.data['last_message_author_name'] as String?,
+        ),
+    };
   }
+
 
   // DORMANT(item-threads): item-thread seen upsert branch when threadItemId is non-null.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.

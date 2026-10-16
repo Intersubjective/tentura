@@ -34,8 +34,13 @@ abstract class BeaconRoomRepositoryPort {
 
   Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId);
 
-  /// U087 — last activity + latest member message of one Request's main room.
-  Future<RoomLatestActivity> latestRoomActivity(String beaconId);
+  /// U087 — last activity + latest member message of each Request's main
+  /// room, keyed by beacon id, read in one query. Callers pass only Requests
+  /// the viewer may read; ids with no room rows still get an entry with null
+  /// fields.
+  Future<Map<String, RoomLatestActivity>> latestRoomActivities(
+    Iterable<String> beaconIds,
+  );
 
   Future<DateTime?> getMainRoomLastSeen({
     required String beaconId,

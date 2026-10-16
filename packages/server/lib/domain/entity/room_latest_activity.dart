@@ -11,11 +11,14 @@ final class RoomLatestActivity {
 
   /// Latest of: any main-room line (messages and system lines), the
   /// next-step (`beacon_room_state.updated_at`) and any logged event
-  /// (`beacon_activity_event`, which carries status changes). Null when
+  /// (`beacon_activity_event`, which carries status changes and also
+  /// membership events such as participantJoined and participantRemoved, so
+  /// a join or a removal moves the Request up in "Recent" too). Null when
   /// nothing happened yet.
   final DateTime? lastActivityAt;
 
-  /// The latest member-written main-room message (not a system line).
+  /// The latest member-written main-room message (not a system line, and not
+  /// an attachment-only message with an empty body).
   final DateTime? lastMessageAt;
   final String? lastMessageBody;
   final String? lastMessageAuthorId;
