@@ -8913,6 +8913,10 @@
   "@planErrorDisabled": {
     "description": "Error 1344."
   },
+  "pollErrorDuplicateVariant": "Poll options must be distinct",
+  "@pollErrorDuplicateVariant": {
+    "description": "Error 1346: poll options contain duplicates."
+  },
   "planErrorInvalid": "Check the steps: each needs a title, and an end after its start",
   "@planErrorInvalid": {
     "description": "Error 1345: the plan draft is not well-formed."

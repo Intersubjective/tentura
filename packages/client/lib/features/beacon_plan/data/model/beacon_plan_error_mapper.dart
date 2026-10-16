@@ -39,5 +39,7 @@ void throwIfBeaconPlanError(int? code, Map<String, dynamic>? extensions) {
       throw const PlanDisabledException();
     case PlanInvalidException.codeNumber:
       throw const PlanInvalidException();
+    case PollDuplicateVariantException.codeNumber:
+      throw const PollDuplicateVariantException();
   }
 }

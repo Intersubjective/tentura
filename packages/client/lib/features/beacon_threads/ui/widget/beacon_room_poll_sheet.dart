@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
 import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
@@ -83,7 +84,14 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
       if (mounted) Navigator.of(context).pop();
     } on Object catch (e) {
       if (mounted) {
-        showSnackBar(context, isError: true, text: e.toString(), error: e);
+        showSnackBar(
+          context,
+          isError: true,
+          text: e is PollDuplicateVariantException
+              ? L10n.of(context)!.pollErrorDuplicateVariant
+              : e.toString(),
+          error: e,
+        );
         setState(() => _sending = false);
       }
     }

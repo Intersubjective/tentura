@@ -6,9 +6,17 @@ import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 
 void main() {
   group('isBenignSentryThrowable', () {
+    test('duplicate poll options are benign but unexpected errors report', () {
+      expect(
+        isBenignSentryThrowable(const PollDuplicateVariantException()),
+        isTrue,
+      );
+      expect(isBenignSentryThrowable(StateError('unexpected')), isFalse);
+    });
     test('ConnectionUplinkException is benign', () {
       expect(
         isBenignSentryThrowable(const ConnectionUplinkException()),

@@ -6719,6 +6719,7 @@
   "planErrorAssigneeNotAdmitted": "Этот человек не участвует в запросе",
   "planErrorTooLarge": "В плане не больше 100 шагов",
   "planErrorDisabled": "План сейчас недоступен",
+  "pollErrorDuplicateVariant": "Варианты ответа в опросе должны различаться",
   "planErrorInvalid": "Проверьте шаги: у каждого нужно название, а конец — позже начала",
   "planErrorTickFailed": "Не удалось отметить шаг. Попробуйте ещё раз",
   "planErrorLoad": "Не удалось загрузить план",

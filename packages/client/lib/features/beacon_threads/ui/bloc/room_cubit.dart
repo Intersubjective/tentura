@@ -22,6 +22,7 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -1591,6 +1592,10 @@ class RoomCubit extends Cubit<RoomState> {
       await markSeenNowIfNeeded();
       if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await load();
+    } on PollDuplicateVariantException {
+      // The composer owns validation feedback and must remain open for editing.
+      if (!isClosed) emit(state.copyWith(status: const StateIsSuccess()));
+      rethrow;
     } on Object catch (e) {
       _showSnackError(e);
     }

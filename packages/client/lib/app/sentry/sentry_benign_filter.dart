@@ -5,10 +5,12 @@ import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 
 /// Whether [error] is an expected, user-facing failure that should not
 /// become a Sentry issue (connectivity loss, session expiry, etc.).
 bool isBenignSentryThrowable(Object? error) {
+  if (error is PollDuplicateVariantException) return true;
   if (error == null) {
     return false;
   }

@@ -1,5 +1,5 @@
 /// Typed translations of the Request plan («либретто», #220) GraphQL error
-/// codes 1342–1345 (server `BeaconExceptionCode.plan*`).
+/// codes 1336–1346 (server plan and poll validation errors).
 ///
 /// Thrown by `throwIfBeaconPlanError` (in
 /// `data/model/beacon_plan_error_mapper.dart`) from the routing link's
@@ -92,4 +92,11 @@ final class PlanInvalidException extends BeaconPlanException {
   const PlanInvalidException([super.message]);
 
   static const codeNumber = 1345;
+}
+
+/// Poll options contain duplicates after server-side normalization.
+final class PollDuplicateVariantException extends BeaconPlanException {
+  const PollDuplicateVariantException();
+
+  static const codeNumber = 1346;
 }

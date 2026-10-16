@@ -204,7 +204,7 @@ void main() {
       );
     });
 
-    test('1337..1345 map to typed exceptions; others pass through', () {
+    test('1337..1346 map to typed exceptions; others pass through', () {
       const expected = <int, Type>{
         1337: PlanStepNotFoundException,
         1338: PlanNotEditableException,
@@ -215,6 +215,7 @@ void main() {
         1343: PlanTooLargeException,
         1344: PlanDisabledException,
         1345: PlanInvalidException,
+        1346: PollDuplicateVariantException,
       };
       for (final MapEntry(key: code, value: type) in expected.entries) {
         try {
@@ -225,6 +226,7 @@ void main() {
         }
       }
       expect(() => throwIfBeaconPlanError(1335, null), returnsNormally);
+      expect(() => throwIfBeaconPlanError(1347, null), returnsNormally);
       expect(() => throwIfBeaconPlanError(null, null), returnsNormally);
     });
   });
