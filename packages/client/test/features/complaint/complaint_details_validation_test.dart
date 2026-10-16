@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/features/complaint/ui/screen/complaint_screen.dart';
+import 'package:tentura/features/complaint/domain/util/complaint_details.dart';
 
 void main() {
   const message = 'Please provide details';

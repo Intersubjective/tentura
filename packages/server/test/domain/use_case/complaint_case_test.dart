@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/complaint_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/complaint_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -209,6 +210,46 @@ void main() {
         ),
         throwsA(isA<Exception>()),
       );
+    });
+  });
+
+  group('ComplaintCase.create details minimum (#382)', () {
+    test('rejects details shorter than the minimum', () async {
+      await expectLater(
+        case_.create(
+          id: id,
+          type: ComplaintType.violatesPlatformRules.name,
+          email: email,
+          userId: userId,
+          details: ' ab ',
+        ),
+        throwsA(isA<UnspecifiedException>()),
+      );
+      verifyNever(complaintRepo.create(any));
+    });
+
+    test('accepts details of exactly the minimum length', () async {
+      await case_.create(
+        id: id,
+        type: ComplaintType.violatesPlatformRules.name,
+        email: email,
+        userId: userId,
+        details: 'abc',
+      );
+
+      expect(capturedEntity().details, 'abc');
+    });
+
+    test('a short account-deletion request is still filed', () async {
+      await case_.create(
+        id: id,
+        type: ComplaintType.accountDeletionRequest.name,
+        email: email,
+        userId: userId,
+        details: 'ab',
+      );
+
+      expect(capturedEntity().type, ComplaintType.accountDeletionRequest);
     });
   });
 }

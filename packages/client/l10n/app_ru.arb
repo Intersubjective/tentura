@@ -918,9 +918,23 @@
   "@labelComplaintType": {
     "context": "ComplaintScreen"
   },
-  "detailsRequired": "Подробности, минимум 3 символа",
+  "detailsRequired": "{min, plural, one{Подробности, минимум {min} символ} few{Подробности, минимум {min} символа} other{Подробности, минимум {min} символов}}",
   "@detailsRequired": {
-    "context": "ComplaintScreen"
+    "context": "ComplaintScreen",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "complaintDetailsTooShort": "{min, plural, one{Введите не менее {min} символа} other{Введите не менее {min} символов}}",
+  "@complaintDetailsTooShort": {
+    "context": "ComplaintScreen",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
   },
   "provideDetails": "Пожалуйста, укажите подробности",
   "@provideDetails": {
