@@ -60,7 +60,8 @@ void main() {
       final retired = RegExp(
         'IN ON IT|In on it|Nothing noted yet|Needs me|Not fitting|'
         'Moved to the stream|[Ww]rapping up|[Ww]rap up|Enough help committed|'
-        r'[Rr]eview window|[Rr]eviewers?\b',
+        r'[Rr]eview window|[Rr]eview period|[Rr]eviewers?\b|'
+        r'Extend review|[Ww]aiting for reviews',
       );
       final arb =
           jsonDecode(File('l10n/app_en.arb').readAsStringSync())
