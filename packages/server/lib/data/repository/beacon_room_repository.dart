@@ -1382,16 +1382,8 @@ RETURNING *
     required String withdrawReason,
     String note = '',
   }) => _db.withMutatingUser(userId, () async {
-    final existing = await findParticipant(beaconId: beaconId, userId: userId);
-    // Only someone who was in the room leaves it; an addressee of a converted
-    // Post keeps access (leaving is `postLeave`).
-    if (existing == null ||
-        existing.roomAccess != RoomAccessBits.admitted ||
-        existing.role == BeaconParticipantRoleBits.addressee) {
-      return;
-    }
     final trimmedNote = note.trim();
-    await _db.managers.beaconRoomMessages.create(
+    final line = await _db.managers.beaconRoomMessages.createReturning(
       (o) => o(
         id: generateId('R'),
         beaconId: beaconId,
@@ -1402,6 +1394,24 @@ RETURNING *
           'leftUserId': userId,
           'withdrawReason': withdrawReason,
           if (trimmedNote.isNotEmpty) 'note': trimmedNote,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+    // Same pairing as a join: the activity log shows the leave, linked to
+    // the chat line it came with.
+    await _db.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.room,
+        type: BeaconActivityEventTypeBits.participantLeft,
+        actorId: Value(userId),
+        targetUserId: Value(userId),
+        sourceMessageId: Value(line.id),
+        diff: Value(<String, Object?>{
+          'leftUserId': userId,
+          'withdrawReason': withdrawReason,
         }),
         createdAt: const Value.absent(),
       ),

@@ -19,6 +19,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
+    show withdrawReasonLabel;
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -54,8 +56,6 @@ import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 import 'package:tentura/ui/widget/presence_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
-    show withdrawReasonLabel;
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
@@ -445,6 +445,8 @@ class RoomMessageTile extends StatelessWidget {
     BeaconRoomSemanticMarker.baton => l10n.beaconRoomSemanticBaton,
     BeaconRoomSemanticMarker.participantJoined =>
       l10n.beaconRoomSemanticParticipantJoined,
+    BeaconRoomSemanticMarker.participantLeft =>
+      l10n.beaconRoomSemanticParticipantLeft,
     _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
   };
 

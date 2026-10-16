@@ -23,6 +23,10 @@ abstract final class BeaconActivityEventTypeBits {
   static const planStepDone = 22;
   static const planCantMake = 23;
   static const planCopied = 24;
+
+  /// A helper withdrew and left the room (B084); pairs with the
+  /// `participantLeft` chat line via `source_message_id`.
+  static const participantLeft = 25;
 }
 
 /// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].

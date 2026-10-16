@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -443,12 +444,22 @@ final class HelpOfferCase extends UseCaseBase {
         );
         // Tell the room who left and why while the helper is still a member
         // (the line also pushes to the others as a room message) (B084).
-        await _roomRepository.recordParticipantLeft(
+        // Only an admitted helper was in the room; a pending offer never was,
+        // and a Post addressee keeps access (leaving is `postLeave`).
+        final participant = await _roomRepository.findParticipant(
           beaconId: beaconId,
           userId: userId,
-          withdrawReason: withdrawReason,
-          note: message,
         );
+        if (participant != null &&
+            participant.roomAccess == RoomAccessBits.admitted &&
+            participant.role != BeaconParticipantRoleBits.addressee) {
+          await _roomRepository.recordParticipantLeft(
+            beaconId: beaconId,
+            userId: userId,
+            withdrawReason: withdrawReason,
+            note: message,
+          );
+        }
         await _roomRepository.revokeOfferUserBeaconRoomAccess(
           beaconId: beaconId,
           offerUserId: userId,

@@ -7,6 +7,8 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -236,6 +238,64 @@ WHERE outbox.occurrence_id = occ.id
 
       expect(await needsYou(_authorId), 0);
       expect(await _helpOfferSettlementKind(writer, _helperId), 'superseded');
+    }, skip: skipReason);
+
+    // B084: the real rules behind the leave line (the use-case test mocks
+    // the port). Fails on the base: no activity event was written.
+    test('an admitted helper who withdraws leaves a line and a log event',
+        () async {
+      await harness.helpOfferCase.offerHelp(
+        beaconId: _beaconId,
+        userId: _helperId,
+      );
+      await harness.coordinationCase.acceptHelpOffer(
+        beaconId: _beaconId,
+        offerUserId: _helperId,
+        actorUserId: _authorId,
+      );
+      await harness.helpOfferCase.withdraw(
+        beaconId: _beaconId,
+        userId: _helperId,
+        withdrawReason: 'timing',
+        message: '   ',
+      );
+
+      final lines = await writer.execute('''
+SELECT id, system_payload->>'leftUserId', system_payload->>'note'
+FROM public.beacon_room_message
+WHERE beacon_id = '$_beaconId'
+  AND semantic_marker = ${BeaconRoomSemanticMarker.participantLeft}
+''');
+      expect(lines, hasLength(1));
+      expect(lines.single[1], _helperId);
+      expect(lines.single[2], isNull, reason: 'a blank note is left out');
+
+      final events = await writer.execute('''
+SELECT source_message_id FROM public.beacon_activity_event
+WHERE beacon_id = '$_beaconId'
+  AND type = ${BeaconActivityEventTypeBits.participantLeft}
+''');
+      expect(events, hasLength(1));
+      expect(events.single[0], lines.single[0]);
+    }, skip: skipReason);
+
+    test('withdrawing a pending offer leaves no line', () async {
+      await harness.helpOfferCase.offerHelp(
+        beaconId: _beaconId,
+        userId: _helperId,
+      );
+      await harness.helpOfferCase.withdraw(
+        beaconId: _beaconId,
+        userId: _helperId,
+        withdrawReason: 'timing',
+      );
+
+      final lines = await writer.execute('''
+SELECT count(*) FROM public.beacon_room_message
+WHERE beacon_id = '$_beaconId'
+  AND semantic_marker = ${BeaconRoomSemanticMarker.participantLeft}
+''');
+      expect((lines.single[0]! as num).toInt(), 0);
     }, skip: skipReason);
 
     test('releasing an admitted offerer drops a still-live author obligation',
