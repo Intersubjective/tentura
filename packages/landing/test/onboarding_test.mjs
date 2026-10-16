@@ -221,6 +221,7 @@ function installDomFake() {
     }
     focus() {
       this._focused = true;
+      globalThis.document.activeElement = this;
     }
     querySelector(sel) {
       if (sel.startsWith('#')) {
@@ -349,4 +350,77 @@ test('U085: save name, then the pager starts with no Back; Back on step 2 return
   assert.equal(back.hidden, true, 'back on step 1');
   assert.equal(card.querySelector('#display-name'), null, 'name step not re-rendered');
   assert.ok(!events.some((e) => e.name === 'onboarding_back'));
+});
+
+test('#522 review: hiding the focused Back moves focus to Next', async () => {
+  installDomFake();
+  globalThis.window = globalThis;
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  const storage = fakeStorage({ tentura_post_signup_name_done: 'U1' });
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'Ada' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: () => {},
+    openProductUrl: () => '/app/',
+    storage,
+  });
+
+  const next = card.querySelector('.btn-primary');
+  next.click();
+  const back = card.querySelector('.pager-back');
+  back.focus();
+  back.click();
+
+  assert.equal(back.hidden, true);
+  assert.equal(document.activeElement, next, 'focus did not fall to <body>');
+});
+
+test('#522 review: reload after the name step resumes at the pager', async () => {
+  installDomFake();
+  globalThis.window = globalThis;
+  const { renderPostSignup } = await import('../onboarding.js');
+  const storage = fakeStorage();
+  const render = (card) =>
+    renderPostSignup({
+      card,
+      profile: { id: 'U1', displayName: 'agent 3c4703tb' },
+      setState: () => {},
+      setPageTitle: () => {},
+      track: () => {},
+      openProductUrl: () => '/app/',
+      storage,
+    });
+
+  const first = document.createElement('div');
+  render(first);
+  first.querySelector('.hint-link').click(); // Skip for now
+  assert.ok(first.querySelector('.pager'));
+
+  // Same tab session, same ?signed_in=1&new=1 URL (reload / Back+Forward).
+  const reloaded = document.createElement('div');
+  render(reloaded);
+  assert.ok(reloaded.querySelector('.pager'), 'resumes at the pager');
+  assert.equal(reloaded.querySelector('#display-name'), null);
+
+  // Another account in the same tab still gets its name step.
+  const other = document.createElement('div');
+  renderPostSignup({
+    card: other,
+    profile: { id: 'U2', displayName: 'agent 99x' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: () => {},
+    openProductUrl: () => '/app/',
+    storage,
+  });
+  assert.ok(other.querySelector('#display-name'));
+});
+
+test('#522 review: the name hint is linked to the field', () => {
+  assert.match(onboardingJs, /'aria-describedby': 'display-name-hint'/);
+  assert.match(onboardingJs, /id: 'display-name-hint'/);
+  assert.doesNotMatch(onboardingJs, /revisit/);
 });
