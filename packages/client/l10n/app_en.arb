@@ -4700,7 +4700,7 @@
   "requestStatusActivityClosed": "closed",
   "requestStatusActivityCancelled": "cancelled",
   "requestStatusActivityDraft": "draft",
-  "requestStatusActivityReviewOpen": "in review",
+  "requestStatusActivityReviewOpen": "final check",
   "beaconHudNeedsResponse": "Needs response",
   "beaconHudWaitingForReviews": "Waiting on the final check",
   "beaconCtaEditHelpOffer": "Edit help offer",

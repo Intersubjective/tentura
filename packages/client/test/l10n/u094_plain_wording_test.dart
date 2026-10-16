@@ -45,6 +45,7 @@ void main() {
         expect(s, 'Final check');
       }
       expect(en.requestStatusActivityWrappingUp, 'final check');
+      expect(en.requestStatusActivityReviewOpen, 'final check');
     });
 
     test('people and closing', () {
