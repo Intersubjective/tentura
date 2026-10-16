@@ -167,6 +167,20 @@ void main() {
     expect(port.server.byViewer[_viewer], {'B1'});
   });
 
+  test('a × tapped while a flush runs is sent by that flush', () async {
+    final port = _ServerPort(_Server());
+    final phone = OfferAcceptedDismissals(port);
+    await phone.ensureLoadedFor(_viewer);
+
+    port.gate = Completer<void>();
+    final first = phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    final second = phone.dismiss(viewerId: _viewer, beaconId: 'B2');
+    port.gate!.complete();
+    await Future.wait([first, second]);
+
+    expect(port.server.byViewer[_viewer], {'B1', 'B2'});
+  });
+
   test('a dismissal the server refuses is not sent again', () async {
     final port = _ServerPort(_Server());
     final phone = OfferAcceptedDismissals(port);

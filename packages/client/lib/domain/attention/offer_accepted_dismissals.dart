@@ -146,7 +146,16 @@ class OfferAcceptedDismissals extends ChangeNotifier {
   }
 
   Future<void> _flush(String viewerId, Set<String> pending) async {
-    for (final beaconId in [...pending]) {
+    // A × tapped while this runs joins this flush, so keep going until
+    // every dismissal it can see has been tried once.
+    final tried = <String>{};
+    for (
+      var next = pending.difference(tried);
+      next.isNotEmpty;
+      next = pending.difference(tried)
+    ) {
+      final beaconId = next.first;
+      tried.add(beaconId);
       try {
         _merge(
           viewerId,

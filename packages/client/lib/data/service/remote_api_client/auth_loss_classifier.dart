@@ -119,7 +119,7 @@ Exception mapRemoteFailure(Object? error) {
   // error page). The server still answered — surface what we can.
   if (error is gql.ResponseFormatException) {
     return _remoteApiOrUnknown(
-      'Malformed server response: ${error.originalException ?? error}',
+      '$_malformedResponsePrefix${error.originalException ?? error}',
     );
   }
   final raw = error?.toString() ?? '';
@@ -139,6 +139,18 @@ Exception mapRemoteFailure(Object? error) {
   }
   return _remoteApiOrUnknown(raw);
 }
+
+const _malformedResponsePrefix = 'Malformed server response: ';
+const _serverStatusPrefix = 'Server error (HTTP ';
+
+/// True when [error] (as mapped by [mapRemoteFailure]) is the server's own
+/// answer to the operation — GraphQL errors it returned — rather than a
+/// transport failure, an HTTP status without a GraphQL body or an unreadable
+/// response. Such a refusal won't change if the same request is sent again.
+bool isRemoteRefusal(Object? error) =>
+    error is RemoteApiException &&
+    !error.message.startsWith(_serverStatusPrefix) &&
+    !error.message.startsWith(_malformedResponsePrefix);
 
 /// True when [error] means the server was slow or unreachable (timeout, 5xx,
 /// 408/429, transport failure) rather than that it rejected the credentials.
@@ -214,7 +226,7 @@ Exception? _mapServerException(gql.ServerException error) {
     if (status == 401 || status == 403) {
       return const AuthSessionLostException();
     }
-    return _remoteApiOrUnknown('Server error (HTTP $status)');
+    return _remoteApiOrUnknown('$_serverStatusPrefix$status)');
   }
 
   // No status and no parsed response. This is how ferry surfaces an exception

@@ -30,8 +30,9 @@ typedef _SentOperation = ({
 Future<void> _withRemote(
   Map<String, Map<String, dynamic>> responses,
   List<_SentOperation> sent,
-  Future<void> Function(RemoteApiService remote) body,
-) => http.runWithClient(
+  Future<void> Function(RemoteApiService remote) body, {
+  int? failStatus,
+}) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
       const Env(),
@@ -64,6 +65,9 @@ Future<void> _withRemote(
       query: json['query'] as String,
       variables: (json['variables'] as Map).cast<String, dynamic>(),
     ));
+    if (failStatus != null) {
+      return http.Response('Service Unavailable', failStatus);
+    }
     final data = responses[name];
     if (data == null) {
       return http.Response('{"errors":[{"message":"unexpected $name"}]}', 200);
@@ -173,6 +177,18 @@ void main() {
       );
     });
     expect(sent.single.operationName, 'DismissOfferAccepted');
+  });
+
+  test('a server outage is not reported as a refusal', () async {
+    final sent = <_SentOperation>[];
+    await _withRemote({}, sent, failStatus: 503, (remote) async {
+      await expectLater(
+        OfferAcceptedDismissalRepository(
+          remote,
+        ).dismiss(viewerId: 'Uhelper00001', beaconId: 'B3'),
+        throwsA(isNot(isA<OfferAcceptedDismissalRefusedException>())),
+      );
+    });
   });
 
   test('ENV=test has a stub for the port, like every repository', () async {
