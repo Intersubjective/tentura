@@ -185,8 +185,21 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
                 profile: result.issuer,
               ) ??
               false) {
-            // TBD: tell reason enum
-            await _invitationRepository.accept(code);
+            try {
+              await _invitationRepository.accept(code);
+            } catch (e) {
+              // The server refuses self-accept too (#357); a stale account
+              // id or an older client reaches here instead of the check above.
+              if (mounted) {
+                showSnackBar(
+                  context,
+                  isError: true,
+                  text: _l10n.errorGenericAction,
+                  detail: e.toString(),
+                );
+              }
+              return;
+            }
             if (mounted) {
               // TBD: l10n
               showSnackBar(context, text: 'Invitation accepted!');

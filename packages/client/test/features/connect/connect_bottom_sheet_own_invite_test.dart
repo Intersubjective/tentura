@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
@@ -21,9 +22,11 @@ class _FakeAuth extends Fake implements AuthCubit {
 }
 
 class _FakeInvitations extends Fake implements InvitationRepository {
-  _FakeInvitations(this.issuerId);
+  _FakeInvitations(this.issuerId, {this.acceptError});
 
   final String issuerId;
+
+  final Exception? acceptError;
 
   final accepted = <String>[];
 
@@ -38,7 +41,11 @@ class _FakeInvitations extends Fake implements InvitationRepository {
   );
 
   @override
-  Future<void> accept(String id) async => accepted.add(id);
+  Future<void> accept(String id) async {
+    final error = acceptError;
+    if (error != null) throw error;
+    accepted.add(id);
+  }
 }
 
 void main() {
@@ -47,11 +54,13 @@ void main() {
   Future<_FakeInvitations> pumpAndSearch(
     WidgetTester tester, {
     required String issuerId,
+    Exception? acceptError,
   }) async {
-    final invitations = _FakeInvitations(issuerId);
+    final invitations = _FakeInvitations(issuerId, acceptError: acceptError);
     GetIt.I
       ..registerSingleton<InvitationRepository>(invitations)
-      ..registerSingleton<AuthCubit>(_FakeAuth());
+      ..registerSingleton<AuthCubit>(_FakeAuth())
+      ..registerSingleton<Logger>(Logger('test'));
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
@@ -88,5 +97,25 @@ void main() {
       find.text('This is your own invite link.', findRichText: true),
       findsNothing,
     );
+  });
+
+  testWidgets('a refused accept shows an error instead of failing silently', (
+    tester,
+  ) async {
+    // Without the try/catch the server's refusal escapes the tap handler
+    // and nothing is shown (review of #371, Should fix 2).
+    await pumpAndSearch(
+      tester,
+      issuerId: 'U96e2e7582017',
+      acceptError: Exception('Wrong invitation'),
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Yes'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Something went wrong', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Invitation accepted!'), findsNothing);
   });
 }
