@@ -1437,8 +1437,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
         }
         if (v == 'img') {
           await pickImageAttachments();
+          // Back to the field, or a typed caption is lost and Space reopens
+          // this menu (#369).
+          requestComposerFocus();
         } else if (v == 'file') {
           await pickFileAttachments();
+          requestComposerFocus();
         } else if (v == 'fact') {
           onPickFact?.call();
         } else if (v == 'poll') {
