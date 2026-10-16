@@ -9,8 +9,8 @@ import 'app/sentry/sentry_init.dart';
 import 'app/tentura_widgets_binding.dart';
 
 Future<void> main() async {
-  TenturaWidgetsBinding.ensureInitialized();
   adoptPathDeepLink();
+  TenturaWidgetsBinding.ensureInitialized();
   if (kDebugMode) {
     await App.runner(debugErrors: true);
   } else if (sentryDsn.isEmpty) {

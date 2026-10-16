@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/app/platform/path_deep_link.dart';
+import 'package:tentura/app/platform/path_deep_link_policy.dart';
 
 void main() {
   group('hashUrlForPathDeepLink', () {
