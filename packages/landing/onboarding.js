@@ -257,7 +257,16 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
     e.preventDefault();
     errorEl.textContent = '';
     const name = input.value.trim();
-    if (name === prefill || name.length === 0) {
+    // An empty Save used to move on like Skip, saving nothing (#421). A
+    // revisit after Skip has no name and no Skip link: it still moves on.
+    if (name.length === 0 && !(revisit && prefill === '')) {
+      errorEl.textContent = revisit
+        ? 'Enter a name.'
+        : 'Enter a name, or tap “Skip for now”.';
+      input.focus();
+      return;
+    }
+    if (name === prefill) {
       // Revisit: unchanged continue must not emit signup_name_skipped after a
       // prior signup_name_saved (would corrupt the name funnel).
       if (!revisit) track('signup_name_skipped', { reason: 'unchanged' });
