@@ -123,6 +123,9 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       (isError && fullText.isNotEmpty
           ? SnackBarAction(
               label: L10n.of(context)?.copyErrorDetails ?? 'Copy',
+              // The theme's action colour is for the dark inverse bar; on the
+              // light error container it read as disabled (#426).
+              textColor: theme.colorScheme.onErrorContainer,
               onPressed: () {
                 unawaited(copyTextToClipboard(fullText));
               },
