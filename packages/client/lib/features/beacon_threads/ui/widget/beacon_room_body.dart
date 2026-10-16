@@ -666,8 +666,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
     final caps = widget.capabilities;
+    final marker = message.semanticMarker;
     // A poll has no text to edit, pin or lift into the plan (#375).
-    final isPoll = message.semanticMarker == BeaconRoomSemanticMarker.poll;
+    final isPoll = marker == BeaconRoomSemanticMarker.poll;
     final showFactInMenu =
         caps.facts &&
         !isThreadMode &&
@@ -687,7 +688,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final hasBodyText = message.body.trim().isNotEmpty;
     // Starts a new baton message that replies to this one (anyone's plain or
     // poll message; not system lines — baton messages have their own menu).
-    final marker = message.semanticMarker;
     final showBud =
         widget.postBuddingEnabled &&
         caps.childPromotionOwnOnly &&
