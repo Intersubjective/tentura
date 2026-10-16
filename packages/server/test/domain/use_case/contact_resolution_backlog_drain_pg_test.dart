@@ -145,6 +145,38 @@ WHERE beacon_id = '$_beaconId'
     );
 
     test(
+      'a chunk claims at most its limit when the statistics say the table is '
+      'empty',
+      () async {
+        expect(await unresolved(), _due);
+        // The state autovacuum leaves after running while the table held no
+        // live rows (captured in the 7ri7 flake): pages but zero tuples. The
+        // planner then puts the target table on the outer side of a nested
+        // loop and rescans the claim once per row.
+        await writer.execute('''
+UPDATE pg_catalog.pg_class
+SET reltuples = 0,
+    relpages = (pg_relation_size(oid) / current_setting('block_size')::int)::int
+WHERE oid = 'public.beacon_forward_edge'::regclass
+''');
+
+        await sweepWith(
+          Env(
+            environment: Environment.test,
+            printEnv: false,
+            contactResolutionBatchSize: 40,
+            contactResolutionRunRowBudget: 100,
+            contactResolutionRunTimeBudget: const Duration(minutes: 5),
+          ),
+        ).run();
+
+        expect(await unresolved(), _due - 100);
+        expect(await noisyEvidence(), 100);
+      },
+      skip: skipReason,
+    );
+
+    test(
       'a run stopped by its row budget resolves exactly the oldest contacts; '
       'bounded further runs finish the rest',
       () async {

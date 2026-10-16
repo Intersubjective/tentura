@@ -513,12 +513,14 @@ DO NOTHING
 
   @override
   Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200}) async {
+    // The claim is a materialized CTE so it runs once. As a FROM subquery a
+    // nested loop could rescan it per target row; each rescan's LockRows
+    // skips the rows this UPDATE already changed, so LIMIT handed out the
+    // next chunk and one statement claimed the whole backlog (tentura-7ri7).
     final rows = await _database
         .customSelect(
           r'''
-UPDATE public.beacon_forward_edge e
-SET contact_outcome = 3, contact_resolved_at = now()
-FROM (
+WITH due AS MATERIALIZED (
   SELECT f.id FROM public.beacon_forward_edge f
   WHERE f.contact_resolved_at IS NULL
     AND f.contact_deadline_at <= now()
@@ -530,7 +532,10 @@ FROM (
   ORDER BY f.contact_deadline_at
   LIMIT $1
   FOR UPDATE SKIP LOCKED
-) due
+)
+UPDATE public.beacon_forward_edge e
+SET contact_outcome = 3, contact_resolved_at = now()
+FROM due
 WHERE e.id = due.id
 RETURNING e.id, e.beacon_id, e.sender_id, e.recipient_id
 ''',
