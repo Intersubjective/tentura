@@ -2194,6 +2194,7 @@ final class _Stack {
         inbox,
         capability,
         hierarchy,
+        roomRepository: BeaconRoomRepository(db),
         trustLedger: TrustLedgerRepository(db),
         witnessWindow: witnessWindow,
         closureCase: closure,
