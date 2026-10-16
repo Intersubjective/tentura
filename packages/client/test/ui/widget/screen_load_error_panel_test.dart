@@ -48,4 +48,21 @@ void main() {
     );
     expect(details.kind, ScreenLoadErrorKind.permissions);
   });
+
+  test('a read still refused after its retries is a server error with '
+      'readable text', () {
+    final details = describeScreenLoadError(
+      error: const RemoteApiRetryLaterException(Duration(seconds: 2)),
+      l10n: l10n,
+    );
+    expect(details.kind, ScreenLoadErrorKind.server);
+    expect(details.message, isNot(contains('RETRY_LATER')));
+    expect(details.message.toLowerCase(), contains('busy'));
+  });
+
+  test('retry-later text is localized in Russian', () {
+    const error = RemoteApiRetryLaterException(Duration(seconds: 2));
+    expect(error.toRu, isNot(contains('RETRY_LATER')));
+    expect(error.toRu, contains('Сервер занят'));
+  });
 }
