@@ -756,9 +756,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Active helpers (2)'), findsOneWidget);
+    // Whether the author counts under Active helpers is open (#346); this
+    // test only covers the author's own actions and marker.
     expect(find.text(l10n.helpOffersTabActionWithdraw), findsNothing);
-    expect(find.text('Edit'), findsNothing);
+    expect(find.text(l10n.helpOffersTabActionEdit), findsNothing);
     expect(find.textContaining(l10n.labelEdited), findsNothing);
   });
 }

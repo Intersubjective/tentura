@@ -299,33 +299,35 @@ class BeaconPeopleTabBody extends StatelessWidget {
             viewerIsAuthor: state.isAuthorOrSteward,
           );
 
-    TimelineHelpOffer helpOfferForRow(BeaconPeopleRow row) {
+    /// The row's live (non-withdrawn) help offer, or null when there is none
+    /// (e.g. the author's own row).
+    TimelineHelpOffer? liveHelpOfferForRow(BeaconPeopleRow row) {
       for (final c in state.helpOffers) {
         if (c.user.id == row.userId && !c.isWithdrawn) return c;
       }
-      // No help offer behind this row (e.g. the author): there is nothing
-      // that could have been edited, so do not derive an "edited" marker
-      // from the participant row's timestamp.
-      return TimelineHelpOffer(
-        user: row.profile,
-        message: '',
-        createdAt: beacon.createdAt,
-        updatedAt: beacon.createdAt,
-      );
+      return null;
     }
 
     HelpOfferTile peopleTile(BeaconPeopleRow row) {
-      final c = helpOfferForRow(row);
+      final liveOffer = liveHelpOfferForRow(row);
+      final hasHelpOffer = liveOffer != null;
+      // No help offer behind this row: there is nothing that could have been
+      // edited, so do not derive an "edited" marker from the participant
+      // row's timestamp. The tile still needs an offer to render the row.
+      final c =
+          liveOffer ??
+          TimelineHelpOffer(
+            user: row.profile,
+            message: '',
+            createdAt: beacon.createdAt,
+            updatedAt: beacon.createdAt,
+          );
       final isMine = row.userId == state.myProfile.id;
-      final hasHelpOffer = state.helpOffers.any(
-        (ho) => ho.user.id == row.userId && !ho.isWithdrawn,
-      );
       final canManageOffer =
           beacon.status.isOpenFamily &&
           !row.isAuthor &&
           !isMine &&
           state.isAuthorOrSteward &&
-          !c.isWithdrawn &&
           hasHelpOffer;
       return HelpOfferTile(
         helpOffer: c,
@@ -377,7 +379,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
             : null,
         // Edit and Withdraw act on the viewer's own help offer; a row without
         // one (the author's own card) has nothing to edit or withdraw.
-        onEdit: isMine && hasHelpOffer && !c.isWithdrawn
+        onEdit: isMine && hasHelpOffer
             ? () async {
                 await beaconViewRunEditHelpOfferDialog(
                   context,
@@ -405,10 +407,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
               }
             : null,
         onWithdraw:
-            isMine &&
-                hasHelpOffer &&
-                !c.isWithdrawn &&
-                beacon.allowsWithdrawWhileHelpOffered
+            isMine && hasHelpOffer && beacon.allowsWithdrawWhileHelpOffered
             ? () async {
                 final outcome = await HelpOfferMessageDialog.show(
                   context,
