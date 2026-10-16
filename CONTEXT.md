@@ -185,6 +185,7 @@ _Avoid_: separate user-facing names for "closed without review" vs "closed after
 A beacon the author explicitly **Cancelled** (called off). Only reached via the **Cancel** intent, never from committer count.
 
 **Wrapping up** (status; internal `reviewOpen` / state 5):
+User-facing label (U094): EN "Final check", RU «Подводим итоги»; actions that start it say "Start final check". "Wrapping up" is the internal name only and no longer appears in the app's copy.
 The in-between after the author **Closes** a beacon that **ever had an acknowledged committer** (`everHadCommitter == true`): a time-boxed countdown (default 7 days) during which participants reflect/evaluate and the author can still post updates and edit, but **no new help offers and no forwarding**. Ends by moving to **Closed**. Shown with a countdown banner that states the rules. Opens even if all current committers have since left — historical acknowledgement is enough.
 _Avoid_: "Review open" (opaque), or wording that implies moderation/approval gating; requiring a currently active committer to open the window.
 

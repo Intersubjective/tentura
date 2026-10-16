@@ -58,8 +58,8 @@ void main() {
       // keep the closing stage under one name: the actions say "final
       // check" like the status, not "wrap up".
       final retired = RegExp(
-        r'IN ON IT|In on it|Nothing noted yet|Needs me|Not fitting|'
-        r'Moved to the stream|[Ww]rapping up|[Ww]rap up|Enough help committed',
+        'IN ON IT|In on it|Nothing noted yet|Needs me|Not fitting|'
+        'Moved to the stream|[Ww]rapping up|[Ww]rap up|Enough help committed',
       );
       final arb =
           jsonDecode(File('l10n/app_en.arb').readAsStringSync())
