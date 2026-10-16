@@ -291,9 +291,26 @@ final class _TimedDb extends TenturaDb {
     MainDbWorkKind? kind,
   }) {
     final probe = Zone.current[_probeKey];
-    if (probe is! _Probe || probe.computation != null) {
+    final opened = probe is _Probe ? probe.computation : null;
+    if (probe is! _Probe || (opened != null && opened.executedMs == null)) {
+      // Not measured, or nested in the measured scope.
       return super.withConnectionScope(
         action,
+        actorUserId: actorUserId,
+        kind: kind,
+      );
+    }
+    if (opened != null) {
+      // A retry opens a new scope after the first one ended: the execution
+      // runs to the end of the last attempt.
+      return super.withConnectionScope(
+        () async {
+          try {
+            return await action();
+          } finally {
+            opened.executedMs = _nowMs();
+          }
+        },
         actorUserId: actorUserId,
         kind: kind,
       );
