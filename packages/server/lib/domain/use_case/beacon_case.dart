@@ -269,6 +269,7 @@ final class BeaconCase extends UseCaseBase {
       final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
         description,
         kind: kind,
+        draft: asDraft,
       );
       return await _beaconRepository.createBeacon(
         authorId: userId,
@@ -313,6 +314,14 @@ final class BeaconCase extends UseCaseBase {
     final plan = _beaconPlan;
     final attention = _attention;
     final wasDraft = beacon.status == BeaconStatus.draft;
+    // A draft may have been saved without a description (#340); publishing
+    // applies the standalone rule.
+    if (wasDraft && beacon.parentBeaconId == null) {
+      BeaconCreationPolicy.normalizeStandaloneDescription(
+        beacon.description,
+        kind: beacon.kind,
+      );
+    }
     if (beacon.parentBeaconId != null) {
       final published = await _childCreateCase.publishDraft(
         actorUserId: userId,
@@ -375,6 +384,7 @@ final class BeaconCase extends UseCaseBase {
   }) async {
     final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
       description,
+      draft: true,
     );
     final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
     final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
