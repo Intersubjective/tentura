@@ -145,6 +145,107 @@ void main() {
     );
   }
 
+  Future<void> pumpSingleCandidate(
+    WidgetTester tester, {
+    required String displayName,
+  }) async {
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidates: [
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u1',
+              displayName: displayName,
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+        ],
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ForwardCubit>.value(value: cubit),
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+          ],
+          child: Scaffold(
+            body: BlocBuilder<ForwardCubit, ForwardState>(
+              builder: (context, state) => ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+                onSendPressed: () {},
+                sendEnabled: state.selectedIds.isNotEmpty,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('recipient checkbox is named after the person (B071)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pumpSingleCandidate(tester, displayName: 'Alex');
+
+    final checkbox = find.byKey(
+      TestIds.key(TestIds.forwardRecipientCheckbox('u1')),
+    );
+    expect(
+      tester.getSemantics(checkbox),
+      isSemantics(
+        label: 'Alex',
+        hasCheckedState: true,
+        isChecked: false,
+        hasTapAction: true,
+        onTapHint: 'Select',
+      ),
+    );
+
+    await tester.tap(checkbox);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(checkbox),
+      isSemantics(label: 'Alex', isChecked: true, onTapHint: 'Remove'),
+    );
+    handle.dispose();
+  });
+
+  testWidgets('nameless recipient checkbox still has a label (B071)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    // Fails on the base: the label was the empty name, so the box read as
+    // a bare "checkbox, not checked".
+    await pumpSingleCandidate(tester, displayName: '');
+
+    expect(
+      tester.getSemantics(
+        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('u1'))),
+      ),
+      isSemantics(label: 'Select', hasCheckedState: true, isChecked: false),
+    );
+    handle.dispose();
+  });
+
   testWidgets('embedded ForwardRecipientPicker hides standalone send CTA', (
     tester,
   ) async {
