@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 class _FakePlatformRepository implements PlatformRepositoryPort {
   Uri? launchedUserLink;
@@ -133,7 +134,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    for (final label in ['Accept', 'Decline']) {
+    // The e2e identifier must sit on the same node as the button's name;
+    // keeping it there is why the buttons are wrapped in Semantics.
+    final identifiers = {
+      'Accept': TestIds.helpOfferAccept('c1'),
+      'Decline': TestIds.helpOfferDecline('c1'),
+    };
+    for (final MapEntry(key: label, value: identifier) in identifiers.entries) {
       expect(
         find.semantics.byLabel(label),
         findsOne,
@@ -143,6 +150,7 @@ void main() {
         find.semantics.byLabel(label).evaluate().single,
         isSemantics(
           label: label,
+          identifier: identifier,
           isButton: true,
           isFocusable: true,
           hasTapAction: true,
