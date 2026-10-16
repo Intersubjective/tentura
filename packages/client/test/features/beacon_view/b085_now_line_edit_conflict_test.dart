@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
-import 'package:tentura/features/beacon_threads/domain/now_line_changed_exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -18,15 +18,18 @@ class _NowLineRepo extends FakeBeaconThreadsRepository {
   _NowLineRepo({required this.serverLine}) : super(userId: 'user-1');
 
   String serverLine;
+  bool failRead = false;
   final writes = <String>[];
 
   @override
-  Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async =>
-      BeaconRoomState(
-        beaconId: beaconId,
-        currentLine: serverLine,
-        updatedAt: DateTime.utc(2026),
-      );
+  Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {
+    if (failRead) throw StateError('database busy');
+    return BeaconRoomState(
+      beaconId: beaconId,
+      currentLine: serverLine,
+      updatedAt: DateTime.utc(2026),
+    );
+  }
 
   @override
   Future<BeaconRoomState> updateRoomNowLine({
@@ -71,38 +74,58 @@ Future<void> _pumpSheet(WidgetTester tester, String initialText) async {
 
 void main() {
   group('BeaconThreadsCase.updateRoomNowLine with expectedLine', () {
-    test('writes when the server still has the line the editor opened', () async {
-      final repo = _NowLineRepo(serverLine: 'Van at 9:45');
+    test(
+      'writes when the server still has the line the editor opened',
+      () async {
+        final repo = _NowLineRepo(serverLine: 'Van at 9:45');
+        final sut = roomCubitMakeCase(repo);
+
+        await sut.updateRoomNowLine(
+          beaconId: 'beacon-1',
+          currentLine: 'Van at 10:00',
+          expectedLine: 'Van at 9:45',
+        );
+
+        expect(repo.writes, ['Van at 10:00']);
+      },
+    );
+
+    test(
+      'refuses to overwrite a line someone else changed meanwhile',
+      () async {
+        final repo = _NowLineRepo(serverLine: 'AUTHOR version');
+        final sut = roomCubitMakeCase(repo);
+
+        await expectLater(
+          sut.updateRoomNowLine(
+            beaconId: 'beacon-1',
+            currentLine: 'NINA version',
+            expectedLine: 'Van at 9:45',
+          ),
+          throwsA(
+            isA<NowLineChangedException>().having(
+              (e) => e.currentLine,
+              'currentLine',
+              'AUTHOR version',
+            ),
+          ),
+        );
+        expect(repo.writes, isEmpty);
+      },
+    );
+
+    // Fails on the base: a failed pre-read failed the whole save.
+    test('a failed pre-read still saves (as before the check)', () async {
+      final repo = _NowLineRepo(serverLine: 'Van at 9:45')..failRead = true;
       final sut = roomCubitMakeCase(repo);
 
       await sut.updateRoomNowLine(
         beaconId: 'beacon-1',
-        currentLine: 'Van at 10:00',
+        currentLine: 'NINA version',
         expectedLine: 'Van at 9:45',
       );
 
-      expect(repo.writes, ['Van at 10:00']);
-    });
-
-    test('refuses to overwrite a line someone else changed meanwhile', () async {
-      final repo = _NowLineRepo(serverLine: 'AUTHOR version');
-      final sut = roomCubitMakeCase(repo);
-
-      await expectLater(
-        sut.updateRoomNowLine(
-          beaconId: 'beacon-1',
-          currentLine: 'NINA version',
-          expectedLine: 'Van at 9:45',
-        ),
-        throwsA(
-          isA<NowLineChangedException>().having(
-            (e) => e.currentLine,
-            'currentLine',
-            'AUTHOR version',
-          ),
-        ),
-      );
-      expect(repo.writes, isEmpty);
+      expect(repo.writes, ['NINA version']);
     });
 
     test('no expectedLine keeps the old blind write', () async {
@@ -118,13 +141,39 @@ void main() {
     });
   });
 
+  // Fails on the base: RoomCubit.updatePlan (the "Update plan" sheet and
+  // "use message as plan") wrote without expectedLine, so it overwrote blind.
+  group('RoomCubit.updatePlan', () {
+    setUp(() => registerRoomCubitProfileCubit('user-1'));
+
+    test('refuses a stale save', () async {
+      final repo = _NowLineRepo(serverLine: 'AUTHOR version');
+      final cubit = roomCubitForTest(repo);
+      addTearDown(cubit.close);
+
+      await cubit.updatePlan('NINA version', expectedLine: 'Van at 9:45');
+
+      expect(repo.writes, isEmpty);
+    });
+
+    test('saves when the line is unchanged', () async {
+      final repo = _NowLineRepo(serverLine: 'Van at 9:45');
+      final cubit = roomCubitForTest(repo);
+      addTearDown(cubit.close);
+
+      await cubit.updatePlan('NINA version', expectedLine: 'Van at 9:45');
+
+      expect(repo.writes, ['NINA version']);
+    });
+  });
+
   group('next-step sheet', () {
     late _NowLineRepo repo;
 
-    setUp(() {
+    setUp(() async {
       repo = _NowLineRepo(serverLine: 'Van at 9:45');
       if (GetIt.I.isRegistered<BeaconThreadsCase>()) {
-        GetIt.I.unregister<BeaconThreadsCase>();
+        await GetIt.I.unregister<BeaconThreadsCase>();
       }
       GetIt.I.registerSingleton<BeaconThreadsCase>(roomCubitMakeCase(repo));
     });
@@ -148,7 +197,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.writes, isEmpty);
-      expect(find.byType(TextField), findsOneWidget, reason: 'sheet stays open');
+      expect(
+        find.byType(TextField),
+        findsOneWidget,
+        reason: 'sheet stays open',
+      );
       expect(find.textContaining('AUTHOR version'), findsWidgets);
 
       await tester.tap(find.text('Save'));
@@ -156,6 +209,23 @@ void main() {
 
       expect(repo.writes, ['NINA version']);
       expect(find.byType(TextField), findsNothing);
+    });
+
+    // Fails on the base: the conflict note stayed under the field while the
+    // person edited.
+    testWidgets('editing again clears the conflict note', (tester) async {
+      await _pumpSheet(tester, 'Van at 9:45');
+      repo.serverLine = 'AUTHOR version';
+      await tester.enterText(find.byType(TextField), 'NINA version');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Someone changed'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'NINA version 2');
+      // The error text fades out with the decorator's animation.
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Someone changed'), findsNothing);
     });
   });
 }

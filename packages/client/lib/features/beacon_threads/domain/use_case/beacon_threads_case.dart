@@ -24,7 +24,7 @@ import '../entity/beacon_room_invalidation.dart';
 import '../entity/request_thread.dart';
 import '../entity/room_seen_outcome.dart';
 import '../entity/room_unread_snapshot.dart';
-import '../now_line_changed_exception.dart';
+import '../exception/now_line_changed_exception.dart';
 import '../room_read_watermark_store.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
@@ -338,9 +338,18 @@ base class BeaconThreadsCase extends UseCaseBase {
     String? expectedLine,
   }) async {
     if (expectedLine != null) {
-      final server = (await _room.fetchBeaconRoomState(beaconId))
-          .currentLine
-          .trim();
+      // Client-side read-then-write until the server checks a base version
+      // itself (follow-up); then this extra read goes away.
+      String server;
+      try {
+        final state = await _room.fetchBeaconRoomState(beaconId);
+        server = state.currentLine.trim();
+      } on Object catch (e) {
+        // A failed pre-read must not block a save that used to work (e.g.
+        // a transient "database busy"): write as before.
+        logger.warning('B085: next-step pre-read failed, saving anyway', e);
+        server = expectedLine.trim();
+      }
       if (server != expectedLine.trim() && server != currentLine.trim()) {
         throw NowLineChangedException(currentLine: server);
       }

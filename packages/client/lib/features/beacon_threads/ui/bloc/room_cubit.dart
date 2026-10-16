@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart'
     show ThreadHostCubit;
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
@@ -1024,7 +1025,14 @@ class RoomCubit extends Cubit<RoomState> {
     return [...messages, message];
   }
 
-  Future<void> updatePlan(String currentLine) async {
+  /// Saves the next step. [expectedLine] is the line the editor opened with
+  /// (required, so no caller writes blind): the save is refused with
+  /// `NowLineChangedException` when someone else changed it meanwhile, and
+  /// the room reloads so the person sees their line and can save again (B085).
+  Future<void> updatePlan(
+    String currentLine, {
+    required String? expectedLine,
+  }) async {
     if (_rejectIfPlanUpdateBlocked()) return;
     // Optimistically reflect the new pinned plan/status line so the HUD strip
     // updates instantly; load() below reconciles (and restores on error).
@@ -1041,7 +1049,12 @@ class RoomCubit extends Cubit<RoomState> {
       await _case.updateRoomNowLine(
         beaconId: state.beaconId,
         currentLine: currentLine,
+        expectedLine: expectedLine,
       );
+      await load();
+    } on NowLineChangedException catch (e) {
+      _showSnackError(e);
+      // Drop the optimistic line: show what is really saved now.
       await load();
     } on Object catch (e) {
       _showSnackError(e);

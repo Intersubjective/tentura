@@ -5,7 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/features/beacon_threads/domain/now_line_changed_exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -159,7 +159,9 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
               errorText: _conflict,
               errorMaxLines: 4,
             ),
-            onChanged: (_) => setState(() {}),
+            // The conflict note is about the text they saw; once they edit,
+            // it no longer applies (B085 review).
+            onChanged: (_) => setState(() => _conflict = null),
             maxLength: kBeaconRoomCurrentLineMaxLength,
             maxLines: 2,
             minLines: 1,
