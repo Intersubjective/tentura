@@ -44,8 +44,8 @@ InputDecoration tenturaFormFieldDecoration(
     errorStyle: TenturaText.bodySmall(tt.danger),
     prefixStyle: TenturaText.bodyLarge(tt.textMuted),
     contentPadding: tt.cardPadding,
-    // textFaint is ≥ 3:1 on the surface — the non-text contrast minimum a
-    // field boundary needs to be found at all.
+    // textFaint is held to the 4.5:1 text minimum on the surface, well above
+    // the 3:1 non-text minimum a field boundary needs to be found at all.
     border: border(tt.textFaint),
     enabledBorder: border(tt.textFaint),
     focusedBorder: border(scheme.primary, 2),

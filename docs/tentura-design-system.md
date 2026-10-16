@@ -50,7 +50,7 @@ TenturaColorPalette.light / .dark
 
 1. Open `tentura_colors.dart`.
 2. Edit the values in `light` and/or `dark` — e.g. the five `brand*` fields to change the brand hue. Nothing else needs touching.
-3. Run `flutter test test/design_system/tentura_color_palette_test.dart` (wrapped, see `AGENTS.md`): it fails if a pair drops below WCAG contrast (text ≥ 4.5:1, faint ≥ 3:1, every `on*` on its container ≥ 4.5:1).
+3. Run `flutter test test/design_system/tentura_color_palette_test.dart` (wrapped, see `AGENTS.md`): it fails if a pair drops below WCAG contrast (every text tier, `textFaint` included, ≥ 4.5:1 on `bg` and `surface`; `textMuted` and `textFaint` also on `surfaceSunken` and a hovered row; every `on*` on its container ≥ 4.5:1).
 
 Rules: feature code never writes hex values; it reads `Theme.of(context).colorScheme.*` or `context.tt.*`. Don't add a colour anywhere but the palette — add a role to `TenturaColorPalette` (both modes) and map it.
 

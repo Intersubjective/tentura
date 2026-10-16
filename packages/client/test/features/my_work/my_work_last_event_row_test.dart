@@ -1,8 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
@@ -29,6 +30,7 @@ Future<void> _pumpRow(
   required Beacon beacon,
   required MyWorkCardViewModel viewModel,
   String currentUserId = 'viewer',
+  bool muted = false,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -41,6 +43,7 @@ Future<void> _pumpRow(
           beacon: beacon,
           viewModel: viewModel,
           currentUserId: currentUserId,
+          muted: muted,
         ),
       ),
     ),
@@ -174,5 +177,94 @@ void main() {
     );
     expect(find.textContaining(l10n.myWorkLastEventBy), findsNothing);
     expect(find.textContaining('ago'), findsOneWidget);
+  });
+
+  group('muted line keeps AA contrast (#413)', () {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    // Every coloured span in the row: opaque and ≥ 4.5:1 on the card surface.
+    // On the base branch the muted line drew textMuted at alpha 0.72 (and the
+    // age at 0.72 × 0.85), which fails both checks.
+    void expectReadable(WidgetTester tester) {
+      final surface = TenturaColorPalette.light.surface;
+      // Avatar initials and icons are not the line's ink; skip them.
+      final skipped = <RichText>{
+        for (final type in [TenturaAvatar, ProfileAuthorStarBadge, Icon])
+          ...tester.widgetList<RichText>(
+            find.descendant(
+              of: find.byType(type),
+              matching: find.byType(RichText),
+            ),
+          ),
+      };
+      final colors = <Color>[];
+      for (final rich in tester.widgetList<RichText>(
+        find.descendant(
+          of: find.byType(MyWorkLastEventBody),
+          matching: find.byType(RichText),
+        ),
+      )) {
+        if (skipped.contains(rich)) continue;
+        rich.text.visitChildren((span) {
+          final color = span.style?.color;
+          if (color != null) colors.add(color);
+          return true;
+        });
+      }
+      expect(colors, isNotEmpty);
+      for (final color in colors) {
+        expect(color.a, 1.0, reason: '$color is translucent');
+        expect(
+          contrast(color, surface),
+          greaterThanOrEqualTo(4.5),
+          reason: '$color on $surface',
+        );
+      }
+    }
+
+    testWidgets('placeholder line', (tester) async {
+      final beacon = Beacon.empty.copyWith(
+        id: 'm1',
+        createdAt: DateTime(2026, 6, 10, 9),
+        updatedAt: DateTime(2026, 6, 10, 12),
+      );
+      await _pumpRow(
+        tester,
+        beacon: beacon,
+        viewModel: _vm(beacon: beacon),
+        muted: true,
+      );
+      expectReadable(tester);
+    });
+
+    testWidgets('event line with actor and age', (tester) async {
+      const authorId = 'author1';
+      final beacon = Beacon.empty.copyWith(
+        id: 'm2',
+        author: const Profile(id: authorId, displayName: 'Alice Author'),
+      );
+      final last = MyWorkLastEvent(
+        event: BeaconActivityEvent(
+          id: 'e-m2',
+          beaconId: 'm2',
+          visibility: 0,
+          type: BeaconActivityEventTypeBits.beaconPublished,
+          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+          actorId: authorId,
+        ),
+        actor: const Profile(id: authorId, displayName: 'Alice Author'),
+      );
+      await _pumpRow(
+        tester,
+        beacon: beacon,
+        viewModel: _vm(beacon: beacon, lastActivityEvent: last),
+        muted: true,
+      );
+      expectReadable(tester);
+    });
   });
 }

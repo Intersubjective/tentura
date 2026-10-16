@@ -35,6 +35,21 @@ void main() {
           _contrast(p.textMuted, p.surfaceSunken),
           greaterThanOrEqualTo(4.5),
         );
+        // Activity timestamps and day headers (textFaint) sit there too.
+        expect(
+          _contrast(p.textFaint, p.surfaceSunken),
+          greaterThanOrEqualTo(4.5),
+        );
+      });
+
+      test('secondary text stays readable on a hovered row', () {
+        // Material's hover state layer: onSurface (text) at 8% over surface.
+        final hovered = Color.alphaBlend(
+          p.text.withValues(alpha: 0.08),
+          p.surface,
+        );
+        expect(_contrast(p.textMuted, hovered), greaterThanOrEqualTo(4.5));
+        expect(_contrast(p.textFaint, hovered), greaterThanOrEqualTo(4.5));
       });
 
       test('faint text stays lighter than muted text', () {
