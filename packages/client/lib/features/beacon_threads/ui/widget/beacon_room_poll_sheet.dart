@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/polling.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -33,6 +34,9 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   final _formKey = GlobalKey<FormState>();
   String _question = '';
   final List<String> _variants = ['', ''];
+  // One stable key per option row, so a field keeps its own text when an
+  // option above it is removed.
+  final List<Key> _variantKeys = [UniqueKey(), UniqueKey()];
   String _pollType = 'single';
   bool _isAnonymous = true;
   bool _allowRevote = true;
@@ -64,13 +68,26 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
       _isAnonymous != _initialIsAnonymous ||
       _allowRevote != _initialAllowRevote;
 
-  /// Whether another non-empty option already has the text [value].
+  /// Whether another non-empty option equals [value] the way the server
+  /// compares options ([Polling.variantKey]).
   bool _isDuplicateAt(int index, String value) {
+    final key = Polling.variantKey(value);
+    if (key.isEmpty) return false;
     for (var i = 0; i < _variants.length; i++) {
-      if (i != index && _variants[i].trim() == value) return true;
+      if (i != index && Polling.variantKey(_variants[i]) == key) return true;
     }
     return false;
   }
+
+  void _addVariant() => setState(() {
+    _variants.add('');
+    _variantKeys.add(UniqueKey());
+  });
+
+  void _removeVariant(int index) => setState(() {
+    _variants.removeAt(index);
+    _variantKeys.removeAt(index);
+  });
 
   Future<void> _send() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -96,14 +113,20 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
 
     setState(() => _sending = true);
     try {
-      await widget.cubit.createPoll(
+      final created = await widget.cubit.createPoll(
         question: q,
         variants: vs,
         pollType: _pollType,
         isAnonymous: _isAnonymous,
         allowRevote: _allowRevote,
       );
-      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      if (created) {
+        Navigator.of(context).pop();
+      } else {
+        // The cubit already showed why; keep the draft so nothing is lost.
+        setState(() => _sending = false);
+      }
     } on Object catch (e) {
       if (mounted) {
         showSnackBar(
@@ -160,14 +183,14 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                   (entry) {
                     final idx = entry.key;
                     return Padding(
-                      key: ValueKey(idx),
+                      key: _variantKeys[idx],
                       padding: EdgeInsets.only(bottom: tt.rowGap),
                       child: PollingVariantInput(
                         labelText: l10n.optionLabel(idx + 1),
                         isDuplicate: (v) => _isDuplicateAt(idx, v),
                         onChanged: (v) => setState(() => _variants[idx] = v),
                         onRemove: _variants.length > 2
-                            ? () => setState(() => _variants.removeAt(idx))
+                            ? () => _removeVariant(idx)
                             : () {},
                       ),
                     );
@@ -176,9 +199,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                 TextButton.icon(
                   icon: const Icon(Icons.add),
                   label: Text(l10n.addOptionButton),
-                  onPressed: _variants.length < 10
-                      ? () => setState(() => _variants.add(''))
-                      : null,
+                  onPressed: _variants.length < 10 ? _addVariant : null,
                 ),
                 SizedBox(height: tt.sectionGap),
 
