@@ -361,7 +361,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(contextCubit.untrustCalls, 0);
-      await tester.tap(find.text(l10n.buttonRemove));
+      await tester.tap(
+        find.widgetWithText(TextButton, l10n.removeFromMyField),
+      );
       await tester.pumpAndSettle();
       expect(contextCubit.untrustCalls, 1);
     });

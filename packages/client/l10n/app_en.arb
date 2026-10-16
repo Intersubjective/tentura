@@ -986,7 +986,7 @@
   "@allTopics": {
     "context": "Topics"
   },
-  "confirmFriendRemoval": "Are you sure you want to delete {profileTitle} from friends list?",
+  "confirmFriendRemoval": "Stop trusting {profileTitle}?",
   "@confirmFriendRemoval": {
     "context": "FriendRemoveDialog",
     "placeholders": {
