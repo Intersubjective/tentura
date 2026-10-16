@@ -11,14 +11,18 @@ import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import 'constellation_request_status_marker.dart';
 
+/// The request's primary capability label, when it has a known one.
+String? constellationCapabilityText(L10n l10n, ConstellationRequest request) {
+  final slug = request.primaryNeedSlug?.trim();
+  if (slug == null || slug.isEmpty) return null;
+  return CapabilityTag.fromSlug(slug)?.labelOf(l10n);
+}
+
 /// Short contribution text for a constellation request label or preview header.
 String constellationNeedText(L10n l10n, ConstellationRequest request) {
-  final slug = request.primaryNeedSlug?.trim();
-  if (slug != null && slug.isNotEmpty) {
-    final tag = CapabilityTag.fromSlug(slug);
-    if (tag != null) {
-      return tag.labelOf(l10n);
-    }
+  final capability = constellationCapabilityText(l10n, request);
+  if (capability != null) {
+    return capability;
   }
   final title = request.title.trim();
   if (title.isNotEmpty) {
@@ -51,6 +55,25 @@ String? constellationCoverageSnippet(L10n l10n, ConstellationRequest request) {
       '${l10n.coordinationEnoughHelp} · ${l10n.constellationCoverageBackupsWelcome}',
     _ => null,
   };
+}
+
+/// Text view card (#352): the title as the primary line, then capability ·
+/// timing · coverage. Without a title the need text leads, as on the map.
+({String title, String? meta}) constellationRequestCardText(
+  L10n l10n,
+  ConstellationRequest request, {
+  DateTime? now,
+}) {
+  final title = request.title.trim();
+  final meta = <String>[
+    if (title.isNotEmpty) ?constellationCapabilityText(l10n, request),
+    ?constellationTimingSnippet(l10n, request, now: now),
+    ?constellationCoverageSnippet(l10n, request),
+  ];
+  return (
+    title: title.isNotEmpty ? title : constellationNeedText(l10n, request),
+    meta: meta.isEmpty ? null : meta.join(' · '),
+  );
 }
 
 /// UX1 satellite label: need · timing · coverage (unknown parts omitted).

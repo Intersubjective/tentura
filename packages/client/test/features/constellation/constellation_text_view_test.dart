@@ -272,6 +272,53 @@ void main() {
       },
     );
 
+    // #352: a card with a capability showed "<capability> · …" and no title.
+    testWidgets('request cards lead with the title, capability as meta', (
+      tester,
+    ) async {
+      final field = _multiAuthorField();
+      final cubit = await _loadCubit(
+        field.copyWith(
+          requests: [
+            ...field.requests,
+            const ConstellationRequest(
+              id: 'req-a2',
+              authorId: 'a',
+              title: 'Move a couch',
+              status: 0,
+              needs: ['physical_help'],
+              primaryNeedSlug: 'physical_help',
+            ),
+          ],
+        ),
+      );
+      await _pumpBody(tester, cubit);
+      await tester.tap(find.text('Text'));
+      await tester.pumpAndSettle();
+
+      final l10n = lookupL10n(const Locale('en'));
+      final card = find.byKey(const Key('constellation.text.request.req-a2'));
+      expect(
+        find.descendant(of: card, matching: find.text('Move a couch')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text(l10n.capabilityTagPhysicalHelp),
+        ),
+        findsOneWidget,
+      );
+      // Without a capability the title shows once.
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('constellation.text.request.req-r1')),
+          matching: find.text('Ring need'),
+        ),
+        findsOneWidget,
+      );
+    });
+
     test(
       'setViewMode preserves selection and filters without reloading',
       () async {

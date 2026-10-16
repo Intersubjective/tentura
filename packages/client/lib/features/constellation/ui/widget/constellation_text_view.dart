@@ -287,11 +287,12 @@ class _RequestTile extends StatelessWidget {
     final tt = context.tt;
     final theme = Theme.of(context);
     final held = constellationHeldAnnotation(l10n, request);
-    final label = constellationRequestLabelText(
+    final card = constellationRequestCardText(
       l10n,
       request,
       now: loadedAt,
     );
+    final meta = card.meta;
     final cubit = context.read<ConstellationCubit>();
     final isPinned = cubit.isAnchored(
       ConstellationAnchorTarget.beacon(request.id),
@@ -308,7 +309,8 @@ class _RequestTile extends StatelessWidget {
       selected: selected,
       identifier: TestIds.constellationTextRequest(request.id),
       label: [
-        label,
+        card.title,
+        ?meta,
         if (connectionLabel != null) connectionLabel,
         if (held != null) held,
         ...markerSemantics,
@@ -331,9 +333,21 @@ class _RequestTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        label,
-                        style: theme.textTheme.bodyMedium,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            card.title,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          if (meta != null)
+                            Text(
+                              meta,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     ConstellationRequestStatusMarker(
