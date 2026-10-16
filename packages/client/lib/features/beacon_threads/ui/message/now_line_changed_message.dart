@@ -12,10 +12,10 @@ final class NowLineChangedElsewhereMessage extends LocalizableMessage {
   @override
   String get toEn =>
       'Someone changed the next step meanwhile: “$currentLine”. '
-      'Open Update plan to replace it.';
+      'Open “Update plan” to replace it.';
 
   @override
   String get toRu =>
-      'Пока вы редактировали, следующий шаг изменили: «$currentLine». '
+      'Тем временем следующий шаг изменили: «$currentLine». '
       'Откройте «Обновить план», чтобы заменить его.';
 }
