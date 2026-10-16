@@ -5,5 +5,5 @@ final class BeaconLobbyUnavailableException implements Exception {
   const BeaconLobbyUnavailableException();
 
   /// Server `BeaconExceptionCode.beaconLobbyAccessDenied`.
-  static const codeNumber = 1346;
+  static const codeNumber = 1347;
 }

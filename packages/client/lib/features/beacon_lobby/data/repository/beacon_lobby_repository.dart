@@ -8,7 +8,7 @@ import '../gql/_g/beacon_lobby.req.gql.dart';
 
 /// U088 — the lobby over the existing item-thread room API
 /// (`RoomMessageList` / `RoomMessageCreate` with `threadItemId` = lobby id).
-/// A denial arrives as `BeaconLobbyUnavailableException` (error link, 1346).
+/// A denial arrives as `BeaconLobbyUnavailableException` (error link, 1347).
 @LazySingleton(as: BeaconLobbyPort, env: [Environment.dev, Environment.prod])
 class BeaconLobbyRepository implements BeaconLobbyPort {
   BeaconLobbyRepository(this._remoteApiService);
