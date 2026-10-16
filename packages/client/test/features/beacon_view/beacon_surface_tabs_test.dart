@@ -200,6 +200,40 @@ void main() {
     ]);
   });
 
+  testWidgets('at 360 px every tab still taps and nothing overflows '
+      '(#542 review)', (tester) async {
+    // 360 px is a common phone width; the longer "Overview" label must not
+    // break the bar there. Taps go by key, not by label text.
+    final selected = <BeaconSurface>[];
+    await tester.pumpWidget(
+      _harness(
+        width: 360,
+        child: BeaconSurfaceTabs(
+          isSplit: false,
+          selectedSurface: BeaconSurface.now,
+          onSurfaceSelected: selected.add,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    for (final id in [
+      TestIds.beaconTabPlan,
+      TestIds.beaconTabRoom,
+      TestIds.beaconTabPeople,
+    ]) {
+      await tester.tap(find.byKey(TestIds.key(id)));
+      await tester.pump();
+    }
+    expect(selected, [
+      BeaconSurface.plan,
+      BeaconSurface.room,
+      BeaconSurface.people,
+    ]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('selected-but-hidden ROOM falls back to NOW index', (
     tester,
   ) async {
