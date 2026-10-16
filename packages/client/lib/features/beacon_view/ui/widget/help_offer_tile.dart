@@ -738,11 +738,13 @@ class _CommitterAdmissionFooter extends StatelessWidget {
       HelpOfferAdmissionAction.remove
           when reason != null && reason!.isNotEmpty =>
         l10n.helpOfferRemovedWithReason(reason!),
+      // The admission itself; "Can read this discussion" is the line under
+      // it (B027: it was both lines).
       _ =>
         isAdmitted
             ? (admissionAction == HelpOfferAdmissionAction.autoAdmit
                   ? l10n.helpOfferAdmittedAutomaticallyLabel
-                  : l10n.helpOfferCanReadChat)
+                  : l10n.helpOfferAdmittedLabel)
             : l10n.helpOffersTabNoAuthorLabelYet,
     };
     final color = switch (admissionAction) {
