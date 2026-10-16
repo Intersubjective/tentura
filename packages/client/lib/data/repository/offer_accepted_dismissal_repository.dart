@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/attention/data/gql/_g/dismiss_offer_accepted.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/offer_accepted_dismissals.req.gql.dart';
 
@@ -33,11 +34,17 @@ class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
     required String viewerId,
     required String beaconId,
   }) async {
-    final row = await _remoteApiService
-        .request(GDismissOfferAcceptedReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).DismissOfferAccepted);
-    return _forViewer(viewerId, row.userId, row.beaconIds);
+    try {
+      final row = await _remoteApiService
+          .request(GDismissOfferAcceptedReq((b) => b.vars.beaconId = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).DismissOfferAccepted);
+      return _forViewer(viewerId, row.userId, row.beaconIds);
+    } on RemoteApiException {
+      // The server answered with a refusal (e.g. no offer on the Request any
+      // more): sending it again cannot help.
+      throw const OfferAcceptedDismissalRefusedException();
+    }
   }
 
   /// The server answers for the signed-in account; an answer for another

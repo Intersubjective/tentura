@@ -11,10 +11,19 @@ abstract interface class OfferAcceptedDismissalPort {
   Future<Set<String>> load({required String viewerId});
 
   /// Records one dismissal; returns the Requests known dismissed after it.
+  /// Throws [OfferAcceptedDismissalRefusedException] when the server refuses
+  /// it; any other error is treated as passing (offline, busy).
   Future<Set<String>> dismiss({
     required String viewerId,
     required String beaconId,
   });
+}
+
+/// The server answered and refused a dismissal (for example, the offer was
+/// withdrawn meanwhile). Unlike a network failure, sending it again cannot
+/// help, so it is dropped rather than kept for the next try.
+final class OfferAcceptedDismissalRefusedException implements Exception {
+  const OfferAcceptedDismissalRefusedException();
 }
 
 /// Keeps nothing between sessions; the fallback where no store is wired
@@ -55,6 +64,13 @@ class OfferAcceptedDismissals extends ChangeNotifier {
 
   static OfferAcceptedDismissals? _fallback;
 
+  /// How long after a failed read the next [ensureLoadedFor] may read again.
+  static const retryDelay = Duration(seconds: 30);
+
+  /// Test seam for [retryDelay].
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
+
   static String keyFor({required String viewerId, required String beaconId}) =>
       '$viewerId:$beaconId';
 
@@ -65,14 +81,18 @@ class OfferAcceptedDismissals extends ChangeNotifier {
   /// Viewers whose dismissals were read (or could not be read).
   final _known = <String>{};
 
-  /// Viewers whose last read failed: the next [ensureLoadedFor] reads again.
-  final _loadFailed = <String>{};
+  /// Viewers whose last read failed, with when: [ensureLoadedFor] reads
+  /// again once [retryDelay] has passed.
+  final _loadFailedAt = <String, DateTime>{};
 
   /// Dismissals the server has not taken yet, per viewer; sent again on the
   /// next [ensureLoadedFor] or [dismiss].
   final _pending = <String, Set<String>>{};
 
   final _loading = <String, Future<void>>{};
+
+  /// The flush running per viewer; callers meanwhile share it.
+  final _flushing = <String, Future<void>>{};
 
   bool isDismissed({required String viewerId, required String beaconId}) =>
       _keys.contains(keyFor(viewerId: viewerId, beaconId: beaconId));
@@ -84,12 +104,18 @@ class OfferAcceptedDismissals extends ChangeNotifier {
       !isDismissed(viewerId: viewerId, beaconId: beaconId);
 
   /// Reads [viewerId]'s dismissals once per session. After a failed read the
-  /// sub-card shows (the safe default) and the next call reads again; it
-  /// also re-sends dismissals the server has not taken yet.
+  /// sub-card shows (the safe default) and a call after [retryDelay] reads
+  /// again; it also re-sends dismissals the server has not taken yet.
+  /// Called from every sub-card build, so it starts at most one read and one
+  /// flush at a time.
   Future<void> ensureLoadedFor(String viewerId) {
     if (viewerId.isEmpty) return Future.value();
-    if (_known.contains(viewerId) && !_loadFailed.contains(viewerId)) {
+    final failedAt = _loadFailedAt[viewerId];
+    if (_known.contains(viewerId) && failedAt == null) {
       return _flushPending(viewerId);
+    }
+    if (failedAt != null && clock().difference(failedAt) < retryDelay) {
+      return Future.value();
     }
     return _loading[viewerId] ??= _load(viewerId);
   }
@@ -106,11 +132,20 @@ class OfferAcceptedDismissals extends ChangeNotifier {
     await _flushPending(viewerId);
   }
 
-  /// Sends every not-yet-recorded dismissal of [viewerId]; a failed one stays
-  /// pending (and hidden here) for the next try.
-  Future<void> _flushPending(String viewerId) async {
+  /// Sends every not-yet-recorded dismissal of [viewerId], one flush at a
+  /// time; a call while one runs shares it. One that failed on the way stays
+  /// pending (and hidden here) for the next try; one the server refused is
+  /// dropped (still hidden here).
+  Future<void> _flushPending(String viewerId) {
     final pending = _pending[viewerId];
-    if (pending == null || pending.isEmpty) return;
+    if (pending == null || pending.isEmpty) return Future.value();
+    return _flushing[viewerId] ??= _flush(viewerId, pending).whenComplete(() {
+      // The entry is this flush's own future: drop it, don't await it.
+      _flushing.remove(viewerId)?.ignore();
+    });
+  }
+
+  Future<void> _flush(String viewerId, Set<String> pending) async {
     for (final beaconId in [...pending]) {
       try {
         _merge(
@@ -118,8 +153,10 @@ class OfferAcceptedDismissals extends ChangeNotifier {
           await _port.dismiss(viewerId: viewerId, beaconId: beaconId),
         );
         pending.remove(beaconId);
+      } on OfferAcceptedDismissalRefusedException {
+        pending.remove(beaconId);
       } on Object catch (_) {
-        // Offline or refused for now: kept for the next try.
+        // Offline or busy: kept for the next try.
       }
     }
   }
@@ -127,12 +164,12 @@ class OfferAcceptedDismissals extends ChangeNotifier {
   Future<void> _load(String viewerId) async {
     try {
       _merge(viewerId, await _port.load(viewerId: viewerId));
-      _loadFailed.remove(viewerId);
+      _loadFailedAt.remove(viewerId);
       await _flushPending(viewerId);
     } on Object catch (_) {
       // Nothing known is the safe default: the sub-card shows; read again
-      // on the next ensureLoadedFor.
-      _loadFailed.add(viewerId);
+      // once retryDelay has passed.
+      _loadFailedAt[viewerId] = clock();
     } finally {
       _known.add(viewerId);
       // The entry is this load's own future: drop it, don't await it.

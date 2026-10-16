@@ -2,6 +2,8 @@
 // hides it on every device of the account. Two stores (two devices) share
 // one fake server behind [OfferAcceptedDismissalPort].
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,21 +25,31 @@ final class _ServerPort implements OfferAcceptedDismissalPort {
 
   final _Server server;
   bool failLoads = false;
+  int loads = 0;
 
   @override
   Future<Set<String>> load({required String viewerId}) async {
+    loads++;
     if (failLoads) throw StateError('offline');
     return {...?server.byViewer[viewerId]};
   }
 
   bool failDismisses = false;
+  bool refuseDismisses = false;
+  int dismissCalls = 0;
+
+  /// When set, each dismissal waits for it (a slow network).
+  Completer<void>? gate;
 
   @override
   Future<Set<String>> dismiss({
     required String viewerId,
     required String beaconId,
   }) async {
+    dismissCalls++;
+    await gate?.future;
     if (failDismisses) throw StateError('offline');
+    if (refuseDismisses) throw const OfferAcceptedDismissalRefusedException();
     return {...(server.byViewer[viewerId] ??= {})..add(beaconId)};
   }
 }
@@ -115,7 +127,8 @@ void main() {
   test('a failed read is tried again on the next load', () async {
     final server = _Server()..byViewer[_viewer] = {'B1'};
     final port = _ServerPort(server)..failLoads = true;
-    final store = OfferAcceptedDismissals(port);
+    var now = DateTime.utc(2026, 10, 16, 12);
+    final store = OfferAcceptedDismissals(port)..clock = () => now;
 
     await store.ensureLoadedFor(_viewer);
     // Safe default while offline: the card shows.
@@ -123,7 +136,50 @@ void main() {
 
     port.failLoads = false;
     await store.ensureLoadedFor(_viewer);
+    // #537 review: no read straight away on every rebuild after a failure.
+    expect(port.loads, 1);
+    expect(store.shouldShow(viewerId: _viewer, beaconId: 'B1'), isTrue);
+
+    now = now.add(OfferAcceptedDismissals.retryDelay);
+    await store.ensureLoadedFor(_viewer);
+    expect(port.loads, 2);
     expect(store.shouldShow(viewerId: _viewer, beaconId: 'B1'), isFalse);
+  });
+
+  // #537 review: every rebuild of every sub-card calls ensureLoadedFor; a
+  // pending dismissal must still go out once, not once per call.
+  test('a pending dismissal is sent by one flush at a time', () async {
+    final port = _ServerPort(_Server());
+    final phone = OfferAcceptedDismissals(port);
+    await phone.ensureLoadedFor(_viewer);
+    port.failDismisses = true;
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    expect(port.dismissCalls, 1);
+
+    port
+      ..failDismisses = false
+      ..gate = Completer<void>();
+    final calls = [for (var i = 0; i < 5; i++) phone.ensureLoadedFor(_viewer)];
+    port.gate!.complete();
+    await Future.wait(calls);
+
+    expect(port.dismissCalls, 2);
+    expect(port.server.byViewer[_viewer], {'B1'});
+  });
+
+  test('a dismissal the server refuses is not sent again', () async {
+    final port = _ServerPort(_Server());
+    final phone = OfferAcceptedDismissals(port);
+    await phone.ensureLoadedFor(_viewer);
+
+    port.refuseDismisses = true;
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    await phone.ensureLoadedFor(_viewer);
+    await phone.ensureLoadedFor(_viewer);
+
+    expect(port.dismissCalls, 1);
+    // Hidden here all the same: the person dismissed it.
+    expect(phone.isDismissed(viewerId: _viewer, beaconId: 'B1'), isTrue);
   });
 
   test('a dismissal the server missed is sent again later', () async {

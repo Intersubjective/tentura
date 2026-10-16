@@ -160,6 +160,21 @@ void main() {
     expect(after, {'B1', 'B3'});
   });
 
+  // #537 review: a refusal the server answered is told apart from a network
+  // failure, so the store drops it instead of sending it on every build.
+  test('a dismissal the server refuses is reported as refused', () async {
+    final sent = <_SentOperation>[];
+    await _withRemote({}, sent, (remote) async {
+      await expectLater(
+        OfferAcceptedDismissalRepository(
+          remote,
+        ).dismiss(viewerId: 'Uhelper00001', beaconId: 'B3'),
+        throwsA(isA<OfferAcceptedDismissalRefusedException>()),
+      );
+    });
+    expect(sent.single.operationName, 'DismissOfferAccepted');
+  });
+
   test('ENV=test has a stub for the port, like every repository', () async {
     final OfferAcceptedDismissalPort stub =
         OfferAcceptedDismissalRepositoryMock();
