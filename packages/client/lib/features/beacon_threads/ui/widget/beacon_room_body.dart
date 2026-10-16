@@ -666,8 +666,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
     final caps = widget.capabilities;
+    // A poll has no text to edit, pin or lift into the plan (#375).
+    final isPoll = message.semanticMarker == BeaconRoomSemanticMarker.poll;
     final showFactInMenu =
-        caps.facts && !isThreadMode && !_suppressesRichMessageActions(message);
+        caps.facts &&
+        !isThreadMode &&
+        !isPoll &&
+        !_suppressesRichMessageActions(message);
     final isOwnMessage = message.authorId == viewer.id;
     final viewerReactions = _viewerReactionEmojis(message);
     // Already-linked messages can be opened/resolved but never re-promoted;
@@ -840,7 +845,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        if (caps.plan)
+                        if (caps.plan && !isPoll)
                           ListTile(
                             leading: const Icon(Icons.edit_note_outlined),
                             title: Text(
@@ -960,21 +965,22 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           !isThreadMode &&
                           !_suppressesRichMessageActions(message)) ...[
                         const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(Icons.edit_outlined),
-                          title: Text(l10n.beaconRoomActionEditMessage),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _showEditMessageSheet(
-                                context,
-                                cubit,
-                                l10n,
-                                message,
-                              ),
-                            );
-                          },
-                        ),
+                        if (!isPoll)
+                          ListTile(
+                            leading: const Icon(Icons.edit_outlined),
+                            title: Text(l10n.beaconRoomActionEditMessage),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              unawaited(
+                                _showEditMessageSheet(
+                                  context,
+                                  cubit,
+                                  l10n,
+                                  message,
+                                ),
+                              );
+                            },
+                          ),
                         ListTile(
                           leading: Icon(
                             Icons.delete_outline,
