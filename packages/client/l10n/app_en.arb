@@ -9393,5 +9393,70 @@
   "myWorkPlanSomeone": "Someone",
   "@myWorkPlanSomeone": {
     "description": "My Work plan row (#220): stands for the person who changed the plan when their name is unknown."
+  },
+  "beaconLobbyTitle": "Lobby",
+  "@beaconLobbyTitle": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyEntrySubtitle": "Questions before helping. Only the author and people who offered help see it.",
+  "@beaconLobbyEntrySubtitle": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyEmpty": "No messages yet. Ask the author anything about the request.",
+  "@beaconLobbyEmpty": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyComposerHint": "Write to the lobby",
+  "@beaconLobbyComposerHint": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbySend": "Send",
+  "@beaconLobbySend": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyUnavailable": "The lobby is only for the author and people with an active help offer.",
+  "@beaconLobbyUnavailable": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyBanAction": "Remove from lobby",
+  "@beaconLobbyBanAction": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyBanConfirmTitle": "Remove {name} from the lobby?",
+  "@beaconLobbyBanConfirmTitle": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconLobbyBanConfirmBody": "They won't be able to read or write here until you let them back in. Their help offer stays.",
+  "@beaconLobbyBanConfirmBody": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyBannedHeading": "Removed from lobby",
+  "@beaconLobbyBannedHeading": {
+    "description": "U088 Request lobby: fold of people the author removed; the count follows as a plain muted number",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyUnbanAction": "Let back in",
+  "@beaconLobbyUnbanAction": {
+    "description": "U088 Request lobby",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbySomeone": "Someone",
+  "@beaconLobbySomeone": {
+    "description": "U088 Request lobby: stands for a removed person whose name is unknown",
+    "context": "BeaconLobbyScreen"
   }
 }

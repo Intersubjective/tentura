@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
+import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_entry_row.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_requests_section.dart';
@@ -217,6 +218,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
           p.closureState != c.closureState ||
           p.beaconContextLoaded != c.beaconContextLoaded ||
           p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
+          canOpenBeaconLobby(p) != canOpenBeaconLobby(c) ||
           p.coordinationDeniesRoomAdmission !=
               c.coordinationDeniesRoomAdmission,
       builder: (context, state) {
@@ -309,6 +311,13 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                       child: BeaconHudOutcomeSection(beacon: state.beacon),
                     ),
                   ),
+                  if (canOpenBeaconLobby(state))
+                    SliverToBoxAdapter(
+                      child: Material(
+                        color: scheme.surface,
+                        child: BeaconLobbyEntryRow(state: state),
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: ColoredBox(
                       color: scheme.surface,

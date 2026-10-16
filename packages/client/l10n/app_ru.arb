@@ -6787,5 +6787,17 @@
   "planCopyNoTimes": "В плане нет шагов со временем — время задавать не нужно",
   "planCopyNoAssignees": "Исполнители не копируются",
   "planCopyConfirm": "Продолжить",
-  "myWorkPlanSomeone": "Кто-то"
+  "myWorkPlanSomeone": "Кто-то",
+  "beaconLobbyTitle": "Лобби",
+  "beaconLobbyEntrySubtitle": "Вопросы до начала помощи. Видят только автор и те, кто предложил помощь.",
+  "beaconLobbyEmpty": "Сообщений пока нет. Спросите автора о запросе.",
+  "beaconLobbyComposerHint": "Написать в лобби",
+  "beaconLobbySend": "Отправить",
+  "beaconLobbyUnavailable": "Лобби доступно только автору и тем, у кого есть действующее предложение помощи.",
+  "beaconLobbyBanAction": "Убрать из лобби",
+  "beaconLobbyBanConfirmTitle": "Убрать из лобби: {name}?",
+  "beaconLobbyBanConfirmBody": "Этот человек не сможет читать и писать здесь, пока вы его не вернёте. Его предложение помощи останется.",
+  "beaconLobbyBannedHeading": "Убраны из лобби",
+  "beaconLobbyUnbanAction": "Вернуть",
+  "beaconLobbySomeone": "Кто-то"
 }
