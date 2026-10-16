@@ -7,6 +7,11 @@ const int coordinationItemKindAsk = 2;
 const int coordinationItemKindBlocker = 3;
 const int coordinationItemKindPromise = 5;
 
+/// U088 — the Request's lobby: one row per Request whose id scopes the lobby
+/// discussion (`beacon_room_message.thread_item_id`). Kind 6 is the plan step
+/// (`BeaconPlanConsts.stepKind`).
+const int coordinationItemKindLobby = 7;
+
 // Coordination item status values.
 const int coordinationItemStatusOpen = 0;
 const int coordinationItemStatusAccepted = 1;
