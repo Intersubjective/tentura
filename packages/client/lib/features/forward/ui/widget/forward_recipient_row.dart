@@ -531,16 +531,20 @@ class _ForwardRowCheckbox extends StatelessWidget {
         ? (isSelected ? tt.info : tt.textMuted)
         : tt.border;
     final l10n = L10n.of(context)!;
-    // Named after the person, as a checkbox: "Vadim, checked". The action
-    // word (Select / Remove) is the tap hint.
+    // Named after the person, as a checkbox: "Vadim, checkbox, checked".
+    // The action word (Select / Remove) rides `onTapHint`, which only
+    // Android TalkBack speaks; web and iOS read the checkbox state alone.
+    // A profile with no name falls back to the action word, so the box is
+    // never announced as a bare "checkbox".
+    final actionWord = isSelected
+        ? l10n.forwardCandidateRemove
+        : l10n.forwardCandidateSelect;
     return Semantics(
       identifier: identifier,
-      label: name,
+      label: name.isNotEmpty ? name : actionWord,
       checked: isSelected,
       enabled: enabled,
-      onTapHint: isSelected
-          ? l10n.forwardCandidateRemove
-          : l10n.forwardCandidateSelect,
+      onTapHint: actionWord,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(

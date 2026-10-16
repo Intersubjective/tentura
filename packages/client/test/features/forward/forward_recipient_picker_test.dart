@@ -145,10 +145,10 @@ void main() {
     );
   }
 
-  testWidgets('recipient checkbox is named after the person (B071)', (
-    tester,
-  ) async {
-    final handle = tester.ensureSemantics();
+  Future<void> pumpSingleCandidate(
+    WidgetTester tester, {
+    required String displayName,
+  }) async {
     final cubit = ForwardCubit(
       beaconId: 'draft-1',
       debugSkipInitialLoad: true,
@@ -160,11 +160,11 @@ void main() {
       ForwardState(
         beaconId: 'draft-1',
         beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
-        candidates: const [
+        candidates: [
           ForwardCandidate(
             profile: Profile(
               id: 'u1',
-              displayName: 'Alex',
+              displayName: displayName,
               score: 10,
               rScore: 1,
             ),
@@ -198,6 +198,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('recipient checkbox is named after the person (B071)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pumpSingleCandidate(tester, displayName: 'Alex');
 
     final checkbox = find.byKey(
       TestIds.key(TestIds.forwardRecipientCheckbox('u1')),
@@ -218,6 +225,23 @@ void main() {
     expect(
       tester.getSemantics(checkbox),
       isSemantics(label: 'Alex', isChecked: true, onTapHint: 'Remove'),
+    );
+    handle.dispose();
+  });
+
+  testWidgets('nameless recipient checkbox still has a label (B071)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    // Fails on the base: the label was the empty name, so the box read as
+    // a bare "checkbox, not checked".
+    await pumpSingleCandidate(tester, displayName: '');
+
+    expect(
+      tester.getSemantics(
+        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('u1'))),
+      ),
+      isSemantics(label: 'Select', hasCheckedState: true, isChecked: false),
     );
     handle.dispose();
   });
