@@ -17,7 +17,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/beacon_lobby_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
-import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/room_message_snapshot_lookup.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';

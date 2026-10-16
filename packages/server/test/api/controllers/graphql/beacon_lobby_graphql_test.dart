@@ -112,10 +112,10 @@ void main() {
     final type = gqlTypeBeaconLobby.fields
         .firstWhere((f) => f.name == 'bannedUserIds')
         .type;
-    expect(type, isA<GraphQLListType>());
+    expect(type, isA<GraphQLListType<Object?, Object?>>());
     expect(
-      (type as GraphQLListType).ofType,
-      isA<GraphQLNonNullableType>(),
+      (type as GraphQLListType<Object?, Object?>).ofType,
+      isA<GraphQLNonNullableType<Object?, Object?>>(),
     );
   });
 

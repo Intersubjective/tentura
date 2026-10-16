@@ -24,7 +24,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     await _db.customUpdate(
       'INSERT INTO public.coordination_item '
       '(id, beacon_id, kind, status, creator_id, published, published_at) '
-      'VALUES (\$1, \$2, \$3, 0, \$4, true, now()) '
+      r'VALUES ($1, $2, $3, 0, $4, true, now()) '
       'ON CONFLICT DO NOTHING',
       variables: [
         Variable.withString(generateId('L')),
@@ -40,7 +40,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     final row = await _db
         .customSelect(
           'SELECT id FROM public.coordination_item '
-          'WHERE beacon_id = \$1 AND kind = \$2',
+          r'WHERE beacon_id = $1 AND kind = $2',
           variables: [
             Variable.withString(beaconId),
             const Variable<int>(coordinationItemKindLobby),
@@ -55,7 +55,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     final row = await _db
         .customSelect(
           'SELECT beacon_id FROM public.coordination_item '
-          'WHERE id = \$1 AND kind = \$2',
+          r'WHERE id = $1 AND kind = $2',
           variables: [
             Variable.withString(itemId),
             const Variable<int>(coordinationItemKindLobby),
@@ -73,7 +73,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     final row = await _db
         .customSelect(
           'SELECT 1 AS one FROM public.beacon_help_offer '
-          'WHERE beacon_id = \$1 AND user_id = \$2 AND status = 0',
+          r'WHERE beacon_id = $1 AND user_id = $2 AND status = 0',
           variables: [
             Variable.withString(beaconId),
             Variable.withString(userId),
@@ -91,7 +91,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     final row = await _db
         .customSelect(
           'SELECT 1 AS one FROM public.beacon_lobby_ban '
-          'WHERE beacon_id = \$1 AND user_id = \$2',
+          r'WHERE beacon_id = $1 AND user_id = $2',
           variables: [
             Variable.withString(beaconId),
             Variable.withString(userId),
@@ -108,7 +108,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     required String bannedBy,
   }) => _db.customUpdate(
     'INSERT INTO public.beacon_lobby_ban (beacon_id, user_id, banned_by) '
-    'VALUES (\$1, \$2, \$3) ON CONFLICT (beacon_id, user_id) DO NOTHING',
+    r'VALUES ($1, $2, $3) ON CONFLICT (beacon_id, user_id) DO NOTHING',
     variables: [
       Variable.withString(beaconId),
       Variable.withString(userId),
@@ -120,7 +120,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
   Future<void> unban({required String beaconId, required String userId}) =>
       _db.customUpdate(
         'DELETE FROM public.beacon_lobby_ban '
-        'WHERE beacon_id = \$1 AND user_id = \$2',
+        r'WHERE beacon_id = $1 AND user_id = $2',
         variables: [
           Variable.withString(beaconId),
           Variable.withString(userId),
@@ -132,7 +132,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
     final rows = await _db
         .customSelect(
           'SELECT user_id FROM public.beacon_lobby_ban '
-          'WHERE beacon_id = \$1 ORDER BY banned_at, user_id',
+          r'WHERE beacon_id = $1 ORDER BY banned_at, user_id',
           variables: [Variable.withString(beaconId)],
         )
         .get();
