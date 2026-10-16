@@ -22,10 +22,10 @@ import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 
+import '../../support/fake_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
-import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
 import '../contacts/contacts_case_test.dart';
 
 void main() {
@@ -170,8 +170,8 @@ void main() {
       harness.friendsRepository.pending.add(refetch);
 
       harness.blockCase.emitChange(
-        RepositoryEventCreate(
-          BlockIntent(blocked: const Profile(id: 'friend-2')),
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'friend-2')),
         ),
       );
       await harness.waitFor(
@@ -193,8 +193,8 @@ void main() {
         harness.friendsRepository.error = StateError('offline');
 
         harness.blockCase.emitChange(
-          RepositoryEventCreate(
-            BlockIntent(blocked: const Profile(id: 'friend-1')),
+          const RepositoryEventCreate(
+            BlockIntent(blocked: Profile(id: 'friend-1')),
           ),
         );
         await harness.waitFor(() => harness.cubit.state.friends.isEmpty);
@@ -215,8 +215,8 @@ void main() {
       await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 1);
 
       harness.blockCase.emitChange(
-        RepositoryEventCreate(
-          BlockIntent(blocked: const Profile(id: 'friend-2')),
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'friend-2')),
         ),
       );
       first.complete([_friend('friend-1'), _friend('friend-2')]);
@@ -284,8 +284,8 @@ void main() {
 
       harness.friendsRepository.result = [_friend('friend-1')];
       harness.blockCase.emitChange(
-        RepositoryEventDelete(
-          BlockIntent(blocked: const Profile(id: 'friend-1')),
+        const RepositoryEventDelete(
+          BlockIntent(blocked: Profile(id: 'friend-1')),
         ),
       );
       await harness.waitFor(
@@ -335,7 +335,7 @@ final class _FriendsHarness {
       contactsCase,
       authCase,
       realtimeCase,
-      blockCase: blockCase,
+      blockCase,
       env: const Env(),
       logger: Logger('test'),
     );

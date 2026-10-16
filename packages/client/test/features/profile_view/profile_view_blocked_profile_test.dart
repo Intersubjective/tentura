@@ -36,7 +36,7 @@ import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
-import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
+import '../../support/fake_block_case.dart';
 import '../contacts/contacts_case_test.dart';
 
 void main() {
@@ -57,7 +57,7 @@ void main() {
         harness
           ..profiles.error = const ProfileFetchException('U-blocked')
           ..blockCase.fetchMyBlocksResult = [
-            BlockIntent(blocked: blocked),
+            const BlockIntent(blocked: blocked),
           ]
           ..start(id: 'U-blocked');
         await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
@@ -87,8 +87,8 @@ void main() {
       // After the block the server hides the person from the viewer.
       harness.profiles.error = const ProfileFetchException('U-friend');
       harness.blockCase.emitChange(
-        RepositoryEventCreate(
-          BlockIntent(blocked: const Profile(id: 'U-friend')),
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'U-friend')),
         ),
       );
       await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
@@ -113,8 +113,8 @@ void main() {
       );
 
       harness.blockCase.emitChange(
-        RepositoryEventCreate(
-          BlockIntent(blocked: const Profile(id: 'U-other')),
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'U-other')),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 150));
@@ -127,8 +127,8 @@ void main() {
       harness
         ..profiles.error = const ProfileFetchException('U-friend')
         ..blockCase.fetchMyBlocksResult = [
-          BlockIntent(
-            blocked: const Profile(id: 'U-friend', displayName: 'Helper Two'),
+          const BlockIntent(
+            blocked: Profile(id: 'U-friend', displayName: 'Helper Two'),
           ),
         ]
         ..start(id: 'U-friend');
@@ -138,8 +138,8 @@ void main() {
         ..error = null
         ..result = const Profile(id: 'U-friend', displayName: 'Helper Two');
       harness.blockCase.emitChange(
-        RepositoryEventDelete(
-          BlockIntent(blocked: const Profile(id: 'U-friend')),
+        const RepositoryEventDelete(
+          BlockIntent(blocked: Profile(id: 'U-friend')),
         ),
       );
       await harness.waitFor(() => !harness.cubit.state.isBlockedFallback);
@@ -166,8 +166,8 @@ void main() {
 
       harness.profiles.error = const ProfileFetchException('U-friend');
       harness.blockCase.fetchMyBlocksResult = [
-        BlockIntent(
-          blocked: const Profile(id: 'U-friend', displayName: 'Helper Two'),
+        const BlockIntent(
+          blocked: Profile(id: 'U-friend', displayName: 'Helper Two'),
         ),
       ];
       harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-viewer'));
@@ -272,7 +272,7 @@ void main() {
       harness
         ..profiles.error = const ProfileFetchException('U-blocked')
         ..blockCase.fetchMyBlocksResult = [
-          BlockIntent(blocked: blocked),
+          const BlockIntent(blocked: blocked),
         ]
         ..start(id: 'U-blocked');
       await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
@@ -300,7 +300,7 @@ void main() {
       const profile = Profile(id: 'U-blocked', displayName: 'Blocked Person');
       harness.start(id: profile.id, autoFetch: false);
       harness.cubit.emit(
-        ProfileViewState(
+        const ProfileViewState(
           profile: profile,
           blockedProfile: profile,
         ),
@@ -344,7 +344,7 @@ void main() {
       const profile = Profile(id: 'U-blocked', displayName: 'Blocked Person');
       harness.start(id: profile.id, autoFetch: false);
       harness.cubit.emit(
-        ProfileViewState(
+        const ProfileViewState(
           profile: profile,
           blockedProfile: profile,
         ),

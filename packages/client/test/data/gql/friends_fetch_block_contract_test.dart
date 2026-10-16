@@ -31,6 +31,10 @@ void main() {
   });
 
   test('leaves out people hidden from the viewer by a block', () {
-    expect(where, contains('user:{hidden_for_viewer:{_eq:false}}'));
+    expect(where, contains('hidden_for_viewer:{_eq:false}'));
+  });
+
+  test("keeps main's guard against users Hasura hides (tentura-m43h)", () {
+    expect(where, contains('id:{_is_null:false}'));
   });
 }

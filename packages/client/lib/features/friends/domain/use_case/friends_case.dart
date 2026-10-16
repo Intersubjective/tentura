@@ -32,11 +32,11 @@ final class FriendsCase extends UseCaseBase {
     this._presence,
     this._contacts,
     this._auth,
-    this._realtime, {
-    BlockCase? blockCase,
+    this._realtime,
+    this._blockCase, {
     required super.env,
     required super.logger,
-  }) : _blockCase = blockCase;
+  });
 
   final CapabilityRepositoryPort _capabilities;
   final InvitationRepository _invitations;
@@ -46,7 +46,7 @@ final class FriendsCase extends UseCaseBase {
   final ContactsCase _contacts;
   final AuthCase _auth;
   final RealtimeSyncCase _realtime;
-  final BlockCase? _blockCase;
+  final BlockCase _blockCase;
 
   Stream<String> get accountChanges => _auth.currentAccountChanges();
 
@@ -59,8 +59,7 @@ final class FriendsCase extends UseCaseBase {
   /// Blocks and unblocks made on this device. A block keeps the trust row on
   /// the server, so the list drops the person locally and refetches (B056).
   /// Blocks from elsewhere arrive through [projectionChanges].
-  Stream<RepositoryEvent<BlockIntent>> get blockChanges =>
-      _blockCase?.changes ?? const Stream.empty();
+  Stream<RepositoryEvent<BlockIntent>> get blockChanges => _blockCase.changes;
 
   Stream<void> get projectionChanges => MergeStream<void>([
     _realtime
