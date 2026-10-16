@@ -134,6 +134,91 @@ void main() {
 
       expect(write.setMediaCalls.single.coverImageId, 'srv-2');
     });
+
+    // Review of #515, Should 2: guards against the false positives that would
+    // lose a media edit. They pass on the base by design (the comparison
+    // already covers them); they keep a later edit of _mediaUnchanged honest.
+    test('removing every image still publishes media', () async {
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          images: const [_server],
+          coverImageId: 'srv-1',
+          coverSource: BeaconCoverSource.photo,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      await sut.saveEdit(_command(id: 'b-1'));
+
+      expect(write.setMediaCalls, hasLength(1));
+      expect(write.setMediaCalls.single.coverImageId, isNull);
+    });
+
+    test('a changed cover thumb still publishes media', () async {
+      const oldThumb = ImageEntity(id: 'th-1', authorId: 'author-1');
+      const newThumb = ImageEntity(id: 'th-2', authorId: 'author-1');
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          images: const [_server],
+          coverImageId: 'srv-1',
+          coverThumb: oldThumb,
+          coverSource: BeaconCoverSource.photo,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      await sut.saveEdit(
+        _command(
+          id: 'b-1',
+          images: const [_server],
+          coverKey: 'srv-1',
+          coverThumb: newThumb,
+        ),
+      );
+
+      expect(write.setMediaCalls, hasLength(1));
+    });
+
+    test('a cleared cover thumb still publishes media', () async {
+      const oldThumb = ImageEntity(id: 'th-1', authorId: 'author-1');
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          images: const [_server],
+          coverImageId: 'srv-1',
+          coverThumb: oldThumb,
+          coverSource: BeaconCoverSource.photo,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      await sut.saveEdit(
+        _command(id: 'b-1', images: const [_server], coverKey: 'srv-1'),
+      );
+
+      expect(write.setMediaCalls, hasLength(1));
+    });
+
+    test('a changed cover source still publishes media', () async {
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(
+          id: 'b-1',
+          images: const [_server],
+          coverImageId: 'srv-1',
+          coverSource: BeaconCoverSource.symbol,
+        ),
+      );
+      final sut = BeaconCreateCase(write, FakeBeaconImagePort());
+
+      // The command's fields carry BeaconCoverSource.photo.
+      await sut.saveEdit(
+        _command(id: 'b-1', images: const [_server], coverKey: 'srv-1'),
+      );
+
+      expect(write.setMediaCalls, hasLength(1));
+    });
   });
 
   group('media reconciliation', () {

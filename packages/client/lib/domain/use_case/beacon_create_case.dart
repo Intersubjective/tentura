@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:collection/collection.dart' show ListEquality;
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:uuid/uuid.dart';
@@ -211,7 +211,7 @@ class BeaconCreateCase {
     final ids = [for (final image in command.images) image.id];
     if (ids.any((id) => id.isEmpty)) return false;
     final serverIds = [for (final image in server.images) image.id];
-    if (!listEquals(ids, serverIds)) return false;
+    if (!const ListEquality<String>().equals(ids, serverIds)) return false;
     final cover = command.coverKey;
     final effectiveCover = ids.isEmpty
         ? null
