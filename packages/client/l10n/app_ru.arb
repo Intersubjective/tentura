@@ -3647,7 +3647,7 @@
       }
     }
   },
-  "activityMovedToStream": "Перемещено в ленту",
+  "activityMovedToStream": "Перенесено из «Для вас» в список ниже",
   "@activityMovedToStream": {
     "context": "InboxScreen"
   },

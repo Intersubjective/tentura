@@ -3744,7 +3744,7 @@
       }
     }
   },
-  "activityMovedToStream": "Moved to the stream",
+  "activityMovedToStream": "Moved out of “For you” to the list below",
   "@activityMovedToStream": {
     "context": "InboxScreen"
   },
