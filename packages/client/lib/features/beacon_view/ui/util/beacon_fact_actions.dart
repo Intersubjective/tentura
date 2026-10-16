@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 
 /// Opens manage/edit/remove actions using the live [BeaconViewCubit].
 ///
@@ -16,6 +17,7 @@ Future<void> showBeaconFactActions(
   required BeaconViewCubit cubit,
   required BeaconFactCard fact,
 }) {
+  final navigation = BeaconRoomNavigationScope.maybeOf(pageContext);
   return showFactActionsHostSheet(
     pageContext,
     fact: fact,
@@ -32,6 +34,14 @@ Future<void> showBeaconFactActions(
           factCardId: factCardId,
           visibility: visibility,
         ),
+    // Opens General at the fact's message (#373). The Facts sheet is closed
+    // first so the chat is in view.
+    onJumpToSource: navigation == null
+        ? null
+        : (messageId) {
+            Navigator.of(pageContext).popUntil((route) => route is! PopupRoute);
+            unawaited(navigation.openGeneralAnchor(messageId: messageId));
+          },
     onEditHistory: (f) => unawaited(
       showFactHistorySheet(
         pageContext,
