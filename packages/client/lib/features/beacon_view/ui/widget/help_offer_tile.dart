@@ -739,7 +739,7 @@ class _CommitterAdmissionFooter extends StatelessWidget {
           when reason != null && reason!.isNotEmpty =>
         l10n.helpOfferRemovedWithReason(reason!),
       // The admission itself; "Can read this discussion" is the line under
-      // it (B027: it was both lines).
+      // it (#362).
       _ =>
         isAdmitted
             ? (admissionAction == HelpOfferAdmissionAction.autoAdmit

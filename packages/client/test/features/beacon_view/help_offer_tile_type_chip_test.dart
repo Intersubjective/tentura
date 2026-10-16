@@ -298,7 +298,7 @@ void main() {
     expect(find.text('Decline'), findsNothing);
   });
 
-  // B027 (#362): the helper's own admitted card said "Can read this
+  // #362: the helper's own admitted card said "Can read this
   // discussion" twice; the first line is the admission, like the author's.
   testWidgets('admitted committer sees each admission line once', (
     tester,
