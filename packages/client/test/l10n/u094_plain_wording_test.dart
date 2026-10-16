@@ -56,10 +56,11 @@ void main() {
       // Scan every EN value in the ARB, not a hand-picked key list (#542
       // review: `beaconCloseSheetEvidenceEnoughHelp` slipped through), and
       // keep the closing stage under one name: the actions say "final
-      // check" like the status, not "wrap up".
+      // check" like the status, not "wrap up" or "review window".
       final retired = RegExp(
         'IN ON IT|In on it|Nothing noted yet|Needs me|Not fitting|'
-        'Moved to the stream|[Ww]rapping up|[Ww]rap up|Enough help committed',
+        'Moved to the stream|[Ww]rapping up|[Ww]rap up|Enough help committed|'
+        r'[Rr]eview window|[Rr]eviewers?\b',
       );
       final arb =
           jsonDecode(File('l10n/app_en.arb').readAsStringSync())

@@ -1879,7 +1879,7 @@
       }
     }
   },
-  "profileVisibilitySharedContextNote": "You can see each other until reviews for this request close.",
+  "profileVisibilitySharedContextNote": "You can see each other until this request's final check ends.",
   "@profileVisibilitySharedContextNote": {
     "context": "ProfileViewBody — explains the co-participant bond lasts until the Request review window closes"
   },
@@ -3447,7 +3447,7 @@
   "@myWorkChipReviewPending": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipReviewWindowOpen": "Review window open",
+  "myWorkChipReviewWindowOpen": "Final check",
   "@myWorkChipReviewWindowOpen": {
     "context": "MyWorkScreen"
   },
@@ -4588,25 +4588,25 @@
   "beaconCloseSheetActionNotNow": "Not now",
   "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
   "beaconCloseSheetReadyReviewTitle": "Close and start the final check?",
-  "beaconCloseSheetReadyReviewBody": "Helpers who committed will get a review window to acknowledge contributions.",
-  "beaconCloseSheetReadyImmediateBody": "This marks the request complete with no review window.",
+  "beaconCloseSheetReadyReviewBody": "Helpers who committed get a final check to acknowledge contributions.",
+  "beaconCloseSheetReadyImmediateBody": "This marks the request complete right away, with no final check.",
   "beaconCloseSheetReviewWrappingUpBody": "Some items still need your judgment before the final check.",
   "beaconCloseSheetPrematureReviewBody": "There is not enough completion evidence yet. Starting the final check now may skip coordination context.",
-  "beaconCloseSheetBranchWrappingUp": "Outcome: Final check (review window)",
+  "beaconCloseSheetBranchWrappingUp": "Next: Final check — helpers acknowledge contributions",
   "beaconCloseSheetBranchClosedImmediate": "Outcome: Closed immediately",
   "beaconReviewExtendAction": "Extend review",
   "beaconReviewReopenAction": "Reopen",
   "beaconReviewCloseNowAction": "Close now",
-  "beaconReviewExtendSuccess": "Review window extended",
+  "beaconReviewExtendSuccess": "Final check extended",
   "beaconReviewReopenSuccess": "Request reopened",
   "beaconReviewCloseNowSuccess": "Request closed",
   "beaconReviewReopenTitle": "Reopen request?",
-  "beaconReviewReopenBodyNoSent": "The review window closes; saved answers stay drafts. A request can be reopened only once.",
+  "beaconReviewReopenBodyNoSent": "The final check stops; saved answers stay drafts. A request can be reopened only once.",
   "beaconReviewReopenConfirm": "Reopen",
   "beaconNeedsMoreHelpRevertTitle": "Need more help?",
   "beaconNeedsMoreHelpRevertBody": "Returns to Open and marks more help needed. Review notes are kept as drafts where still relevant.",
   "beaconNeedsMoreHelpRevertConfirm": "Need more help",
-  "beaconReviewCloseNowBlocked": "Close now is available when every required reviewer has finished or skipped.",
+  "beaconReviewCloseNowBlocked": "Close now is available when everyone required has finished the final check or skipped it.",
   "beaconDeleteBlockedTitle": "Cannot delete",
   "beaconDeleteBlockedBody": "This request had acknowledged helpers. Archive it from Requests instead.",
   "beaconDeleteDraftTitle": "Delete draft?",
@@ -4663,15 +4663,15 @@
   "beaconHudActEffectResolveBlocker": "Opens Items to clear the blocker",
   "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to the discussion",
   "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
-  "beaconHudActEffectWrapUpForReview": "Starts review window; helpers can acknowledge",
-  "beaconHudActEffectCloseNow": "Closes request when all reviews are in",
+  "beaconHudActEffectWrapUpForReview": "Starts the final check; helpers can acknowledge",
+  "beaconHudActEffectCloseNow": "Closes the request when everyone has finished the final check",
   "beaconHudActEffectForward": "Shares request; does not change discussion access",
   "beaconHudYouChangeStatusInOverflow": "Change request state in ⋮ menu",
   "beaconHudConfirmMarkEnoughHelpTitle": "Mark enough help?",
   "beaconHudConfirmMarkEnoughHelpBody": "Helpers see that help is sufficient. The request stays open until you start the final check or close.",
   "beaconHudConfirmMarkEnoughHelpAction": "Mark enough help",
   "beaconHudConfirmCloseNowTitle": "Close request now?",
-  "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
+  "beaconHudConfirmCloseNowBlockedBody": "Close now is available when everyone required has finished the final check or skipped it.",
   "beaconHudConfirmCloseNowAction": "Close now",
   "beaconHudConfirmChangeLaterInStatus": "Change later in request status",
   "beaconStatusSheetAdvancedHint": "Advanced changes; most authors follow the button above.",
@@ -4679,7 +4679,7 @@
   "beaconStatusRowOutcomeOpen": "Request accepts new offers",
   "beaconStatusRowOutcomeMoreHelp": "Asks network for more responses",
   "beaconStatusRowOutcomeEnoughHelp": "Signals sufficient help; stays open",
-  "beaconStatusRowOutcomeWrappingUp": "Review window for contributors",
+  "beaconStatusRowOutcomeWrappingUp": "Helpers acknowledge contributions",
   "beaconStatusRowOutcomeClosed": "Request is closed; discussion is read-only",
   "beaconStatusRowOutcomeCancelled": "Request is cancelled; no further coordination",
   "timelineRequestStatusChanged": "{author} marked the request as {status}",
@@ -4788,7 +4788,7 @@
   "beaconStatusRowCancelled": "Cancelled",
   "beaconStatusHintPublishFirst": "Publish the request first",
   "beaconStatusHintFinishReviewFirst": "Finish the review period first",
-  "beaconStatusHintReopenLimitReached": "Already reopened once — close now or wait for the review window",
+  "beaconStatusHintReopenLimitReached": "Already reopened once — close now or wait for the final check to end",
   "beaconStatusHintNoCommitters": "No committed helpers to review yet",
   "beaconStatusHintCancelHasOffers": "Can't cancel after help was offered",
   "beaconStatusCancelHasCommitters": "Can't cancel — someone committed; close instead",
@@ -6768,7 +6768,7 @@
   "@attentionEventTrustReceivedNeutral": {
     "description": "Event line: the person on the row reviewed the viewer without a trust change."
   },
-  "updatesFallbackTitleObligationEnded": "Review window closed",
+  "updatesFallbackTitleObligationEnded": "Final check ended",
   "@updatesFallbackTitleObligationEnded": {
     "description": "Event label: the review window closed before the viewer sent their review, so it no longer waits on them."
   },

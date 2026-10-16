@@ -1,5 +1,8 @@
 // U094 RU: Russian plain words, checked against fresh Russian-speaking test
 // readers (see fixes/U094.md and findings/round2/U094_ru_wording_test.md).
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -116,6 +119,35 @@ void main() {
       for (final v in values) {
         expect(retired.hasMatch(v), isFalse, reason: v);
       }
+    });
+
+    test('no closing-stage leftovers in any RU string', () {
+      // Scan every RU value in the ARB, not a hand-picked key list (#542
+      // follow-up review). The closing stage is «Подводим итоги» everywhere;
+      // «отзыв» is retired there because it also means withdrawing an offer.
+      final retired = RegExp(
+        'отзыв|Отзыв|окн[оа] оценки|Окно оценки|ОКНО ОЦЕНКИ|рецензент|'
+        'Рецензент|Финальн|финальн|окончания проверки|Закрыть и завершить',
+      );
+      // Legitimate uses: community feedback, and withdrawing your own help.
+      const allowed = {'communityFeedback', 'labelWithdrawReasonRequired'};
+      final arb =
+          jsonDecode(File('l10n/app_ru.arb').readAsStringSync())
+              as Map<String, dynamic>;
+      final offenders = [
+        for (final MapEntry(:key, :value) in arb.entries)
+          if (!key.startsWith('@') &&
+              !allowed.contains(key) &&
+              value is String &&
+              retired.hasMatch(value))
+            '$key: $value',
+      ];
+      expect(offenders, isEmpty);
+      expect(ru.beaconCloseSheetReadyReviewTitle, 'Закрыть и подвести итоги?');
+      expect(
+        ru.updatesFallbackTitleObligationEnded,
+        'Подведение итогов закончилось',
+      );
     });
 
     test('busy error is in Russian and names no internals', () {
