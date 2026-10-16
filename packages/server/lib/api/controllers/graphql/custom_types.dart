@@ -680,6 +680,14 @@ final gqlTypeInboxRoomContextRow =
         // Request plan («либретто», #220) slice of the viewer (plan §4.9):
         // {done,total,overdueMine,current,alsoActive,next,pendingAck,now}.
         field('planSliceJson', graphQLString),
+        // U087 — latest change in the discussion (message, next step or a
+        // logged event such as a status change) and the latest member
+        // message, for the Requests list's order and "latest" line.
+        field('lastActivityAt', graphQLString),
+        field('lastMessageAt', graphQLString),
+        field('lastMessageText', graphQLString),
+        field('lastMessageAuthorId', graphQLString),
+        field('lastMessageAuthorName', graphQLString),
       ]);
 
 /// Result of marking a beacon room (or thread) as seen.

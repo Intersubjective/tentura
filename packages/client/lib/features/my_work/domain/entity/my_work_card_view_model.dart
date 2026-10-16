@@ -88,11 +88,36 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// The viewer's plan steps and pending changes (#220 §5.8; V2 batch).
     PlanViewerSlice? planSlice,
+
+    /// U087 — latest change in the discussion (message or system line,
+    /// next-step edit, logged event such as a status change); V2 batch.
+    DateTime? roomLastActivityAt,
+
+    /// U087 — the latest member message, for the card's "latest" line.
+    @Default('') String roomLatestMessageText,
+    @Default('') String roomLatestMessageAuthorId,
+    @Default('') String roomLatestMessageAuthorName,
+    DateTime? roomLatestMessageAt,
+
+    /// U087 — unread discussion messages (the same count the header showed
+    /// as "+N"), shown on the "latest" line.
+    @Default(0) int roomUnreadCount,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();
 
   bool get isArchived => viewerArchived;
+
+  /// U087 — what "Recent" orders by: the latest of when the Request entered
+  /// the list ([entryAt]), the discussion's last activity and the latest
+  /// logged event.
+  DateTime recentActivityAt(DateTime entryAt) {
+    var at = entryAt;
+    for (final t in [roomLastActivityAt, lastActivityEvent?.event.createdAt]) {
+      if (t != null && t.isAfter(at)) at = t;
+    }
+    return at;
+  }
 
   bool get isFinishedCard =>
       kind == MyWorkCardKind.authoredFinished ||

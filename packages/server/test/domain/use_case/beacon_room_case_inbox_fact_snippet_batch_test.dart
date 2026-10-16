@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/domain/entity/room_latest_activity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
@@ -194,6 +195,11 @@ class _InboxStubRoom extends Fake implements BeaconRoomRepositoryPort {
   @override
   Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId) async =>
       null;
+
+  @override
+  Future<Map<String, RoomLatestActivity>> latestRoomActivities(
+    Iterable<String> beaconIds,
+  ) async => const {};
 
   @override
   Future<DateTime?> getMainRoomLastSeen({

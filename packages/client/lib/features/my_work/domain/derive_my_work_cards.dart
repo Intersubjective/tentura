@@ -75,13 +75,15 @@ int compareMyWorkCardsForSort(
 
   final t = myWorkCardSortTier(b).compareTo(myWorkCardSortTier(a));
   if (t != 0) return t;
-  // Stable entry/creation order, never the mutable `Beacon.updatedAt` an
-  // optional event moves.
+  // Entry/creation order, never the mutable `Beacon.updatedAt`.
   final ea = ka.firstEntryAt ?? a.beacon.createdAt;
   final eb = kb.firstEntryAt ?? b.beacon.createdAt;
   switch (sort) {
     case MyWorkSort.recent:
-      final u = eb.compareTo(ea);
+      // U087 (maintainer, 2026-10-14): "Recent" is last activity — a
+      // message, a next-step edit or a status change moves the Request up.
+      // An attention receipt alone (a dot) still moves nothing.
+      final u = b.recentActivityAt(eb).compareTo(a.recentActivityAt(ea));
       if (u != 0) return u;
       return a.beaconId.compareTo(b.beaconId);
     case MyWorkSort.oldest:
