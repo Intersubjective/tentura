@@ -698,7 +698,7 @@ function renderAnonymous(p) {
   // asking for an email address.
   const copy = inviteLandingCopy({
     inviterName: inviterName(p),
-    beaconTitle: p.beacon?.title,
+    hasRequest: Boolean(p.beacon),
     inApp: env.inApp,
   });
   return el(
@@ -708,8 +708,8 @@ function renderAnonymous(p) {
     signedInFlash(),
     el('h1', {}, `${inviterName(p)} invited you to Tentura`),
     el('p', { class: 'invite-about' }, copy.about),
-    el('p', { class: 'invite-why' }, copy.why),
-    el('p', {}, copy.signUp),
+    el('p', {}, copy.why),
+    copy.signUp ? el('p', {}, copy.signUp) : null,
     ...renderInviteAuthOptions(code),
   );
 }

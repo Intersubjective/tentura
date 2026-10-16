@@ -42,25 +42,33 @@ export const ONBOARDING_PAGES = [
 export const RECOVER_SEED_LINK_LABEL =
   'Restore an account from your recovery seed';
 
+/** One sentence about Tentura for the invite landing: the first sentence of
+ * the first onboarding page, so both say the same thing (U084). */
+export const INVITE_ABOUT_SENTENCE =
+  'Tentura is where you ask for help and offer yours — no public feed, ' +
+  'no likes, no noise.';
+
 /**
- * Copy for the invite landing a signed-out person sees (U084): what Tentura
- * is (the same words as the first onboarding page), why the friend sent the
- * link, and how to sign up, without leading with seed recovery.
- * @param {{ inviterName: string, beaconTitle?: string|null, inApp: boolean }} args
+ * Copy for the invite landing a signed-out person sees (U084): one sentence
+ * about what Tentura is and one about why the friend sent the link, without
+ * leading with seed recovery. On a request-scoped invite the request card is
+ * already above (inviter + title), so the why line points at it instead of
+ * repeating it. `signUp` is only set inside an in-app browser, where the
+ * person must be told to open the link elsewhere; otherwise the "Get started"
+ * label and the buttons already say how to join.
+ * @param {{ inviterName: string, hasRequest?: boolean, inApp: boolean }} args
  */
-export function inviteLandingCopy({ inviterName, beaconTitle, inApp }) {
-  const title = String(beaconTitle ?? '').trim();
+export function inviteLandingCopy({ inviterName, hasRequest = false, inApp }) {
   return {
-    about: ONBOARDING_PAGES[0].body,
-    why: title
-      ? `${inviterName} wants you in on a request: “${title}”. ` +
+    about: INVITE_ABOUT_SENTENCE,
+    why: hasRequest
+      ? `${inviterName} wants your help with the request above. ` +
         'Join to see it, offer help or pass it on.'
-      : `${inviterName} trusts you and wants you in their network, ` +
+      : `${inviterName} wants you in their network, ` +
         'so you can ask each other for a hand.',
     signUp: inApp
       ? 'Open this link in your browser, or create an account with email.'
-      : 'Create an account with email or Google. ' +
-        'Already have an account? Sign in the same way.',
+      : null,
     recoverLink: RECOVER_SEED_LINK_LABEL,
   };
 }

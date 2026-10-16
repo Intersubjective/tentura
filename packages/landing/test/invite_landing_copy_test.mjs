@@ -1,67 +1,57 @@
 // U084 (QA round 2): the invite landing told a brand-new person nothing about
 // what Tentura is or why the friend sent the link, and its only extra copy
-// was "sign in with seed recovery".
+// was "sign in with seed recovery". These tests check the copy the page
+// renders (inviteLandingCopy), not the source text of main.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 
 import {
+  INVITE_ABOUT_SENTENCE,
   ONBOARDING_PAGES,
   RECOVER_SEED_LINK_LABEL,
   inviteLandingCopy,
 } from '../onboarding.js';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const mainJs = readFileSync(join(root, 'main.js'), 'utf8');
-
-test('the invite landing says what Tentura is, in the onboarding words', () => {
+test('the invite landing says what Tentura is, in one onboarding sentence', () => {
   const copy = inviteLandingCopy({ inviterName: 'Nina', inApp: false });
-  assert.equal(copy.about, ONBOARDING_PAGES[0].body);
-  assert.match(copy.about, /ask for help/);
+  assert.equal(copy.about, INVITE_ABOUT_SENTENCE);
+  assert.ok(ONBOARDING_PAGES[0].body.startsWith(copy.about));
+  assert.equal(copy.about.match(/[.!?](\s|$)/g)?.length, 1);
 });
 
-test('a plain invite explains why the friend sent it', () => {
+test('a plain invite explains why the friend sent it, without speaking for them', () => {
   const copy = inviteLandingCopy({ inviterName: 'Nina', inApp: false });
-  assert.match(copy.why, /Nina/);
-  assert.match(copy.why, /trust/);
+  assert.match(copy.why, /Nina wants you in their network/);
+  assert.doesNotMatch(copy.why, /trusts you/);
 });
 
-test('a request-scoped invite names the request', () => {
+// Fails on the base: the why line quoted the inviter and the title again,
+// right under the request card that already shows both.
+test('a request-scoped invite points at the request card instead of repeating it', () => {
   const copy = inviteLandingCopy({
     inviterName: 'Nina',
-    beaconTitle: 'Move a couch on Saturday',
+    hasRequest: true,
     inApp: false,
   });
-  assert.match(copy.why, /Nina/);
-  assert.match(copy.why, /“Move a couch on Saturday”/);
+  assert.match(copy.why, /Nina wants your help with the request above/);
+  assert.doesNotMatch(copy.why, /“/);
 });
 
-test('the sign-up line no longer leads with seed recovery', () => {
+// Fails on the base: a fourth paragraph (the sign-up line) pushed the email
+// field below the fold on a phone.
+test('in a normal browser there is no separate sign-up paragraph', () => {
   const browser = inviteLandingCopy({ inviterName: 'Nina', inApp: false });
-  assert.doesNotMatch(browser.signUp, /seed/i);
-  assert.match(browser.signUp, /email or Google/);
-  assert.match(browser.signUp, /Already have an account/);
+  assert.equal(browser.signUp, null);
+});
+
+test('in an in-app browser the person is told to open the link elsewhere', () => {
   const inApp = inviteLandingCopy({ inviterName: 'Nina', inApp: true });
-  assert.doesNotMatch(inApp.signUp, /Google/);
   assert.match(inApp.signUp, /browser/);
+  assert.doesNotMatch(inApp.signUp, /seed|Google/i);
 });
 
 test('the recovery link says what it is for', () => {
   const copy = inviteLandingCopy({ inviterName: 'Nina', inApp: false });
-  assert.match(copy.recoverLink, /recovery seed/);
   assert.equal(copy.recoverLink, RECOVER_SEED_LINK_LABEL);
-  assert.match(mainJs, /RECOVER_SEED_LINK_LABEL,?\n\s*\);/);
-  assert.doesNotMatch(mainJs, /'Recover from seed'/);
-});
-
-test('the anonymous invite page renders the explanation', () => {
-  assert.match(mainJs, /inviteLandingCopy\(/);
-  const anon = mainJs.slice(mainJs.indexOf('function renderAnonymous('));
-  const body = anon.slice(0, anon.indexOf('\n}\n'));
-  assert.match(body, /copy\.about/);
-  assert.match(body, /copy\.why/);
-  assert.match(body, /copy\.signUp/);
-  assert.doesNotMatch(body, /seed recovery/);
+  assert.match(copy.recoverLink, /recovery seed/);
 });

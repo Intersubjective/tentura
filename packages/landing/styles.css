@@ -414,3 +414,9 @@ p {
     transform: rotate(360deg);
   }
 }
+
+/* U084: the product line on the invite landing is secondary to the
+   why-line about the invite. */
+.invite-about {
+  color: var(--muted);
+}
