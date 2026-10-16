@@ -89,6 +89,11 @@ ScreenLoadErrorKind _classifyLoadError(Object error) {
     }
     return ScreenLoadErrorKind.server;
   }
+  if (error is RemoteApiRetryLaterException) {
+    // The server's admission backoff outlived the read retries: still a
+    // server-side condition, not an unknown failure.
+    return ScreenLoadErrorKind.server;
+  }
   if (error is RemoteApiException) {
     final message = error.message.toLowerCase();
     if (_looksLikePermissionFailure(message)) {
