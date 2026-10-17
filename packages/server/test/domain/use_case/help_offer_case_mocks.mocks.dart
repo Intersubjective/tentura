@@ -2685,4 +2685,66 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<Map<String, String>>);
+
+  @override
+  _i3.Future<
+    Map<
+      String,
+      ({
+        String blurHash,
+        String handle,
+        bool hasPicture,
+        String imageId,
+        int picHeight,
+        int picWidth,
+        String title,
+      })
+    >
+  >
+  userProfilesByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userProfilesByIds, [userIds]),
+            returnValue:
+                _i3.Future<
+                  Map<
+                    String,
+                    ({
+                      String blurHash,
+                      String handle,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                      String title,
+                    })
+                  >
+                >.value(
+                  <
+                    String,
+                    ({
+                      String blurHash,
+                      String handle,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                      String title,
+                    })
+                  >{},
+                ),
+          )
+          as _i3.Future<
+            Map<
+              String,
+              ({
+                String blurHash,
+                String handle,
+                bool hasPicture,
+                String imageId,
+                int picHeight,
+                int picWidth,
+                String title,
+              })
+            >
+          >);
 }
