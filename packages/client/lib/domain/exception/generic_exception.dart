@@ -57,8 +57,8 @@ final class RemoteApiRetryLaterException extends GenericException {
   final Duration retryAfter;
 
   @override
-  String get toEn => 'RETRY_LATER';
+  String get toEn => 'The server is busy. Please try again in a moment.';
 
   @override
-  String get toRu => toEn;
+  String get toRu => 'Сервер занят. Попробуйте ещё раз чуть позже.';
 }
