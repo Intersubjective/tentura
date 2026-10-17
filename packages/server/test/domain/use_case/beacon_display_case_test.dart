@@ -4,11 +4,13 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -118,6 +120,98 @@ void main() {
         userId: anyNamed('userId'),
       ),
     ).thenAnswer((_) async => null);
+    when(
+      roomRepo.listParticipants(any),
+    ).thenAnswer((_) async => const <BeaconParticipantRecord>[]);
+  });
+
+  BeaconParticipantRecord admitted(
+    String userId, {
+    int role = BeaconParticipantRoleBits.helper,
+  }) => BeaconParticipantRecord(
+    id: 'P$userId',
+    beaconId: beaconId,
+    userId: userId,
+    role: role,
+    status: 0,
+    roomAccess: RoomAccessBits.admitted,
+    createdAt: now,
+    updatedAt: now,
+  );
+
+  group('B075 coordinating starts with the first admitted helper', () {
+    HelpOfferEntity offer() => HelpOfferEntity(
+      beaconId: beaconId,
+      userId: offererId,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    for (final viewer in [authorId, strangerId]) {
+      test('pending offer, nobody admitted: lookingForHelpers ($viewer)',
+          () async {
+        when(helpOfferRepo.fetchByBeaconId(beaconId))
+            .thenAnswer((_) async => [offer()]);
+
+        final result = await case_.displayStatuses(
+          beaconIds: [beaconId],
+          viewerId: viewer,
+        );
+
+        expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+        expect(
+          result.single.slot2Kind,
+          isNot(BeaconDisplaySlot2Kind.noOffersYet),
+          reason: 'an offer exists, so "no offers yet" would be wrong',
+        );
+      });
+
+      test('first accepted helper: coordinating ($viewer)', () async {
+        when(helpOfferRepo.fetchByBeaconId(beaconId))
+            .thenAnswer((_) async => [offer()]);
+        when(
+          coordinationRepo.coordinationResponseTypeByOfferUserId(beaconId),
+        ).thenAnswer((_) async => {offererId: 0});
+        when(roomRepo.listParticipants(beaconId))
+            .thenAnswer((_) async => [admitted(offererId)]);
+
+        final result = await case_.displayStatuses(
+          beaconIds: [beaconId],
+          viewerId: viewer,
+        );
+
+        expect(result.single.phase, BeaconDisplayPhase.coordinating);
+      });
+    }
+
+    test('author listed as a room participant does not count as a helper',
+        () async {
+      when(roomRepo.listParticipants(beaconId))
+          .thenAnswer((_) async => [admitted(authorId)]);
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+    });
+
+    test('a Post addressee kept after conversion is not a helper', () async {
+      // Same rule as the beacon_admitted_helper view the client counts.
+      when(roomRepo.listParticipants(beaconId)).thenAnswer(
+        (_) async => [
+          admitted(offererId, role: BeaconParticipantRoleBits.addressee),
+        ],
+      );
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+    });
   });
 
   group('BeaconDisplayCase', () {
@@ -239,7 +333,8 @@ void main() {
         viewerId: authorId,
       );
 
-      expect(result.single.phase, BeaconDisplayPhase.coordinating);
+      // B075: an unreviewed offer alone is not a team yet.
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
       expect(result.single.phase, isNot(BeaconDisplayPhase.offersAwaitingAuthor));
       expect(
         result.single.suggestedAction,

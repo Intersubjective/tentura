@@ -117,6 +117,7 @@ void main() {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
       helpOfferCount: 2,
+      admittedHelperCount: 1, // B075: coordinating needs an accepted helper
       updatedAt: now,
     );
     final result = deriveBeaconCoordinationPhase(
@@ -167,6 +168,7 @@ void main() {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
       helpOfferCount: 2,
+      admittedHelperCount: 1, // B075: coordinating needs an accepted helper
       updatedAt: now,
     );
     final result = deriveBeaconCoordinationPhase(
@@ -188,6 +190,7 @@ void main() {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
       helpOfferCount: 2,
+      admittedHelperCount: 1, // B075: coordinating needs an accepted helper
       updatedAt: now.subtract(const Duration(days: 5)),
     );
     final result = deriveBeaconCoordinationPhase(
