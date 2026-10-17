@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../domain/forward_target_profile.dart';
 import '../bloc/forward_state.dart';
 
 /// Underline tabs for forward recipient scopes.
@@ -13,12 +14,16 @@ class ForwardScopeLinks extends StatelessWidget {
     required this.activeFilter,
     required this.counts,
     required this.onScopeChanged,
+    this.profile = ForwardTargetProfile.request,
     super.key,
   });
 
   final ForwardFilter activeFilter;
   final ForwardScopeCounts counts;
   final ValueChanged<ForwardFilter> onScopeChanged;
+
+  /// Whether the tab hints speak of a request or a post.
+  final ForwardTargetProfile profile;
 
   /// Reserved height for the pinned scope bar.
   ///
@@ -128,13 +133,17 @@ class ForwardScopeLinks extends StatelessWidget {
               scopeTab(
                 ForwardFilter.unseen,
                 l10n.forwardScopeUnseenShort,
-                l10n.forwardScopeUnseenHint,
+                profile == ForwardTargetProfile.post
+                    ? l10n.forwardScopeUnseenHintPost
+                    : l10n.forwardScopeUnseenHint,
                 counts.unseen,
               ),
               scopeTab(
                 ForwardFilter.alreadyInvolved,
                 l10n.forwardScopeInvolvedShort,
-                l10n.forwardScopeInvolvedHint,
+                profile == ForwardTargetProfile.post
+                    ? l10n.forwardScopeInvolvedHintPost
+                    : l10n.forwardScopeInvolvedHint,
                 counts.involved,
               ),
             ],
