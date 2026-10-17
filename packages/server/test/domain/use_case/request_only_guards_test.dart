@@ -838,8 +838,9 @@ void main() {
         env: env,
         logger: Logger('RequestOnlyGuardsTest'),
       );
-      when(roomRepo.listParticipants(any))
-          .thenAnswer((_) async => const <BeaconParticipantRecord>[]);
+      when(
+        roomRepo.listParticipants(any),
+      ).thenAnswer((_) async => const <BeaconParticipantRecord>[]);
       when(mockBeaconRepo.getBeaconById(beaconId: _beaconId)).thenAnswer(
         (_) async => _beacon(kind: BeaconKind.post),
       );

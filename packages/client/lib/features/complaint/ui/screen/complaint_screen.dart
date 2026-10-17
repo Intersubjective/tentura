@@ -171,13 +171,12 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                             border: const OutlineInputBorder(),
                             alignLabelWithHint: true,
                           ),
-                          validator: (v) =>
-                              validateComplaintDetails(
-                                v,
-                                l10n.complaintDetailsTooShort(
-                                  kComplaintDetailsMinLength,
-                                ),
-                              ),
+                          validator: (v) => validateComplaintDetails(
+                            v,
+                            l10n.complaintDetailsTooShort(
+                              kComplaintDetailsMinLength,
+                            ),
+                          ),
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           onChanged: cubit.setDetails,
                         ),
