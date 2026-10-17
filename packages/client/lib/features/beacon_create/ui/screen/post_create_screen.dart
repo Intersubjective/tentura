@@ -17,6 +17,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
 import '../bloc/beacon_create_cubit.dart';
+import 'beacon_create_screen.dart' show popCreateAndOpenLiveBeacon;
 
 /// «Новый пост»: a short form in two steps, like a simplified Request form.
 /// First the Post itself — text, photos and files, whether it may be
@@ -177,7 +178,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
       widget.onPublished?.call();
-      await context.router.popAndPush(BeaconViewRoute(id: id));
+      await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
     }
   }
 
