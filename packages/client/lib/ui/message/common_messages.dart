@@ -40,6 +40,19 @@ final class LinkCopiedToClipboardMessage extends LocalizableMessage {
   String get toRu => 'Ссылка скопирована в буфер обмена';
 }
 
+/// The clipboard refused the write (e.g. a browser without permission); the
+/// link stays selectable in the dialog (#349).
+final class LinkCopyFailedMessage extends LocalizableMessage {
+  const LinkCopyFailedMessage();
+
+  @override
+  String get toEn => "Couldn't copy the link. Select it above to copy it.";
+
+  @override
+  String get toRu =>
+      'Не удалось скопировать ссылку. Выделите её выше, чтобы скопировать.';
+}
+
 final class NoHelpOffererForwardPathMessage extends LocalizableMessage {
   const NoHelpOffererForwardPathMessage();
 
