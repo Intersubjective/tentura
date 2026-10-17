@@ -9,7 +9,7 @@ import 'package:tentura/features/block/ui/screen/blocked_users_screen.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../../../ui/effect/fake_ui_effect_port.dart';
-import '../bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
+import '../../../../support/fake_block_case.dart';
 
 Future<void> _pumpScreen(
   WidgetTester tester, {

@@ -513,8 +513,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final beacon = await _case.fetchById(id);
-      if (beacon.status != BeaconStatus.open) {
-        _emitSnackError(Exception('Only open requests can be edited'));
+      if (!beacon.status.allowsEdit) {
+        _leaveRefusedEdit(const ShowMessage(BeaconNotEditableMessage()));
         return;
       }
       emit(
@@ -527,7 +527,19 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
       validate();
     } catch (e) {
-      _emitSnackError(e);
+      _leaveRefusedEdit(ShowError(e));
+    }
+  }
+
+  /// Leaves the editor when an edit cannot be loaded, so the screen never
+  /// falls back to an empty create form whose autosave would create a new
+  /// draft (#348).
+  void _leaveRefusedEdit(UiEffect notice) {
+    _effects
+      ..emit(notice)
+      ..emit(const NavigateBack());
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

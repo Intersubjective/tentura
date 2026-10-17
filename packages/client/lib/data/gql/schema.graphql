@@ -3804,6 +3804,7 @@ type mutation_root {
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
   BeaconRoomNowLineUpdate(beaconId: String!, text: String!): v2_BeaconRoomStateRow!
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
+  DismissOfferAccepted(beaconId: String!): v2_OfferAcceptedDismissals!
   MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): v2_BeaconPeopleSeenResult!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
@@ -5390,6 +5391,7 @@ type query_root {
   myPosts: [v2_PostSummary!]!
   noisyWallEnabled: Boolean!
   notificationPreferences: v2_NotificationPreferences!
+  offerAcceptedDismissals: v2_OfferAcceptedDismissals!
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
   personSharedContexts(userId: String!): [v2_PersonSharedContext!]!
@@ -8570,6 +8572,11 @@ type v2_NotificationPreferences {
   quietHoursStart: Int
   snoozeUntil: String
   tzOffsetMinutes: Int!
+}
+
+type v2_OfferAcceptedDismissals {
+  beaconIds: [String!]!
+  userId: String!
 }
 
 type v2_PersonSharedContext {

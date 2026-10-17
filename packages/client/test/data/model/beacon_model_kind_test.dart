@@ -35,6 +35,10 @@ Map<String, dynamic> _json({
     '__typename': 'beacon_help_offer_aggregate',
     'aggregate': null,
   },
+  'admitted_helpers_aggregate': {
+    '__typename': 'beacon_admitted_helper_aggregate',
+    'aggregate': null,
+  },
   'is_discoverable': true,
   'kind': kind,
   'forward_policy': forwardPolicy,

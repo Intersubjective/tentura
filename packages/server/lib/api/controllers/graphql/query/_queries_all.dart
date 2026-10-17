@@ -33,6 +33,7 @@ import 'query_user_block.dart';
 import 'query_version.dart';
 import 'query_post.dart';
 import 'query_post_bud.dart';
+import 'query_offer_accepted_dismissal.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryAttention().all,
@@ -64,6 +65,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryMutualFriends().all,
   ...QueryLineageSuggestions().all,
   ...QueryNotificationPreferences().all,
+  ...QueryOfferAcceptedDismissal().all,
   ...QueryPersonSharedContexts().all,
   ...QueryTrustPreference().all,
   ...QueryUserBlock().all,

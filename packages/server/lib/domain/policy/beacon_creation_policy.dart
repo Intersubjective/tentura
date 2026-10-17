@@ -13,13 +13,16 @@ abstract final class BeaconCreationPolicy {
     return t.isEmpty ? null : t;
   }
 
+  /// A draft may be saved without a description; publishing it asks for one
+  /// (#340).
   static String normalizeStandaloneDescription(
     String? raw, {
     BeaconKind kind = BeaconKind.request,
+    bool draft = false,
   }) {
     final t = (raw ?? '').trim();
     if (t.isEmpty) {
-      if (kind == BeaconKind.post) return '';
+      if (kind == BeaconKind.post || draft) return '';
       throw const BeaconCreateException(description: 'Description is required');
     }
     if (t.length > kBeaconDescriptionMaxLength) {

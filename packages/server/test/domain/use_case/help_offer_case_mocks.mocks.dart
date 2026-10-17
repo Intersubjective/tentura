@@ -897,6 +897,21 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> reactivate({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#reactivate, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<List<_i14.HelpOfferEntity>> fetchByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByBeaconId, [beaconId]),
@@ -2492,6 +2507,25 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> recordParticipantLeft({
+    required String? beaconId,
+    required String? userId,
+    required String? withdrawReason,
+    String? note = '',
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#recordParticipantLeft, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #withdrawReason: withdrawReason,
+              #note: note,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> setBeaconRoomCurrentLine({
     required String? beaconId,
     required String? text,
@@ -2651,4 +2685,66 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<Map<String, String>>);
+
+  @override
+  _i3.Future<
+    Map<
+      String,
+      ({
+        String blurHash,
+        String handle,
+        bool hasPicture,
+        String imageId,
+        int picHeight,
+        int picWidth,
+        String title,
+      })
+    >
+  >
+  userProfilesByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userProfilesByIds, [userIds]),
+            returnValue:
+                _i3.Future<
+                  Map<
+                    String,
+                    ({
+                      String blurHash,
+                      String handle,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                      String title,
+                    })
+                  >
+                >.value(
+                  <
+                    String,
+                    ({
+                      String blurHash,
+                      String handle,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                      String title,
+                    })
+                  >{},
+                ),
+          )
+          as _i3.Future<
+            Map<
+              String,
+              ({
+                String blurHash,
+                String handle,
+                bool hasPicture,
+                String imageId,
+                int picHeight,
+                int picWidth,
+                String title,
+              })
+            >
+          >);
 }

@@ -217,6 +217,17 @@ void main() {
           _createError('Description is required'),
         );
       });
+
+      // #340: a Request draft may be saved with a title only.
+      test('a Request draft may have no description', () {
+        expect(
+          BeaconCreationPolicy.normalizeStandaloneDescription(
+            '  ',
+            draft: true,
+          ),
+          '',
+        );
+      });
     });
   });
 }

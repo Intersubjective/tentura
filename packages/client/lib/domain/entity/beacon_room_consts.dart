@@ -75,6 +75,10 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// The plan was copied from another Request on publish (#220).
   static const planCopied = 17;
+
+  /// An admitted helper withdrew and left the room. `systemPayloadJson`
+  /// carries `leftUserId`, `withdrawReason` (key) and an optional `note`.
+  static const participantLeft = 18;
 }
 
 /// Mirrors server [BeaconRoomSystemMessageKind].
@@ -89,6 +93,11 @@ abstract final class BeaconRoomSystemMessageKind {
 
   /// Request plan lines (markers 14..17, #220).
   static const plan = 6;
+
+  /// A Request's status changed (U090); payload
+  /// `{version: 1, fromStatus, toStatus, reason}` (smallint statuses).
+  /// Author is the actor, empty for an automatic change.
+  static const statusChanged = 7;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

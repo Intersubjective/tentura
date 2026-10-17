@@ -1,8 +1,10 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/consts.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
 import 'package:tentura_server/domain/entity/complaint_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/complaint_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/util/email_auth_util.dart';
@@ -28,11 +30,22 @@ final class ComplaintCase extends UseCaseBase {
     required String userId,
     required String details,
   }) async {
-    try {
-      final complaintType = ComplaintType.values.firstWhere(
-        (e) => e.name == type,
-        orElse: () => ComplaintType.unknown,
+    final complaintType = ComplaintType.values.firstWhere(
+      (e) => e.name == type,
+      orElse: () => ComplaintType.unknown,
+    );
+    // Same minimum as the form (#382). Account-deletion requests are not
+    // refused here, so an older client's short request is never lost.
+    if (complaintType != ComplaintType.accountDeletionRequest &&
+        details.trim().length < kComplaintDetailsMinLength) {
+      throw const UnspecifiedException(
+        description:
+            'Complaint details must be at least '
+            '$kComplaintDetailsMinLength characters',
+        path: 'details',
       );
+    }
+    try {
       final entity = ComplaintEntity(
         id: id,
         type: complaintType,

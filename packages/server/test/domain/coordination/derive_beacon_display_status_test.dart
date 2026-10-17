@@ -61,6 +61,49 @@ void main() {
       expect(r.suggestedAction, BeaconDisplayPrimaryAction.forward);
     });
 
+    group('B075 coordinating starts with the first admitted helper', () {
+      for (final tier in BeaconDisplayTier.values) {
+        test(
+          'offers without an admitted helper stay lookingForHelpers ($tier)',
+          () {
+            final r = deriveBeaconDisplayStatus(
+              BeaconDisplayStatusInput(
+                status: BeaconStatus.open,
+                tier: tier,
+                helpOfferCount: 2,
+                hasUnreviewedOffers: true,
+              ),
+            );
+            expect(r.phase, BeaconDisplayPhase.lookingForHelpers);
+            expect(r.slot2Kind, isNot(BeaconDisplaySlot2Kind.noOffersYet));
+          },
+        );
+
+        test('first admitted helper switches to coordinating ($tier)', () {
+          final r = deriveBeaconDisplayStatus(
+            BeaconDisplayStatusInput(
+              status: BeaconStatus.open,
+              tier: tier,
+              helpOfferCount: 1,
+              admittedHelperCount: 1,
+            ),
+          );
+          expect(r.phase, BeaconDisplayPhase.coordinating);
+        });
+      }
+
+      test('no offers keeps the noOffersYet cue', () {
+        final r = deriveBeaconDisplayStatus(
+          const BeaconDisplayStatusInput(
+            status: BeaconStatus.open,
+            tier: BeaconDisplayTier.coordination,
+          ),
+        );
+        expect(r.phase, BeaconDisplayPhase.lookingForHelpers);
+        expect(r.slot2Kind, BeaconDisplaySlot2Kind.noOffersYet);
+      });
+    });
+
     test('blocked when open blocker signal', () {
       final r = deriveBeaconDisplayStatus(
         BeaconDisplayStatusInput(

@@ -14,6 +14,7 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
@@ -21,6 +22,7 @@ import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 
+import '../../support/fake_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -151,6 +153,146 @@ void main() {
       expect(harness.effects.emitted, isEmpty);
     });
 
+    // B056: blocking someone left them under People › Trusted ("You trust
+    // each other") until a full reload, because nothing in the Friends list
+    // listened to blocks.
+    test('blocking a friend removes them from the list at once', () async {
+      harness.friendsRepository.result = [
+        _friend('friend-1'),
+        _friend('friend-2'),
+      ];
+      harness.signIn();
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-2'),
+      );
+      // Hold the refetch so only the local reaction to the block can act.
+      final refetch = Completer<Iterable<Profile>>();
+      harness.friendsRepository.pending.add(refetch);
+
+      harness.blockCase.emitChange(
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'friend-2')),
+        ),
+      );
+      await harness.waitFor(
+        () => !harness.cubit.state.friends.containsKey('friend-2'),
+      );
+
+      expect(harness.cubit.state.friends.keys, ['friend-1']);
+      refetch.complete([_friend('friend-1')]);
+    });
+
+    test(
+      'a failed refetch after a block does not bring the person back',
+      () async {
+        harness.friendsRepository.result = [_friend('friend-1')];
+        harness.signIn();
+        await harness.waitFor(
+          () => harness.cubit.state.friends.containsKey('friend-1'),
+        );
+        harness.friendsRepository.error = StateError('offline');
+
+        harness.blockCase.emitChange(
+          const RepositoryEventCreate(
+            BlockIntent(blocked: Profile(id: 'friend-1')),
+          ),
+        );
+        await harness.waitFor(() => harness.cubit.state.friends.isEmpty);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(harness.cubit.state.friends, isEmpty);
+        expect(harness.effects.emitted, isEmpty);
+      },
+    );
+
+    // B056 review: a block that started while the first load was in flight
+    // (the person not listed yet) must still invalidate that load.
+    test('a block during the first load cannot be undone by it', () async {
+      final first = Completer<Iterable<Profile>>();
+      final refetch = Completer<Iterable<Profile>>();
+      harness.friendsRepository.pending.addAll([first, refetch]);
+      harness.signIn();
+      await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 1);
+
+      harness.blockCase.emitChange(
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'friend-2')),
+        ),
+      );
+      first.complete([_friend('friend-1'), _friend('friend-2')]);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(harness.cubit.state.friends.containsKey('friend-2'), isFalse);
+
+      await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 2);
+      refetch.complete([_friend('friend-1')]);
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+      expect(harness.cubit.state.friends.keys, ['friend-1']);
+    });
+
+    // B056 review: when the other person blocks the viewer, or the viewer
+    // blocks from another session, no local block event exists. The server's
+    // block marker (constellation_field with the blocker's id) refetches;
+    // the list query already leaves out people hidden by a block.
+    test('a server block marker refetches Trusted', () async {
+      harness.friendsRepository.result = [_friend('friend-1')];
+      harness.signIn();
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+
+      harness.friendsRepository.result = const [];
+      harness.realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationField,
+          aggregateId: 'friend-1',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await harness.waitFor(() => harness.cubit.state.friends.isEmpty);
+    });
+
+    test('the global constellation marker does not refetch', () async {
+      harness.friendsRepository.result = [_friend('friend-1')];
+      harness.signIn();
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+      final calls = harness.friendsRepository.fetchCalls;
+
+      harness.realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationField,
+          aggregateId: RealtimeSyncCase.globalConstellationFieldId,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(harness.friendsRepository.fetchCalls, calls);
+    });
+
+    test('unblocking refetches the list', () async {
+      harness.friendsRepository.result = const [];
+      harness.signIn();
+      await harness.waitFor(() => harness.friendsRepository.fetchCalls >= 1);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      harness.friendsRepository.result = [_friend('friend-1')];
+      harness.blockCase.emitChange(
+        const RepositoryEventDelete(
+          BlockIntent(blocked: Profile(id: 'friend-1')),
+        ),
+      );
+      await harness.waitFor(
+        () => harness.cubit.state.friends.containsKey('friend-1'),
+      );
+    });
+
     test('mutations are delegated through FriendsCase', () async {
       final profile = _friend('friend-1');
 
@@ -193,6 +335,7 @@ final class _FriendsHarness {
       contactsCase,
       authCase,
       realtimeCase,
+      blockCase,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -208,6 +351,7 @@ final class _FriendsHarness {
   final friendsRepository = _FakeFriendsRepository();
   final presence = _FakePresenceRepository();
   final effects = FakeUiEffectPort();
+  final blockCase = FakeBlockCase();
 
   late final AuthCase authCase;
   late final TestRealtimeSyncPort realtimePort;

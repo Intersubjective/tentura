@@ -12,22 +12,27 @@ import 'package:tentura/features/beacon_view/ui/bloc/timeline_help_offer_mapping
 const _offerer = Profile(id: 'Uofferer00001', displayName: 'First');
 final _createdAt = DateTime.utc(2026, 6, 15, 12);
 
-HelpOfferWithCoordinationRow _row({String? authorSeenAt}) => (
+HelpOfferWithCoordinationRow _row({
+  String? authorSeenAt,
+  int status = 0,
+  int? admissionAction,
+  String? withdrawReason,
+}) => (
   beaconId: 'Bauthorseen01',
   userId: _offerer.id,
   user: _offerer,
   message: 'I can help',
   helpType: null,
   roleLabel: null,
-  status: 0,
-  withdrawReason: null,
+  status: status,
+  withdrawReason: withdrawReason,
   createdAt: _createdAt,
   updatedAt: _createdAt,
   responseType: null,
   responseUpdatedAt: null,
   responseAuthorUserId: null,
   roomAccess: null,
-  admissionAction: null,
+  admissionAction: admissionAction,
   lastDeclineReason: null,
   lastRemoveReason: null,
   stakeState: 0,
@@ -57,6 +62,52 @@ void main() {
     final row = _row(authorSeenAt: 'not-a-date');
     expect(() => timelineHelpOffersFromRemote([row]), returnsNormally);
     expect(timelineHelpOffersFromRemote([row]).single.authorSeenAt, isNull);
+  });
+
+  // #401: removal deactivates the offer (status 1) but is not a withdrawal.
+  test(
+    'an author-removed offer (status 1, action remove) is not withdrawn',
+    () {
+      final offer = timelineHelpOffersFromRemote([
+        _row(
+          status: 1,
+          admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
+        ),
+      ]).single;
+      expect(offer.isWithdrawn, isFalse);
+      expect(offer.admissionAction, HelpOfferAdmissionAction.remove);
+    },
+  );
+
+  test(
+    'a removed helper who then withdrew is withdrawn, not re-admittable',
+    () {
+      // The server refuses to re-admit an offer withdrawn after the removal.
+      final offer = timelineHelpOffersFromRemote([
+        _row(
+          status: 1,
+          admissionAction: HelpOfferAdmissionAction.remove.smallintValue,
+          withdrawReason: 'other',
+        ),
+      ]).single;
+      expect(offer.isWithdrawn, isTrue);
+    },
+  );
+
+  test('status 1 without a removal still maps to withdrawn', () {
+    expect(
+      timelineHelpOffersFromRemote([_row(status: 1)]).single.isWithdrawn,
+      isTrue,
+    );
+    expect(
+      timelineHelpOffersFromRemote([
+        _row(
+          status: 1,
+          admissionAction: HelpOfferAdmissionAction.decline.smallintValue,
+        ),
+      ]).single.isWithdrawn,
+      isTrue,
+    );
   });
 
   test('copyWith(authorSeenAt) sets it and keeps every other field', () {

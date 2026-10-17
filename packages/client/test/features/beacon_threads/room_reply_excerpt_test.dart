@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -63,5 +65,20 @@ void main() {
       ),
       l10n.beaconRoomReplyOriginalUnavailable,
     );
+  });
+
+  // #377: a poll has no body; the quote is its question, as the server sends.
+  test('roomReplyExcerpt quotes a poll by its question', () {
+    final poll = message(body: '').copyWith(
+      linkedPollingId: 'p1',
+      pollDataJson: jsonEncode({
+        'id': 'p1',
+        'question': ' Which day\nworks? ',
+        'pollType': 'single',
+        'totalVotes': 0,
+        'variants': <Object>[],
+      }),
+    );
+    expect(roomReplyExcerpt(poll), '📊 Which day works?');
   });
 }

@@ -43,10 +43,12 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       },
       startAt: i.start_at,
       endAt: i.end_at,
-      helpOfferCount:
-          (i.help_offers_aggregate.aggregate?.count ?? 0) +
-          i.participant_help_offers.length,
+      helpOfferCount: countActiveHelpers(
+        offerUserIds: i.active_help_offers.map((o) => o.user_id),
+        participantUserIds: i.participant_help_offers.map((p) => p.user_id),
+      ),
       unansweredHelpOfferCount: i.unanswered_help_offers.aggregate?.count ?? 0,
+      admittedHelperCount: i.admitted_helpers_aggregate.aggregate?.count ?? 0,
       primaryNeedSlug: i.primary_need_slug,
       coverImageId: i.cover_image_id,
       coverSource: BeaconCoverSource.fromWireOrPhoto(i.cover_source),
@@ -71,3 +73,12 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
     );
   }
 }
+
+/// Number of helpers who are still in: users with an active help offer
+/// (beacon_help_offer status 0) or a participant-path offer that is still in
+/// the room. Each user counts once — an accepted regular offer has both an
+/// active offer row and a committed participant row.
+int countActiveHelpers({
+  required Iterable<String> offerUserIds,
+  required Iterable<String> participantUserIds,
+}) => {...offerUserIds, ...participantUserIds}.length;

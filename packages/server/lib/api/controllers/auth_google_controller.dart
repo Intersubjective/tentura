@@ -214,7 +214,11 @@ final class AuthGoogleController extends BaseController {
         authMethod: 'google',
         request: request,
       );
-      return Response.badRequest(body: 'missing code or state');
+      // Google sends the person back with `?error=access_denied` (no code)
+      // when they cancel. Land them on the start page like every other failed
+      // callback below, not on a bare 400 text page with no way back — or, in
+      // Settings link mode, back on Sign-in methods with `linked=error`.
+      return _callbackFailure(request);
     }
     final oauthCookie = readCookie(request, kCookieOAuthStateName);
     if (oauthCookie == null || oauthCookie.isEmpty) {
@@ -265,7 +269,7 @@ final class AuthGoogleController extends BaseController {
         authMethod: 'google',
         request: request,
       );
-      return _oauthStateError();
+      return _callbackFailure(request, payload: payload);
     }
 
     // Settings link mode: strict-link to the existing account; NEVER call
@@ -422,6 +426,35 @@ final class AuthGoogleController extends BaseController {
           buildClearCookie(kCookieOAuthStateName),
         ),
       );
+
+  /// A failed callback (cancelled consent, failed token exchange). A Settings
+  /// link flow — the signed state cookie carries `linkAccountId` — returns to
+  /// Sign-in methods with `linked=error` so the SPA shows its toast; anything
+  /// else falls back to [_oauthStateError]. The cookie only picks which of our
+  /// own pages to land on, so an unverified state is harmless here.
+  Response _callbackFailure(Request request, {OAuthStatePayload? payload}) {
+    var linkAccountId = payload?.linkAccountId;
+    if (payload == null) {
+      final cookie = readCookie(request, kCookieOAuthStateName);
+      if (cookie != null && cookie.isNotEmpty) {
+        try {
+          linkAccountId = _oauthStateCodec.decode(cookie).linkAccountId;
+        } on OidcStateMismatchException {
+          linkAccountId = null;
+        }
+      }
+    }
+    if (linkAccountId == null || linkAccountId.isEmpty) {
+      return _oauthStateError();
+    }
+    return Response.found(
+      _linkReturn('error'),
+      headers: withSetCookie(
+        {kHeaderCacheControl: kCacheControlNoStore},
+        buildClearCookie(kCookieOAuthStateName),
+      ),
+    );
+  }
 
   Uri _callbackUri() {
     return Uri.parse(env.publicOrigin).replace(

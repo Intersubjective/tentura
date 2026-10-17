@@ -192,7 +192,7 @@ void main() {
         : find.text('Author');
     expect(defaultOpen, findsWidgets);
 
-    await tester.tap(find.text('Not fitting (1)'));
+    await tester.tap(find.text('Declined offers (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Rejected'), findsOneWidget);
 
@@ -255,7 +255,7 @@ void main() {
 
     expect(refreshCalls, 0);
 
-    await tester.tap(find.text('Chat'));
+    await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabRoom)));
     await tester.pumpAndSettle();
 
     expect(refreshCalls, 1);

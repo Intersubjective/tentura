@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'offer_accepted_dismissal_repository.dart';
 
 @Injectable(
   as: HelpOfferRepositoryPort,
@@ -74,6 +75,11 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
+    await clearOfferAcceptedDismissal(
+      _database,
+      beaconId: beaconId,
+      userId: userId,
+    );
   });
 
   @override
@@ -86,6 +92,32 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
         .update(
           (o) => o(
             status: const Value(1),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+    await clearOfferAcceptedDismissal(
+      _database,
+      beaconId: beaconId,
+      userId: userId,
+    );
+  }
+
+  @override
+  Future<void> reactivate({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _database.managers.beaconHelpOffers
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.userId.id(userId) &
+              e.status.equals(1) &
+              e.withdrawReason.isNull(),
+        )
+        .update(
+          (o) => o(
+            status: const Value(0),
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );

@@ -11,6 +11,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 Beacon _beacon({
   BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
+  int admittedHelperCount = 0,
 }) =>
     Beacon(
       createdAt: DateTime.utc(2026),
@@ -20,6 +21,7 @@ Beacon _beacon({
       author: const Profile(id: 'u1'),
       status: status,
       helpOfferCount: helpOfferCount,
+      admittedHelperCount: admittedHelperCount,
     );
 
 void main() {
@@ -33,10 +35,20 @@ void main() {
       );
     });
 
-    test('open with help offers shows coordinating label', () {
+    test('open with an accepted helper shows coordinating label', () {
+      expect(
+        beaconStatusMenuOpenRowLabel(
+          l10n,
+          _beacon(helpOfferCount: 2, admittedHelperCount: 1),
+        ),
+        l10n.beaconPhaseCoordinating,
+      );
+    });
+
+    test('B075: open with offers but nobody accepted shows open label', () {
       expect(
         beaconStatusMenuOpenRowLabel(l10n, _beacon(helpOfferCount: 2)),
-        l10n.beaconPhaseCoordinating,
+        l10n.beaconStatusRowOpen,
       );
     });
 
@@ -91,10 +103,20 @@ void main() {
   });
 
   group('beaconSituationStateLine', () {
-    test('open with unreviewed offers shows coordinating', () {
+    test('open with an accepted helper shows coordinating', () {
+      expect(
+        beaconSituationStateLine(
+          l10n,
+          _beacon(helpOfferCount: 1, admittedHelperCount: 1),
+        ),
+        l10n.beaconPhaseCoordinating,
+      );
+    });
+
+    test('B075: open with unreviewed offers only is not coordinating', () {
       expect(
         beaconSituationStateLine(l10n, _beacon(helpOfferCount: 1)),
-        l10n.beaconPhaseCoordinating,
+        l10n.beaconStatusRowOpen,
       );
     });
 

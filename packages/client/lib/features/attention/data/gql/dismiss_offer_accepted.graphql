@@ -1,0 +1,6 @@
+mutation DismissOfferAccepted($beaconId: String!) {
+  DismissOfferAccepted(beaconId: $beaconId) {
+    userId
+    beaconIds
+  }
+}

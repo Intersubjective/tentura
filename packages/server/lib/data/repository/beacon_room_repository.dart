@@ -23,6 +23,7 @@ import 'package:tentura_server/utils/id.dart';
 import '../database/tentura_db.dart';
 import 'beacon_room_participant_join_recorder.dart';
 import 'mappers/coordination_row_mappers.dart';
+import 'offer_accepted_dismissal_repository.dart';
 
 /// Beacon Room messages + participants — Postgres via Drift.
 @LazySingleton(as: BeaconRoomRepositoryPort)
@@ -485,6 +486,17 @@ JOIN public.beacon_fact_card_revision r
     final attachmentParentIds = parentIds.isEmpty
         ? <String>{}
         : await _messageIdsWithAttachments(parentIds);
+    // A poll parent has no body; its quote is the poll question (#377).
+    final parentPollingIds = {
+      for (final p in parentById.values)
+        if (p.linkedPollingId case final String id) id,
+    };
+    final parentPolls = parentPollingIds.isEmpty
+        ? const <Polling>[]
+        : await _db.managers.pollings
+              .filter((p) => p.id.isIn(parentPollingIds))
+              .get();
+    final pollQuestionById = {for (final p in parentPolls) p.id: p.question};
 
     return msgs.map((m) {
       final id = m.id;
@@ -566,7 +578,10 @@ JOIN public.beacon_fact_card_revision r
             ? (userById[parent.authorId!]?.displayName ?? '')
             : null,
         'replyToBodyExcerpt': parent != null
-            ? roomReplyExcerpt(parent.body)
+            ? roomReplyExcerpt(
+                parent.body,
+                pollQuestion: pollQuestionById[parent.linkedPollingId],
+              )
             : null,
         'replyToHasAttachments': parent != null
             ? attachmentParentIds.contains(parent.id)
@@ -1372,8 +1387,56 @@ RETURNING *
               updatedAt: Value(PgDateTime(DateTime.timestamp())),
             ),
           );
+      await clearOfferAcceptedDismissal(
+        _db,
+        beaconId: beaconId,
+        userId: offerUserId,
+      );
     });
   }
+
+  @override
+  Future<void> recordParticipantLeft({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String note = '',
+  }) => _db.withMutatingUser(userId, () async {
+    final trimmedNote = note.trim();
+    final line = await _db.managers.beaconRoomMessages.createReturning(
+      (o) => o(
+        id: generateId('R'),
+        beaconId: beaconId,
+        authorId: Value(userId),
+        body: const Value(''),
+        semanticMarker: const Value(BeaconRoomSemanticMarker.participantLeft),
+        systemPayload: Value(<String, Object?>{
+          'leftUserId': userId,
+          'withdrawReason': withdrawReason,
+          if (trimmedNote.isNotEmpty) 'note': trimmedNote,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+    // Same pairing as a join: the activity log shows the leave, linked to
+    // the chat line it came with.
+    await _db.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.room,
+        type: BeaconActivityEventTypeBits.participantLeft,
+        actorId: Value(userId),
+        targetUserId: Value(userId),
+        sourceMessageId: Value(line.id),
+        diff: Value(<String, Object?>{
+          'leftUserId': userId,
+          'withdrawReason': withdrawReason,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+  });
 
   @override
   Future<void> setBeaconRoomCurrentLine({
