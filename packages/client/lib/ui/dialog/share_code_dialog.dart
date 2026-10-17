@@ -41,14 +41,16 @@ class ShareCodeDialog extends StatelessWidget {
 
   Future<void> _copyLink(BuildContext context, L10n l10n) async {
     final ok = await copyTextToClipboard(link);
-    if (ok && context.mounted) {
-      showSnackBar(
-        context,
-        text: const LinkCopiedToClipboardMessage().toL10n(
-          l10n.localeName,
-        ),
-      );
-    }
+    if (!context.mounted) return;
+    // A refused write said nothing before (#349); the link stays selectable.
+    showSnackBar(
+      context,
+      text:
+          (ok
+                  ? const LinkCopiedToClipboardMessage()
+                  : const LinkCopyFailedMessage())
+              .toL10n(l10n.localeName),
+    );
   }
 
   @override
