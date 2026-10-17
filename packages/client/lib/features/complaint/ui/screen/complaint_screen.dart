@@ -5,16 +5,13 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/complaint_cubit.dart';
+import '../../domain/util/complaint_details.dart';
 import '../../domain/util/feedback_email.dart';
-
-String? _validateRequired(String? value, String message) {
-  if (value == null || value.trim().isEmpty) return message;
-  return null;
-}
 
 String? _validateEmail(String? value, String message) {
   final email = value?.trim() ?? '';
@@ -168,12 +165,19 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                           autofocus: true,
                           enabled: !isLoading,
                           decoration: InputDecoration(
-                            labelText: l10n.detailsRequired,
+                            labelText: l10n.detailsRequired(
+                              kComplaintDetailsMinLength,
+                            ),
                             border: const OutlineInputBorder(),
                             alignLabelWithHint: true,
                           ),
                           validator: (v) =>
-                              _validateRequired(v, l10n.provideDetails),
+                              validateComplaintDetails(
+                                v,
+                                l10n.complaintDetailsTooShort(
+                                  kComplaintDetailsMinLength,
+                                ),
+                              ),
                           onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           onChanged: cubit.setDetails,
                         ),
