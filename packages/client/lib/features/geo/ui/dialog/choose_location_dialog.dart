@@ -359,15 +359,17 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
         });
       } on Object catch (e) {
         if (!mounted) return;
+        // A StateError is the service refusing the request; its text is
+        // Google's, not the user's (#432).
         final message = e is StateError ? e.message : null;
         setState(() {
           _predictions = const [];
           _isSearching = false;
-          _searchError =
-              message != null &&
-                  message.contains('GOOGLE_MAPS_API_KEY is not configured')
+          _searchError = message == null
+              ? l10n.chooseLocationSearchFailed
+              : message.contains('GOOGLE_MAPS_API_KEY is not configured')
               ? l10n.chooseLocationMapsKeyMissing
-              : (message ?? l10n.chooseLocationSearchFailed);
+              : l10n.chooseLocationSearchUnavailable;
         });
       }
     });
