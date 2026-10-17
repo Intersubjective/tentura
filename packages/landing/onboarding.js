@@ -384,9 +384,15 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     next.hidden = isLast;
     next.textContent = 'Next';
     openApp.hidden = !isLast;
+    // On the last page Continue is the exit; a Skip beside it did the same.
+    skip.hidden = isLast;
     // Hiding the focused control drops focus to <body>; keep keyboard and
     // screen-reader users on the step's forward control instead.
-    if ((focused === back && back.hidden) || (focused === next && next.hidden)) {
+    if (
+      (focused === back && back.hidden) ||
+      (focused === next && next.hidden) ||
+      (focused === skip && skip.hidden)
+    ) {
       (isLast ? openApp : next).focus();
     }
     track('onboarding_view', { page: page + 1 });
