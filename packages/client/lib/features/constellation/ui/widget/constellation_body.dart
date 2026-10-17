@@ -674,7 +674,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                   panelVisible,
                                 ),
                               ),
-                              const ConstellationTextView(),
+                              // The map stack hosts the preview overlay; the
+                              // text view needs its own or a tapped card shows
+                              // nothing (#354).
+                              Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  const ConstellationTextView(),
+                                  if (panelVisible &&
+                                      state.viewMode ==
+                                          ConstellationViewMode.text)
+                                    _buildContextOverlay(
+                                      context,
+                                      cubit,
+                                      state,
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -1023,7 +1039,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
               ),
             ),
           ),
-        if (panelVisible) _buildContextOverlay(context, cubit, state),
+        // Text mode draws its own copy over the text view (#354).
+        if (panelVisible && state.viewMode == ConstellationViewMode.map)
+          _buildContextOverlay(context, cubit, state),
       ],
     );
   }
