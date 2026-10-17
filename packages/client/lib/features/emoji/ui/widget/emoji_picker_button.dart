@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
@@ -160,7 +161,10 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
 }
 
 /// `emoji_picker_flutter` themed from the app's color scheme and locale.
-class _ComposerEmojiPicker extends StatelessWidget {
+///
+/// Opens on Recent, or on Smileys while nothing has been used yet, so a first
+/// open is not an empty panel (#477).
+class _ComposerEmojiPicker extends StatefulWidget {
   const _ComposerEmojiPicker({
     required this.controller,
     required this.height,
@@ -170,7 +174,35 @@ class _ComposerEmojiPicker extends StatelessWidget {
   final double height;
 
   @override
+  State<_ComposerEmojiPicker> createState() => _ComposerEmojiPickerState();
+}
+
+class _ComposerEmojiPickerState extends State<_ComposerEmojiPicker> {
+  final _pickerController = EmojiPickerController();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_openSmileysWithoutRecents());
+  }
+
+  Future<void> _openSmileysWithoutRecents() async {
+    final recents = await EmojiPickerUtils().getRecentEmojis();
+    if (mounted && recents.isEmpty) {
+      _pickerController.setCategory(Category.SMILEYS);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pickerController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
+    final height = widget.height;
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -180,6 +212,7 @@ class _ComposerEmojiPicker extends StatelessWidget {
       container: true,
       child: EmojiPicker(
         textEditingController: controller,
+        controller: _pickerController,
         config: Config(
           height: height,
           locale: Localizations.localeOf(context),
