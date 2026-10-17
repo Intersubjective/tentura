@@ -37,6 +37,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_focus_request.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
@@ -46,13 +48,16 @@ import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/post_view/ui/widget/post_info_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
+import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/support/room_body_harness.dart';
 import '../beacon_view/beacon_view_screen_harness.dart'
@@ -185,6 +190,13 @@ class _FakePostsRepository implements PostsRepositoryPort {
       posts.where((p) => p.id == id).firstOrNull;
 }
 
+/// The author's row in «О посте» carries a contact toggle backed by a
+/// profile cubit; this keeps its block lookups idle (#417).
+class _IdleBlockCase extends Mock implements BlockCase {
+  @override
+  Stream<RepositoryEvent<BlockIntent>> get changes => const Stream.empty();
+}
+
 class _ProfileCubit extends Mock implements ProfileCubit {
   _ProfileCubit(this.profile);
 
@@ -293,8 +305,13 @@ Future<_Harness> _pumpPost(
   await getIt.reset();
   addTearDown(getIt.reset);
   final profileCubit = _ProfileCubit(viewer);
+  final profiles = GraphTrustWriteFixture();
+  addTearDown(profiles.dispose);
   getIt
     ..registerSingleton<ProfileCubit>(profileCubit)
+    ..registerSingleton<ProfileViewCase>(profiles.profileViewCase)
+    ..registerSingleton<BlockCase>(_IdleBlockCase())
+    ..registerSingleton<UiEffectPort>(FakeUiEffectPort())
     ..registerSingleton<ImageRepository>(ImageRepository())
     ..registerSingleton<ClipboardImageRepository>(ClipboardImageRepository())
     ..registerSingleton<ForwardRepository>(_FakeForwardRepository(forwardEdges))
@@ -598,8 +615,17 @@ void main() {
   });
 
   group('Post app bar actions', () {
-    testWidgets('counts the participants under the title', (tester) async {
+    // The author has no participant row of their own (#417).
+    testWidgets('counts the participants under the title, author included', (
+      tester,
+    ) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
+
+      expect(_inAppBar(find.text('2 участника')), findsOneWidget);
+    });
+
+    testWidgets('does not count the author twice', (tester) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _author);
 
       expect(_inAppBar(find.text('1 участник')), findsOneWidget);
     });
@@ -715,7 +741,9 @@ void main() {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
       await _openInfo(tester);
 
-      expect(find.text('Участники · 1'), findsOneWidget);
+      expect(find.text('Участники · 2'), findsOneWidget);
+      // The author's row carries the «автор» note.
+      expect(find.text('автор'), findsOneWidget);
       expect(find.text('Как пост дошёл до людей'), findsOneWidget);
       expect(
         find.text('Можно пересылать: любой участник может позвать других'),
