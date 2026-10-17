@@ -4572,6 +4572,14 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Whole request marked done",
   "beaconCloseSheetEvidenceEnoughHelp": "Enough help committed",
   "beaconCloseSheetEvidenceUsefulOrDone": "Useful or done result present",
+  "beaconCloseSheetEvidenceEnoughHelpMissing": "Enough help not marked yet",
+  "@beaconCloseSheetEvidenceEnoughHelpMissing": {
+    "description": "Close sheet checklist row: the author has not marked that enough help is committed"
+  },
+  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "No useful or done result yet",
+  "@beaconCloseSheetEvidenceUsefulOrDoneMissing": {
+    "description": "Close sheet checklist row: no help offer has a useful or done result yet"
+  },
   "beaconCloseSheetEvidenceUnsettledCount": "{count} help offer(s) not settled",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
