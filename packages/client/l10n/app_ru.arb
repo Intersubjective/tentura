@@ -4340,7 +4340,7 @@
   "beaconYouWaitingOnOthers": "Ждём других",
   "beaconYouNoOpenItems": "Нет открытых пунктов",
   "beaconYouEnoughHelp": "Достаточно помощи",
-  "beaconYouNoInfo": "Нет данных",
+  "beaconYouNoInfo": "Пока от вас ничего не нужно",
   "@beaconYouNoInfo": {
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
