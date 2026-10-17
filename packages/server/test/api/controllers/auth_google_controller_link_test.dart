@@ -7,6 +7,7 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/auth_google_controller.dart';
+import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     show AccountCredentialEntity, CredentialType;
@@ -161,6 +162,79 @@ void main() {
   }
 
   Future<String> readBody(Response response) => response.readAsString();
+
+  group('callback failures (B073)', () {
+    test('cancelled Google consent returns to the landing page (B073)', () async {
+      final response = await controller.callback(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/auth/google/callback'
+            '?error=access_denied&state=state123',
+          ),
+        ),
+      );
+      expect(response.statusCode, 302);
+      expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
+      expect(setCookieHeader(response), contains(kCookieOAuthStateName));
+      expect(response.headers['cache-control'], contains('no-store'));
+    });
+
+    test('callback without code or state returns to the landing page', () async {
+      final response = await controller.callback(
+        Request('GET', Uri.parse('http://localhost/api/auth/google/callback')),
+      );
+      expect(response.statusCode, 302);
+      expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
+    });
+
+    test('cancel during Settings link returns to Sign-in methods', () async {
+      // Fails on the base: a link-mode cancel landed on the public start page.
+      final oauthCookie = codec.encode(
+        const OAuthStatePayload(
+          state: 'state123',
+          codeVerifier: 'verifier',
+          nonce: 'nonce456',
+          returnTo:
+              'https://app.example/#/settings/sign-in-methods?linked=google',
+          linkAccountId: _accountId,
+        ),
+      );
+      final response = await controller.callback(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/auth/google/callback'
+            '?error=access_denied&state=state123',
+          ),
+          headers: {'cookie': '$kCookieOAuthStateName=$oauthCookie'},
+        ),
+      );
+      expect(response.statusCode, 302);
+      expect(
+        response.headers['location'],
+        endsWith('/#/settings/sign-in-methods?linked=error'),
+      );
+      expect(setCookieHeader(response), contains(kCookieOAuthStateName));
+      expect(setCookieHeader(response), isNot(contains(kCookieSessionName)));
+      expect(response.headers['cache-control'], contains('no-store'));
+    });
+
+    test('cancel with an unreadable state cookie still lands on start page',
+        () async {
+      final response = await controller.callback(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/auth/google/callback?error=access_denied',
+          ),
+          headers: {'cookie': '$kCookieOAuthStateName=not-a-jwt'},
+        ),
+      );
+      expect(response.statusCode, 302);
+      expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
+    });
+  });
 
   test('linkIntent returns a signed link/start URL', () async {
     final response = await controller.linkIntent(
