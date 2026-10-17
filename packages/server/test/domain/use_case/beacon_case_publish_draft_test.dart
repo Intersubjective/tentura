@@ -7,7 +7,9 @@ import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/beacon_lifecycle_effects_test_support.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -25,6 +27,84 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
   Future<BeaconEntity> Function()? onGetBeaconById;
   Future<BeaconEntity> Function()? onPublishDraft;
   int publishDraftCalls = 0;
+
+  /// What createBeacon / updateDraftBeacon were asked to persist.
+  final created = <({String description, BeaconStatus? status})>[];
+  final updatedDrafts = <({String beaconId, String description})>[];
+
+  @override
+  Future<int> countRecentByAuthor({
+    required String userId,
+    required Duration window,
+  }) async => 0;
+
+  @override
+  Future<BeaconEntity> createBeacon({
+    required String authorId,
+    required String title,
+    String? description,
+    String? context,
+    List<String>? imageIds,
+    double? latitude,
+    double? longitude,
+    DateTime? startAt,
+    DateTime? endAt,
+    Set<String>? tags,
+    Set<String>? needs,
+    int ticker = 0,
+    String? primaryNeedSlug,
+    String? coverImageId,
+    BeaconCoverSource coverSource = BeaconCoverSource.photo,
+    BeaconStatus? status,
+    String? addressLabel,
+    String? lineageParentBeaconId,
+    String? lineageRootBeaconId,
+    bool? isDiscoverable,
+    BeaconKind kind = BeaconKind.request,
+    BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+    String? clientOpId,
+  }) async {
+    created.add((description: description ?? '', status: status));
+    return BeaconEntity(
+      id: 'Bnew',
+      title: title,
+      description: description ?? '',
+      author: UserEntity(id: authorId),
+      createdAt: DateTime.utc(2026, 6, 18),
+      updatedAt: DateTime.utc(2026, 6, 18),
+      status: status ?? BeaconStatus.open,
+    );
+  }
+
+  @override
+  Future<BeaconEntity> updateDraftBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    Set<String>? needs,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? primaryNeedSlug,
+    String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
+  }) async {
+    updatedDrafts.add((beaconId: beaconId, description: description));
+    return BeaconEntity(
+      id: beaconId,
+      title: title,
+      description: description,
+      author: UserEntity(id: userId),
+      createdAt: DateTime.utc(2026, 6, 18),
+      updatedAt: DateTime.utc(2026, 6, 18),
+      status: BeaconStatus.draft,
+    );
+  }
 
   @override
   Future<BeaconEntity> getBeaconById({
@@ -112,5 +192,37 @@ void main() {
       ),
     );
     expect(beaconRepo.publishDraftCalls, 0);
+  });
+
+  // #340 as reported: Save draft on a Request with only a title. The use
+  // cases must hand the draft rule on, so the save reaches the repository.
+  test('saving a new title-only Request draft is persisted', () async {
+    final draft = await case_.create(
+      userId: 'Uauth',
+      title: 'Title only',
+      draft: true,
+    );
+
+    expect(draft.status, BeaconStatus.draft);
+    expect(beaconRepo.created, [(description: '', status: BeaconStatus.draft)]);
+  });
+
+  test('updating a draft to an empty description is persisted', () async {
+    await case_.updateDraft(
+      userId: 'Uauth',
+      beaconId: 'Bdraft',
+      title: 'Draft title',
+      description: '  ',
+    );
+
+    expect(beaconRepo.updatedDrafts, [(beaconId: 'Bdraft', description: '')]);
+  });
+
+  test('publishing a new Request still needs a description', () async {
+    await expectLater(
+      case_.create(userId: 'Uauth', title: 'Title only'),
+      throwsA(isA<BeaconCreateException>()),
+    );
+    expect(beaconRepo.created, isEmpty);
   });
 }
