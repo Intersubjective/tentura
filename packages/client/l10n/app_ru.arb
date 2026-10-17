@@ -4441,6 +4441,8 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Запрос целиком отмечен завершённым",
   "beaconCloseSheetEvidenceEnoughHelp": "Отмечено достаточно помощи",
   "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
+  "beaconCloseSheetEvidenceEnoughHelpMissing": "Достаточно помощи ещё не отмечено",
+  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "Пока нет полезного или завершённого результата",
   "beaconCloseSheetEvidenceUnsettledCount": "{count} предложение(-й) помощи не доведены до ясного статуса",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {

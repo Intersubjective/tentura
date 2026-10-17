@@ -123,4 +123,68 @@ void main() {
 
     expect(find.text(l10n.beaconCloseAnswerFirst), findsNothing);
   });
+
+  // #474: "Some items still need your judgment" over a checklist of green
+  // ticks — the unmet criterion (no "enough help") was not listed.
+  testWidgets('waiting for review lists the criteria still missing', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: TenturaResponsiveScope(
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => showBeaconCloseConfirmSheet(
+                    context: context,
+                    summary: const BeaconClosureConfirmationSummary(
+                      readiness: BeaconClosureReadiness.waitingForReview,
+                      hasOpenBlocker: false,
+                      unansweredHelpOffersCount: 0,
+                      relevantHelpOffersCount: 1,
+                      unsettledRelevantCount: 0,
+                      hasWholeBeaconDoneSignal: false,
+                      enoughHelpOffered: false,
+                      hasSuccessfulHelpOfferResult: true,
+                      requiresReviewWindow: true,
+                    ),
+                    isLoading: false,
+                    onCloseBeacon: (_) async => true,
+                    onOpenPeople: () {},
+                  ),
+                  child: const Text('Open sheet'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open sheet'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(l10n.beaconCloseSheetReviewWrappingUpBody),
+      findsOneWidget,
+    );
+    expect(
+      find.text(l10n.beaconCloseSheetEvidenceUsefulOrDone),
+      findsOneWidget,
+    );
+    expect(
+      find.text(l10n.beaconCloseSheetEvidenceEnoughHelpMissing),
+      findsOneWidget,
+    );
+    expect(
+      find.text(l10n.beaconCloseSheetEvidenceUsefulOrDoneMissing),
+      findsNothing,
+    );
+  });
 }
