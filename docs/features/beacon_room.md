@@ -30,7 +30,7 @@ Bottom navigation (default tab: **My Work**):
 
 **Inbox** has two tabs:
 
-- **Needs me** — actionable triage (forward, offer help, not for me, move to watching).
+- **Needs me** (user-facing label since U094: EN "Waiting on you", RU «Нужен ваш ответ») — actionable triage (forward, offer help, not for me, move to watching).
 - **Watching** — I chose to follow without offering help.
 
 **Not for me** is an **archive** (overflow menu), not a third inbox tab. Rejected items leave the active triage queue.
