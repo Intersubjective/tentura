@@ -47,8 +47,7 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Future<InvitationEntity> create({
     required String addresseeName,
     String? beaconId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> deleteById(String id) async {}
@@ -246,5 +245,44 @@ void main() {
 
     expect(find.text(bannerText), findsOneWidget);
     expect(find.text('No reachable contacts'), findsOneWidget);
+  });
+
+  // #442: the banner still said nobody would see the request behind the
+  // "Request sent" dialog.
+  testWidgets('routing banner hidden once the request is live', (
+    tester,
+  ) async {
+    final createCubit = BeaconCreateCubit(
+      beaconCreateCase: fakeBeaconCreateCase(),
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(createCubit.close);
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+
+    await _pumpRecipientsTab(
+      tester,
+      forwardCubit: cubit,
+      createCubit: createCubit,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(bannerText), findsOneWidget);
+
+    createCubit.emit(createCubit.state.copyWith(isLive: true));
+    await tester.pumpAndSettle();
+
+    expect(find.text(bannerText), findsNothing);
   });
 }
