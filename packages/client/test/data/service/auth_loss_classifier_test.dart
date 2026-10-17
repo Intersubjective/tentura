@@ -346,5 +346,28 @@ void main() {
       expect(isRemoteRefusal(malformed), isFalse);
       expect(isRemoteRefusal(const ConnectionUplinkException()), isFalse);
     });
+
+    // #593 review: unmapped database errors and pool timeouts answer HTTP
+    // 200 with the server's internal-fault code; a resend can succeed.
+    test("the server's internal fault is not a refusal", () {
+      final mapped = mapRemoteFailure([
+        const GraphQLError(
+          message: 'Something went wrong on the server. Please try again.',
+          extensions: {'code': '1000', 'path': ''},
+        ),
+      ]);
+      expect(mapped, isA<RemoteApiException>());
+      expect(isRemoteRefusal(mapped), isFalse);
+    });
+
+    test("the server's explicit rejection with a code is a refusal", () {
+      final mapped = mapRemoteFailure([
+        const GraphQLError(
+          message: 'Only a helper with an offer on this request',
+          extensions: {'code': '1102', 'path': ''},
+        ),
+      ]);
+      expect(isRemoteRefusal(mapped), isTrue);
+    });
   });
 }

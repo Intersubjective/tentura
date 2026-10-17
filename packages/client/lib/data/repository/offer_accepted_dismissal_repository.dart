@@ -42,8 +42,8 @@ class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
       return _forViewer(viewerId, row.userId, row.beaconIds);
     } on Object catch (e) {
       // The server's own refusal (e.g. no offer on the Request any more)
-      // won't change on a resend; an outage or a 5xx will, so it stays a
-      // passing failure the store sends again.
+      // won't change on a resend; an outage, a 5xx or an internal fault will,
+      // so it stays a passing failure the store sends again.
       if (isRemoteRefusal(e)) {
         throw const OfferAcceptedDismissalRefusedException();
       }

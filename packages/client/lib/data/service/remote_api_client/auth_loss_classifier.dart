@@ -89,7 +89,8 @@ Exception mapRemoteFailure(Object? error) {
     if (_isGraphQlAuthLoss(error)) {
       return const AuthSessionLostException();
     }
-    return _retryLater([error]) ?? _remoteApiOrUnknown(error.message);
+    return _retryLater([error]) ??
+        _remoteApiOrUnknown(error.message, code: error.extensions?['code']);
   }
   if (error is List<GraphQLError>) {
     for (final e in error) {
@@ -99,7 +100,8 @@ Exception mapRemoteFailure(Object? error) {
     }
     final first = error.isEmpty ? null : error.first;
     if (first != null) {
-      return _retryLater(error) ?? _remoteApiOrUnknown(first.message);
+      return _retryLater(error) ??
+          _remoteApiOrUnknown(first.message, code: first.extensions?['code']);
     }
   }
   // gql ServerException (incl. gql_http_link's HttpLinkServerException) is
@@ -148,11 +150,19 @@ const _serverStatusPrefix = 'Server error (HTTP ';
 /// transport failure, an HTTP status without a GraphQL body or an unreadable
 /// response. Such a refusal won't change if the same request is sent again.
 /// (An unclassified client-side error also maps to [RemoteApiException] and
-/// counts here; a resend won't fix that either.)
+/// counts here; a resend won't fix that either.) The server's internal fault
+/// (an unmapped database error or pool timeout, answered with HTTP 200) is
+/// not a refusal: a resend can succeed.
 bool isRemoteRefusal(Object? error) =>
     error is RemoteApiException &&
+    !_internalFaultCodes.contains(error.code) &&
     !error.message.startsWith(_serverStatusPrefix) &&
     !error.message.startsWith(_malformedResponsePrefix);
+
+/// The server's internal-fault codes (its `unspecifiedException`s, as the
+/// server's `isInternalFaultException` lists them); unmapped errors come back
+/// as `1000` (#342).
+const _internalFaultCodes = {'1000', '1100', '1200', '1300', '1400'};
 
 /// True when [error] means the server was slow or unreachable (timeout, 5xx,
 /// 408/429, transport failure) rather than that it rejected the credentials.
@@ -262,11 +272,11 @@ RemoteApiRetryLaterException? _retryLater(List<GraphQLError> errors) {
   return null;
 }
 
-GenericException _remoteApiOrUnknown(String message) {
+GenericException _remoteApiOrUnknown(String message, {Object? code}) {
   final trimmed = message.trim();
   return trimmed.isEmpty
       ? const UnknownException()
-      : RemoteApiException(trimmed);
+      : RemoteApiException(trimmed, code: code?.toString());
 }
 
 bool _isGraphQlAuthLoss(GraphQLError error) {

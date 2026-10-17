@@ -32,6 +32,7 @@ Future<void> _withRemote(
   List<_SentOperation> sent,
   Future<void> Function(RemoteApiService remote) body, {
   int? failStatus,
+  Map<String, dynamic>? graphqlError,
 }) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
@@ -67,6 +68,15 @@ Future<void> _withRemote(
     ));
     if (failStatus != null) {
       return http.Response('Service Unavailable', failStatus);
+    }
+    if (graphqlError != null) {
+      return http.Response(
+        jsonEncode({
+          'errors': [graphqlError],
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
     final data = responses[name];
     if (data == null) {
@@ -189,6 +199,47 @@ void main() {
         throwsA(isNot(isA<OfferAcceptedDismissalRefusedException>())),
       );
     });
+  });
+
+  // #593 review: unmapped server failures (database errors, pool timeouts)
+  // answer HTTP 200 with the generic code 1000; a resend can succeed, so the
+  // store must keep the dismissal pending instead of dropping it.
+  test('an internal server failure is not reported as a refusal', () async {
+    await _withRemote(
+      {},
+      <_SentOperation>[],
+      graphqlError: {
+        'message': 'Something went wrong on the server. Please try again.',
+        'extensions': {'code': '1000', 'path': ''},
+      },
+      (remote) async {
+        await expectLater(
+          OfferAcceptedDismissalRepository(
+            remote,
+          ).dismiss(viewerId: 'Uhelper00001', beaconId: 'B3'),
+          throwsA(isNot(isA<OfferAcceptedDismissalRefusedException>())),
+        );
+      },
+    );
+  });
+
+  test("the server's explicit rejection is still a refusal", () async {
+    await _withRemote(
+      {},
+      <_SentOperation>[],
+      graphqlError: {
+        'message': 'Only a helper with an offer on this request',
+        'extensions': {'code': '1102', 'path': ''},
+      },
+      (remote) async {
+        await expectLater(
+          OfferAcceptedDismissalRepository(
+            remote,
+          ).dismiss(viewerId: 'Uhelper00001', beaconId: 'B3'),
+          throwsA(isA<OfferAcceptedDismissalRefusedException>()),
+        );
+      },
+    );
   });
 
   test('ENV=test has a stub for the port, like every repository', () async {
