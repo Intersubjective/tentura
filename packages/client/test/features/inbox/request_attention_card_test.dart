@@ -732,35 +732,44 @@ void main() {
       onClearAll: onClearAll ?? () {},
     );
 
-    final now = DateTime.now().toUtc();
-    final olgaOld = _event(
-      id: 'm1',
-      personal: true,
-      excerpt: 'Доски привезу к 10',
-      createdAt: now.subtract(const Duration(hours: 3)),
-    );
-    final olgaNew = _event(
-      id: 'm2',
-      personal: true,
-      excerpt: 'А ворота кто откроет?',
-      createdAt: now.subtract(const Duration(hours: 2)),
-    );
-    final gleb = _event(
-      id: 'm3',
-      actorUserId: 'u2',
-      personal: true,
-      excerpt: 'Я с тачкой',
-      createdAt: now.subtract(const Duration(hours: 1)),
-    );
-    final status = _event(
-      id: 's1',
-      kind: 'blockerOpened',
-      presentationKey: 'blocker_opened',
-      actorUserId: 'u4',
-      personal: false,
-      excerpt: 'нет ключа от ворот',
-      createdAt: now.subtract(const Duration(minutes: 40)),
-    );
+    // Built per test, not at declaration: a bundled CI run declares every
+    // file's tests up front, and a minute later "40 мин" reads "41 мин".
+    late DateTime now;
+    late AttentionReceipt olgaOld;
+    late AttentionReceipt olgaNew;
+    late AttentionReceipt gleb;
+    late AttentionReceipt status;
+    setUp(() {
+      now = DateTime.now().toUtc();
+      olgaOld = _event(
+        id: 'm1',
+        personal: true,
+        excerpt: 'Доски привезу к 10',
+        createdAt: now.subtract(const Duration(hours: 3)),
+      );
+      olgaNew = _event(
+        id: 'm2',
+        personal: true,
+        excerpt: 'А ворота кто откроет?',
+        createdAt: now.subtract(const Duration(hours: 2)),
+      );
+      gleb = _event(
+        id: 'm3',
+        actorUserId: 'u2',
+        personal: true,
+        excerpt: 'Я с тачкой',
+        createdAt: now.subtract(const Duration(hours: 1)),
+      );
+      status = _event(
+        id: 's1',
+        kind: 'blockerOpened',
+        presentationKey: 'blocker_opened',
+        actorUserId: 'u4',
+        personal: false,
+        excerpt: 'нет ключа от ворот',
+        createdAt: now.subtract(const Duration(minutes: 40)),
+      );
+    });
 
     testWidgets('on a phone: one sender row, the others named, and the '
         'change line still shows (the old eventCap = 0 bug)', (tester) async {

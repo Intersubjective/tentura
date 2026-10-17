@@ -256,7 +256,11 @@ void main() {
           source: RealtimeChangeSource.serverInvalidation,
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      // Past the case's 100 ms refresh debounce. Poll rather than sleep a
+      // fixed 150 ms: a busy runner can stall the timer past that margin.
+      for (var i = 0; i < 80 && store.all.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
 
       expect(store.all, {'u2': 'Renamed elsewhere'});
       expect(repository.lastReplaceCache?.accountId, 'acc-1');
@@ -267,7 +271,9 @@ void main() {
       repository.fetchMineResult = {'u3': 'Caught up'};
 
       realtimePort.emitCatchUp();
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      for (var i = 0; i < 80 && store.all.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
 
       expect(store.all, {'u3': 'Caught up'});
     });
@@ -287,7 +293,9 @@ void main() {
         ..emitChange(change)
         ..emitChange(change)
         ..emitChange(change);
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      for (var i = 0; i < 80 && store.all.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
 
       expect(repository.fetchMineCalls, callsBefore + 1);
       expect(store.all, {'u4': 'Once'});

@@ -26,7 +26,9 @@ Future<void> _settle([int turns = 12]) async {
   for (var i = 0; i < turns; i++) {
     await Future<void>.microtask(() {});
   }
-  await Future<void>.delayed(const Duration(milliseconds: 60));
+  // Outlasts the cubit's 50 ms desk-relevance debounce with room to spare: a
+  // 10 ms margin flaked when the runner was busy.
+  await Future<void>.delayed(const Duration(milliseconds: 150));
 }
 
 InboxItem _offer(String beaconId, DateTime at) => InboxItem(
