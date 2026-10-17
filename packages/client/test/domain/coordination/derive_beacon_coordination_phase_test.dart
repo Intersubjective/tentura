@@ -127,24 +127,27 @@ void main() {
     expect(result.rowHarmony.showBlockedTitleInNowSubline, isTrue);
   });
 
-  test('open with unanswered offers and a helper is coordinating not awaiting author', () {
-    final beacon = _beacon(
-      helpOfferCount: 2,
-      unansweredHelpOfferCount: 2,
-      admittedHelperCount: 1,
-    );
-    final result = deriveBeaconCoordinationPhase(
-      BeaconCoordinationPhaseInput(
-        beacon: beacon,
-        tier: BeaconVisibilityTier.coordination,
-        now: _t,
-        hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
-      ),
-    );
-    expect(result.phase, BeaconCoordinationPhase.coordinating);
-    expect(result.phase, isNot(BeaconCoordinationPhase.offersAwaitingAuthor));
-    expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
-  });
+  test(
+    'open with unanswered offers and a helper is coordinating not awaiting author',
+    () {
+      final beacon = _beacon(
+        helpOfferCount: 2,
+        unansweredHelpOfferCount: 2,
+        admittedHelperCount: 1,
+      );
+      final result = deriveBeaconCoordinationPhase(
+        BeaconCoordinationPhaseInput(
+          beacon: beacon,
+          tier: BeaconVisibilityTier.coordination,
+          now: _t,
+          hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
+        ),
+      );
+      expect(result.phase, BeaconCoordinationPhase.coordinating);
+      expect(result.phase, isNot(BeaconCoordinationPhase.offersAwaitingAuthor));
+      expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
+    },
+  );
 
   test('public tier never exposes offersAwaitingAuthor', () {
     final result = deriveBeaconCoordinationPhase(

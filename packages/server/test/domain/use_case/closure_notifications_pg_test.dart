@@ -276,10 +276,14 @@ WHERE source_event_key LIKE 'closure_opened:$_beacon:1:%'
 ORDER BY account_id
 ''');
         expect(keys.length, greaterThanOrEqualTo(2));
-        final reminderKey = (keys[0][0]! as String)
-            .replaceFirst('closure_opened:', 'closure_draft_reminder:');
-        final otherEpochKey = (keys[1][0]! as String)
-            .replaceFirst(':$_beacon:1:', ':$_beacon:2:');
+        final reminderKey = (keys[0][0]! as String).replaceFirst(
+          'closure_opened:',
+          'closure_draft_reminder:',
+        );
+        final otherEpochKey = (keys[1][0]! as String).replaceFirst(
+          ':$_beacon:1:',
+          ':$_beacon:2:',
+        );
         await rows('''
 UPDATE public.notification_outbox SET source_event_key = '$reminderKey'
 WHERE source_event_key = '${keys[0][0]}'
