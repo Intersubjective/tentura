@@ -235,11 +235,18 @@ WHERE r.fact_card_id = $1::text AND r.seq = $2::integer
     final parent = joined.readTable(_database.beaconRoomMessages);
     final author = joined.readTable(_database.users);
     final attachmentIds = await _messageIdsWithAttachments([parentMessageId]);
+    // A poll parent has no body; its quote is the poll question (#377).
+    final pollingId = parent.linkedPollingId;
+    final pollQuestion = pollingId == null
+        ? null
+        : (await (_database.select(
+            _database.pollings,
+          )..where((p) => p.id.equals(pollingId))).getSingleOrNull())?.question;
 
     return (
       authorId: parent.authorId ?? '',
       authorTitle: author.displayName,
-      bodyExcerpt: roomReplyExcerpt(parent.body),
+      bodyExcerpt: roomReplyExcerpt(parent.body, pollQuestion: pollQuestion),
       hasAttachments: attachmentIds.contains(parentMessageId),
     );
   }
