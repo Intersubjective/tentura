@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:flutter/foundation.dart' show setEquals;
 import 'package:get_it/get_it.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
