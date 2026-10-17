@@ -4,16 +4,36 @@
 const API_BASE = (window.TENTURA || {}).apiBase || ''; // '' = same origin
 
 export class EmailLinkError extends Error {
-  constructor(message) {
+  /**
+   * @param {string} message shown inline to the user
+   * @param {{userInput?: boolean}} [opts] userInput: the address the user typed
+   *   was rejected (empty or malformed). Expected input, not a fault, so
+   *   analytics keeps it as a breadcrumb and does not open a Sentry issue.
+   */
+  constructor(message, { userInput = false } = {}) {
     super(message);
     this.name = 'EmailLinkError';
+    this.userInput = userInput;
   }
+}
+
+// Same rule as the server's kAuthEmailPattern (email_auth_util.dart). The
+// server answers {ok:true} even for a malformed address (it never reveals
+// whether a link went out), so the page would claim "Link sent" for "nope".
+export const EMAIL_PATTERN = /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/;
+
+/** Whether a normalized (trimmed, lower-cased) address can receive a link. */
+export function isValidEmailFormat(normalized) {
+  return EMAIL_PATTERN.test(normalized);
 }
 
 /** Start magic-link sign-in/signup; server always responds generically when accepted. */
 export async function startEmailMagicLink({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
-  if (!normalized) throw new EmailLinkError('Please enter your email.');
+  if (!normalized) throw new EmailLinkError('Please enter your email.', { userInput: true });
+  if (!isValidEmailFormat(normalized)) {
+    throw new EmailLinkError('Please enter a valid email address.', { userInput: true });
+  }
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
   let res;
@@ -26,6 +46,14 @@ export async function startEmailMagicLink({ email, code }) {
   } catch (e) {
     throw new EmailLinkError(`Could not reach the server (${e}).`);
   }
+  if (res.status === 400) {
+    // The server is the authority on the format (it checks before any rate
+    // limit or account lookup, so this reveals nothing about accounts).
+    const data = await res.json().catch(() => null);
+    if (data?.error === 'invalid_email') {
+      throw new EmailLinkError('Please enter a valid email address.', { userInput: true });
+    }
+  }
   if (!res.ok) {
     throw new EmailLinkError('Something went wrong. Please try again.');
   }
@@ -36,7 +64,7 @@ export async function startEmailMagicLink({ email, code }) {
 /** QA immediate sign-in for allowlisted test domains (dev/staging only). */
 export async function startTestLogin({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
-  if (!normalized) throw new EmailLinkError('Please enter your email.');
+  if (!normalized) throw new EmailLinkError('Please enter your email.', { userInput: true });
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
   let res;

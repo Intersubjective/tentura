@@ -381,7 +381,7 @@ function renderEmailMagicLinkForm() {
     autocomplete: 'section-signin email',
     inputmode: 'email',
   });
-  const errorEl = el('p', { class: 'error', role: 'alert' });
+  const errorEl = el('p', { class: 'error', role: 'alert', id: 'email-signin-error' });
   const successEl = el('div', {
     class: 'email-success',
     role: 'status',
@@ -396,6 +396,8 @@ function renderEmailMagicLinkForm() {
   const onSubmit = async (e) => {
     e.preventDefault();
     errorEl.textContent = '';
+    emailInput.removeAttribute('aria-invalid');
+    emailInput.removeAttribute('aria-describedby');
     successEl.replaceChildren();
     successEl.hidden = true;
     const label = submit.textContent;
@@ -416,6 +418,11 @@ function renderEmailMagicLinkForm() {
           { class: 'email-success-body' },
           'If that address can sign in, we sent a link. Open the message and tap the link to continue.',
         ),
+        el(
+          'button',
+          { class: 'btn btn-secondary', type: 'button', onclick: useDifferentAddress },
+          'Use a different address',
+        ),
       );
       successEl.hidden = false;
       emailInput.disabled = true;
@@ -427,7 +434,24 @@ function renderEmailMagicLinkForm() {
       errorEl.textContent = err.message || 'Could not send link. Try again.';
       submit.disabled = false;
       submit.textContent = label;
+      if (err?.userInput) {
+        emailInput.setAttribute('aria-invalid', 'true');
+        emailInput.setAttribute('aria-describedby', errorEl.id);
+        emailInput.focus();
+      }
     }
+  };
+
+  // After a real send the field is locked; a typo that passed the format
+  // check (me@gmial.com) must not require a page reload (#385).
+  const useDifferentAddress = () => {
+    successEl.replaceChildren();
+    successEl.hidden = true;
+    emailInput.disabled = false;
+    submit.disabled = false;
+    submit.textContent = 'Email me a sign-in link';
+    emailInput.focus();
+    emailInput.select();
   };
 
   return el(

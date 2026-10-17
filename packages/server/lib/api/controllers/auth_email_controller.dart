@@ -46,6 +46,17 @@ final class AuthEmailController extends BaseController {
       email: email,
       inviteCode: inviteCode,
     );
+    // The format check runs before any rate limit or account lookup, so this
+    // answer reveals nothing about which accounts exist (#385).
+    if (result.outcome == EmailAuthStartOutcome.invalidFormat) {
+      return Response.badRequest(
+        body: jsonEncode({'ok': false, 'error': 'invalid_email'}),
+        headers: {
+          kHeaderContentType: kContentApplicationJson,
+          kHeaderCacheControl: kCacheControlNoStore,
+        },
+      );
+    }
     return Response.ok(
       jsonEncode({'ok': true, 'attemptId': result.correlationId}),
       headers: {
