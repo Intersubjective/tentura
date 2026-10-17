@@ -510,12 +510,57 @@ void main() {
     expect(controls, hasLength(2));
     expect(controls.every((c) => c.collapsed), isTrue);
     // Labels live on in the tooltips; nothing in the bar is ellipsized.
-    expect(find.descendant(of: bar, matching: find.text('Recent')), findsNothing);
+    expect(
+      find.descendant(of: bar, matching: find.text('Newest first')),
+      findsNothing,
+    );
     expect(
       find.descendant(of: bar, matching: find.byIcon(Icons.filter_list)),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+
+    unawaited(cubit.close());
+    unawaited(homeAttention.close());
+    unawaited(boot.accounts.close());
+  });
+
+  // #431: "Recent" / "Oldest" did not say whether it was the current order
+  // or the one a tap would choose.
+  testWidgets('the sort control names the current order', (tester) async {
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = const [];
+    final myWorkRepo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [_beacon(_beaconActive, 'Only active')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final boot = await _bootAttention(attentionRepo);
+    final cubit = MyWorkCubit(
+      userId: _accountId,
+      myWorkCase: buildTestMyWorkCase(
+        repo: myWorkRepo,
+        attentionCase: boot.attention,
+      ),
+    );
+    final homeAttention = HomeAttentionCubit(
+      boot.attention,
+      boot.accounts,
+      Logger('sort-label'),
+    );
+
+    await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
+
+    expect(cubit.state.sort, MyWorkSort.recent);
+    expect(find.byTooltip('Change sort order: Newest first'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.swap_vert));
+    await tester.pump();
+
+    expect(cubit.state.sort, MyWorkSort.oldest);
+    expect(find.byTooltip('Change sort order: Oldest first'), findsOneWidget);
 
     unawaited(cubit.close());
     unawaited(homeAttention.close());

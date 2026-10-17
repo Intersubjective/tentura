@@ -3111,11 +3111,11 @@
   "@myWorkFilterDrafts": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortRecent": "Недавние",
+  "myWorkSortRecent": "Сначала новые",
   "@myWorkSortRecent": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortOldest": "Старые",
+  "myWorkSortOldest": "Сначала старые",
   "@myWorkSortOldest": {
     "context": "MyWorkScreen"
   },
