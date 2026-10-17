@@ -630,15 +630,16 @@ void main() {
     test(
       'a staged cover thumbnail is promoted, never garbage-collected',
       () async {
-        beaconRepo.locked = beacon(
-          images: [ImageEntity(id: 'I1', authorId: 'Uauth', createdAt: now)],
-        ).copyWith(coverImageId: 'I1');
-        beaconRepo.snapshot = const BeaconMediaSnapshot(
-          attachedImageIds: ['I1'],
-          stagedImageIds: {'Ithumb', 'Istale'},
-        );
-        // What the Postgres repository returned before the fix.
-        beaconRepo.replaceMediaReturns = ['Ithumb', 'Istale'];
+        beaconRepo
+          ..locked = beacon(
+            images: [ImageEntity(id: 'I1', authorId: 'Uauth', createdAt: now)],
+          ).copyWith(coverImageId: 'I1')
+          ..snapshot = const BeaconMediaSnapshot(
+            attachedImageIds: ['I1'],
+            stagedImageIds: {'Ithumb', 'Istale'},
+          )
+          // What the Postgres repository returned before the fix.
+          ..replaceMediaReturns = ['Ithumb', 'Istale'];
 
         await case_.beaconSetMedia(
           beaconId: 'B1',

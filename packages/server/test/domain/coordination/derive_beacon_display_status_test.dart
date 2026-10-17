@@ -94,7 +94,7 @@ void main() {
 
       test('no offers keeps the noOffersYet cue', () {
         final r = deriveBeaconDisplayStatus(
-          BeaconDisplayStatusInput(
+          const BeaconDisplayStatusInput(
             status: BeaconStatus.open,
             tier: BeaconDisplayTier.coordination,
           ),
