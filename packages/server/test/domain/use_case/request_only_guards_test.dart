@@ -6,6 +6,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/data/repository/mock/pair_block_query_repository_mock.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -835,6 +836,7 @@ void main() {
         roomRepo,
         FakeBeaconAccessGuard(),
         noopCommitmentQueryCase(logger: Logger('RequestOnlyGuardsTest')),
+        PairBlockQueryRepositoryMock(),
         env: env,
         logger: Logger('RequestOnlyGuardsTest'),
       );

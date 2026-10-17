@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/pair_block_query_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 
 import '_use_case_base.dart';
@@ -24,7 +25,8 @@ final class BeaconDisplayCase extends UseCaseBase {
     this._closureRepository,
     this._beaconRoomRepository,
     this._guard,
-    this._commitmentQueryCase, {
+    this._commitmentQueryCase,
+    this._blocks, {
     required super.env,
     required super.logger,
   });
@@ -36,6 +38,7 @@ final class BeaconDisplayCase extends UseCaseBase {
   final BeaconRoomRepositoryPort _beaconRoomRepository;
   final BeaconAccessGuard _guard;
   final CommitmentQueryCase _commitmentQueryCase;
+  final PairBlockQueryPort _blocks;
 
   Future<List<BeaconDisplayStatus>> displayStatuses({
     required List<String> beaconIds,
@@ -81,9 +84,10 @@ final class BeaconDisplayCase extends UseCaseBase {
       }
 
       // Same rule as the `beacon_admitted_helper` view the client counts
-      // (m0210): admitted, not the author, and not a Post addressee kept
-      // after a conversion — an addressee is not a helper (B075).
-      final admittedHelperCount =
+      // (m0210): admitted, not the author, not a Post addressee kept after a
+      // conversion — an addressee is not a helper (B075) — and not hidden
+      // from the author by a block either way (`block_hides`).
+      final admittedHelpers =
           (await _beaconRoomRepository.listParticipants(beaconId))
               .where(
                 (p) =>
@@ -92,8 +96,18 @@ final class BeaconDisplayCase extends UseCaseBase {
                     p.userId != beacon.author.id,
               )
               .map((p) => p.userId)
-              .toSet()
-              .length;
+              .toSet();
+      if (admittedHelpers.isNotEmpty) {
+        final blocked = await _blocks.blockedPairsAmong(
+          userIds: {beacon.author.id, ...admittedHelpers},
+        );
+        admittedHelpers.removeWhere(
+          (helperId) =>
+              blocked.contains((beacon.author.id, helperId)) ||
+              blocked.contains((helperId, beacon.author.id)),
+        );
+      }
+      final admittedHelperCount = admittedHelpers.length;
 
       final derived = deriveBeaconDisplayStatus(
         BeaconDisplayStatusInput(
