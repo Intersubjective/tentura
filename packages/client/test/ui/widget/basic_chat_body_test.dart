@@ -15,6 +15,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -313,6 +314,114 @@ void main() {
     expect(after.pixels, closeTo(after.maxScrollExtent, 1));
     expect(find.textContaining('Just sent by me'), findsOneWidget);
   });
+
+  testWidgets(
+    'stays on the latest message when its attachments arrive after send',
+    (tester) async {
+      final chatKey = GlobalKey<BasicChatBodyState>();
+      final baseMessages = List<RoomMessage>.generate(
+        40,
+        (i) => RoomMessage(
+          id: 'm$i',
+          beaconId: 'b1',
+          authorId: 'other',
+          author: const Profile(id: 'other', displayName: 'Alex'),
+          body: 'Background message $i',
+          createdAt: DateTime.utc(2026, 6, 30, 12).add(Duration(minutes: i)),
+        ),
+      );
+      // The optimistic row carries only the caption; the image arrives with
+      // the server row, so the newest message grows without the list growing.
+      final sent = RoomMessage(
+        id: 'srv-1',
+        beaconId: 'b1',
+        authorId: 'me',
+        author: const Profile(id: 'me', displayName: 'Me'),
+        body: 'Photo caption',
+        createdAt: DateTime.utc(2026, 6, 30, 13),
+      );
+
+      Future<void> pumpMessages(List<RoomMessage> messages) async {
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+              BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+            ],
+            child: MaterialApp(
+              locale: const Locale('en'),
+              theme: TenturaTheme.light(),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              home: MediaQuery(
+                data: const MediaQueryData(size: Size(390, 720)),
+                child: TenturaResponsiveScope(
+                  child: Scaffold(
+                    body: BasicChatBody(
+                      key: chatKey,
+                      messages: messages,
+                      myProfile: const Profile(id: 'me', displayName: 'Me'),
+                      participants: const [],
+                      isLoading: false,
+                      imageRepository: ImageRepository(),
+                      clipboardImageRepository: ClipboardImageRepository(),
+                      enableComposerAttachments: false,
+                      enableParticipantMentions: false,
+                      onSend: (_, _) async => true,
+                      onToggleReaction: (_, _) async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      await pumpMessages([...baseMessages, sent]);
+      chatKey.currentState!.onRoomDataChangedForViewport(
+        firstUnreadMessageId: null,
+        messagesEmpty: false,
+      );
+      await tester.pumpAndSettle();
+
+      final listScrollable = find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(Scrollable),
+      );
+      final before = tester.state<ScrollableState>(listScrollable).position;
+      // Lazy-list extents are estimates; re-jump until the bottom sticks.
+      for (var i = 0; i < 5; i++) {
+        before.jumpTo(before.maxScrollExtent);
+        await tester.pumpAndSettle();
+      }
+      expect(before.pixels, closeTo(before.maxScrollExtent, 1));
+      final extentBefore = before.maxScrollExtent;
+
+      await pumpMessages([
+        ...baseMessages,
+        sent.copyWith(
+          attachments: const [
+            RoomMessageAttachment(
+              id: 'a1',
+              kind: BeaconRoomMessageAttachmentKind.image,
+              position: 0,
+              mime: 'image/jpeg',
+              sizeBytes: 1,
+              imageId: 'img-1',
+              imageAuthorId: 'me',
+            ),
+          ],
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      final after = tester.state<ScrollableState>(listScrollable).position;
+      expect(after.maxScrollExtent, greaterThan(extentBefore + 100));
+      expect(after.pixels, closeTo(after.maxScrollExtent, 1));
+    },
+  );
 
   Future<void> pumpComposerBody(
     WidgetTester tester, {
