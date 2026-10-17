@@ -486,6 +486,17 @@ JOIN public.beacon_fact_card_revision r
     final attachmentParentIds = parentIds.isEmpty
         ? <String>{}
         : await _messageIdsWithAttachments(parentIds);
+    // A poll parent has no body; its quote is the poll question (#377).
+    final parentPollingIds = {
+      for (final p in parentById.values)
+        if (p.linkedPollingId case final String id) id,
+    };
+    final parentPolls = parentPollingIds.isEmpty
+        ? const <Polling>[]
+        : await _db.managers.pollings
+              .filter((p) => p.id.isIn(parentPollingIds))
+              .get();
+    final pollQuestionById = {for (final p in parentPolls) p.id: p.question};
 
     return msgs.map((m) {
       final id = m.id;
@@ -567,7 +578,10 @@ JOIN public.beacon_fact_card_revision r
             ? (userById[parent.authorId!]?.displayName ?? '')
             : null,
         'replyToBodyExcerpt': parent != null
-            ? roomReplyExcerpt(parent.body)
+            ? roomReplyExcerpt(
+                parent.body,
+                pollQuestion: pollQuestionById[parent.linkedPollingId],
+              )
             : null,
         'replyToHasAttachments': parent != null
             ? attachmentParentIds.contains(parent.id)
