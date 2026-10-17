@@ -1,3 +1,4 @@
+// CI smoke test for the PR check (do not merge).
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
