@@ -42,15 +42,29 @@ final class _TestProfileCubit extends Mock implements ProfileCubit {
       Stream<ProfileState>.value(state).asBroadcastStream();
 }
 
-/// Survives "app restarts": a new [OfferAcceptedDismissals] reads it back.
+/// Stands in for the server: a new [OfferAcceptedDismissals] (another
+/// session or device) reads it back.
 final class _RecordingPort implements OfferAcceptedDismissalPort {
+  /// `viewerId:beaconId` keys, as the server would hold them per account.
   Set<String> stored = {};
 
   @override
-  Future<Set<String>> load() async => {...stored};
+  Future<Set<String>> load({required String viewerId}) async => {
+    for (final k in stored)
+      if (k.startsWith('$viewerId:')) k.substring(viewerId.length + 1),
+  };
 
   @override
-  Future<void> save(Set<String> keys) async => stored = {...keys};
+  Future<Set<String>> dismiss({
+    required String viewerId,
+    required String beaconId,
+  }) async {
+    stored = {
+      ...stored,
+      OfferAcceptedDismissals.keyFor(viewerId: viewerId, beaconId: beaconId),
+    };
+    return load(viewerId: viewerId);
+  }
 }
 
 Beacon _openBeacon(String id, {bool admitted = false}) => Beacon.empty.copyWith(
@@ -145,7 +159,6 @@ void main() {
     }
     port = _RecordingPort();
     final store = OfferAcceptedDismissals(port);
-    await store.ready;
     GetIt.I.registerSingleton<OfferAcceptedDismissals>(store);
   });
 
@@ -221,7 +234,6 @@ void main() {
     // A new session (new store reading the same storage, new widget tree).
     GetIt.I.unregister<OfferAcceptedDismissals>();
     final reloaded = OfferAcceptedDismissals(port);
-    await reloaded.ready;
     GetIt.I.registerSingleton<OfferAcceptedDismissals>(reloaded);
     await _pumpDesk(tester, cubit);
     expect(find.byType(AttentionMiniCard), findsNothing);
