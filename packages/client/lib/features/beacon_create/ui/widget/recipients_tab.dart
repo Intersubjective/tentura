@@ -31,8 +31,13 @@ class BeaconRecipientsTab extends StatelessWidget {
           selector: (state) =>
               state.candidatesLoad is ForwardCandidatesReady ||
               state.candidatesLoad is ForwardCandidatesEmpty,
-          builder: (context, showBanner) {
-            if (!showBanner) return const SizedBox.shrink();
+          builder: (context, candidatesShown) {
+            // Once sent, "nobody will see it" is false; it showed behind the
+            // "Request sent" dialog (#442).
+            final isLive = context.select<BeaconCreateCubit, bool>(
+              (cubit) => cubit.state.isLive,
+            );
+            if (!candidatesShown || isLive) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
