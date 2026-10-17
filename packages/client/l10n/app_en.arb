@@ -5133,6 +5133,53 @@
       }
     }
   },
+  "roomStatusChangedByActor": "{actor} changed the status: {from} → {to}",
+  "@roomStatusChangedByActor": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedByFormerMember": "A former member changed the status: {from} → {to}",
+  "@roomStatusChangedByFormerMember": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedBySelf": "You changed the status: {from} → {to}",
+  "@roomStatusChangedBySelf": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedAutomatic": "Status changed: {from} → {to}",
+  "@roomStatusChangedAutomatic": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantLeft": "{name} left the request ({reason})",
   "@beaconRoomParticipantLeft": {
     "placeholders": {

@@ -19,6 +19,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/domain/entity/room_status_change.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
     show withdrawReasonLabel;
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
@@ -59,6 +60,7 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 VoidCallback? _linkedCoordinationItemOnTap(
   BuildContext context,
@@ -254,6 +256,19 @@ class RoomMessageTile extends StatelessWidget {
       return null;
     }
   }
+
+  /// Status names as the status sheet shows them.
+  static String _statusLineLabel(L10n l10n, BeaconStatus status) =>
+      switch (status) {
+        BeaconStatus.draft => l10n.beaconStatusRowDraft,
+        BeaconStatus.open => l10n.beaconStatusRowOpen,
+        BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+        BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+        BeaconStatus.reviewOpen => l10n.beaconStatusRowWrappingUp,
+        BeaconStatus.closed => l10n.beaconStatusRowClosed,
+        BeaconStatus.cancelled => l10n.beaconStatusRowCancelled,
+        BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
+      };
 
   static bool isFactEditOrUnpinLine(RoomMessage m) =>
       m.semanticMarker == BeaconRoomSemanticMarker.factEdited ||
@@ -618,7 +633,7 @@ class RoomMessageTile extends StatelessWidget {
     if (message.systemMessageKind ==
         BeaconRoomSystemMessageKind.convertedToRequest) {
       final authorName = message.author.shownName.trim();
-      return _ConvertedToRequestNotice(
+      return _CenteredSystemNotice(
         text: l10n.roomConvertedToRequestNotice(
           authorName.isNotEmpty
               ? authorName
@@ -632,10 +647,48 @@ class RoomMessageTile extends StatelessWidget {
       );
     }
 
+    if (message.systemMessageKind ==
+        BeaconRoomSystemMessageKind.statusChanged) {
+      final change = RoomStatusChange.fromMessage(message);
+      if (change == null) return const SizedBox.shrink();
+      final from = _statusLineLabel(l10n, change.from);
+      final to = _statusLineLabel(l10n, change.to);
+      if (message.authorId.isNotEmpty && message.authorId == myProfile.id) {
+        // Own change: a dedicated string, so RU reads «Вы изменили», not
+        // «Вы изменил(а)».
+        return _CenteredSystemNotice(
+          text: l10n.roomStatusChangedBySelf(from, to),
+        );
+      }
+      final actorName = message.authorId.isEmpty
+          ? ''
+          : SelfUserHighlight.displayName(
+              l10n,
+              message.author,
+              myProfile.id,
+            ).trim();
+      final actor = actorName.isNotEmpty || message.authorId.isEmpty
+          ? actorName
+          : _participantDisplayName(
+              participants: participants,
+              userId: message.authorId,
+              viewer: myProfile,
+              l10n: l10n,
+            );
+      return _CenteredSystemNotice(
+        text: actor.isNotEmpty
+            ? l10n.roomStatusChangedByActor(actor, from, to)
+            : change.isAutomatic
+            ? l10n.roomStatusChangedAutomatic(from, to)
+            // No author on a person's change: their account was deleted.
+            : l10n.roomStatusChangedByFormerMember(from, to),
+      );
+    }
+
     if (message.semanticMarker == BeaconRoomSemanticMarker.batonTaken) {
       final takerId = batonTakerUserId(message);
       if (takerId == null) return const SizedBox.shrink();
-      return _ConvertedToRequestNotice(
+      return _CenteredSystemNotice(
         text: l10n.batonTookIt(
           _participantDisplayName(
             participants: participants,
@@ -3050,9 +3103,10 @@ class _AuthorRoleLabel extends StatelessWidget {
   }
 }
 
-/// One-line centered notice: the author turned the Post into a Request.
-class _ConvertedToRequestNotice extends StatelessWidget {
-  const _ConvertedToRequestNotice({required this.text});
+/// One-line centered system notice (Post turned into a Request, a status
+/// change, …).
+class _CenteredSystemNotice extends StatelessWidget {
+  const _CenteredSystemNotice({required this.text});
 
   final String text;
 
