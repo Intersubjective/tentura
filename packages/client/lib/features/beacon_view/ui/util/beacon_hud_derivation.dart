@@ -265,6 +265,7 @@ String _authorYouSituationLine(
     BeaconHudAuthorAction.markEnoughHelp =>
       l10n.beaconHudYouAuthorCoordinationActive,
     BeaconHudAuthorAction.wrapUpForReview ||
+    BeaconHudAuthorAction.sumUp ||
     BeaconHudAuthorAction.closeNow =>
       l10n.beaconHudYouAuthorReadyToClose,
   };

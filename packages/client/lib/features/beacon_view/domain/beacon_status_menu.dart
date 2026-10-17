@@ -27,6 +27,9 @@ enum BeaconStatusMenuAction {
   extendReview,
   reopen,
   cancel,
+
+  /// Opens the wrap-up review («Sum up») while the Request is wrapping up.
+  openReview,
 }
 
 /// Keys mapped to l10n in `beaconStatusMenuDisabledReasonLabel`.
@@ -268,14 +271,27 @@ BeaconStatusMenuRow _coordinationRow({
   );
 }
 
-BeaconStatusMenuRow _moreHelpRow(BeaconStatusMenuInput input) =>
-    // When lifecycle is reviewOpen, selecting this row reverts to Open (server).
-    _coordinationRow(
+BeaconStatusMenuRow _moreHelpRow(BeaconStatusMenuInput input) {
+  // When lifecycle is reviewOpen, selecting this row reopens the Request on
+  // the server (`ClosureCase.reopen`), which allows one reopen only: after
+  // that, don't offer a row that can only fail.
+  if (input.beacon.status == BeaconStatus.reviewOpen &&
+      input.closure?.serverCanReopen == false) {
+    return const BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.moreHelp,
       action: BeaconStatusMenuAction.setCoordinationMoreHelp,
-      input: input,
-      status: BeaconStatus.needsMoreHelp,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.reopenLimitReached,
     );
+  }
+  return _coordinationRow(
+    id: BeaconStatusMenuRowId.moreHelp,
+    action: BeaconStatusMenuAction.setCoordinationMoreHelp,
+    input: input,
+    status: BeaconStatus.needsMoreHelp,
+  );
+}
 
 BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) {
   if (input.beacon.status == BeaconStatus.reviewOpen) {
@@ -314,11 +330,13 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   }
 
   if (lifecycle == BeaconStatus.reviewOpen) {
+    // The current step is where the author records outcomes and closes, so
+    // it opens the review instead of being a dead, selected row (B041).
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
-      action: BeaconStatusMenuAction.none,
+      action: BeaconStatusMenuAction.openReview,
       isSelected: true,
-      isEnabled: false,
+      isEnabled: input.canManageLifecycle && review != null,
       secondaryAction: BeaconStatusMenuAction.extendReview,
       isSecondaryEnabled:
           input.canManageLifecycle && (review?.canExtend ?? false),

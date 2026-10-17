@@ -55,8 +55,12 @@ String beaconStatusMenuDisabledReasonLabel(
         l10n.beaconStatusHintReopenLimitReached,
     };
 
-String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRowId id) =>
-    switch (id) {
+/// Subtitle under a status row. The current Wrapping-up row opens the
+/// review when enabled, so it says so instead of describing the step.
+String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRow row) =>
+    row.action == BeaconStatusMenuAction.openReview && row.isEnabled
+    ? l10n.beaconStatusRowOutcomeSumUp
+    : switch (row.id) {
       BeaconStatusMenuRowId.draft => l10n.beaconStatusRowOutcomeDraft,
       BeaconStatusMenuRowId.open => l10n.beaconStatusRowOutcomeOpen,
       BeaconStatusMenuRowId.moreHelp => l10n.beaconStatusRowOutcomeMoreHelp,

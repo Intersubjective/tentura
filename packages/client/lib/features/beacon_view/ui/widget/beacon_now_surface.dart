@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
@@ -355,6 +356,15 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                         onSwitchToPeopleTab: () => onSurfaceSelected(
                           BeaconSurface.people,
                         ),
+                        onOpenClosureReview:
+                            !state.isBeaconMine && state.closureState != null
+                            ? () => unawaited(
+                                beaconViewOpenClosureReview(
+                                  context.router,
+                                  beaconViewCubit,
+                                ),
+                              )
+                            : null,
                         onEditNowLine: _editStepAction(context, state),
                         onOpenPinnedFacts: () => unawaited(
                           showBeaconPinnedFactsSheet(

@@ -93,4 +93,84 @@ void main() {
     final l10n = lookupL10n(const Locale('en'));
     expect(find.text(l10n.beaconStatusRowOutcomeOpen), findsOneWidget);
   });
+  Widget host(Widget child) => MaterialApp(
+    locale: const Locale('en'),
+    theme: TenturaTheme.light(),
+    localizationsDelegates: L10n.localizationsDelegates,
+    supportedLocales: L10n.supportedLocales,
+    home: TenturaResponsiveScope(child: Scaffold(body: child)),
+  );
+
+  const reviewRow = BeaconStatusMenuRow(
+    id: BeaconStatusMenuRowId.wrappingUp,
+    action: BeaconStatusMenuAction.openReview,
+    isSelected: true,
+    isEnabled: true,
+    disabledReason: BeaconStatusMenuDisabledReason.none,
+  );
+
+  testWidgets('enabled wrapping-up row says it opens the sum-up', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b1',
+      status: BeaconStatus.reviewOpen,
+    );
+    await tester.pumpWidget(
+      host(
+        BeaconStatusMenuRowTile(
+          row: reviewRow,
+          beacon: beacon,
+          isLoading: false,
+          onTap: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = lookupL10n(const Locale('en'));
+    expect(find.text(l10n.beaconStatusRowOutcomeSumUp), findsOneWidget);
+    expect(find.text(l10n.beaconStatusRowOutcomeWrappingUp), findsNothing);
+  });
+
+  testWidgets('tapping a row closes only the sheet, not the page under it', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b1',
+      status: BeaconStatus.reviewOpen,
+    );
+    var tapped = 0;
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              builder: (_) => BeaconStatusMenuRowTile(
+                row: reviewRow,
+                beacon: beacon,
+                isLoading: false,
+                onTap: () => tapped++,
+              ),
+            ),
+            child: const Text('Request page'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Request page'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(BeaconStatusMenuRowTile),
+        matching: find.byType(ListTile),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tapped, 1);
+    expect(find.byType(BeaconStatusMenuRowTile), findsNothing);
+    expect(find.text('Request page'), findsOneWidget);
+  });
 }

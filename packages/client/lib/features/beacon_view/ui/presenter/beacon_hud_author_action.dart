@@ -11,6 +11,10 @@ enum BeaconHudAuthorAction {
   reviewOffers,
   markEnoughHelp,
   wrapUpForReview,
+
+  /// Wrapping up, Close now not yet allowed: open the review («Sum up»),
+  /// where the author records outcomes and closes (B028/B041).
+  sumUp,
   closeNow,
 }
 
@@ -36,7 +40,8 @@ BeaconHudAuthorActEffectPresentation effectPresentationForBeaconHudAuthorAction(
     BeaconHudAuthorAction.markEnoughHelp || BeaconHudAuthorAction.closeNow =>
       BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics,
     BeaconHudAuthorAction.resolveBlocker ||
-    BeaconHudAuthorAction.wrapUpForReview =>
+    BeaconHudAuthorAction.wrapUpForReview ||
+    BeaconHudAuthorAction.sumUp =>
       BeaconHudAuthorActEffectPresentation.mutedSubtitle,
   };
 }
@@ -123,10 +128,15 @@ BeaconHudAuthorAction? deriveBeaconHudAuthorAction(BeaconViewState state) {
   return null;
 }
 
-BeaconHudAuthorAction? _reviewOpenAuthorAction(BeaconViewState state) =>
-    state.closureState?.canCloseNow == true
-        ? BeaconHudAuthorAction.closeNow
-        : null;
+/// Without a closure snapshot nothing is offered; with one the author always
+/// has a way forward: Close now when allowed, else the review itself.
+BeaconHudAuthorAction? _reviewOpenAuthorAction(BeaconViewState state) {
+  final closure = state.closureState;
+  if (closure == null) return null;
+  return closure.canCloseNow
+      ? BeaconHudAuthorAction.closeNow
+      : BeaconHudAuthorAction.sumUp;
+}
 
 IconData iconForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
   return switch (action) {
@@ -134,6 +144,7 @@ IconData iconForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
     BeaconHudAuthorAction.reviewOffers => Icons.people_outline,
     BeaconHudAuthorAction.markEnoughHelp => Icons.check_circle_outline,
     BeaconHudAuthorAction.wrapUpForReview => Icons.rate_review_outlined,
+    BeaconHudAuthorAction.sumUp => Icons.fact_check_outlined,
     BeaconHudAuthorAction.closeNow => Icons.lock_outline,
   };
 }
@@ -147,6 +158,7 @@ String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
     BeaconHudAuthorAction.reviewOffers => l10n.beaconPhaseCtaReviewOffers,
     BeaconHudAuthorAction.markEnoughHelp => l10n.beaconHudActMarkEnoughHelp,
     BeaconHudAuthorAction.wrapUpForReview => l10n.beaconHudActWrapUpForReview,
+    BeaconHudAuthorAction.sumUp => l10n.closureAuthorTitle,
     BeaconHudAuthorAction.closeNow => l10n.beaconReviewCloseNowAction,
   };
 }
@@ -163,6 +175,7 @@ String effectLineForBeaconHudAuthorAction(
       l10n.beaconHudActEffectMarkEnoughHelp,
     BeaconHudAuthorAction.wrapUpForReview =>
       l10n.beaconHudActEffectWrapUpForReview,
+    BeaconHudAuthorAction.sumUp => l10n.beaconHudActEffectSumUp,
     BeaconHudAuthorAction.closeNow => l10n.beaconHudActEffectCloseNow,
   };
 }

@@ -4606,7 +4606,7 @@
   "beaconNeedsMoreHelpRevertTitle": "Need more help?",
   "beaconNeedsMoreHelpRevertBody": "Returns to Open and marks more help needed. Review notes are kept as drafts where still relevant.",
   "beaconNeedsMoreHelpRevertConfirm": "Need more help",
-  "beaconReviewCloseNowBlocked": "Close now is available when every required reviewer has finished or skipped.",
+  "beaconReviewCloseNowBlocked": "Sum up first: record how each helper did. With three or more helpers, Close now also waits until they answer or two days pass.",
   "beaconDeleteBlockedTitle": "Cannot delete",
   "beaconDeleteBlockedBody": "This request had acknowledged helpers. Archive it from Requests instead.",
   "beaconDeleteDraftTitle": "Delete draft?",
@@ -4680,6 +4680,7 @@
   "beaconStatusRowOutcomeMoreHelp": "Asks network for more responses",
   "beaconStatusRowOutcomeEnoughHelp": "Signals sufficient help; stays open",
   "beaconStatusRowOutcomeWrappingUp": "Review window for contributors",
+  "beaconStatusRowOutcomeSumUp": "Sum up and close",
   "beaconStatusRowOutcomeClosed": "Request is closed; discussion is read-only",
   "beaconStatusRowOutcomeCancelled": "Request is cancelled; no further coordination",
   "timelineRequestStatusChanged": "{author} marked the request as {status}",
@@ -4788,7 +4789,7 @@
   "beaconStatusRowCancelled": "Cancelled",
   "beaconStatusHintPublishFirst": "Publish the request first",
   "beaconStatusHintFinishReviewFirst": "Finish the review period first",
-  "beaconStatusHintReopenLimitReached": "Already reopened once — close now or wait for the review window",
+  "beaconStatusHintReopenLimitReached": "Already reopened once — sum up and close this round",
   "beaconStatusHintNoCommitters": "No committed helpers to review yet",
   "beaconStatusHintCancelHasOffers": "Can't cancel after help was offered",
   "beaconStatusCancelHasCommitters": "Can't cancel — someone committed; close instead",
@@ -9393,5 +9394,17 @@
   "myWorkPlanSomeone": "Someone",
   "@myWorkPlanSomeone": {
     "description": "My Work plan row (#220): stands for the person who changed the plan when their name is unknown."
+  },
+  "closureHelperTitle": "Wrap-up",
+  "@closureHelperTitle": {
+    "description": "Title of a member's wrap-up review page (support colleagues, marks) while a request is wrapping up."
+  },
+  "closureHelperOpenReview": "Open the wrap-up",
+  "@closureHelperOpenReview": {
+    "description": "Request screen, member while the request is wrapping up: opens the wrap-up review."
+  },
+  "beaconHudActEffectSumUp": "Record how each helper did, then close",
+  "@beaconHudActEffectSumUp": {
+    "description": "Author HUD while wrapping up and Close now is not available yet: what «Sum up» leads to."
   }
 }
