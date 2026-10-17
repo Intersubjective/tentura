@@ -365,6 +365,11 @@ void main() {
 
       expect(find.textContaining('Target'), findsWidgets);
       expect(find.text('Отправить (1)'), findsOneWidget);
+      // #455: the recipient step speaks of the post, not a request.
+      expect(
+        find.byTooltip('Люди, которые ещё не видели этот пост'),
+        findsOneWidget,
+      );
     });
 
     testWidgets(

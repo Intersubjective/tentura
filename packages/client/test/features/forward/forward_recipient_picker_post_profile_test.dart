@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/forward_inbound_source.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_band_strip.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
@@ -99,14 +100,17 @@ class _SendRecordingCubit extends ForwardCubit {
 const _alex = Profile(id: 'u1', displayName: 'Alex', score: 10, rScore: 1);
 const _lena = Profile(id: 'u2', displayName: 'Lena', score: 5, rScore: 1);
 
-ForwardState _state(BeaconKind kind) => ForwardState(
+/// A null [kind] leaves the beacon unloaded, as in the Post composer.
+ForwardState _state(BeaconKind? kind) => ForwardState(
   beaconId: 'B1',
-  beacon: Beacon.empty.copyWith(
-    id: 'B1',
-    title: 'Subject',
-    kind: kind,
-    needs: const {'tools'},
-  ),
+  beacon: kind == null
+      ? null
+      : Beacon.empty.copyWith(
+          id: 'B1',
+          title: 'Subject',
+          kind: kind,
+          needs: const {'tools'},
+        ),
   candidates: const [
     ForwardCandidate(profile: _alex),
     ForwardCandidate(profile: _lena),
@@ -128,8 +132,9 @@ ForwardState _state(BeaconKind kind) => ForwardState(
 
 Future<_SendRecordingCubit> _pump(
   WidgetTester tester,
-  BeaconKind kind,
-) async {
+  BeaconKind? kind, {
+  ForwardTargetProfile? copyProfile,
+}) async {
   tester.view
     ..physicalSize = const Size(1200, 2400)
     ..devicePixelRatio = 1;
@@ -148,8 +153,11 @@ Future<_SendRecordingCubit> _pump(
           BlocProvider<ForwardCubit>.value(value: cubit),
           BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
         ],
-        child: const Scaffold(
-          body: ForwardRecipientPicker(beaconId: 'B1'),
+        child: Scaffold(
+          body: ForwardRecipientPicker(
+            beaconId: 'B1',
+            copyProfile: copyProfile,
+          ),
         ),
       ),
     ),
@@ -185,6 +193,22 @@ void main() {
       );
     });
 
+    testWidgets('title and scope tab hints speak of the request', (
+      tester,
+    ) async {
+      await _pump(tester, BeaconKind.request);
+
+      expect(find.text('Forward request'), findsOneWidget);
+      expect(
+        find.byTooltip("People who haven't seen this request yet"),
+        findsOneWidget,
+      );
+      expect(
+        find.byTooltip("People already in this request's forward chain"),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('asks for attribution when several inbound sources exist', (
       tester,
     ) async {
@@ -200,6 +224,36 @@ void main() {
   });
 
   group('ForwardRecipientPicker for a Post', () {
+    // #455: the post's recipient step talked about "this request".
+    testWidgets('title and scope tab hints speak of the post', (tester) async {
+      await _pump(tester, BeaconKind.post);
+
+      expect(find.text('Forward post'), findsOneWidget);
+      expect(
+        find.byTooltip("People who haven't seen this post yet"),
+        findsOneWidget,
+      );
+      expect(
+        find.byTooltip("People already in this post's forward chain"),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the Post composer sets the copy before a beacon is loaded', (
+      tester,
+    ) async {
+      await _pump(tester, null, copyProfile: ForwardTargetProfile.post);
+
+      expect(
+        find.byTooltip("People who haven't seen this post yet"),
+        findsOneWidget,
+      );
+      expect(
+        find.byTooltip("People already in this post's forward chain"),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('hides the band strip', (tester) async {
       await _pump(tester, BeaconKind.post);
 
