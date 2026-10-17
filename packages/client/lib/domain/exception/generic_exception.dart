@@ -39,9 +39,12 @@ final class ConnectionUplinkException extends GenericException {
 /// message beats a misleading "no internet". Server messages are not
 /// localized, so both locales show the same text.
 final class RemoteApiException extends GenericException {
-  const RemoteApiException(this.message);
+  const RemoteApiException(this.message, {this.code});
 
   final String message;
+
+  /// The server's error code (`extensions.code`), when it sent one.
+  final String? code;
 
   @override
   String get toEn => message;
