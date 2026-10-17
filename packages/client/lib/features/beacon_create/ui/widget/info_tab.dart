@@ -1024,6 +1024,33 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       initialDateRange: initialDateRange,
       initialEntryMode: DatePickerEntryMode.calendarOnly,
       saveText: _l10n.buttonOk,
+      // The calendar range picker is full-screen; on wide windows keep it
+      // dialog-sized like our adaptive sheets, with the date picker dialog's
+      // rounded shape (#435). Compact has no content max width.
+      builder: (dialogContext, child) {
+        final maxSide = dialogContext.tt.contentMaxWidth;
+        if (maxSide == null) return child!;
+        final theme = Theme.of(dialogContext);
+        final pickerTheme = DatePickerTheme.of(dialogContext);
+        return Theme(
+          data: theme.copyWith(
+            datePickerTheme: pickerTheme.copyWith(
+              rangePickerShape:
+                  pickerTheme.shape ??
+                  DatePickerTheme.defaults(dialogContext).shape,
+            ),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: maxSide,
+                maxHeight: maxSide,
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
     );
     _clearFocusAfterOverlay();
     if (dateRange != null) {
