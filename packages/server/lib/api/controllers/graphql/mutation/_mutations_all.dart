@@ -32,6 +32,7 @@ import 'mutation_debug.dart';
 import 'mutation_user.dart';
 import 'mutation_user_block.dart';
 import 'mutation_user_vote.dart';
+import 'mutation_offer_accepted_dismissal.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationAttention().all,
@@ -39,6 +40,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationBeacon().all,
   ...MutationBeaconHierarchy().all,
   ...MutationBeaconPeople().all,
+  ...MutationOfferAcceptedDismissal().all,
   ...MutationBeaconRoom().all,
   ...MutationCapability().all,
   ...MutationCapabilityRouting().all,
