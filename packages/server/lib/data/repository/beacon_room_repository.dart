@@ -1376,6 +1376,49 @@ RETURNING *
   }
 
   @override
+  Future<void> recordParticipantLeft({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String note = '',
+  }) => _db.withMutatingUser(userId, () async {
+    final trimmedNote = note.trim();
+    final line = await _db.managers.beaconRoomMessages.createReturning(
+      (o) => o(
+        id: generateId('R'),
+        beaconId: beaconId,
+        authorId: Value(userId),
+        body: const Value(''),
+        semanticMarker: const Value(BeaconRoomSemanticMarker.participantLeft),
+        systemPayload: Value(<String, Object?>{
+          'leftUserId': userId,
+          'withdrawReason': withdrawReason,
+          if (trimmedNote.isNotEmpty) 'note': trimmedNote,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+    // Same pairing as a join: the activity log shows the leave, linked to
+    // the chat line it came with.
+    await _db.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.room,
+        type: BeaconActivityEventTypeBits.participantLeft,
+        actorId: Value(userId),
+        targetUserId: Value(userId),
+        sourceMessageId: Value(line.id),
+        diff: Value(<String, Object?>{
+          'leftUserId': userId,
+          'withdrawReason': withdrawReason,
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+  });
+
+  @override
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

@@ -19,6 +19,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
+    show withdrawReasonLabel;
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -226,6 +228,33 @@ class RoomMessageTile extends StatelessWidget {
     }
   }
 
+  /// `participantLeft` system payload (server contract, B084):
+  /// `leftUserId`, `withdrawReason` (key) and an optional `note`.
+  @visibleForTesting
+  static ({String leftUserId, String withdrawReason, String note})?
+  participantLeftPayload(RoomMessage m) {
+    if (m.semanticMarker != BeaconRoomSemanticMarker.participantLeft) {
+      return null;
+    }
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final leftUserId = decoded['leftUserId'];
+      if (leftUserId is! String || leftUserId.trim().isEmpty) return null;
+      final reason = decoded['withdrawReason'];
+      final note = decoded['note'];
+      return (
+        leftUserId: leftUserId.trim(),
+        withdrawReason: reason is String ? reason.trim() : '',
+        note: note is String ? note.trim() : '',
+      );
+    } on Object {
+      return null;
+    }
+  }
+
   static bool isFactEditOrUnpinLine(RoomMessage m) =>
       m.semanticMarker == BeaconRoomSemanticMarker.factEdited ||
       m.semanticMarker == BeaconRoomSemanticMarker.factUnpinned;
@@ -416,6 +445,8 @@ class RoomMessageTile extends StatelessWidget {
     BeaconRoomSemanticMarker.baton => l10n.beaconRoomSemanticBaton,
     BeaconRoomSemanticMarker.participantJoined =>
       l10n.beaconRoomSemanticParticipantJoined,
+    BeaconRoomSemanticMarker.participantLeft =>
+      l10n.beaconRoomSemanticParticipantLeft,
     _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
   };
 
@@ -678,6 +709,62 @@ class RoomMessageTile extends StatelessWidget {
           ),
         );
       }
+    }
+
+    final leftPayload = participantLeftPayload(message);
+    if (leftPayload != null) {
+      // The helper who left writes the line, so the author carries their
+      // name even when they are no longer in the participant list.
+      final name = message.authorId == leftPayload.leftUserId
+          ? SelfUserHighlight.displayName(l10n, message.author, myProfile.id)
+          : _participantDisplayName(
+              participants: participants,
+              userId: leftPayload.leftUserId,
+              viewer: myProfile,
+              l10n: l10n,
+            );
+      final reason =
+          withdrawReasonLabel(l10n, leftPayload.withdrawReason) ??
+          l10n.withdrawOther;
+      final line = leftPayload.note.isEmpty
+          ? l10n.beaconRoomParticipantLeft(name, reason)
+          : l10n.beaconRoomParticipantLeftWithNote(
+              name,
+              reason,
+              leftPayload.note,
+            );
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad / 2,
+          tt.screenHPadding,
+          bottomPad / 2,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_remove_outlined,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
+            SizedBox(width: tt.iconTextGap / 2),
+            Flexible(
+              child: Text(
+                line,
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                  height: 1.15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     if (isFactEditOrUnpinLine(message)) {
