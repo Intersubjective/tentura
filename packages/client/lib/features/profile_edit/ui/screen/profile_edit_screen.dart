@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:image_cropper/image_cropper.dart';
 
@@ -10,6 +9,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -245,10 +245,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                               maxLength: kUserHandleMaxLength,
                               buildCounter: tenturaCounterNearLimit,
                               keyboardType: TextInputType.text,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp('[a-z0-9_]'),
-                                ),
+                              inputFormatters: const [
+                                UserHandleInputFormatter(),
                               ],
                               style: tenturaFormFieldTextStyle(context),
                               onChanged: cubit.setHandle,
