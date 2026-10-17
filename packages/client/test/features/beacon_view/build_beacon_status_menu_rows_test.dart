@@ -282,6 +282,34 @@ void main() {
       expect(enough.isSelected, isFalse);
     });
 
+    test('with nobody committed they name the missing helper', () {
+      // Enough help stays disabled until someone commits (#384), so pointing
+      // at it would send the author to a step they cannot take.
+      final rows = buildBeaconStatusMenuRows(
+        _input(
+          beacon: _beacon(status: BeaconStatus.needsMoreHelp),
+          readiness: BeaconClosureReadiness.blocked,
+          closureBlockedOnlyByNeedsMoreHelp: true,
+        ),
+      );
+      final enough = _row(rows, BeaconStatusMenuRowId.enoughHelp);
+      expect(enough.isEnabled, isFalse);
+      expect(
+        enough.disabledReason,
+        BeaconStatusMenuDisabledReason.noHelpersYet,
+      );
+      for (final id in [
+        BeaconStatusMenuRowId.wrappingUp,
+        BeaconStatusMenuRowId.closed,
+      ]) {
+        expect(
+          _row(rows, id).disabledReason,
+          BeaconStatusMenuDisabledReason.noHelpersYet,
+          reason: '$id',
+        );
+      }
+    });
+
     test('needs more help plus a real blocker keeps the blocker hint', () {
       // Marking Enough help would not unblock closing here, so the sheet must
       // not point at it.
