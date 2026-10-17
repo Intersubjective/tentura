@@ -1029,6 +1029,10 @@
   "@chooseLocationSearchFailed": {
     "context": "ChooseLocationDialog"
   },
+  "chooseLocationSearchUnavailable": "Поиск адреса сейчас недоступен. Нажмите на карту, чтобы поставить метку.",
+  "@chooseLocationSearchUnavailable": {
+    "context": "ChooseLocationDialog"
+  },
   "goToEgo": "Перейти к Эго",
   "@goToEgo": {
     "context": "GraphScreen"

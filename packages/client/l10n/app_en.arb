@@ -1032,6 +1032,11 @@
   "@chooseLocationSearchFailed": {
     "context": "ChooseLocationDialog"
   },
+  "chooseLocationSearchUnavailable": "Address search isn’t available right now. Tap the map to drop a pin instead.",
+  "@chooseLocationSearchUnavailable": {
+    "context": "ChooseLocationDialog",
+    "description": "Shown when the address search service refuses the request (e.g. its key or billing); the map still takes a pin."
+  },
   "goToEgo": "Go to Ego",
   "@goToEgo": {
     "context": "GraphScreen"
