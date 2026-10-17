@@ -48,7 +48,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
         );
     _blockChangesSub = _blockCase.changes
         .where((event) => event.id == id)
-        .listen((_) => _scheduleSilentFetch(), cancelOnError: false);
+        .listen(_onBlockChanged, cancelOnError: false);
     unawaited(fetch());
   }
 
@@ -140,6 +140,34 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
           return;
         }
         emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
+      } else if (e is ProfileFetchException) {
+        // Not a transient failure: the server answered and no longer returns
+        // this profile (a block from either side or another session, or a
+        // deleted account). Keeping the loaded profile would leave trust and
+        // request actions the server now rejects (B056 review).
+        final blockedProfile = await _blockedProfileForFetchFailure(e);
+        if (isClosed || sequence != _fetchSequence) return;
+        if (blockedProfile != null) {
+          final current = state.profile;
+          final blocked = Profile(
+            id: _profileId,
+            displayName: blockedProfile.displayName.isNotEmpty
+                ? blockedProfile.displayName
+                : current.displayName,
+            image: blockedProfile.image ?? current.image,
+          );
+          emit(ProfileViewState(profile: blocked, blockedProfile: blocked));
+          return;
+        }
+        // Same state as opening a profile the server does not return.
+        _hasLoaded = false;
+        emit(
+          ProfileViewState(
+            profile: Profile(id: _profileId),
+            loadError: e,
+            status: const StateIsSuccess(),
+          ),
+        );
       } else {
         emit(state.copyWith(status: const StateIsSuccess()));
       }
@@ -160,6 +188,29 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
       return null;
     }
     return null;
+  }
+
+  /// Blocking this person (from this screen or elsewhere) switches to the
+  /// blocked state at once (B056). A silent refetch is not enough: the server
+  /// now hides the profile, and a failed refetch after the first load keeps
+  /// the old state, so trust and request actions stayed on screen.
+  void _onBlockChanged(RepositoryEvent<BlockIntent> event) {
+    if (isClosed) return;
+    if (event is RepositoryEventCreate<BlockIntent>) {
+      _refreshTimer?.cancel();
+      _fetchSequence++;
+      final current = state.profile;
+      final blocked = Profile(
+        id: _profileId,
+        displayName: current.displayName.isNotEmpty
+            ? current.displayName
+            : event.value.blocked.displayName,
+        image: current.image ?? event.value.blocked.image,
+      );
+      emit(ProfileViewState(profile: blocked, blockedProfile: blocked));
+      return;
+    }
+    _scheduleSilentFetch();
   }
 
   Future<void> unblockBlockedProfile() async {

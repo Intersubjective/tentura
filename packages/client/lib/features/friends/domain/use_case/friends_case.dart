@@ -5,10 +5,13 @@ import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
@@ -29,7 +32,8 @@ final class FriendsCase extends UseCaseBase {
     this._presence,
     this._contacts,
     this._auth,
-    this._realtime, {
+    this._realtime,
+    this._blockCase, {
     required super.env,
     required super.logger,
   });
@@ -42,6 +46,7 @@ final class FriendsCase extends UseCaseBase {
   final ContactsCase _contacts;
   final AuthCase _auth;
   final RealtimeSyncCase _realtime;
+  final BlockCase _blockCase;
 
   Stream<String> get accountChanges => _auth.currentAccountChanges();
 
@@ -51,6 +56,11 @@ final class FriendsCase extends UseCaseBase {
 
   Stream<void> get contactChanges => _contacts.changes;
 
+  /// Blocks and unblocks made on this device. A block keeps the trust row on
+  /// the server, so the list drops the person locally and refetches (B056).
+  /// Blocks from elsewhere arrive through [projectionChanges].
+  Stream<RepositoryEvent<BlockIntent>> get blockChanges => _blockCase.changes;
+
   Stream<void> get projectionChanges => MergeStream<void>([
     _realtime
         .changesFor(const {
@@ -59,6 +69,10 @@ final class FriendsCase extends UseCaseBase {
           RealtimeEntityKind.capability,
         })
         .map((_) {}),
+    // A block made by the other person, or from another session, has no
+    // local BlockCase event; the list query filters hidden people, so a
+    // refetch on the server's block marker is enough (B056 review).
+    _realtime.blockMarkers.map((_) {}),
     _realtime.catchUps.map((_) {}),
     _invitations.changes,
   ]);
