@@ -19,6 +19,7 @@ class InvitationCubit extends Cubit<InvitationState> {
   InvitationCubit({
     InvitationRepository? invitationRepository,
     UiEffectPort? effects,
+    Stream<void>? serverChanges,
   }) : _invitationRepository =
            invitationRepository ?? GetIt.I<InvitationRepository>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
@@ -26,6 +27,13 @@ class InvitationCubit extends Cubit<InvitationState> {
     _repoChanges = _invitationRepository.changes.listen((_) {
       unawaited(fetch());
     });
+    // Only the People screen passes server changes (FriendsCase
+    // .invitationServerChanges); other hosts, e.g. the forward picker, stay
+    // off realtime.
+    _serverChanges = serverChanges?.listen(
+      (_) => _scheduleSilentFetch(),
+      cancelOnError: false,
+    );
   }
 
   final InvitationRepository _invitationRepository;
@@ -40,18 +48,50 @@ class InvitationCubit extends Cubit<InvitationState> {
   }
 
   StreamSubscription<void>? _repoChanges;
+  StreamSubscription<void>? _serverChanges;
+  Timer? _refreshTimer;
+
+  static const _refreshDebounce = Duration(milliseconds: 100);
+
+  /// A background refetch is running. It does not emit `isLoading`, so the
+  /// People loading bar does not flash on every push.
+  bool _silentInFlight = false;
+
+  void _scheduleSilentFetch() {
+    if (isClosed) return;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(_refreshDebounce, () {
+      _refreshTimer = null;
+      if (isClosed) return;
+      // A load in progress may predate the change; try again after it.
+      if (state.isLoading || _silentInFlight) {
+        _scheduleSilentFetch();
+        return;
+      }
+      unawaited(fetch(showError: false));
+    });
+  }
 
   /// Reloads both segments' first page, plus the true pending count. Used
   /// for pull-to-refresh, initial load, and whenever the repository reports
   /// a local change (create/update/delete).
-  Future<void> fetch() async {
-    if (state.isLoading) {
+  ///
+  /// [showError] is false for background refetches: a failure there keeps
+  /// the visible lists without a snackbar.
+  Future<void> fetch({bool showError = true}) async {
+    if (state.isLoading || _silentInFlight) {
       return;
     }
 
     // Keep the current lists while loading — a failed refetch must not
-    // wipe what the user already sees (counts, list rows).
-    emit(state.copyWith(status: StateStatus.isLoading));
+    // wipe what the user already sees (counts, list rows). A background
+    // refetch shows no loading state and keeps the current status.
+    final silent = !showError;
+    if (silent) {
+      _silentInFlight = true;
+    } else {
+      emit(state.copyWith(status: StateStatus.isLoading));
+    }
 
     try {
       final result = await _invitationRepository.fetchMine();
@@ -70,7 +110,11 @@ class InvitationCubit extends Cubit<InvitationState> {
         ),
       );
     } catch (e) {
-      _emitSnackError(e);
+      // A silent failure leaves the state alone: no snackbar, and an earlier
+      // error state is not turned into an empty "success".
+      if (showError) _emitSnackError(e);
+    } finally {
+      if (silent) _silentInFlight = false;
     }
   }
 
@@ -120,6 +164,9 @@ class InvitationCubit extends Cubit<InvitationState> {
       emit(
         state.copyWith(
           acceptedInvitations: accepted,
+          // pending_count is computed on every call; the badge follows
+          // the latest server answer (#502: 2 on the server, badge 3).
+          pendingCount: result.pendingCount,
           acceptedHasReachedMax: result.accepted.length < kFetchListOffset,
           status: StateStatus.isSuccess,
         ),
@@ -197,7 +244,9 @@ class InvitationCubit extends Cubit<InvitationState> {
 
   @override
   Future<void> close() async {
+    _refreshTimer?.cancel();
     await _repoChanges?.cancel();
+    await _serverChanges?.cancel();
     return super.close();
   }
 }
