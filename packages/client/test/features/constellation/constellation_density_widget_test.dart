@@ -192,7 +192,7 @@ class _AbsenceProbeList extends StatelessWidget {
 void main() {
   group('Constellation density and filter widgets', () {
     testWidgets(
-      'filter sections: label gap is rowGap, unspecified in the Wrap',
+      'filter sections: label gap is rowGap, chips in the Wrap',
       (
         tester,
       ) async {
@@ -220,11 +220,11 @@ void main() {
         final rowGap = context.tt.rowGap;
         final l10n = L10n.of(context)!;
 
-        for (final (label, firstChip, unspecified) in [
+        for (final (label, firstChip, otherChip) in [
           (
             l10n.constellationFilterCapability,
+            'constellation.filter.capability.any',
             'constellation.filter.capability.tools',
-            'constellation.filter.capability.unspecified',
           ),
           (
             l10n.constellationFilterLocation,
@@ -250,7 +250,7 @@ void main() {
           expect(
             find.descendant(
               of: wrap.first,
-              matching: find.byKey(Key(unspecified)),
+              matching: find.byKey(Key(otherChip)),
             ),
             findsOneWidget,
             reason: label,
@@ -258,6 +258,48 @@ void main() {
         }
       },
     );
+
+    // #457: the capability chip that clears the filter was labelled
+    // "Unspecified" beside a separate "Include unspecified" switch, and the
+    // sheet ended in a developer note.
+    testWidgets('capability filters start with Any; no developer note', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        _baseField(
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+              needs: ['tools'],
+            ),
+          ],
+        ),
+      );
+      await _pumpHarness(tester, cubit: cubit, width: 390, textScale: 1);
+
+      final any = find.byKey(const Key('constellation.filter.capability.any'));
+      expect(
+        find.descendant(of: any, matching: find.text('Any')),
+        findsOneWidget,
+      );
+      final chips = tester
+          .widget<Wrap>(
+            find.ancestor(of: any, matching: find.byType(Wrap)).first,
+          )
+          .children;
+      expect(chips.first.key, const Key('constellation.filter.capability.any'));
+      expect(
+        find.byKey(const Key('constellation.filter.limitations')),
+        findsNothing,
+      );
+    });
 
     testWidgets(
       'compact and expanded layouts keep controls readable at text scales',

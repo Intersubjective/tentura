@@ -1486,10 +1486,6 @@
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
   },
-  "constellationFilterLimitations": "No effort filter. Location shows presence only—not remote eligibility.",
-  "@constellationFilterLimitations": {
-    "context": "ConstellationFilterBar"
-  },
   "constellationFiltersTitle": "Filters",
   "@constellationFiltersTitle": {
     "context": "ConstellationFilterSheet"
@@ -1501,6 +1497,11 @@
   "constellationFilterCapability": "Capability",
   "@constellationFilterCapability": {
     "context": "ConstellationFilterBar"
+  },
+  "constellationFilterCapabilityAny": "Any",
+  "@constellationFilterCapabilityAny": {
+    "context": "ConstellationFilterBar",
+    "description": "Capability filter chip that clears the capability filter (every capability)"
   },
   "constellationFilterLocation": "Location",
   "@constellationFilterLocation": {
