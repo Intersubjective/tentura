@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
+import 'package:tentura/domain/coordination/viewer_offer_accepted.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
@@ -22,6 +23,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
+import 'package:tentura/ui/widget/offer_accepted_event_subcard.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -162,6 +164,32 @@ class BeaconPeopleTabBody extends StatelessWidget {
 
     final isObserver = beacon.accessLevel == BeaconAccessLevel.observer;
 
+    // B077: the helper whose offer was accepted sees it here too, as the same
+    // dismissible event sub-card as on their Requests tab, by the same rule
+    // (isViewerOfferAccepted).
+    final myAcceptedOffer = state.isAuthorOrSteward
+        ? null
+        : state.helpOffers
+              .where(
+                (c) =>
+                    c.user.id == state.myProfile.id &&
+                    isViewerOfferAccepted(
+                      hasActiveOffer: !c.isWithdrawn,
+                      viewerAccessReasons: beacon.accessReasons,
+                    ),
+              )
+              .firstOrNull;
+    final offerAcceptedEvent = myAcceptedOffer == null
+        ? null
+        : OfferAcceptedEventSubcard(
+            beaconId: beacon.id,
+            viewerId: state.myProfile.id,
+            author: beacon.author,
+            acceptedAt: myAcceptedOffer.updatedAt,
+            requestTitle: beacon.title,
+            padding: EdgeInsets.only(bottom: context.tt.rowGap),
+          );
+
     if (isObserver) {
       final observerRows = activeHelpersFromAdmittedRoster(
         beacon: beacon,
@@ -175,6 +203,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ?offerAcceptedEvent,
           if (myOffer != null) ...[
             HelpOfferTile(
               helpOffer: myOffer,
@@ -520,6 +549,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        ?offerAcceptedEvent,
         AccordionExpansionGroup(
           accordionMode: false,
           child: AccordionExpansionTile(
