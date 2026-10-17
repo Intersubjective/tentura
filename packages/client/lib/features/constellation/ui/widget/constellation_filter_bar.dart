@@ -221,14 +221,6 @@ class ConstellationFilterBar extends StatelessWidget {
                 value: state.filterIncludeUnspecified,
                 onChanged: cubit.setFilterIncludeUnspecified,
               ),
-              SizedBox(height: tt.tightGap),
-              Text(
-                l10n.constellationFilterLimitations,
-                key: const Key('constellation.filter.limitations'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
             ],
           ),
         );
@@ -402,6 +394,14 @@ class _CapabilityFilters extends StatelessWidget {
           spacing: tt.tightGap,
           runSpacing: tt.tightGap,
           children: [
+            // No capability picked means every capability, like Location's
+            // "Any"; it was labelled "Unspecified" (#457).
+            FilterChip(
+              key: const Key('constellation.filter.capability.any'),
+              label: Text(l10n.constellationFilterCapabilityAny),
+              selected: selected.isEmpty,
+              onSelected: (_) => cubit.setFilterCapabilitySlugs(const {}),
+            ),
             for (final slug in slugs)
               FilterChip(
                 key: Key('constellation.filter.capability.$slug'),
@@ -415,12 +415,6 @@ class _CapabilityFilters extends StatelessWidget {
                   cubit.setFilterCapabilitySlugs(next);
                 },
               ),
-            FilterChip(
-              key: const Key('constellation.filter.capability.unspecified'),
-              label: Text(l10n.constellationUnspecifiedGroup),
-              selected: selected.isEmpty,
-              onSelected: (_) => cubit.setFilterCapabilitySlugs(const {}),
-            ),
           ],
         ),
       ],
