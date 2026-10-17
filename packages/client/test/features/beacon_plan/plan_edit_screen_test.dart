@@ -445,4 +445,33 @@ void main() {
       expect(activeFlashes(tester), hasLength(1));
     });
   });
+
+  // #445: a new step showed "Write what to do" before anything was typed.
+  group('new step sheet', () {
+    testWidgets('asks for a title only after the field was edited', (
+      tester,
+    ) async {
+      await _pump(tester);
+      final l10n = lookupL10n(const Locale('en'));
+
+      await tester.tap(find.byKey(PlanEditScreen.addKey));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.planValidationTitleRequired), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(PlanStepEditSheet.applyKey))
+            .onPressed,
+        isNull,
+      );
+
+      final title = find.byKey(PlanStepEditSheet.titleFieldKey);
+      await tester.enterText(title, 'x');
+      await tester.pump();
+      await tester.enterText(title, '');
+      await tester.pump();
+
+      expect(find.text(l10n.planValidationTitleRequired), findsOneWidget);
+    });
+  });
 }
