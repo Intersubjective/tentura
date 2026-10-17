@@ -10,6 +10,7 @@ class PollingVariantInput extends StatelessWidget {
     required this.onRemove,
     this.initialValue,
     this.labelText,
+    this.isDuplicate,
     super.key,
   });
 
@@ -20,6 +21,10 @@ class PollingVariantInput extends StatelessWidget {
   final void Function() onRemove;
 
   final void Function(String value) onChanged;
+
+  /// Whether `value` (trimmed) repeats another option of the same poll.
+  /// Option texts are unique per poll on the server.
+  final bool Function(String value)? isDuplicate;
 
   @override
   Widget build(BuildContext context) => TextFormField(
@@ -44,6 +49,9 @@ class PollingVariantInput extends StatelessWidget {
       if (value != null && value.isNotEmpty) {
         try {
           Polling.variantValidator(value);
+          if (isDuplicate?.call(value.trim()) ?? false) {
+            throw const PollingVariantsNotUniqueException();
+          }
         } on PollingInputExceptions catch (e) {
           return e.toL10n(L10n.of(context)!.localeName);
         }

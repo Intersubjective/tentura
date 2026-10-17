@@ -1571,14 +1571,19 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> createPoll({
+  /// Creates a poll; returns whether the server took it. On `false` the error
+  /// has already been shown and the caller keeps its draft (the sheet stays
+  /// open instead of throwing the question and options away). A duplicate
+  /// options refusal (code 1346) is rethrown as [PollDuplicateVariantException]
+  /// so the sheet can show its own localized message.
+  Future<bool> createPoll({
     required String question,
     required List<String> variants,
     String pollType = 'single',
     bool isAnonymous = true,
     bool allowRevote = true,
   }) async {
-    if (_rejectIfDiscussionReadOnly()) return;
+    if (_rejectIfDiscussionReadOnly()) return false;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.createPoll(
@@ -1589,16 +1594,22 @@ class RoomCubit extends Cubit<RoomState> {
         isAnonymous: isAnonymous,
         allowRevote: allowRevote,
       );
-      await markSeenNowIfNeeded();
-      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
-      await load();
     } on PollDuplicateVariantException {
       // The composer owns validation feedback and must remain open for editing.
       if (!isClosed) emit(state.copyWith(status: const StateIsSuccess()));
       rethrow;
     } on Object catch (e) {
       _showSnackError(e);
+      return false;
     }
+    try {
+      await markSeenNowIfNeeded();
+      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
+      await load();
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+    return true;
   }
 
   void _watchRoomPresence(List<BeaconParticipant> participants) {
