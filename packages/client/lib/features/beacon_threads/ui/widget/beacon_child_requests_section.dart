@@ -69,44 +69,48 @@ class BeaconChildRequestsSection extends StatelessWidget {
           BeaconCreateRoute(parentBeaconId: beaconState.beacon.id),
         );
 
+        final title = Text(
+          l10n.beaconChildRequestsTitle,
+          style: theme.textTheme.titleSmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(height: tt.sectionGap),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.beaconChildRequestsTitle,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            if (showCreate && wide)
+              // Title and button at their own widths; when both don't fit, the
+              // button moves under the title instead of being cut off (#465).
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: tt.iconTextGap,
+                runSpacing: tt.rowGap,
+                children: [
+                  title,
+                  BeaconHudActionButton(
+                    key: TestIds.key(TestIds.childRequestCreate),
+                    icon: Icons.add,
+                    label: l10n.beaconCreateChildRequest,
+                    onPressed: onCreateChild,
                   ),
-                ),
-                if (showCreate)
-                  if (wide)
-                    // Loose and end-aligned: inside a plain Flexible the button
-                    // started mid-row, floating between title and edge.
-                    Flexible(
-                      child: Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: BeaconHudActionButton(
-                          key: TestIds.key(TestIds.childRequestCreate),
-                          icon: Icons.add,
-                          label: l10n.beaconCreateChildRequest,
-                          onPressed: onCreateChild,
-                        ),
-                      ),
-                    )
-                  else
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(child: title),
+                  if (showCreate)
                     BeaconHudIconActionButton(
                       key: TestIds.key(TestIds.childRequestCreate),
                       icon: Icons.add,
                       tooltip: l10n.beaconCreateChildRequest,
                       onPressed: onCreateChild,
                     ),
-              ],
-            ),
+                ],
+              ),
             if (allEmpty)
               Padding(
                 padding: EdgeInsets.only(top: tt.rowGap),
