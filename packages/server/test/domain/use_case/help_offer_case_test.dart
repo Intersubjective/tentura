@@ -879,7 +879,6 @@ void main() {
               userId: 'U1',
               createdAt: now,
               updatedAt: now,
-              offerKind: 0,
             ),
           ],
         );
@@ -899,7 +898,6 @@ void main() {
             beaconId: 'B1',
             userId: 'U1',
             message: 'updated',
-            offerKind: 0,
           ),
         ).called(1);
       },
@@ -1026,7 +1024,7 @@ void main() {
 
       test('rejects when author blocked offerer', () async {
         stubBeacon(
-          beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
+          beacon(id: 'B1', status: BeaconStatus.open),
         );
         blocks.blockPair('Uauth', 'Uofferer');
 
@@ -1046,7 +1044,7 @@ void main() {
 
       test('rejects when offerer blocked author', () async {
         stubBeacon(
-          beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
+          beacon(id: 'B1', status: BeaconStatus.open),
         );
         blocks.blockPair('Uofferer', 'Uauth');
 
@@ -1068,7 +1066,7 @@ void main() {
           helpOfferRepo.hasActiveHelpOffer(beaconId: beaconId, userId: 'U1'),
         ).thenAnswer((_) async => false);
         when(
-          helpOfferRepo.upsert(beaconId: beaconId, userId: 'U1', offerKind: 0),
+          helpOfferRepo.upsert(beaconId: beaconId, userId: 'U1'),
         ).thenAnswer((_) async {});
 
         final mutation = MutationHelpOffer(helpOfferCase: case_);
@@ -1079,7 +1077,7 @@ void main() {
                 GraphQLObjectField(
                   '_health',
                   graphQLBoolean.nonNullable(),
-                  resolve: (_, __) => true,
+                  resolve: (_, _) => true,
                 ),
               ),
             mutationType: GraphQLObjectType('Mutation', 'Mutation root')
