@@ -23,11 +23,11 @@ final class MovedToInboxMessage extends LocalizableMessage {
 
   @override
   String get toEn =>
-      'Help offer withdrawn — the request is in Following (not in Needs me).';
+      "Offer withdrawn. You'll still get updates on it under Following.";
 
   @override
   String get toRu =>
-      'Предложение помощи отозвано — запрос во вкладке «Слежу», не в «Ждёт меня».';
+      'Предложение отозвано. Обновления по нему останутся во вкладке «Слежу».';
 }
 
 final class _ForwardActionLabel extends LocalizableMessage {

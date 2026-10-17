@@ -39,7 +39,7 @@ class _MockPresenceCubit extends Mock implements PresenceCubit {
       Stream<Map<String, UserPresenceStatus>>.value(state);
 }
 
-// Smallint statuses: 0 open, 5 reviewOpen (Wrapping up), 6 closed,
+// Smallint statuses: 0 open, 5 reviewOpen (Final check), 6 closed,
 // 8 enoughHelp.
 RoomMessage _statusLine({
   required int from,
@@ -96,7 +96,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Tab QA changed the status: Open → Enough help committed',
+        'Tab QA changed the status: Open → Enough help',
         findRichText: true,
       ),
       findsOneWidget,
@@ -113,7 +113,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Status changed: Wrapping up → Closed',
+        'Status changed: Final check → Closed',
         findRichText: true,
       ),
       findsOneWidget,

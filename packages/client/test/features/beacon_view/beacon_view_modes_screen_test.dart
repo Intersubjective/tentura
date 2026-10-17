@@ -43,7 +43,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Author'), findsOneWidget);
-    expect(find.text('IN ON IT'), findsOneWidget);
+    expect(find.text('HELPING'), findsOneWidget);
     expect(find.text('Nobody yet. Be the first'), findsOneWidget);
   });
 

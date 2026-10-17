@@ -76,7 +76,8 @@ void main() {
         effectPresentation:
             BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics,
         label: 'Close now',
-        effectLine: 'Closes request when all reviews are in',
+        effectLine:
+            'Closes the request when everyone has finished the final check',
       );
       await _pumpBlock(tester, spec);
 
@@ -110,7 +111,7 @@ void main() {
         action: BeaconHudAuthorAction.wrapUpForReview,
         effectPresentation: BeaconHudAuthorActEffectPresentation.mutedSubtitle,
         label: 'Wrap up for review',
-        effectLine: 'Starts review window; helpers can acknowledge',
+        effectLine: 'Starts the final check; helpers can acknowledge',
       );
       await _pumpBlock(tester, spec);
 
