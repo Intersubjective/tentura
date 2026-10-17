@@ -4667,6 +4667,7 @@
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",
   "beaconStatusHintCancelWrappingUp": "Запрос завершается",
   "beaconStatusHintBlocked": "Сначала устраните блокеры",
+  "beaconStatusHintMarkEnoughHelpFirst": "Сначала отметьте «Достаточно помощи»",
   "beaconStatusHintNotReadyToClose": "Пока рано закрывать",
   "beaconStatusHintAuthorOnly": "Только автор запроса может это изменить",
   "beaconStatusCancelTitle": "Отменить запрос?",

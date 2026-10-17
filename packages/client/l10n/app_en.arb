@@ -4794,6 +4794,10 @@
   "beaconStatusCancelHasCommitters": "Can't cancel — someone committed; close instead",
   "beaconStatusHintCancelWrappingUp": "Request is wrapping up",
   "beaconStatusHintBlocked": "Resolve open blockers first",
+  "beaconStatusHintMarkEnoughHelpFirst": "Mark “Enough help committed” first",
+  "@beaconStatusHintMarkEnoughHelpFirst": {
+    "description": "Status sheet hint on Wrapping up / Closed while the request is Needs more help (e.g. right after a reopen)"
+  },
   "beaconStatusHintNotReadyToClose": "Not ready to close yet",
   "beaconStatusHintAuthorOnly": "Only the request author can change this",
   "beaconStatusCancelTitle": "Cancel request?",

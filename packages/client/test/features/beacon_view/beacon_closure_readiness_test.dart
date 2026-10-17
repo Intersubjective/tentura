@@ -144,6 +144,27 @@ void main() {
       expect(computeClosureReadiness(s), BeaconClosureReadiness.blocked);
     });
 
+    test('needs more help is the only blocker unless another one exists', () {
+      // B081: the status sheet names «Mark Enough help» only in the first case.
+      final onlyStatus = _baseAuthorState(
+        beacon: _openBeacon(status: BeaconStatus.needsMoreHelp),
+      );
+      expect(closureBlockedOnlyByNeedsMoreHelp(onlyStatus), isTrue);
+
+      final withBlocker = _baseAuthorState(
+        beacon: _openBeacon(status: BeaconStatus.needsMoreHelp),
+        beaconRoomCue: BeaconRoomState(
+          beaconId: 'b1',
+          updatedAt: DateTime.utc(2025),
+          openBlockerTitle: 'Airline slot',
+        ),
+      );
+      expect(closureBlockedOnlyByNeedsMoreHelp(withBlocker), isFalse);
+      expect(hasClosureBlockingState(withBlocker), isTrue);
+
+      expect(closureBlockedOnlyByNeedsMoreHelp(_baseAuthorState()), isFalse);
+    });
+
     test('enough help alone does not yield readyToClose', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(

@@ -28,6 +28,7 @@ BeaconStatusMenuInput _input({
   bool canSetCoordination = true,
   ClosureMenuSnapshot? closure,
   bool? serverCanCancel,
+  bool closureBlockedOnlyByNeedsMoreHelp = false,
 }) =>
     BeaconStatusMenuInput(
       beacon: beacon ?? _beacon(),
@@ -37,6 +38,7 @@ BeaconStatusMenuInput _input({
       canSetCoordination: canSetCoordination,
       closure: closure,
       serverCanCancel: serverCanCancel,
+      closureBlockedOnlyByNeedsMoreHelp: closureBlockedOnlyByNeedsMoreHelp,
     );
 
 BeaconStatusMenuRow _row(
@@ -207,5 +209,77 @@ void main() {
       ),
     );
     expect(_row(rows, BeaconStatusMenuRowId.cancelled).isEnabled, isTrue);
+  });
+
+  group('after a reopen the request is "Needs more help" (B081)', () {
+    // A reopen lands the request in needsMoreHelp, which closure readiness
+    // counts as blocking. The sheet then said "Resolve open blockers first"
+    // for Wrapping up and Closed although nothing named a blocker.
+    List<BeaconStatusMenuRow> rowsAfterReopen() => buildBeaconStatusMenuRows(
+      _input(
+        beacon: _beacon(status: BeaconStatus.needsMoreHelp),
+        hasCommitters: true,
+        readiness: BeaconClosureReadiness.blocked,
+        closureBlockedOnlyByNeedsMoreHelp: true,
+      ),
+    );
+
+    test('wrapping up and closed point at Enough help, not at blockers', () {
+      final rows = rowsAfterReopen();
+      for (final id in [
+        BeaconStatusMenuRowId.wrappingUp,
+        BeaconStatusMenuRowId.closed,
+      ]) {
+        final row = _row(rows, id);
+        expect(row.isEnabled, isFalse, reason: '$id');
+        expect(
+          row.disabledReason,
+          BeaconStatusMenuDisabledReason.markEnoughHelpFirst,
+          reason: '$id',
+        );
+      }
+    });
+
+    test('the Enough help row that unblocks them is enabled', () {
+      final enough = _row(rowsAfterReopen(), BeaconStatusMenuRowId.enoughHelp);
+      expect(enough.isEnabled, isTrue);
+      expect(enough.isSelected, isFalse);
+    });
+
+    test('needs more help plus a real blocker keeps the blocker hint', () {
+      // Marking Enough help would not unblock closing here, so the sheet must
+      // not point at it.
+      final rows = buildBeaconStatusMenuRows(
+        _input(
+          beacon: _beacon(status: BeaconStatus.needsMoreHelp),
+          hasCommitters: true,
+          readiness: BeaconClosureReadiness.blocked,
+        ),
+      );
+      for (final id in [
+        BeaconStatusMenuRowId.wrappingUp,
+        BeaconStatusMenuRowId.closed,
+      ]) {
+        expect(
+          _row(rows, id).disabledReason,
+          BeaconStatusMenuDisabledReason.blocked,
+          reason: '$id',
+        );
+      }
+    });
+
+    test('a real blocker on an open request keeps the blocker hint', () {
+      final rows = buildBeaconStatusMenuRows(
+        _input(
+          beacon: _beacon(status: BeaconStatus.enoughHelp),
+          hasCommitters: true,
+          readiness: BeaconClosureReadiness.blocked,
+        ),
+      );
+      expect(
+        _row(rows, BeaconStatusMenuRowId.wrappingUp).disabledReason,
+        BeaconStatusMenuDisabledReason.blocked,
+      );
+    });
   });
 }

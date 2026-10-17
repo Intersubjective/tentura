@@ -168,15 +168,20 @@ bool allRelevantHelpOffersSettled(BeaconViewState state) {
   return relevant.every((c) => helpOfferRowSettled(c, state));
 }
 
-bool hasClosureBlockingState(BeaconViewState state) {
+bool hasClosureBlockingState(BeaconViewState state) =>
+    state.beacon.status == BeaconStatus.needsMoreHelp ||
+    _hasClosureBlockerOtherThanStatus(state);
+
+/// «Needs more help» blocks closing and nothing else does: marking «Enough
+/// help» is then the one step that unblocks Wrapping up / Closed (B081).
+bool closureBlockedOnlyByNeedsMoreHelp(BeaconViewState state) =>
+    state.beacon.status == BeaconStatus.needsMoreHelp &&
+    !_hasClosureBlockerOtherThanStatus(state);
+
+bool _hasClosureBlockerOtherThanStatus(BeaconViewState state) {
   if (_hasOpenBlocker(state)) return true;
 
   if (_authorParticipantNeedsInfo(state)) return true;
-
-  if (state.beacon.status ==
-      BeaconStatus.needsMoreHelp) {
-    return true;
-  }
 
   final authorId = state.beacon.author.id;
   for (final c in relevantHelpOffers(state)) {
