@@ -106,7 +106,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );
-  } else if (input.hasOpenRoomAsks || beacon.helpOfferCount > 0) {
+  } else if (input.hasOpenRoomAsks || beacon.admittedHelperCount > 0) {
     shared = BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
@@ -117,7 +117,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
   } else {
     shared = BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.lookingForHelpers,
-      slot2Kind: BeaconPhaseSlot2Kind.noOffersYet,
+      slot2Kind: _lookingSlot2(beacon),
       suggestedAction: BeaconPhasePrimaryAction.forward,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
@@ -165,7 +165,7 @@ BeaconCoordinationPhaseResult _derivePublicTier(
       lastActivityAt: activityAt,
     );
   }
-  if (beacon.helpOfferCount > 0) {
+  if (beacon.admittedHelperCount > 0) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
@@ -176,12 +176,18 @@ BeaconCoordinationPhaseResult _derivePublicTier(
 
   return BeaconCoordinationPhaseResult(
     phase: BeaconCoordinationPhase.lookingForHelpers,
-    slot2Kind: BeaconPhaseSlot2Kind.noOffersYet,
+    slot2Kind: _lookingSlot2(beacon),
     suggestedAction: BeaconPhasePrimaryAction.offerHelp,
     rowHarmony: BeaconPhaseRowHarmony.empty,
     lastActivityAt: activityAt,
   );
 }
+
+/// "Coordinating" starts with the first accepted (admitted) helper, not the
+/// first offer (B075); an offer only retires the "no offers yet" cue.
+BeaconPhaseSlot2Kind _lookingSlot2(Beacon beacon) => beacon.helpOfferCount > 0
+    ? BeaconPhaseSlot2Kind.freshness
+    : BeaconPhaseSlot2Kind.noOffersYet;
 
 DateTime? _activityAt(BeaconCoordinationPhaseInput input) {
   return input.lastActivityAt ?? input.beacon.updatedAt;

@@ -45,6 +45,7 @@ class BeaconDisplayStatusInput {
     required this.status,
     required this.tier,
     this.helpOfferCount = 0,
+    this.admittedHelperCount = 0,
     this.hasOpenBlocker = false,
     this.hasUnreviewedOffers = false,
     this.hasOpenRoomAsks = false,
@@ -55,7 +56,13 @@ class BeaconDisplayStatusInput {
 
   final BeaconStatus status;
   final BeaconDisplayTier tier;
+  /// Active help offers (any review state). An offer alone is not a team:
+  /// it only changes the "no offers yet" cue, never the phase.
   final int helpOfferCount;
+
+  /// Admitted (accepted) helpers, author excluded. "Coordinating" starts with
+  /// the first one (B075).
+  final int admittedHelperCount;
   final bool hasOpenBlocker;
   final bool hasUnreviewedOffers;
   final bool hasOpenRoomAsks;
@@ -159,7 +166,7 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
       suggestedAction: BeaconDisplayPrimaryAction.none,
       lastActivityAt: activityAt,
     );
-  } else if (input.hasOpenRoomAsks || input.helpOfferCount > 0) {
+  } else if (input.hasOpenRoomAsks || input.admittedHelperCount > 0) {
     shared = BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.coordinating,
       slot2Kind: BeaconDisplaySlot2Kind.freshness,
@@ -169,7 +176,7 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
   } else {
     shared = BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.lookingForHelpers,
-      slot2Kind: BeaconDisplaySlot2Kind.noOffersYet,
+      slot2Kind: _lookingSlot2(input),
       suggestedAction: BeaconDisplayPrimaryAction.forward,
       lastActivityAt: activityAt,
     );
@@ -212,7 +219,7 @@ BeaconDisplayStatusResult _derivePublic(BeaconDisplayStatusInput input) {
       lastActivityAt: activityAt,
     );
   }
-  if (input.helpOfferCount > 0) {
+  if (input.admittedHelperCount > 0) {
     return BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.coordinating,
       suggestedAction: BeaconDisplayPrimaryAction.offerHelp,
@@ -222,11 +229,16 @@ BeaconDisplayStatusResult _derivePublic(BeaconDisplayStatusInput input) {
 
   return BeaconDisplayStatusResult(
     phase: BeaconDisplayPhase.lookingForHelpers,
-    slot2Kind: BeaconDisplaySlot2Kind.noOffersYet,
+    slot2Kind: _lookingSlot2(input),
     suggestedAction: BeaconDisplayPrimaryAction.offerHelp,
     lastActivityAt: activityAt,
   );
 }
+
+BeaconDisplaySlot2Kind _lookingSlot2(BeaconDisplayStatusInput input) =>
+    input.helpOfferCount > 0
+        ? BeaconDisplaySlot2Kind.freshness
+        : BeaconDisplaySlot2Kind.noOffersYet;
 
 BeaconDisplaySlot2Kind _reviewSlot2(BeaconDisplayStatusInput input) {
   final closesAt = input.reviewClosesAt;
