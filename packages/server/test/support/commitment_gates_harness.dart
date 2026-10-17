@@ -87,6 +87,7 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
     if (existing == null) return;
     _offers[_key(beaconId, userId)] = existing.copyWith(
       status: 1,
+      withdrawReason: withdrawReason,
       updatedAt: _clock(),
     );
   }
@@ -100,6 +101,20 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
     final existing = _offers[key];
     if (existing != null) {
       _offers[key] = existing.copyWith(status: 1, updatedAt: _clock());
+    }
+  }
+
+  @override
+  Future<void> reactivate({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final key = _key(beaconId, userId);
+    final existing = _offers[key];
+    if (existing != null &&
+        existing.status == 1 &&
+        existing.withdrawReason == null) {
+      _offers[key] = existing.copyWith(status: 0, updatedAt: _clock());
     }
   }
 
@@ -611,6 +626,50 @@ final class CommitmentGatesHarness {
     inviteToRoom: inviteToRoom,
     removeFromRoom: false,
   );
+
+  /// Author removes an admitted helper from the room.
+  Future<void> removeFromRoom({String userId = ''}) async {
+    final uid = userId.isEmpty ? helperId : userId;
+    when(
+      _roomRepo.findParticipant(beaconId: beaconId, userId: uid),
+    ).thenAnswer(
+      // testBeaconParticipant defaults to admitted.
+      (_) async => testBeaconParticipant(beaconId: beaconId, userId: uid),
+    );
+    when(
+      _coordinationRepo.removeFromRoom(
+        beaconId: anyNamed('beaconId'),
+        offerUserId: anyNamed('offerUserId'),
+        actorUserId: anyNamed('actorUserId'),
+        reason: anyNamed('reason'),
+      ),
+    ).thenAnswer(
+      (_) async => (
+        status: beaconRepo.beacon.status,
+        statusChangedAt: commitmentRepo.clock,
+      ),
+    );
+    await coordinationCase.removeFromRoom(
+      beaconId: beaconId,
+      offerUserId: uid,
+      actorUserId: authorId,
+      reason: 'not now',
+    );
+    // Out of the room again, as the real repository leaves them.
+    when(
+      _roomRepo.findParticipant(beaconId: beaconId, userId: uid),
+    ).thenAnswer(
+      (_) async => testBeaconParticipant(
+        beaconId: beaconId,
+        userId: uid,
+        roomAccess: RoomAccessBits.none,
+      ),
+    );
+  }
+
+  /// Active (counted) offers on the beacon.
+  Future<int> activeOfferCount() async =>
+      (await helpOfferRepo.fetchByBeaconId(beaconId)).length;
 
   Future<void> declineOffer({String userId = ''}) =>
       coordinationCase.declineHelpOffer(
