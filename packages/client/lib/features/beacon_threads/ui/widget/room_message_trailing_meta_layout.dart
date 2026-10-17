@@ -28,10 +28,14 @@ class TrailingMetaMetrics {
   final double verticalTuckGap;
 }
 
+/// Whether the timestamp sits on the text's last line. Images, files and polls
+/// render below the text, so a message with any of them keeps the timestamp in
+/// the footer under them (#478).
 bool shouldUseInlineTrailingMeta({
   required bool hasDisplayText,
+  required bool hasMediaOrPoll,
   required Map<String, int> reactionCounts,
-}) => hasDisplayText && reactionCounts.isEmpty;
+}) => hasDisplayText && !hasMediaOrPoll && reactionCounts.isEmpty;
 
 bool shouldHugBubbleWidth({
   required bool hasMediaOrPoll,

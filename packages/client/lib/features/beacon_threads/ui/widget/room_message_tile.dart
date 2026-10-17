@@ -948,14 +948,15 @@ class RoomMessageTile extends StatelessWidget {
             ),
             style: theme.textTheme.labelSmall,
           );
-    final useInlineMeta = shouldUseInlineTrailingMeta(
-      hasDisplayText: display.isNotEmpty,
-      reactionCounts: message.reactionCounts,
-    );
     final hasMediaOrPoll =
         imageAttachments.isNotEmpty ||
         fileAttachments.isNotEmpty ||
         message.linkedPollingId != null;
+    final useInlineMeta = shouldUseInlineTrailingMeta(
+      hasDisplayText: display.isNotEmpty,
+      hasMediaOrPoll: hasMediaOrPoll,
+      reactionCounts: message.reactionCounts,
+    );
     double? mediaContentWidth;
     for (final attachment in imageAttachments) {
       if (attachment.width > 0 &&
