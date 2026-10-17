@@ -14,6 +14,8 @@ const API_BASE =
   (typeof window !== 'undefined' && (window.TENTURA || {}).apiBase) || '';
 
 const DONE_KEY = 'tentura_post_signup_done';
+/** Per tab session: the account whose name step is behind it (holds its id). */
+const NAME_DONE_KEY = 'tentura_post_signup_name_done';
 
 export const ONBOARDING_PAGES = [
   {
@@ -85,6 +87,27 @@ export function markOnboardingDone(storage) {
     storage.setItem(DONE_KEY, '1');
   } catch {
     /* storage blocked — flow still works, may replay on reload */
+  }
+}
+
+/**
+ * Reload, or browser Back then Forward, reopens `?signed_in=1&new=1`; once
+ * this account's name was saved or skipped, the flow resumes at the pager
+ * instead of showing the saved name in the name form again (#522).
+ */
+export function isNameStepDone(storage, accountId) {
+  try {
+    return accountId != null && storage.getItem(NAME_DONE_KEY) === accountId;
+  } catch {
+    return false;
+  }
+}
+
+export function markNameStepDone(storage, accountId) {
+  try {
+    storage.setItem(NAME_DONE_KEY, accountId);
+  } catch {
+    /* storage blocked — a reload shows the name step again */
   }
 }
 
@@ -183,13 +206,13 @@ export function renderPostSignup({
         track,
         openProductUrl,
         storage,
-        onBackFromFirstPage: () => showName({ revisit: true }),
       }),
     );
   };
 
   const finish = (savedName) => {
     if (typeof savedName === 'string') currentName = savedName;
+    markNameStepDone(storage, profile.id);
     if (nameOnly) {
       markOnboardingDone(storage);
       card.replaceChildren(
@@ -200,18 +223,13 @@ export function renderPostSignup({
     showPager();
   };
 
-  const showName = ({ revisit = false } = {}) => {
-    const { root, input } = renderNameStep({
-      prefill: currentName,
-      revisit,
-      track,
-      onDone: finish,
-    });
-    card.replaceChildren(root);
-    if (revisit) input.focus();
-  };
-
-  showName();
+  if (!nameOnly && isNameStepDone(storage, profile.id)) {
+    showPager();
+    return;
+  }
+  card.replaceChildren(
+    renderNameStep({ prefill: currentName, track, onDone: finish }),
+  );
 }
 
 function renderOpenAppPrompt({ openProductUrl, track, storage }) {
@@ -233,7 +251,7 @@ function renderOpenAppPrompt({ openProductUrl, track, storage }) {
   );
 }
 
-function renderNameStep({ prefill, track, onDone, revisit = false }) {
+function renderNameStep({ prefill, track, onDone }) {
   track('signup_name_view');
 
   const input = el('input', {
@@ -245,6 +263,7 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
     maxlength: '32',
     autocomplete: 'off',
     'data-lpignore': 'true',
+    'aria-describedby': 'display-name-hint',
   });
   const errorEl = el('p', { class: 'error', role: 'alert' });
   const submit = el(
@@ -258,9 +277,7 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
     errorEl.textContent = '';
     const name = input.value.trim();
     if (name === prefill || name.length === 0) {
-      // Revisit: unchanged continue must not emit signup_name_skipped after a
-      // prior signup_name_saved (would corrupt the name funnel).
-      if (!revisit) track('signup_name_skipped', { reason: 'unchanged' });
+      track('signup_name_skipped', { reason: 'unchanged' });
       onDone();
       return;
     }
@@ -278,7 +295,19 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
     }
   };
 
-  const children = [
+  const skip = el(
+    'button',
+    { class: 'hint hint-link', type: 'button' },
+    'Skip for now',
+  );
+  skip.addEventListener('click', () => {
+    track('signup_name_skipped', { reason: 'skip' });
+    onDone();
+  });
+
+  return el(
+    'div',
+    { class: 'content' },
     el('p', { class: 'eyebrow' }, 'Account created'),
     el('h1', {}, 'Welcome to Tentura'),
     el('p', {}, 'What should people call you?'),
@@ -287,32 +316,19 @@ function renderNameStep({ prefill, track, onDone, revisit = false }) {
       { class: 'signup-form', onsubmit: onSubmit, autocomplete: 'off' },
       el('label', { class: 'field-label', for: 'display-name' }, 'Your name'),
       input,
+      el(
+        'p',
+        { class: 'hint name-change-hint', id: 'display-name-hint' },
+        'You can change your name any time in Profile.',
+      ),
       submit,
       errorEl,
     ),
-  ];
-  if (!revisit) {
-    const skip = el(
-      'button',
-      { class: 'hint hint-link', type: 'button' },
-      'Skip for now',
-    );
-    skip.addEventListener('click', () => {
-      track('signup_name_skipped', { reason: 'skip' });
-      onDone();
-    });
-    children.push(skip);
-  }
-
-  return { root: el('div', { class: 'content' }, ...children), input };
+    skip,
+  );
 }
 
-function renderOnboardingPager({
-  track,
-  openProductUrl,
-  storage,
-  onBackFromFirstPage,
-}) {
+function renderOnboardingPager({ track, openProductUrl, storage }) {
   let page = 0;
 
   const title = el('h1', {});
@@ -348,6 +364,7 @@ function renderOnboardingPager({
   });
 
   const show = (index) => {
+    const focused = globalThis.document?.activeElement;
     // Clamp: defense against a stray click on a control that should be
     // hidden — never step past the last page.
     page = Math.max(0, Math.min(index, ONBOARDING_PAGES.length - 1));
@@ -361,20 +378,21 @@ function renderOnboardingPager({
       ),
     );
     const isLast = page === ONBOARDING_PAGES.length - 1;
+    // U085: the name is already saved, and the name step says it can be
+    // changed in Profile — so step 1 has nothing to go back to.
+    back.hidden = page === 0;
     next.hidden = isLast;
     next.textContent = 'Next';
     openApp.hidden = !isLast;
+    // Hiding the focused control drops focus to <body>; keep keyboard and
+    // screen-reader users on the step's forward control instead.
+    if ((focused === back && back.hidden) || (focused === next && next.hidden)) {
+      (isLast ? openApp : next).focus();
+    }
     track('onboarding_view', { page: page + 1 });
   };
 
-  back.addEventListener('click', () => {
-    if (page === 0) {
-      track('onboarding_back', { page: 1 });
-      onBackFromFirstPage();
-      return;
-    }
-    show(page - 1);
-  });
+  back.addEventListener('click', () => show(page - 1));
   next.addEventListener('click', () => show(page + 1));
   show(0);
 
