@@ -20,6 +20,5 @@ bool beaconAllowsCancel(
     serverCanCancel ??
     (beacon.status == BeaconStatus.open && beacon.helpOfferCount == 0);
 
-/// Mirrors the server's edit gate (open-family or wrapping-up review window).
-bool beaconAllowsEdit(Beacon beacon) =>
-    beacon.status.isOpenFamily || beacon.status == BeaconStatus.reviewOpen;
+/// See [BeaconStatus.allowsEdit] (shared with the server's edit gate).
+bool beaconAllowsEdit(Beacon beacon) => beacon.status.allowsEdit;

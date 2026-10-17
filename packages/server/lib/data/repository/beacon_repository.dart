@@ -524,7 +524,7 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     }
 
     final current = BeaconStatus.fromSmallint(row.status);
-    if (!current.isOpenFamily && current != BeaconStatus.reviewOpen) {
+    if (!current.allowsEdit) {
       throw const BeaconCreateException(
         description: 'Only open or wrapping-up requests can be edited',
       );

@@ -47,3 +47,14 @@ final class RequestMadeLiveMessage extends LocalizableMessage {
   @override
   String get toRu => 'Запрос запущен';
 }
+
+/// The request was closed, cancelled or deleted, so it cannot be edited.
+final class BeaconNotEditableMessage extends LocalizableMessage {
+  const BeaconNotEditableMessage();
+
+  @override
+  String get toEn => 'This request can no longer be edited';
+
+  @override
+  String get toRu => 'Этот запрос больше нельзя редактировать';
+}
