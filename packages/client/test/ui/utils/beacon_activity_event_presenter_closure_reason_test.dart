@@ -82,4 +82,34 @@ void main() {
       );
     });
   });
+
+  // #347: a status change to "More or different help needed" (and "Enough
+  // help committed") showed in the Log as "Closed".
+  group('coordination status changes are named, not "Closed"', () {
+    test('needsMoreHelp', () {
+      final e = _lifecycleEvent(BeaconLifecycleChangeReason.needsMoreHelp);
+      expect(
+        beaconActivityEventLabel(l10n, e),
+        l10n.coordinationMoreHelpNeeded,
+      );
+      expect(beaconActivityLogIcon(e), isNot(Icons.flag_circle_outlined));
+    });
+
+    test('enoughHelp', () {
+      final e = _lifecycleEvent(BeaconLifecycleChangeReason.enoughHelp);
+      expect(beaconActivityEventLabel(l10n, e), l10n.coordinationEnoughHelp);
+      expect(beaconActivityLogIcon(e), Icons.check_circle_outline);
+    });
+
+    test('neutralOpen', () {
+      final e = _lifecycleEvent(BeaconLifecycleChangeReason.neutralOpen);
+      expect(beaconActivityEventLabel(l10n, e), l10n.beaconLifecycleOpen);
+      expect(beaconActivityLogIcon(e), isNot(Icons.flag_circle_outlined));
+    });
+
+    test('deleted', () {
+      final e = _lifecycleEvent(BeaconLifecycleChangeReason.deleted);
+      expect(beaconActivityEventLabel(l10n, e), l10n.beaconLifecycleDeleted);
+    });
+  });
 }
