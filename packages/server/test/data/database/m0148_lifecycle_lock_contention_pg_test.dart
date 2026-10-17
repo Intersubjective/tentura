@@ -32,8 +32,14 @@ import '../../support/disposable_pg_target.dart';
 const _m0148TestFile =
     'test/data/database/m0148_user_availability_migration_test.dart';
 
-/// Longer than the package-default 30 s test timeout.
-const _lockHold = Duration(seconds: 40);
+/// The inner run's default test timeout. The regression is "a test body
+/// inherits the default timeout and dies while the lock is busy"; any default
+/// shorter than [_lockHold] reproduces it, so the inner run gets a short one
+/// instead of this test sitting out the real 30 s default.
+const _innerDefaultTimeout = '5s';
+
+/// Longer than [_innerDefaultTimeout].
+const _lockHold = Duration(seconds: 8);
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -102,7 +108,16 @@ WHERE l.locktype = 'advisory'
 
         inner = await Process.start(
           Platform.resolvedExecutable,
-          ['test', _m0148TestFile, '--tags', 'pg', '-r', 'expanded'],
+          [
+            'test',
+            _m0148TestFile,
+            '--tags',
+            'pg',
+            '--timeout',
+            _innerDefaultTimeout,
+            '-r',
+            'expanded',
+          ],
           workingDirectory: Directory.current.path,
         );
         unawaited(
@@ -132,8 +147,9 @@ WHERE l.locktype = 'advisory'
         0,
         reason:
             'm0148 test file failed while the disposable-pg lifecycle lock '
-            'was busy for ${_lockHold.inSeconds}s (default test timeout is '
-            '30s).\nstdout:\n$stdoutBuffer\nstderr:\n$stderrBuffer',
+            'was busy for ${_lockHold.inSeconds}s (inner default test timeout '
+            '$_innerDefaultTimeout).\nstdout:\n$stdoutBuffer\nstderr:\n'
+            '$stderrBuffer',
       );
     },
     skip: skipReason,
