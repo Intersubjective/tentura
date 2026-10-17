@@ -67,3 +67,6 @@ packages/client/test/**/failures/
 
 # Local landing dev config (synced from .env)
 packages/landing/config.local.js
+
+# CI-only test bundles (scripts/gen_test_bundles.py)
+packages/*/test/_bundle/
