@@ -52,7 +52,9 @@ class _MediaBeaconRepo extends Fake implements BeaconRepositoryPort {
         })
       >[];
   final setCoverCalls =
-      <({String beaconId, String? coverImageId, BeaconCoverSource coverSource})>[];
+      <
+        ({String beaconId, String? coverImageId, BeaconCoverSource coverSource})
+      >[];
 
   List<String> replaceMediaReturns = const [];
 
@@ -84,7 +86,11 @@ class _MediaBeaconRepo extends Fake implements BeaconRepositoryPort {
     required String imageId,
     required int position,
   }) async {
-    addImageCalls.add((beaconId: beaconId, imageId: imageId, position: position));
+    addImageCalls.add((
+      beaconId: beaconId,
+      imageId: imageId,
+      position: position,
+    ));
   }
 
   @override
@@ -243,7 +249,16 @@ void main() {
     test('rejects at the cap and compensates the upload', () async {
       beaconRepo.snapshot = const BeaconMediaSnapshot(
         attachedImageIds: [
-          'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'I10',
+          'I1',
+          'I2',
+          'I3',
+          'I4',
+          'I5',
+          'I6',
+          'I7',
+          'I8',
+          'I9',
+          'I10',
         ],
         stagedImageIds: {},
       );
@@ -328,7 +343,16 @@ void main() {
       beaconRepo.snapshot = const BeaconMediaSnapshot(
         attachedImageIds: [],
         stagedImageIds: {
-          'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'I10',
+          'I1',
+          'I2',
+          'I3',
+          'I4',
+          'I5',
+          'I6',
+          'I7',
+          'I8',
+          'I9',
+          'I10',
         },
       );
       imageRepo.ownedIds = ['Inew'];
@@ -595,6 +619,43 @@ void main() {
         ]);
         expect(imageRepo.deletedOwnedRows, [
           (authorId: 'Uauth', imageId: 'I2'),
+        ]);
+      },
+    );
+
+    // B006: the cropped card thumbnail is staged like a gallery image but is
+    // not part of `imageIds`. replaceMedia reported its stage as discarded,
+    // and this loop then garbage-collected the image row that had just become
+    // the cover thumbnail, so every later save failed with 1306.
+    test(
+      'a staged cover thumbnail is promoted, never garbage-collected',
+      () async {
+        beaconRepo.locked = beacon(
+          images: [ImageEntity(id: 'I1', authorId: 'Uauth', createdAt: now)],
+        ).copyWith(coverImageId: 'I1');
+        beaconRepo.snapshot = const BeaconMediaSnapshot(
+          attachedImageIds: ['I1'],
+          stagedImageIds: {'Ithumb', 'Istale'},
+        );
+        // What the Postgres repository returned before the fix.
+        beaconRepo.replaceMediaReturns = ['Ithumb', 'Istale'];
+
+        await case_.beaconSetMedia(
+          beaconId: 'B1',
+          userId: 'Uauth',
+          imageIds: const ['I1'],
+          coverImageId: 'I1',
+          coverSource: 0,
+          coverThumbImageId: 'Ithumb',
+          coverThumbImageIdPresent: true,
+        );
+
+        expect(beaconRepo.replaceMediaCalls.single.coverThumbImageId, 'Ithumb');
+        expect(imageObjectGc.enqueued, [
+          (authorId: 'Uauth', imageId: 'Istale'),
+        ]);
+        expect(imageRepo.deletedOwnedRows, [
+          (authorId: 'Uauth', imageId: 'Istale'),
         ]);
       },
     );

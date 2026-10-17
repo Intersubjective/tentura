@@ -1020,7 +1020,12 @@ WHERE user_id = $1 AND created_at >= $2
 
     final desired = imageIds.toSet();
     final toDetach = currentAttachedIds.difference(desired);
-    final toDiscardStage = currentStagedIds.difference(desired);
+    // A staged cover thumbnail is promoted below, not discarded: the caller
+    // garbage-collects every id returned here (B006).
+    final toDiscardStage = currentStagedIds.difference({
+      ...desired,
+      ?coverThumbImageId,
+    });
 
     for (final imageId in toDetach) {
       await _database.managers.beaconImages
