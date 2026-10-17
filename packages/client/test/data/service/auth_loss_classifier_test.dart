@@ -324,4 +324,27 @@ void main() {
       expect(mapRemoteFailure(original), same(original));
     });
   });
+
+  group('isRemoteRefusal', () {
+    test('a GraphQL error the server answered with is a refusal', () {
+      final mapped = mapRemoteFailure([
+        const GraphQLError(message: 'Only a helper with an offer'),
+      ]);
+      expect(isRemoteRefusal(mapped), isTrue);
+    });
+
+    test('a status without a GraphQL body or a bad body is not', () {
+      final status = mapRemoteFailure(
+        const ServerException(statusCode: 503),
+      );
+      final malformed = mapRemoteFailure(
+        const ResponseFormatException(originalException: 'not json'),
+      );
+      expect(status, isA<RemoteApiException>());
+      expect(isRemoteRefusal(status), isFalse);
+      expect(malformed, isA<RemoteApiException>());
+      expect(isRemoteRefusal(malformed), isFalse);
+      expect(isRemoteRefusal(const ConnectionUplinkException()), isFalse);
+    });
+  });
 }

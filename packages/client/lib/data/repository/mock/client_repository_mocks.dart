@@ -8,6 +8,7 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
 
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
@@ -144,6 +145,19 @@ class SettingsRepositoryMock extends Mock implements SettingsRepositoryPort {}
 
 @Injectable(as: AttentionRepositoryPort, env: [Environment.test], order: 1)
 class AttentionRepositoryMock extends Mock implements AttentionRepositoryPort {}
+
+@Injectable(as: OfferAcceptedDismissalPort, env: [Environment.test], order: 1)
+class OfferAcceptedDismissalRepositoryMock extends Mock
+    implements OfferAcceptedDismissalPort {
+  @override
+  Future<Set<String>> load({required String viewerId}) async => const {};
+
+  @override
+  Future<Set<String>> dismiss({
+    required String viewerId,
+    required String beaconId,
+  }) async => {beaconId};
+}
 
 @Injectable(as: MutualFriendsRepository, env: [Environment.test], order: 1)
 class MutualFriendsRepositoryMock extends Mock

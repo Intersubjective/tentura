@@ -49,13 +49,26 @@ class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {
 }
 
 final class _RecordingPort implements OfferAcceptedDismissalPort {
+  /// `viewerId:beaconId` keys, as the server would hold them per account.
   Set<String> stored = {};
 
   @override
-  Future<Set<String>> load() async => {...stored};
+  Future<Set<String>> load({required String viewerId}) async => {
+    for (final k in stored)
+      if (k.startsWith('$viewerId:')) k.substring(viewerId.length + 1),
+  };
 
   @override
-  Future<void> save(Set<String> keys) async => stored = {...keys};
+  Future<Set<String>> dismiss({
+    required String viewerId,
+    required String beaconId,
+  }) async {
+    stored = {
+      ...stored,
+      OfferAcceptedDismissals.keyFor(viewerId: viewerId, beaconId: beaconId),
+    };
+    return load(viewerId: viewerId);
+  }
 }
 
 BeaconViewState _state({int? roomAccess, CoordinationResponseType? response}) =>
@@ -119,7 +132,6 @@ void main() {
   setUp(() async {
     port = _RecordingPort();
     final store = OfferAcceptedDismissals(port);
-    await store.ready;
     GetIt.I.registerSingleton<OfferAcceptedDismissals>(store);
   });
 

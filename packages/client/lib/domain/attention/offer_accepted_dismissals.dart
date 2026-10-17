@@ -4,37 +4,55 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
-/// Where the dismissed «offer accepted» sub-cards are kept between sessions.
+/// Where the dismissed «offer accepted» sub-cards are kept: per account on
+/// the server (B077b), so every device of the account agrees.
 abstract interface class OfferAcceptedDismissalPort {
-  Future<Set<String>> load();
+  /// The Requests on which [viewerId] dismissed the sub-card.
+  Future<Set<String>> load({required String viewerId});
 
-  Future<void> save(Set<String> keys);
+  /// Records one dismissal; returns the Requests known dismissed after it.
+  /// Throws [OfferAcceptedDismissalRefusedException] when the server refuses
+  /// it; any other error is treated as passing (offline, busy).
+  Future<Set<String>> dismiss({
+    required String viewerId,
+    required String beaconId,
+  });
+}
+
+/// The server answered and refused a dismissal (for example, the offer was
+/// withdrawn meanwhile). Unlike a network failure, sending it again cannot
+/// help, so it is dropped rather than kept for the next try.
+final class OfferAcceptedDismissalRefusedException implements Exception {
+  const OfferAcceptedDismissalRefusedException();
 }
 
 /// Keeps nothing between sessions; the fallback where no store is wired
 /// (tests, previews).
 final class InMemoryOfferAcceptedDismissalPort
     implements OfferAcceptedDismissalPort {
-  Set<String> _keys = {};
+  final _byViewer = <String, Set<String>>{};
 
   @override
-  Future<Set<String>> load() async => {..._keys};
+  Future<Set<String>> load({required String viewerId}) async => {
+    ...?_byViewer[viewerId],
+  };
 
   @override
-  Future<void> save(Set<String> keys) async => _keys = {...keys};
+  Future<Set<String>> dismiss({
+    required String viewerId,
+    required String beaconId,
+  }) async => {...(_byViewer[viewerId] ??= {})..add(beaconId)};
 }
 
 /// B077 — which «your offer was accepted» event sub-cards the viewer has
 /// dismissed with ×.
 ///
 /// One dismissal per viewer and Request covers every place the sub-card is
-/// shown (the Requests tab card and the Request's People tab), and it is
-/// remembered across sessions through [OfferAcceptedDismissalPort].
+/// shown (the Requests tab card and the Request's People tab), and through
+/// [OfferAcceptedDismissalPort] every device of the account (B077b).
 @Singleton(env: [Environment.dev, Environment.prod])
 class OfferAcceptedDismissals extends ChangeNotifier {
-  OfferAcceptedDismissals(this._port) {
-    ready = _load();
-  }
+  OfferAcceptedDismissals(this._port);
 
   /// The store in use: the registered one, else a session-only fallback.
   static OfferAcceptedDismissals get instance =>
@@ -46,6 +64,13 @@ class OfferAcceptedDismissals extends ChangeNotifier {
 
   static OfferAcceptedDismissals? _fallback;
 
+  /// How long after a failed read the next [ensureLoadedFor] may read again.
+  static const retryDelay = Duration(seconds: 30);
+
+  /// Test seam for [retryDelay].
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
+
   static String keyFor({required String viewerId, required String beaconId}) =>
       '$viewerId:$beaconId';
 
@@ -53,37 +78,120 @@ class OfferAcceptedDismissals extends ChangeNotifier {
 
   final _keys = <String>{};
 
-  /// Completes once the remembered dismissals are loaded.
-  late final Future<void> ready;
+  /// Viewers whose dismissals were read (or could not be read).
+  final _known = <String>{};
+
+  /// Viewers whose last read failed, with when: [ensureLoadedFor] reads
+  /// again once [retryDelay] has passed.
+  final _loadFailedAt = <String, DateTime>{};
+
+  /// Dismissals the server has not taken yet, per viewer; sent again on the
+  /// next [ensureLoadedFor] or [dismiss].
+  final _pending = <String, Set<String>>{};
+
+  final _loading = <String, Future<void>>{};
+
+  /// The flush running per viewer; callers meanwhile share it.
+  final _flushing = <String, Future<void>>{};
 
   bool isDismissed({required String viewerId, required String beaconId}) =>
       _keys.contains(keyFor(viewerId: viewerId, beaconId: beaconId));
 
-  /// Hides the sub-card at once, then remembers it.
+  /// Whether the sub-card may show: only once the account's dismissals are
+  /// known, so one dismissed on another device does not flash here first.
+  bool shouldShow({required String viewerId, required String beaconId}) =>
+      _known.contains(viewerId) &&
+      !isDismissed(viewerId: viewerId, beaconId: beaconId);
+
+  /// Reads [viewerId]'s dismissals once per session. After a failed read the
+  /// sub-card shows (the safe default) and a call after [retryDelay] reads
+  /// again; it also re-sends dismissals the server has not taken yet.
+  /// Called from every sub-card build, so it starts at most one read and one
+  /// flush at a time.
+  Future<void> ensureLoadedFor(String viewerId) {
+    if (viewerId.isEmpty) return Future.value();
+    final failedAt = _loadFailedAt[viewerId];
+    if (_known.contains(viewerId) && failedAt == null) {
+      return _flushPending(viewerId);
+    }
+    if (failedAt != null && clock().difference(failedAt) < retryDelay) {
+      return Future.value();
+    }
+    return _loading[viewerId] ??= _load(viewerId);
+  }
+
+  /// Hides the sub-card at once, then records it for the account.
   Future<void> dismiss({
     required String viewerId,
     required String beaconId,
   }) async {
-    if (!_keys.add(keyFor(viewerId: viewerId, beaconId: beaconId))) return;
-    notifyListeners();
-    // Saving before the load finished would overwrite what was remembered.
-    if (!_loaded) await ready;
-    await _port.save({..._keys});
+    if (_keys.add(keyFor(viewerId: viewerId, beaconId: beaconId))) {
+      notifyListeners();
+    }
+    (_pending[viewerId] ??= {}).add(beaconId);
+    await _flushPending(viewerId);
   }
 
-  var _loaded = false;
+  /// Sends every not-yet-recorded dismissal of [viewerId], one flush at a
+  /// time; a call while one runs shares it. One that failed on the way stays
+  /// pending (and hidden here) for the next try; one the server refused is
+  /// dropped (still hidden here).
+  Future<void> _flushPending(String viewerId) {
+    final pending = _pending[viewerId];
+    if (pending == null || pending.isEmpty) return Future.value();
+    return _flushing[viewerId] ??= _flush(viewerId, pending).whenComplete(() {
+      // The entry is this flush's own future: drop it, don't await it.
+      _flushing.remove(viewerId)?.ignore();
+    });
+  }
 
-  Future<void> _load() async {
-    try {
-      final loaded = await _port.load();
-      if (loaded.isNotEmpty) {
-        _keys.addAll(loaded);
-        notifyListeners();
+  Future<void> _flush(String viewerId, Set<String> pending) async {
+    // A × tapped while this runs joins this flush, so keep going until
+    // every dismissal it can see has been tried once.
+    final tried = <String>{};
+    for (
+      var next = pending.difference(tried);
+      next.isNotEmpty;
+      next = pending.difference(tried)
+    ) {
+      final beaconId = next.first;
+      tried.add(beaconId);
+      try {
+        _merge(
+          viewerId,
+          await _port.dismiss(viewerId: viewerId, beaconId: beaconId),
+        );
+        pending.remove(beaconId);
+      } on OfferAcceptedDismissalRefusedException {
+        pending.remove(beaconId);
+      } on Object catch (_) {
+        // Offline or busy: kept for the next try.
       }
-    } on Object catch (_) {
-      // Nothing remembered is the safe default: the sub-card shows again.
-    } finally {
-      _loaded = true;
     }
+  }
+
+  Future<void> _load(String viewerId) async {
+    try {
+      _merge(viewerId, await _port.load(viewerId: viewerId));
+      _loadFailedAt.remove(viewerId);
+      await _flushPending(viewerId);
+    } on Object catch (_) {
+      // Nothing known is the safe default: the sub-card shows; read again
+      // once retryDelay has passed.
+      _loadFailedAt[viewerId] = clock();
+    } finally {
+      _known.add(viewerId);
+      // The entry is this load's own future: drop it, don't await it.
+      _loading.remove(viewerId)?.ignore();
+      notifyListeners();
+    }
+  }
+
+  void _merge(String viewerId, Set<String> beaconIds) {
+    final before = _keys.length;
+    _keys.addAll([
+      for (final b in beaconIds) keyFor(viewerId: viewerId, beaconId: b),
+    ]);
+    if (_keys.length != before) notifyListeners();
   }
 }
