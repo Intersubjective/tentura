@@ -1361,6 +1361,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final initialText = body.length > kBeaconRoomCurrentLineMaxLength
         ? body.substring(0, kBeaconRoomCurrentLineMaxLength)
         : body;
+    final openedWith = cubit.state.roomState?.currentLine;
     final plan = await showTenturaAdaptiveSheet<String>(
       context: context,
       useRootNavigator: true,
@@ -1373,7 +1374,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
     if (plan == null || plan.isEmpty || !context.mounted) return;
-    await cubit.updatePlan(plan);
+    await cubit.updatePlan(plan, expectedLine: openedWith);
     widget.onCoordinationSaved?.call();
   }
 }
@@ -1385,6 +1386,7 @@ Future<void> showBeaconRoomUpdatePlanSheet(
   RoomCubit cubit,
   L10n l10n,
 ) async {
+  final openedWith = cubit.state.roomState?.currentLine;
   final plan = await showTenturaAdaptiveSheet<String>(
     context: context,
     useRootNavigator: true,
@@ -1392,12 +1394,12 @@ Future<void> showBeaconRoomUpdatePlanSheet(
     builder: (ctx) => _BeaconRoomTextBottomSheet(
       title: l10n.beaconRoomActionUpdatePlan,
       hintText: l10n.beaconRoomStripCurrentLineLabel,
-      initialText: cubit.state.roomState?.currentLine ?? '',
+      initialText: openedWith ?? '',
       maxLength: kBeaconRoomCurrentLineMaxLength,
     ),
   );
   if (plan == null || !context.mounted) return;
-  await cubit.updatePlan(plan);
+  await cubit.updatePlan(plan, expectedLine: openedWith);
 }
 
 class _BeaconRoomTextBottomSheet extends StatefulWidget {
