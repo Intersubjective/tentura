@@ -737,7 +737,7 @@ String _constellationDescription(ConstellationExceptionCode code) =>
       ConstellationExceptionCode.targetUnavailable =>
         'Constellation anchor target unavailable',
       ConstellationExceptionCode.retryLater =>
-        'Constellation database busy, retry later',
+        'Busy right now. Try again in a few seconds.',
     };
 
 /// Plan («либретто», #220): save/restore base is stale and both sides changed

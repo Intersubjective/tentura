@@ -201,7 +201,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('IN ON IT'), findsOneWidget);
+      expect(find.text('HELPING'), findsOneWidget);
       expect(find.text('+2'), findsOneWidget);
       expect(find.text('People you know: Olga'), findsOneWidget);
       expect(find.byType(TenturaAvatar), findsNWidgets(2));

@@ -494,7 +494,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Anna · Status: in review'), findsOneWidget);
+      expect(find.text('Anna · Status: final check'), findsOneWidget);
       expect(find.textContaining('reviewOpen'), findsNothing);
     });
 

@@ -38,7 +38,7 @@ Bottom navigation (default tab: **My Work**):
 | Tab | Role |
 |-----|------|
 | **My Work** | Requests I authored and/or offered help on |
-| **Inbox** | Forwarded to me — Needs me, Watching, Receipts |
+| **Inbox** | Forwarded to me — Needs me (shown as "Waiting on you" / «Нужен ваш ответ»), Watching (shown as "Following"), Receipts |
 | **Constellation** | Discoverable field map / text view |
 | **Friends** | Network / forward targets |
 | **Profile** | Account, capabilities, settings |
