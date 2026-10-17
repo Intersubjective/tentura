@@ -37,6 +37,8 @@ String beaconStatusMenuDisabledReasonLabel(
         l10n.beaconStatusHintFinishReviewFirst,
       BeaconStatusMenuDisabledReason.noCommitters =>
         l10n.beaconStatusHintNoCommitters,
+      BeaconStatusMenuDisabledReason.noHelpersYet =>
+        l10n.beaconStatusHintNoHelpersYet,
       BeaconStatusMenuDisabledReason.cancelHasOffers =>
         l10n.beaconStatusHintCancelHasOffers,
       BeaconStatusMenuDisabledReason.cancelWrappingUp =>
