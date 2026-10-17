@@ -19,7 +19,8 @@ String beaconStatusMenuOpenRowLabel(L10n l10n, Beacon beacon) {
   return switch (beacon.status) {
     BeaconStatus.draft => l10n.beaconStatusRowPublish,
     BeaconStatus.reviewOpen => l10n.beaconReviewReopenAction,
-    BeaconStatus.open when beacon.helpOfferCount > 0 =>
+    // B075: "Coordinating" starts with the first accepted helper.
+    BeaconStatus.open when beacon.admittedHelperCount > 0 =>
       l10n.beaconPhaseCoordinating,
     _ => l10n.beaconStatusRowOpen,
   };
@@ -94,7 +95,7 @@ String beaconSituationStateLine(L10n l10n, Beacon beacon) {
     BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
     BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
     BeaconStatus.open =>
-      beacon.helpOfferCount > 0
+      beacon.admittedHelperCount > 0
           ? l10n.beaconPhaseCoordinating
           : l10n.beaconStatusRowOpen,
   };

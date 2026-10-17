@@ -13,9 +13,5 @@ fragment BeaconModelWithAdmittedHelpers on beacon {
       ...UserModel
     }
   }
-  admitted_helpers_aggregate {
-    aggregate {
-      count
-    }
-  }
+  # admitted_helpers_aggregate comes from ...BeaconModel (B075).
 }
