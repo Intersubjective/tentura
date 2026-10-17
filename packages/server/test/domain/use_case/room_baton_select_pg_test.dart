@@ -76,16 +76,25 @@ Future<void> main() async {
     late DisposablePgWriterSession session;
     late Connection writer;
     late TenturaDb database;
+    // The racing test's second side. Drift keeps a single pooled connection
+    // per TenturaDb (in CI's pool-size-1 run, one admission slot too), so
+    // two racers on one handle never race in the database: the second waits
+    // for the slot and, on a busy runner, fails "Constellation database
+    // busy" (1704) instead of losing the race.
+    late TenturaDb rivalDatabase;
 
     setUpAll(() async {
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       session = await setUpDisposablePgWriter(target: target);
       writer = session.writer;
       database = openDisposablePgDatabase(target);
+      rivalDatabase = openDisposablePgDatabase(target);
     });
 
     setUp(() => _resetFixture(writer));
 
     tearDownAll(() async {
+      await rivalDatabase.close();
       await tearDownDisposablePgWriter(session: session, drift: database);
     });
 
@@ -382,6 +391,7 @@ WHERE beacon_id = '$_request' AND user_id = '$_a'
       for (var round = 0; round < 10; round++) {
         await _resetFixture(writer);
         final batonCase = build();
+        final rivalCase = _buildCase(rivalDatabase, target.databaseEnv, null);
         final baton = await createBaton(batonCase);
         await answer(batonCase, baton, {_a: true});
 
@@ -397,7 +407,7 @@ WHERE beacon_id = '$_request' AND user_id = '$_a'
 
         await Future.wait([
           attempt(() => batonCase.select(actorId: _author, batonId: baton.id)),
-          attempt(() => batonCase.cancel(actorId: _author, batonId: baton.id)),
+          attempt(() => rivalCase.cancel(actorId: _author, batonId: baton.id)),
         ]);
 
         expect(wins, 1, reason: 'round $round');
