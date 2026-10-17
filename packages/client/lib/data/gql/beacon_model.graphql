@@ -41,12 +41,24 @@ fragment BeaconModel on beacon {
       count
     }
   }
+  # Who holds an active offer; helpOfferCount counts each user once across
+  # this list and participant_help_offers (an accepted regular offer has an
+  # active row here and a committed participant row).
+  active_help_offers: help_offers(where: { status: { _eq: 0 } }) {
+    user_id
+  }
   # Offers made through the participant path (BeaconParticipantOfferHelp) live
-  # in beacon_participant, not beacon_help_offer; 1 = offered, 5 = admitted.
+  # in beacon_participant, not beacon_help_offer; 1 = offered, 5 = committed.
+  # Withdrawing or being removed keeps the status and only drops room_access
+  # to 0 (none); 5 = left. Those participant rows must not be counted.
+  # An author-removed helper's beacon_help_offer row is deactivated
+  # (status 1, no withdraw_reason) and re-activated if they are let back in,
+  # so help_offers_aggregate above counts only helpers who are still in.
   participant_help_offers: beacon_participants(
-    where: { status: { _in: [1, 5] } }
+    where: { status: { _in: [1, 5] }, room_access: { _nin: [0, 5] } }
   ) {
     id
+    user_id
   }
   unanswered_help_offers: help_offers_aggregate(
     # Unreviewed = active offer (status 0) with no coordination row (author has not responded).
