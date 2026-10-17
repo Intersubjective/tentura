@@ -13,6 +13,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
@@ -50,6 +51,7 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.isLive = false,
     this.sendLabel,
     this.promptUncoveredNotes = true,
+    this.copyProfile,
     super.key,
   });
 
@@ -83,6 +85,11 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// Whether send first offers a note for recipients who have none. Off for a
   /// new Post: its text already is the message.
   final bool promptUncoveredNotes;
+
+  /// Whether the copy (title, tab hints) speaks of a request or a post;
+  /// defaults to [ForwardState.profile]. The Post composer sets it, as its
+  /// draft is not a loaded beacon.
+  final ForwardTargetProfile? copyProfile;
 
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
@@ -459,6 +466,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             final beacon = state.beacon;
             final visible = state.visibleRecipients;
             final profile = state.profile;
+            final copyProfile = widget.copyProfile ?? profile;
             final showLineageBlock =
                 profile.showsLineage &&
                 state.activeFilter != ForwardFilter.alreadyInvolved;
@@ -527,7 +535,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  l10n.forwardBeaconTitle,
+                                  copyProfile == ForwardTargetProfile.post
+                                      ? l10n.forwardPostTitle
+                                      : l10n.forwardBeaconTitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TenturaText.title(tt.text),
@@ -634,6 +644,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     activeFilter: state.activeFilter,
                                     counts: counts,
                                     onScopeChanged: cubit.setFilter,
+                                    profile: copyProfile,
                                   ),
                                 ),
                               ),

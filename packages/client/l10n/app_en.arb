@@ -2790,6 +2790,11 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardPostTitle": "Forward post",
+  "@forwardPostTitle": {
+    "context": "ForwardBeaconScreen",
+    "description": "Title of the forward screen when the item forwarded is a post."
+  },
   "forwardBandSectionTitle": "For this request",
   "@forwardBandSectionTitle": {
     "context": "Forward band section header above contextual evidence rows"
@@ -3179,6 +3184,16 @@
   "forwardScopeInvolvedHint": "People already in this request's forward chain",
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeUnseenHintPost": "People who haven't seen this post yet",
+  "@forwardScopeUnseenHintPost": {
+    "context": "ForwardBeaconScreen",
+    "description": "Tooltip of the «Not yet seen» recipients tab when the item is a post."
+  },
+  "forwardScopeInvolvedHintPost": "People already in this post's forward chain",
+  "@forwardScopeInvolvedHintPost": {
+    "context": "ForwardBeaconScreen",
+    "description": "Tooltip of the «Already involved» recipients tab when the item is a post."
   },
   "forwardHidePersonalizedNotes": "Hide personalized notes",
   "@forwardHidePersonalizedNotes": {

@@ -2693,6 +2693,10 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardPostTitle": "Переслать пост",
+  "@forwardPostTitle": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardBandSectionTitle": "Для этого запроса",
   "@forwardBandSectionTitle": {
     "context": "Forward band section header above contextual evidence rows"
@@ -3081,6 +3085,14 @@
   },
   "forwardScopeInvolvedHint": "Люди, уже участвующие в цепочке пересылки",
   "@forwardScopeInvolvedHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeUnseenHintPost": "Люди, которые ещё не видели этот пост",
+  "@forwardScopeUnseenHintPost": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeInvolvedHintPost": "Люди, уже участвующие в цепочке пересылки поста",
+  "@forwardScopeInvolvedHintPost": {
     "context": "ForwardBeaconScreen"
   },
   "forwardHidePersonalizedNotes": "Скрыть персональные заметки",

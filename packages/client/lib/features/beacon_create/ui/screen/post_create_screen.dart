@@ -9,6 +9,7 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -349,6 +350,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
         externalActionLoading: busy,
         sendLabel: l10n.postCreateSendToCount,
         promptUncoveredNotes: false,
+        copyProfile: ForwardTargetProfile.post,
         onSendPressed: () => unawaited(_send()),
       ),
     ),
