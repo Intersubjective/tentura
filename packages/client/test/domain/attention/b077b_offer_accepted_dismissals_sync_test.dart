@@ -27,11 +27,17 @@ final class _ServerPort implements OfferAcceptedDismissalPort {
   bool failLoads = false;
   int loads = 0;
 
+  /// When set, each read answers what the server held when it was asked,
+  /// but only once this completes (a slow network).
+  Completer<void>? loadGate;
+
   @override
   Future<Set<String>> load({required String viewerId}) async {
     loads++;
+    final held = {...?server.byViewer[viewerId]};
+    await loadGate?.future;
     if (failLoads) throw StateError('offline');
-    return {...?server.byViewer[viewerId]};
+    return held;
   }
 
   bool failDismisses = false;
@@ -223,5 +229,83 @@ void main() {
     port.failDismisses = false;
     await phone.ensureLoadedFor(_viewer);
     expect(server.byViewer[_viewer], {'B1'});
+  });
+
+  // #593 review: two devices already open; one dismisses, the other learns
+  // of it on a later load instead of never.
+  test('an already-open device reads dismissals made elsewhere', () async {
+    final server = _Server();
+    var now = DateTime.utc(2026, 10, 17, 12);
+    final phone = OfferAcceptedDismissals(_ServerPort(server));
+    final laptopPort = _ServerPort(server);
+    final laptop = OfferAcceptedDismissals(laptopPort)..clock = () => now;
+
+    await phone.ensureLoadedFor(_viewer);
+    await laptop.ensureLoadedFor(_viewer);
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+
+    // Every sub-card build calls ensureLoadedFor: no read on each of them.
+    await laptop.ensureLoadedFor(_viewer);
+    expect(laptopPort.loads, 1);
+
+    now = now.add(OfferAcceptedDismissals.refreshAfter);
+    await laptop.ensureLoadedFor(_viewer);
+    expect(laptopPort.loads, 2);
+    expect(laptop.shouldShow(viewerId: _viewer, beaconId: 'B1'), isFalse);
+  });
+
+  // #593 review: the server deletes a dismissal when the helper withdraws or
+  // is removed, so accepting them again shows a fresh sub-card.
+  test('a dismissal the server deleted shows the sub-card again', () async {
+    final server = _Server()..byViewer[_viewer] = {'B1'};
+    var now = DateTime.utc(2026, 10, 17, 12);
+    final phone = OfferAcceptedDismissals(_ServerPort(server))
+      ..clock = () => now;
+    await phone.ensureLoadedFor(_viewer);
+    expect(phone.shouldShow(viewerId: _viewer, beaconId: 'B1'), isFalse);
+
+    server.byViewer[_viewer]!.remove('B1');
+    // A dismissal's answer is the account's whole list: B1 is gone from it.
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B2');
+    expect(phone.shouldShow(viewerId: _viewer, beaconId: 'B1'), isTrue);
+    expect(phone.shouldShow(viewerId: _viewer, beaconId: 'B2'), isFalse);
+
+    server.byViewer[_viewer]!.remove('B2');
+    now = now.add(OfferAcceptedDismissals.refreshAfter);
+    await phone.ensureLoadedFor(_viewer);
+    expect(phone.shouldShow(viewerId: _viewer, beaconId: 'B2'), isTrue);
+  });
+
+  test('a dismissal the server has not taken yet stays hidden', () async {
+    final server = _Server();
+    var now = DateTime.utc(2026, 10, 17, 12);
+    final port = _ServerPort(server);
+    final phone = OfferAcceptedDismissals(port)..clock = () => now;
+    await phone.ensureLoadedFor(_viewer);
+
+    port.failDismisses = true;
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    now = now.add(OfferAcceptedDismissals.refreshAfter);
+    await phone.ensureLoadedFor(_viewer);
+
+    expect(port.loads, 2);
+    expect(phone.shouldShow(viewerId: _viewer, beaconId: 'B1'), isFalse);
+  });
+
+  test('a read that started earlier does not undo a later answer', () async {
+    final server = _Server();
+    var now = DateTime.utc(2026, 10, 17, 12);
+    final port = _ServerPort(server);
+    final phone = OfferAcceptedDismissals(port)..clock = () => now;
+    await phone.ensureLoadedFor(_viewer);
+
+    now = now.add(OfferAcceptedDismissals.refreshAfter);
+    port.loadGate = Completer<void>();
+    final staleRead = phone.ensureLoadedFor(_viewer);
+    await phone.dismiss(viewerId: _viewer, beaconId: 'B1');
+    port.loadGate!.complete();
+    await staleRead;
+
+    expect(phone.shouldShow(viewerId: _viewer, beaconId: 'B1'), isFalse);
   });
 }
