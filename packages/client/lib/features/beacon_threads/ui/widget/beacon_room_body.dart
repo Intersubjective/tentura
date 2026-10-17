@@ -1253,6 +1253,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         title: l10n.beaconRoomActionEditMessage,
         hintText: l10n.beaconRoomMessageHint,
         initialText: message.body,
+        requireChange: true,
+        allowEmpty: false,
       ),
     );
     if (newBody == null || !context.mounted) return;
@@ -1414,12 +1416,20 @@ class _BeaconRoomTextBottomSheet extends StatefulWidget {
     required this.hintText,
     this.initialText = '',
     this.maxLength,
+    this.requireChange = false,
+    this.allowEmpty = true,
   });
 
   final String title;
   final String hintText;
   final String initialText;
   final int? maxLength;
+
+  /// Save stays off until the text differs from [initialText] (#483).
+  final bool requireChange;
+
+  /// False keeps Save off for blank text (#483).
+  final bool allowEmpty;
 
   @override
   State<_BeaconRoomTextBottomSheet> createState() =>
@@ -1433,7 +1443,9 @@ class _BeaconRoomTextBottomSheetState
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialText);
+    _controller = TextEditingController(text: widget.initialText)
+      // Caret after the text, so typing continues it (#483).
+      ..selection = TextSelection.collapsed(offset: widget.initialText.length);
   }
 
   @override
@@ -1443,6 +1455,10 @@ class _BeaconRoomTextBottomSheetState
   }
 
   bool get _isDirty => _controller.text.trim() != widget.initialText.trim();
+
+  bool get _canSave =>
+      (!widget.requireChange || _isDirty) &&
+      (widget.allowEmpty || _controller.text.trim().isNotEmpty);
 
   @override
   Widget build(BuildContext context) {
@@ -1470,6 +1486,7 @@ class _BeaconRoomTextBottomSheetState
               SizedBox(height: tt.rowGap),
               TextField(
                 controller: _controller,
+                autofocus: true,
                 maxLines: widget.maxLength != null ? 2 : 6,
                 minLines: widget.maxLength != null ? 1 : 3,
                 maxLength: widget.maxLength,
@@ -1479,10 +1496,20 @@ class _BeaconRoomTextBottomSheetState
                 onChanged: (_) => setState(() {}),
               ),
               SizedBox(height: tt.sectionGap),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(_controller.text.trim()),
-                child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+              TenturaSheetActions(
+                cancelLabel: L10n.of(context)!.buttonCancel,
+                // Same discard check as the scrim and Escape.
+                onCancel: () => unawaited(
+                  TenturaSheetDismissGuard.requestClose(
+                    context,
+                    isDirty: _isDirty,
+                    useRootNavigator: true,
+                  ),
+                ),
+                primaryLabel: MaterialLocalizations.of(context).saveButtonLabel,
+                onPrimary: _canSave
+                    ? () => Navigator.of(context).pop(_controller.text.trim())
+                    : null,
               ),
             ],
           ),
