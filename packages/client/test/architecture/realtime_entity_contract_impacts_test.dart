@@ -1,5 +1,8 @@
 // tentura-fpi landing gate acceptance (chat read receipts / room_seen_peer)
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

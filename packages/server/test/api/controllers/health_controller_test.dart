@@ -14,6 +14,9 @@
 //    still answers 200 with `"available": false`.
 //  * `RootRouter` serves `/health` through that controller.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

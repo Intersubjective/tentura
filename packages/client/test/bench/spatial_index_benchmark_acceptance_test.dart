@@ -1,6 +1,9 @@
 // Pure report contracts use the workspace's transitive test dependency.
 // ignore_for_file: depend_on_referenced_packages
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

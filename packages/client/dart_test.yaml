@@ -2,3 +2,8 @@ tags:
   # Wall-clock frame-budget benchmarks; load-sensitive. The strict budget is
   # enforced only with TENTURA_ENFORCE_BENCH_BUDGET=1 in a serial run (-j 1).
   bench:
+  # Reads files outside packages/client (docs/contracts, packages/server, ...).
+  # The Pipeline runs only this tag when a push changes such files but not
+  # packages/client itself; scripts/check_repo_files_tags.py keeps the tagging
+  # honest.
+  repo-files:

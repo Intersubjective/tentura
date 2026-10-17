@@ -2,6 +2,9 @@
 // needsMoreHelp, enoughHelp, and neutralOpen with the same wire strings as
 // server. reviewExpired vs closureExpired is out of scope for this bead.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

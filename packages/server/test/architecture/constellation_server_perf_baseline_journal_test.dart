@@ -17,6 +17,9 @@
 //    the proposed ARCH targets, and quote the measured baseline values they
 //    were calibrated from.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

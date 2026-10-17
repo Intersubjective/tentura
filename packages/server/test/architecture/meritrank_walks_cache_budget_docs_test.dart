@@ -35,6 +35,9 @@
 // Regex literals are kept raw for readability.
 // ignore_for_file: unnecessary_raw_strings, missing_whitespace_between_adjacent_strings
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

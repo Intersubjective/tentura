@@ -2,6 +2,9 @@
 // owner-approved thresholds, and the deploy guide must carry the runbook for
 // reading them.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

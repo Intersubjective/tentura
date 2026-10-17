@@ -1,5 +1,8 @@
 // Runs the real client analyzer gate: fake diagnostics cannot catch issue
 // growth in the checkout. Requires the installed Flutter SDK and dependencies.
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -12,25 +15,29 @@ const _maximumClientIssueBudget = 2098;
 
 void main() {
   group('Client analyzer issue budget', () {
+    test('the checked-in budget is not raised', () {
+      final budgetRows =
+          File(
+            '${_repoRoot.path}/scripts/analyze-baseline.txt',
+          ).readAsLinesSync().where(
+            (line) => line.trim().startsWith('packages/client '),
+          );
+      expect(budgetRows, hasLength(1));
+      final budget = int.parse(
+        budgetRows.single.trim().split(RegExp(r'\s+')).last,
+      );
+      expect(
+        budget,
+        lessThanOrEqualTo(_maximumClientIssueBudget),
+        reason: 'Fix client diagnostics instead of increasing analyzer debt.',
+      );
+    });
+
+    // CI runs this gate directly (scripts/check-analysis.sh), so the Pipeline
+    // excludes the `toolchain` tag rather than analyse the client twice.
     test(
       'real package analysis passes without raising the issue budget',
       () async {
-        final budgetRows =
-            File(
-              '${_repoRoot.path}/scripts/analyze-baseline.txt',
-            ).readAsLinesSync().where(
-              (line) => line.trim().startsWith('packages/client '),
-            );
-        expect(budgetRows, hasLength(1));
-        final budget = int.parse(
-          budgetRows.single.trim().split(RegExp(r'\s+')).last,
-        );
-        expect(
-          budget,
-          lessThanOrEqualTo(_maximumClientIssueBudget),
-          reason: 'Fix client diagnostics instead of increasing analyzer debt.',
-        );
-
         final result = await Process.run(
           'bash',
           ['scripts/check-analyze-baseline.sh', 'packages/client'],
@@ -54,6 +61,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 10)),
+      tags: ['toolchain'],
     );
   });
 }

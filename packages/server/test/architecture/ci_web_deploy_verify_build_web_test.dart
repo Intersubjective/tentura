@@ -3,6 +3,9 @@
 // checks tracked sources, so a caller relying on no-arg to check the built
 // artifact would otherwise silently stop doing so).
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

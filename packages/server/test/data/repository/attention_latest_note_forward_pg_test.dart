@@ -1,4 +1,4 @@
-@Tags(['pg', 'mr'])
+@Tags(['pg', 'mr', 'repo-files'])
 library;
 
 import 'dart:convert';

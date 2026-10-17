@@ -2,6 +2,9 @@
 // import directive may reach lib/data, drift, or postgres packages, and no
 // domain source may reference concrete DB driver or drift query APIs.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

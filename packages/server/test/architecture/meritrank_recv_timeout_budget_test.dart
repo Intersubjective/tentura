@@ -1,6 +1,9 @@
 // MERITRANK_RECV_TIMEOUT_MSEC (whole-call budget) must be identical in compose
 // and CI, and sit above the cold MR cost recorded in the U45 journal section.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

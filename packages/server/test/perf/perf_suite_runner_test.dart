@@ -1,4 +1,4 @@
-@Tags(<String>['perf'])
+@Tags(<String>['perf', 'repo-files'])
 library;
 
 import 'dart:convert';
@@ -229,6 +229,12 @@ void main() {
 
       String output(ProcessResult r) => '${r.stdout}${r.stderr}';
 
+      // Each `--check-reports` call is a `dart run` that compiles the checker
+      // from scratch (~15 s). The script wiring is covered end to end by the
+      // pass, absent-report and missing-directory cases; the report-content
+      // cases call the checker's logic in process.
+      List<String> missing() => PerfFixtureMatrix.missingReports(dir);
+
       test(
         'succeeds when every matrix fixture has a full JSON report',
         () async {
@@ -256,10 +262,7 @@ void main() {
         final empty = PerfFixtureMatrix.cases.first;
         File('${dir.path}/${empty.name}.json').writeAsStringSync('');
 
-        final result = await check();
-
-        expect(result.exitCode, isNonZero);
-        expect(output(result), contains(empty.name));
+        expect(missing(), contains(empty.name));
       });
 
       test('fails when a report is not JSON', () async {
@@ -267,10 +270,7 @@ void main() {
         final broken = PerfFixtureMatrix.cases.first;
         File('${dir.path}/${broken.name}.json').writeAsStringSync('{not json');
 
-        final result = await check();
-
-        expect(result.exitCode, isNonZero);
-        expect(output(result), contains(broken.name));
+        expect(missing(), contains(broken.name));
       });
 
       test('fails when a report only names its fixture', () async {
@@ -280,10 +280,7 @@ void main() {
           jsonEncode({'fixture': stub.name}),
         );
 
-        final result = await check();
-
-        expect(result.exitCode, isNonZero);
-        expect(output(result), contains(stub.name));
+        expect(missing(), contains(stub.name));
       });
 
       test('fails when a report recorded no attempts', () async {
@@ -291,10 +288,7 @@ void main() {
         final idle = PerfFixtureMatrix.cases.first;
         await writeFullReport(dir, idle, attempts: 0);
 
-        final result = await check();
-
-        expect(result.exitCode, isNonZero);
-        expect(output(result), contains(idle.name));
+        expect(missing(), contains(idle.name));
       });
 
       test('fails when a report lacks its fixture parameters', () async {
@@ -306,10 +300,7 @@ void main() {
         json['parameters'] = <String, Object?>{};
         file.writeAsStringSync(jsonEncode(json));
 
-        final result = await check();
-
-        expect(result.exitCode, isNonZero);
-        expect(output(result), contains(bare.name));
+        expect(missing(), contains(bare.name));
       });
 
       test(
@@ -322,17 +313,12 @@ void main() {
             File('${dir.path}/${b.name}.json').readAsStringSync(),
           );
 
-          final result = await check();
-
-          expect(result.exitCode, isNonZero);
-          expect(output(result), contains(a.name));
+          expect(missing(), contains(a.name));
         },
       );
 
       test('fails on an empty output directory', () async {
-        final result = await check();
-
-        expect(result.exitCode, isNonZero);
+        expect(missing(), isNotEmpty);
       });
 
       test('fails on an output directory that does not exist', () async {

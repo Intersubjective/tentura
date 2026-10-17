@@ -1,6 +1,9 @@
 // The #229 Hasura SQL profile doc must cover each operation with its stored
 // raw EXPLAIN JSON, and its table must name the costliest node of that plan.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

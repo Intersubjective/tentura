@@ -3,6 +3,9 @@
 // of passing on a spare connection. Tests that deliberately need several
 // connections opt out with the `multi-connection` tag.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

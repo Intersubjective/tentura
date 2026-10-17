@@ -1,4 +1,4 @@
-@Tags(['bench'])
+@Tags(['bench', 'repo-files'])
 library;
 
 import 'dart:convert';

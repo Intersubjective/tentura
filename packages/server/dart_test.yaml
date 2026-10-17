@@ -25,3 +25,15 @@ tags:
       whole-suite wrapper timeout of the routine `mr` run, so that run
       excludes it (`--exclude-tags load`); select it on its own with
       `--tags load` as a perf-only measurement.
+  toolchain:
+    description: >-
+      Re-runs the real analyzer gates (check-analyze-baseline.sh,
+      check-custom-lints.sh) against the checkout. CI runs those gates
+      directly through scripts/check-analysis.sh, so the Pipeline excludes
+      this tag instead of analysing every package a second time.
+  repo-files:
+    description: >-
+      Reads files outside packages/server (docs/contracts, scripts, workflows,
+      hasura metadata, packages/client, ...). The Pipeline runs only this tag
+      when a push changes such files but not packages/server itself;
+      test/architecture/repo_files_tag_test.dart keeps the tagging honest.

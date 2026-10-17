@@ -2,6 +2,9 @@
 // Requires installed Flutter and Dart SDKs with writable caches and dependencies.
 // The real gates bootstrap missing generated sources and analyze whole packages.
 // Fake analyzer output cannot detect an increase in actual checkout diagnostics.
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -28,37 +31,41 @@ String _gateOutput(ProcessResult result) {
 
 void main() {
   group('Analyzer issue ratchet with the local toolchain', () {
+    test('baseline files only lower the captured budgets', () {
+      const baselineFiles = [
+        'analyze-baseline.txt',
+        'custom-lint-baseline.txt',
+      ];
+      for (final filename in baselineFiles) {
+        final currentBudgets = _readBudgets(
+          File('${_repoRoot.path}/scripts/$filename'),
+        );
+        final capturedBudgets = _readBudgets(
+          File('test/architecture/fixtures/issue_budgets/$filename'),
+        );
+
+        // Check every row, including scoped analyzer and server lint budgets.
+        // Lower counts are allowed; additional unbounded rows are not.
+        for (final budget in currentBudgets.entries) {
+          expect(
+            capturedBudgets,
+            contains(budget.key),
+            reason: '$filename must not add an uncaptured issue budget',
+          );
+          expect(
+            budget.value,
+            lessThanOrEqualTo(capturedBudgets[budget.key]!),
+            reason: '$filename must not raise the ${budget.key} issue budget',
+          );
+        }
+      }
+    });
+
+    // CI runs these same gates directly (scripts/check-analysis.sh), so the
+    // Pipeline excludes the `toolchain` tag rather than analyse twice.
     test(
       'analyzer and custom lint gates pass within captured baseline budgets',
       () async {
-        const baselineFiles = [
-          'analyze-baseline.txt',
-          'custom-lint-baseline.txt',
-        ];
-        for (final filename in baselineFiles) {
-          final currentBudgets = _readBudgets(
-            File('${_repoRoot.path}/scripts/$filename'),
-          );
-          final capturedBudgets = _readBudgets(
-            File('test/architecture/fixtures/issue_budgets/$filename'),
-          );
-
-          // Check every row, including scoped analyzer and server lint budgets.
-          // Lower counts are allowed; additional unbounded rows are not.
-          for (final budget in currentBudgets.entries) {
-            expect(
-              capturedBudgets,
-              contains(budget.key),
-              reason: '$filename must not add an uncaptured issue budget',
-            );
-            expect(
-              budget.value,
-              lessThanOrEqualTo(capturedBudgets[budget.key]!),
-              reason: '$filename must not raise the ${budget.key} issue budget',
-            );
-          }
-        }
-
         const gates = <String, List<String>>{
           'client analyzer': [
             'scripts/check-analyze-baseline.sh',
@@ -93,6 +100,7 @@ void main() {
         );
       },
       timeout: const Timeout(Duration(minutes: 10)),
+      tags: ['toolchain'],
     );
   });
 }

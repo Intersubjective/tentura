@@ -13,6 +13,9 @@
 //  * backlog: a line naming `slow listener` and `backlog` with a count and the
 //    drain time in ms.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:test/test.dart';

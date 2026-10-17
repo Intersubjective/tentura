@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'repo-files'])
 library;
 
 import 'package:test/test.dart';

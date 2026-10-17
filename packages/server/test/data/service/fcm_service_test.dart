@@ -1,3 +1,6 @@
+@Tags(['repo-files'])
+library;
+
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/service/fcm_service.dart';
