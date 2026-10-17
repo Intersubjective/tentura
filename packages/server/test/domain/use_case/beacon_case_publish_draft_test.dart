@@ -9,6 +9,7 @@ import '../../support/fake_beacon_hierarchy_repository.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -53,14 +54,16 @@ void main() {
   late BeaconCase case_;
   final now = DateTime.utc(2026, 6, 18);
 
-  BeaconEntity draftBeacon() => BeaconEntity(
-    id: 'Bdraft',
-    title: 'Draft title',
-    author: const UserEntity(id: 'Uauth'),
-    createdAt: now,
-    updatedAt: now,
-    status: BeaconStatus.draft,
-  );
+  BeaconEntity draftBeacon({String description = 'Draft description'}) =>
+      BeaconEntity(
+        id: 'Bdraft',
+        title: 'Draft title',
+        description: description,
+        author: const UserEntity(id: 'Uauth'),
+        createdAt: now,
+        updatedAt: now,
+        status: BeaconStatus.draft,
+      );
 
   setUp(() {
     beaconRepo = _StubBeaconRepo();
@@ -92,5 +95,22 @@ void main() {
 
     expect(result.status, BeaconStatus.open);
     expect(beaconRepo.publishDraftCalls, 1);
+  });
+
+  // #340: a draft may be saved without a description; publishing asks for one.
+  test('publishDraft refuses a Request draft without a description', () async {
+    beaconRepo.onGetBeaconById = () async => draftBeacon(description: ' ');
+
+    await expectLater(
+      case_.publishDraft(userId: 'Uauth', beaconId: 'Bdraft'),
+      throwsA(
+        isA<BeaconCreateException>().having(
+          (e) => e.description,
+          'description',
+          'Description is required',
+        ),
+      ),
+    );
+    expect(beaconRepo.publishDraftCalls, 0);
   });
 }
