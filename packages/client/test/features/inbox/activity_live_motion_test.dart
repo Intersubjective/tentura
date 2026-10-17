@@ -638,7 +638,7 @@ void main() {
         (widget) =>
             widget is RichText &&
             widget.text.toPlainText().contains(
-              'Перенесено из «Для вас» в список ниже',
+              lookupL10n(const Locale('ru')).activityMovedToStream,
             ),
       ),
       findsOneWidget,
