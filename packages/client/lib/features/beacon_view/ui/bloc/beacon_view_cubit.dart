@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:get_it/get_it.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 
@@ -173,8 +174,26 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
 
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
+  /// Team ids whose presence this screen asked for (U093).
+  Set<String> _watchedTeam = const {};
+
+  @override
+  void onChange(Change<BeaconViewState> change) {
+    super.onChange(change);
+    final beacon = change.nextState.beacon;
+    if (beacon.id.isEmpty) return;
+    final team = {
+      if (beacon.author.id.isNotEmpty) beacon.author.id,
+      for (final p in beacon.admittedHelperUsers) p.id,
+    }..remove(change.nextState.myProfile.id);
+    if (setEquals(team, _watchedTeam)) return;
+    _watchedTeam = team;
+    _case.watchTeamPresence(beacon.id, team);
+  }
+
   @override
   Future<void> close() async {
+    if (_watchedTeam.isNotEmpty) _case.unwatchTeamPresence(state.beacon.id);
     await _forwardChangesSub.cancel();
     await _helpOfferChangesSub.cancel();
     await _beaconChangesSub.cancel();
