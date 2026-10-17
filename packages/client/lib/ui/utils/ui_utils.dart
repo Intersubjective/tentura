@@ -77,6 +77,20 @@ String dateFormatYMD(DateTime? dateTime) =>
 String timeFormatHm(DateTime? dateTime) =>
     dateTime == null ? '' : _fmtHm.format(dateTime.toLocal());
 
+/// [showTimePicker] on the 24-hour dial: the app shows every time as `Hm`,
+/// so the 12-hour AM/PM dial did not match what the person then sees (#446).
+Future<TimeOfDay?> showAppTimePicker({
+  required BuildContext context,
+  required TimeOfDay initialTime,
+}) => showTimePicker(
+  context: context,
+  initialTime: initialTime,
+  builder: (context, child) => MediaQuery(
+    data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+    child: child!,
+  ),
+);
+
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   BuildContext context, {
   String? text,
