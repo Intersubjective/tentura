@@ -418,6 +418,13 @@ final class BeaconViewCase extends UseCaseBase {
     }
   }
 
+  /// The room state for a background refresh of a loaded request. Unlike
+  /// [fetchRoomStateIfAllowed], a failure (e.g. 1704 "database busy") is
+  /// rethrown, so the caller can keep the room state it already shows instead
+  /// of blanking the next step (B079, review of #514).
+  Future<BeaconRoomState?> fetchRoomStateOrThrow(String beaconId) =>
+      _beaconRoomCase.fetchBeaconRoomState(beaconId);
+
   Future<BeaconRoomState?> fetchRoomStateIfAllowed(String beaconId) async {
     try {
       return await _beaconRoomCase.fetchBeaconRoomState(beaconId);
