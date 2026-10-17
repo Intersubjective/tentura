@@ -125,6 +125,23 @@ void main() {
       expect(presentation.fallbackText, l10n.beaconHudYouAuthorReview(3));
     });
 
+    // #472: an admitted helper's Now panel opened on a bare "No info" row.
+    test('noInfo fallback says nothing is needed from the viewer yet', () async {
+      const responsibility = CoordinationResponsibility(beaconId: 'b1');
+      BeaconYouPresentation build(L10n l10n) => buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(),
+        emptyFallback: BeaconYouEmptyFallback.noInfo,
+        showNewBadges: false,
+      );
+      final ru = await L10n.delegate.load(const Locale('ru'));
+
+      expect(build(l10n).fallbackText, 'Nothing needed from you yet');
+      expect(build(ru).fallbackText, 'Пока от вас ничего не нужно');
+    });
+
     test('empty responsibility hidden produces hidden presentation', () {
       const responsibility = CoordinationResponsibility(beaconId: 'b1');
       final presentation = buildBeaconYouPresentation(

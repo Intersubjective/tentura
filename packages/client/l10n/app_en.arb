@@ -4462,7 +4462,7 @@
   "beaconYouWaitingOnOthers": "Waiting on others",
   "beaconYouNoOpenItems": "No open items",
   "beaconYouEnoughHelp": "Enough help",
-  "beaconYouNoInfo": "No info",
+  "beaconYouNoInfo": "Nothing needed from you yet",
   "@beaconYouNoInfo": {
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
