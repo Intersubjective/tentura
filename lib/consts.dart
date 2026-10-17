@@ -12,6 +12,9 @@ const kTitleMinLength = 3;
 
 const kTitleMaxLength = 32;
 
+/// Min length of complaint details after trim (client form and server).
+const kComplaintDetailsMinLength = 3;
+
 /// Max capability slugs on a help offer (offer-help dialog / server validation).
 const kMaxHelpOfferHelpTypes = 4;
 

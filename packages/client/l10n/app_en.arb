@@ -921,9 +921,23 @@
   "@labelComplaintType": {
     "context": "ComplaintScreen"
   },
-  "detailsRequired": "Details, minimum 3 characters",
+  "detailsRequired": "{min, plural, =1{Details, minimum 1 character} other{Details, minimum {min} characters}}",
   "@detailsRequired": {
-    "context": "ComplaintScreen"
+    "context": "ComplaintScreen",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "complaintDetailsTooShort": "{min, plural, =1{Enter at least 1 character} other{Enter at least {min} characters}}",
+  "@complaintDetailsTooShort": {
+    "context": "ComplaintScreen",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
   },
   "provideDetails": "Please provide details",
   "@provideDetails": {
