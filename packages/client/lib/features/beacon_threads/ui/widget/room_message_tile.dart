@@ -1156,8 +1156,9 @@ class RoomMessageTile extends StatelessWidget {
                     trailingGlyph: inlineReceiptGlyph,
                     dateLineWidget: dateLineWidget,
                   )
-                : explicitMentionSpans.isNotEmpty
-                ? TenturaSelectionArea(
+                // Full body either way: a reaction row must not
+                // fold the text into "read more" (#351).
+                : TenturaSelectionArea(
                     child: Text.rich(
                       buildRoomMessageBodySpanWithExplicitMentions(
                         data: display,
@@ -1166,15 +1167,6 @@ class RoomMessageTile extends StatelessWidget {
                         explicitSpans: explicitMentionSpans,
                         explicitMentionStyle: explicitMentionStyle,
                       ),
-                      textAlign: TextAlign.start,
-                    ),
-                  )
-                : TenturaSelectionArea(
-                    child: ShowMoreText(
-                      display,
-                      style: bodyStyle,
-                      colorClickableText: scheme.primary,
-                      annotations: mentionAnnotations,
                       textAlign: TextAlign.start,
                     ),
                   ),
