@@ -9,6 +9,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -601,6 +602,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 style: tenturaFormFieldTextStyle(context),
                 keyboardType: TextInputType.text,
                 maxLength: kBeaconTitleMaxLength,
+                inputFormatters: const [
+                  CodeUnitLengthLimitingTextInputFormatter(
+                    kBeaconTitleMaxLength,
+                  ),
+                ],
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 onChanged: (v) {
                   _cubit.setTitle(v);
@@ -617,7 +623,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             ListenableBuilder(
               listenable: _titleController,
               builder: (context, _) {
-                final n = _titleController.text.characters.length;
+                // Code units, as the validators and the server count them.
+                final n = _titleController.text.length;
                 if (n < _titleCounterFrom) {
                   return const SizedBox.shrink();
                 }
@@ -660,6 +667,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 minLines: 4,
                 maxLines: null,
                 maxLength: kBeaconDescriptionMaxLength,
+                inputFormatters: const [
+                  CodeUnitLengthLimitingTextInputFormatter(
+                    kBeaconDescriptionMaxLength,
+                  ),
+                ],
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 onChanged: (v) {
                   _cubit.setDescription(v);
@@ -677,7 +689,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             ListenableBuilder(
               listenable: _descriptionController,
               builder: (context, _) {
-                final n = _descriptionController.text.characters.length;
+                // Code units, as the validators and the server count them.
+                final n = _descriptionController.text.length;
                 return Align(
                   alignment: AlignmentDirectional.centerEnd,
                   child: n >= _descriptionCounterFrom
