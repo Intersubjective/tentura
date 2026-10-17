@@ -314,6 +314,66 @@ void main() {
     expect(find.byType(ChooseLocationDialog), findsNothing);
   });
 
+  // #432: a refused Places request showed Google's raw error text.
+  testWidgets('a refused address search shows a plain sentence', (
+    tester,
+  ) async {
+    await GetIt.I.unregister<GooglePlacesService>();
+    GetIt.I.registerSingleton<GooglePlacesService>(
+      GooglePlacesService.withClient(
+        const Env(googleMapsApiKey: 'test-key'),
+        client: MockClient(
+          (_) async => http.Response(
+            '{"error":{"code":403,"message":"The caller does not have '
+            'permission","status":"PERMISSION_DENIED"}}',
+            403,
+          ),
+        ),
+      ),
+    );
+    await openDialog(tester);
+
+    await tester.tap(find.byType(SearchBar));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).last, 'Museum');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Address search isn’t available right now. Tap the map to drop a pin '
+        'instead.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('request failed'), findsNothing);
+    expect(find.textContaining('permission'), findsNothing);
+  });
+
+  testWidgets('an address search without a connection says so', (
+    tester,
+  ) async {
+    await GetIt.I.unregister<GooglePlacesService>();
+    GetIt.I.registerSingleton<GooglePlacesService>(
+      GooglePlacesService.withClient(
+        const Env(googleMapsApiKey: 'test-key'),
+        client: MockClient((_) async => throw http.ClientException('offline')),
+      ),
+    );
+    await openDialog(tester);
+
+    await tester.tap(find.byType(SearchBar));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).last, 'Museum');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Address search failed. Check your connection and try again.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows missing maps key guidance when Env key is empty', (
     tester,
   ) async {
