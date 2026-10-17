@@ -11,6 +11,7 @@ import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -35,7 +36,7 @@ import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
-import '../block/ui/bloc/blocked_users_cubit_test.dart' show FakeBlockCase;
+import '../../support/fake_block_case.dart';
 import '../contacts/contacts_case_test.dart';
 
 void main() {
@@ -56,7 +57,7 @@ void main() {
         harness
           ..profiles.error = const ProfileFetchException('U-blocked')
           ..blockCase.fetchMyBlocksResult = [
-            BlockIntent(blocked: blocked),
+            const BlockIntent(blocked: blocked),
           ]
           ..start(id: 'U-blocked');
         await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
@@ -66,6 +67,187 @@ void main() {
         expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
       },
     );
+
+    // B056: blocking from the open profile used to keep the loaded profile
+    // (trust toggle on, "Send a request") because the block event only
+    // scheduled a silent refetch, and a refetch failure after the first load
+    // is swallowed. The profile must switch to the blocked state at once.
+    test('blocking the open profile switches to the blocked state', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      // After the block the server hides the person from the viewer.
+      harness.profiles.error = const ProfileFetchException('U-friend');
+      harness.blockCase.emitChange(
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'U-friend')),
+        ),
+      );
+      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(harness.cubit.state.isBlockedFallback, isTrue);
+      expect(harness.cubit.state.blockedProfile?.id, 'U-friend');
+      expect(harness.cubit.state.blockedProfile?.displayName, 'Helper Two');
+      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test('a block of someone else leaves the open profile alone', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      harness.blockCase.emitChange(
+        const RepositoryEventCreate(
+          BlockIntent(blocked: Profile(id: 'U-other')),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(harness.cubit.state.isBlockedFallback, isFalse);
+      expect(harness.cubit.state.profile.displayName, 'Helper Two');
+    });
+
+    test('unblocking from elsewhere restores the full profile', () async {
+      harness
+        ..profiles.error = const ProfileFetchException('U-friend')
+        ..blockCase.fetchMyBlocksResult = [
+          const BlockIntent(
+            blocked: Profile(id: 'U-friend', displayName: 'Helper Two'),
+          ),
+        ]
+        ..start(id: 'U-friend');
+      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+
+      harness.profiles
+        ..error = null
+        ..result = const Profile(id: 'U-friend', displayName: 'Helper Two');
+      harness.blockCase.emitChange(
+        const RepositoryEventDelete(
+          BlockIntent(blocked: Profile(id: 'U-friend')),
+        ),
+      );
+      await harness.waitFor(() => !harness.cubit.state.isBlockedFallback);
+
+      expect(harness.cubit.state.blockedProfile, isNull);
+      expect(harness.cubit.state.profile.displayName, 'Helper Two');
+    });
+
+    // B056 review: a block from another session of this account, or by the
+    // other person, has no local BlockCase event. The server's block marker
+    // (constellation_field with the blocker's id) triggers a refetch, and a
+    // refetch the server answers without the profile is not kept stale.
+    test('a block from another session reaches the open profile', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      harness.profiles.error = const ProfileFetchException('U-friend');
+      harness.blockCase.fetchMyBlocksResult = [
+        const BlockIntent(
+          blocked: Profile(id: 'U-friend', displayName: 'Helper Two'),
+        ),
+      ];
+      harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-viewer'));
+      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+
+      expect(harness.cubit.state.blockedProfile?.id, 'U-friend');
+      expect(harness.cubit.state.blockedProfile?.displayName, 'Helper Two');
+      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test('a block by the other person drops the stale profile', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+          myVote: 1,
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+
+      harness.profiles.error = const ProfileFetchException('U-friend');
+      harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-friend'));
+      await harness.waitFor(() => harness.cubit.state.loadError != null);
+
+      // The same state as opening a profile the server does not return:
+      // nothing of the loaded profile (trust, request actions) is kept.
+      expect(harness.cubit.state.loadError, isA<ProfileFetchException>());
+      expect(harness.cubit.state.profile, const Profile(id: 'U-friend'));
+      expect(harness.cubit.state.blockedProfile, isNull);
+      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test(
+      'a transient refetch failure still keeps the loaded profile',
+      () async {
+        harness
+          ..profiles.result = const Profile(
+            id: 'U-friend',
+            displayName: 'Helper Two',
+            myVote: 1,
+          )
+          ..start(id: 'U-friend');
+        await harness.waitFor(
+          () => harness.cubit.state.profile.displayName == 'Helper Two',
+        );
+        final calls = harness.profiles.fetchCalls;
+
+        harness.profiles.error = StateError('offline');
+        harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-friend'));
+        await harness.waitFor(() => harness.profiles.fetchCalls > calls);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
+        expect(harness.cubit.state.loadError, isNull);
+      },
+    );
+
+    test('the global constellation marker does not refetch', () async {
+      harness
+        ..profiles.result = const Profile(
+          id: 'U-friend',
+          displayName: 'Helper Two',
+        )
+        ..start(id: 'U-friend');
+      await harness.waitFor(
+        () => harness.cubit.state.profile.displayName == 'Helper Two',
+      );
+      final calls = harness.profiles.fetchCalls;
+
+      harness.realtimePort.emitChange(
+        _blockMarker(
+          blockerId: RealtimeSyncCase.globalConstellationFieldId,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(harness.profiles.fetchCalls, calls);
+    });
 
     test(
       'ProfileFetchException without direct block keeps loadError path',
@@ -90,7 +272,7 @@ void main() {
       harness
         ..profiles.error = const ProfileFetchException('U-blocked')
         ..blockCase.fetchMyBlocksResult = [
-          BlockIntent(blocked: blocked),
+          const BlockIntent(blocked: blocked),
         ]
         ..start(id: 'U-blocked');
       await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
@@ -118,7 +300,7 @@ void main() {
       const profile = Profile(id: 'U-blocked', displayName: 'Blocked Person');
       harness.start(id: profile.id, autoFetch: false);
       harness.cubit.emit(
-        ProfileViewState(
+        const ProfileViewState(
           profile: profile,
           blockedProfile: profile,
         ),
@@ -162,7 +344,7 @@ void main() {
       const profile = Profile(id: 'U-blocked', displayName: 'Blocked Person');
       harness.start(id: profile.id, autoFetch: false);
       harness.cubit.emit(
-        ProfileViewState(
+        const ProfileViewState(
           profile: profile,
           blockedProfile: profile,
         ),
@@ -475,3 +657,13 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+/// The server's `user_block` trigger marker (m0232): `constellation_field`
+/// with the blocker's id, sent to both parties.
+RealtimeEntityChange _blockMarker({required String blockerId}) =>
+    RealtimeEntityChange(
+      kind: RealtimeEntityKind.constellationField,
+      aggregateId: blockerId,
+      operation: RealtimeOperation.update,
+      source: RealtimeChangeSource.serverInvalidation,
+    );

@@ -56,6 +56,9 @@ final class ProfileViewCase extends UseCaseBase {
     // endpoints into one bounded envelope. Delivery is already recipient
     // authorized, so any delivered relationship hint can affect this view.
     _realtime.changesFor(const {RealtimeEntityKind.relationship}).map((_) {}),
+    // A block by this person, or by this account from another session, has
+    // no local BlockCase event; refetch on the server's marker (B056 review).
+    _realtime.blockMarkers.map((_) {}),
     _realtime.catchUps.map((_) {}),
     _contacts.changes,
     _capabilities.changes,
