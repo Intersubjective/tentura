@@ -105,9 +105,16 @@ for a single file. Wrapper self-check: `bash scripts/run_with_test_cleanup_selft
 > `scripts/check-custom-lints.sh`. That script invokes the analyzer correctly and ratchets
 > the count against `scripts/custom-lint-baseline.txt`.
 
-CI (`.github/workflows/pipeline.yml`) runs the lint tests, `scripts/check-custom-lints.sh` for
-both packages, `bash scripts/check-user-facing-terminology.sh`, and `flutter test` on every push
-to `main`.
+CI (`.github/workflows/pipeline.yml`) runs on every push to `main`, but only what the push can
+affect (`scripts/ci_changes.py`, diffed against the last green run): a package's analyzer
+gate (`scripts/check-analysis.sh` — both gates from one analyzer pass), tests and build run
+when it changed; its tests tagged `repo-files` (they read docs, scripts, workflows or the
+other package — `scripts/check_repo_files_tags.py` enforces the tag) also run when anything
+outside it changed. Agent docs (`AGENTS.md`, `.cursor/`, `.claude/`) reach only the lint
+shard. Client and server (non-pg) tests run as a few bundled entrypoints
+(`scripts/gen_test_bundles.py`, CI only — a file that leaks process-wide state goes in
+`test/bundle_exclude.txt`); the pg suite is split by file across three runners. Manual
+dispatch runs everything.
 
 ## Cursor Cloud specific instructions
 

@@ -1,0 +1,18 @@
+# Runtime image for the tentura server. CI builds the binary first
+# (`dart build cli` in the builder image, see build-server in
+# .github/workflows/pipeline.yml) and uses its bundle directory as the build
+# context: bin/tentura + lib/libsqlite3.so.
+FROM debian:bookworm-slim
+ARG GIT_SHA=unknown
+ARG SERVER_VERSION=0.0.0
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+  && rm -rf /var/lib/apt/lists/*
+COPY bin/tentura /tentura
+COPY lib/libsqlite3.so /lib/libsqlite3.so
+
+ENV SENTRY_RELEASE=tentura-server@${SERVER_VERSION}
+ENV SENTRY_DIST=${GIT_SHA}
+
+EXPOSE 2080/tcp
+USER 33:33
+CMD ["/tentura"]

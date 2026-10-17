@@ -17,9 +17,18 @@ on:
         default: false
         type: boolean
 
+# One run at a time per ref. A push that lands mid-run waits, and a newer push
+# replaces a run that is still waiting. Nothing is cancelled mid-flight, so a
+# deploy is never cut off; and because `changes` diffs against the last
+# *successful* run, a replaced run's changes are covered by its replacement.
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   packages: write
+  actions: read
 
 env:
   REGISTRY: ghcr.io
@@ -27,8 +36,153 @@ env:
   BUILDER_IMAGE: ghcr.io/intersubjective/tentura-builder
 
 jobs:
+  # Decides what this push needs (scripts/ci_changes.py): a package's tests,
+  # analyzer gate and build run only when it changed; its `repo-files` tests
+  # (the ones reading docs, scripts, workflows or the other package) also run
+  # when anything outside it changed. Manual dispatch runs everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.plan.outputs.server }}
+      client: ${{ steps.plan.outputs.client }}
+      web: ${{ steps.plan.outputs.web }}
+      server_image: ${{ steps.plan.outputs.server_image }}
+      deploy: ${{ steps.plan.outputs.deploy }}
+      shards: ${{ steps.plan.outputs.shards }}
+      server_key: ${{ steps.keys.outputs.server_key }}
+      web_key: ${{ steps.keys.outputs.web_key }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      # Diff against the last green run, not the previous push: a failed,
+      # cancelled or replaced run must not let its changes skip their tests.
+      - name: Diff against the last successful run
+        id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "Manual dispatch: running everything."
+            python3 scripts/ci_changes.py --all > plan.txt
+          else
+            base=$(gh run list --repo "${{ github.repository }}" --workflow pipeline.yml \
+              --branch "${{ github.ref_name }}" --status success --limit 1 \
+              --json headSha --jq '.[0].headSha // ""')
+            if [ -n "$base" ] && git fetch --quiet --depth=1 origin "$base"; then
+              echo "Changes since the last successful run ($base):"
+              # --no-renames: a moved file counts at both its old and new path.
+              git diff --name-only --no-renames "$base" HEAD | tee changed.txt
+              python3 scripts/ci_changes.py < changed.txt > plan.txt
+            else
+              echo "No usable last successful run: running everything."
+              python3 scripts/ci_changes.py --all > plan.txt
+            fi
+          fi
+          cat plan.txt
+          cat plan.txt >> "$GITHUB_OUTPUT"
+
+      # Deployable artifacts are addressed by their inputs (git tree ids), not
+      # by commit: a build from a run whose tests failed must never be what a
+      # later run deploys just because it is the newest. deploy-dev ships the
+      # server image and web archive built from exactly HEAD's inputs.
+      - name: Content keys for the deployable artifacts
+        id: keys
+        run: |
+          set -euo pipefail
+          # Sources plus the recipe (workflow, actions, builder image, CI
+          # scripts): reverting a failed run's script or workflow change must
+          # not pick up the artifact that change produced.
+          mapfile -t recipe < <(python3 scripts/ci_changes.py --ci-inputs)
+          shared=(lib pubspec.yaml pubspec.lock pubspec_overrides.yaml "${recipe[@]}")
+          server_key=$(git ls-tree -r HEAD packages/server "${shared[@]}" | sha256sum | cut -c1-20)
+          web_key=$(git ls-tree -r HEAD packages/client packages/landing packages/ferry_generator \
+            packages/force_directed_graphview packages/image_cropper_for_web \
+            packages/web_socket_client "${shared[@]}" | sha256sum | cut -c1-20)
+          echo "server_key=$server_key" | tee -a "$GITHUB_OUTPUT"
+          echo "web_key=$web_key" | tee -a "$GITHUB_OUTPUT"
+
+      # When deploying without rebuilding, the artifact for these inputs must
+      # exist (a cache entry can be evicted; an image can predate this scheme).
+      - name: Look up the web archive for these inputs
+        id: webcache
+        if: steps.diff.outputs.deploy == 'true' && steps.diff.outputs.web != 'true'
+        uses: actions/cache/restore@v5
+        with:
+          path: web-build-output
+          key: web-build-${{ steps.keys.outputs.web_key }}-${{ github.run_id }}
+          restore-keys: web-build-${{ steps.keys.outputs.web_key }}-
+          lookup-only: true
+
+      - name: Look up the server image for these inputs
+        id: srvimage
+        if: steps.diff.outputs.deploy == 'true' && steps.diff.outputs.server_image != 'true'
+        run: |
+          set -euo pipefail
+          echo "${{ github.token }}" | docker login "${{ env.REGISTRY }}" -u "${{ github.actor }}" --password-stdin
+          if docker manifest inspect "${{ env.IMAGE_NAME }}:srv-${{ steps.keys.outputs.server_key }}" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Plan jobs
+        id: plan
+        env:
+          SERVER: ${{ steps.diff.outputs.server }}
+          CLIENT: ${{ steps.diff.outputs.client }}
+          WEB: ${{ steps.diff.outputs.web }}
+          DEPLOY: ${{ steps.diff.outputs.deploy }}
+          SERVER_CHANGED: ${{ steps.diff.outputs.server_image }}
+          CACHED_WEB: ${{ steps.webcache.outputs.cache-matched-key }}
+          IMAGE_FOUND: ${{ steps.srvimage.outputs.found }}
+        run: |
+          set -euo pipefail
+          web="$WEB"
+          if [ "$DEPLOY" = "true" ] && [ "$web" != "true" ] && [ -z "$CACHED_WEB" ]; then
+            echo "No web archive cached for these client inputs: building one."
+            web=true
+          fi
+          server_image="$SERVER_CHANGED"
+          if [ "$DEPLOY" = "true" ] && [ "$server_image" != "true" ] && [ "$IMAGE_FOUND" != "true" ]; then
+            echo "No server image pushed for these server inputs: building one."
+            server_image=true
+          fi
+          shards='[{"target":"lints","package":""}'
+          if [ "$SERVER" != "skip" ]; then
+            shards+=',{"target":"server","package":"server"}'
+            if [ "$SERVER" = "full" ]; then
+              # The pg suite is CPU-bound on one 4-vCPU runner; split by file
+              # across three, each with its own Postgres.
+              shards+=',{"target":"pg-1","package":"server","pg_shard":"1/3"}'
+              shards+=',{"target":"pg-2","package":"server","pg_shard":"2/3"}'
+              shards+=',{"target":"pg-3","package":"server","pg_shard":"3/3"}'
+            else
+              # A handful of repo-files pg tests: one runner is plenty.
+              shards+=',{"target":"pg-1","package":"server","pg_shard":"1/1"}'
+            fi
+          fi
+          if [ "$CLIENT" != "skip" ]; then
+            shards+=',{"target":"client-a","package":"client"}'
+          fi
+          if [ "$CLIENT" = "full" ]; then
+            shards+=',{"target":"client-b","package":"client"}'
+          fi
+          shards+=']'
+          {
+            echo "server=$SERVER"
+            echo "client=$CLIENT"
+            echo "web=$web"
+            echo "server_image=$server_image"
+            echo "deploy=$DEPLOY"
+            echo "shards=$shards"
+          } | tee -a "$GITHUB_OUTPUT"
+
   test-shards:
     name: test-${{ matrix.target }}
+    needs: changes
     runs-on: ubuntu-latest
     strategy:
       # A failing shard must not cancel the others: with six targets one red
@@ -36,19 +190,18 @@ jobs:
       # failure out of six tells you less than it looks like it does.
       fail-fast: false
       matrix:
-        target:
-          - lints
-          - server
-          - client-a
-          - client-b
-          - pg
+        include: ${{ fromJSON(needs.changes.outputs.shards) }}
+    env:
+      # full: everything; repo-files: only tests tagged `repo-files`.
+      SERVER_MODE: ${{ needs.changes.outputs.server }}
+      CLIENT_MODE: ${{ needs.changes.outputs.client }}
     steps:
       - uses: actions/checkout@v6
         with:
           token: ${{ github.token }}
 
-      # Only the `pg` shard needs a database, and it runs on its own runner, so
-      # starting these here costs the other shards nothing.
+      # Only the `pg-*` shards need a database, and each runs on its own runner,
+      # so starting these here costs the other shards nothing.
       #
       # MeritRank is not optional even though the `mr`-tagged tests are
       # excluded: `public.graph`, `person_visibility_peers` and friends call
@@ -56,7 +209,7 @@ jobs:
       # reach it. Verified by stopping the service locally — 34 untagged tests
       # fail without it. The images and wiring mirror `compose.dev.yaml`.
       - name: Start Postgres and MeritRank for the pg shard
-        if: matrix.target == 'pg'
+        if: startsWith(matrix.target, 'pg-')
         run: |
           set -euo pipefail
           docker network create tentura-ci
@@ -95,12 +248,59 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
+      # build_runner keeps its asset graph, compiled build script and generated
+      # outputs under .dart_tool/build: with it, codegen takes seconds instead
+      # of minutes. Shared by every job that generates the same package.
+      - name: Restore codegen cache
+        id: codegen-cache
+        if: matrix.package != ''
+        uses: actions/cache/restore@v5
+        with:
+          path: packages/${{ matrix.package }}/.dart_tool/build
+          key: codegen-${{ matrix.package }}-${{ hashFiles('pubspec.lock', format('packages/{0}/pubspec.yaml', matrix.package), format('packages/{0}/build.yaml', matrix.package), format('packages/{0}/lib/**', matrix.package), format('packages/{0}/test/**', matrix.package), format('packages/{0}/integration_test/**', matrix.package), format('packages/{0}/l10n/**', matrix.package)) }}
+          restore-keys: codegen-${{ matrix.package }}-
+
+      - name: Generate code in builder container
+        if: matrix.package != ''
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            --env PKG="${{ matrix.package }}" \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c '
+              set -euo pipefail
+              if [ "$PKG" = client ]; then
+                flutter pub get
+                cd packages/client
+                flutter gen-l10n
+              else
+                dart pub get
+                cd "packages/$PKG"
+              fi
+              dart run build_runner build -d
+            '
+
+      # Saved right after codegen so a red test run still warms the cache.
+      - name: Save codegen cache
+        if: matrix.package != '' && steps.codegen-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        continue-on-error: true
+        with:
+          path: packages/${{ matrix.package }}/.dart_tool/build
+          key: ${{ steps.codegen-cache.outputs.cache-primary-key }}
+
       - name: Run ${{ matrix.target }} checks in builder container
         run: |
           set -euo pipefail
           target="${{ matrix.target }}"
           if [[ "$target" == client-* ]]; then
             bash scripts/test_resolve_deploy_web_config.sh
+          fi
+          # pg-1..pg-3 run the `pg` target, each on its shard of the files.
+          if [[ "$target" == pg-* ]]; then
+            target=pg
           fi
           network_args=()
           if [ "$target" = "pg" ]; then
@@ -112,38 +312,51 @@ jobs:
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env TEST_TARGET="$target" \
+            --env PG_SHARD="${{ matrix.pg_shard }}" \
+            --env SERVER_MODE \
+            --env CLIENT_MODE \
             --env CI \
             --env GITHUB_ACTIONS \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c '
               set -euo pipefail
               git config --global --add safe.directory "*"
+              # `dart test` exits 79 when a selection matches no test, which a
+              # repo-files run may legitimately do.
+              allow_empty() { "$@" || { s=$?; [ "$s" -eq 79 ] || return "$s"; echo "(no tests selected)"; }; }
               case "$TEST_TARGET" in
                 lints)
                   dart pub get
+                  python3 scripts/test_ci_changes.py
+                  python3 scripts/check_repo_files_tags.py
                   bash scripts/check-user-facing-terminology.sh
                   bash scripts/check-doc-drift.sh
                   cd packages/tentura_lints
                   dart test
                   ;;
                 server)
-                  dart pub get
                   cd packages/server
-                  dart run build_runner build -d
-                  bash ../../scripts/check-custom-lints.sh packages/server
-                  bash ../../scripts/check-analyze-baseline.sh packages/server
-                  dart test --exclude-tags pg
-                  ! rg "package:tentura_server/data/repository" lib/domain
-                  ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
-                  ! rg "package:tentura_server/data/" lib/domain
+                  if [ "$SERVER_MODE" = full ]; then
+                    bash ../../scripts/check-analysis.sh packages/server
+                    # `toolchain` re-runs the analyzer gates just run above.
+                    # Bundled like the client shards (161 s -> 104 s on 4
+                    # cores); pg-tagged files stay standalone and excluded.
+                    entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4)
+                    dart test --exclude-tags pg,toolchain $entrypoints
+                    ! rg "package:tentura_server/data/repository" lib/domain
+                    ! rg "package:tentura_server/data/(service|storage)/" lib/domain/use_case
+                    ! rg "package:tentura_server/data/" lib/domain
+                  else
+                    # Listing the tagged files spares loading every suite.
+                    repo_files=$(python3 ../../scripts/ci_select_tests.py test --tag repo-files)
+                    allow_empty dart test --tags repo-files --exclude-tags pg,toolchain $repo_files
+                  fi
                   ;;
                 pg)
                   # The MeritRank-touching tests are excluded: that service is a
                   # single shared instance, so they must run serially (`-j 1`,
                   # 8m) and belong in a nightly, not on every push.
-                  dart pub get
                   cd packages/server
-                  dart run build_runner build -d
                   # Most pg tests build their own disposable database, but some
                   # connect to the default one and expect it already migrated —
                   # true on a dev machine running the stack, false on a fresh
@@ -153,6 +366,9 @@ jobs:
                   # itself, so the `mr_*` references in function bodies no
                   # longer need the extension present at migrate time.
                   dart run bin/utils/run_migrations_once.dart
+                  # Only the repo-files subset when packages/server is unchanged.
+                  only=()
+                  if [ "$SERVER_MODE" != full ]; then only=(--tags repo-files); fi
                   # Pool-size-1 mode: every disposable database gets one pooled
                   # connection and one admission slot, so a scope that
                   # re-enters its own lease hangs or fails here instead of
@@ -161,8 +377,18 @@ jobs:
                   # the normal pool. They assert admission latency, waiter
                   # caps and RSS under overload, so they must not overlap
                   # each other: `-j 1`.
-                  TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection
-                  dart test --tags multi-connection --exclude-tags mr -j 1
+                  # This runner shard of the files that can hold pg tests.
+                  # Listing files also spares dart test loading all 600+
+                  # suites to discover test-level tags.
+                  pg_files=$(python3 ../../scripts/ci_select_tests.py test --tag pg --shard "$PG_SHARD")
+                  TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test --tags pg "${only[@]}" --exclude-tags mr,multi-connection $pg_files
+                  # On the lightest of three shards (or the only one). Loading
+                  # every suite one by one to find these took 132 s of a
+                  # 172 s run; list them instead.
+                  if [ "$PG_SHARD" = 1/1 ] || [ "${PG_SHARD%%/*}" = 2 ]; then
+                    multi_files=$(python3 ../../scripts/ci_select_tests.py test --tag multi-connection)
+                    allow_empty dart test --tags multi-connection "${only[@]}" --exclude-tags mr -j 1 $multi_files
+                  fi
                   ;;
                 client-a)
                   # client-a/client-b split packages/client/test in two to run
@@ -174,26 +400,31 @@ jobs:
                   # subdirectory lands there automatically). Package-wide
                   # checks (lints, analyze baseline, l10n/arb duplicates)
                   # only need to run once, so they live on client-a.
+                  # When only repo-files tests run, client-a runs all of them.
                   python3 scripts/test_check_arb_duplicates.py
                   python3 scripts/check_arb_duplicates.py
-                  flutter pub get
                   cd packages/client
-                  flutter gen-l10n
-                  dart run build_runner build -d
-                  bash ../../scripts/check-custom-lints.sh packages/client
-                  bash ../../scripts/check-analyze-baseline.sh packages/client
-                  non_feature_paths=$(find test -mindepth 1 -maxdepth 1 \( -type d -o -name "*_test.dart" \) | grep -v "^test/features$")
-                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
-                    $non_feature_paths \
-                    test/features/beacon_threads test/features/constellation test/features/auth
+                  if [ "$CLIENT_MODE" = full ]; then
+                    bash ../../scripts/check-analysis.sh packages/client
+                    non_feature_paths=$(find test -mindepth 1 -maxdepth 1 \( -type d -o -name "*_test.dart" \) | grep -v "^test/features$")
+                    # Bundles: one compile + one flutter_tester per chunk of
+                    # files instead of per file (scripts/gen_test_bundles.py).
+                    entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 \
+                      $non_feature_paths \
+                      test/features/beacon_threads test/features/constellation test/features/auth)
+                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $entrypoints
+                  else
+                    # Only the tagged files: flutter test pays ~1.5 s to load
+                    # each file it is given, tagged or not.
+                    repo_files=$(python3 ../../scripts/ci_select_tests.py test --tag repo-files)
+                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --tags repo-files $repo_files
+                  fi
                   ;;
                 client-b)
-                  flutter pub get
                   cd packages/client
-                  flutter gen-l10n
-                  dart run build_runner build -d
                   other_feature_paths=$(find test/features -mindepth 1 -maxdepth 1 -type d | grep -vE "/(beacon_threads|constellation|auth)$")
-                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $other_feature_paths
+                  entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 $other_feature_paths)
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $entrypoints
                   ;;
                 *)
                   echo "Unknown test target: $TEST_TARGET" >&2
@@ -302,6 +533,8 @@ jobs:
           retention-days: 14
 
   build-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -330,14 +563,14 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
+      # Same key as the client test shards: whichever job generates first
+      # warms it for the others (see test-shards "Restore codegen cache").
       - name: Cache client codegen state
         uses: actions/cache@v5
         with:
-          path: |
-            packages/client/.dart_tool/build
-            packages/client/.dart_tool/build_resolvers
-          key: client-codegen-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'packages/client/pubspec.yaml', 'packages/client/build.yaml', 'packages/client/lib/**', 'packages/client/l10n/**', 'packages/client/web/**', 'packages/client/hook/**') }}
-          restore-keys: client-codegen-${{ runner.os }}-
+          path: packages/client/.dart_tool/build
+          key: codegen-client-${{ hashFiles('pubspec.lock', 'packages/client/pubspec.yaml', 'packages/client/build.yaml', 'packages/client/lib/**', 'packages/client/test/**', 'packages/client/integration_test/**', 'packages/client/l10n/**') }}
+          restore-keys: codegen-client-
 
       # Multiline .env blob (FB_* dart-defines) — same format as packages/client/env/dev-web.env
       - name: Write client dart-define file
@@ -477,30 +710,26 @@ jobs:
           cp web-dev-*.tar.gz web-build-output/web-dev.tar.gz
           cp landing-dev-*.tar.gz web-build-output/landing-dev.tar.gz
 
-      # Unique key per commit: GitHub refuses to overwrite an existing cache key, so a
-      # static key (e.g. web-build-main) would never pick up newer web builds after the first save.
+      # Keyed by the client inputs (see changes) plus the run: deploy-dev takes
+      # this run's archive, or else the newest one built from identical inputs.
       - name: Cache web build for deploy
         uses: actions/cache/save@v5
         with:
           path: web-build-output
-          key: web-build-${{ github.sha }}
+          key: web-build-${{ needs.changes.outputs.web_key }}-${{ github.run_id }}
 
+  # The server binary is compiled in the builder image, next to a warm codegen
+  # cache; the image itself is only the runtime layer (Dockerfile.runtime).
+  # The old in-Docker build re-cloned Flutter (70 s), regenerated code without
+  # a cache and spent ~2 min exporting a multi-GB layer cache to GHA.
   build-server:
+    needs: changes
+    if: needs.changes.outputs.server_image == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           token: ${{ github.token }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Determine versions
         id: versions
@@ -513,20 +742,55 @@ jobs:
           CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
           echo "client_version=$CLIENT_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push server image
-        uses: docker/build-push-action@v7
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
         with:
-          context: .
-          file: packages/server/Dockerfile_build
-          push: true
-          build-args: |
-            GIT_SHA=${{ github.sha }}
-            SERVER_VERSION=${{ steps.versions.outputs.server_version }}
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Cache server codegen state
+        uses: actions/cache@v5
+        with:
+          path: packages/server/.dart_tool/build
+          key: codegen-server-${{ hashFiles('pubspec.lock', 'packages/server/pubspec.yaml', 'packages/server/build.yaml', 'packages/server/lib/**', 'packages/server/test/**', 'packages/server/integration_test/**', 'packages/server/l10n/**') }}
+          restore-keys: codegen-server-
+
+      - name: Build server binary in builder container
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}":/app -w /app \
+            -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
+            ${{ env.BUILDER_IMAGE }}:latest \
+            bash -c '
+              set -euo pipefail
+              dart pub get
+              cd packages/server
+              dart run build_runner build -d
+              dart build cli -t bin/tentura.dart -o bin/cli-build
+            '
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only the content tag: `latest` (what the VPS runs) and the version tag
+      # move in deploy-dev, after every test shard passed.
+      - name: Build and push server image
+        run: |
+          set -euo pipefail
+          image="${{ env.IMAGE_NAME }}:srv-${{ needs.changes.outputs.server_key }}"
+          docker build \
+            -f packages/server/Dockerfile.runtime \
+            --build-arg GIT_SHA=${{ github.sha }} \
+            --build-arg SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
+            -t "$image" \
+            packages/server/bin/cli-build/bundle
+          docker push "$image"
 
       - name: Print version summary
         run: |
@@ -543,13 +807,17 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: [test-shards, build-web, build-server]
+    needs: [changes, test-shards, build-web, build-server]
+    # Skipped build jobs are fine: an unchanged client deploys the newest
+    # cached web archive, an unchanged server keeps the image already on GHCR.
     if: |
       always() &&
       !cancelled() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.deploy == 'true' &&
       needs.test-shards.result == 'success' &&
-      needs.build-web.result == 'success' &&
-      needs.build-server.result == 'success'
+      contains(fromJSON('["success", "skipped"]'), needs.build-web.result) &&
+      contains(fromJSON('["success", "skipped"]'), needs.build-server.result)
     permissions:
       contents: read
       packages: write
@@ -559,14 +827,35 @@ jobs:
         with:
           token: ${{ github.token }}
 
-      # Prefer tarball built for this exact commit; fall back to latest web-build-* entry.
+      # This run's archive, or else the newest built from identical client
+      # inputs; never one built from different inputs.
       - name: Restore web build from cache
         uses: actions/cache/restore@v5
         with:
           path: web-build-output
-          key: web-build-${{ github.sha }}
+          key: web-build-${{ needs.changes.outputs.web_key }}-${{ github.run_id }}
           restore-keys: |
-            web-build-
+            web-build-${{ needs.changes.outputs.web_key }}-
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The VPS pulls `latest`; point it (and the version tag) at the image
+      # built from HEAD's server inputs, now that every shard passed.
+      - name: Promote the server image
+        run: |
+          set -euo pipefail
+          version_line=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
+          version=${version_line//+/-}
+          version=${version//\//-}
+          docker buildx imagetools create \
+            -t ${{ env.IMAGE_NAME }}:latest \
+            -t ${{ env.IMAGE_NAME }}:"$version" \
+            ${{ env.IMAGE_NAME }}:srv-${{ needs.changes.outputs.server_key }}
 
       - name: Prepare web archive for deploy
         id: archive-name
@@ -574,7 +863,7 @@ jobs:
           set -euo pipefail
           CACHED='web-build-output/web-dev.tar.gz'
           if [ ! -f "$CACHED" ]; then
-            echo "Error: No cached web archive found. Run a push to main first to build and cache." >&2
+            echo "Error: no web archive cached for these client inputs (web_key ${{ needs.changes.outputs.web_key }})." >&2
             exit 1
           fi
           cp "$CACHED" web-dev.tar.gz
