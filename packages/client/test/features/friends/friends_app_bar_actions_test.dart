@@ -2,17 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/port/capability_repository_port.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
+import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
 import 'package:tentura/features/friends/ui/screen/friends_screen.dart';
 import 'package:tentura/features/friends/ui/widget/friends_app_bar_actions.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
+import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -22,7 +31,9 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
 import '../../features/auth/auth_test_helpers.dart';
+import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../contacts/contacts_case_test.dart';
 
 class _MockFriendsCubit extends Mock implements FriendsCubit {
   @override
@@ -43,6 +54,16 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
+
+class _FakeCapabilityRepository extends Fake
+    implements CapabilityRepositoryPort {}
+
+class _FakeLikeRemoteRepository extends Fake implements LikeRemoteRepository {}
+
+class _FakeFriendsRemoteRepository extends Fake
+    implements FriendsRemoteRepository {}
+
+class _FakePresenceRepository extends Fake implements PresenceRepository {}
 
 class _FakeInvitationRepository extends Fake implements InvitationRepository {
   @override
@@ -216,8 +237,11 @@ void main() {
     late ScreenCubit screenCubit;
     late _MockFriendsCubit friendsCubit;
     late AuthCase authCase;
+    late ContactsCase contactsCase;
+    late TestRealtimeSyncPort realtimePort;
     var registeredFriendsCubit = false;
     var registeredAuthCase = false;
+    var registeredFriendsCase = false;
     var registeredInvitationRepository = false;
     var registeredUiEffectPort = false;
 
@@ -242,6 +266,36 @@ void main() {
         );
         registeredInvitationRepository = true;
       }
+      // FriendsScreen feeds InvitationCubit from
+      // FriendsCase.invitationServerChanges (B074).
+      final realtime = buildTestRealtimeSync();
+      realtimePort = realtime.port;
+      final realtimeCase = realtime.case_;
+      contactsCase = ContactsCase(
+        FakeContactsRepository(),
+        authCase,
+        ContactNameStore(),
+        realtimeCase,
+        env: const Env(),
+        logger: Logger('test'),
+      );
+      if (!getIt.isRegistered<FriendsCase>()) {
+        getIt.registerSingleton<FriendsCase>(
+          FriendsCase(
+            _FakeCapabilityRepository(),
+            _FakeInvitationRepository(),
+            _FakeLikeRemoteRepository(),
+            _FakeFriendsRemoteRepository(),
+            _FakePresenceRepository(),
+            contactsCase,
+            authCase,
+            realtimeCase,
+            env: const Env(),
+            logger: Logger('test'),
+          ),
+        );
+        registeredFriendsCase = true;
+      }
       if (!getIt.isRegistered<UiEffectPort>()) {
         getIt.registerSingleton<UiEffectPort>(effects);
         registeredUiEffectPort = true;
@@ -261,6 +315,11 @@ void main() {
           getIt.isRegistered<InvitationRepository>()) {
         await getIt.unregister<InvitationRepository>();
       }
+      if (registeredFriendsCase && getIt.isRegistered<FriendsCase>()) {
+        await getIt.unregister<FriendsCase>();
+      }
+      await contactsCase.dispose();
+      await realtimePort.dispose();
       if (registeredUiEffectPort && getIt.isRegistered<UiEffectPort>()) {
         await getIt.unregister<UiEffectPort>();
       }
