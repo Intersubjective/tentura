@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:graphql_server2/graphql_server2.dart' show GraphQL;
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
 import 'package:tentura_server/app/sentry/sentry_error_classifier.dart';
@@ -18,7 +20,13 @@ import '_base_controller.dart';
 
 @Injectable(order: 3)
 final class GraphqlController extends BaseController {
-  const GraphqlController(super.env);
+  const GraphqlController(
+    super.env, {
+    @ignoreParam @visibleForTesting GraphQL? schema,
+  }) : _schemaOverride = schema;
+
+  /// Test seam: a schema used in place of the app's.
+  final GraphQL? _schemaOverride;
 
   @override
   Future<Response> handler(Request request) async {
@@ -76,18 +84,21 @@ final class GraphqlController extends BaseController {
       }
       context?.check();
       final response = await MainDbWorkContext.run(
-        () => (env.isDebugModeOn ? graphqlSchema : _graphqlSchema)
-            .parseAndExecute(
-              operationName: requestJson['operationName'] as String?,
-              requestJson['query'] as String? ?? '',
-              variableValues:
-                  (requestJson['variables'] as Map<String, dynamic>?) ?? {},
-              globalVariables: {
-                kGlobalInputQueryJwt: jwt,
-                kGlobalInputQueryContext: request.headers[kHeaderQueryContext],
-                kGlobalInputQueryFile: fileBytes,
-              },
-            ),
+        () =>
+            (_schemaOverride ??
+                    (env.isDebugModeOn ? graphqlSchema : _graphqlSchema))
+                .parseAndExecute(
+                  operationName: requestJson['operationName'] as String?,
+                  requestJson['query'] as String? ?? '',
+                  variableValues:
+                      (requestJson['variables'] as Map<String, dynamic>?) ?? {},
+                  globalVariables: {
+                    kGlobalInputQueryJwt: jwt,
+                    kGlobalInputQueryContext:
+                        request.headers[kHeaderQueryContext],
+                    kGlobalInputQueryFile: fileBytes,
+                  },
+                ),
         actorUserId: jwt?.sub,
       );
 
