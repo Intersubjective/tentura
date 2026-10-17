@@ -99,4 +99,29 @@ void main() {
       expect(write.createdFields, isNotEmpty);
     },
   );
+
+  // #494: after a failed autosave the footer kept "Draft saved · just now"
+  // from the previous save, beside the error bar saying the save failed.
+  test('a failed autosave drops the earlier "saved" time', () async {
+    final write = FakeBeaconWritePort();
+    final cubit = BeaconCreateCubit(
+      beaconCreateCase: fakeBeaconCreateCase(write: write),
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.setAutosaveContext('');
+    cubit
+      ..setTitle('Valid title')
+      ..setDescription('A description that is required.');
+    await cubit.flushAutosave();
+    expect(cubit.state.lastAutosavedAt, isNotNull);
+
+    write.updateDraftError = Exception('cover upload failed');
+    cubit.setDescription('A description that changed.');
+    await cubit.flushAutosave();
+
+    expect(write.updatedDraftFields, isEmpty);
+    expect(cubit.state.isAutosaving, isFalse);
+    expect(cubit.state.lastAutosavedAt, isNull);
+  });
 }
