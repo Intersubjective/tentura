@@ -6,7 +6,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../util/plan_presenter.dart';
 
 /// Optional date + time of a plan step, picked in the viewer's zone and
-/// reported as a UTC instant. «Без времени» clears it.
+/// reported as a UTC instant. The ✕ beside a chosen time clears it.
 class PlanDateTimeField extends StatelessWidget {
   const PlanDateTimeField({
     required this.label,
@@ -24,7 +24,7 @@ class PlanDateTimeField extends StatelessWidget {
   /// Day the picker opens on when [value] is empty.
   final DateTime? fallbackDay;
 
-  /// False hides «Без времени»: the field always holds a time.
+  /// False hides the clear ✕: the field always holds a time.
   final bool clearable;
 
   Future<void> _pick(BuildContext context) async {
@@ -75,7 +75,8 @@ class PlanDateTimeField extends StatelessWidget {
         ),
         if (v != null && clearable)
           IconButton(
-            tooltip: l10n.planFieldClearTime,
+            // Not «No time»: that names the unset picker (#447).
+            tooltip: l10n.planFieldClearTimeOf(label),
             icon: const Icon(Icons.close),
             onPressed: () => onChanged(null),
           ),
