@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/exception.dart';
 
 import 'graphql/input/_input_types.dart';
 import 'graphql/schema.dart';
+import 'graphql/unmapped_graphql_error.dart';
 import '_base_controller.dart';
 
 @Injectable(order: 3)
@@ -128,9 +129,7 @@ final class GraphqlController extends BaseController {
       );
       return Response.ok(
         jsonEncode({
-          'errors': [
-            {'message': e.toString()},
-          ],
+          'errors': [unmappedGraphqlError(e)],
         }),
       );
     }
