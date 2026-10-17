@@ -280,6 +280,13 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                                   onPressed: saveAndClose,
                                   child: Text(l10n.buttonSave),
                                 ),
+                                // Asks first when there are unsaved changes,
+                                // like Escape and the scrim (#444).
+                                IconButton(
+                                  tooltip: l10n.buttonClose,
+                                  onPressed: () => unawaited(requestClose(ctx)),
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
                               ],
                             ),
                           ),
@@ -347,9 +354,21 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      l10n.beaconTimingWhenTitle,
-                      style: Theme.of(ctx).textTheme.titleMedium,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l10n.beaconTimingWhenTitle,
+                            style: Theme.of(ctx).textTheme.titleMedium,
+                          ),
+                        ),
+                        // A way out besides the scrim (#444).
+                        IconButton(
+                          tooltip: l10n.buttonClose,
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
                     ),
                     SizedBox(height: tt.rowGap),
                     SegmentedButton<BeaconScheduleKind>(

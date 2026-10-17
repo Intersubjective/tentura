@@ -124,9 +124,27 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            l10n.beaconHudEditCurrentLineTitle,
-            style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.beaconHudEditCurrentLineTitle,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              // Same discard check as the scrim (#444).
+              IconButton(
+                tooltip: l10n.buttonClose,
+                onPressed: () => unawaited(
+                  TenturaSheetDismissGuard.requestClose(
+                    context,
+                    isDirty: _isDirty,
+                    useRootNavigator: true,
+                  ),
+                ),
+                icon: Icon(Icons.close, size: tt.iconSize),
+              ),
+            ],
           ),
           SizedBox(height: tt.rowGap),
           TextField(

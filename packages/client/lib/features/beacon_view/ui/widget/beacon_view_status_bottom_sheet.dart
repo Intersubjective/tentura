@@ -72,9 +72,21 @@ Future<void> showBeaconViewUpdateStatusSheet(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        l10n.beaconStatusSheetTitle,
-                        style: Theme.of(ctx).textTheme.titleSmall,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.beaconStatusSheetTitle,
+                              style: Theme.of(ctx).textTheme.titleSmall,
+                            ),
+                          ),
+                          // A way out besides the scrim (#444).
+                          IconButton(
+                            tooltip: l10n.buttonClose,
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            icon: Icon(Icons.close, size: tt.iconSize),
+                          ),
+                        ],
                       ),
                       SizedBox(height: tt.tightGap),
                       Text(
