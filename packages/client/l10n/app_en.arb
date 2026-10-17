@@ -6183,6 +6183,10 @@
   "updatesUnread": "Unread",
   "updatesNeedsYou": "Needs you",
   "updatesSearchHint": "Search updates",
+  "updatesSearchClear": "Clear search",
+  "@updatesSearchClear": {
+    "description": "Tooltip / screen-reader label of the clear (x) button in the Updates search field."
+  },
   "updatesMarkSeen": "Mark seen",
   "updatesMarkUnseen": "Mark unread",
   "@updatesMarkUnseen": {
