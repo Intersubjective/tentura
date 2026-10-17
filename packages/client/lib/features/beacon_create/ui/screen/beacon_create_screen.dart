@@ -21,14 +21,20 @@ import '../widget/info_tab.dart';
 import '../widget/post_bud_invite_step.dart';
 import '../widget/recipients_tab.dart';
 
-/// After a successful [BeaconCreateCubit.makeLive], leave create and open the
-/// published request. Shared so widget tests can assert [StackRouter.popAndPush]
-/// without pumping the full create form.
-@visibleForTesting
+/// After a successful send, leave the composer and open the published request
+/// or post. The pop goes through the Navigator, so a caller awaiting the
+/// composer's push still gets its result. The room's URL then replaces the
+/// composer's browser history entry, so Back does not reopen an empty composer
+/// (#353); `popAndPush` would add it as a new entry instead.
 Future<void> popCreateAndOpenLiveBeacon(
   StackRouter router, {
   required String beaconId,
-}) => router.popAndPush(BeaconViewRoute(id: beaconId));
+}) async {
+  router
+    ..pop()
+    ..markUrlStateForReplace();
+  await router.push(BeaconViewRoute(id: beaconId));
+}
 
 BeaconCreationContext? _childCreationContext({
   required String parentBeaconId,

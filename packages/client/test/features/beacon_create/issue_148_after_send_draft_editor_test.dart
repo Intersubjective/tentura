@@ -76,17 +76,16 @@ class _CreateTitleProbe extends StatelessWidget {
 }
 
 class _HarnessRouter extends Mock implements StackRouter {
-  int popAndPushCount = 0;
-  PageRouteInfo? lastPopAndPush;
+  int pushCount = 0;
+  PageRouteInfo? lastPush;
 
   @override
-  Future<T?> popAndPush<T extends Object?, TO extends Object?>(
+  Future<T?> push<T extends Object?>(
     PageRouteInfo route, {
-    TO? result,
     OnNavigationFailure? onFailure,
   }) async {
-    popAndPushCount++;
-    lastPopAndPush = route;
+    pushCount++;
+    lastPush = route;
     return null;
   }
 }
@@ -161,9 +160,9 @@ void main() {
         final router = _HarnessRouter();
         await popCreateAndOpenLiveBeacon(router, beaconId: 'B148');
 
-        expect(router.popAndPushCount, 1);
-        expect(router.lastPopAndPush, isA<BeaconViewRoute>());
-        final route = router.lastPopAndPush! as BeaconViewRoute;
+        expect(router.pushCount, 1);
+        expect(router.lastPush, isA<BeaconViewRoute>());
+        final route = router.lastPush! as BeaconViewRoute;
         expect(route.args!.id, 'B148');
       },
     );
