@@ -41,7 +41,10 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   Future<void> markReadToBottom() async {}
 
   @override
-  Future<void> updatePlan(String currentLine) async {
+  Future<void> updatePlan(
+    String currentLine, {
+    required String? expectedLine,
+  }) async {
     lastUpdatePlanLine = currentLine;
   }
 }
