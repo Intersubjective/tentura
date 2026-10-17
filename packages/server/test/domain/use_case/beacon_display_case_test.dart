@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
+import 'package:tentura_server/domain/port/pair_block_query_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_display_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/env.dart';
@@ -38,6 +39,7 @@ void main() {
   late MockCoordinationRepositoryPort coordinationRepo;
   late _FakeClosureRepository closureRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
+  late _FakePairBlocks blocks;
   late FakeBeaconAccessGuard guard;
   late BeaconDisplayCase case_;
   late CommitmentQueryCase commitmentQueryCase;
@@ -82,6 +84,7 @@ void main() {
     coordinationRepo = MockCoordinationRepositoryPort();
     closureRepo = _FakeClosureRepository();
     roomRepo = MockBeaconRoomRepositoryPort();
+    blocks = _FakePairBlocks();
     guard = FakeBeaconAccessGuard();
     commitmentQueryCase = noopCommitmentQueryCase(
       logger: Logger('BeaconDisplayCaseTest'),
@@ -95,6 +98,7 @@ void main() {
       roomRepo,
       guard,
       commitmentQueryCase,
+      blocks,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconDisplayCaseTest'),
     );
@@ -195,6 +199,78 @@ void main() {
       );
 
       expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+    });
+
+    // #593 review: m0210's view also leaves out a helper the author blocked
+    // or who blocked the author (block_hides); blocking withdraws the offer
+    // but keeps room_access admitted until #408.
+    test('a helper hidden by a block is not counted', () async {
+      when(helpOfferRepo.fetchByBeaconId(beaconId)).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: offererId,
+            status: 1,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
+      );
+      when(
+        roomRepo.listParticipants(beaconId),
+      ).thenAnswer((_) async => [admitted(offererId)]);
+      blocks.pairs = {_sortedPair(authorId, offererId)};
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+      expect(blocks.askedFor, {authorId, offererId});
+    });
+
+    test('a helper whose id sorts before the author is hidden too', () async {
+      // PairBlockQueryPort returns each pair sorted: (helper, author) here.
+      const earlyHelperId = 'U0000000000000000000000000';
+      when(
+        roomRepo.listParticipants(beaconId),
+      ).thenAnswer((_) async => [admitted(earlyHelperId)]);
+      blocks.pairs = {_sortedPair(authorId, earlyHelperId)};
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.lookingForHelpers);
+    });
+
+    test('a block between other people does not hide a helper', () async {
+      when(helpOfferRepo.fetchByBeaconId(beaconId)).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: offererId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
+      );
+      when(
+        coordinationRepo.coordinationResponseTypeByOfferUserId(beaconId),
+      ).thenAnswer((_) async => {offererId: 0});
+      when(
+        roomRepo.listParticipants(beaconId),
+      ).thenAnswer((_) async => [admitted(offererId), admitted(strangerId)]);
+      blocks.pairs = {_sortedPair(offererId, strangerId)};
+
+      final result = await case_.displayStatuses(
+        beaconIds: [beaconId],
+        viewerId: authorId,
+      );
+
+      expect(result.single.phase, BeaconDisplayPhase.coordinating);
     });
 
     test('a Post addressee kept after conversion is not a helper', () async {
@@ -468,6 +544,7 @@ void main() {
                 roomRepo,
                 guard,
                 queryCase,
+                blocks,
                 env: Env(environment: Environment.test),
                 logger: Logger('BeaconDisplayCaseTest'),
               );
@@ -547,6 +624,7 @@ void main() {
               createdAt: now,
             ),
           ]),
+          blocks,
           env: Env(environment: Environment.test),
           logger: Logger('BeaconDisplayCaseTest'),
         );
@@ -562,4 +640,24 @@ void main() {
       });
     });
   });
+}
+
+(String, String) _sortedPair(String a, String b) =>
+    a.compareTo(b) < 0 ? (a, b) : (b, a);
+
+/// Blocked pairs as `PairBlockQueryRepository` returns them (sorted).
+final class _FakePairBlocks implements PairBlockQueryPort {
+  Set<(String, String)> pairs = {};
+  Set<String>? askedFor;
+
+  @override
+  Future<Set<(String, String)>> blockedPairsAmong({
+    required Set<String> userIds,
+  }) async {
+    askedFor = userIds;
+    return {
+      for (final p in pairs)
+        if (userIds.contains(p.$1) && userIds.contains(p.$2)) p,
+    };
+  }
 }
