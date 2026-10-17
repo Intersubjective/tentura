@@ -31,6 +31,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
   final menuInput = BeaconStatusMenuInput(
     beacon: state.beacon,
     closureReadiness: state.closureReadiness,
+    closureBlockedOnlyByNeedsMoreHelp: closureBlockedOnlyByNeedsMoreHelp(state),
     hasCommitters: beaconStateHasCommitters(state),
     canManageLifecycle: state.isBeaconMine,
     canSetCoordination: state.isAuthorOrSteward,
