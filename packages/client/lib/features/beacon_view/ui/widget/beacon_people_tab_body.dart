@@ -185,7 +185,11 @@ class BeaconPeopleTabBody extends StatelessWidget {
             beaconId: beacon.id,
             viewerId: state.myProfile.id,
             author: beacon.author,
-            acceptedAt: myAcceptedOffer.updatedAt,
+            // As on the Requests tab: when the author responded, not when
+            // the offer was last edited.
+            acceptedAt:
+                myAcceptedOffer.coordinationResponseAt ??
+                myAcceptedOffer.updatedAt,
             requestTitle: beacon.title,
             padding: EdgeInsets.only(bottom: context.tt.rowGap),
           );
