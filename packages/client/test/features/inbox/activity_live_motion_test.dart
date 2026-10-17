@@ -637,7 +637,9 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is RichText &&
-            widget.text.toPlainText().contains('Перемещено в ленту'),
+            widget.text.toPlainText().contains(
+              'Перенесено из «Для вас» в список ниже',
+            ),
       ),
       findsOneWidget,
     );
