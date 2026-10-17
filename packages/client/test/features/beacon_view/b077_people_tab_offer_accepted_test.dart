@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/timeline_help_offer_mapping.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -196,6 +197,51 @@ void main() {
         matching: find.byType(AttentionMiniCard),
       ),
       findsNothing,
+    );
+  });
+
+  // #593 review: the sub-card's age is when the author accepted, not when
+  // the offer was last edited.
+  testWidgets('a later edit of the offer leaves the acceptance time', (
+    tester,
+  ) async {
+    final acceptedAt = DateTime.utc(2025, 1, 1, 0, 5);
+    final admitted = _state(roomAccess: RoomAccessBits.admitted);
+    final state = admitted.copyWith(
+      helpOffers: timelineHelpOffersFromRemote([
+        (
+          beaconId: 'B1',
+          userId: _helper.id,
+          user: _helper,
+          message: 'I can help, edited',
+          helpType: null,
+          roleLabel: null,
+          status: 0,
+          withdrawReason: null,
+          createdAt: _t,
+          updatedAt: DateTime.utc(2025, 1, 4),
+          responseType: CoordinationResponseType.useful.index,
+          responseUpdatedAt: acceptedAt,
+          responseAuthorUserId: _author.id,
+          roomAccess: RoomAccessBits.admitted,
+          admissionAction: null,
+          lastDeclineReason: null,
+          lastRemoveReason: null,
+          stakeState: 0,
+          offerKind: 0,
+          isDirectAuthorForward: false,
+          authorSeenAt: null,
+        ),
+      ]),
+    );
+    await _pump(tester, state);
+    expect(
+      tester
+          .widget<OfferAcceptedEventSubcard>(
+            find.byType(OfferAcceptedEventSubcard),
+          )
+          .acceptedAt,
+      acceptedAt,
     );
   });
 }

@@ -40,6 +40,7 @@ class TimelineHelpOffer {
     this.helpType,
     this.roleLabel,
     this.coordinationResponse,
+    this.coordinationResponseAt,
     this.withdrawReason,
     this.roomAccess,
     this.admissionAction,
@@ -58,6 +59,10 @@ class TimelineHelpOffer {
   final String? helpType;
   final String? roleLabel;
   final CoordinationResponseType? coordinationResponse;
+
+  /// When the author last set [coordinationResponse] (accepting the offer
+  /// is one); unlike [updatedAt], an edit of the offer leaves it.
+  final DateTime? coordinationResponseAt;
   final String? withdrawReason;
 
   /// `beacon_participants.room_access` for this helpOfferer when known.
@@ -82,6 +87,7 @@ class TimelineHelpOffer {
     String? helpType,
     String? roleLabel,
     CoordinationResponseType? coordinationResponse,
+    DateTime? coordinationResponseAt,
     String? withdrawReason,
     int? roomAccess,
     HelpOfferAdmissionAction? admissionAction,
@@ -100,6 +106,8 @@ class TimelineHelpOffer {
     helpType: helpType ?? this.helpType,
     roleLabel: roleLabel ?? this.roleLabel,
     coordinationResponse: coordinationResponse ?? this.coordinationResponse,
+    coordinationResponseAt:
+        coordinationResponseAt ?? this.coordinationResponseAt,
     withdrawReason: withdrawReason ?? this.withdrawReason,
     roomAccess: roomAccess ?? this.roomAccess,
     admissionAction: admissionAction ?? this.admissionAction,

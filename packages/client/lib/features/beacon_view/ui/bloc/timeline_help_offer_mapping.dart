@@ -53,6 +53,7 @@ List<TimelineHelpOffer> timelineHelpOffersFromRemote(
       helpType: c.helpType,
       roleLabel: c.roleLabel,
       coordinationResponse: CoordinationResponseType.tryFromInt(c.responseType),
+      coordinationResponseAt: c.responseUpdatedAt,
       withdrawReason: c.withdrawReason,
       roomAccess: c.roomAccess,
       admissionAction: HelpOfferAdmissionAction.tryFromInt(c.admissionAction),
