@@ -1,0 +1,62 @@
+name: PR full CI
+
+# Adding the `ci:full` label to a PR reruns its Pipeline run, which reads the
+# PR's labels live and then also runs the pg shards and every package's full
+# test selection (see the `changes` job). Other labels do nothing.
+#
+# pull_request_target so the token can rerun runs of fork PRs too. Safe here
+# only because this job never checks out or executes PR code: it calls the
+# GitHub API with values taken from the event, passed through env.
+on:
+  pull_request_target:
+    branches:
+      - main
+    types: [labeled]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rerun:
+    if: github.event.label.name == 'ci:full'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Rerun the PR's Pipeline run with the full selection
+        run: |
+          set -euo pipefail
+          # This PR's run: same commit, branch and source repository (two PRs
+          # can share a head commit), and this PR's number whenever GitHub
+          # records one on the run (it does not for fork PRs). Only one open
+          # PR per head branch can target main, which this workflow is
+          # limited to.
+          run=$(gh api "repos/$REPO/actions/runs?event=pull_request&head_sha=$HEAD_SHA&per_page=50" \
+            --jq "[.workflow_runs[] | select(.path == \".github/workflows/pipeline.yml\"
+                    and .head_branch == env.HEAD_REF
+                    and .head_repository.full_name == env.HEAD_REPO
+                    and ((.pull_requests | length) == 0
+                         or any(.pull_requests[]; .number == (env.PR_NUMBER | tonumber))))]
+                  | max_by(.created_at) // empty | \"\(.id) \(.status)\"")
+          if [ -z "$run" ]; then
+            echo "No Pipeline run for $HEAD_SHA yet: it will read the label when it starts."
+            exit 0
+          fi
+          read -r id status <<<"$run"
+          # A running check may have read the labels before this one was
+          # added: cancel it so the rerun starts from the planning step.
+          if [ "$status" != "completed" ]; then
+            gh run cancel "$id" --repo "$REPO" || true
+            for _ in $(seq 1 60); do
+              [ "$(gh run view "$id" --repo "$REPO" --json status --jq .status)" = completed ] && break
+              sleep 5
+            done
+          fi
+          gh run rerun "$id" --repo "$REPO"
+          echo "Reran Pipeline run $id with the full selection."

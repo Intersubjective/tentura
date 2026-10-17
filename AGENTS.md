@@ -114,7 +114,9 @@ outside it changed. Agent docs (`AGENTS.md`, `.cursor/`, `.claude/`) reach only 
 shard. Client and server (non-pg) tests run as a few bundled entrypoints
 (`scripts/gen_test_bundles.py`, CI only — a file that leaks process-wide state goes in
 `test/bundle_exclude.txt`); the pg suite is split by file across three runners. Manual
-dispatch runs everything.
+dispatch runs everything. Pull requests into `main` get the same selection minus the web
+build, server image, deploy and pg shards — add the `ci:full` label for the pg shards and
+every package's full suite — and must pass the required `PR checks` status to merge.
 
 ## Cursor Cloud specific instructions
 

@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+  # PR mode: tests and analyzer only — no web build, server image or deploy,
+  # and no pg shards unless the PR carries the `ci:full` label (see
+  # pr-full-ci.yml, which reruns this workflow when the label is added). The
+  # `PR checks` job is the required status on main.
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       collect_coverage:
@@ -17,18 +25,22 @@ on:
         default: false
         type: boolean
 
-# One run at a time per ref. A push that lands mid-run waits, and a newer push
+# main: one run at a time. A push that lands mid-run waits, and a newer push
 # replaces a run that is still waiting. Nothing is cancelled mid-flight, so a
 # deploy is never cut off; and because `changes` diffs against the last
 # *successful* run, a replaced run's changes are covered by its replacement.
+# PRs: a new push cancels the PR's running check (nothing there deploys).
 concurrency:
-  group: pipeline-${{ github.ref }}
-  cancel-in-progress: false
+  group: pipeline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Read-only by default: PR runs execute the PR's own scripts. Only the jobs
+# that publish (build-web, build-server, deploy-dev) get packages: write, and
+# none of them runs on a PR.
 permissions:
   contents: read
-  packages: write
   actions: read
+  pull-requests: read
 
 env:
   REGISTRY: ghcr.io
@@ -39,9 +51,15 @@ jobs:
   # Decides what this push needs (scripts/ci_changes.py): a package's tests,
   # analyzer gate and build run only when it changed; its `repo-files` tests
   # (the ones reading docs, scripts, workflows or the other package) also run
-  # when anything outside it changed. Manual dispatch runs everything.
+  # when anything outside it changed. Manual dispatch runs everything. On a PR
+  # it diffs the PR (its merge commit against the base) and plans tests only.
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      packages: read
     outputs:
       server: ${{ steps.plan.outputs.server }}
       client: ${{ steps.plan.outputs.client }}
@@ -64,12 +82,39 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" != "push" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Labels are read live, not from the event: pr-full-ci.yml reruns
+            # this run when `ci:full` is added, with the original payload. A
+            # failed lookup fails the step (set -e) rather than reading as "no
+            # label".
+            labels=$(gh pr view "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" \
+              --json labels --jq '.labels[].name')
+            if grep -qx 'ci:full' <<<"$labels"; then
+              echo "ci:full: running every test, pg shards included."
+              python3 scripts/ci_changes.py --all > plan.txt
+              echo "pg=true" >> "$GITHUB_OUTPUT"
+            else
+              # HEAD is the PR merged into its base: what would land.
+              base="${{ github.event.pull_request.base.sha }}"
+              git fetch --quiet --depth=1 origin "$base"
+              echo "Changes in this PR (against $base):"
+              git diff --name-only --no-renames "$base" HEAD | tee changed.txt
+              python3 scripts/ci_changes.py < changed.txt > plan.txt
+              echo "pg=false" >> "$GITHUB_OUTPUT"
+            fi
+            # Nothing is built for deployment or deployed from a PR.
+            sed -i -e 's/^web=.*/web=false/' -e 's/^server_image=.*/server_image=false/' \
+              -e 's/^deploy=.*/deploy=false/' plan.txt
+          elif [ "${{ github.event_name }}" != "push" ]; then
             echo "Manual dispatch: running everything."
             python3 scripts/ci_changes.py --all > plan.txt
+            echo "pg=true" >> "$GITHUB_OUTPUT"
           else
+            echo "pg=true" >> "$GITHUB_OUTPUT"
+            # Push runs only: a PR run (even from a fork branch named main)
+            # must never become main's baseline.
             base=$(gh run list --repo "${{ github.repository }}" --workflow pipeline.yml \
-              --branch "${{ github.ref_name }}" --status success --limit 1 \
+              --branch "${{ github.ref_name }}" --event push --status success --limit 1 \
               --json headSha --jq '.[0].headSha // ""')
             if [ -n "$base" ] && git fetch --quiet --depth=1 origin "$base"; then
               echo "Changes since the last successful run ($base):"
@@ -136,6 +181,7 @@ jobs:
           WEB: ${{ steps.diff.outputs.web }}
           DEPLOY: ${{ steps.diff.outputs.deploy }}
           SERVER_CHANGED: ${{ steps.diff.outputs.server_image }}
+          RUN_PG: ${{ steps.diff.outputs.pg }}
           CACHED_WEB: ${{ steps.webcache.outputs.cache-matched-key }}
           IMAGE_FOUND: ${{ steps.srvimage.outputs.found }}
         run: |
@@ -153,7 +199,9 @@ jobs:
           shards='[{"target":"lints","package":""}'
           if [ "$SERVER" != "skip" ]; then
             shards+=',{"target":"server","package":"server"}'
-            if [ "$SERVER" = "full" ]; then
+            if [ "$RUN_PG" != "true" ]; then
+              echo "pg shards skipped (PR without the ci:full label)."
+            elif [ "$SERVER" = "full" ]; then
               # The pg suite is CPU-bound on one 4-vCPU runner; split by file
               # across three, each with its own Postgres.
               shards+=',{"target":"pg-1","package":"server","pg_shard":"1/3"}'
@@ -433,6 +481,29 @@ jobs:
               esac
             '
 
+  # The required status for merging into main. One stable name whatever the
+  # PR touched: the shard matrix differs per PR, and a required check that a
+  # run never creates would block the merge forever.
+  pr-checks:
+    name: PR checks
+    needs: [changes, test-shards]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # `always()`, not `!cancelled()`: a cancelled run must report failure,
+      # since GitHub counts a skipped required check as passing.
+      - name: Verdict
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          SHARDS: ${{ needs.test-shards.result }}
+        run: |
+          echo "changes: $CHANGES, test shards: $SHARDS"
+          if [ "$CHANGES" = "success" ] && [ "$SHARDS" = "success" ]; then
+            exit 0
+          fi
+          echo "::error::PR checks failed (changes: $CHANGES, test shards: $SHARDS)"
+          exit 1
+
   coverage:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true'
@@ -534,7 +605,7 @@ jobs:
 
   build-web:
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: github.event_name != 'pull_request' && needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -724,8 +795,11 @@ jobs:
   # a cache and spent ~2 min exporting a multi-GB layer cache to GHA.
   build-server:
     needs: changes
-    if: needs.changes.outputs.server_image == 'true'
+    if: github.event_name != 'pull_request' && needs.changes.outputs.server_image == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -813,6 +887,7 @@ jobs:
     if: |
       always() &&
       !cancelled() &&
+      github.event_name != 'pull_request' &&
       needs.changes.result == 'success' &&
       needs.changes.outputs.deploy == 'true' &&
       needs.test-shards.result == 'success' &&
