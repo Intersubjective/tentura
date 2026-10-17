@@ -341,7 +341,8 @@ VALUES ('$_post', '$_author', '', '', 0, 1, 0, false, now())
       await writer.execute('''
 INSERT INTO public.beacon (id, user_id, title, description, status,
   published_at)
-VALUES ('${entry.key}', '$_author', 'Matrix request', '', ${entry.value},
+VALUES ('${entry.key}', '$_author', 'Matrix request', 'Matrix description',
+  ${entry.value},
   ${entry.value == 0 ? 'now()' : 'NULL'})
 ''');
     }
