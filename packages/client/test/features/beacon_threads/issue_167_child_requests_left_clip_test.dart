@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -56,7 +57,17 @@ Widget _wrapRuNowSurface({
   required BeaconHierarchyCubit hierarchyCubit,
   required BeaconViewCubit beaconViewCubit,
   required ScreenCubit screenCubit,
+  double? panelWidth,
 }) {
+  final surface = BeaconNowSurface(
+    beaconViewCubit: beaconViewCubit,
+    screenCubit: screenCubit,
+    beaconState: beaconViewCubit.state,
+    onSurfaceSelected: (_) {},
+    onActivatePeopleTabAttention: () {},
+    onFocusCoordinationItem: (_) {},
+    onOpenGeneralThread: () {},
+  );
   return MaterialApp(
     theme: TenturaTheme.light(),
     localizationsDelegates: L10n.localizationsDelegates,
@@ -69,15 +80,13 @@ Widget _wrapRuNowSurface({
             BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit),
             BlocProvider<BeaconViewCubit>.value(value: beaconViewCubit),
           ],
-          child: BeaconNowSurface(
-            beaconViewCubit: beaconViewCubit,
-            screenCubit: screenCubit,
-            beaconState: beaconViewCubit.state,
-            onSurfaceSelected: (_) {},
-            onActivatePeopleTabAttention: () {},
-            onFocusCoordinationItem: (_) {},
-            onOpenGeneralThread: () {},
-          ),
+          child: panelWidth == null
+              ? surface
+              // The Now panel beside the chat on a wide window.
+              : Align(
+                  alignment: AlignmentDirectional.topStart,
+                  child: SizedBox(width: panelWidth, child: surface),
+                ),
         ),
       ),
     ),
@@ -210,4 +219,54 @@ void main() {
       );
     },
   );
+
+  // #465: in the Now panel of a wide window the RU "Create child request"
+  // button got half the header row and was cut to «Создать дочерний …».
+  testWidgets('ru create-child button label fits in the wide Now panel', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(1280, 800)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final hierarchyCubit = BeaconHierarchyCubit(
+      beaconId: 'parent-1',
+      hierarchyCase: buildBeaconHierarchyCaseForTest(
+        FakeBeaconHierarchyRepositoryPort(),
+        createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+        beacons: _NoopBeaconWritePort(),
+        commandStore: InMemoryBeaconChildCommandStore(),
+      ),
+    );
+    addTearDown(hierarchyCubit.close);
+    final beaconViewCubit = _FakeBeaconViewCubit(_authorBeaconState());
+    addTearDown(beaconViewCubit.close);
+    final screenCubit = ScreenCubit.local();
+    addTearDown(screenCubit.close);
+
+    await tester.pumpWidget(
+      _wrapRuNowSurface(
+        hierarchyCubit: hierarchyCubit,
+        beaconViewCubit: beaconViewCubit,
+        screenCubit: screenCubit,
+        panelWidth: 400,
+      ),
+    );
+    await hierarchyCubit.load();
+    await tester.pumpAndSettle();
+
+    final l10n = await L10n.delegate.load(const Locale('ru'));
+    final label = tester.renderObject<RenderParagraph>(
+      find.text(l10n.beaconCreateChildRequest),
+    );
+    expect(label.didExceedMaxLines, isFalse);
+    expect(
+      tester.renderObject<RenderParagraph>(
+        find.text(l10n.beaconChildRequestsTitle),
+      ).didExceedMaxLines,
+      isFalse,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
