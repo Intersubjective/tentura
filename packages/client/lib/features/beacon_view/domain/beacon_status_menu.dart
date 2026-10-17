@@ -35,6 +35,7 @@ enum BeaconStatusMenuDisabledReason {
   publishFirst,
   finishReviewFirst,
   noCommitters,
+  noHelpersYet,
   cancelHasOffers,
   cancelWrappingUp,
   blocked,
@@ -294,6 +295,20 @@ BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) {
       isSelected: false,
       isEnabled: false,
       disabledReason: BeaconStatusMenuDisabledReason.finishReviewFirst,
+    );
+  }
+  // Same rule as the HUD's "Mark enough help": only once someone has
+  // committed to help (#384). Already set, it stays as it is.
+  if (input.canSetCoordination &&
+      input.beacon.status.isOpenFamily &&
+      input.beacon.status != BeaconStatus.enoughHelp &&
+      !input.hasCommitters) {
+    return const BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.enoughHelp,
+      action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.noHelpersYet,
     );
   }
   return _coordinationRow(
