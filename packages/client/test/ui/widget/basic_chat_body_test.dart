@@ -400,6 +400,27 @@ void main() {
     );
   });
 
+  // #369: focus stayed on Attach, so a typed caption was lost and Space
+  // reopened the menu.
+  testWidgets('picking Photos moves focus to the message field', (
+    tester,
+  ) async {
+    await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Photos'));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(field.focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('composer clears when onSend returns true', (tester) async {
     await pumpComposerBody(
       tester,
