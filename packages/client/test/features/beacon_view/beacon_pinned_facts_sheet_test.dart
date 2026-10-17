@@ -199,6 +199,28 @@ void main() {
     );
   }
 
+  // #497: the sheet could only be left by tapping outside it.
+  testWidgets('the close button closes the sheet', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final cubit = (await tester.runAsync(
+      () => loadedCubit(cards: [fact(id: 'f1', createdAt: t0)]),
+    ))!;
+    addTearDown(cubit.close);
+    await tester.pumpWidget(sheetHost(cubit));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconFactsSheetTitle), findsOneWidget);
+
+    await tester.tap(find.byTooltip(l10n.buttonClose));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text(l10n.beaconFactsSheetTitle), findsNothing);
+  });
+
   testWidgets('Add fact is hidden without coordination', (tester) async {
     await tester.binding.setSurfaceSize(const Size(375, 812));
     addTearDown(() => tester.binding.setSurfaceSize(null));
