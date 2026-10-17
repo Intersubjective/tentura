@@ -164,6 +164,22 @@ void main() {
         },
       );
 
+      // #444: the When? and Requirements sheets had no Cancel or ✕.
+      testWidgets('the ${row.name} sheet has a Close button', (tester) async {
+        await tester.pumpWidget(_editorHarness(buildCubit()));
+        await tester.pumpAndSettle();
+        await rapidTaps(tester, find.byKey(row.rowKey), times: 1);
+        await tester.pumpAndSettle();
+        expect(row.openOverlays(), findsOneWidget);
+
+        await tester.tap(
+          find.byTooltip(lookupL10n(const Locale('en')).buttonClose),
+        );
+        await tester.pumpAndSettle();
+
+        expect(row.openOverlays(), findsNothing);
+      });
+
       testWidgets(
         'the ${row.name} row opens its sheet again after the previous one '
         'was dismissed',
