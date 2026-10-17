@@ -83,3 +83,36 @@ class EntityIdInputFormatter extends TextInputFormatter {
     return oldValue;
   }
 }
+
+/// Public handle entry (`[a-z0-9_]`): lower-cases letters and turns spaces
+/// into `_` instead of silently dropping them (#460); other characters are
+/// still dropped. The caret is placed by normalizing the text before it, so
+/// it keeps its place.
+class UserHandleInputFormatter extends TextInputFormatter {
+  const UserHandleInputFormatter();
+
+  static final _disallowed = RegExp('[^a-z0-9_]');
+
+  static String _normalize(String text) =>
+      text.toLowerCase().replaceAll(' ', '_').replaceAll(_disallowed, '');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = _normalize(newValue.text);
+    if (text == newValue.text) return newValue;
+    final selection = newValue.selection;
+    int at(int offset) => offset < 0
+        ? offset
+        : _normalize(newValue.text.substring(0, offset)).length;
+    return TextEditingValue(
+      text: text,
+      selection: selection.copyWith(
+        baseOffset: at(selection.baseOffset),
+        extentOffset: at(selection.extentOffset),
+      ),
+    );
+  }
+}
