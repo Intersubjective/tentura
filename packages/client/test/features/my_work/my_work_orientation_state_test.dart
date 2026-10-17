@@ -213,7 +213,7 @@ void main() {
         find.byKey(TestIds.key(TestIds.orientationPanel)),
         findsOneWidget,
       );
-      expect(find.text('No active work yet'), findsNothing);
+      expect(find.text('No active requests yet'), findsNothing);
 
       await _disposeHarness(
         tester,
@@ -269,7 +269,7 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.byKey(TestIds.key(TestIds.orientationPanel)), findsNothing);
-    expect(find.text('No active work yet'), findsOneWidget);
+    expect(find.text('No active requests yet'), findsOneWidget);
 
     await _disposeHarness(
       tester,
@@ -299,7 +299,7 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.byKey(TestIds.key(TestIds.orientationPanel)), findsNothing);
-    expect(find.text('No active work yet'), findsNothing);
+    expect(find.text('No active requests yet'), findsNothing);
     expect(find.text('Welcome to Tentura'), findsNothing);
 
     prefs.activatedReadDelay!.complete(false);
@@ -337,7 +337,7 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byKey(TestIds.key(TestIds.orientationPanel)), findsNothing);
-      expect(find.text('No active work yet'), findsNothing);
+      expect(find.text('No active requests yet'), findsNothing);
 
       await _disposeHarness(
         tester,
@@ -376,7 +376,7 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.byKey(TestIds.key(TestIds.orientationPanel)), findsNothing);
-    expect(find.text('No active work yet'), findsOneWidget);
+    expect(find.text('No active requests yet'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
 
     await _disposeHarness(

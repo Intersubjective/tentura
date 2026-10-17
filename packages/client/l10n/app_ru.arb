@@ -3135,7 +3135,7 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAll": "Пока нет созданных дел или предложений помощи",
+  "myWorkEmptyAll": "Пока нет ваших запросов или предложений помощи",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
@@ -3147,11 +3147,11 @@
   "@myWorkEmptyHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyArchived": "Нет архивных записей",
+  "myWorkEmptyArchived": "Нет архивных запросов",
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveTitle": "Пока нет активных дел",
+  "myWorkEmptyActiveTitle": "Пока нет активных запросов",
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
