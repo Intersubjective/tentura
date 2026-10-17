@@ -327,13 +327,19 @@ bool _closeBlocked(BeaconStatusMenuInput input) =>
 /// closure-blocking state, but it is the author's own status, not a blocker
 /// they can find anywhere: name the step that clears it (B081) — only when it
 /// is the sole blocker; otherwise marking «Enough help» would not unblock.
+/// With nobody committed, «Enough help» is itself disabled (#384), so name
+/// that missing step instead.
 BeaconStatusMenuDisabledReason _closeBlockedReason(
   BeaconStatusMenuInput input,
-) =>
-    input.beacon.status == BeaconStatus.needsMoreHelp &&
-        input.closureBlockedOnlyByNeedsMoreHelp
-    ? BeaconStatusMenuDisabledReason.markEnoughHelpFirst
-    : BeaconStatusMenuDisabledReason.blocked;
+) {
+  if (input.beacon.status != BeaconStatus.needsMoreHelp ||
+      !input.closureBlockedOnlyByNeedsMoreHelp) {
+    return BeaconStatusMenuDisabledReason.blocked;
+  }
+  return input.hasCommitters
+      ? BeaconStatusMenuDisabledReason.markEnoughHelpFirst
+      : BeaconStatusMenuDisabledReason.noHelpersYet;
+}
 
 BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
