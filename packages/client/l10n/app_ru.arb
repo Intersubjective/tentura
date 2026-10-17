@@ -983,7 +983,7 @@
   "@allTopics": {
     "context": "Topics"
   },
-  "confirmFriendRemoval": "Вы уверены, что хотите удалить {profileTitle} из списка друзей?",
+  "confirmFriendRemoval": "Перестать доверять пользователю {profileTitle}?",
   "@confirmFriendRemoval": {
     "context": "FriendRemoveDialog",
     "placeholders": {

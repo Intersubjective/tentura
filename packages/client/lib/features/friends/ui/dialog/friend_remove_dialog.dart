@@ -12,14 +12,13 @@ class FriendRemoveDialog extends StatelessWidget {
     BuildContext context, {
     required Profile profile,
     Future<void> Function()? onRemove,
-  }) =>
-      showAdaptiveDialog(
-        context: context,
-        builder: (_) => FriendRemoveDialog(
-          profile: profile,
-          onRemove: onRemove,
-        ),
-      );
+  }) => showAdaptiveDialog(
+    context: context,
+    builder: (_) => FriendRemoveDialog(
+      profile: profile,
+      onRemove: onRemove,
+    ),
+  );
 
   const FriendRemoveDialog({
     required this.profile,
@@ -36,22 +35,26 @@ class FriendRemoveDialog extends StatelessWidget {
     return AlertDialog.adaptive(
       title: Text(l10n.confirmFriendRemoval(profile.shownName)),
       actions: [
-        // Remove
+        // Stop trusting
         TextButton(
           onPressed: () async {
             final remove =
-                onRemove ??
-                () => GetIt.I<FriendsCubit>().removeFriend(profile);
+                onRemove ?? () => GetIt.I<FriendsCubit>().removeFriend(profile);
             try {
               await remove();
             } catch (e) {
               if (context.mounted) {
-                showSnackBar(context, isError: true, text: e.toString(), error: e);
+                showSnackBar(
+                  context,
+                  isError: true,
+                  text: e.toString(),
+                  error: e,
+                );
               }
             }
             if (context.mounted) Navigator.of(context).pop();
           },
-          child: Text(l10n.buttonRemove),
+          child: Text(l10n.removeFromMyField),
         ),
 
         // Cancel
