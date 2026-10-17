@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app/app.dart';
+import 'app/platform/path_deep_link.dart';
 import 'app/sentry/install_web_script_error_filter.dart';
 import 'app/sentry/sentry_init.dart';
 import 'app/tentura_widgets_binding.dart';
 
 Future<void> main() async {
+  adoptPathDeepLink();
   TenturaWidgetsBinding.ensureInitialized();
   if (kDebugMode) {
     await App.runner(debugErrors: true);

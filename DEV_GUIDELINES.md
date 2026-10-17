@@ -112,6 +112,10 @@ When adding a new V2 server query or mutation:
 Flutter web uses **hash routing** (`#/…`). Landing → app handoff must use explicit
 hash paths (e.g. `#/accept-invite/<code>`), not root query params like `?invite=`.
 
+Path links `/profile/view/<id>` and `/beacon/view/<id>` (profile QR codes, share
+links) are accepted and rewritten to their hash route at boot
+(`path_deep_link_policy.dart`). Keep generating them as they are: printed QR codes depend on it.
+
 | Route | Constant | When |
 |-------|----------|------|
 | Basic invite URL | `/invite/<code>` (server/landing) | Share + static preview |
