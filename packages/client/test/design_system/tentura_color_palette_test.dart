@@ -23,8 +23,40 @@ void main() {
         for (final bg in [p.bg, p.surface]) {
           expect(_contrast(p.text, bg), greaterThanOrEqualTo(4.5));
           expect(_contrast(p.textMuted, bg), greaterThanOrEqualTo(4.5));
-          expect(_contrast(p.textFaint, bg), greaterThanOrEqualTo(3));
+          // textFaint carries timestamps, day headers and card meta, so it
+          // is held to the text minimum, not the 3:1 non-text one.
+          expect(_contrast(p.textFaint, bg), greaterThanOrEqualTo(4.5));
         }
+      });
+
+      test('secondary text stays readable on sunken surfaces', () {
+        // The composer, hovered rows and inset fields sit on surfaceSunken.
+        expect(
+          _contrast(p.textMuted, p.surfaceSunken),
+          greaterThanOrEqualTo(4.5),
+        );
+        // Activity timestamps and day headers (textFaint) sit there too.
+        expect(
+          _contrast(p.textFaint, p.surfaceSunken),
+          greaterThanOrEqualTo(4.5),
+        );
+      });
+
+      test('secondary text stays readable on a hovered row', () {
+        // Material's hover state layer: onSurface (text) at 8% over surface.
+        final hovered = Color.alphaBlend(
+          p.text.withValues(alpha: 0.08),
+          p.surface,
+        );
+        expect(_contrast(p.textMuted, hovered), greaterThanOrEqualTo(4.5));
+        expect(_contrast(p.textFaint, hovered), greaterThanOrEqualTo(4.5));
+      });
+
+      test('faint text stays lighter than muted text', () {
+        expect(
+          _contrast(p.textFaint, p.surface),
+          lessThan(_contrast(p.textMuted, p.surface)),
+        );
       });
 
       test('brand pairs are readable', () {
