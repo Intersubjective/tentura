@@ -95,6 +95,7 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.participantRemoved =>
       Icons.person_remove_outlined,
     BeaconActivityEventTypeBits.participantJoined => Icons.person_add_alt_1,
+    BeaconActivityEventTypeBits.participantLeft => Icons.person_remove_outlined,
     _ => Icons.hub_outlined,
   };
 }
@@ -299,6 +300,8 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
       l10n.beaconActivityParticipantRemoved,
     BeaconActivityEventTypeBits.participantJoined =>
       l10n.beaconActivityParticipantJoined,
+    BeaconActivityEventTypeBits.participantLeft =>
+      l10n.beaconActivityParticipantLeft,
     _ => l10n.beaconActivityCoordinationFallback,
   };
 }

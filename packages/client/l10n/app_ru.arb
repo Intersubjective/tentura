@@ -4923,6 +4923,7 @@
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
   "beaconRoomSemanticParticipantJoined": "Вступил(а) в обсуждение",
+  "beaconRoomSemanticParticipantLeft": "Вышел(а) из обсуждения",
   "beaconRoomSemanticFactEdited": "Факт изменён",
   "beaconRoomSemanticFactUnpinned": "Факт откреплён",
   "beaconRoomSemanticFactQuoted": "Факт",
@@ -4982,6 +4983,31 @@
         "type": "String"
       },
       "actorName": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeft": "{name} покинул(а) запрос ({reason})",
+  "@beaconRoomParticipantLeft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeftWithNote": "{name} покинул(а) запрос ({reason}): «{note}»",
+  "@beaconRoomParticipantLeftWithNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      },
+      "note": {
         "type": "String"
       }
     }
@@ -5148,6 +5174,7 @@
   "beaconActivityLifecycleReviewExpired": "Срок обзора истёк",
   "beaconActivityParticipantRemoved": "Участник убран из обсуждения",
   "beaconActivityParticipantJoined": "Участник вступил в обсуждение",
+  "beaconActivityParticipantLeft": "Участник вышел из обсуждения",
   "beaconActivityCoordinationFallback": "Обновление обсуждения",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",

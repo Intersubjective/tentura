@@ -10,7 +10,9 @@ import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_help_offer.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -45,16 +47,14 @@ class _LockingBeaconRepo extends Fake implements BeaconRepositoryPort {
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
-  }) async =>
-      _beacon;
+  }) async => _beacon;
 
   @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
-  }) =>
-      fn(_beacon);
+  }) => fn(_beacon);
 }
 
 void main() {
@@ -202,6 +202,9 @@ void main() {
 
     test('allows OPEN (0)', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => null);
       when(helpOfferRepo.fetchAllByBeaconId('B1')).thenAnswer(
         (_) async => [
           HelpOfferEntity(
@@ -259,6 +262,152 @@ void main() {
       // Open-beacon withdrawal notifies the author/stewards.
       expect(attention.recorded.single.eventType.name, 'promiseWithdrawn');
     });
+  });
+
+  group('withdraw leaves a trace in the room (B084)', () {
+    void stubParticipant({
+      required int role,
+      required int roomAccess,
+    }) {
+      when(roomRepo.findParticipant(beaconId: 'B1', userId: 'U1')).thenAnswer(
+        (_) async => BeaconParticipantRecord(
+          id: 'P1',
+          beaconId: 'B1',
+          userId: 'U1',
+          role: role,
+          status: 0,
+          roomAccess: roomAccess,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+        ),
+      );
+      // main (tentura-ba5m): withdraw first checks the helper has an offer.
+      when(helpOfferRepo.fetchAllByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          ),
+        ],
+      );
+    }
+
+    void stubWithdrawSideEffects() {
+      when(
+        helpOfferRepo.withdraw(
+          beaconId: 'B1',
+          userId: 'U1',
+          withdrawReason: 'timing',
+          message: anyNamed('message'),
+        ),
+      ).thenAnswer((_) => Future.value());
+      when(
+        inboxRepo.upsertWatchingForSender(
+          senderId: 'U1',
+          beaconId: 'B1',
+          touchForwardOrdering: false,
+        ),
+      ).thenAnswer((_) => Future.value());
+    }
+
+    // Fails on the base: the repository decided who leaves, so the use case
+    // called recordParticipantLeft for every withdrawal.
+    test('a pending (not admitted) offer leaves no line', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubWithdrawSideEffects();
+      stubParticipant(
+        role: BeaconParticipantRoleBits.candidate,
+        roomAccess: RoomAccessBits.requested,
+      );
+
+      await case_.withdraw(
+        beaconId: 'B1',
+        userId: 'U1',
+        withdrawReason: 'timing',
+      );
+
+      verifyNever(
+        roomRepo.recordParticipantLeft(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+          withdrawReason: anyNamed('withdrawReason'),
+          note: anyNamed('note'),
+        ),
+      );
+    });
+
+    test('a Post addressee leaves no line (they keep access)', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubWithdrawSideEffects();
+      stubParticipant(
+        role: BeaconParticipantRoleBits.addressee,
+        roomAccess: RoomAccessBits.admitted,
+      );
+
+      await case_.withdraw(
+        beaconId: 'B1',
+        userId: 'U1',
+        withdrawReason: 'timing',
+      );
+
+      verifyNever(
+        roomRepo.recordParticipantLeft(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+          withdrawReason: anyNamed('withdrawReason'),
+          note: anyNamed('note'),
+        ),
+      );
+    });
+
+    test(
+      'records the leave line with reason and note before revoking access',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+        stubParticipant(
+          role: BeaconParticipantRoleBits.helper,
+          roomAccess: RoomAccessBits.admitted,
+        );
+        when(
+          helpOfferRepo.withdraw(
+            beaconId: 'B1',
+            userId: 'U1',
+            withdrawReason: 'timing',
+            message: 'Saturday fell through',
+          ),
+        ).thenAnswer((_) => Future.value());
+        when(
+          inboxRepo.upsertWatchingForSender(
+            senderId: 'U1',
+            beaconId: 'B1',
+            touchForwardOrdering: false,
+          ),
+        ).thenAnswer((_) => Future.value());
+
+        await case_.withdraw(
+          beaconId: 'B1',
+          userId: 'U1',
+          withdrawReason: 'timing',
+          message: 'Saturday fell through',
+        );
+
+        verifyInOrder([
+          roomRepo.recordParticipantLeft(
+            beaconId: 'B1',
+            userId: 'U1',
+            withdrawReason: 'timing',
+            note: 'Saturday fell through',
+          ),
+          roomRepo.revokeOfferUserBeaconRoomAccess(
+            beaconId: 'B1',
+            offerUserId: 'U1',
+            authorUserId: 'U1',
+          ),
+        ]);
+      },
+    );
   });
 
   group('offerHelp', () {
@@ -716,43 +865,45 @@ void main() {
       expect(attention.recorded.single.body, 'I can sew the costume');
     });
 
-    test('re-upsert preserves original offerKind when beacon status changed',
-        () async {
-      stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
-      when(
-        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) async => true);
-      when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
-        (_) async => [
-          HelpOfferEntity(
+    test(
+      're-upsert preserves original offerKind when beacon status changed',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => true);
+        when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+          (_) async => [
+            HelpOfferEntity(
+              beaconId: 'B1',
+              userId: 'U1',
+              createdAt: now,
+              updatedAt: now,
+              offerKind: 0,
+            ),
+          ],
+        );
+        when(
+          helpOfferRepo.upsert(
             beaconId: 'B1',
             userId: 'U1',
-            createdAt: now,
-            updatedAt: now,
+            message: 'updated',
             offerKind: 0,
           ),
-        ],
-      );
-      when(
-        helpOfferRepo.upsert(
-          beaconId: 'B1',
-          userId: 'U1',
-          message: 'updated',
-          offerKind: 0,
-        ),
-      ).thenAnswer((_) async {});
+        ).thenAnswer((_) async {});
 
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1', message: 'updated');
+        await case_.offerHelp(beaconId: 'B1', userId: 'U1', message: 'updated');
 
-      verify(
-        helpOfferRepo.upsert(
-          beaconId: 'B1',
-          userId: 'U1',
-          message: 'updated',
-          offerKind: 0,
-        ),
-      ).called(1);
-    });
+        verify(
+          helpOfferRepo.upsert(
+            beaconId: 'B1',
+            userId: 'U1',
+            message: 'updated',
+            offerKind: 0,
+          ),
+        ).called(1);
+      },
+    );
   });
 
   group('direct author forward recipient offer (P5 — no auto-admit)', () {
@@ -848,112 +999,117 @@ void main() {
     );
   });
 
-  group('offerHelp — blocked author/offerer pair (E4, covered by S6 canReadContent)',
-      () {
-    late FakeUserBlockRepository blocks;
+  group(
+    'offerHelp — blocked author/offerer pair (E4, covered by S6 canReadContent)',
+    () {
+      late FakeUserBlockRepository blocks;
 
-    setUp(() {
-      blocks = FakeUserBlockRepository();
-      case_ = HelpOfferCase(
-        helpOfferRepo,
-        beaconRepo,
-        RecordingCommitmentRepository(),
-        inboxRepo,
-        capabilityCase,
-        BlockAwareBeaconAccessGuard(
-          blocks: blocks,
-          beaconRepo: beaconRepo,
-        ),
-        roomRepository: roomRepo,
-        attentionIntents: attention.intents,
-        attention: attention.transactional,
-        env: Env(environment: Environment.test),
-        logger: Logger('HelpOfferCaseBlockTest'),
-      );
-    });
+      setUp(() {
+        blocks = FakeUserBlockRepository();
+        case_ = HelpOfferCase(
+          helpOfferRepo,
+          beaconRepo,
+          RecordingCommitmentRepository(),
+          inboxRepo,
+          capabilityCase,
+          BlockAwareBeaconAccessGuard(
+            blocks: blocks,
+            beaconRepo: beaconRepo,
+          ),
+          roomRepository: roomRepo,
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
+          env: Env(environment: Environment.test),
+          logger: Logger('HelpOfferCaseBlockTest'),
+        );
+      });
 
-    test('rejects when author blocked offerer', () async {
-      stubBeacon(
-        beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
-      );
-      blocks.blockPair('Uauth', 'Uofferer');
+      test('rejects when author blocked offerer', () async {
+        stubBeacon(
+          beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
+        );
+        blocks.blockPair('Uauth', 'Uofferer');
 
-      await expectLater(
-        case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
-        throwsA(isA<UnauthorizedException>()),
-      );
-      verifyNever(
-        helpOfferRepo.upsert(
-          beaconId: anyNamed('beaconId'),
-          userId: anyNamed('userId'),
-          message: anyNamed('message'),
-          helpTypes: anyNamed('helpTypes'),
-        ),
-      );
-    });
+        await expectLater(
+          case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        verifyNever(
+          helpOfferRepo.upsert(
+            beaconId: anyNamed('beaconId'),
+            userId: anyNamed('userId'),
+            message: anyNamed('message'),
+            helpTypes: anyNamed('helpTypes'),
+          ),
+        );
+      });
 
-    test('rejects when offerer blocked author', () async {
-      stubBeacon(
-        beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
-      );
-      blocks.blockPair('Uofferer', 'Uauth');
+      test('rejects when offerer blocked author', () async {
+        stubBeacon(
+          beacon(id: 'B1', status: BeaconStatus.open, authorId: 'Uauth'),
+        );
+        blocks.blockPair('Uofferer', 'Uauth');
 
-      await expectLater(
-        case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
-        throwsA(isA<UnauthorizedException>()),
-      );
-    });
-  });
+        await expectLater(
+          case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
+          throwsA(isA<UnauthorizedException>()),
+        );
+      });
+    },
+  );
 
   group('beaconOfferHelp schema compatibility', () {
-    test('legacy operation validates and executes without expectedOfferKind', () async {
-      const beaconId = 'Bhelpoffer001';
-      stubBeacon(beacon(id: beaconId, status: BeaconStatus.open));
-      when(
-        helpOfferRepo.hasActiveHelpOffer(beaconId: beaconId, userId: 'U1'),
-      ).thenAnswer((_) async => false);
-      when(
-        helpOfferRepo.upsert(beaconId: beaconId, userId: 'U1', offerKind: 0),
-      ).thenAnswer((_) async {});
+    test(
+      'legacy operation validates and executes without expectedOfferKind',
+      () async {
+        const beaconId = 'Bhelpoffer001';
+        stubBeacon(beacon(id: beaconId, status: BeaconStatus.open));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: beaconId, userId: 'U1'),
+        ).thenAnswer((_) async => false);
+        when(
+          helpOfferRepo.upsert(beaconId: beaconId, userId: 'U1', offerKind: 0),
+        ).thenAnswer((_) async {});
 
-      final mutation = MutationHelpOffer(helpOfferCase: case_);
-      final graphQL = GraphQL(
-        GraphQLSchema(
-          queryType: GraphQLObjectType('Query', 'Query root')
-            ..fields.add(
-              GraphQLObjectField(
-                '_health',
-                graphQLBoolean.nonNullable(),
-                resolve: (_, __) => true,
+        final mutation = MutationHelpOffer(helpOfferCase: case_);
+        final graphQL = GraphQL(
+          GraphQLSchema(
+            queryType: GraphQLObjectType('Query', 'Query root')
+              ..fields.add(
+                GraphQLObjectField(
+                  '_health',
+                  graphQLBoolean.nonNullable(),
+                  resolve: (_, __) => true,
+                ),
               ),
-            ),
-          mutationType: GraphQLObjectType('Mutation', 'Mutation root')
-            ..fields.addAll(mutation.all),
-        ),
-      );
+            mutationType: GraphQLObjectType('Mutation', 'Mutation root')
+              ..fields.addAll(mutation.all),
+          ),
+        );
 
-      const document = r'''
+        const document = r'''
 mutation BeaconOfferHelp($beaconId: String!, $message: String) {
   beaconOfferHelp(id: $beaconId, message: $message)
 }
 ''';
 
-      final result =
-          await graphQL.parseAndExecute(
-                document,
-                operationName: 'BeaconOfferHelp',
-                variableValues: {
-                  'beaconId': beaconId,
-                  'message': 'hello',
-                },
-                globalVariables: {
-                  kGlobalInputQueryJwt: const JwtEntity(sub: 'U1'),
-                },
-              )
-              as Map<String, dynamic>;
-      expect(result['errors'], isNull);
-      expect(result['beaconOfferHelp'], isTrue);
-    });
+        final result =
+            await graphQL.parseAndExecute(
+                  document,
+                  operationName: 'BeaconOfferHelp',
+                  variableValues: {
+                    'beaconId': beaconId,
+                    'message': 'hello',
+                  },
+                  globalVariables: {
+                    kGlobalInputQueryJwt: const JwtEntity(sub: 'U1'),
+                  },
+                )
+                as Map<String, dynamic>;
+        expect(result['errors'], isNull);
+        expect(result['beaconOfferHelp'], isTrue);
+      },
+    );
   });
 
   group('setRoleLabel', () {

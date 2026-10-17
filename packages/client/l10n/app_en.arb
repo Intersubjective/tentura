@@ -5071,6 +5071,7 @@
   "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
   "beaconRoomSemanticParticipantJoined": "Joined the discussion",
+  "beaconRoomSemanticParticipantLeft": "Left the discussion",
   "beaconRoomSemanticFactEdited": "Fact edited",
   "beaconRoomSemanticFactUnpinned": "Fact unpinned",
   "beaconRoomSemanticFactQuoted": "Fact",
@@ -5171,6 +5172,31 @@
         "type": "String"
       },
       "actorName": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeft": "{name} left the request ({reason})",
+  "@beaconRoomParticipantLeft": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeftWithNote": "{name} left the request ({reason}): “{note}”",
+  "@beaconRoomParticipantLeftWithNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      },
+      "note": {
         "type": "String"
       }
     }
@@ -5352,6 +5378,7 @@
   },
   "beaconActivityParticipantRemoved": "Participant removed from the discussion",
   "beaconActivityParticipantJoined": "Participant joined the discussion",
+  "beaconActivityParticipantLeft": "Participant left the discussion",
   "beaconActivityCoordinationFallback": "Discussion update",
   "beaconRoomMessageActionsTitle": "Message actions",
   "beaconRoomReactionAddTooltip": "Add reaction",
