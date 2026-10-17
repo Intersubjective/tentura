@@ -162,7 +162,7 @@ void main() {
     );
 
     // What the web engine sends when Tab lands on the DOM node.
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+    node.owner!.performAction(
       node.id,
       SemanticsAction.focus,
     );

@@ -48,7 +48,7 @@ class FakeBeaconThreadsRepository extends Fake
   Object? createMessageError;
   Object? addAttachmentError;
   int createMessageCalls = 0;
-  Object? createPollError;
+  Exception? createPollError;
   int createPollCalls = 0;
   int addAttachmentCalls = 0;
   int fetchMessagesCallCount = 0;

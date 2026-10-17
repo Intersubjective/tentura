@@ -89,7 +89,7 @@ void main() {
             required beaconId,
             threadItemId,
             initialUnreadAnchorAt,
-            RoomCapabilities capabilities = const RoomCapabilities.request(),
+            capabilities = const RoomCapabilities.request(),
           }) => throw UnimplementedError(),
     );
     // Closing awaits the host's switch chain, which only resumes on a pump in

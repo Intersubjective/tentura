@@ -58,8 +58,8 @@ void main() {
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
-    cubit.setAutosaveContext('');
     cubit
+      ..setAutosaveContext('')
       ..setTitle('Valid title')
       ..setDescription('A description that is required.');
 
