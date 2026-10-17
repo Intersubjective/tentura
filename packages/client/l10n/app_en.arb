@@ -986,7 +986,7 @@
   "@allTopics": {
     "context": "Topics"
   },
-  "confirmFriendRemoval": "Are you sure you want to delete {profileTitle} from friends list?",
+  "confirmFriendRemoval": "Stop trusting {profileTitle}?",
   "@confirmFriendRemoval": {
     "context": "FriendRemoveDialog",
     "placeholders": {
@@ -1031,6 +1031,11 @@
   "chooseLocationSearchFailed": "Address search failed. Check your connection and try again.",
   "@chooseLocationSearchFailed": {
     "context": "ChooseLocationDialog"
+  },
+  "chooseLocationSearchUnavailable": "Address search isn’t available right now. Tap the map to drop a pin instead.",
+  "@chooseLocationSearchUnavailable": {
+    "context": "ChooseLocationDialog",
+    "description": "Shown when the address search service refuses the request (e.g. its key or billing); the map still takes a pin."
   },
   "goToEgo": "Go to Ego",
   "@goToEgo": {
@@ -1486,10 +1491,6 @@
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
   },
-  "constellationFilterLimitations": "No effort filter. Location shows presence only—not remote eligibility.",
-  "@constellationFilterLimitations": {
-    "context": "ConstellationFilterBar"
-  },
   "constellationFiltersTitle": "Filters",
   "@constellationFiltersTitle": {
     "context": "ConstellationFilterSheet"
@@ -1501,6 +1502,11 @@
   "constellationFilterCapability": "Capability",
   "@constellationFilterCapability": {
     "context": "ConstellationFilterBar"
+  },
+  "constellationFilterCapabilityAny": "Any",
+  "@constellationFilterCapabilityAny": {
+    "context": "ConstellationFilterBar",
+    "description": "Capability filter chip that clears the capability filter (every capability)"
   },
   "constellationFilterLocation": "Location",
   "@constellationFilterLocation": {
@@ -2790,6 +2796,11 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardPostTitle": "Forward post",
+  "@forwardPostTitle": {
+    "context": "ForwardBeaconScreen",
+    "description": "Title of the forward screen when the item forwarded is a post."
+  },
   "forwardBandSectionTitle": "For this request",
   "@forwardBandSectionTitle": {
     "context": "Forward band section header above contextual evidence rows"
@@ -3180,6 +3191,16 @@
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardScopeUnseenHintPost": "People who haven't seen this post yet",
+  "@forwardScopeUnseenHintPost": {
+    "context": "ForwardBeaconScreen",
+    "description": "Tooltip of the «Not yet seen» recipients tab when the item is a post."
+  },
+  "forwardScopeInvolvedHintPost": "People already in this post's forward chain",
+  "@forwardScopeInvolvedHintPost": {
+    "context": "ForwardBeaconScreen",
+    "description": "Tooltip of the «Already involved» recipients tab when the item is a post."
+  },
   "forwardHidePersonalizedNotes": "Hide personalized notes",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
@@ -3208,11 +3229,11 @@
   "@myWorkFilterDrafts": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortRecent": "Recent",
+  "myWorkSortRecent": "Newest first",
   "@myWorkSortRecent": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortOldest": "Oldest",
+  "myWorkSortOldest": "Oldest first",
   "@myWorkSortOldest": {
     "context": "MyWorkScreen"
   },
@@ -3232,7 +3253,7 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAll": "No authored or help-offered work yet",
+  "myWorkEmptyAll": "No requests or help offers yet",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
@@ -3244,11 +3265,11 @@
   "@myWorkEmptyHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyArchived": "No archived items",
+  "myWorkEmptyArchived": "No archived requests",
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveTitle": "No active work yet",
+  "myWorkEmptyActiveTitle": "No active requests yet",
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
@@ -3529,6 +3550,15 @@
   "@myWorkOfferClosedWithoutResponse": {
     "context": "MyWorkScreen"
   },
+  "facepileOnlineCount": "{count} online",
+  "@facepileOnlineCount": {
+    "description": "Appended to the face pile's screen-reader label: how many of the shown people are online now.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "facepileSemantics": "{visible, plural, one{1 person shown} other{{visible} people shown}}{more, plural, =0{} other{, {more} more}}",
   "@facepileSemantics": {
     "description": "Accessibility label for overlapping avatar facepile",
@@ -3744,7 +3774,7 @@
       }
     }
   },
-  "activityMovedToStream": "Moved to the stream",
+  "activityMovedToStream": "Moved out of “For you” to the list below",
   "@activityMovedToStream": {
     "context": "InboxScreen"
   },
@@ -4462,7 +4492,7 @@
   "beaconYouWaitingOnOthers": "Waiting on others",
   "beaconYouNoOpenItems": "No open items",
   "beaconYouEnoughHelp": "Enough help",
-  "beaconYouNoInfo": "No info",
+  "beaconYouNoInfo": "Nothing needed from you yet",
   "@beaconYouNoInfo": {
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
@@ -4563,6 +4593,14 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Whole request marked done",
   "beaconCloseSheetEvidenceEnoughHelp": "Enough help committed",
   "beaconCloseSheetEvidenceUsefulOrDone": "Useful or done result present",
+  "beaconCloseSheetEvidenceEnoughHelpMissing": "Enough help not marked yet",
+  "@beaconCloseSheetEvidenceEnoughHelpMissing": {
+    "description": "Close sheet checklist row: the author has not marked that enough help is committed"
+  },
+  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "No useful or done result yet",
+  "@beaconCloseSheetEvidenceUsefulOrDoneMissing": {
+    "description": "Close sheet checklist row: no help offer has a useful or done result yet"
+  },
   "beaconCloseSheetEvidenceUnsettledCount": "{count} help offer(s) not settled",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
@@ -4790,10 +4828,15 @@
   "beaconStatusHintFinishReviewFirst": "Finish the review period first",
   "beaconStatusHintReopenLimitReached": "Already reopened once — close now or wait for the review window",
   "beaconStatusHintNoCommitters": "No committed helpers to review yet",
+  "beaconStatusHintNoHelpersYet": "No one has committed to help yet",
   "beaconStatusHintCancelHasOffers": "Can't cancel after help was offered",
   "beaconStatusCancelHasCommitters": "Can't cancel — someone committed; close instead",
   "beaconStatusHintCancelWrappingUp": "Request is wrapping up",
   "beaconStatusHintBlocked": "Resolve open blockers first",
+  "beaconStatusHintMarkEnoughHelpFirst": "Mark “Enough help committed” first",
+  "@beaconStatusHintMarkEnoughHelpFirst": {
+    "description": "Status sheet hint on Wrapping up / Closed while the request is Needs more help (e.g. right after a reopen)"
+  },
   "beaconStatusHintNotReadyToClose": "Not ready to close yet",
   "beaconStatusHintAuthorOnly": "Only the request author can change this",
   "beaconStatusCancelTitle": "Cancel request?",
@@ -6169,6 +6212,10 @@
   "updatesUnread": "Unread",
   "updatesNeedsYou": "Needs you",
   "updatesSearchHint": "Search updates",
+  "updatesSearchClear": "Clear search",
+  "@updatesSearchClear": {
+    "description": "Tooltip / screen-reader label of the clear (x) button in the Updates search field."
+  },
   "updatesMarkSeen": "Mark seen",
   "updatesMarkUnseen": "Mark unread",
   "@updatesMarkUnseen": {
@@ -8616,6 +8663,15 @@
   "planFieldClearTime": "No time",
   "@planFieldClearTime": {
     "description": "Clears a step time."
+  },
+  "planFieldClearTimeOf": "Clear time: {field}",
+  "@planFieldClearTimeOf": {
+    "description": "Tooltip / screen-reader label of the x that clears a plan step's start or end time; field is the field label (Start / End).",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
   },
   "planDiscardTitle": "Discard changes?",
   "@planDiscardTitle": {

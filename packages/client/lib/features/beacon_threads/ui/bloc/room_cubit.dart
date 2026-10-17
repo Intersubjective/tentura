@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart'
     show ThreadHostCubit;
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
@@ -40,6 +41,7 @@ import '../../domain/exception/beacon_fact_card_exceptions.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
 import '../message/beacon_room_fact_messages.dart';
 import '../message/discussion_read_only_message.dart';
+import '../message/now_line_changed_message.dart';
 import '../util/room_reply_excerpt.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
@@ -1024,7 +1026,14 @@ class RoomCubit extends Cubit<RoomState> {
     return [...messages, message];
   }
 
-  Future<void> updatePlan(String currentLine) async {
+  /// Saves the next step. [expectedLine] is the line the editor opened with
+  /// (required, so no caller writes blind): the save is refused with
+  /// `NowLineChangedException` when someone else changed it meanwhile, and
+  /// the room reloads so the person sees their line and can save again (B085).
+  Future<void> updatePlan(
+    String currentLine, {
+    required String? expectedLine,
+  }) async {
     if (_rejectIfPlanUpdateBlocked()) return;
     // Optimistically reflect the new pinned plan/status line so the HUD strip
     // updates instantly; load() below reconciles (and restores on error).
@@ -1041,7 +1050,16 @@ class RoomCubit extends Cubit<RoomState> {
       await _case.updateRoomNowLine(
         beaconId: state.beaconId,
         currentLine: currentLine,
+        expectedLine: expectedLine,
       );
+      await load();
+    } on NowLineChangedException catch (e) {
+      // The editor has closed, so "save again" (the exception's own text)
+      // does not apply here.
+      _showSnackError(
+        NowLineChangedElsewhereMessage(currentLine: e.currentLine),
+      );
+      // Drop the optimistic line: show what is really saved now.
       await load();
     } on Object catch (e) {
       _showSnackError(e);
@@ -1571,14 +1589,19 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> createPoll({
+  /// Creates a poll; returns whether the server took it. On `false` the error
+  /// has already been shown and the caller keeps its draft (the sheet stays
+  /// open instead of throwing the question and options away). A duplicate
+  /// options refusal (code 1346) is rethrown as [PollDuplicateVariantException]
+  /// so the sheet can show its own localized message.
+  Future<bool> createPoll({
     required String question,
     required List<String> variants,
     String pollType = 'single',
     bool isAnonymous = true,
     bool allowRevote = true,
   }) async {
-    if (_rejectIfDiscussionReadOnly()) return;
+    if (_rejectIfDiscussionReadOnly()) return false;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.createPoll(
@@ -1589,16 +1612,22 @@ class RoomCubit extends Cubit<RoomState> {
         isAnonymous: isAnonymous,
         allowRevote: allowRevote,
       );
-      await markSeenNowIfNeeded();
-      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
-      await load();
     } on PollDuplicateVariantException {
       // The composer owns validation feedback and must remain open for editing.
       if (!isClosed) emit(state.copyWith(status: const StateIsSuccess()));
       rethrow;
     } on Object catch (e) {
       _showSnackError(e);
+      return false;
     }
+    try {
+      await markSeenNowIfNeeded();
+      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
+      await load();
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+    return true;
   }
 
   void _watchRoomPresence(List<BeaconParticipant> participants) {

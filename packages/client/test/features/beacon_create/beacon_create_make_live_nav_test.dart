@@ -11,24 +11,31 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
-  int popAndPushCount = 0;
-  PageRouteInfo? lastPopAndPush;
+  int pushCount = 0;
+  PageRouteInfo? lastPush;
+  final calls = <String>[];
 
   @override
-  Future<T?> popAndPush<T extends Object?, TO extends Object?>(
+  void pop<T extends Object?>([T? result]) => calls.add('pop');
+
+  @override
+  void markUrlStateForReplace() => calls.add('markUrlStateForReplace');
+
+  @override
+  Future<T?> push<T extends Object?>(
     PageRouteInfo route, {
-    TO? result,
     OnNavigationFailure? onFailure,
   }) async {
-    popAndPushCount++;
-    lastPopAndPush = route;
+    pushCount++;
+    calls.add('push');
+    lastPush = route;
     return null;
   }
 }
 
 void main() {
   test(
-    'after successful makeLive, popCreateAndOpenLiveBeacon popAndPushes view',
+    'after makeLive, popCreateAndOpenLiveBeacon opens the view in place',
     () async {
       final write = FakeBeaconWritePort(
         beacon: Beacon.empty.copyWith(id: 'B1', status: BeaconStatus.draft),
@@ -49,9 +56,12 @@ void main() {
       final router = _HarnessRouter();
       await popCreateAndOpenLiveBeacon(router, beaconId: cubit.state.draftId!);
 
-      expect(router.popAndPushCount, 1);
-      expect(router.lastPopAndPush, isA<BeaconViewRoute>());
-      final route = router.lastPopAndPush! as BeaconViewRoute;
+      // #353: the URL is marked for replace after the pop, so the view's
+      // browser entry takes the composer's place.
+      expect(router.calls, ['pop', 'markUrlStateForReplace', 'push']);
+      expect(router.pushCount, 1);
+      expect(router.lastPush, isA<BeaconViewRoute>());
+      final route = router.lastPush! as BeaconViewRoute;
       expect(route.args!.id, 'B1');
     },
   );

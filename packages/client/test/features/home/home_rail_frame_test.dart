@@ -2,6 +2,7 @@
 // the account avatar at the rail's foot instead of a Profile destination.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
@@ -125,5 +126,60 @@ void main() {
 
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('route'), findsOneWidget);
+  });
+
+  testWidgets('the account entry is reachable by keyboard and screen reader', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, selectedTab: HomeTab.work);
+
+    expect(
+      tester.getSemantics(find.byKey(HomeRailAccountFooter.footerKey)),
+      isSemantics(isButton: true, isFocusable: true, hasTapAction: true),
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('semantic focus moves Flutter focus to the account entry', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, selectedTab: HomeTab.work);
+    final entry = find.byKey(HomeRailAccountFooter.footerKey);
+
+    final node = tester.getSemantics(entry);
+    expect(
+      node,
+      isSemantics(
+        label: 'Profile',
+        isButton: true,
+        isFocusable: true,
+        isFocused: false,
+        hasTapAction: true,
+        hasFocusAction: true,
+      ),
+    );
+
+    // What the web engine sends when Tab lands on the DOM node.
+    node.owner!.performAction(
+      node.id,
+      SemanticsAction.focus,
+    );
+    await tester.pump();
+
+    final focused = FocusManager.instance.primaryFocus!.context!;
+    expect(
+      find.descendant(
+        of: entry,
+        matching: find.byElementPredicate((e) => e == focused),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getSemantics(entry),
+      isSemantics(label: 'Profile', isFocusable: true, isFocused: true),
+    );
+    semantics.dispose();
   });
 }

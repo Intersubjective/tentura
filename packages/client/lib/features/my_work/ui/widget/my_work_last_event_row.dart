@@ -89,7 +89,9 @@ class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
       final style = widget.muted
           ? theme.textTheme.bodySmall!.copyWith(
               height: 1.15,
-              color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+              // textFaint, not textMuted under extra opacity: a translucent
+              // muted ink dropped this line under 4.5:1 (#413).
+              color: context.tt.textFaint,
             )
           : beaconCardUpdatedLineTextStyle(theme);
       final text = Text(
@@ -155,7 +157,7 @@ class _EventLineBody extends StatelessWidget {
 
     if (isSystemEvent) {
       final systemColor = muted
-          ? scheme.onSurfaceVariant.withValues(alpha: 0.72)
+          ? context.tt.textFaint
           : scheme.onSurfaceVariant;
       return Semantics(
         label: l10n.myWorkLastEventSystemSemantics(label, ago),
@@ -182,16 +184,18 @@ class _EventLineBody extends StatelessWidget {
       isAuthor ? l10n.myWorkLastEventAuthorSuffix : '',
     );
 
-    final baseVariant = muted
-        ? scheme.onSurfaceVariant.withValues(alpha: 0.72)
-        : scheme.onSurfaceVariant;
+    // Opaque tokens only: muted lines and the age use textFaint, which keeps
+    // ≥ 4.5:1 on surface, sunken and hovered rows; an alpha on top of a text
+    // token is what failed AA here before (#413).
+    final tt = context.tt;
+    final baseVariant = muted ? tt.textFaint : scheme.onSurfaceVariant;
     final bodyStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,
       color: baseVariant,
     );
     final agoStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,
-      color: baseVariant.withValues(alpha: muted ? 0.85 : 0.85),
+      color: tt.textFaint,
     );
     final youStyle = bodyStyle.copyWith(
       color: muted ? baseVariant : scheme.primary,
@@ -211,7 +215,7 @@ class _EventLineBody extends StatelessWidget {
               TextSpan(
                 text: ' · ',
                 style: bodyStyle.copyWith(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+                  color: tt.textFaint,
                 ),
               ),
             ],
@@ -244,7 +248,6 @@ class _EventLineBody extends StatelessWidget {
     );
     if (!attributionOnly && !alignToCardKeyline) return line;
     // Aligned with the ⚑ row's text: the card keyline its lead column uses.
-    final tt = context.tt;
     return Padding(
       padding: EdgeInsets.only(left: tt.avatarSize + tt.avatarTextGap),
       child: line,

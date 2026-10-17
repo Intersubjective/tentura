@@ -24,11 +24,19 @@ class MessagePrefillCase {
     final firstLine = (newline < 0 ? text : text.substring(0, newline)).trim();
     final rest = newline < 0 ? '' : text.substring(newline + 1).trim();
     return (
-      title: firstLine.length > kBeaconTitleMaxLength
-          ? firstLine.substring(0, kBeaconTitleMaxLength)
-          : firstLine,
+      title: _cutCodeUnits(firstLine, kBeaconTitleMaxLength),
       description: rest,
     );
+  }
+
+  /// [s] cut to at most [max] UTF-16 code units (the unit the server checks),
+  /// never between the two halves of a surrogate pair.
+  static String _cutCodeUnits(String s, int max) {
+    if (s.length <= max) return s;
+    var end = max;
+    final last = s.codeUnitAt(end - 1);
+    if (last >= 0xD800 && last <= 0xDBFF) end--;
+    return s.substring(0, end);
   }
 
   /// Message [sourceMessageId] of beacon [parentBeaconId], text only.

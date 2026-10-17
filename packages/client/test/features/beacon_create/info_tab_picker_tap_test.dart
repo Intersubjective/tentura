@@ -5,7 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
@@ -70,8 +70,16 @@ Finder _descriptionField() => find.byKey(TestIds.key(TestIds.requestDescription)
 
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
 
-Widget _infoTabHarness(BeaconCreateCubit cubit, {double width = 800}) {
+Widget _infoTabHarness(
+  BeaconCreateCubit cubit, {
+  double width = 800,
+  bool responsive = false,
+}) {
   return MaterialApp(
+    // As in the app: the scope sits above the Navigator, so dialogs see it.
+    builder: responsive
+        ? (_, child) => TenturaResponsiveScope(child: child!)
+        : null,
     locale: const Locale('en'),
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
@@ -140,6 +148,36 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DateRangePickerDialog), findsOneWidget);
+  });
+
+  // #435: on desktop the period picker took the whole 1280 px window.
+  testWidgets('on a wide window the date range picker is dialog-sized', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(1280, 800)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _infoTabHarness(cubit, width: 1280, responsive: true),
+    );
+    await tester.pumpAndSettle();
+
+    await openTimingSheet(tester);
+    await tester.tap(find.text('Date / period'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('BeaconCreate.TimingField')),
+    );
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
+    await tester.pumpAndSettle();
+
+    final picker = find.byType(DateRangePickerDialog);
+    final maxSide = tester.element(picker).tt.contentMaxWidth;
+    expect(maxSide, isNotNull);
+    final size = tester.getSize(picker);
+    expect(size.width, lessThanOrEqualTo(maxSide!));
+    expect(size.height, lessThanOrEqualTo(maxSide));
   });
 
   testWidgets('deadline timing mode opens a single date picker', (

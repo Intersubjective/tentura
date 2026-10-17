@@ -1,11 +1,15 @@
+import 'package:rxdart/rxdart.dart';
 import 'package:test/test.dart';
 
+
 import 'package:tentura/domain/entity/invitation_entity.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 typedef _FetchCall = ({
@@ -46,7 +50,11 @@ class _StubInvitationRepository implements InvitationRepository {
       return Future.error(error);
     }
     // Simulate offset-based paging over the configured full results.
-    List<InvitationEntity> page(List<InvitationEntity> all, int offset, int limit) =>
+    List<InvitationEntity> page(
+      List<InvitationEntity> all,
+      int offset,
+      int limit,
+    ) =>
         offset >= all.length ? const [] : all.skip(offset).take(limit).toList();
     return (
       pending: page(pendingResult, pendingOffset, pendingLimit),
@@ -81,15 +89,16 @@ InvitationEntity _pending(String id, {DateTime? createdAt}) => InvitationEntity(
   updatedAt: createdAt ?? DateTime.utc(2026, 6, 12),
 );
 
-InvitationEntity _accepted(String id, {DateTime? acceptedAt}) => InvitationEntity(
-  id: id,
-  invitedId: 'U$id',
-  invitedName: 'Person $id',
-  inviteOrigin: 'existing_account',
-  acceptedAt: acceptedAt ?? DateTime.utc(2026, 6, 13),
-  createdAt: DateTime.utc(2026, 6, 12),
-  updatedAt: DateTime.utc(2026, 6, 13),
-);
+InvitationEntity _accepted(String id, {DateTime? acceptedAt}) =>
+    InvitationEntity(
+      id: id,
+      invitedId: 'U$id',
+      invitedName: 'Person $id',
+      inviteOrigin: 'existing_account',
+      acceptedAt: acceptedAt ?? DateTime.utc(2026, 6, 13),
+      createdAt: DateTime.utc(2026, 6, 12),
+      updatedAt: DateTime.utc(2026, 6, 13),
+    );
 
 void main() {
   final invite = _pending('Iabc123');
@@ -137,22 +146,26 @@ void main() {
       await cubit.close();
     });
 
-    test('pendingCount reflects the true aggregate, not the loaded list length', () async {
-      final repo = _StubInvitationRepository()
-        ..pendingResult = [invite] // only one page loaded
-        ..pendingCountResult = 42; // but many more exist server-side
-      final cubit = InvitationCubit(
-        invitationRepository: repo,
-        effects: FakeUiEffectPort(),
-      );
+    test(
+      'pendingCount reflects the true aggregate, not the loaded list length',
+      () async {
+        final repo = _StubInvitationRepository()
+          ..pendingResult =
+              [invite] // only one page loaded
+          ..pendingCountResult = 42; // but many more exist server-side
+        final cubit = InvitationCubit(
+          invitationRepository: repo,
+          effects: FakeUiEffectPort(),
+        );
 
-      await cubit.fetch();
+        await cubit.fetch();
 
-      expect(cubit.state.pendingInvitations, hasLength(1));
-      expect(cubit.state.pendingCount, 42);
+        expect(cubit.state.pendingInvitations, hasLength(1));
+        expect(cubit.state.pendingCount, 42);
 
-      await cubit.close();
-    });
+        await cubit.close();
+      },
+    );
 
     test('loads both segments independently in one fetch', () async {
       final repo = _StubInvitationRepository()
@@ -339,21 +352,172 @@ void main() {
       },
     );
 
-    test('pendingCount never goes negative on an unexpected double delete', () async {
-      final repo = _StubInvitationRepository()
-        ..pendingResult = [invite]
-        ..pendingCountResult = 0; // already 0, e.g. after external change
-      final cubit = InvitationCubit(
+    test(
+      'pendingCount never goes negative on an unexpected double delete',
+      () async {
+        final repo = _StubInvitationRepository()
+          ..pendingResult = [invite]
+          ..pendingCountResult = 0; // already 0, e.g. after external change
+        final cubit = InvitationCubit(
+          invitationRepository: repo,
+          effects: FakeUiEffectPort(),
+        );
+        await cubit.fetch();
+
+        await cubit.deleteInvitationById(invite.id);
+
+        expect(cubit.state.pendingCount, 0);
+
+        await cubit.close();
+      },
+    );
+  });
+
+  // B074: when someone accepts an invitation, the server pushes a
+  // `relationship` change to the inviter within a second, but the Invitations
+  // tab only refetched on local edits, so "Invitations (N)", Pending and
+  // Accepted stayed stale until a full reload.
+  group('InvitationCubit server-side changes (B074)', () {
+    late TestRealtimeSyncPort port;
+    late _StubInvitationRepository repo;
+    late FakeUiEffectPort effects;
+    late InvitationCubit cubit;
+
+    setUp(() async {
+      final realtime = buildTestRealtimeSync();
+      port = realtime.port;
+      repo = _StubInvitationRepository()
+        ..pendingResult = [invite, _pending('Iother')]
+        ..pendingCountResult = 2;
+      effects = FakeUiEffectPort();
+      cubit = InvitationCubit(
         invitationRepository: repo,
-        effects: FakeUiEffectPort(),
+        effects: effects,
+        // Mirrors FriendsCase.invitationServerChanges.
+        serverChanges: MergeStream<void>([
+          realtime.case_
+              .changesFor(const {
+                RealtimeEntityKind.relationship,
+                RealtimeEntityKind.contact,
+              })
+              .map((_) {}),
+          realtime.case_.catchUps.map((_) {}),
+        ]),
       );
       await cubit.fetch();
+    });
 
-      await cubit.deleteInvitationById(invite.id);
-
-      expect(cubit.state.pendingCount, 0);
-
+    tearDown(() async {
       await cubit.close();
+      await port.dispose();
+    });
+
+    Future<void> waitFor(bool Function() condition) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (DateTime.now().isBefore(deadline)) {
+        if (condition()) return;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      fail('Timed out waiting for the invitation list to converge.');
+    }
+
+    void acceptOnServer() {
+      repo
+        ..pendingResult = [_pending('Iother')]
+        ..acceptedResult = [_accepted('Iabc123')]
+        ..pendingCountResult = 1;
+    }
+
+    test(
+      'an accepted invitation moves to Accepted and the count drops',
+      () async {
+        acceptOnServer();
+        port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.relationship,
+            aggregateId: 'U-inviter',
+            operation: RealtimeOperation.insert,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await waitFor(() => cubit.state.pendingCount == 1);
+
+        expect(cubit.state.pendingInvitations.map((e) => e.id), ['Iother']);
+        expect(cubit.state.acceptedInvitations.map((e) => e.id), ['Iabc123']);
+      },
+    );
+
+    test('a background refetch shows no loading state', () async {
+      // Fails on the base: every pushed refetch emitted isLoading, which
+      // flashed the People loading bar.
+      final statuses = <StateStatus>[];
+      final sub = cubit.stream.listen((s) => statuses.add(s.status));
+      addTearDown(sub.cancel);
+      acceptOnServer();
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.relationship,
+          aggregateId: 'U-inviter',
+          operation: RealtimeOperation.insert,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await waitFor(() => cubit.state.pendingCount == 1);
+      expect(statuses, isNot(contains(StateStatus.isLoading)));
+    });
+
+    test('loading more accepted invites updates the pending badge', () async {
+      // Fails on the base: fetchMoreAccepted dropped pending_count (#502).
+      // Any non-empty page leaves acceptedHasReachedMax false.
+      repo.acceptedResult = List.generate(2, (i) => _accepted('Ia$i'));
+      await cubit.fetch();
+      expect(cubit.state.acceptedHasReachedMax, isFalse);
+      repo.pendingCountResult = 1;
+      await cubit.fetchMoreAccepted();
+      expect(cubit.state.pendingCount, 1);
+    });
+
+    test('a reconnect catch-up refetches', () async {
+      acceptOnServer();
+      port.emitCatchUp();
+      await waitFor(() => cubit.state.pendingCount == 1);
+    });
+
+    test(
+      'a failed background refetch keeps the list and shows no error',
+      () async {
+        repo.fetchError = Exception('offline');
+        final callsBefore = repo.calls.length;
+        port.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.relationship,
+            aggregateId: 'U-inviter',
+            operation: RealtimeOperation.insert,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await waitFor(() => repo.calls.length > callsBefore);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(cubit.state.pendingCount, 2);
+        expect(cubit.state.pendingInvitations, hasLength(2));
+        expect(effects.emitted.whereType<ShowError>(), isEmpty);
+      },
+    );
+
+    test('unrelated server changes do not refetch', () async {
+      final callsBefore = repo.calls.length;
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.roomMessage,
+          aggregateId: 'B1',
+          operation: RealtimeOperation.insert,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(repo.calls.length, callsBefore);
     });
   });
 }

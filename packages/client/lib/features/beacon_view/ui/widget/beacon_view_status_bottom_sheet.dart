@@ -31,6 +31,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
   final menuInput = BeaconStatusMenuInput(
     beacon: state.beacon,
     closureReadiness: state.closureReadiness,
+    closureBlockedOnlyByNeedsMoreHelp: closureBlockedOnlyByNeedsMoreHelp(state),
     hasCommitters: beaconStateHasCommitters(state),
     canManageLifecycle: state.isBeaconMine,
     canSetCoordination: state.isAuthorOrSteward,
@@ -72,9 +73,21 @@ Future<void> showBeaconViewUpdateStatusSheet(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        l10n.beaconStatusSheetTitle,
-                        style: Theme.of(ctx).textTheme.titleSmall,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.beaconStatusSheetTitle,
+                              style: Theme.of(ctx).textTheme.titleSmall,
+                            ),
+                          ),
+                          // A way out besides the scrim (#444).
+                          IconButton(
+                            tooltip: l10n.buttonClose,
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            icon: Icon(Icons.close, size: tt.iconSize),
+                          ),
+                        ],
                       ),
                       SizedBox(height: tt.tightGap),
                       Text(

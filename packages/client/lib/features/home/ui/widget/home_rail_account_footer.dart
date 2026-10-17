@@ -129,18 +129,24 @@ class HomeRailAccountFooter extends StatelessWidget {
             endIndent: tt.cardGap,
           ),
         ),
+        // One node reading "Profile, <name>". Only the visual body and the
+        // tooltip are kept out of it: the InkWell's own semantics (its Focus
+        // node's focusable / focused / focus action, and the tap action)
+        // merge into this node, so keyboard and screen-reader focus land on
+        // the same FocusNode the InkWell highlights and handles keys with.
         Semantics(
+          container: true,
           button: true,
           selected: selected,
           label: name.isEmpty ? l10n.profile : '${l10n.profile}, $name',
-          excludeSemantics: true,
           child: Tooltip(
             message: name.isEmpty ? l10n.profile : name,
+            excludeFromSemantics: true,
             child: InkWell(
               key: footerKey,
               onTap: onPressed,
               customBorder: const StadiumBorder(),
-              child: body,
+              child: ExcludeSemantics(child: body),
             ),
           ),
         ),

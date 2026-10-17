@@ -60,6 +60,7 @@ void main() {
       expect(
         shouldUseInlineTrailingMeta(
           hasDisplayText: false,
+          hasMediaOrPoll: false,
           reactionCounts: const {},
         ),
         isFalse,
@@ -70,6 +71,7 @@ void main() {
       expect(
         shouldUseInlineTrailingMeta(
           hasDisplayText: true,
+          hasMediaOrPoll: false,
           reactionCounts: const {'👍': 1},
         ),
         isFalse,
@@ -80,9 +82,22 @@ void main() {
       expect(
         shouldUseInlineTrailingMeta(
           hasDisplayText: true,
+          hasMediaOrPoll: false,
           reactionCounts: const {},
         ),
         isTrue,
+      );
+    });
+
+    // #478: the time sat between a caption and its photo.
+    test('false when media or a poll renders below the text', () {
+      expect(
+        shouldUseInlineTrailingMeta(
+          hasDisplayText: true,
+          hasMediaOrPoll: true,
+          reactionCounts: const {},
+        ),
+        isFalse,
       );
     });
   });

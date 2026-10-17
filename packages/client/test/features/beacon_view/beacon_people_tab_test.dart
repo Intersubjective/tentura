@@ -393,9 +393,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final willingTop = tester
-        .getTopLeft(find.text('Willing to help (1)'))
-        .dy;
+    final willingTop = tester.getTopLeft(find.text('Willing to help (1)')).dy;
     final activeTop = tester.getTopLeft(find.text('Active helpers (1)')).dy;
     expect(willingTop, lessThan(activeTop));
     expect(find.text('Helper'), findsOneWidget);
@@ -723,4 +721,45 @@ void main() {
       expect(find.text(l10n.helpOffersTabNoAuthorLabelYet), findsNothing);
     },
   );
+
+  testWidgets("author's own row has no Edit / Withdraw and no edited marker", (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    _state = _peopleState(
+      admittedHelperRoster: const [
+        Profile(id: 'h1', displayName: 'Helper One'),
+      ],
+      roomParticipants: [
+        BeaconParticipant(
+          id: 'p-auth',
+          beaconId: 'B1',
+          userId: 'auth',
+          userTitle: 'Author',
+          role: BeaconParticipantRoleBits.helper,
+          status: BeaconParticipantStatusBits.committed,
+          roomAccess: RoomAccessBits.admitted,
+          createdAt: _t,
+          updatedAt: _t.add(const Duration(days: 1)),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: l10n,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Whether the author counts under Active helpers is open (#346); this
+    // test only covers the author's own actions and marker.
+    expect(find.text(l10n.helpOffersTabActionWithdraw), findsNothing);
+    expect(find.text(l10n.helpOffersTabActionEdit), findsNothing);
+    expect(find.textContaining(l10n.labelEdited), findsNothing);
+  });
 }

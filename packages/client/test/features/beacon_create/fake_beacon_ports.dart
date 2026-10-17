@@ -185,7 +185,13 @@ class FakeBeaconWritePort implements BeaconWritePort {
   Future<Beacon> update(Beacon fields) async {
     if (updateError != null) throw updateError!;
     updatedFields.add(fields);
-    return beacon = _applyFields(fields, id: fields.id);
+    // Like BeaconRepository.update: the field write does not send
+    // cover_source; only setMedia changes it.
+    final coverSource = beacon.coverSource;
+    return beacon = _applyFields(
+      fields,
+      id: fields.id,
+    ).copyWith(coverSource: coverSource);
   }
 
   /// Field writes never touch media; only [setMedia] does.

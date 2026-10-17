@@ -298,6 +298,33 @@ void main() {
     expect(find.text('Decline'), findsNothing);
   });
 
+  // #362: the helper's own admitted card said "Can read this
+  // discussion" twice; the first line is the admission, like the author's.
+  testWidgets('admitted committer sees each admission line once', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'me',
+            roomAccess: RoomAccessBits.admitted,
+            admissionAction: HelpOfferAdmissionAction.accept,
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isMine: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.helpOfferAdmittedLabel), findsOneWidget);
+    expect(find.text(l10n.helpOfferCanReadChat), findsOneWidget);
+  });
+
   testWidgets('message link opens via launchUserLink', (tester) async {
     await tester.pumpWidget(
       _wrap(

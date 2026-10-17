@@ -50,9 +50,8 @@ class _Router extends Mock implements StackRouter {
   }) => true;
 
   @override
-  Future<T?> popAndPush<T extends Object?, TO extends Object?>(
+  Future<T?> push<T extends Object?>(
     PageRouteInfo route, {
-    TO? result,
     OnNavigationFailure? onFailure,
   }) async {
     opened.add(route);

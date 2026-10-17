@@ -48,6 +48,8 @@ class FakeBeaconThreadsRepository extends Fake
   Object? createMessageError;
   Object? addAttachmentError;
   int createMessageCalls = 0;
+  Exception? createPollError;
+  int createPollCalls = 0;
   int addAttachmentCalls = 0;
   int fetchMessagesCallCount = 0;
   int fetchParticipantsCallCount = 0;
@@ -205,6 +207,20 @@ class FakeBeaconThreadsRepository extends Fake
     required String threadId,
     required DateTime readThroughAt,
   }) async => readThroughAt;
+
+  @override
+  Future<void> createPoll({
+    required String beaconId,
+    required String question,
+    required List<String> variants,
+    String pollType = 'single',
+    bool isAnonymous = true,
+    bool allowRevote = true,
+  }) async {
+    createPollCalls++;
+    final error = createPollError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<String> createMessage({

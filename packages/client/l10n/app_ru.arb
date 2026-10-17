@@ -983,7 +983,7 @@
   "@allTopics": {
     "context": "Topics"
   },
-  "confirmFriendRemoval": "Вы уверены, что хотите удалить {profileTitle} из списка друзей?",
+  "confirmFriendRemoval": "Перестать доверять пользователю {profileTitle}?",
   "@confirmFriendRemoval": {
     "context": "FriendRemoveDialog",
     "placeholders": {
@@ -1027,6 +1027,10 @@
   },
   "chooseLocationSearchFailed": "Не удалось выполнить поиск адреса. Проверьте подключение и повторите попытку.",
   "@chooseLocationSearchFailed": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationSearchUnavailable": "Поиск адреса сейчас недоступен. Нажмите на карту, чтобы поставить метку.",
+  "@chooseLocationSearchUnavailable": {
     "context": "ChooseLocationDialog"
   },
   "goToEgo": "Перейти к Эго",
@@ -1441,10 +1445,6 @@
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
   },
-  "constellationFilterLimitations": "Нет фильтра по типу потребности. Место показывает только наличие — не удалённость.",
-  "@constellationFilterLimitations": {
-    "context": "ConstellationFilterBar"
-  },
   "constellationFiltersTitle": "Фильтры",
   "@constellationFiltersTitle": {
     "context": "ConstellationFilterSheet"
@@ -1455,6 +1455,10 @@
   },
   "constellationFilterCapability": "Навык",
   "@constellationFilterCapability": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterCapabilityAny": "Любой",
+  "@constellationFilterCapabilityAny": {
     "context": "ConstellationFilterBar"
   },
   "constellationFilterLocation": "Место",
@@ -2693,6 +2697,10 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardPostTitle": "Переслать пост",
+  "@forwardPostTitle": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardBandSectionTitle": "Для этого запроса",
   "@forwardBandSectionTitle": {
     "context": "Forward band section header above contextual evidence rows"
@@ -3083,6 +3091,14 @@
   "@forwardScopeInvolvedHint": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardScopeUnseenHintPost": "Люди, которые ещё не видели этот пост",
+  "@forwardScopeUnseenHintPost": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeInvolvedHintPost": "Люди, уже участвующие в цепочке пересылки поста",
+  "@forwardScopeInvolvedHintPost": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
@@ -3111,11 +3127,11 @@
   "@myWorkFilterDrafts": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortRecent": "Недавние",
+  "myWorkSortRecent": "Сначала новые",
   "@myWorkSortRecent": {
     "context": "MyWorkScreen"
   },
-  "myWorkSortOldest": "Старые",
+  "myWorkSortOldest": "Сначала старые",
   "@myWorkSortOldest": {
     "context": "MyWorkScreen"
   },
@@ -3135,7 +3151,7 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAll": "Пока нет созданных дел или предложений помощи",
+  "myWorkEmptyAll": "Пока нет ваших запросов или предложений помощи",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
@@ -3147,11 +3163,11 @@
   "@myWorkEmptyHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyArchived": "Нет архивных записей",
+  "myWorkEmptyArchived": "Нет архивных запросов",
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveTitle": "Пока нет активных дел",
+  "myWorkEmptyActiveTitle": "Пока нет активных запросов",
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
@@ -3432,6 +3448,15 @@
   "@myWorkOfferClosedWithoutResponse": {
     "context": "MyWorkScreen"
   },
+  "facepileOnlineCount": "{count} в сети",
+  "@facepileOnlineCount": {
+    "description": "Appended to the face pile's screen-reader label: how many of the shown people are online now.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "facepileSemantics": "{visible, plural, one{Показан 1 человек} few{Показано {visible} человека} many{Показано {visible} человек} other{Показано {visible} человек}}{more, plural, =0{} one{, ещё {more}} few{, ещё {more}} many{, ещё {more}} other{, ещё {more}}}",
   "@facepileSemantics": {
     "description": "Accessibility label for overlapping avatar facepile",
@@ -3647,7 +3672,7 @@
       }
     }
   },
-  "activityMovedToStream": "Перемещено в ленту",
+  "activityMovedToStream": "Перенесено из «Для вас» в список ниже",
   "@activityMovedToStream": {
     "context": "InboxScreen"
   },
@@ -4331,7 +4356,7 @@
   "beaconYouWaitingOnOthers": "Ждём других",
   "beaconYouNoOpenItems": "Нет открытых пунктов",
   "beaconYouEnoughHelp": "Достаточно помощи",
-  "beaconYouNoInfo": "Нет данных",
+  "beaconYouNoInfo": "Пока от вас ничего не нужно",
   "@beaconYouNoInfo": {
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
@@ -4432,6 +4457,8 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Запрос целиком отмечен завершённым",
   "beaconCloseSheetEvidenceEnoughHelp": "Отмечено достаточно помощи",
   "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
+  "beaconCloseSheetEvidenceEnoughHelpMissing": "Достаточно помощи ещё не отмечено",
+  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "Пока нет полезного или завершённого результата",
   "beaconCloseSheetEvidenceUnsettledCount": "{count} предложение(-й) помощи не доведены до ясного статуса",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
@@ -4663,10 +4690,12 @@
   "beaconStatusHintFinishReviewFirst": "Сначала завершите период проверки",
   "beaconStatusHintReopenLimitReached": "Повторное открытие уже использовано — закройте сейчас или дождитесь окончания проверки",
   "beaconStatusHintNoCommitters": "Пока нет участников для проверки",
+  "beaconStatusHintNoHelpersYet": "Пока никто не взялся помочь",
   "beaconStatusHintCancelHasOffers": "Нельзя отменить после предложений помощи",
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",
   "beaconStatusHintCancelWrappingUp": "Запрос завершается",
   "beaconStatusHintBlocked": "Сначала устраните блокеры",
+  "beaconStatusHintMarkEnoughHelpFirst": "Сначала отметьте «Достаточно помощи»",
   "beaconStatusHintNotReadyToClose": "Пока рано закрывать",
   "beaconStatusHintAuthorOnly": "Только автор запроса может это изменить",
   "beaconStatusCancelTitle": "Отменить запрос?",
@@ -5704,6 +5733,7 @@
   "updatesUnread": "Непрочитанные",
   "updatesNeedsYou": "Требуют вас",
   "updatesSearchHint": "Поиск обновлений",
+  "updatesSearchClear": "Очистить поиск",
   "updatesMarkSeen": "Отметить прочитанным",
   "updatesMarkUnseen": "Снять отметку о прочтении",
   "updatesMarkDone": "Отметить выполненным",
@@ -6676,6 +6706,7 @@
   "planFieldStart": "Начало",
   "planFieldEnd": "Конец",
   "planFieldClearTime": "Без времени",
+  "planFieldClearTimeOf": "Очистить время: {field}",
   "planDiscardTitle": "Отменить изменения?",
   "planDiscardBody": "Несохранённые правки пропадут.",
   "planDiscardConfirm": "Отменить правки",

@@ -15,6 +15,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -314,6 +315,114 @@ void main() {
     expect(find.textContaining('Just sent by me'), findsOneWidget);
   });
 
+  testWidgets(
+    'stays on the latest message when its attachments arrive after send',
+    (tester) async {
+      final chatKey = GlobalKey<BasicChatBodyState>();
+      final baseMessages = List<RoomMessage>.generate(
+        40,
+        (i) => RoomMessage(
+          id: 'm$i',
+          beaconId: 'b1',
+          authorId: 'other',
+          author: const Profile(id: 'other', displayName: 'Alex'),
+          body: 'Background message $i',
+          createdAt: DateTime.utc(2026, 6, 30, 12).add(Duration(minutes: i)),
+        ),
+      );
+      // The optimistic row carries only the caption; the image arrives with
+      // the server row, so the newest message grows without the list growing.
+      final sent = RoomMessage(
+        id: 'srv-1',
+        beaconId: 'b1',
+        authorId: 'me',
+        author: const Profile(id: 'me', displayName: 'Me'),
+        body: 'Photo caption',
+        createdAt: DateTime.utc(2026, 6, 30, 13),
+      );
+
+      Future<void> pumpMessages(List<RoomMessage> messages) async {
+        await tester.pumpWidget(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+              BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+            ],
+            child: MaterialApp(
+              locale: const Locale('en'),
+              theme: TenturaTheme.light(),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              home: MediaQuery(
+                data: const MediaQueryData(size: Size(390, 720)),
+                child: TenturaResponsiveScope(
+                  child: Scaffold(
+                    body: BasicChatBody(
+                      key: chatKey,
+                      messages: messages,
+                      myProfile: const Profile(id: 'me', displayName: 'Me'),
+                      participants: const [],
+                      isLoading: false,
+                      imageRepository: ImageRepository(),
+                      clipboardImageRepository: ClipboardImageRepository(),
+                      enableComposerAttachments: false,
+                      enableParticipantMentions: false,
+                      onSend: (_, _) async => true,
+                      onToggleReaction: (_, _) async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      await pumpMessages([...baseMessages, sent]);
+      chatKey.currentState!.onRoomDataChangedForViewport(
+        firstUnreadMessageId: null,
+        messagesEmpty: false,
+      );
+      await tester.pumpAndSettle();
+
+      final listScrollable = find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(Scrollable),
+      );
+      final before = tester.state<ScrollableState>(listScrollable).position;
+      // Lazy-list extents are estimates; re-jump until the bottom sticks.
+      for (var i = 0; i < 5; i++) {
+        before.jumpTo(before.maxScrollExtent);
+        await tester.pumpAndSettle();
+      }
+      expect(before.pixels, closeTo(before.maxScrollExtent, 1));
+      final extentBefore = before.maxScrollExtent;
+
+      await pumpMessages([
+        ...baseMessages,
+        sent.copyWith(
+          attachments: const [
+            RoomMessageAttachment(
+              id: 'a1',
+              kind: BeaconRoomMessageAttachmentKind.image,
+              position: 0,
+              mime: 'image/jpeg',
+              sizeBytes: 1,
+              imageId: 'img-1',
+              imageAuthorId: 'me',
+            ),
+          ],
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      final after = tester.state<ScrollableState>(listScrollable).position;
+      expect(after.maxScrollExtent, greaterThan(extentBefore + 100));
+      expect(after.pixels, closeTo(after.maxScrollExtent, 1));
+    },
+  );
+
   Future<void> pumpComposerBody(
     WidgetTester tester, {
     required Future<bool> Function(
@@ -398,6 +507,27 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  // #369: focus stayed on Attach, so a typed caption was lost and Space
+  // reopened the menu.
+  testWidgets('picking Photos moves focus to the message field', (
+    tester,
+  ) async {
+    await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Photos'));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(BeaconRoomComposer),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(field.focusNode.hasFocus, isTrue);
   });
 
   testWidgets('composer clears when onSend returns true', (tester) async {
@@ -532,6 +662,41 @@ void main() {
         expect(tester.widget<TextField>(field).controller!.text, 'hi');
       },
     );
+
+    // #477: a first open landed on an empty Recent tab.
+    testWidgets('opens on Smileys while no emoji has been used yet', (
+      tester,
+    ) async {
+      await EmojiPickerUtils().clearRecentEmojis(
+        key: GlobalKey<EmojiPickerState>(),
+      );
+      await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Emoji you use will show up here'), findsNothing);
+      expect(find.text('😀', findRichText: true), findsWidgets);
+    });
+
+    testWidgets('opens on Recent once an emoji has been used', (
+      tester,
+    ) async {
+      await EmojiPickerUtils().clearRecentEmojis(
+        key: GlobalKey<EmojiPickerState>(),
+      );
+      await EmojiPickerUtils().addEmojiToRecentlyUsed(
+        key: GlobalKey<EmojiPickerState>(),
+        emoji: const Emoji('🦊', 'fox face'),
+      );
+      await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+
+      expect(find.text('🦊', findRichText: true), findsOneWidget);
+      expect(find.text('😀', findRichText: true), findsNothing);
+    });
 
     testWidgets('compact: picker opens as a bottom sheet', (tester) async {
       await pumpComposerBody(

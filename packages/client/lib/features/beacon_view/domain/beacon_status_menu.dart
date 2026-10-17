@@ -35,6 +35,7 @@ enum BeaconStatusMenuDisabledReason {
   publishFirst,
   finishReviewFirst,
   noCommitters,
+  noHelpersYet,
   cancelHasOffers,
   cancelWrappingUp,
   blocked,
@@ -44,6 +45,10 @@ enum BeaconStatusMenuDisabledReason {
   terminalState,
   cancelHasCommitters,
   reopenLimitReached,
+
+  /// The request is «Needs more help» (where a reopen lands it): marking
+  /// «Enough help» is the step before wrapping up or closing (B081).
+  markEnoughHelpFirst,
 }
 
 class ClosureMenuSnapshot {
@@ -78,6 +83,7 @@ class BeaconStatusMenuInput {
     this.closure,
     this.allowForceCloseWhenBlocked = false,
     this.serverCanCancel,
+    this.closureBlockedOnlyByNeedsMoreHelp = false,
   });
 
   final Beacon beacon;
@@ -88,6 +94,10 @@ class BeaconStatusMenuInput {
   final ClosureMenuSnapshot? closure;
   final bool allowForceCloseWhenBlocked;
   final bool? serverCanCancel;
+
+  /// True when «Needs more help» is the only closure-blocking state (no open
+  /// blocker, no blocked or needs-info participant).
+  final bool closureBlockedOnlyByNeedsMoreHelp;
 }
 
 class BeaconStatusMenuRow {
@@ -287,6 +297,20 @@ BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) {
       disabledReason: BeaconStatusMenuDisabledReason.finishReviewFirst,
     );
   }
+  // Same rule as the HUD's "Mark enough help": only once someone has
+  // committed to help (#384). Already set, it stays as it is.
+  if (input.canSetCoordination &&
+      input.beacon.status.isOpenFamily &&
+      input.beacon.status != BeaconStatus.enoughHelp &&
+      !input.hasCommitters) {
+    return const BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.enoughHelp,
+      action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.noHelpersYet,
+    );
+  }
   return _coordinationRow(
     id: BeaconStatusMenuRowId.enoughHelp,
     action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
@@ -298,6 +322,24 @@ BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) {
 bool _closeBlocked(BeaconStatusMenuInput input) =>
     input.closureReadiness == BeaconClosureReadiness.blocked &&
     !input.allowForceCloseWhenBlocked;
+
+/// Why a blocked close path is disabled. «Needs more help» counts as a
+/// closure-blocking state, but it is the author's own status, not a blocker
+/// they can find anywhere: name the step that clears it (B081) — only when it
+/// is the sole blocker; otherwise marking «Enough help» would not unblock.
+/// With nobody committed, «Enough help» is itself disabled (#384), so name
+/// that missing step instead.
+BeaconStatusMenuDisabledReason _closeBlockedReason(
+  BeaconStatusMenuInput input,
+) {
+  if (input.beacon.status != BeaconStatus.needsMoreHelp ||
+      !input.closureBlockedOnlyByNeedsMoreHelp) {
+    return BeaconStatusMenuDisabledReason.blocked;
+  }
+  return input.hasCommitters
+      ? BeaconStatusMenuDisabledReason.markEnoughHelpFirst
+      : BeaconStatusMenuDisabledReason.noHelpersYet;
+}
 
 BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
@@ -336,12 +378,12 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
   }
 
   if (_closeBlocked(input)) {
-    return const BeaconStatusMenuRow(
+    return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.wrappingUp,
       action: BeaconStatusMenuAction.startWrappingUp,
       isSelected: false,
       isEnabled: false,
-      disabledReason: BeaconStatusMenuDisabledReason.blocked,
+      disabledReason: _closeBlockedReason(input),
     );
   }
 
@@ -403,12 +445,12 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (_closeBlocked(input)) {
-    return const BeaconStatusMenuRow(
+    return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeDirect,
       isSelected: false,
       isEnabled: false,
-      disabledReason: BeaconStatusMenuDisabledReason.blocked,
+      disabledReason: _closeBlockedReason(input),
     );
   }
 

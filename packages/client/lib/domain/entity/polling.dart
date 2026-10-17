@@ -25,10 +25,16 @@ abstract class Polling extends Identifiable with _$Polling {
   }
 
   static void variantValidator(String value) {
-    if (value.length < variantMinLength) {
+    if (value.trim().length < variantMinLength) {
       throw const PollingVariantTooShortException();
     }
   }
+
+  /// The form in which two options count as the same: trimmed, inner
+  /// whitespace collapsed, lower-cased. The server rejects a poll whose
+  /// options are equal in this form (PollDuplicateVariantException).
+  static String variantKey(String value) =>
+      value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 
   const factory Polling({
     required DateTime createdAt,

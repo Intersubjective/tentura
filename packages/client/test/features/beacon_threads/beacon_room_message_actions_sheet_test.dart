@@ -19,6 +19,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -41,7 +42,10 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   Future<void> markReadToBottom() async {}
 
   @override
-  Future<void> updatePlan(String currentLine) async {
+  Future<void> updatePlan(
+    String currentLine, {
+    required String? expectedLine,
+  }) async {
     lastUpdatePlanLine = currentLine;
   }
 }
@@ -291,6 +295,72 @@ void main() {
       expect(roomCubit.lastUpdatePlanLine, 'Hello room');
     },
   );
+
+  // #375: a poll offered "Edit message" (an empty editor whose Save sent
+  // nothing), "Update plan from message" and "Pin as fact".
+  testWidgets('own poll offers Delete but not Edit, plan or fact', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await pumpRoom(
+      tester,
+      width: 700,
+      messages: [
+        RoomMessage(
+          id: 'poll-1',
+          beaconId: 'b1',
+          authorId: viewer.id,
+          author: viewer,
+          body: '',
+          semanticMarker: BeaconRoomSemanticMarker.poll,
+          linkedPollingId: 'p1',
+          createdAt: messageCreatedAt,
+        ),
+      ],
+    );
+
+    await tester.longPress(find.byType(RoomPollCard));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text(l10n.beaconRoomActionDeleteMessage), findsOneWidget);
+    expect(find.text(l10n.beaconRoomActionEditMessage), findsNothing);
+    expect(
+      find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+      findsNothing,
+    );
+    expect(find.text(l10n.beaconRoomActionPinFact), findsNothing);
+  });
+
+  testWidgets('own text message still offers Edit and Pin as fact', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    await pumpRoom(
+      tester,
+      width: 700,
+      messages: [
+        RoomMessage(
+          id: 'own-1',
+          beaconId: 'b1',
+          authorId: viewer.id,
+          author: viewer,
+          body: 'Own text',
+          createdAt: messageCreatedAt,
+        ),
+      ],
+    );
+
+    await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.beaconRoomActionEditMessage), findsOneWidget);
+    expect(find.text(l10n.beaconRoomActionPinFact), findsOneWidget);
+    expect(
+      find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+      findsOneWidget,
+    );
+  });
 
   group('message actions Read by row', () {
     const ownBody = 'Own message for read-by actions';

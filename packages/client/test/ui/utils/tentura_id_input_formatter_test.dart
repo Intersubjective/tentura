@@ -62,4 +62,51 @@ void main() {
       expect(value.text, 'Uabc123def456');
     });
   });
+
+  // #460: the handle field dropped uppercase letters and spaces as they were
+  // typed ("Tab" became "ab"), with no hint why.
+  group('UserHandleInputFormatter', () {
+    const handleFormatter = UserHandleInputFormatter();
+
+    TextEditingValue type(String text) {
+      var value = empty;
+      for (final ch in text.split('')) {
+        value = handleFormatter.formatEditUpdate(
+          value,
+          TextEditingValue(
+            text: value.text + ch,
+            selection: TextSelection.collapsed(offset: value.text.length + 1),
+          ),
+        );
+      }
+      return value;
+    }
+
+    test('lower-cases letters instead of dropping them', () {
+      expect(type('Tab').text, 'tab');
+    });
+
+    test('turns spaces into underscores', () {
+      expect(type('Ann Lee').text, 'ann_lee');
+    });
+
+    test('still drops other characters', () {
+      expect(type('ann.lee!').text, 'annlee');
+    });
+
+    test('keeps the caret where the edit happened', () {
+      final value = handleFormatter.formatEditUpdate(
+        const TextEditingValue(
+          text: 'anlee',
+          selection: TextSelection.collapsed(offset: 2),
+        ),
+        const TextEditingValue(
+          text: 'anN lee',
+          selection: TextSelection.collapsed(offset: 4),
+        ),
+      );
+      expect(value.text, 'ann_lee');
+      expect(value.selection, const TextSelection.collapsed(offset: 4));
+    });
+  });
 }

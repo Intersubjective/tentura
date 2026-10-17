@@ -676,29 +676,32 @@ class _AuthorAdmissionFooter extends StatelessWidget {
         // A real decision row (UI review, People tab): tonal Accept as the
         // primary answer, quiet Decline beside it — not two coloured text
         // links stacked on phones.
+        // The test identifier wraps the whole button (as TenturaTextAction
+        // does): on the label it split off a child node, leaving the button
+        // node itself unnamed for screen readers.
         Row(
           children: [
             if (onAccept != null)
-              FilledButton.tonalIcon(
-                key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
-                onPressed: onAccept,
-                icon: const Icon(Icons.check),
-                label: Semantics(
-                  identifier: TestIds.helpOfferAccept(offerUserId),
-                  child: Text(l10n.helpOfferAdmissionAccept),
+              Semantics(
+                identifier: TestIds.helpOfferAccept(offerUserId),
+                child: FilledButton.tonalIcon(
+                  key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
+                  onPressed: onAccept,
+                  icon: const Icon(Icons.check),
+                  label: Text(l10n.helpOfferAdmissionAccept),
                 ),
               ),
             if (onAccept != null && onDecline != null)
               SizedBox(width: tt.rowGap),
             if (onDecline != null)
-              TextButton(
-                key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
-                onPressed: onDecline,
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: Semantics(
-                  identifier: TestIds.helpOfferDecline(offerUserId),
+              Semantics(
+                identifier: TestIds.helpOfferDecline(offerUserId),
+                child: TextButton(
+                  key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+                  onPressed: onDecline,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
                   child: Text(l10n.helpOfferAdmissionDecline),
                 ),
               ),
@@ -738,11 +741,13 @@ class _CommitterAdmissionFooter extends StatelessWidget {
       HelpOfferAdmissionAction.remove
           when reason != null && reason!.isNotEmpty =>
         l10n.helpOfferRemovedWithReason(reason!),
+      // The admission itself; "Can read this discussion" is the line under
+      // it (#362).
       _ =>
         isAdmitted
             ? (admissionAction == HelpOfferAdmissionAction.autoAdmit
                   ? l10n.helpOfferAdmittedAutomaticallyLabel
-                  : l10n.helpOfferCanReadChat)
+                  : l10n.helpOfferAdmittedLabel)
             : l10n.helpOffersTabNoAuthorLabelYet,
     };
     final color = switch (admissionAction) {

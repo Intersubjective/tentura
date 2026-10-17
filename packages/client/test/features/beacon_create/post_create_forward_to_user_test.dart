@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -148,9 +149,8 @@ class _Router extends Mock implements StackRouter {
   final pushed = <PageRouteInfo>[];
 
   @override
-  Future<T?> popAndPush<T extends Object?, TO extends Object?>(
+  Future<T?> push<T extends Object?>(
     PageRouteInfo route, {
-    TO? result,
     OnNavigationFailure? onFailure,
   }) async {
     pushed.add(route);
@@ -365,6 +365,11 @@ void main() {
 
       expect(find.textContaining('Target'), findsWidgets);
       expect(find.text('Отправить (1)'), findsOneWidget);
+      // #455: the recipient step speaks of the post, not a request.
+      expect(
+        find.byTooltip('Люди, которые ещё не видели этот пост'),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
@@ -416,6 +421,49 @@ void main() {
         {'U-target'},
       ]);
       expect(find.text('beacon-view'), findsOneWidget);
+    });
+
+    // #353: browser Back after sending reopened an empty composer, because
+    // the composer's URL stayed in the browser history under the room.
+    testWidgets('sending leaves no composer URL in the browser history', (
+      tester,
+    ) async {
+      final reports = <Map<Object?, Object?>>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.navigation,
+        (call) async {
+          if (call.method == 'routeInformationUpdated') {
+            reports.add(call.arguments as Map<Object?, Object?>);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.navigation,
+          null,
+        ),
+      );
+      await _pumpDeepLink(tester, '$kPathPostNew?$query');
+
+      await _writeAndGoToRecipients(tester);
+      await tester.tap(find.text('Отправить (1)'));
+      await _pumpABit(tester);
+
+      expect(find.text('beacon-view'), findsOneWidget);
+      // Replay the reports as a browser would: replace or add an entry.
+      final history = <String>[];
+      for (final report in reports) {
+        final uri = report['uri'].toString();
+        if (report['replace'] == true && history.isNotEmpty) {
+          history.last = uri;
+        } else {
+          history.add(uri);
+        }
+      }
+      expect(history, isNotEmpty);
+      expect(history.last, startsWith('/beacon/'));
+      expect(history.where((uri) => uri.startsWith(kPathPostNew)), isEmpty);
     });
 
     testWidgets('without a query opens with nobody chosen', (tester) async {

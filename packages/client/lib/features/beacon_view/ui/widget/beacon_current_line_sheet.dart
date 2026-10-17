@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -57,10 +58,19 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
   late final TextEditingController _controller;
   var _submitting = false;
 
+  /// The line this save expects on the server: what the editor opened with,
+  /// or, after a conflict, the other person's line the author has now seen
+  /// (so the next Save replaces it on purpose).
+  late String _baseLine;
+
+  /// Set when someone else changed the line while this editor was open.
+  String? _conflict;
+
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialText);
+    _baseLine = widget.initialText;
   }
 
   @override
@@ -83,9 +93,20 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
       await widget.threadsCase.updateRoomNowLine(
         beaconId: widget.beaconId,
         currentLine: line,
+        expectedLine: _baseLine,
       );
       if (mounted) {
         Navigator.of(context).pop(line);
+      }
+    } on NowLineChangedException catch (e) {
+      // Shown inside the sheet (a snackbar would sit under it): the other
+      // person's line, and that the next Save replaces it (B085).
+      _baseLine = e.currentLine;
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _conflict = e.toL10n(L10n.of(context)?.localeName);
+        });
       }
     } on Object catch (e) {
       if (mounted) {
@@ -124,9 +145,27 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            l10n.beaconHudEditCurrentLineTitle,
-            style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.beaconHudEditCurrentLineTitle,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              // Same discard check as the scrim (#444).
+              IconButton(
+                tooltip: l10n.buttonClose,
+                onPressed: () => unawaited(
+                  TenturaSheetDismissGuard.requestClose(
+                    context,
+                    isDirty: _isDirty,
+                    useRootNavigator: true,
+                  ),
+                ),
+                icon: Icon(Icons.close, size: tt.iconSize),
+              ),
+            ],
           ),
           SizedBox(height: tt.rowGap),
           TextField(
@@ -135,8 +174,12 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
               hintText: l10n.beaconRoomStripCurrentLineLabel,
               helperText: l10n.beaconCurrentLineEditHelper,
               helperMaxLines: 3,
+              errorText: _conflict,
+              errorMaxLines: 4,
             ),
-            onChanged: (_) => setState(() {}),
+            // The conflict note is about the text they saw; once they edit,
+            // it no longer applies (B085 review).
+            onChanged: (_) => setState(() => _conflict = null),
             maxLength: kBeaconRoomCurrentLineMaxLength,
             maxLines: 2,
             minLines: 1,

@@ -50,6 +50,10 @@ class _PlanStepEditSheetState extends State<PlanStepEditSheet> {
   late DateTime? _start = widget.step.startAt;
   late DateTime? _end = widget.step.endAt;
 
+  /// A new step starts with an empty title; asking for one before the
+  /// person typed anything reads as an error they made (#445).
+  bool _titleEdited = false;
+
   PlanStepSnapshot get _edited => PlanStepSnapshot(
     id: widget.step.id,
     title: _title.text.trim(),
@@ -107,6 +111,11 @@ class _PlanStepEditSheetState extends State<PlanStepEditSheet> {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final error = _errorText(l10n);
+    final shownError =
+        validatePlanStep(_edited) == PlanDraftError.titleRequired &&
+            !_titleEdited
+        ? null
+        : error;
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.only(
@@ -130,7 +139,7 @@ class _PlanStepEditSheetState extends State<PlanStepEditSheet> {
               autofocus: widget.isNew,
               maxLength: PlanLimits.maxTitleLength,
               decoration: InputDecoration(labelText: l10n.planFieldTitle),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() => _titleEdited = true),
             ),
             TextField(
               controller: _description,
@@ -167,9 +176,9 @@ class _PlanStepEditSheetState extends State<PlanStepEditSheet> {
               fallbackDay: _start,
               onChanged: (v) => setState(() => _end = v),
             ),
-            if (error != null) ...[
+            if (shownError != null) ...[
               SizedBox(height: tt.rowGap),
-              TenturaStatusText(error, tone: TenturaTone.danger),
+              TenturaStatusText(shownError, tone: TenturaTone.danger),
             ],
             SizedBox(height: tt.sectionGap),
             FilledButton(

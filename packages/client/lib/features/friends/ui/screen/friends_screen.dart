@@ -15,11 +15,13 @@ import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
+import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../bloc/friends_cubit.dart';
 import '../invite_pending_subtitle.dart';
@@ -66,7 +68,9 @@ class _FriendsScreenState extends State<FriendsScreen>
       initialIndex: widget.initialTab == kHomeTabInvitations ? 1 : 0,
       vsync: this,
     );
-    _invitationCubit = InvitationCubit();
+    _invitationCubit = InvitationCubit(
+      serverChanges: GetIt.I<FriendsCase>().invitationServerChanges,
+    );
     _invitesScrollController = ScrollController();
     _authChanges = GetIt.I<AuthCase>().currentAccountChanges().listen((id) {
       if (id.isEmpty) {
@@ -663,39 +667,42 @@ class _InvitesSegmentList extends StatelessWidget {
     final name = addressee == null || addressee.isEmpty
         ? invitation.id
         : addressee;
-    return _InviteListTile(
+    // "Waiting · Just now" keeps counting while the list is open (U092).
+    return RelativeTimestampTicker(
       key: ValueKey(invitation),
-      emphasize: emphasize,
-      title: name,
-      subtitle: invitePendingSubtitle(
-        l10n: l10n,
-        when: invitation.createdAt,
-        now: DateTime.now(),
-      ),
-      onEdit: () async {
-        final newName = await InvitationAddresseeDialog.show(
+      builder: (_) => _InviteListTile(
+        emphasize: emphasize,
+        title: name,
+        subtitle: invitePendingSubtitle(
+          l10n: l10n,
+          when: invitation.createdAt,
+          now: RelativeTimestampTicker.now(),
+        ),
+        onEdit: () async {
+          final newName = await InvitationAddresseeDialog.show(
+            context,
+            initialName: addressee ?? '',
+            isEdit: true,
+          );
+          if (newName == null) return;
+          await invitationCubit.updateInvitation(
+            id: invitation.id,
+            addresseeName: newName,
+          );
+        },
+        onDelete: () async {
+          if (await InvitationRemoveDialog.show(context) ?? false) {
+            await invitationCubit.deleteInvitationById(invitation.id);
+          }
+        },
+        onTap: () => ShareCodeDialog.show(
           context,
-          initialName: addressee ?? '',
-          isEdit: true,
-        );
-        if (newName == null) return;
-        await invitationCubit.updateInvitation(
-          id: invitation.id,
-          addresseeName: newName,
-        );
-      },
-      onDelete: () async {
-        if (await InvitationRemoveDialog.show(context) ?? false) {
-          await invitationCubit.deleteInvitationById(invitation.id);
-        }
-      },
-      onTap: () => ShareCodeDialog.show(
-        context,
-        header: l10n.labelInvitationCode,
-        link: inviteShareUri(invitation.id),
-        caption: invitation.beaconId == null || invitation.beaconId!.isEmpty
-            ? l10n.invitationDualPurposeBody
-            : null,
+          header: l10n.labelInvitationCode,
+          link: inviteShareUri(invitation.id),
+          caption: invitation.beaconId == null || invitation.beaconId!.isEmpty
+              ? l10n.invitationDualPurposeBody
+              : null,
+        ),
       ),
     );
   }
@@ -758,7 +765,6 @@ class _InviteListTile extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onTap,
-    super.key,
   });
 
   final bool emphasize;

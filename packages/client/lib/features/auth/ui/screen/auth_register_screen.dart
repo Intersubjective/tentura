@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
 
@@ -201,9 +200,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                     ),
                     maxLength: kUserHandleMaxLength,
                     keyboardType: TextInputType.text,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
-                    ],
+                    inputFormatters: const [UserHandleInputFormatter()],
                     validator: (text) {
                       final t = (text ?? '').trim().toLowerCase();
                       if (t.isEmpty) return null;

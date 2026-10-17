@@ -1,3 +1,5 @@
+import 'package:tentura/consts.dart';
+
 /// Caller-aware invite preview from `GET /api/v2/invite/:code/preview`.
 class InvitePreview {
   const InvitePreview({
@@ -77,6 +79,24 @@ class InvitePreviewInviter {
   final String id;
   final String displayName;
   final String? imageUrl;
+
+  /// The id of the inviter's photo, read back from [imageUrl] (the server
+  /// sends the URL it builds as `…/images/<userId>/<imageId>.jpg`), so the
+  /// app can show it like any other avatar (#388). Null when there is no
+  /// photo or the URL is not this inviter's.
+  String? get imageId {
+    final url = imageUrl;
+    if (url == null) return null;
+    final segments = Uri.tryParse(url)?.pathSegments ?? const <String>[];
+    if (segments.length < 3) return null;
+    final [folder, userId, file] = segments.sublist(segments.length - 3);
+    const suffix = '.$kImageExt';
+    if (folder != kImagesPath || userId != id || !file.endsWith(suffix)) {
+      return null;
+    }
+    final imageId = file.substring(0, file.length - suffix.length);
+    return imageId.isEmpty ? null : imageId;
+  }
 }
 
 class InvitePreviewBeacon {

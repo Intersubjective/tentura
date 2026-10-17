@@ -666,8 +666,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
     final caps = widget.capabilities;
+    final marker = message.semanticMarker;
+    // A poll has no text to edit, pin or lift into the plan (#375).
+    final isPoll = marker == BeaconRoomSemanticMarker.poll;
     final showFactInMenu =
-        caps.facts && !isThreadMode && !_suppressesRichMessageActions(message);
+        caps.facts &&
+        !isThreadMode &&
+        !isPoll &&
+        !_suppressesRichMessageActions(message);
     final isOwnMessage = message.authorId == viewer.id;
     final viewerReactions = _viewerReactionEmojis(message);
     // Already-linked messages can be opened/resolved but never re-promoted;
@@ -682,7 +688,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final hasBodyText = message.body.trim().isNotEmpty;
     // Starts a new baton message that replies to this one (anyone's plain or
     // poll message; not system lines — baton messages have their own menu).
-    final marker = message.semanticMarker;
     final showBud =
         widget.postBuddingEnabled &&
         caps.childPromotionOwnOnly &&
@@ -840,7 +845,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        if (caps.plan)
+                        if (caps.plan && !isPoll)
                           ListTile(
                             leading: const Icon(Icons.edit_note_outlined),
                             title: Text(
@@ -960,21 +965,22 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           !isThreadMode &&
                           !_suppressesRichMessageActions(message)) ...[
                         const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(Icons.edit_outlined),
-                          title: Text(l10n.beaconRoomActionEditMessage),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _showEditMessageSheet(
-                                context,
-                                cubit,
-                                l10n,
-                                message,
-                              ),
-                            );
-                          },
-                        ),
+                        if (!isPoll)
+                          ListTile(
+                            leading: const Icon(Icons.edit_outlined),
+                            title: Text(l10n.beaconRoomActionEditMessage),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              unawaited(
+                                _showEditMessageSheet(
+                                  context,
+                                  cubit,
+                                  l10n,
+                                  message,
+                                ),
+                              );
+                            },
+                          ),
                         ListTile(
                           leading: Icon(
                             Icons.delete_outline,
@@ -1247,6 +1253,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         title: l10n.beaconRoomActionEditMessage,
         hintText: l10n.beaconRoomMessageHint,
         initialText: message.body,
+        requireChange: true,
+        allowEmpty: false,
       ),
     );
     if (newBody == null || !context.mounted) return;
@@ -1361,6 +1369,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final initialText = body.length > kBeaconRoomCurrentLineMaxLength
         ? body.substring(0, kBeaconRoomCurrentLineMaxLength)
         : body;
+    final openedWith = cubit.state.roomState?.currentLine;
     final plan = await showTenturaAdaptiveSheet<String>(
       context: context,
       useRootNavigator: true,
@@ -1373,7 +1382,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
     if (plan == null || plan.isEmpty || !context.mounted) return;
-    await cubit.updatePlan(plan);
+    await cubit.updatePlan(plan, expectedLine: openedWith);
     widget.onCoordinationSaved?.call();
   }
 }
@@ -1385,6 +1394,7 @@ Future<void> showBeaconRoomUpdatePlanSheet(
   RoomCubit cubit,
   L10n l10n,
 ) async {
+  final openedWith = cubit.state.roomState?.currentLine;
   final plan = await showTenturaAdaptiveSheet<String>(
     context: context,
     useRootNavigator: true,
@@ -1392,12 +1402,12 @@ Future<void> showBeaconRoomUpdatePlanSheet(
     builder: (ctx) => _BeaconRoomTextBottomSheet(
       title: l10n.beaconRoomActionUpdatePlan,
       hintText: l10n.beaconRoomStripCurrentLineLabel,
-      initialText: cubit.state.roomState?.currentLine ?? '',
+      initialText: openedWith ?? '',
       maxLength: kBeaconRoomCurrentLineMaxLength,
     ),
   );
   if (plan == null || !context.mounted) return;
-  await cubit.updatePlan(plan);
+  await cubit.updatePlan(plan, expectedLine: openedWith);
 }
 
 class _BeaconRoomTextBottomSheet extends StatefulWidget {
@@ -1406,12 +1416,20 @@ class _BeaconRoomTextBottomSheet extends StatefulWidget {
     required this.hintText,
     this.initialText = '',
     this.maxLength,
+    this.requireChange = false,
+    this.allowEmpty = true,
   });
 
   final String title;
   final String hintText;
   final String initialText;
   final int? maxLength;
+
+  /// Save stays off until the text differs from [initialText] (#483).
+  final bool requireChange;
+
+  /// False keeps Save off for blank text (#483).
+  final bool allowEmpty;
 
   @override
   State<_BeaconRoomTextBottomSheet> createState() =>
@@ -1425,7 +1443,9 @@ class _BeaconRoomTextBottomSheetState
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialText);
+    _controller = TextEditingController(text: widget.initialText)
+      // Caret after the text, so typing continues it (#483).
+      ..selection = TextSelection.collapsed(offset: widget.initialText.length);
   }
 
   @override
@@ -1435,6 +1455,10 @@ class _BeaconRoomTextBottomSheetState
   }
 
   bool get _isDirty => _controller.text.trim() != widget.initialText.trim();
+
+  bool get _canSave =>
+      (!widget.requireChange || _isDirty) &&
+      (widget.allowEmpty || _controller.text.trim().isNotEmpty);
 
   @override
   Widget build(BuildContext context) {
@@ -1462,6 +1486,7 @@ class _BeaconRoomTextBottomSheetState
               SizedBox(height: tt.rowGap),
               TextField(
                 controller: _controller,
+                autofocus: true,
                 maxLines: widget.maxLength != null ? 2 : 6,
                 minLines: widget.maxLength != null ? 1 : 3,
                 maxLength: widget.maxLength,
@@ -1471,10 +1496,20 @@ class _BeaconRoomTextBottomSheetState
                 onChanged: (_) => setState(() {}),
               ),
               SizedBox(height: tt.sectionGap),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(_controller.text.trim()),
-                child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+              TenturaSheetActions(
+                cancelLabel: L10n.of(context)!.buttonCancel,
+                // Same discard check as the scrim and Escape.
+                onCancel: () => unawaited(
+                  TenturaSheetDismissGuard.requestClose(
+                    context,
+                    isDirty: _isDirty,
+                    useRootNavigator: true,
+                  ),
+                ),
+                primaryLabel: MaterialLocalizations.of(context).saveButtonLabel,
+                onPrimary: _canSave
+                    ? () => Navigator.of(context).pop(_controller.text.trim())
+                    : null,
               ),
             ],
           ),

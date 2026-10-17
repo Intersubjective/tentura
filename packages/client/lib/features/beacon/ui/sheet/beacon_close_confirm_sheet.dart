@@ -72,6 +72,12 @@ Future<bool> showBeaconCloseConfirmSheet({
     isScrollControlled: true,
     builder: (ctx) {
       final tt = ctx.tt;
+      // Not ready yet: list the unmet criteria too, not only the met ones,
+      // or the sheet reads as all ticks under a warning (#474).
+      final showMissing =
+          (r == BeaconClosureReadiness.waitingForReview ||
+              r == BeaconClosureReadiness.premature) &&
+          !summary.hasWholeBeaconDoneSignal;
       final evidence = <Widget>[
         if (branchPreview != null)
           _evidenceRow(scheme, branchPreview, bottomPadding: tt.tightGap),
@@ -99,6 +105,20 @@ Future<bool> showBeaconCloseConfirmSheet({
           _evidenceRow(
             scheme,
             l10n.beaconCloseSheetEvidenceUsefulOrDone,
+            bottomPadding: tt.tightGap,
+          ),
+        if (showMissing && !summary.enoughHelpOffered)
+          _evidenceRow(
+            scheme,
+            l10n.beaconCloseSheetEvidenceEnoughHelpMissing,
+            positive: false,
+            bottomPadding: tt.tightGap,
+          ),
+        if (showMissing && !summary.hasSuccessfulHelpOfferResult)
+          _evidenceRow(
+            scheme,
+            l10n.beaconCloseSheetEvidenceUsefulOrDoneMissing,
+            positive: false,
             bottomPadding: tt.tightGap,
           ),
         if (summary.unsettledRelevantCount > 0)

@@ -6,7 +6,9 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -308,6 +310,7 @@ class _Title extends StatelessWidget {
               children: [
                 Flexible(
                   child: _MembersLine(
+                    post: state.beacon,
                     style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ),
@@ -340,8 +343,9 @@ class _Title extends StatelessWidget {
 
 /// «N участников», counted from the room once it is loaded.
 class _MembersLine extends StatelessWidget {
-  const _MembersLine({required this.style});
+  const _MembersLine({required this.post, required this.style});
 
+  final Beacon post;
   final TextStyle style;
 
   @override
@@ -359,9 +363,10 @@ class _MembersLine extends StatelessWidget {
               if (!roomState.participantsLoaded) {
                 return const SizedBox.shrink();
               }
-              final count = roomState.participants
-                  .where((p) => p.roomAccess == RoomAccessBits.admitted)
-                  .length;
+              final count = withPostAuthor(
+                roomState.participants,
+                post,
+              ).where((p) => p.roomAccess == RoomAccessBits.admitted).length;
               return Text(
                 L10n.of(context)!.postHeaderMembers(count),
                 maxLines: 1,

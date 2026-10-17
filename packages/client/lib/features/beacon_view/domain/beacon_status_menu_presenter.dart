@@ -37,6 +37,8 @@ String beaconStatusMenuDisabledReasonLabel(
         l10n.beaconStatusHintFinishReviewFirst,
       BeaconStatusMenuDisabledReason.noCommitters =>
         l10n.beaconStatusHintNoCommitters,
+      BeaconStatusMenuDisabledReason.noHelpersYet =>
+        l10n.beaconStatusHintNoHelpersYet,
       BeaconStatusMenuDisabledReason.cancelHasOffers =>
         l10n.beaconStatusHintCancelHasOffers,
       BeaconStatusMenuDisabledReason.cancelWrappingUp =>
@@ -53,6 +55,8 @@ String beaconStatusMenuDisabledReasonLabel(
         l10n.beaconStatusCancelHasCommitters,
       BeaconStatusMenuDisabledReason.reopenLimitReached =>
         l10n.beaconStatusHintReopenLimitReached,
+      BeaconStatusMenuDisabledReason.markEnoughHelpFirst =>
+        l10n.beaconStatusHintMarkEnoughHelpFirst,
     };
 
 String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRowId id) =>
