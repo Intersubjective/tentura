@@ -109,6 +109,10 @@ IconData _beaconLifecycleLogIcon(String? reason) => switch (reason) {
   BeaconLifecycleChangeReason.reviewExpired => Icons.timer_off_outlined,
   BeaconLifecycleChangeReason.reopenedFromReview => Icons.replay_outlined,
   BeaconLifecycleChangeReason.cancelled => Icons.cancel_outlined,
+  BeaconLifecycleChangeReason.needsMoreHelp => Icons.group_add_outlined,
+  BeaconLifecycleChangeReason.enoughHelp => Icons.check_circle_outline,
+  BeaconLifecycleChangeReason.neutralOpen => Icons.campaign_outlined,
+  BeaconLifecycleChangeReason.deleted => Icons.delete_outline,
   _ => Icons.flag_circle_outlined,
 };
 
@@ -234,6 +238,12 @@ String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
     BeaconLifecycleChangeReason.reopenedFromReview =>
       l10n.beaconActivityLifecycleReopened,
     BeaconLifecycleChangeReason.cancelled => l10n.beaconLifecycleCancelled,
+    // Coordination status changes keep the request open (#347).
+    BeaconLifecycleChangeReason.needsMoreHelp =>
+      l10n.coordinationMoreHelpNeeded,
+    BeaconLifecycleChangeReason.enoughHelp => l10n.coordinationEnoughHelp,
+    BeaconLifecycleChangeReason.neutralOpen => l10n.beaconLifecycleOpen,
+    BeaconLifecycleChangeReason.deleted => l10n.beaconLifecycleDeleted,
     _ => l10n.beaconLifecycleClosed,
   };
 }
