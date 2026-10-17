@@ -663,6 +663,41 @@ void main() {
       },
     );
 
+    // #477: a first open landed on an empty Recent tab.
+    testWidgets('opens on Smileys while no emoji has been used yet', (
+      tester,
+    ) async {
+      await EmojiPickerUtils().clearRecentEmojis(
+        key: GlobalKey<EmojiPickerState>(),
+      );
+      await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Emoji you use will show up here'), findsNothing);
+      expect(find.text('😀', findRichText: true), findsWidgets);
+    });
+
+    testWidgets('opens on Recent once an emoji has been used', (
+      tester,
+    ) async {
+      await EmojiPickerUtils().clearRecentEmojis(
+        key: GlobalKey<EmojiPickerState>(),
+      );
+      await EmojiPickerUtils().addEmojiToRecentlyUsed(
+        key: GlobalKey<EmojiPickerState>(),
+        emoji: const Emoji('🦊', 'fox face'),
+      );
+      await pumpComposerBody(tester, onSend: (_, _) async => true);
+
+      await tester.tap(emojiButton());
+      await tester.pumpAndSettle();
+
+      expect(find.text('🦊', findRichText: true), findsOneWidget);
+      expect(find.text('😀', findRichText: true), findsNothing);
+    });
+
     testWidgets('compact: picker opens as a bottom sheet', (tester) async {
       await pumpComposerBody(
         tester,
