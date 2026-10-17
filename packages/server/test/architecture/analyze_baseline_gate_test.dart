@@ -1,6 +1,9 @@
 // Plain `dart analyze` / `flutter analyze` need a ratcheting
 // baseline (like scripts/custom-lint-baseline.txt) instead of failing on debt.
 
+@Tags(['repo-files'])
+library;
+
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -394,6 +397,8 @@ void main() {
     group('CI wiring', () {
       for (final wf in ['pipeline.yml', 'pipeline-prod.yml']) {
         for (final pkg in _packages.keys) {
+          // Directly, or through check-analysis.sh, which runs this gate and
+          // check-custom-lints.sh from one analyzer pass.
           test('$wf runs check-analyze-baseline.sh $pkg', () {
             final lines = File(
               '${_repoRoot.path}/.github/workflows/$wf',
@@ -401,7 +406,9 @@ void main() {
             final active = lines.where((l) {
               final t = l.trimLeft();
               if (t.startsWith('#')) return false;
-              final cmd = t.indexOf('check-analyze-baseline.sh $pkg');
+              final cmd = t.indexOf(
+                RegExp('check-(analyze-baseline|analysis)\\.sh $pkg'),
+              );
               if (cmd < 0) return false;
               final hash = t.indexOf(' #');
               return hash < 0 || hash > cmd;

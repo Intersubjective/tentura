@@ -19,15 +19,21 @@
 # baseline asks you to lower it.
 #
 # Usage: scripts/check-custom-lints.sh <package-dir>
+#        scripts/check-custom-lints.sh --print-rules   (the rule alternation)
 #        (baselines live in scripts/custom-lint-baseline.txt)
 
 set -euo pipefail
 
+CUSTOM_RULES='no_domain_to_data_or_ui_import|no_cubit_to_data_service_import|no_map_dynamic_in_use_case_api|no_raw_graphql_in_dart|no_inline_font_size|cubit_requires_use_case_for_multi_repos|no_operational_raw_color|no_operational_raw_text_style|no_operational_pill_widgets_in_beacon_view|no_raw_edge_insets|no_raw_border_radius|no_request_domain_entity|use_tentura_top_bar'
+
+if [[ "${1:-}" == "--print-rules" ]]; then
+  echo "$CUSTOM_RULES"
+  exit 0
+fi
+
 PKG="${1:?usage: check-custom-lints.sh <package-dir>}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASELINE_FILE="$REPO_ROOT/scripts/custom-lint-baseline.txt"
-
-CUSTOM_RULES='no_domain_to_data_or_ui_import|no_cubit_to_data_service_import|no_map_dynamic_in_use_case_api|no_raw_graphql_in_dart|no_inline_font_size|cubit_requires_use_case_for_multi_repos|no_operational_raw_color|no_operational_raw_text_style|no_operational_pill_widgets_in_beacon_view|no_raw_edge_insets|no_raw_border_radius|no_request_domain_entity|use_tentura_top_bar'
 
 baseline="$(awk -v p="$PKG" '$1 == p { print $2 }' "$BASELINE_FILE")"
 if [[ -z "$baseline" ]]; then
@@ -59,11 +65,18 @@ elif [[ "$PKG" == "packages/server" ]]; then
   fi
 fi
 
-# No target argument on purpose: see note (2) above.
-set +e
-dart analyze --no-fatal-warnings >"$out" 2>&1
-analyze_status=$?
-set -e
+# CI runs the analyzer once per package through scripts/check-analysis.sh,
+# which hands its output here and to check-analyze-baseline.sh.
+if [[ -n "${TENTURA_ANALYZER_OUTPUT:-}" ]]; then
+  cp "$TENTURA_ANALYZER_OUTPUT" "$out"
+  analyze_status="${TENTURA_ANALYZER_STATUS:?TENTURA_ANALYZER_STATUS must accompany TENTURA_ANALYZER_OUTPUT}"
+else
+  # No target argument on purpose: see note (2) above.
+  set +e
+  dart analyze --no-fatal-warnings >"$out" 2>&1
+  analyze_status=$?
+  set -e
+fi
 
 cat "$out"
 

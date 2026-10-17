@@ -74,14 +74,29 @@ elif [[ ! -f lib/domain/entity/jwt_entity.freezed.dart \
   dart run build_runner build -d
 fi
 
-# Package-level runs target the package root so plugin diagnostics surface.
-target="${SCOPE:-.}"
-set +e
-"$tool" analyze "$target" >"$out" 2>&1
-analyze_status=$?
-set -e
+# CI runs the analyzer once per package (scripts/check-analysis.sh): a plugin-
+# loading `dart analyze` whose output also feeds check-custom-lints.sh. Its
+# diagnostics are exactly `flutter analyze`'s plus the custom-rule hits, which
+# check-custom-lints.sh gates on their own, so they are left out here.
+if [[ -n "${TENTURA_ANALYZER_OUTPUT:-}" ]]; then
+  if [[ -n "$SCOPE" ]]; then
+    echo "check-analyze-baseline: a shared analyzer output cannot serve a scoped run" >&2
+    exit 2
+  fi
+  custom_rules="${TENTURA_CUSTOM_LINT_RULES:?TENTURA_CUSTOM_LINT_RULES must accompany TENTURA_ANALYZER_OUTPUT}"
+  grep -Ev " - ($custom_rules)\$" "$TENTURA_ANALYZER_OUTPUT" >"$out" || true
+  analyze_status="${TENTURA_ANALYZER_STATUS:?TENTURA_ANALYZER_STATUS must accompany TENTURA_ANALYZER_OUTPUT}"
+else
+  # Package-level runs target the package root so plugin diagnostics surface.
+  target="${SCOPE:-.}"
+  set +e
+  "$tool" analyze "$target" >"$out" 2>&1
+  analyze_status=$?
+  set -e
+fi
 
-cat "$out"
+# A shared output was already printed by check-custom-lints.sh.
+[[ -n "${TENTURA_ANALYZER_OUTPUT:-}" ]] || cat "$out"
 
 # Count unique diagnostics: the analyzer sometimes reports the same issue
 # twice (seen for hook/build and tool/ files in CI), which made the gate
