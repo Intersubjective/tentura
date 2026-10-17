@@ -117,16 +117,25 @@ void main() {
       expect(harness.profiles.fetchCalls, greaterThan(afterContact));
     });
 
-    test('block change silently refetches the open profile', () async {
-      harness.start();
-      await harness.waitFor(() => harness.profiles.fetchCalls == 1);
-      final afterBootstrap = harness.profiles.fetchCalls;
+    // B056: a refetch after a block used to be the only reaction, and its
+    // failure (the server hides a blocked person) kept the full profile with
+    // trust and request actions. The block now switches the screen to the
+    // blocked state directly; a refetch could only undo that.
+    test(
+      'block change switches the open profile to the blocked state',
+      () async {
+        harness.start();
+        await harness.waitFor(() => harness.profiles.fetchCalls == 1);
+        final afterBootstrap = harness.profiles.fetchCalls;
 
-      harness.blockCase.emitBlock(objectId: 'U-target');
-      await harness.waitFor(
-        () => harness.profiles.fetchCalls > afterBootstrap,
-      );
-    });
+        harness.blockCase.emitBlock(objectId: 'U-target');
+        await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(harness.cubit.state.blockedProfile?.id, 'U-target');
+        expect(harness.profiles.fetchCalls, afterBootstrap);
+      },
+    );
 
     test('unrelated block change does not refetch the open profile', () async {
       harness.start();

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -34,6 +36,10 @@ class FriendsCubit extends Cubit<FriendsState> {
       (_) => _scheduleSilentFetch(),
       cancelOnError: false,
     );
+    _blockChanges = _case.blockChanges.listen(
+      _onBlockChanged,
+      cancelOnError: false,
+    );
   }
 
   final FriendsCase _case;
@@ -46,6 +52,7 @@ class FriendsCubit extends Cubit<FriendsState> {
 
   late final StreamSubscription<void> _contactChanges;
   late final StreamSubscription<void> _projectionChanges;
+  late final StreamSubscription<RepositoryEvent<BlockIntent>> _blockChanges;
 
   static const _refreshDebounce = Duration(milliseconds: 100);
   Timer? _refreshTimer;
@@ -61,6 +68,7 @@ class FriendsCubit extends Cubit<FriendsState> {
     await _friendsChanges.cancel();
     await _contactChanges.cancel();
     await _projectionChanges.cancel();
+    await _blockChanges.cancel();
     return super.close();
   }
 
@@ -119,6 +127,21 @@ class FriendsCubit extends Cubit<FriendsState> {
       next.remove(profile.id);
     }
     emit(state.copyWith(friends: next));
+    _scheduleSilentFetch();
+  }
+
+  /// A blocked person leaves the list at once. Every block starts a new
+  /// fetch sequence, also when the person is not listed yet (the first load
+  /// may still be in flight), so a load that started before the block cannot
+  /// put them back; the refetch that follows has the server's answer.
+  void _onBlockChanged(RepositoryEvent<BlockIntent> event) {
+    if (isClosed) return;
+    if (event is RepositoryEventCreate<BlockIntent>) {
+      _fetchSequence++;
+      if (state.friends.containsKey(event.id)) {
+        emit(state.copyWith(friends: {...state.friends}..remove(event.id)));
+      }
+    }
     _scheduleSilentFetch();
   }
 

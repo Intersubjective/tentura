@@ -1,8 +1,14 @@
 # import '/data/gql/user_model.graphql'
 
 query FriendsFetch {
+  # A block keeps the viewer's vote_user row (the trust comes back on
+  # unblock), so leave out people hidden from the viewer by a block (B056),
+  # and rows whose user Hasura hides altogether (tentura-m43h).
   vote_user(
-    where: {amount: {_gt: 0}, user: {id: {_is_null: false}}}
+    where: {
+      amount: {_gt: 0}
+      user: {id: {_is_null: false}, hidden_for_viewer: {_eq: false}}
+    }
   ) {
     user {
       ...UserModel
