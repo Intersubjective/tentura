@@ -224,6 +224,115 @@ VALUES ('$_beacon', '$_author', 'closure notifications', '',
       skip: skipReason,
     );
 
+    test(
+      'cancelled (reopen) clears the epoch closure_opened rows (B082)',
+      () async {
+        await openWithMembers();
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.opened(_beacon, 1),
+        );
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.cancelled(_beacon, 1),
+        );
+
+        final opened = await rows('''
+SELECT account_id, clear_reason, cleared_at IS NOT NULL
+FROM public.notification_outbox
+WHERE source_event_key LIKE 'closure_opened:$_beacon:1:%'
+ORDER BY account_id
+''');
+        expect(opened, isNotEmpty);
+        for (final r in opened) {
+          expect(r[2], isTrue, reason: 'opened row for ${r[0]} still active');
+          expect(r[1], 'sweep');
+        }
+        final cancelled = await rows('''
+SELECT count(*) FROM public.notification_outbox
+WHERE source_event_key LIKE 'closure_cancelled:$_beacon:1:%'
+  AND cleared_at IS NULL
+''');
+        expect(cancelled.single.single, greaterThan(0));
+      },
+      skip: skipReason,
+    );
+
+    // Fails on the base: only closure_opened rows were cleared, and only on
+    // a reopen; scoping to this beacon + epoch is checked too.
+    test(
+      'reopen also clears the epoch review reminders, not other epochs (B082)',
+      () async {
+        await openWithMembers();
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.opened(_beacon, 1),
+        );
+        // Re-key two opened rows to model a draft reminder of this epoch and
+        // an opened row of another epoch (same columns as the real rows).
+        final keys = await rows('''
+SELECT source_event_key FROM public.notification_outbox
+WHERE source_event_key LIKE 'closure_opened:$_beacon:1:%'
+ORDER BY account_id
+''');
+        expect(keys.length, greaterThanOrEqualTo(2));
+        final reminderKey = (keys[0][0]! as String)
+            .replaceFirst('closure_opened:', 'closure_draft_reminder:');
+        final otherEpochKey = (keys[1][0]! as String)
+            .replaceFirst(':$_beacon:1:', ':$_beacon:2:');
+        await rows('''
+UPDATE public.notification_outbox SET source_event_key = '$reminderKey'
+WHERE source_event_key = '${keys[0][0]}'
+''');
+        await rows('''
+UPDATE public.notification_outbox SET source_event_key = '$otherEpochKey'
+WHERE source_event_key = '${keys[1][0]}'
+''');
+
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.cancelled(_beacon, 1),
+        );
+
+        final reminder = await rows('''
+SELECT clear_reason, seen_at IS NOT NULL FROM public.notification_outbox
+WHERE source_event_key = '$reminderKey'
+''');
+        expect(reminder.single[0], 'sweep');
+        expect(reminder.single[1], isTrue, reason: 'system clears mark seen');
+        final other = await rows('''
+SELECT cleared_at IS NULL FROM public.notification_outbox
+WHERE source_event_key = '$otherEpochKey'
+''');
+        expect(other.single.single, isTrue, reason: 'epoch 2 row untouched');
+      },
+      skip: skipReason,
+    );
+
+    // Fails on the base: finalizing left "The closing window is open".
+    test(
+      'finalized clears the epoch closure_opened rows (B082 review)',
+      () async {
+        await openWithMembers();
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.opened(_beacon, 1),
+        );
+        await uow.run<void>(
+          actorUserId: _author,
+          action: () => receipts.finalized(_beacon, 1),
+        );
+
+        final active = await rows('''
+SELECT count(*) FROM public.notification_outbox
+WHERE source_event_key LIKE 'closure_opened:$_beacon:1:%'
+  AND cleared_at IS NULL
+''');
+        expect(active.single.single, 0);
+      },
+      skip: skipReason,
+    );
+
     test('finalized carries codes only and is idempotent', () async {
       await openWithMembers();
       await sql('''
