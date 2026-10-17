@@ -16,6 +16,7 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
@@ -55,7 +56,8 @@ final class BeaconViewCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-  });
+    required PresenceRepository presenceRepository,
+  }) : _presence = presenceRepository;
 
   final BeaconRepository _beaconRepository;
 
@@ -79,6 +81,8 @@ final class BeaconViewCase extends UseCaseBase {
 
   final RealtimeSyncCase _realtimeSyncCase;
 
+  final PresenceRepository _presence;
+
   static final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
   /// In-process seen cursors keyed by `userId\\tbeaconId`.
@@ -93,6 +97,16 @@ final class BeaconViewCase extends UseCaseBase {
       _realtimeSyncCase.changesFor(
         const {RealtimeEntityKind.relationship, RealtimeEntityKind.profile},
       );
+
+  static String _teamPresenceKey(String beaconId) => 'beacon:$beaconId:team';
+
+  /// Online status for the request header's team face pile (U093): the
+  /// presence service reports only peers someone asked for.
+  void watchTeamPresence(String beaconId, Set<String> userIds) =>
+      _presence.watch(_teamPresenceKey(beaconId), userIds);
+
+  void unwatchTeamPresence(String beaconId) =>
+      _presence.unwatch(_teamPresenceKey(beaconId));
 
   /// Author/steward People-tab watermarks (`people_seen` frames).
   Stream<RealtimeEntityChange> get peopleSeenChanges =>

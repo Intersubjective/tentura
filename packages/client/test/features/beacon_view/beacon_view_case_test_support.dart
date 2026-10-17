@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/repository/presence_repository.dart';
+import 'package:tentura/data/service/user_presence_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -588,6 +590,7 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
   FakeBeaconViewRoomRepository? roomRepo,
   RealtimeSyncCase? realtimeSyncCase,
+  PresenceRepository? presenceRepository,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
@@ -614,5 +617,15 @@ BeaconViewCase buildTestBeaconViewCase({
     realtimeSyncCase ?? buildTestRealtimeSync().case_,
     env: const Env(),
     logger: Logger('test'),
+    presenceRepository: presenceRepository ?? quietTestPresenceRepository(),
   );
 }
+
+/// A presence repository with no socket: watches go nowhere.
+PresenceRepository quietTestPresenceRepository() => PresenceRepository(
+  UserPresenceService.forTesting(
+    messages: const Stream.empty(),
+    connectionState: const Stream.empty(),
+    send: (_) {},
+  ),
+);
