@@ -85,4 +85,29 @@ void main() {
 
     expect(find.byType(TextField), findsNothing);
   });
+
+  // #444: the Next step sheet had no Cancel or ✕.
+  testWidgets('the Close button closes the unchanged sheet', (tester) async {
+    await _pumpSheet(tester);
+
+    await tester.tap(
+      find.byTooltip(lookupL10n(const Locale('en')).buttonClose),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('the Close button asks before dropping an edit', (tester) async {
+    await _pumpSheet(tester);
+    await tester.enterText(find.byType(TextField), 'New plan line');
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip(lookupL10n(const Locale('en')).buttonClose),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Leave without saving?'), findsOneWidget);
+  });
 }
