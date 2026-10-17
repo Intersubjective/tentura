@@ -666,6 +666,8 @@ final class BeaconCase extends UseCaseBase {
         coverThumbImageId: resolvedThumb,
       );
       for (final removedId in removedIds) {
+        // Never collect the image that just became the cover thumbnail.
+        if (removedId == resolvedThumb) continue;
         await _imageObjectGc.enqueue(imageId: removedId, authorId: userId);
         await _imageRepository.deleteOwnedRow(
           imageId: removedId,
