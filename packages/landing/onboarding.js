@@ -276,7 +276,13 @@ function renderNameStep({ prefill, track, onDone }) {
     e.preventDefault();
     errorEl.textContent = '';
     const name = input.value.trim();
-    if (name === prefill || name.length === 0) {
+    // An empty Save used to move on like Skip, saving nothing (#421).
+    if (name.length === 0) {
+      errorEl.textContent = 'Enter a name, or tap “Skip for now”.';
+      input.focus();
+      return;
+    }
+    if (name === prefill) {
       track('signup_name_skipped', { reason: 'unchanged' });
       onDone();
       return;

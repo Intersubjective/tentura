@@ -458,3 +458,37 @@ test('pager hides Skip on the last page, where Continue is the exit', async () =
   for (let i = 1; i < ONBOARDING_PAGES.length; i++) next.click();
   assert.equal(skip.hidden, true, 'no Skip next to Continue on the last page');
 });
+
+// #421: "Save & continue" with the name cleared moved on like Skip, saving
+// nothing and saying nothing.
+test('an empty name asks for a name instead of moving on', async () => {
+  installDomFake();
+  let patched = false;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === 'PATCH') patched = true;
+    return { ok: true, json: async () => ({}) };
+  };
+  globalThis.window = globalThis;
+
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  const events = [];
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'agent 3c4703tb' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: (name) => events.push(name),
+    openProductUrl: () => '/app/',
+    storage: fakeStorage(),
+    nameOnly: false,
+  });
+  card.querySelector('#display-name').value = '   ';
+  card.querySelector('FORM').submit();
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(card.querySelector('.pager'), null, 'still on the name step');
+  assert.equal(patched, false);
+  assert.ok(!events.includes('signup_name_skipped'));
+  assert.match(card.querySelector('.error').textContent, /Enter a name/);
+});
