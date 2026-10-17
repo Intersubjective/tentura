@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/consts.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
+import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
@@ -66,7 +68,9 @@ class _FriendsScreenState extends State<FriendsScreen>
       initialIndex: widget.initialTab == kHomeTabInvitations ? 1 : 0,
       vsync: this,
     );
-    _invitationCubit = InvitationCubit();
+    _invitationCubit = InvitationCubit(
+      serverChanges: GetIt.I<FriendsCase>().invitationServerChanges,
+    );
     _invitesScrollController = ScrollController();
     _authChanges = GetIt.I<AuthCase>().currentAccountChanges().listen((id) {
       if (id.isEmpty) {
