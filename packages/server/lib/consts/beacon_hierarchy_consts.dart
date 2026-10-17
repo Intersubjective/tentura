@@ -32,6 +32,11 @@ abstract final class BeaconRoomSystemMessageKind {
 
   /// Request plan lines (markers 14..17, #220).
   static const plan = 6;
+
+  /// A Request's status changed (U090). Author is the actor, null for an
+  /// automatic change; payload `{version: 1, fromStatus, toStatus, reason}`
+  /// (smallint statuses, `BeaconLifecycleChangeReason`).
+  static const statusChanged = 7;
 }
 
 /// Opaque hierarchy list cursor version.

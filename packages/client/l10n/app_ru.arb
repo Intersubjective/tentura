@@ -4987,6 +4987,53 @@
       }
     }
   },
+  "roomStatusChangedByActor": "{actor} изменил(а) статус: {from} → {to}",
+  "@roomStatusChangedByActor": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedByFormerMember": "Бывший участник изменил статус: {from} → {to}",
+  "@roomStatusChangedByFormerMember": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedBySelf": "Вы изменили статус: {from} → {to}",
+  "@roomStatusChangedBySelf": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomStatusChangedAutomatic": "Статус изменился: {from} → {to}",
+  "@roomStatusChangedAutomatic": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantLeft": "{name} покинул(а) запрос ({reason})",
   "@beaconRoomParticipantLeft": {
     "placeholders": {
