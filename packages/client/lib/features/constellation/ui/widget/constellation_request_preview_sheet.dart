@@ -3,9 +3,11 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
@@ -96,7 +98,7 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                constellationNeedText(l10n, request),
+                _titleLine(l10n),
                 style: theme.textTheme.titleMedium,
               ),
             ),
@@ -147,7 +149,10 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
         SizedBox(height: tt.rowGap),
         _PreviewSection(
           title: l10n.constellationPreviewCoverageTitle,
-          body: coordinationStatusLabel(l10n, status),
+          body: [
+            ?_needsLine(l10n),
+            coordinationStatusLabel(l10n, status),
+          ].join('\n'),
         ),
         if (connectionLabel != null) ...[
           SizedBox(height: tt.sectionGap),
@@ -214,6 +219,22 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
         child: SingleChildScrollView(child: body),
       ),
     );
+  }
+
+  /// The title leads, as on the request itself (#355); the need text only
+  /// stands in when there is no title.
+  String _titleLine(L10n l10n) {
+    final title = request.title.trim();
+    return title.isNotEmpty ? title : constellationNeedText(l10n, request);
+  }
+
+  /// The requested capabilities, in the author's order (#355).
+  String? _needsLine(L10n l10n) {
+    final labels = [
+      for (final slug in request.needs)
+        ?CapabilityTag.fromSlug(slug)?.labelOf(l10n),
+    ];
+    return labels.isEmpty ? null : labels.join(', ');
   }
 
   String _whenLine(L10n l10n, DateTime clock) {

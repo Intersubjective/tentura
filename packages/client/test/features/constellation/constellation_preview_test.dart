@@ -94,11 +94,14 @@ ConstellationRequest _request({
   ConstellationHeldState held = ConstellationHeldState.none,
   String title = 'Borrow a drill',
   DateTime? startAt,
+  List<String> needs = const [],
 }) {
   return ConstellationRequest(
     id: id,
     authorId: 'author',
     title: title,
+    needs: needs,
+    primaryNeedSlug: needs.firstOrNull,
     status: status,
     startAt: startAt,
     isMine: held == ConstellationHeldState.mine,
@@ -275,6 +278,28 @@ void main() {
           findsOneWidget,
         );
       },
+    );
+  });
+
+  // #355: the header showed the capability and "Help needed" only the status.
+  testWidgets('header is the title; Help needed lists the needs', (
+    tester,
+  ) async {
+    await _pumpPreview(
+      tester,
+      request: _request(
+        id: 'couch',
+        title: 'Move a couch',
+        needs: const ['transport', 'physical_help'],
+      ),
+    );
+
+    expect(find.text('Move a couch'), findsOneWidget);
+    expect(
+      find.textContaining(
+        '${l10n.capabilityTagTransport}, ${l10n.capabilityTagPhysicalHelp}',
+      ),
+      findsOneWidget,
     );
   });
 
