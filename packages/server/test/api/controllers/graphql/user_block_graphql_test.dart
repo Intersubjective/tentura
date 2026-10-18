@@ -30,6 +30,7 @@ import 'package:tentura_server/domain/use_case/user_block_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/recording_commitment_repository.dart';
+import '../../../support/commitment_gates_harness.dart';
 
 final class _PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override
@@ -138,6 +139,7 @@ UserBlockCase _userBlockCase(_RecordingBlockRepository blocks) => UserBlockCase(
   _FakeInbox(),
   _NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
+  roomRepository: RecordingRoomAccessRepository(),
   trustLedger: TrustLedgerRepositoryMock(),
   env: Env.test(),
   logger: Logger('user-block-graphql-test'),
