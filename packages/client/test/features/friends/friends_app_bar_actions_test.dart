@@ -31,6 +31,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
 import '../../features/auth/auth_test_helpers.dart';
+import '../../support/fake_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../contacts/contacts_case_test.dart';
@@ -290,6 +291,7 @@ void main() {
             contactsCase,
             authCase,
             realtimeCase,
+            FakeBlockCase(),
             env: const Env(),
             logger: Logger('test'),
           ),
