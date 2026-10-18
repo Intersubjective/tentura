@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
@@ -34,8 +35,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   }) : _destinationId = destinationId,
        _attention = attention ?? GetIt.I<AttentionCase>(),
        _setup = setup ?? GetIt.I<InviteAcceptedSetupPort>(),
-       _actorProfiles =
-           actorProfiles ?? GetIt.I<AttentionActorProfilesCase>(),
+       _actorProfiles = actorProfiles ?? GetIt.I<AttentionActorProfilesCase>(),
        _realtime = realtime ?? GetIt.I<RealtimeSyncCase>(),
        _logger = logger ?? GetIt.I<Logger>(),
        super(const UpdatesFeedState()) {
@@ -147,7 +147,9 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     try {
       final states = await _setup.fetchPrompts(subjectIds);
       if (!isClosed && epoch == _promptFetchEpoch) {
-        final next = Map<String, PromptProjection>.from(state.promptProjections);
+        final next = Map<String, PromptProjection>.from(
+          state.promptProjections,
+        );
         for (final id in subjectIds) {
           final prompt = states[id];
           if (prompt != null) {
@@ -159,9 +161,15 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         emit(state.copyWith(promptProjections: next));
       }
     } catch (error, stackTrace) {
-      _logger.warning('Invite prompt projection fetch failed', error, stackTrace);
+      _logger.warning(
+        'Invite prompt projection fetch failed',
+        error,
+        stackTrace,
+      );
       if (!isClosed && epoch == _promptFetchEpoch) {
-        final next = Map<String, PromptProjection>.from(state.promptProjections);
+        final next = Map<String, PromptProjection>.from(
+          state.promptProjections,
+        );
         for (final id in subjectIds) {
           final current = next[id];
           if (current == null || current.isUnknown || force) {
@@ -209,14 +217,47 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     }
   }
 
-  Future<void> markSeen(String id) async {
+  /// The explicit per-item "Mark seen" action (#336): reads the item **and**
+  /// clears it by hand, so it leaves Unread and the Unread count drops.
+  /// Opening a row only reads it — see [markRead].
+  ///
+  /// Returns false when the action failed ([UpdatesFeedState.actionError]).
+  Future<bool> markSeen(String id) async {
+    try {
+      final receipt = _receiptById(id);
+      await _attention.markSeen([id]);
+      if (receipt == null || isActiveOptional(receipt)) {
+        await _attention.clearReceipt(receiptId: id);
+      }
+      if (!isClosed) emit(state.copyWith(actionError: null));
+      return true;
+    } catch (error, stackTrace) {
+      _logger.warning('Updates mark-seen failed', error, stackTrace);
+      if (!isClosed) {
+        emit(
+          state.copyWith(actionError: error, status: const StateIsSuccess()),
+        );
+      }
+      return false;
+    }
+  }
+
+  /// Opening a row: moves the read axis only; the row stays on Unread.
+  Future<void> markRead(String id) async {
     try {
       await _attention.markSeen([id]);
       emit(state.copyWith(actionError: null));
     } catch (error, stackTrace) {
-      _logger.warning('Updates mark-seen failed', error, stackTrace);
+      _logger.warning('Updates mark-read failed', error, stackTrace);
       emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
     }
+  }
+
+  AttentionReceipt? _receiptById(String id) {
+    for (final receipt in state.items) {
+      if (receipt.id == id) return receipt;
+    }
+    return null;
   }
 
   Future<void> markUnseen(String id) async {
