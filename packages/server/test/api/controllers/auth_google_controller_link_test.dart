@@ -29,6 +29,11 @@ import '../../support/build_test_invitation_case.dart';
 const _accountId = 'Uabc123456789012345678901234567890';
 
 final class _FakeOidcProvider implements OidcProviderPort {
+  _FakeOidcProvider({this.failExchange = false});
+
+  /// Simulates Google rejecting the authorization code (bogus/expired code).
+  final bool failExchange;
+
   @override
   bool get isConfigured => true;
 
@@ -38,8 +43,7 @@ final class _FakeOidcProvider implements OidcProviderPort {
     required String state,
     required String codeChallenge,
     required String nonce,
-  }) =>
-      Uri.parse('https://accounts.google.com/o/oauth2/v2/auth');
+  }) => Uri.parse('https://accounts.google.com/o/oauth2/v2/auth');
 
   @override
   Future<OidcIdentity> exchangeGoogleCode({
@@ -47,15 +51,16 @@ final class _FakeOidcProvider implements OidcProviderPort {
     required String redirectUri,
     required String codeVerifier,
     required String expectedNonce,
-  }) async =>
-      const OidcIdentity(sub: 'google-sub', email: 'a@b.com', name: 'Ada');
+  }) async {
+    if (failExchange) throw Exception('invalid_grant');
+    return const OidcIdentity(sub: 'google-sub', email: 'a@b.com', name: 'Ada');
+  }
 
   @override
   Future<OidcIdentity> verifyGoogleIdToken(
     String idToken, {
     String? expectedNonce,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 final class _FakeSessionRepository implements SessionRepositoryPort {
@@ -66,16 +71,15 @@ final class _FakeSessionRepository implements SessionRepositoryPort {
     required String accountId,
     required Duration expiresIn,
     String? credentialId,
-  }) async =>
-      (
-        token: 'session-tok',
-        session: AccountSessionEntity(
-          id: 'Ss1',
-          accountId: accountId,
-          tokenHash: 'h',
-          expiresAt: DateTime.timestamp().add(expiresIn),
-        ),
-      );
+  }) async => (
+    token: 'session-tok',
+    session: AccountSessionEntity(
+      id: 'Ss1',
+      accountId: accountId,
+      tokenHash: 'h',
+      expiresAt: DateTime.timestamp().add(expiresIn),
+    ),
+  );
 
   @override
   Future<AccountSessionEntity?> findActiveByTokenHash(String tokenHash) async {
@@ -104,6 +108,8 @@ void main() {
   late AuthGoogleController controller;
   late MockUserRepositoryPort userRepo;
   late _FakeSessionRepository sessionRepo;
+  late OidcCase oidcCase;
+  late SessionCase sessionCase;
 
   setUp(() {
     env = Env(environment: Environment.test);
@@ -134,13 +140,13 @@ void main() {
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
-    final oidcCase = OidcCase(
+    oidcCase = OidcCase(
       credentialAuthCase,
       userRepo,
       env: env,
       logger: Logger('AuthGoogleLinkTest'),
     );
-    final sessionCase = SessionCase(
+    sessionCase = SessionCase(
       sessionRepo,
       authCase,
       env: env,
@@ -163,30 +169,163 @@ void main() {
 
   Future<String> readBody(Response response) => response.readAsString();
 
+  /// #418: a failed login callback lands on the start page carrying
+  /// `?auth_error=<reason>` (and nothing else from Google's query), so the
+  /// landing can say what happened instead of looking as if nothing did.
+  void expectLandingWithAuthError(Response response, String reason) {
+    expect(response.statusCode, 302);
+    final raw = response.headers['location']!;
+    final location = Uri.parse(raw);
+    expect(
+      raw.split('?').first,
+      publicLandingUrl(env.publicOrigin),
+      reason: 'must land on the public start page',
+    );
+    expect(location.queryParameters, {'auth_error': reason});
+    expect(location.fragment, isEmpty);
+    expect(setCookieHeader(response), contains(kCookieOAuthStateName));
+    expect(setCookieHeader(response), isNot(contains(kCookieSessionName)));
+    expect(response.headers['cache-control'], contains('no-store'));
+  }
+
+  String loginStateCookie({String state = 'state123'}) => codec.encode(
+    OAuthStatePayload(
+      state: state,
+      codeVerifier: 'verifier',
+      nonce: 'nonce456',
+      returnTo: '',
+    ),
+  );
+
   group('callback failures (B073)', () {
-    test('cancelled Google consent returns to the landing page (B073)', () async {
+    // #418: fails on the base: _callbackFailure -> _oauthStateError() redirects
+    // to the bare landing URL, so the start page cannot tell a cancel apart
+    // from nothing happening.
+    test(
+      'cancelled Google consent returns to the landing page (B073)',
+      () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?error=access_denied&state=state123',
+            ),
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_cancelled');
+      },
+    );
+
+    test(
+      'cancel with a readable login state cookie says cancelled (#418)',
+      () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?error=access_denied&state=state123',
+            ),
+            headers: {
+              'cookie': '$kCookieOAuthStateName=${loginStateCookie()}',
+            },
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_cancelled');
+      },
+    );
+
+    // Any other Google error (not a cancel) is a failure, not a cancel.
+    test('a non-cancel Google error says failed (#418)', () async {
       final response = await controller.callback(
         Request(
           'GET',
           Uri.parse(
             'http://localhost/api/auth/google/callback'
-            '?error=access_denied&state=state123',
+            '?error=server_error&state=state123',
           ),
         ),
       );
-      expect(response.statusCode, 302);
-      expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
-      expect(setCookieHeader(response), contains(kCookieOAuthStateName));
-      expect(response.headers['cache-control'], contains('no-store'));
+      expectLandingWithAuthError(response, 'google_failed');
     });
 
-    test('callback without code or state returns to the landing page', () async {
-      final response = await controller.callback(
-        Request('GET', Uri.parse('http://localhost/api/auth/google/callback')),
-      );
-      expect(response.statusCode, 302);
-      expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
-    });
+    test(
+      'callback without code or state returns to the landing page',
+      () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/api/auth/google/callback'),
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_failed');
+      },
+    );
+
+    // #418 "Invalid code: 302 to the start page with no message at all".
+    test(
+      'failed token exchange lands on the start page saying failed (#418)',
+      () async {
+        final failing = AuthGoogleController(
+          env,
+          _FakeOidcProvider(failExchange: true),
+          oidcCase,
+          sessionCase,
+          codec,
+        );
+        final response = await failing.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?code=bogus&state=state123',
+            ),
+            headers: {
+              'cookie': '$kCookieOAuthStateName=${loginStateCookie()}',
+            },
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_failed');
+      },
+    );
+
+    // #418: a state that was never issued gave no visible error either.
+    test(
+      'state mismatch lands on the start page saying failed (#418)',
+      () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?code=abc&state=state123',
+            ),
+            headers: {
+              'cookie':
+                  '$kCookieOAuthStateName=${loginStateCookie(state: 'other')}',
+            },
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_failed');
+      },
+    );
+
+    test(
+      'missing state cookie lands on the start page saying failed (#418)',
+      () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?code=abc&state=state123',
+            ),
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_failed');
+      },
+    );
 
     test('cancel during Settings link returns to Sign-in methods', () async {
       // Fails on the base: a link-mode cancel landed on the public start page.
@@ -215,25 +354,28 @@ void main() {
         response.headers['location'],
         endsWith('/#/settings/sign-in-methods?linked=error'),
       );
+      // #418 guard: the landing-page flag must not leak into the link return.
+      expect(response.headers['location'], isNot(contains('auth_error')));
       expect(setCookieHeader(response), contains(kCookieOAuthStateName));
       expect(setCookieHeader(response), isNot(contains(kCookieSessionName)));
       expect(response.headers['cache-control'], contains('no-store'));
     });
 
-    test('cancel with an unreadable state cookie still lands on start page',
-        () async {
-      final response = await controller.callback(
-        Request(
-          'GET',
-          Uri.parse(
-            'http://localhost/api/auth/google/callback?error=access_denied',
+    test(
+      'cancel with an unreadable state cookie still lands on start page',
+      () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback?error=access_denied',
+            ),
+            headers: {'cookie': '$kCookieOAuthStateName=not-a-jwt'},
           ),
-          headers: {'cookie': '$kCookieOAuthStateName=not-a-jwt'},
-        ),
-      );
-      expect(response.statusCode, 302);
-      expect(response.headers['location'], publicLandingUrl(env.publicOrigin));
-    });
+        );
+        expectLandingWithAuthError(response, 'google_cancelled');
+      },
+    );
   });
 
   test('linkIntent returns a signed link/start URL', () async {
@@ -275,7 +417,8 @@ void main() {
         state: state,
         codeVerifier: 'verifier',
         nonce: 'nonce456',
-        returnTo: 'https://app.example/#/settings/sign-in-methods?linked=google',
+        returnTo:
+            'https://app.example/#/settings/sign-in-methods?linked=google',
         linkAccountId: _accountId,
       ),
     );
@@ -315,92 +458,95 @@ void main() {
     );
   });
 
-  test('login callback shows invite-required page for new user without invite', () async {
-    env = Env(environment: Environment.test, isNeedInvite: true);
-    codec = OAuthStateCodec(env);
-    userRepo = MockUserRepositoryPort();
-    sessionRepo = _FakeSessionRepository();
-    final contactRepo = MockVerifiedContactRepositoryPort();
-    final invitationRepo = MockInvitationRepositoryPort();
-    final authCase = AuthCase(
-      userRepo,
-      invitationRepo,
-      env: env,
-      logger: Logger('AuthGoogleLinkTest'),
-    );
-    final invitationCase = buildTestInvitationCase(
-      invitationRepo: invitationRepo,
-      userRepo: userRepo,
-      beaconRepo: MockBeaconRepositoryPort(),
-      friendshipLookup: MockVoteUserFriendshipLookupPort(),
-      contactRepo: MockUserContactRepositoryPort(),
-      env: env,
-      logger: Logger('AuthGoogleLinkTest'),
-    );
-    final credentialAuthCase = CredentialAuthCase(
-      userRepo,
-      contactRepo,
-      invitationRepo,
-      invitationCase,
-      env: env,
-      logger: Logger('AuthGoogleLinkTest'),
-    );
-    final oidcCase = OidcCase(
-      credentialAuthCase,
-      userRepo,
-      env: env,
-      logger: Logger('AuthGoogleLinkTest'),
-    );
-    final sessionCase = SessionCase(
-      sessionRepo,
-      authCase,
-      env: env,
-      logger: Logger('AuthGoogleLinkTest'),
-    );
-    controller = AuthGoogleController(
-      env,
-      _FakeOidcProvider(),
-      oidcCase,
-      sessionCase,
-      codec,
-    );
+  test(
+    'login callback shows invite-required page for new user without invite',
+    () async {
+      env = Env(environment: Environment.test, isNeedInvite: true);
+      codec = OAuthStateCodec(env);
+      userRepo = MockUserRepositoryPort();
+      sessionRepo = _FakeSessionRepository();
+      final contactRepo = MockVerifiedContactRepositoryPort();
+      final invitationRepo = MockInvitationRepositoryPort();
+      final authCase = AuthCase(
+        userRepo,
+        invitationRepo,
+        env: env,
+        logger: Logger('AuthGoogleLinkTest'),
+      );
+      final invitationCase = buildTestInvitationCase(
+        invitationRepo: invitationRepo,
+        userRepo: userRepo,
+        beaconRepo: MockBeaconRepositoryPort(),
+        friendshipLookup: MockVoteUserFriendshipLookupPort(),
+        contactRepo: MockUserContactRepositoryPort(),
+        env: env,
+        logger: Logger('AuthGoogleLinkTest'),
+      );
+      final credentialAuthCase = CredentialAuthCase(
+        userRepo,
+        contactRepo,
+        invitationRepo,
+        invitationCase,
+        env: env,
+        logger: Logger('AuthGoogleLinkTest'),
+      );
+      final oidcCase = OidcCase(
+        credentialAuthCase,
+        userRepo,
+        env: env,
+        logger: Logger('AuthGoogleLinkTest'),
+      );
+      final sessionCase = SessionCase(
+        sessionRepo,
+        authCase,
+        env: env,
+        logger: Logger('AuthGoogleLinkTest'),
+      );
+      controller = AuthGoogleController(
+        env,
+        _FakeOidcProvider(),
+        oidcCase,
+        sessionCase,
+        codec,
+      );
 
-    when(
-      userRepo.getByCredential(
-        type: anyNamed('type'),
-        identifier: anyNamed('identifier'),
-      ),
-    ).thenThrow(const IdNotFoundException());
-    when(
-      contactRepo.findAccountIdsByContacts(any),
-    ).thenAnswer((_) async => {});
-
-    const state = 'state-invite-required';
-    final oauthCookie = codec.encode(
-      const OAuthStatePayload(
-        state: state,
-        codeVerifier: 'verifier',
-        nonce: 'nonce789',
-        returnTo: '',
-      ),
-    );
-
-    final response = await controller.callback(
-      Request(
-        'GET',
-        Uri.parse(
-          'http://localhost/api/auth/google/callback?code=abc&state=$state',
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
         ),
-        headers: {'cookie': '$kCookieOAuthStateName=$oauthCookie'},
-      ),
-    );
+      ).thenThrow(const IdNotFoundException());
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {});
 
-    expect(response.statusCode, 403);
-    final body = await readBody(response);
-    expect(body, contains('No account found for this sign-in'));
-    expect(body, contains('Back to sign in'));
-    expect(setCookieHeader(response), contains(kCookieOAuthStateName));
-  });
+      const state = 'state-invite-required';
+      final oauthCookie = codec.encode(
+        const OAuthStatePayload(
+          state: state,
+          codeVerifier: 'verifier',
+          nonce: 'nonce789',
+          returnTo: '',
+        ),
+      );
+
+      final response = await controller.callback(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/auth/google/callback?code=abc&state=$state',
+          ),
+          headers: {'cookie': '$kCookieOAuthStateName=$oauthCookie'},
+        ),
+      );
+
+      expect(response.statusCode, 403);
+      final body = await readBody(response);
+      expect(body, contains('No account found for this sign-in'));
+      expect(body, contains('Back to sign in'));
+      expect(setCookieHeader(response), contains(kCookieOAuthStateName));
+    },
+  );
 
   test('linkStart rejects when session account mismatches lt', () async {
     sessionRepo.activeAccountId = 'Uother123456789012345678901234567890';
