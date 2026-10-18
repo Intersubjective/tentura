@@ -15,6 +15,8 @@ import {
   fetchMyProfile,
   renderPostSignup,
   shouldRunPostSignup,
+  inviteLandingCopy,
+  RECOVER_SEED_LINK_LABEL,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -162,7 +164,7 @@ function ctaRecoverSeed(inviteCode) {
         track('seed_recovery_clicked');
       },
     },
-    'Recover from seed',
+    RECOVER_SEED_LINK_LABEL,
   );
 }
 
@@ -350,7 +352,7 @@ function createSignInReveal(inviteCode, {
   return { existingToggle, signInBlock };
 }
 
-// Email, Google, and seed recovery for invite pages.
+// Email, Google, and recovery-seed sign-in for invite pages.
 function renderInviteAuthOptions(inviteCode) {
   const items = [
     el('p', { class: 'section-label' }, 'Get started'),
@@ -716,19 +718,22 @@ function renderAnonymous(p) {
   setState('anonymous');
   setPageTitle(`${inviterName(p)} invited you — Tentura`);
   const code = parseInviteCode();
+  // U084: say what Tentura is and why the friend sent the link before
+  // asking for an email address.
+  const copy = inviteLandingCopy({
+    inviterName: inviterName(p),
+    hasRequest: Boolean(p.beacon),
+    inApp: env.inApp,
+  });
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
     signedInFlash(),
     el('h1', {}, `${inviterName(p)} invited you to Tentura`),
-    el(
-      'p',
-      {},
-      env.inApp
-        ? 'Open this link in your browser, or create an account with email.'
-        : 'Create an account with email or Google, or sign in with seed recovery if you already have one.',
-    ),
+    el('p', { class: 'invite-about' }, copy.about),
+    el('p', {}, copy.why),
+    copy.signUp ? el('p', {}, copy.signUp) : null,
     ...renderInviteAuthOptions(code),
   );
 }
