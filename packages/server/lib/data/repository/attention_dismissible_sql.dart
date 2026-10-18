@@ -385,6 +385,18 @@ activity_outcome_dismissible AS (
     AND b.user_id <> $1
     AND ii.tombstone_dismissed_at IS NULL
     AND ii.beacon_id NOT IN (SELECT beacon_id FROM eligible_pinned)
+    -- #400: an answered Request's tombstone has no outcome row (see
+    -- `eligible_forward`), so it must not be a sweep member either.
+    AND NOT (
+      ii.status = 3
+      AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
+      AND EXISTS (
+        SELECT 1
+        FROM public.beacon_help_offer ho
+        WHERE ho.beacon_id = ii.beacon_id
+          AND ho.user_id = $1
+      )
+    )
     AND (
       public.beacon_can_read_content(ii.beacon_id, $1)
       OR (

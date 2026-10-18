@@ -209,6 +209,105 @@ Future<void> main() async {
       expect(await _dismissibleOutcomes(writer), [_forwardedBeaconId]);
     });
 
+    // #400: a helper who answered (offered help) and whose offer was later
+    // withdrawn — by the author's block or their own withdrawal — while the
+    // Request was past open (here Wrapping up) gets an inbox tombstone 3 from
+    // `inbox_item_apply_tombstone_after_withdraw`. Activity drops that row
+    // (it is not "closed before you answered"), so it has no × and is no
+    // Dismiss-all member (dismissible iff visible). A never-answered row on a
+    // really closed Request stays a member: that one is still shown.
+    test(
+      "#400: a withdrawn helper's tombstone does not; a never-answered "
+      'closed one still does',
+      () async {
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description, status)
+VALUES
+  (@wrapId, @authorId, 'Couch', 'Wrapping-up request', 5),
+  (@doneId, @authorId, 'Done', 'Closed request', 6)
+'''),
+          parameters: {
+            'wrapId': _wrappingBeaconId,
+            'doneId': _closedBeaconId,
+            'authorId': _authorId,
+          },
+        );
+        for (final entry in const [
+          ('Fu09apred400w', _wrappingBeaconId),
+          ('Fu09apred400c', _closedBeaconId),
+        ]) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_forward_edge (id, beacon_id, sender_id, recipient_id)
+VALUES (@id, @beaconId, @senderId, @recipientId)
+'''),
+            parameters: {
+              'id': entry.$1,
+              'beaconId': entry.$2,
+              'senderId': _authorId,
+              'recipientId': _viewerId,
+            },
+          );
+          await _insertInboxItem(writer, beaconId: entry.$2, status: 0);
+        }
+        // The viewer's offer on the Wrapping-up Request, withdrawn by a block.
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, withdraw_reason, created_at, updated_at
+) VALUES (@beaconId, @userId, 'offer', 1, 'blocked', now(), now())
+'''),
+          parameters: {'beaconId': _wrappingBeaconId, 'userId': _viewerId},
+        );
+        for (final beaconId in [_wrappingBeaconId, _closedBeaconId]) {
+          await writer.execute(
+            Sql.named(
+              'SELECT public.inbox_item_apply_tombstone_after_withdraw(@u, @b)',
+            ),
+            parameters: {'u': _viewerId, 'b': beaconId},
+          );
+        }
+
+        // Raw preconditions: both rows are tombstones (3), undismissed, and
+        // only the Wrapping-up one has an offer by the viewer.
+        final inbox = await writer.execute(
+          Sql.named('''
+SELECT ii.beacon_id, ii.status,
+  EXISTS (
+    SELECT 1 FROM public.beacon_help_offer ho
+    WHERE ho.beacon_id = ii.beacon_id AND ho.user_id = ii.user_id
+  ) AS offered
+FROM public.inbox_item ii
+WHERE ii.user_id = @u AND ii.beacon_id IN (@w, @c)
+  AND ii.tombstone_dismissed_at IS NULL
+ORDER BY ii.beacon_id
+'''),
+          parameters: {
+            'u': _viewerId,
+            'w': _wrappingBeaconId,
+            'c': _closedBeaconId,
+          },
+        );
+        expect(
+          {for (final row in inbox) row[0]: (row[1], row[2])},
+          {_wrappingBeaconId: (3, true), _closedBeaconId: (3, false)},
+        );
+
+        final outcomes = await _dismissibleOutcomes(writer);
+        expect(
+          outcomes,
+          contains(_closedBeaconId),
+          reason: 'never answered, really closed: shown, so dismissible',
+        );
+        expect(
+          outcomes,
+          isNot(contains(_wrappingBeaconId)),
+          reason: 'the viewer answered; Activity has no row for it (#400)',
+        );
+      },
+    );
+
     // #412, option B: the author's own Request has no outcome row on
     // Activity, so it has no × and is no Dismiss-all member (dismissible iff
     // visible) — whatever stance its inbox row carries, and even with the
@@ -294,6 +393,8 @@ const _authorId = 'Uu09apred02';
 const _ownedBeaconId = 'Bu09apredown';
 const _forwardedBeaconId = 'Bu09apredfwd';
 const _obligationBeaconId = 'Bu09apredobl';
+const _wrappingBeaconId = 'Bu09apred400w';
+const _closedBeaconId = 'Bu09apred400c';
 
 Future<List<String>> _dismissibleReceipts(
   Connection writer, {
