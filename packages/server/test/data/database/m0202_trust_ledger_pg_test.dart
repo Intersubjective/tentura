@@ -20,8 +20,15 @@ const _kindMarked = 3;
 const _kindWorkedWithAuthor = 8;
 
 final _close1333 = closeTo(0.13333333333333333, 1e-9);
-final _close3333 = closeTo(0.33333333333333333, 1e-9);
 final _close02667 = closeTo(0.026666666666666668, 1e-9);
+
+// Evidence aged from the test's clock (`DateTime.now() - N days`) is folded
+// later against the database's now(), so the decay moves a little while the
+// test runs: a slow CI runner put the 90-day case 1.25e-9 off (main run after
+// #598). 1e-6 is several minutes of drift on these slopes and still far below
+// the gaps the tests tell apart.
+final _closeAged3333 = closeTo(0.33333333333333333, 1e-6);
+final _closeAged02667 = closeTo(0.026666666666666668, 1e-6);
 
 Future<void> main() async {
   final migrationTarget = DisposablePgTarget.fromNamedEnvironment(
@@ -170,7 +177,7 @@ Future<void> main() async {
           occurredAt: DateTime.now().toUtc().subtract(const Duration(days: 365)),
         );
         final fold = await _foldPair(session.writer, _alice, _bob);
-        expect(fold.trustW, _close3333);
+        expect(fold.trustW, _closeAged3333);
       },
       skip: skipReason,
     );
@@ -206,7 +213,7 @@ Future<void> main() async {
           occurredAt: DateTime.now().toUtc().subtract(const Duration(days: 90)),
         );
         final fold = await _foldPair(session.writer, _bob, _alice);
-        expect(fold.trustW, _close02667);
+        expect(fold.trustW, _closeAged02667);
       },
       skip: skipReason,
     );
