@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import '../../domain/entity/notification_permission_status.dart';
 import '../../domain/entity/notification_permissions.dart';
 import '../../domain/port/fcm_local_repository_port.dart';
 import '../service/fcm_service.dart';
@@ -24,4 +25,9 @@ class FcmLocalRepository implements FcmLocalRepositoryPort {
   @override
   Future<NotificationPermissions> requestPermission() =>
       _fcmService.requestPermission();
+
+  //
+  @override
+  Future<NotificationPermissionStatus> permissionStatus() =>
+      _fcmService.permissionStatus();
 }

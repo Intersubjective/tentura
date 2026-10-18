@@ -9553,5 +9553,37 @@
   "beaconHudActEffectSumUp": "Record how each helper did, then close",
   "@beaconHudActEffectSumUp": {
     "description": "Author HUD during the final check when Close now is not available yet: what «Sum up» leads to."
+  },
+  "notificationPromptTitle": "Turn on notifications?",
+  "@notificationPromptTitle": {
+    "description": "In-app banner (B065) shown on web while notification permission has not been asked yet."
+  },
+  "notificationPromptBody": "So you hear when someone answers your request or needs your help. Tap “Turn on”, then choose “Allow” when your browser asks.",
+  "@notificationPromptBody": {
+    "description": "In-app notification banner: why the app wants permission and what to click in the browser dialog."
+  },
+  "notificationPromptAllow": "Turn on",
+  "@notificationPromptAllow": {
+    "description": "In-app notification banner / settings row: asks the browser for permission."
+  },
+  "notificationPromptDismiss": "Not now",
+  "@notificationPromptDismiss": {
+    "description": "In-app notification banner: hide it on this device."
+  },
+  "notificationPermissionDeviceTitle": "Notifications on this device",
+  "@notificationPermissionDeviceTitle": {
+    "description": "Notification settings: browser permission row."
+  },
+  "notificationPermissionDeviceOff": "Not turned on yet. Tap “Turn on”, then choose “Allow” when your browser asks.",
+  "@notificationPermissionDeviceOff": {
+    "description": "Notification settings: permission not asked yet."
+  },
+  "notificationPermissionBlocked": "Blocked in this browser. To allow them, open the site settings (the icon left of the address bar) and set Notifications to Allow.",
+  "@notificationPermissionBlocked": {
+    "description": "Notification settings: the browser permission is denied (in a browser tab)."
+  },
+  "notificationPermissionBlockedApp": "Blocked for this app. To allow them, turn on notifications for Tentura in your device's settings (on a computer: the app's menu › App info).",
+  "@notificationPermissionBlockedApp": {
+    "description": "Notification settings: the permission is denied in an installed app (home-screen or desktop PWA, or native), which has no address bar."
   }
 }
