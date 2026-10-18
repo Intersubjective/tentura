@@ -495,6 +495,8 @@ class RequestAttentionCard extends StatelessWidget {
         words,
       ),
       'offerAccepted' => l10n.attentionCardOfferAccepted(name),
+      'offerDeclined' when words.isNotEmpty && words != beacon.title =>
+        l10n.attentionCardOfferDeclinedWithReason(name, words),
       'offerDeclined' => l10n.attentionCardOfferDeclined(name),
       'postFirstResponse' => l10n.attentionCardPostFirstReply(name),
       'authorInviteReceived' => l10n.attentionCardInviteReceived(name),
@@ -591,6 +593,8 @@ class RequestAttentionCard extends StatelessWidget {
       'blockerOpened' when words.isNotEmpty => l10n.attentionCardChangeBlocker(
         words,
       ),
+      'offerDeclined' when words.isNotEmpty && words != beacon.title =>
+        l10n.attentionCardChangeOfferDeclined(words),
       'helpOfferSubmitted' when name.isNotEmpty =>
         l10n.attentionCardChangeHelpOffered(name),
       'coordinationChanged' ||
