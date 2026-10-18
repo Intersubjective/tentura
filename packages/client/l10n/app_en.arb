@@ -4955,6 +4955,10 @@
   "helpOfferCanReadChat": "Can read this discussion",
   "helpOfferAdmittedAutomaticallyLabel": "Admitted automatically",
   "helpOfferAdmittedAutomaticallyHint": "You forwarded this request to them directly",
+  "helpOfferJoinedViaNetworkHint": "Joined via the network",
+  "@helpOfferJoinedViaNetworkHint": {
+    "description": "Hint under an automatic admission when no direct author forward is on the trail (#496)"
+  },
   "helpOfferDirectForwardChip": "Forwarded by you",
   "@helpOfferDirectForwardChip": {
     "description": "Chip on People tab when the author directly forwarded this request to the helper"
