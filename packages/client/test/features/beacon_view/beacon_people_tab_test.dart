@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
+import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -342,6 +343,220 @@ void main() {
       expect(find.text('Active helpers (2)'), findsOneWidget);
       expect(find.text('Forwards (0)'), findsOneWidget);
       expect(find.text('please help'), findsNothing);
+    },
+  );
+
+  // #396: the spread of a request is history, not current membership. A
+  // recipient who later withdraws their offer keeps the viewer's forward
+  // edge in People > Forwards, and that row says they withdrew.
+  testWidgets(
+    'forward to a helper who later withdrew stays in Forwards, marked withdrawn',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const helper = Profile(id: 'h1', displayName: 'Helper');
+      final l10n = lookupL10n(const Locale('en'));
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+            // Repro: the author accepted the offer, then the helper withdrew.
+            roomAccess: RoomAccessBits.admitted,
+            isWithdrawn: true,
+          ),
+        ],
+        viewerForwardEdges: [
+          ForwardEdge(
+            id: 'e1',
+            beaconId: 'B1',
+            createdAt: _t,
+            sender: const Profile(id: 'auth', displayName: 'Author'),
+            recipient: helper,
+            note: 'please help',
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: l10n,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      await tester.tap(find.text('Forwards (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.beaconForwardsEmpty), findsNothing);
+      final row = find.byType(UnifiedForwardRow);
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('Helper')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text('please help')),
+        findsOneWidget,
+      );
+      // The withdrawn state is the row's reaction, not a delivery hint.
+      expect(
+        find.descendant(of: row, matching: find.text(l10n.forwardWithdrawn)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.text(l10n.forwardStatusNotYetSeen),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.text(l10n.forwardReactionHelpOffered),
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'withdrawn forward recipient stays in Forwards even with a read receipt',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const helper = Profile(id: 'h2', displayName: 'Helper Two');
+      final l10n = lookupL10n(const Locale('en'));
+      _state = _peopleState(
+        helpOffers: [
+          // A still-pending offer from someone else keeps the other folds
+          // populated; it must not disturb the Forwards count.
+          TimelineHelpOffer(
+            user: const Profile(id: 'h1', displayName: 'Helper'),
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+          TimelineHelpOffer(
+            user: helper,
+            message: 'On it',
+            createdAt: _t,
+            updatedAt: _t,
+            isWithdrawn: true,
+          ),
+        ],
+        viewerForwardEdges: [
+          ForwardEdge(
+            id: 'e2',
+            beaconId: 'B1',
+            createdAt: _t,
+            sender: const Profile(id: 'auth', displayName: 'Author'),
+            recipient: helper,
+            recipientReadAt: _t,
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: l10n,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      await tester.tap(find.text('Forwards (1)'));
+      await tester.pumpAndSettle();
+
+      final row = find.byType(UnifiedForwardRow);
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('Helper Two')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text(l10n.forwardWithdrawn)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text(l10n.forwardStatusSeen)),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'a withdrawn offer followed by a live offer keeps the person in Willing, not Forwards',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const helper = Profile(id: 'h1', displayName: 'Helper');
+      final l10n = lookupL10n(const Locale('en'));
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'Earlier offer',
+            createdAt: _t,
+            updatedAt: _t,
+            isWithdrawn: true,
+          ),
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help again',
+            createdAt: _t.add(const Duration(days: 1)),
+            updatedAt: _t.add(const Duration(days: 1)),
+          ),
+        ],
+        viewerForwardEdges: [
+          ForwardEdge(
+            id: 'e1',
+            beaconId: 'B1',
+            createdAt: _t,
+            sender: const Profile(id: 'auth', displayName: 'Author'),
+            recipient: helper,
+            note: 'please help',
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: l10n,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Willing to help (1)'), findsOneWidget);
+      expect(find.text('Forwards (0)'), findsOneWidget);
+      await tester.tap(find.text('Forwards (0)'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byType(UnifiedForwardRow),
+          matching: find.text(l10n.forwardWithdrawn),
+        ),
+        findsNothing,
+      );
+      expect(find.byType(UnifiedForwardRow), findsNothing);
+      expect(find.text('Helper'), findsOneWidget);
     },
   );
 
