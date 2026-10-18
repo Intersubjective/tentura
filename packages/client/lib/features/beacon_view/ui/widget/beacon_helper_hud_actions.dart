@@ -40,6 +40,7 @@ BeaconHelperHudActions buildBeaconHelperHudActions({
   VoidCallback? onEditHelpOffer,
   VoidCallback? onWatch,
   VoidCallback? onStopWatching,
+  VoidCallback? onOpenClosureReview,
 }) {
   final b = state.beacon;
   final openFamily = b.status.isOpenFamily;
@@ -52,6 +53,23 @@ BeaconHelperHudActions buildBeaconHelperHudActions({
 
   if (state.isBeaconMine) {
     return const BeaconHelperHudActions();
+  }
+
+  // Wrapping up: members (the server only gives them a closure snapshot)
+  // get the review, where they support colleagues before it closes.
+  if (b.status == BeaconStatus.reviewOpen &&
+      state.closureState != null &&
+      onOpenClosureReview != null) {
+    return BeaconHelperHudActions(
+      primary: [
+        BeaconHudActionSpec(
+          icon: Icons.fact_check_outlined,
+          label: l10n.closureHelperOpenReview,
+          onPressed: onOpenClosureReview,
+          filled: true,
+        ),
+      ],
+    );
   }
 
   if (state.isSteward || b.status == BeaconStatus.reviewOpen || !openFamily) {

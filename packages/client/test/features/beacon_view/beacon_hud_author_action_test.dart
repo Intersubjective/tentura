@@ -78,6 +78,8 @@ void main() {
       );
     });
 
+    // B041: before Close now is allowed the author used to get no action at
+    // all (and after a Reopen, no way out). Now the HUD opens the review.
     for (final canCloseNow in [false, true]) {
       for (final isAuthor in [true, false]) {
         test('canCloseNow=$canCloseNow author=$isAuthor', () {
@@ -87,11 +89,30 @@ void main() {
           ).copyWith(myProfile: Profile(id: isAuthor ? 'uAuthor' : 'helper'));
           expect(
             deriveBeaconHudAuthorAction(state),
-            isAuthor && canCloseNow ? BeaconHudAuthorAction.closeNow : null,
+            !isAuthor
+                ? null
+                : canCloseNow
+                ? BeaconHudAuthorAction.closeNow
+                : BeaconHudAuthorAction.sumUp,
           );
         });
       }
     }
+
+    test('Close & sum up is labelled and explains what it leads to', () {
+      final l10n = lookupL10n(const Locale('en'));
+      final spec = deriveBeaconHudAuthorActSpec(
+        l10n: l10n,
+        state: _authorState(
+          status: BeaconStatus.reviewOpen,
+          closureState: _closure(canCloseNow: false),
+        ),
+      );
+      expect(spec?.action, BeaconHudAuthorAction.sumUp);
+      expect(spec?.label, l10n.closureAuthorTitle);
+      expect(spec?.effectLine, 'Record how each helper did, then close');
+      expect(spec?.filled, isTrue);
+    });
 
     test('a closed request offers no action even with a stale snapshot', () {
       final state = _authorState(

@@ -15,6 +15,8 @@ import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
+import 'package:tentura/features/closure/domain/entity/closure_member.dart';
+import 'package:tentura/features/closure/ui/screen/closure_review_page.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
@@ -216,6 +218,8 @@ Future<void> beaconViewHandleAuthorHudAction({
         onOpenPeopleTab: onOpenPeopleTab,
         onOpenGeneralThread: onOpenGeneralThread,
       );
+    case BeaconHudAuthorAction.sumUp:
+      await beaconViewOpenClosureReview(context.router, cubit);
     case BeaconHudAuthorAction.closeNow:
       final confirmed = await showBeaconCloseNowConfirmSheet(
         context: context,
@@ -229,6 +233,32 @@ Future<void> beaconViewHandleAuthorHudAction({
       }
       await cubit.closeBeaconNow();
   }
+}
+
+/// Opens the wrap-up review for the viewer's closure role (author: «Close & sum up»;
+/// member: support colleagues), then reloads the Request: Close now or
+/// Return to work on that page change its lifecycle.
+Future<void> beaconViewOpenClosureReview(
+  StackRouter router,
+  BeaconViewCubit cubit,
+) async {
+  final state = cubit.state;
+  final closure = state.closureState;
+  if (closure == null) return;
+  final author = state.beacon.author;
+  await openClosureReview(
+    router,
+    beaconId: state.beacon.id,
+    role: closure.role,
+    viewerId: state.myProfile.id,
+    author: ClosureMember(
+      id: author.id,
+      displayName: author.shownName,
+      avatarId: author.hasAvatar ? author.image!.id : null,
+    ),
+  );
+  if (cubit.isClosed) return;
+  await cubit.refreshAfterClosureReview();
 }
 
 bool beaconViewShowsRequestStatusOverflow(BeaconViewState state) {

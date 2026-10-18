@@ -34,6 +34,10 @@ abstract class ClosureAuthorState extends StateBase with _$ClosureAuthorState {
     /// Last failed write; [noticeTick] changes with every new one.
     Object? notice,
     @Default(0) int noticeTick,
+
+    /// True once this author's own Close now / Return to work went through:
+    /// the review is over. A failed reload alone never sets it.
+    @Default(false) bool ended,
   }) = _ClosureAuthorState;
 
   const ClosureAuthorState._();
@@ -106,6 +110,7 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
 
   Future<void> closeNow() => _write(
     (epoch) => _case.closeNow(beaconId: beaconId, expectedEpoch: epoch),
+    ends: true,
   );
 
   Future<void> extend() => _write(
@@ -114,6 +119,7 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
 
   Future<void> reopen() => _write(
     (epoch) => _case.reopen(beaconId: beaconId, expectedEpoch: epoch),
+    ends: true,
   );
 
   /// Unlocks the sliders, starting from the saved split or equal shares.
@@ -152,15 +158,23 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
     clearDraft: true,
   );
 
+  /// [ends]: a successful [action] finishes the review (Close now, Return to
+  /// work). There is nothing left to reload: Return to work cancels the
+  /// epoch, so a refetch would only answer not-found.
   Future<void> _write(
     Future<void> Function(int epoch) action, {
     bool clearDraft = false,
+    bool ends = false,
   }) async {
     final data = state.data;
     if (data == null) return;
     try {
       await action(data.epoch);
       if (isClosed) return;
+      if (ends) {
+        emit(state.copyWith(ended: true));
+        return;
+      }
       if (clearDraft) emit(state.copyWith(draft: null));
     } on ClosureStaleEpochException catch (e) {
       if (isClosed) return;
