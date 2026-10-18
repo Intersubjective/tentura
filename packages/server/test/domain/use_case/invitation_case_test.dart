@@ -415,6 +415,23 @@ void main() {
         throwsA(isA<IdNotFoundException>()),
       );
     });
+
+    test('own invite -> InvitationWrongException, nothing bound', () async {
+      stubGetById(invitation());
+
+      await expectLater(
+        case_.accept(invitationId: 'Iabc', userId: issuerId),
+        throwsA(isA<InvitationWrongException>()),
+      );
+      verifyNever(
+        userRepo.bindMutual(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+          bindFriendship: anyNamed('bindFriendship'),
+        ),
+      );
+      expect(attention.recorded, isEmpty);
+    });
   });
 
   group('InvitationCase.acceptAsExisting', () {

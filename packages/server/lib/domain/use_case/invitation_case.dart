@@ -303,6 +303,11 @@ final class InvitationCase extends UseCaseBase {
     )) {
       throw IdNotFoundException(id: invitationId);
     }
+    if (invitation.issuer.id == userId) {
+      throw const InvitationWrongException(
+        description: 'Cannot accept your own invite',
+      );
+    }
     return _acceptAndRecord(
       invitation: invitation,
       userId: userId,
