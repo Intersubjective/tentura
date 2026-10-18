@@ -366,6 +366,10 @@ eligible_forward AS (
   LEFT JOIN request_entry re ON re.beacon_id = ii.beacon_id
   WHERE ii.user_id = \$1
     AND b.kind = 0
+    -- #412: the author's own Request is never an outcome of theirs ("You
+    -- offered help"); it lives on My Work. Mirrored in Set O
+    -- (AttentionDismissibleSql.dismissibleOutcomes) so dismissible == visible.
+    AND b.user_id <> \$1
     AND ii.tombstone_dismissed_at IS NULL
     AND (
       ii.status <> 0

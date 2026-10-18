@@ -172,6 +172,69 @@ VALUES
       expect(forward.itemKind, AttentionItemKind.forward);
     });
 
+    // #412: the author's own Request sits in their responsibility scope
+    // because they wrote it, not because they offered help on it. Activity
+    // read "You offered help" for Tab QA's own requests (forwarded back to
+    // them, and with the author recorded as a helper, #346). Decision
+    // (option B): an author's own Request yields no forward row on Activity
+    // at all, and — dismissible iff visible — no Dismiss-all member either.
+    for (final fixture in const [
+      (status: 0, selfHelpOffer: false, name: 'forwarded back, unanswered'),
+      (status: 1, selfHelpOffer: true, name: 'author recorded as a helper'),
+    ]) {
+      test(
+        "author's own request has no Activity forward row (${fixture.name})",
+        () async {
+          await _ensureForwardPath(writer, beaconId: _ownedBeaconId);
+          await _upsertInbox(
+            writer,
+            beaconId: _ownedBeaconId,
+            status: fixture.status,
+            latestForwardAt: '2026-08-04T09:00:00Z',
+          );
+          if (fixture.selfHelpOffer) {
+            // The #346 data shape: a live help offer by the author themself.
+            await _insertHelpOffer(writer, beaconId: _ownedBeaconId, status: 0);
+          }
+          // Precondition: the inbox row is really there, so its absence from
+          // the feed below is the projection's decision, not a fixture gap.
+          final inbox = await writer.execute(
+            Sql.named('''
+SELECT status FROM public.inbox_item
+WHERE user_id = @u AND beacon_id = @b AND tombstone_dismissed_at IS NULL
+'''),
+            parameters: {'u': _viewerId, 'b': _ownedBeaconId},
+          );
+          expect(inbox.single[0], fixture.status);
+
+          final feed = await query.attentionFeed(
+            accountId: _viewerId,
+            view: AttentionFeedView.all,
+            surface: AttentionSurface.activity,
+          );
+          expect(
+            feed.page.items.where(
+              (item) =>
+                  item.beaconId == _ownedBeaconId &&
+                  item.itemKind == AttentionItemKind.forward,
+            ),
+            isEmpty,
+            reason: 'an author is never their own helper or forward recipient',
+          );
+
+          // Dismissible iff visible: with no row on the surface, Dismiss all
+          // has nothing of this Request to clear. (The fixture's foreign
+          // forward is unanswered — pinned, never a sweep member.)
+          final summary = await query.surfaceSummary(accountId: _viewerId);
+          expect(
+            summary.forYouSweepEligible,
+            isFalse,
+            reason: 'Set O must not hold a row the Activity list never shows',
+          );
+        },
+      );
+    }
+
     test('closedBeforeResponse and deletedBeforeResponse outcomes', () async {
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
       await _upsertInbox(
