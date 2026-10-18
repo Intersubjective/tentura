@@ -276,6 +276,167 @@ WHERE user_id = @u AND beacon_id = @b AND tombstone_dismissed_at IS NULL
       expect(deleted.forwardOutcome, 'deletedBeforeResponse');
     });
 
+    // #400: "The author closed it before you answered" is the copy of
+    // `closedBeforeResponse`. A helper who offered help has answered —
+    // admitted or not (the key is the offer, not admission) — whatever
+    // happened to the offer afterwards — a block by the
+    // author withdraws it (UserBlockCase -> applyTombstoneAfterWithdraw when
+    // the Request is not open-family), and so does the helper's own
+    // withdrawal (HelpOfferCase.withdraw, same tail). Either way the inbox row
+    // becomes status 3, which this projection reads as "before you answered".
+    // The copy is allowed only for a Request that is really closed and that
+    // the viewer never answered; otherwise the row says something accurate or
+    // is not there at all. A forward row with no outcome is not acceptable
+    // either: the client renders it as the live, actionable Request card.
+    for (final fixture in const [
+      (
+        beaconStatus: 5,
+        withdrawReason: 'blocked',
+        name: 'blocked by the author while Wrapping up',
+      ),
+      (
+        beaconStatus: 5,
+        withdrawReason: null,
+        name: 'withdrew while Wrapping up',
+      ),
+      (
+        beaconStatus: 6,
+        withdrawReason: 'blocked',
+        name: 'blocked by the author, Request closed',
+      ),
+    ]) {
+      test(
+        '#400: a helper who answered is never "closed before you answered" '
+        '(${fixture.name})',
+        () async {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description, status)
+VALUES (@id, @authorId, 'Couch', 'Couch request', @status)
+'''),
+            parameters: {
+              'id': _helperBeaconId,
+              'authorId': _authorId,
+              'status': fixture.beaconStatus,
+            },
+          );
+          await _ensureForwardPath(writer, beaconId: _helperBeaconId);
+          await _upsertInbox(
+            writer,
+            beaconId: _helperBeaconId,
+            status: 0,
+            latestForwardAt: '2026-08-05T11:00:00Z',
+          );
+          // The offer the viewer made, now withdrawn.
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, withdraw_reason, created_at, updated_at
+) VALUES (@beaconId, @userId, 'I can lift', 1, @reason, now(), now())
+'''),
+            parameters: {
+              'beaconId': _helperBeaconId,
+              'userId': _viewerId,
+              'reason': fixture.withdrawReason,
+            },
+          );
+          // Exactly what the block / withdraw use cases call when the Request
+          // is not open-family.
+          await writer.execute(
+            Sql.named(
+              'SELECT public.inbox_item_apply_tombstone_after_withdraw(@userId, @beaconId)',
+            ),
+            parameters: {'userId': _viewerId, 'beaconId': _helperBeaconId},
+          );
+          // Precondition: the data shape of the report (inbox tombstone 3).
+          final inbox = await writer.execute(
+            Sql.named('''
+SELECT status FROM public.inbox_item
+WHERE user_id = @u AND beacon_id = @b
+'''),
+            parameters: {'u': _viewerId, 'b': _helperBeaconId},
+          );
+          expect(inbox.single[0], 3);
+
+          final feed = await query.attentionFeed(
+            accountId: _viewerId,
+            view: AttentionFeedView.all,
+            surface: AttentionSurface.activity,
+          );
+          final forwards = feed.page.items.where(
+            (item) =>
+                item.beaconId == _helperBeaconId &&
+                item.itemKind == AttentionItemKind.forward,
+          );
+          expect(
+            forwards.map((item) => item.forwardOutcome),
+            isNot(contains('closedBeforeResponse')),
+            reason: 'the viewer answered: they offered help',
+          );
+          expect(
+            forwards.map((item) => item.forwardOutcome),
+            isNot(contains('deletedBeforeResponse')),
+            reason: 'the Request is not deleted, and the viewer answered',
+          );
+          expect(
+            forwards.where((item) => item.forwardOutcome == null),
+            isEmpty,
+            reason:
+                'an outcome-less forward row renders as the actionable '
+                'Request card, which a removed helper cannot act on',
+          );
+        },
+      );
+    }
+
+    // #400 guard: the copy stays where it is true — a Request the viewer
+    // never answered that went Wrapping up -> closed (the m0213 trigger
+    // tombstones the row at open -> 5). A fix must not drop every status-3
+    // row. Green before and after the fix.
+    test(
+      '#400: a never-answered Request that closed keeps closedBeforeResponse',
+      () async {
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description, status)
+VALUES (@doneId, @authorId, 'Done', 'Closed request', 0)
+'''),
+          parameters: {
+            'doneId': _closedForRealBeaconId,
+            'authorId': _authorId,
+          },
+        );
+        await _ensureForwardPath(writer, beaconId: _closedForRealBeaconId);
+        await _upsertInbox(
+          writer,
+          beaconId: _closedForRealBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-05T11:00:00Z',
+        );
+        // The live lifecycle: open -> Wrapping up -> closed.
+        for (final status in [5, 6]) {
+          await writer.execute(
+            Sql.named('UPDATE public.beacon SET status = @s WHERE id = @id'),
+            parameters: {'s': status, 'id': _closedForRealBeaconId},
+          );
+        }
+
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+        final closed = feed.page.items
+            .where(
+              (item) =>
+                  item.beaconId == _closedForRealBeaconId &&
+                  item.itemKind == AttentionItemKind.forward,
+            )
+            .single;
+        expect(closed.forwardOutcome, 'closedBeforeResponse');
+      },
+    );
+
     test('tombstone_dismissed_at hides the forward row', () async {
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
       await _upsertInbox(
@@ -1094,6 +1255,8 @@ const _foreignBeaconId = 'Bactstreamfor';
 const _foreignBeacon2Id = 'Bactstreamfo2';
 const _closedBeaconId = 'Bactstreamcls';
 const _deletedBeaconId = 'Bactstreamdel';
+const _helperBeaconId = 'Bactstream400';
+const _closedForRealBeaconId = 'Bactstream40c';
 
 /// The stable ordering anchor `attention_request_state` recorded when this
 /// Request entered the viewer's attention (U09a's trigger, U10c's `LEAST`).

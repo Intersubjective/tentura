@@ -371,6 +371,20 @@ eligible_forward AS (
     -- (AttentionDismissibleSql.dismissibleOutcomes) so dismissible == visible.
     AND b.user_id <> \$1
     AND ii.tombstone_dismissed_at IS NULL
+    -- #400: a status-3 tombstone of a Request the viewer answered (an offer
+    -- that was later withdrawn or removed by a block) is not "closed before
+    -- you answered"; the viewer did answer, so there is no outcome row.
+    -- Mirrored in Set O (AttentionDismissibleSql.dismissibleOutcomes).
+    AND NOT (
+      ii.status = 3
+      AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
+      AND EXISTS (
+        SELECT 1
+        FROM public.beacon_help_offer ho
+        WHERE ho.beacon_id = ii.beacon_id
+          AND ho.user_id = \$1
+      )
+    )
     AND (
       ii.status <> 0
       OR ii.beacon_id IN (SELECT scope.beacon_id FROM scope)
