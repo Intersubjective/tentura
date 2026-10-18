@@ -200,10 +200,53 @@ Future<void> main() async {
       // `status = 0` inside the responsibility scope is "You're helping"
       // (owner decision B), not an unanswered forward: a presentational trace
       // of the viewer's own past action, with a ×.
-      await _insertInboxItem(writer, beaconId: _ownedBeaconId, status: 0);
+      // CHANGES IN #412: the fixture used to be the viewer's *own* Request,
+      // which is in scope because they wrote it, not because they helped.
+      // A real helping outcome is a forwarded Request they offered help on.
+      await _insertInboxItem(writer, beaconId: _forwardedBeaconId, status: 0);
+      await _insertHelpOffer(writer, beaconId: _forwardedBeaconId);
 
-      expect(await _dismissibleOutcomes(writer), [_ownedBeaconId]);
+      expect(await _dismissibleOutcomes(writer), [_forwardedBeaconId]);
     });
+
+    // #412, option B: the author's own Request has no outcome row on
+    // Activity, so it has no × and is no Dismiss-all member (dismissible iff
+    // visible) — whatever stance its inbox row carries, and even with the
+    // author recorded as a helper of it (#346).
+    for (final fixture in const [
+      (status: 0, selfHelpOffer: false),
+      (status: 1, selfHelpOffer: true),
+    ]) {
+      test(
+        "the author's own Request never does (status ${fixture.status}, "
+        'self help offer ${fixture.selfHelpOffer})',
+        () async {
+          await _insertInboxItem(
+            writer,
+            beaconId: _ownedBeaconId,
+            status: fixture.status,
+          );
+          if (fixture.selfHelpOffer) {
+            await _insertHelpOffer(writer, beaconId: _ownedBeaconId);
+          }
+          // Precondition: the row exists, so its absence below is not vacuous.
+          final inbox = await writer.execute(
+            Sql.named('''
+SELECT status FROM public.inbox_item
+WHERE user_id = @u AND beacon_id = @b AND tombstone_dismissed_at IS NULL
+'''),
+            parameters: {'u': _viewerId, 'b': _ownedBeaconId},
+          );
+          expect(inbox.single[0], fixture.status);
+
+          expect(
+            await _dismissibleOutcomes(writer),
+            isNot(contains(_ownedBeaconId)),
+            reason: 'an author is never their own forward recipient (#412)',
+          );
+        },
+      );
+    }
 
     test('an already dismissed outcome is not swept twice', () async {
       await _insertInboxItem(writer, beaconId: _forwardedBeaconId, status: 1);
@@ -369,6 +412,18 @@ ON CONFLICT (user_id, beacon_id) DO UPDATE SET status = EXCLUDED.status
     'beaconId': beaconId,
     'status': status,
   },
+);
+
+Future<void> _insertHelpOffer(
+  Connection writer, {
+  required String beaconId,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, created_at, updated_at
+) VALUES (@beaconId, @userId, 'offer', 0, now(), now())
+'''),
+  parameters: {'beaconId': beaconId, 'userId': _viewerId},
 );
 
 Future<void> _insertReceipt(

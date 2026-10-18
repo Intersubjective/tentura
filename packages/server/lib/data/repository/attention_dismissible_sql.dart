@@ -209,6 +209,7 @@ eligible_pinned AS (
   static String foldedInviteReceipt(String alias) =>
       '(${pendingInviteReceipt(alias)} '
       'AND $alias.beacon_id IN (SELECT beacon_id FROM eligible_pinned))';
+
   /// Owner rule D12 (plan §4.7): For You never carries anything the viewer
   /// is obliged or nudged to do about a Request plan. The five types are
   /// part of [AttentionPolicy.isOwnDutyReminder], so [forYouEligible] already
@@ -379,6 +380,9 @@ activity_outcome_dismissible AS (
     ON ars.account_id = ii.user_id AND ars.beacon_id = ii.beacon_id
   WHERE ii.user_id = $1
     AND b.kind = 0
+    -- #412: the author's own Request has no Activity outcome row (see
+    -- `eligible_forward`), so it must not be a sweep member either.
+    AND b.user_id <> $1
     AND ii.tombstone_dismissed_at IS NULL
     AND ii.beacon_id NOT IN (SELECT beacon_id FROM eligible_pinned)
     AND (
