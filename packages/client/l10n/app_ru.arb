@@ -5828,6 +5828,7 @@
   "updatesSearchHint": "Поиск обновлений",
   "updatesSearchClear": "Очистить поиск",
   "updatesMarkSeen": "Отметить прочитанным",
+  "updatesMarkSeenFailed": "Не удалось отметить прочитанным. Попробуйте ещё раз.",
   "updatesMarkUnseen": "Снять отметку о прочтении",
   "updatesMarkDone": "Отметить выполненным",
   "updatesMarkAllSeen": "Прочитать всё",

@@ -12,6 +12,7 @@ import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/updates_feed_cubit.dart';
 import 'invite_accepted_receipt_card.dart';
@@ -338,8 +339,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
 
   Widget _receiptRow(BuildContext context, AttentionReceipt receipt) {
     void onTap() => _open(context, receipt);
-    void onMarkSeen() =>
-        unawaited(context.read<UpdatesFeedCubit>().markSeen(receipt.id));
+    void onMarkSeen() => unawaited(_markSeen(receipt.id));
     void onMarkUnseen() =>
         unawaited(context.read<UpdatesFeedCubit>().markUnseen(receipt.id));
     void onSettle() =>
@@ -374,7 +374,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
             onRetryPromptFetch: cubit.retryPromptFetch,
             onPromptSettled: cubit.applyKnownPrompt,
             onTap: onTap,
-            onMarkSeen: () => cubit.markSeen(receipt.id),
+            onMarkSeen: () => _markSeen(receipt.id),
             onMarkUnseen: onMarkUnseen,
           );
         },
@@ -399,8 +399,22 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     setState(() {});
   }
 
+  /// Explicit "Mark seen" (#336): a refusal is shown, never a silent no-op.
+  // Uses the pane's own context: the row's context may be gone by the time
+  // the mutation answers.
+  Future<void> _markSeen(String receiptId) async {
+    final ok = await context.read<UpdatesFeedCubit>().markSeen(receiptId);
+    if (ok || !mounted) return;
+    showSnackBar(
+      context,
+      text: L10n.of(context)!.updatesMarkSeenFailed,
+      isError: true,
+    );
+  }
+
   Future<void> _open(BuildContext context, AttentionReceipt receipt) async {
-    unawaited(context.read<UpdatesFeedCubit>().markSeen(receipt.id));
+    // Opening reads the row; it stays on Unread until cleared by hand.
+    unawaited(context.read<UpdatesFeedCubit>().markRead(receipt.id));
     await GetIt.I<RootRouter>().openFromUpdate(receipt);
   }
 }

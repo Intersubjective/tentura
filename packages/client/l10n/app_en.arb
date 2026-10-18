@@ -6347,6 +6347,10 @@
     "description": "Tooltip / screen-reader label of the clear (x) button in the Updates search field."
   },
   "updatesMarkSeen": "Mark seen",
+  "updatesMarkSeenFailed": "Couldn't mark as seen. Try again.",
+  "@updatesMarkSeenFailed": {
+    "description": "Error snackbar when the per-item Updates \"Mark seen\" action fails."
+  },
   "updatesMarkUnseen": "Mark unread",
   "@updatesMarkUnseen": {
     "description": "Tooltip for the Updates trailing control that marks a receipt unread."
