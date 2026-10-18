@@ -48,6 +48,11 @@ class BeaconRoomHintsRepository {
           openBlocker: _mapOpenBlocker(e),
           publicFactSnippet: _clip(e.publicFactSnippet ?? ''),
           planSlice: PlanViewerSlice.tryDecode(e.planSliceJson),
+          lastActivityAt: _parseOptionalIso(e.lastActivityAt),
+          lastMessageAt: _parseOptionalIso(e.lastMessageAt),
+          lastMessageText: _clip(e.lastMessageText ?? ''),
+          lastMessageAuthorId: (e.lastMessageAuthorId ?? '').trim(),
+          lastMessageAuthorName: (e.lastMessageAuthorName ?? '').trim(),
         ),
     };
   }

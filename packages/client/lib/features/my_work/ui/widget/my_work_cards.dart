@@ -35,6 +35,7 @@ import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart'
 import 'package:tentura/features/my_work/domain/derive_my_work_card_attention.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_attention_indicators.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_latest_message_line.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
@@ -207,7 +208,7 @@ Widget _myWorkWhatsNewSection(
   required String currentUserId,
 }) {
   final tt = context.tt;
-  return Padding(
+  final row = Padding(
     padding: EdgeInsets.only(top: tt.tightGap),
     child: Row(
       children: [
@@ -232,6 +233,19 @@ Widget _myWorkWhatsNewSection(
         MyWorkCardAttentionIndicators(vm: vm),
       ],
     ),
+  );
+  if (vm.roomLatestMessageText.trim().isEmpty) return row;
+  // U087 — the latest message and the unread count, above the event line.
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Semantics(
+        identifier: TestIds.myWorkLatestMessage(vm.beaconId),
+        child: MyWorkLatestMessageLine(vm: vm, currentUserId: currentUserId),
+      ),
+      row,
+    ],
   );
 }
 

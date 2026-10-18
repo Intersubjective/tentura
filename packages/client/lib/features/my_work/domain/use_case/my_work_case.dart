@@ -300,13 +300,16 @@ final class MyWorkCase extends UseCaseBase {
           if (h.myNextMove.isNotEmpty) {
             parts.add(h.myNextMove);
           }
+          var unread = 0;
           if (h.roomUnreadCount > 0) {
-            final unread = _beaconRoomCase.resolveUnread(
+            unread = _beaconRoomCase.resolveUnread(
               beaconId: c.beaconId,
               serverCount: h.roomUnreadCount,
               serverSeenAt: h.lastSeenAt,
             );
-            if (unread > 0) {
+            // U087 — with a "latest" line the count rides on it ("2 new");
+            // without one it stays the header's "+N".
+            if (unread > 0 && h.lastMessageText.isEmpty) {
               parts.add('+$unread');
             }
           }
@@ -316,6 +319,12 @@ final class MyWorkCase extends UseCaseBase {
             roomOpenBlockerTitle: h.openBlockerTitle,
             roomOpenBlocker: h.openBlocker,
             roomInboxSubtitle: parts.join(' · '),
+            roomLastActivityAt: h.lastActivityAt,
+            roomLatestMessageText: h.lastMessageText,
+            roomLatestMessageAuthorId: h.lastMessageAuthorId,
+            roomLatestMessageAuthorName: h.lastMessageAuthorName,
+            roomLatestMessageAt: h.lastMessageAt,
+            roomUnreadCount: unread > 0 ? unread : 0,
           );
         }(),
     ];

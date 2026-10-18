@@ -8465,6 +8465,11 @@ type v2_InboxRoomContextRow {
   beaconId: String!
   currentLine: String
   isRoomMember: Boolean!
+  lastActivityAt: String
+  lastMessageAt: String
+  lastMessageAuthorId: String
+  lastMessageAuthorName: String
+  lastMessageText: String
   lastRoomMeaningfulChange: String
   lastSeenAt: String
   nextMoveText: String
