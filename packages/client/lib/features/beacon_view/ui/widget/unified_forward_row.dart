@@ -24,6 +24,7 @@ class UnifiedForwardRow extends StatelessWidget {
     this.involvementHelpOfferedIds,
     this.involvementWatchingIds,
     this.involvementOnwardForwarderIds,
+    this.involvementWithdrawnIds = const {},
     super.key,
   }) : assert(
          (inboundSender != null &&
@@ -58,6 +59,7 @@ class UnifiedForwardRow extends StatelessWidget {
     required Set<String> helpOffered,
     required Set<String> watching,
     required Set<String> onward,
+    Set<String> withdrawn = const {},
     bool showSender = true,
     List<String> reasonSlugs = const [],
     Key? key,
@@ -69,6 +71,7 @@ class UnifiedForwardRow extends StatelessWidget {
     involvementHelpOfferedIds: helpOffered,
     involvementWatchingIds: watching,
     involvementOnwardForwarderIds: onward,
+    involvementWithdrawnIds: withdrawn,
     key: key,
   );
 
@@ -85,6 +88,10 @@ class UnifiedForwardRow extends StatelessWidget {
   final Set<String>? involvementHelpOfferedIds;
   final Set<String>? involvementWatchingIds;
   final Set<String>? involvementOnwardForwarderIds;
+
+  /// Recipients whose help offer on this request was withdrawn (and who have
+  /// no live offer). The forward stays as history, marked withdrawn.
+  final Set<String> involvementWithdrawnIds;
 
   bool get _isInbound => outboundEdge == null;
 
@@ -219,6 +226,7 @@ class UnifiedForwardRow extends StatelessWidget {
       involvementHelpOfferedIds!,
       involvementWatchingIds!,
       involvementOnwardForwarderIds!,
+      involvementWithdrawnIds,
     );
 
     return _NoteColumnWithBar(
@@ -239,6 +247,7 @@ class UnifiedForwardRow extends StatelessWidget {
     Set<String> helpOffered,
     Set<String> watching,
     Set<String> onward,
+    Set<String> withdrawn,
   ) {
     final id = edge.recipient.id;
     if (edge.recipientRejected) {
@@ -251,6 +260,16 @@ class UnifiedForwardRow extends StatelessWidget {
           text: text,
           iconColor: scheme.error,
           textColor: scheme.error,
+          alignEnd: false,
+        ),
+      ];
+    }
+    if (withdrawn.contains(id)) {
+      return [
+        _ReactionLine(
+          icon: Icons.undo,
+          text: l10n.forwardWithdrawn,
+          iconColor: scheme.onSurfaceVariant,
           alignEnd: false,
         ),
       ];

@@ -271,9 +271,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
               assignedUserIds.add(c.user.id),
         )
         .toList(growable: false);
-    final withdrawn = state.helpOffers
-        .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
-        .toList(growable: false);
+    // Forward edges are claimed before the withdrawn fold: the spread of a
+    // request is history, so a recipient who later withdrew keeps their
+    // forward row (marked withdrawn) instead of vanishing from Forwards.
     final viewerId = state.myProfile.id;
     final forwardEdges = state.viewerForwardEdges
         .where((edge) {
@@ -283,6 +283,18 @@ class BeaconPeopleTabBody extends StatelessWidget {
           return assignedUserIds.add(personId);
         })
         .toList(growable: false);
+    final withdrawn = state.helpOffers
+        .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
+        .toList(growable: false);
+    // People whose only help offers are withdrawn (no live offer).
+    final liveOfferUserIds = {
+      for (final c in state.helpOffers)
+        if (!c.isWithdrawn) c.user.id,
+    };
+    final withdrawnOnlyUserIds = {
+      for (final c in state.helpOffers)
+        if (c.isWithdrawn && !liveOfferUserIds.contains(c.user.id)) c.user.id,
+    };
 
     bool isDirectAuthorForward(String userId) {
       for (final c in state.helpOffers) {
@@ -528,6 +540,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 helpOffered: state.involvementHelpOfferedIds,
                 watching: state.involvementWatchingIds,
                 onward: state.involvementOnwardForwarderIds,
+                withdrawn: withdrawnOnlyUserIds,
                 reasonSlugs:
                     state
                         .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
