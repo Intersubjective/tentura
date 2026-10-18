@@ -9,6 +9,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/capability_evidence_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
@@ -83,6 +84,7 @@ Future<void> main() async {
         InboxRepository(database),
         CapabilityEvidenceRepository(database),
         BeaconHierarchyRepository(database),
+        roomRepository: BeaconRoomRepository(database),
         trustLedger: TrustLedgerRepository(database),
         witnessWindow: witnessWindow,
         env: env,
@@ -222,6 +224,45 @@ Future<void> main() async {
       );
     });
 
+    test('a block that withdraws an admitted helper offer revokes room '
+        'access, and an unblock does not restore it (B059)', () async {
+      await writer.execute(
+        Sql.named('''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, status, room_access, created_at, updated_at
+) VALUES ('Pb059admit01', @b, @u, 2, 5, 3, now(), now())
+'''),
+        parameters: {'b': _blockersRequest, 'u': _blocked},
+      );
+      addTearDown(
+        () => writer.execute(
+          "DELETE FROM public.beacon_participant WHERE id = 'Pb059admit01'",
+        ),
+      );
+
+      await blocks.block(
+        blockerId: _blocker,
+        blockedId: _blocked,
+        cascadeMode: 0,
+      );
+      await blocks.unblock(blockerId: _blocker, blockedId: _blocked);
+
+      final access = (await writer.execute(
+        "SELECT room_access FROM public.beacon_participant "
+        "WHERE id = 'Pb059admit01'",
+      )).single.single;
+      expect(access, 0);
+      final probes = (await _probes(
+        writer,
+      )).where((p) => p.table == 'beacon_participant');
+      expect(probes.map((p) => p.beaconId), [_blockersRequest]);
+      expect(
+        probes.map((p) => p.mutatingUser),
+        [_blocker],
+        reason: 'the room write runs as the blocker',
+      );
+    });
+
     test('blocker own offer on the blocked user request is withdrawn '
         'and attributed to the blocker', () async {
       await blocks.block(
@@ -280,6 +321,12 @@ $$
 CREATE TRIGGER test_actor_probe_offer
 AFTER UPDATE ON public.beacon_help_offer
 FOR EACH ROW WHEN (NEW.status = 1)
+EXECUTE FUNCTION public.test_actor_probe_fn()
+''');
+  await writer.execute('''
+CREATE TRIGGER test_actor_probe_participant
+AFTER UPDATE ON public.beacon_participant
+FOR EACH ROW WHEN (NEW.room_access = 0 AND OLD.room_access <> 0)
 EXECUTE FUNCTION public.test_actor_probe_fn()
 ''');
   await writer.execute('''

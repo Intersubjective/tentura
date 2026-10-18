@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -337,6 +338,19 @@ final class NoOpUserBlockRepository extends Fake
 }
 
 /// Wires real use cases to in-memory fakes for P3.12 gate scenarios.
+/// Room access writes on the block path; records each revocation.
+final class RecordingRoomAccessRepository extends Fake
+    implements BeaconRoomRepositoryPort {
+  final revoked = <({String beaconId, String offerUserId})>[];
+
+  @override
+  Future<void> revokeOfferUserBeaconRoomAccess({
+    required String beaconId,
+    required String offerUserId,
+    required String authorUserId,
+  }) async => revoked.add((beaconId: beaconId, offerUserId: offerUserId));
+}
+
 final class CommitmentGatesHarness {
   CommitmentGatesHarness({
     this.beaconId = 'B-gates',
@@ -474,6 +488,7 @@ final class CommitmentGatesHarness {
       _inboxRepo,
       _NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
+      roomRepository: RecordingRoomAccessRepository(),
       trustLedger: TrustLedgerRepositoryMock(),
       env: Env(environment: Environment.test),
       logger: Logger(_logName),

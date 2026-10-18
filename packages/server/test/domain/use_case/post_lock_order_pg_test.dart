@@ -1015,6 +1015,7 @@ _Stack _buildStack(TenturaDb db, Env env) {
       inbox,
       capability,
       hierarchy,
+      roomRepository: BeaconRoomRepository(db),
       trustLedger: TrustLedgerRepository(db),
       witnessWindow: witnessWindow,
       env: env,
