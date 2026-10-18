@@ -4471,7 +4471,7 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Запрос целиком отмечен завершённым",
   "beaconCloseSheetEvidenceEnoughHelp": "Отмечено: помощи хватает",
   "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
-  "beaconCloseSheetEvidenceEnoughHelpMissing": "Достаточно помощи ещё не отмечено",
+  "beaconCloseSheetEvidenceEnoughHelpMissing": "«Помощи хватает» ещё не отмечено",
   "beaconCloseSheetEvidenceUsefulOrDoneMissing": "Пока нет полезного или завершённого результата",
   "beaconCloseSheetEvidenceUnsettledCount": "{count} предложение(-й) помощи не доведены до ясного статуса",
   "@beaconCloseSheetEvidenceUnsettledCount": {
@@ -4709,7 +4709,7 @@
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",
   "beaconStatusHintCancelWrappingUp": "По запросу уже подводят итоги",
   "beaconStatusHintBlocked": "Сначала устраните блокеры",
-  "beaconStatusHintMarkEnoughHelpFirst": "Сначала отметьте «Достаточно помощи»",
+  "beaconStatusHintMarkEnoughHelpFirst": "Сначала отметьте «Помощи хватает»",
   "beaconStatusHintNotReadyToClose": "Пока рано закрывать",
   "beaconStatusHintAuthorOnly": "Только автор запроса может это изменить",
   "beaconStatusCancelTitle": "Отменить запрос?",
