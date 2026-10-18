@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
+import '../../domain/entity/notification_permissions.dart';
 import '../../domain/exception.dart';
 import '../../domain/use_case/fcm_case.dart';
 import '../../fcm_debug_log.dart';
@@ -66,6 +67,16 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
 
   Timer? _coldStartRetryTimer;
 
+  /// Native apps keep asking on account load (iOS gets a quiet provisional
+  /// grant that way). On web a browser prompt must come from a user gesture:
+  /// Firefox and Safari refuse one on page load, and Chrome penalises sites
+  /// that ask unprompted. There the in-app banner asks instead, through
+  /// [requestPermissionFromUser].
+  @visibleForTesting
+  static bool? debugAsksOnLoad;
+
+  static bool get _asksOnLoad => debugAsksOnLoad ?? !kIsWeb;
+
   //
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -79,6 +90,12 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
     _visibilityResyncTimer = Timer(const Duration(seconds: 2), () {
       unawaited(() async {
         try {
+          // The person may have changed the permission in the browser's site
+          // settings while away. Firebase's getToken() asks for permission
+          // itself when nobody has answered yet, so never call it then.
+          if (!await _refreshPermissionStatus()) {
+            return;
+          }
           await _syncToken(accountId: _activeAccountId);
         } catch (e, st) {
           fcmLog('FcmCubit: visibility resync failed: $e');
@@ -103,6 +120,58 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
       throw const FcmPermissionDeniedException();
     }
     await _syncToken(accountId: _activeAccountId, forceRegister: true);
+  }
+
+  /// Asks for notification permission. Call it straight from a tap handler:
+  /// browsers only show their prompt inside a user gesture.
+  Future<void> requestPermissionFromUser() async {
+    // Called through unawaited(...) from tap handlers: a plugin error must not
+    // escape as an uncaught zone error. Re-read the status so the prompt
+    // reflects what the browser now says.
+    final NotificationPermissions permissions;
+    final NotificationPermissionStatus status;
+    try {
+      permissions = await _fcmCase.requestPermission();
+      status = permissions.authorized
+          ? NotificationPermissionStatus.granted
+          : await _fcmCase.permissionStatus();
+    } catch (e, st) {
+      fcmLog('FcmCubit: user-requested permission failed: $e');
+      fcmLog('FcmCubit: stack: $st');
+      try {
+        await _refreshPermissionStatus();
+      } catch (e) {
+        fcmLog('FcmCubit: permission status read failed: $e');
+      }
+      return;
+    }
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        permissions: permissions,
+        permissionStatus: status,
+      ),
+    );
+    fcmLog('FcmCubit: user-requested permission status=${status.name}');
+    if (!permissions.authorized || _activeAccountId.isEmpty) {
+      return;
+    }
+    final accountId = _activeAccountId;
+    try {
+      final synced = await _syncToken(accountId: accountId);
+      if (!synced) {
+        _scheduleColdStartRetry(accountId);
+      }
+    } catch (e, st) {
+      fcmLog('FcmCubit: sync after user grant failed: $e');
+      fcmLog('FcmCubit: stack: $st');
+    }
+  }
+
+  /// "Not now" on the in-app prompt; remembered on this device.
+  Future<void> dismissPermissionPrompt() async {
+    emit(state.copyWith(permissionPromptDismissed: true));
+    await _fcmCase.dismissPermissionPrompt();
   }
 
   @override
@@ -137,6 +206,13 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      if (!_asksOnLoad && !await _refreshPermissionStatus()) {
+        // Not granted (yet): leave the asking to the in-app prompt.
+        if (!isClosed) {
+          emit(state.copyWith(status: const StateIsSuccess()));
+        }
+        return;
+      }
       final permissions = await _fcmCase.requestPermission();
       emit(
         state.copyWith(
@@ -160,6 +236,26 @@ class FcmCubit extends Cubit<FcmState> with WidgetsBindingObserver {
         emit(state.copyWith(status: const StateIsSuccess()));
       }
     }
+  }
+
+  /// Re-reads the permission (and the prompt's dismissal) without prompting.
+  /// Returns whether notifications are granted.
+  Future<bool> _refreshPermissionStatus() async {
+    final status = await _fcmCase.permissionStatus();
+    final dismissed = await _fcmCase.isPermissionPromptDismissed();
+    if (isClosed) return false;
+    final granted = status == NotificationPermissionStatus.granted;
+    emit(
+      state.copyWith(
+        permissionStatus: status,
+        permissionPromptDismissed: dismissed,
+        permissions: granted
+            ? state.permissions
+            : const NotificationPermissions(),
+      ),
+    );
+    fcmLog('FcmCubit: permission status=${status.name} dismissed=$dismissed');
+    return granted;
   }
 
   /// This cubit runs its first sync as soon as the account stream emits —

@@ -23,4 +23,10 @@ abstract class SettingsRepositoryPort {
   Future<String?> getLocalePreference();
 
   Future<void> setLocalePreference(String value);
+
+  /// Whether the person closed the in-app "turn on notifications" banner on
+  /// this device.
+  Future<bool> getNotificationPromptDismissed();
+
+  Future<void> setNotificationPromptDismissed(bool value);
 }
