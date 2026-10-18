@@ -90,7 +90,10 @@ final class AuthGoogleController extends BaseController {
     }
     final lt = _mintLinkToken(jwt.sub);
     final url = Uri.parse(env.publicOrigin)
-        .replace(path: '/api/auth/google/link/start', queryParameters: {'lt': lt})
+        .replace(
+          path: '/api/auth/google/link/start',
+          queryParameters: {'lt': lt},
+        )
         .toString();
     return Response.ok(
       jsonEncode({'url': url}),
@@ -218,7 +221,12 @@ final class AuthGoogleController extends BaseController {
       // when they cancel. Land them on the start page like every other failed
       // callback below, not on a bare 400 text page with no way back — or, in
       // Settings link mode, back on Sign-in methods with `linked=error`.
-      return _callbackFailure(request);
+      // The start page reads `auth_error` to say what happened (#418).
+      final cancelled = request.url.queryParameters['error'] == 'access_denied';
+      return _callbackFailure(
+        request,
+        reason: cancelled ? _authErrorCancelled : _authErrorFailed,
+      );
     }
     final oauthCookie = readCookie(request, kCookieOAuthStateName);
     if (oauthCookie == null || oauthCookie.isEmpty) {
@@ -370,13 +378,7 @@ final class AuthGoogleController extends BaseController {
         authMethod: 'google',
         request: request,
       );
-      return Response.found(
-        publicLandingUrl(env.publicOrigin),
-        headers: withSetCookie(
-          {kHeaderCacheControl: kCacheControlNoStore},
-          buildClearCookie(kCookieOAuthStateName),
-        ),
-      );
+      return _oauthStateError();
     }
   }
 
@@ -418,9 +420,12 @@ final class AuthGoogleController extends BaseController {
   }
 
   /// Friendly fail-closed response for a missing/mismatched OAuth state cookie:
-  /// clears the (stale) state cookie and sends the user back to the landing page.
-  Response _oauthStateError() => Response.found(
-        publicLandingUrl(env.publicOrigin),
+  /// clears the (stale) state cookie and sends the user back to the landing page
+  /// with `?auth_error=<reason>` so the start page can say what happened
+  /// (#418). [reason] is always one of our own constants, never Google's text.
+  Response _oauthStateError({String reason = _authErrorFailed}) =>
+      Response.found(
+        '${publicLandingUrl(env.publicOrigin)}?auth_error=$reason',
         headers: withSetCookie(
           {kHeaderCacheControl: kCacheControlNoStore},
           buildClearCookie(kCookieOAuthStateName),
@@ -432,7 +437,11 @@ final class AuthGoogleController extends BaseController {
   /// Sign-in methods with `linked=error` so the SPA shows its toast; anything
   /// else falls back to [_oauthStateError]. The cookie only picks which of our
   /// own pages to land on, so an unverified state is harmless here.
-  Response _callbackFailure(Request request, {OAuthStatePayload? payload}) {
+  Response _callbackFailure(
+    Request request, {
+    OAuthStatePayload? payload,
+    String reason = _authErrorFailed,
+  }) {
     var linkAccountId = payload?.linkAccountId;
     if (payload == null) {
       final cookie = readCookie(request, kCookieOAuthStateName);
@@ -445,7 +454,7 @@ final class AuthGoogleController extends BaseController {
       }
     }
     if (linkAccountId == null || linkAccountId.isEmpty) {
-      return _oauthStateError();
+      return _oauthStateError(reason: reason);
     }
     return Response.found(
       _linkReturn('error'),
@@ -472,27 +481,32 @@ final class AuthGoogleController extends BaseController {
   }
 
   /// Short-lived (5 min) signed token binding a Google link flow to one account.
-  String _mintLinkToken(String accountId) => JWT(
-    {'purpose': _linkTokenPurpose, 'lacc': accountId},
-    issuer: env.publicOrigin,
-    audience: Audience.one(_linkTokenAudience),
-  ).sign(
-    env.privateKey,
-    algorithm: JWTAlgorithm.EdDSA,
-    expiresIn: const Duration(minutes: 5),
-  );
+  String _mintLinkToken(String accountId) =>
+      JWT(
+        {'purpose': _linkTokenPurpose, 'lacc': accountId},
+        issuer: env.publicOrigin,
+        audience: Audience.one(_linkTokenAudience),
+      ).sign(
+        env.privateKey,
+        algorithm: JWTAlgorithm.EdDSA,
+        expiresIn: const Duration(minutes: 5),
+      );
 
   String? _verifyLinkToken(String? token) {
     if (token == null || token.isEmpty) return null;
     try {
       // Bind to this server (issuer) and the link-flow audience, so an
       // EdDSA-signed token minted for any other purpose cannot be replayed here.
-      final map = JWT.verify(
-        token,
-        env.publicKey,
-        issuer: env.publicOrigin,
-        audience: Audience.one(_linkTokenAudience),
-      ).payload as Map<String, dynamic>;
+      final map =
+          JWT
+                  .verify(
+                    token,
+                    env.publicKey,
+                    issuer: env.publicOrigin,
+                    audience: Audience.one(_linkTokenAudience),
+                  )
+                  .payload
+              as Map<String, dynamic>;
       if (map['purpose'] != _linkTokenPurpose) return null;
       final lacc = map['lacc'] as String?;
       return (lacc == null || lacc.isEmpty) ? null : lacc;
@@ -504,10 +518,13 @@ final class AuthGoogleController extends BaseController {
   static const _linkTokenPurpose = 'google_link';
   static const _linkTokenAudience = 'tentura:google_link';
 
-  static String _randomUrlSafe(int byteCount) =>
-      base64UrlEncode(
-        List<int>.generate(byteCount, (_) => Random.secure().nextInt(256)),
-      ).replaceAll('=', '');
+  /// `?auth_error=` values the landing start page understands (#418).
+  static const _authErrorCancelled = 'google_cancelled';
+  static const _authErrorFailed = 'google_failed';
+
+  static String _randomUrlSafe(int byteCount) => base64UrlEncode(
+    List<int>.generate(byteCount, (_) => Random.secure().nextInt(256)),
+  ).replaceAll('=', '');
 
   static String _codeChallenge(String verifier) => base64UrlEncode(
     sha256.convert(utf8.encode(verifier)).bytes,

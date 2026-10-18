@@ -80,6 +80,22 @@ export function isSignedInReturn(search) {
   return new URLSearchParams(search || '').get('signed_in') === '1';
 }
 
+/**
+ * `?auth_error=google_cancelled|google_failed` — the server sent a failed
+ * Google sign-in back to the start page (#418). Returns the line to show, or
+ * null. Only our own known values map to text; anything else shows nothing.
+ */
+export function authErrorMessage(search) {
+  const reason = new URLSearchParams(search || '').get('auth_error');
+  if (reason === 'google_cancelled') {
+    return 'Google sign-in was cancelled.';
+  }
+  if (reason === 'google_failed') {
+    return 'Google sign-in failed. Please try again.';
+  }
+  return null;
+}
+
 /** `?signed_in=1&new=1` — fresh account just created by email/Google auth. */
 export function isNewSignupReturn(search) {
   const params = new URLSearchParams(search || '');

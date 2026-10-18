@@ -17,6 +17,7 @@ import {
   shouldRunPostSignup,
   inviteLandingCopy,
   RECOVER_SEED_LINK_LABEL,
+  authErrorMessage,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -820,12 +821,15 @@ function renderNoInvite() {
     onSignInModeChange: applyLandingMode,
   });
   applyLandingMode(true);
+  // #418: a cancelled/failed Google sign-in comes back with `?auth_error=`.
+  const authError = isSignedInReturn() ? null : authErrorMessage(location.search);
 
   const children = [
     el('p', { class: 'eyebrow' }, 'Private coordination network'),
     heading,
     inviteIntro,
     signedInFlash(),
+    authError ? el('p', { class: 'error', role: 'alert' }, authError) : null,
     inviteForm,
     signInBlock,
   ];
