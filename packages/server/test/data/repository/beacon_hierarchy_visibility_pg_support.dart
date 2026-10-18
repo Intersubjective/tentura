@@ -120,6 +120,14 @@ final class HierarchyOnlyViewerHarness {
         authorUserId: anyNamed('authorUserId'),
       ),
     ).thenAnswer((_) async {});
+    // HelpOfferCase.withdraw looks the helper up for the room's 'left' line
+    // (B084); these offers are never admitted, so no room participant.
+    when(
+      room.findParticipant(
+        beaconId: anyNamed('beaconId'),
+        userId: anyNamed('userId'),
+      ),
+    ).thenAnswer((_) async => null);
     final commitment = commitmentRepo ?? RecordingCommitmentRepository();
     final att = attention ?? TestAttentionHarness();
     return HelpOfferCase(
