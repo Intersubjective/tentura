@@ -12,6 +12,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_accept_dialog.dart';
+import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 
 /// Modal bottom sheet with the same code-entry flow as the former Connect tab.
 class ConnectBottomSheet extends StatefulWidget {
@@ -172,13 +173,33 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
         if (mounted) {
           if (result == null) {
             showSnackBar(context, isError: true, text: _l10n.codeNotFoundError);
+          } else if (GetIt.I<AuthCubit>().state.checkIfIsMe(result.issuer.id)) {
+            // Accepting it would write a self-trust edge and consume the
+            // invite; the landing page refuses this case too (#272).
+            showSnackBar(
+              context,
+              text: const InviteOwnInviteMessage().toL10n(_l10n.localeName),
+            );
           } else if (await InvitationAcceptDialog.show(
                 context,
                 profile: result.issuer,
               ) ??
               false) {
-            // TBD: tell reason enum
-            await _invitationRepository.accept(code);
+            try {
+              await _invitationRepository.accept(code);
+            } catch (e) {
+              // The server refuses self-accept too (#357); a stale account
+              // id or an older client reaches here instead of the check above.
+              if (mounted) {
+                showSnackBar(
+                  context,
+                  isError: true,
+                  text: _l10n.errorGenericAction,
+                  detail: e.toString(),
+                );
+              }
+              return;
+            }
             if (mounted) {
               // TBD: l10n
               showSnackBar(context, text: 'Invitation accepted!');
