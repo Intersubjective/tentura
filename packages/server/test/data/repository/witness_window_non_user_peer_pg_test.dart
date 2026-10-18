@@ -7,8 +7,10 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/capability_telemetry_repository.dart';
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
+import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/capability/witness_window_policy.dart';
 
@@ -94,6 +96,36 @@ Future<void> main() async {
         );
 
         expect(facts.topPeers.map((p) => p.peerId), ['Ucapnup01']);
+      },
+      skip: skipReason,
+    );
+
+    // Fails on the base: telemetry ran its own copy of the peer query
+    // without the join, so a poll variant took a top-K slot there (B086).
+    test(
+      'telemetry measures the same window rawWindowFacts stores',
+      () async {
+        await _mrEdge(meritRank, _ego, _nonUserNode, 0.9);
+        await _mrEdge(meritRank, _ego, 'Ucapnup01', 0.5);
+
+        final stored = await repo.rawWindowFacts(
+          egoId: _ego,
+          normalizedContext: _ctx,
+          topK: kCapWitnessWindowK,
+        );
+        final measured = (await CapabilityTelemetryRepository(
+          database,
+        ).windowFactsByEgoForTest([_ego]))[_ego];
+
+        expect(measured, isNotNull);
+        expect(
+          measured!.topPeers.map((p) => p.peerId),
+          stored.topPeers.map((p) => p.peerId),
+        );
+        expect(
+          measured.topPeers.map((p) => p.peerId),
+          isNot(contains(_nonUserNode)),
+        );
       },
       skip: skipReason,
     );

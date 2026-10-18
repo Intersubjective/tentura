@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/capability/capability_consts.dart';
@@ -8,6 +9,7 @@ import 'package:tentura_server/domain/capability/witness_window_policy.dart';
 import 'package:tentura_server/domain/port/capability_telemetry_port.dart';
 
 import '../database/tentura_db.dart';
+import 'witness_peer_sql.dart';
 
 @Injectable(
   as: CapabilityTelemetryPort,
@@ -406,6 +408,13 @@ FROM pair_tag_span
     );
   }
 
+  /// The windows telemetry measures, per ego; must match what
+  /// `WitnessWindowRepository.rawWindowFacts` stores (B086).
+  @visibleForTesting
+  Future<Map<String, RawWindowFacts>> windowFactsByEgoForTest(
+    List<String> egoIds,
+  ) => _fetchWindowFactsByEgo(egoIds);
+
   Future<Map<String, RawWindowFacts>> _fetchWindowFactsByEgo(
     List<String> egoIds,
   ) async {
@@ -413,17 +422,18 @@ FROM pair_tag_span
       return const {};
     }
 
+    final peerSql = witnessPeerTopKSql(
+      egoExpr: 'e.ego_id',
+      contextExpr: "''",
+      limitExpr: r'$2',
+    );
     final peerRows = await _database
         .customSelect(
-          r'''
+          '''
 SELECT e.ego_id, p.peer_id, p.forward_mr, p.viewer_explicitly_trusts_subject
-FROM unnest($1::text[]) AS e(ego_id)
+FROM unnest(\$1::text[]) AS e(ego_id)
 CROSS JOIN LATERAL (
-  SELECT peer_id, forward_mr, viewer_explicitly_trusts_subject
-  FROM public.person_visibility_peers(e.ego_id, '')
-  WHERE forward_mr > 0
-  ORDER BY forward_mr DESC, peer_id ASC
-  LIMIT $2
+$peerSql
 ) p
 ''',
           variables: [
