@@ -358,6 +358,7 @@ class HelpOfferTile extends StatelessWidget {
               tt: tt,
               isAdmitted: isAdmitted,
               admissionAction: helpOffer.admissionAction,
+              isDirectAuthorForward: helpOffer.isDirectAuthorForward,
               lastDeclineReason: helpOffer.lastDeclineReason,
               lastRemoveReason: helpOffer.lastRemoveReason,
               isAuthorView: isAuthorView,
@@ -507,6 +508,7 @@ class _AdmissionFooter extends StatelessWidget {
     required this.tt,
     required this.isAdmitted,
     required this.admissionAction,
+    required this.isDirectAuthorForward,
     required this.lastDeclineReason,
     required this.lastRemoveReason,
     required this.isAuthorView,
@@ -522,6 +524,11 @@ class _AdmissionFooter extends StatelessWidget {
   final TenturaTokens tt;
   final bool isAdmitted;
   final HelpOfferAdmissionAction? admissionAction;
+
+  /// Live author -> helper forward edge: the same trail the Forwards block
+  /// reads (#496). The admission line may only claim a direct forward when
+  /// this is true.
+  final bool isDirectAuthorForward;
   final DateTime? authorSeenAt;
   final String? lastDeclineReason;
   final String? lastRemoveReason;
@@ -546,6 +553,7 @@ class _AdmissionFooter extends StatelessWidget {
         tt: tt,
         isAdmitted: isAdmitted,
         admissionAction: admissionAction,
+        isDirectAuthorForward: isDirectAuthorForward,
         reason: reason,
         onAccept: onAccept,
         onDecline: onDecline,
@@ -560,6 +568,7 @@ class _AdmissionFooter extends StatelessWidget {
         tt: tt,
         isAdmitted: isAdmitted,
         admissionAction: admissionAction,
+        isDirectAuthorForward: isDirectAuthorForward,
         reason: reason,
         authorSeenAt: authorSeenAt,
       );
@@ -582,6 +591,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.tt,
     required this.isAdmitted,
     required this.admissionAction,
+    required this.isDirectAuthorForward,
     required this.reason,
     required this.onAccept,
     required this.onDecline,
@@ -593,6 +603,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
   final TenturaTokens tt;
   final bool isAdmitted;
   final HelpOfferAdmissionAction? admissionAction;
+  final bool isDirectAuthorForward;
   final String? reason;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
@@ -620,8 +631,12 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                 ),
                 if (isAutomatic) ...[
                   SizedBox(height: tt.tightGap),
+                  // Same trail as the Forwards block (#496): never claim a
+                  // direct forward the trail does not show.
                   Text(
-                    l10n.helpOfferAdmittedAutomaticallyHint,
+                    isDirectAuthorForward
+                        ? l10n.helpOfferAdmittedAutomaticallyHint
+                        : l10n.helpOfferJoinedViaNetworkHint,
                     style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ] else ...[
@@ -718,6 +733,7 @@ class _CommitterAdmissionFooter extends StatelessWidget {
     required this.tt,
     required this.isAdmitted,
     required this.admissionAction,
+    required this.isDirectAuthorForward,
     required this.reason,
     this.authorSeenAt,
   });
@@ -726,6 +742,7 @@ class _CommitterAdmissionFooter extends StatelessWidget {
   final TenturaTokens tt;
   final bool isAdmitted;
   final HelpOfferAdmissionAction? admissionAction;
+  final bool isDirectAuthorForward;
   final String? reason;
   final DateTime? authorSeenAt;
 
@@ -765,7 +782,9 @@ class _CommitterAdmissionFooter extends StatelessWidget {
           ),
           SizedBox(height: tt.tightGap),
           Text(
-            l10n.helpOfferAdmittedAutomaticallyHint,
+            isDirectAuthorForward
+                ? l10n.helpOfferAdmittedAutomaticallyHint
+                : l10n.helpOfferJoinedViaNetworkHint,
             style: TenturaText.bodySmall(tt.textMuted),
           ),
           SizedBox(height: tt.tightGap),

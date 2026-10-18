@@ -4770,6 +4770,10 @@
   "helpOfferCanReadChat": "Может читать это обсуждение",
   "helpOfferAdmittedAutomaticallyLabel": "Допущен(а) автоматически",
   "helpOfferAdmittedAutomaticallyHint": "Вы переслали этот запрос напрямую",
+  "helpOfferJoinedViaNetworkHint": "Присоединился(-ась) через сеть",
+  "@helpOfferJoinedViaNetworkHint": {
+    "description": "Подсказка под автоматическим допуском, когда в цепочке пересылок нет прямой пересылки от автора (#496)"
+  },
   "helpOfferDirectForwardChip": "Вы переслали лично",
   "@helpOfferDirectForwardChip": {
     "description": "Чип на вкладке Люди, когда автор переслал запрос этому помощнику лично"
