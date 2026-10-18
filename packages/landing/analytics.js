@@ -136,6 +136,11 @@ export function track(event, data = {}) {
   Sentry.addBreadcrumb({ message: `funnel:${event}`, category: 'funnel', level: 'info', data });
 }
 
+function isUserInputEmailError(err) {
+  if (!err || err.name !== 'EmailLinkError') return false;
+  return err.userInput === true;
+}
+
 export function trackError(event, err, data = {}) {
   if (!ready) return;
   const Sentry = window.Sentry;
@@ -144,16 +149,9 @@ export function trackError(event, err, data = {}) {
     message: event,
     data: { ...data, error: String(err) },
   });
-  // User-input validation (empty email) must not become Sentry issues
-  // (TENTURA-LANDING-E). Keep breadcrumbs; skip captureException.
-  if (
-    err &&
-    err.name === 'EmailLinkError' &&
-    typeof err.message === 'string' &&
-    err.message === 'Please enter your email.'
-  ) {
-    return;
-  }
+  // User-input validation (empty or malformed email) must not become Sentry
+  // issues (TENTURA-LANDING-E). Keep breadcrumbs; skip captureException.
+  if (isUserInputEmailError(err)) return;
   Sentry.captureException(err, { extra: { funnel_event: event, ...data } });
 }
 
