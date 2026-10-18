@@ -359,6 +359,7 @@ eligible_forward AS (
     COALESCE(re.first_entry_at, ii.latest_forward_at) AS entry_at,
     ii.tombstone_dismissed_at,
     b.title AS beacon_title,
+    b.status AS beacon_status,
     public.beacon_can_read_content(ii.beacon_id, \$1) AS can_read_content,
     public.beacon_can_read_tombstone(ii.beacon_id, \$1) AS can_read_tombstone
   FROM public.inbox_item ii
@@ -494,7 +495,14 @@ page_stream AS (
     'beacon'::text AS destination_kind,
     ef.beacon_id AS target_entity_id,
     'relay_received'::text AS presentation_key,
-    '{}'::jsonb AS presentation_payload,
+    -- #367: the stage of an accepted helper rides the payload; the outcome
+    -- word stays 'helping' so shipped clients keep their sentence.
+    jsonb_strip_nulls(jsonb_build_object(
+      'helperStage', hs.helper_stage,
+      'roleLabel', CASE
+        WHEN hs.helper_stage IS NOT NULL THEN NULLIF(btrim(hs.role_label), '')
+      END
+    )) AS presentation_payload,
     NULL::text AS in_app_preference_class,
     'standard'::text AS suppression_class,
     'beacon_content'::text AS access_policy,
@@ -534,6 +542,31 @@ page_stream AS (
     0 AS event_total,
     0 AS event_unseen_count
   FROM eligible_forward ef
+  -- #367: an accepted helper — in scope, with a live offer, admitted to the
+  -- Request's room — is told so ('accepted'), and again when the Request
+  -- enters Wrapping up ('wrappingUp'). Closed and cancelled Requests carry
+  -- no stage and read as plain 'helping'.
+  LEFT JOIN LATERAL (
+    SELECT
+      CASE
+        WHEN ef.beacon_status = 5 THEN 'wrappingUp'
+        WHEN ef.beacon_status NOT IN (1, 6) THEN 'accepted'
+      END AS helper_stage,
+      ho.role_label
+    FROM public.beacon_help_offer ho
+    WHERE ho.beacon_id = ef.beacon_id
+      AND ho.user_id = \$1
+      AND ho.status = 0
+      AND ef.beacon_id IN (SELECT scope.beacon_id FROM scope)
+      AND EXISTS (
+        SELECT 1
+        FROM public.beacon_participant bp
+        WHERE bp.beacon_id = ef.beacon_id
+          AND bp.user_id = \$1
+          AND bp.room_access = 3
+      )
+    LIMIT 1
+  ) hs ON true
 
   UNION ALL
 

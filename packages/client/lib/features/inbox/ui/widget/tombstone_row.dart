@@ -75,7 +75,13 @@ class TombstoneRow extends StatelessWidget {
         : forwardedOthersRequest
         ? [authorLine, l10n.attentionCardForwardedBy(name)].nonNulls.join(' · ')
         : l10n.activityTombstoneFromLine(name);
-    final sentence = activityForwardOutcomeLabel(l10n, receipt.forwardOutcome);
+    final sentence = activityForwardOutcomeLabel(
+      l10n,
+      receipt.forwardOutcome,
+      presentationPayloadJson: receipt.presentationPayloadJson,
+      // #367: the one who accepts an offer is the Request's author.
+      authorName: authorName,
+    );
     final localCreatedAt = receipt.createdAt.toLocal();
     // #189: the card's short age, so a tombstone and the card beside it
     // read the same way.

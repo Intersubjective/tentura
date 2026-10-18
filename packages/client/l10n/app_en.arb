@@ -3771,6 +3771,44 @@
   "@activityForwardOutcomeDeleted": {
     "context": "InboxScreen"
   },
+  "activityForwardOutcomeAccepted": "{name} accepted your offer",
+  "@activityForwardOutcomeAccepted": {
+    "description": "Activity outcome row (#367): the request's author accepted the viewer's help offer",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activityForwardOutcomeAcceptedWithRole": "{name} accepted your offer · role: {role}",
+  "@activityForwardOutcomeAcceptedWithRole": {
+    "description": "Activity outcome row (#367): the author accepted the viewer's offer and gave it a role",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "activityForwardOutcomeAcceptedNoAuthor": "Your offer was accepted",
+  "@activityForwardOutcomeAcceptedNoAuthor": {
+    "description": "Activity outcome row (#367): the viewer's offer was accepted; the author's name is not readable"
+  },
+  "activityForwardOutcomeAcceptedNoAuthorWithRole": "Your offer was accepted · role: {role}",
+  "@activityForwardOutcomeAcceptedNoAuthorWithRole": {
+    "description": "Activity outcome row (#367): the viewer's offer was accepted with a role; the author's name is not readable",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "activityForwardOutcomeWrappingUp": "Request is in final check — review your collaboration",
+  "@activityForwardOutcomeWrappingUp": {
+    "description": "Activity outcome row (#367): the request the viewer helps with entered its final check (Wrapping up)"
+  },
   "activityForwardRestore": "Restore",
   "@activityForwardRestore": {
     "context": "InboxScreen"

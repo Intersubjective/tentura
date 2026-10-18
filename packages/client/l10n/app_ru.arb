@@ -3669,6 +3669,26 @@
   "@activityForwardOutcomeDeleted": {
     "context": "InboxScreen"
   },
+  "activityForwardOutcomeAccepted": "{name} принял(а) ваше предложение",
+  "@activityForwardOutcomeAccepted": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeAcceptedWithRole": "{name} принял(а) ваше предложение · роль: {role}",
+  "@activityForwardOutcomeAcceptedWithRole": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeAcceptedNoAuthor": "Ваше предложение принято",
+  "@activityForwardOutcomeAcceptedNoAuthor": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeAcceptedNoAuthorWithRole": "Ваше предложение принято · роль: {role}",
+  "@activityForwardOutcomeAcceptedNoAuthorWithRole": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeWrappingUp": "Запрос на подведении итогов — оцените совместную работу",
+  "@activityForwardOutcomeWrappingUp": {
+    "context": "InboxScreen"
+  },
   "activityForwardRestore": "Вернуть",
   "@activityForwardRestore": {
     "context": "InboxScreen"
