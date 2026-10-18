@@ -10,7 +10,7 @@ import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i9;
 import 'package:tentura_root/domain/entity/beacon_status.dart' as _i10;
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
-    as _i25;
+    as _i26;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i11;
 import 'package:tentura_server/domain/entity/beacon_media_state.dart' as _i4;
@@ -25,8 +25,9 @@ import 'package:tentura_server/domain/entity/help_offer_admission_event.dart'
 import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i14;
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i22;
 import 'package:tentura_server/domain/entity/post_summary.dart' as _i8;
+import 'package:tentura_server/domain/entity/room_latest_activity.dart' as _i25;
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart'
-    as _i26;
+    as _i27;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i7;
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart'
     as _i23;
@@ -1997,6 +1998,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<_i24.BeaconRoomStateRecord?>);
 
   @override
+  _i3.Future<Map<String, _i25.RoomLatestActivity>> latestRoomActivities(
+    Iterable<String>? beaconIds,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#latestRoomActivities, [beaconIds]),
+            returnValue: _i3.Future<Map<String, _i25.RoomLatestActivity>>.value(
+              <String, _i25.RoomLatestActivity>{},
+            ),
+          )
+          as _i3.Future<Map<String, _i25.RoomLatestActivity>>);
+
+  @override
   _i3.Future<DateTime?> getMainRoomLastSeen({
     required String? beaconId,
     required String? userId,
@@ -2284,7 +2297,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<bool>);
 
   @override
-  _i3.Future<List<_i25.MyWorkLastActivityEventRow>>
+  _i3.Future<List<_i26.MyWorkLastActivityEventRow>>
   latestActivityEventsByBeaconIds({
     required List<String>? beaconIds,
     required String? viewerUserId,
@@ -2295,11 +2308,11 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #viewerUserId: viewerUserId,
             }),
             returnValue:
-                _i3.Future<List<_i25.MyWorkLastActivityEventRow>>.value(
-                  <_i25.MyWorkLastActivityEventRow>[],
+                _i3.Future<List<_i26.MyWorkLastActivityEventRow>>.value(
+                  <_i26.MyWorkLastActivityEventRow>[],
                 ),
           )
-          as _i3.Future<List<_i25.MyWorkLastActivityEventRow>>);
+          as _i3.Future<List<_i26.MyWorkLastActivityEventRow>>);
 
   @override
   _i3.Future<DateTime?> latestMainRoomMessageCreatedAt(String? beaconId) =>
@@ -2404,16 +2417,16 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, DateTime>>);
 
   @override
-  _i3.Future<List<_i26.RoomReadWatermarkRecord>> mainRoomReadWatermarks(
+  _i3.Future<List<_i27.RoomReadWatermarkRecord>> mainRoomReadWatermarks(
     String? beaconId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#mainRoomReadWatermarks, [beaconId]),
-            returnValue: _i3.Future<List<_i26.RoomReadWatermarkRecord>>.value(
-              <_i26.RoomReadWatermarkRecord>[],
+            returnValue: _i3.Future<List<_i27.RoomReadWatermarkRecord>>.value(
+              <_i27.RoomReadWatermarkRecord>[],
             ),
           )
-          as _i3.Future<List<_i26.RoomReadWatermarkRecord>>);
+          as _i3.Future<List<_i27.RoomReadWatermarkRecord>>);
 
   @override
   _i3.Future<DateTime> markBeaconRoomSeen({

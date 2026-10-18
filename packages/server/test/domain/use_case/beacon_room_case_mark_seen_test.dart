@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/room_latest_activity.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -18,6 +19,7 @@ import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart'
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -82,6 +84,20 @@ class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
   @override
   Future<DateTime?> latestMainRoomMessageCreatedAt(String beaconId) async =>
       latestMessageAt;
+
+  RoomLatestActivity latestActivity = const RoomLatestActivity();
+
+  /// Each `latestRoomActivities` call's ids, to prove the batch is one read.
+  final latestActivityCalls = <List<String>>[];
+
+  @override
+  Future<Map<String, RoomLatestActivity>> latestRoomActivities(
+    Iterable<String> beaconIds,
+  ) async {
+    final ids = beaconIds.toList();
+    latestActivityCalls.add(ids);
+    return {for (final id in ids) id: latestActivity};
+  }
 
   @override
   Future<DateTime?> getMainRoomLastSeen({
@@ -314,6 +330,71 @@ void main() {
     expect(rows.first['roomUnreadCount'], 0);
     expect(rows.first['lastSeenAt'], seen.toUtc().toIso8601String());
   });
+
+  test(
+    'inboxRoomContextBatch carries last activity and the latest message '
+    '(U087)',
+    () async {
+      room.latestActivity = RoomLatestActivity(
+        lastActivityAt: DateTime.utc(2026, 5, 2, 12),
+        lastMessageAt: DateTime.utc(2026, 5, 2, 11),
+        lastMessageBody: 'Parking sorted?',
+        lastMessageAuthorId: 'Unina',
+        lastMessageAuthorName: 'Nina',
+      );
+
+      final rows = await sut.inboxRoomContextBatch(
+        userId: userId,
+        beaconIds: [beaconId],
+      );
+
+      final row = rows.single;
+      expect(row['lastActivityAt'], '2026-05-02T12:00:00.000Z');
+      expect(row['lastMessageAt'], '2026-05-02T11:00:00.000Z');
+      expect(row['lastMessageText'], 'Parking sorted?');
+      expect(row['lastMessageAuthorId'], 'Unina');
+      expect(row['lastMessageAuthorName'], 'Nina');
+    },
+  );
+
+  test(
+    'inboxRoomContextBatch reads latest activity in one batched call '
+    '(#541 review)',
+    () async {
+      await sut.inboxRoomContextBatch(
+        userId: userId,
+        beaconIds: [beaconId, beaconId],
+      );
+
+      expect(room.latestActivityCalls, [
+        [beaconId],
+      ]);
+    },
+  );
+
+  test(
+    'inboxRoomContextBatch sends a one-line excerpt of the latest message '
+    '(#541 review)',
+    () async {
+      room.latestActivity = RoomLatestActivity(
+        lastMessageAt: DateTime.utc(2026, 5, 2, 11),
+        lastMessageBody: 'Line one\n\nline two ${'x' * 300}',
+        lastMessageAuthorId: 'Unina',
+        lastMessageAuthorName: 'Nina',
+      );
+
+      final rows = await sut.inboxRoomContextBatch(
+        userId: userId,
+        beaconIds: [beaconId],
+      );
+
+      final text = rows.single['lastMessageText']! as String;
+      expect(text, startsWith('Line one line two x'));
+      expect(text, isNot(contains('\n')));
+      expect(text, endsWith('…'));
+      expect(text.runes.length, kRoomReplyExcerptMaxChars + 1);
+    },
+  );
 }
 
 class FakeBeaconFactCardRepository extends Fake

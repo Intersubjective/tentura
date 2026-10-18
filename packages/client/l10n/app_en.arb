@@ -3860,6 +3860,44 @@
     "context": "MyWorkScreen",
     "description": "Mid-sentence label for the current user on My Desk last-event rows"
   },
+  "myWorkLatestMessage": "{name}: {text}",
+  "@myWorkLatestMessage": {
+    "context": "MyWorkScreen",
+    "description": "U087: latest discussion message on a Requests card: author name, then the message",
+    "placeholders": {
+      "name": {"type": "String"},
+      "text": {"type": "String"}
+    }
+  },
+  "myWorkLatestSomeone": "someone",
+  "@myWorkLatestSomeone": {
+    "context": "MyWorkScreen",
+    "description": "U087: author name fallback on the latest-message line"
+  },
+  "myWorkUnreadCount": "{count, plural, =1{1 new} other{{count} new}}",
+  "@myWorkUnreadCount": {
+    "context": "MyWorkScreen",
+    "description": "U087: unread discussion messages on a Requests card",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "myWorkLatestMessageSemantics": "Latest message. {name}: {text}{details}",
+  "@myWorkLatestMessageSemantics": {
+    "context": "MyWorkScreen",
+    "description": "U087: screen-reader label for the latest-message line on a Requests card. details is empty or starts with a separator ('. ', or a space after a message that already ends a sentence) and holds the spoken age and the unread count",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      },
+      "details": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkLastEventSemantics": "{event} by {actor}, {ago}{authorSuffix}",
   "@myWorkLastEventSemantics": {
     "context": "MyWorkScreen",
