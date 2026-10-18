@@ -161,9 +161,7 @@ final class QueryAttention extends GqlNodeBase {
                   for (final obligation in projection.liveObligations)
                     _mapReceipt(obligation),
                 ],
-                'needsYouAt': projection.needsYouAt
-                    ?.toUtc()
-                    .toIso8601String(),
+                'needsYouAt': projection.needsYouAt?.toUtc().toIso8601String(),
                 'firstEntryAt': projection.firstEntryAt
                     ?.toUtc()
                     .toIso8601String(),
@@ -424,6 +422,9 @@ final class QueryAttention extends GqlNodeBase {
     'inviteOrigin',
     'excerpt',
     'toStatus',
+    // #367: an accepted helper's forward row ('accepted' | 'wrappingUp').
+    'helperStage',
+    'roleLabel',
   };
 
   @visibleForTesting

@@ -437,6 +437,173 @@ VALUES (@doneId, @authorId, 'Done', 'Closed request', 0)
       },
     );
 
+    // #367: a helper whose offer the author accepted kept reading "You
+    // offered help" on Activity, and nothing there said the Request had
+    // entered its final check (Wrapping up, status 5). The forward row is
+    // the helper's one Activity row for the Request (live events of a
+    // Request in their scope go to My Work), so it is the row that says so.
+    // Contract (old-client safe): `forward_outcome` stays 'helping' on the
+    // wire — an unknown word parses to null on shipped clients, which draw
+    // an outcome-less forward as the actionable card — and the stage rides
+    // the row's payload:
+    //   * admitted helper, live offer, Request not 5/6/1
+    //       -> helperStage 'accepted' (+ roleLabel when non-empty);
+    //   * the same at status 5 -> helperStage 'wrappingUp';
+    //   * closed (6) / cancelled (1) -> no helperStage (plain helping);
+    //   * not admitted -> no helperStage and no roleLabel, at any status.
+    group('#367: the helper is told their offer was accepted', () {
+      Future<void> seedHelper({
+        required bool admitted,
+        String roleLabel = 'Driver',
+      }) async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-04T09:00:00Z',
+        );
+        await _insertRoleHelpOffer(
+          writer,
+          beaconId: _foreignBeaconId,
+          roleLabel: roleLabel,
+        );
+        if (admitted) {
+          await _admitViewer(writer, beaconId: _foreignBeaconId);
+        }
+        // Precondition: the raw data shape, so the assertions below are the
+        // projection's decision and not a fixture gap.
+        final access = await writer.execute(
+          Sql.named('''
+SELECT bp.room_access FROM public.beacon_participant bp
+WHERE bp.beacon_id = @b AND bp.user_id = @u
+'''),
+          parameters: {'u': _viewerId, 'b': _foreignBeaconId},
+        );
+        expect(
+          access.map((row) => row[0]).toList(),
+          admitted ? [3] : isEmpty,
+        );
+      }
+
+      Future<void> setBeaconStatus(int status) async {
+        await writer.execute(
+          Sql.named('UPDATE public.beacon SET status = @s WHERE id = @id'),
+          parameters: {'s': status, 'id': _foreignBeaconId},
+        );
+        // Precondition: the m0213 trigger leaves an answered row alone.
+        final inbox = await writer.execute(
+          Sql.named('''
+SELECT status FROM public.inbox_item
+WHERE user_id = @u AND beacon_id = @b
+'''),
+          parameters: {'u': _viewerId, 'b': _foreignBeaconId},
+        );
+        expect(inbox.single[0], 0);
+      }
+
+      test('accepted offer: helperStage accepted, with its role', () async {
+        await seedHelper(admitted: true);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.itemKind, AttentionItemKind.forward);
+        expect(
+          forward.forwardOutcome,
+          'helping',
+          reason: 'a new wire word renders as an actionable card on old apps',
+        );
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(forward.presentationPayload['roleLabel'], 'Driver');
+      });
+
+      test('Wrapping up carries helperStage wrappingUp', () async {
+        await seedHelper(admitted: true);
+        await setBeaconStatus(5);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.itemKind, AttentionItemKind.forward);
+        expect(forward.forwardOutcome, 'helping');
+        expect(forward.presentationPayload['helperStage'], 'wrappingUp');
+      });
+
+      test('after Wrapping up -> closed there is no helperStage', () async {
+        await seedHelper(admitted: true);
+        await setBeaconStatus(5);
+        await setBeaconStatus(6);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'helping');
+        expect(
+          forward.presentationPayload.containsKey('helperStage'),
+          isFalse,
+          reason: 'a closed Request reads "You offered help" as today',
+        );
+      });
+
+      test('a cancelled Request has no helperStage', () async {
+        await seedHelper(admitted: true);
+        await setBeaconStatus(1);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'helping');
+        expect(
+          forward.presentationPayload.containsKey('helperStage'),
+          isFalse,
+        );
+      });
+
+      test('an accepted helper on a reopened Request is accepted', () async {
+        await seedHelper(admitted: true);
+        await setBeaconStatus(7);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+      });
+
+      test('an offer not yet accepted has no stage and no role', () async {
+        await seedHelper(admitted: false);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'helping');
+        expect(
+          forward.presentationPayload.containsKey('helperStage'),
+          isFalse,
+          reason: 'a role label alone is not an acceptance',
+        );
+        expect(
+          forward.presentationPayload.containsKey('roleLabel'),
+          isFalse,
+          reason: 'the role is not shown before the offer is accepted',
+        );
+      });
+
+      test('Wrapping up without admission stays plain helping', () async {
+        await seedHelper(admitted: false);
+        await setBeaconStatus(5);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'helping');
+        expect(
+          forward.presentationPayload.containsKey('helperStage'),
+          isFalse,
+        );
+        expect(
+          forward.presentationPayload.containsKey('roleLabel'),
+          isFalse,
+        );
+      });
+
+      test('an empty role label is no role', () async {
+        await seedHelper(admitted: true, roleLabel: '');
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(
+          forward.presentationPayload.containsKey('roleLabel'),
+          isFalse,
+        );
+      });
+    });
+
     test('tombstone_dismissed_at hides the forward row', () async {
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
       await _upsertInbox(
@@ -1437,5 +1604,44 @@ INSERT INTO public.notification_outbox (
     'dedupKey': 'dedup-$id',
     'createdAt': createdAt,
     'sourceEventKey': 'source-$id',
+  },
+);
+
+/// #367: a live offer by the viewer carrying the role the author gave it.
+Future<void> _insertRoleHelpOffer(
+  Connection writer, {
+  required String beaconId,
+  required String roleLabel,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, role_label, created_at, updated_at
+) VALUES (@beaconId, @userId, 'I can drive', 0, @roleLabel, now(), now())
+'''),
+  parameters: {
+    'beaconId': beaconId,
+    'userId': _viewerId,
+    'roleLabel': roleLabel,
+  },
+);
+
+/// #367: what the author's accept leaves behind — the viewer admitted to
+/// the Request's room as a helper (`RoomAccessBits.admitted`).
+Future<void> _admitViewer(
+  Connection writer, {
+  required String beaconId,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, status, room_access, created_at, updated_at
+) VALUES (@id, @beaconId, @userId, 2, 0, 3, now(), now())
+ON CONFLICT (beacon_id, user_id) DO UPDATE SET
+  room_access = EXCLUDED.room_access,
+  role = EXCLUDED.role
+'''),
+  parameters: {
+    'id': 'P367$beaconId',
+    'beaconId': beaconId,
+    'userId': _viewerId,
   },
 );
