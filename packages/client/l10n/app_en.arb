@@ -6418,6 +6418,18 @@
   "updatesFallbackBodyOfferAccepted": "Your offer was accepted.",
   "updatesFallbackTitleOfferDeclined": "Offer declined",
   "updatesFallbackBodyOfferDeclined": "Your offer was declined.",
+  "updatesOfferDeclinedBody": "{title} — “{reason}”",
+  "@updatesOfferDeclinedBody": {
+    "context": "Updates row body for a declined help offer: the request title, then the author's reason (#381)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "updatesFallbackTitleOfferRemoved": "Removed from the discussion",
   "updatesFallbackBodyOfferRemoved": "You were removed from a request discussion.",
   "updatesFallbackTitleRoomMessagePosted": "New thread message",
@@ -8193,6 +8205,18 @@
       }
     }
   },
+  "attentionCardOfferDeclinedWithReason": "{name} declined your offer: {reason}",
+  "@attentionCardOfferDeclinedWithReason": {
+    "context": "For You Request card (#189): the author declined your help offer, with their reason (#381)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "attentionCardPostFirstReply": "First reply to your post · {name}",
   "@attentionCardPostFirstReply": {
     "context": "For You Request card (#189)",
@@ -8264,6 +8288,15 @@
     "context": "For You Request card (#189)",
     "placeholders": {
       "title": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardChangeOfferDeclined": "Offer declined: {reason}",
+  "@attentionCardChangeOfferDeclined": {
+    "context": "For You Request card (#189) change line: the author declined your help offer, with their reason (#381)",
+    "placeholders": {
+      "reason": {
         "type": "String"
       }
     }

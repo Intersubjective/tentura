@@ -419,8 +419,19 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
       ? bodyOverrideTrim
       : null;
   final String line2;
+  final declineReason = presentationKey == 'offer_declined'
+      ? structuredExcerpt
+      : null;
   if (subjectOverride != null && subjectOverride != headline) {
     line2 = subjectOverride;
+  } else if (declineReason != null &&
+      declineReason.isNotEmpty &&
+      declineReason != beaconTitle) {
+    // The author's reason for declining (#381) — only the structured
+    // excerpt, never the push body; the Request title stays beside it.
+    line2 = beaconTitle != null && beaconTitle.isNotEmpty
+        ? l10n.updatesOfferDeclinedBody(beaconTitle, declineReason)
+        : declineReason;
   } else if (beaconTitle != null &&
       beaconTitle.isNotEmpty &&
       beaconTitle != headline) {
