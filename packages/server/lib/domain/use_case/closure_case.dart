@@ -252,12 +252,39 @@ final class ClosureCase extends UseCaseBase {
     },
   );
 
-  /// Author cancels the live epoch and returns the Request to needsMoreHelp.
+  /// Author cancels the live epoch and returns the Request to [targetStatus]:
+  /// Open ("Coordinating the plan") by default (#366). The status sheet's
+  /// explicit "Needs more help" choice passes [BeaconStatus.needsMoreHelp].
   /// Outcomes and drafts stay; committed supports and commit rows go.
+  /// Any other [targetStatus] is refused with an [ArgumentError] before
+  /// anything changes.
   Future<void> reopen({
     required String authorId,
     required String beaconId,
     int? expectedEpoch,
+    BeaconStatus targetStatus = BeaconStatus.open,
+  }) async {
+    if (targetStatus != BeaconStatus.open &&
+        targetStatus != BeaconStatus.needsMoreHelp) {
+      throw ArgumentError.value(
+        targetStatus,
+        'targetStatus',
+        'reopen lands only in open or needsMoreHelp',
+      );
+    }
+    return _reopen(
+      authorId: authorId,
+      beaconId: beaconId,
+      expectedEpoch: expectedEpoch,
+      targetStatus: targetStatus,
+    );
+  }
+
+  Future<void> _reopen({
+    required String authorId,
+    required String beaconId,
+    required int? expectedEpoch,
+    required BeaconStatus targetStatus,
   }) => _inClosureTx<void>(
     actorId: authorId,
     beaconId: beaconId,
@@ -285,7 +312,7 @@ final class ClosureCase extends UseCaseBase {
       await _beacons.recordBeaconStatusTransition(
         beaconId: beaconId,
         fromStatus: beacon.status,
-        toStatus: BeaconStatus.needsMoreHelp,
+        toStatus: targetStatus,
         reason: BeaconLifecycleChangeReason.reopenedFromReview,
         actorId: authorId,
       );

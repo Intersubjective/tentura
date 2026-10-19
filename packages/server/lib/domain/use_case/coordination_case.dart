@@ -794,8 +794,7 @@ final class CoordinationCase extends UseCaseBase {
     final readmitsRemoved =
         !active.any((c) => c.userId == offerUserId) &&
         inviteToRoom &&
-        await _removedOfferFor(beaconId: beaconId, userId: offerUserId) !=
-            null;
+        await _removedOfferFor(beaconId: beaconId, userId: offerUserId) != null;
     if (!active.any((c) => c.userId == offerUserId) && !readmitsRemoved) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
@@ -885,8 +884,10 @@ final class CoordinationCase extends UseCaseBase {
         userId: authorUserId,
         fn: (beacon) async {
           if (beacon.status == BeaconStatus.reviewOpen) {
+            // #366: Open leaves the final check through Reopen, so it needs
+            // the closure case; Enough help stays refused.
             if (target == BeaconStatus.enoughHelp ||
-                target == BeaconStatus.open) {
+                (target == BeaconStatus.open && _closureCase == null)) {
               throw HelpOfferCoordinationException(
                 coordinationCode: HelpOfferCoordinationExceptionCode
                     .invalidCoordinationStatus,
@@ -898,7 +899,33 @@ final class CoordinationCase extends UseCaseBase {
               beacon.status == BeaconStatus.reviewOpen) {
             final closure = _closureCase;
             if (closure != null) {
-              await closure.reopen(authorId: authorUserId, beaconId: beaconId);
+              // The sheet's explicit Needs more help still lands there.
+              await closure.reopen(
+                authorId: authorUserId,
+                beaconId: beaconId,
+                targetStatus: BeaconStatus.needsMoreHelp,
+              );
+              final snap = await _coordinationRepository.beaconStatusSnapshot(
+                beaconId,
+              );
+              return BeaconStatusResult(
+                beaconId: beaconId,
+                status: snap.status.smallintValue,
+                statusChangedAt: snap.statusChangedAt,
+              );
+            }
+          }
+
+          if (target == BeaconStatus.open &&
+              beacon.status == BeaconStatus.reviewOpen) {
+            final closure = _closureCase;
+            if (closure != null) {
+              // #366: Open leaves the final check through Reopen's default
+              // target (Open).
+              await closure.reopen(
+                authorId: authorUserId,
+                beaconId: beaconId,
+              );
               final snap = await _coordinationRepository.beaconStatusSnapshot(
                 beaconId,
               );

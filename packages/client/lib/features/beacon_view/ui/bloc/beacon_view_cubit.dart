@@ -84,7 +84,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     );
     _beaconChangesSub = _case.beaconChanges.listen(
       (event) {
-        if (_closingBeacon && event is RepositoryEventUpdate<Beacon>) return;
+        if ((_closingBeacon || _reopeningBeacon) &&
+            event is RepositoryEventUpdate<Beacon>) {
+          return;
+        }
         if (event is RepositoryEventInvalidate<Beacon> ||
             event is RepositoryEventUpdate<Beacon>) {
           _requestFullRefreshFor(event.id);
@@ -183,6 +186,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   bool _fetchPending = false;
 
   bool _closingBeacon = false;
+
+  /// Set while reopenBeacon notifies other screens and runs its one refresh
+  /// read, so its own notify does not start a second full refresh (#366).
+  bool _reopeningBeacon = false;
 
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
@@ -469,9 +476,30 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.beaconReopen(state.beacon.id);
-      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
+      // The reopen itself failed: the final check stays.
       _showSnackError(e);
+      return;
+    }
+    if (isClosed) return;
+    // The reopen went through: back to coordinating at once, even if the
+    // follow-up read fails (#366). The cancelled epoch's snapshot goes.
+    final reopened = state.beacon.copyWith(status: BeaconStatus.open);
+    emit(
+      state.copyWith(
+        beacon: reopened,
+        closureState: null,
+        status: const StateIsSuccess(),
+      ),
+    );
+    _reopeningBeacon = true;
+    try {
+      _case.notifyBeaconUpdated(reopened);
+      // One quiet refresh read (with its one retry): a failed read keeps the
+      // local status, no error shown.
+      await _fetchBeaconByIdWithTimeline(background: true);
+    } finally {
+      _reopeningBeacon = false;
     }
   }
 

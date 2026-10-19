@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
 import '../../support/test_realtime_sync.dart';
@@ -193,14 +194,26 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B3']);
     });
 
-    test('beaconReopen refreshes beacon after closure', () async {
-      final beacon = TrackingBeaconRepository();
-      final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
+    test(
+      'beaconReopen sends the reopen mutation and leaves the one refresh '
+      'read to the screen (#366)',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final closure = _RecordingReopenClosureRepository();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          closureRepo: closure,
+        );
 
-      await case_.beaconReopen('B4');
+        await case_.beaconReopen('B4');
 
-      expect(beacon.refreshAndNotifyCalls, ['B4']);
-    });
+        expect(closure.reopened, ['B4']);
+        // The screen does the single refresh read (with its retry); a read
+        // here would be a second one (owner review on #366).
+        expect(beacon.refreshAndNotifyCalls, isEmpty);
+        expect(beacon.fetchByIdCalls, 0);
+      },
+    );
 
     test('beaconCloseNow refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
@@ -400,4 +413,15 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B6']);
     });
   });
+}
+
+class _RecordingReopenClosureRepository
+    extends FakeBeaconViewClosureRepository {
+  final reopened = <String>[];
+
+  @override
+  Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) async {
+    reopened.add(beaconId);
+    return super.beaconReopen(beaconId);
+  }
 }

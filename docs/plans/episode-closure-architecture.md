@@ -234,7 +234,7 @@ open family ──close──▶ reviewOpen (epoch e, status evaluating)
 
 - **Close-now (P3):** allowed when the author has an **explicit** outcome (not NULL) for every member **and** (every member of the readiness set has a commit row **or** ≥ 48 h since `opened_at`). Readiness set = voters when `|M| ≥ 3`; empty when `|M| ≤ 2` (no voting). The author never learns who is ready (U53).
 - Extend: +7 days, max 2.
-- Reopen: only from an evaluating epoch, `kMaxReviewReopens = 1`; `reviewOpen → needsMoreHelp` routes to the same operation (P9). Committed supports and commit rows are deleted (drafts kept, U12).
+- Reopen: only from an evaluating epoch, `kMaxReviewReopens = 1`; reopen returns to Open (Coordinating); the status sheet's explicit Needs more help still lands in Needs more help. `reviewOpen → needsMoreHelp` and `reviewOpen → open` from the status sheet route to the same operation (P9, #366). Committed supports and commit rows are deleted (drafts kept, U12).
 - No reopen after finalize (P10). After finalize the only writes allowed are the viewer's own bookmarks (U37, U40).
 
 ### 5.2 Serialization protocol

@@ -563,7 +563,7 @@ Each method is a single SQL statement; no business rules here (rules live in A12
 **Files**
 - create `packages/server/lib/domain/use_case/closure_case.dart`
 - create `packages/server/lib/domain/closure/closure_exception.dart` (codes: `notAuthor`, `notVoter`, `notMember`, `staleEpoch`, `wrongStatus`, `reopenLimit`, `extendLimit`, `notReady`, `invalidSplit`, `splitTooLarge`)
-- modify `packages/server/lib/domain/use_case/coordination_case.dart` — `setBeaconStatus(reviewOpen → needsMoreHelp)` (~line 693) must call `ClosureCase.reopen`.
+- modify `packages/server/lib/domain/use_case/coordination_case.dart` — `setBeaconStatus(reviewOpen → needsMoreHelp)` and `setBeaconStatus(reviewOpen → open)` (~line 693) must call `ClosureCase.reopen` (#366).
 - test `test/domain/use_case/closure_case_lifecycle_test.dart` (pg)
 
 **Every public method follows this template** (`_uow` is `MutatingUnitOfWorkPort`)
@@ -587,7 +587,7 @@ Future<T> _inClosureTx<T>({
 **Operations**
 1. `close(authorId, beaconId)`: author only; beacon in open family {0, 7, 8}. **Preserve the current close effects** — read `evaluation_case.dart:169–234` and keep, in the same order: `recordBeaconStatusTransition`, `BeaconLifecycleEffectsCase.recordEligibleSourceTransition` (parent/child requests), `unansweredAtClose` events for pending offers, `supersedeAuthorHelpOfferObligationsOnBeaconClose`. Compute members with `MembershipReducer` over each offer's events. No member ever ⇒ `beacon.status = closed(6)`, no epoch (with the same effects). Else create epoch `max(epoch)+1`, `opened_at = now`, `closes_at = now + 7 days`; insert members (`active_at_open = active`, `departure` from the reducer, `arrival_edge_id` from `selectArrivalEdge`); if a custom split exists, replace it with `renormalize(current, A)` (new members may have joined since a reopen); `beacon.status = reviewOpen(5)`; `ClosureReceiptsPort.opened`.
 2. `extend`: author; evaluating; `extensions_used < 2`; `closes_at += 7 days`.
-3. `reopen`: author; evaluating; count of cancelled epochs < 1 (`kMaxReviewReopens = 1`); set epoch status cancelled; `repo.clearCommitted(beaconId)` (deletes version 1 supports and commit rows; drafts and outcomes stay); set beacon status `needsMoreHelp(7)` with the same status-transition effects the current `reopenFromReview` records; `ClosureReceiptsPort.cancelled`.
+3. `reopen`: author; evaluating; count of cancelled epochs < 1 (`kMaxReviewReopens = 1`); set epoch status cancelled; `repo.clearCommitted(beaconId)` (deletes version 1 supports and commit rows; drafts and outcomes stay); set beacon status `open(0)` (Coordinating) by default with the same status-transition effects the current `reopenFromReview` records — reopen returns to Open (Coordinating); the status sheet's explicit Needs more help still lands in `needsMoreHelp(7)` (#366); any other target is refused; `ClosureReceiptsPort.cancelled`.
 4. `closeNow`: author; evaluating; `canCloseNow` true (below) ⇒ `ClosureFinalizerPort.finalize(beaconId, epoch, authorCloseNow)` inside the same transaction (the lock is re-entrant within a transaction).
 5. `canCloseNow(state)`: every member has a non-null outcome **and** (`|M| ≤ 2` **or** every voter has a commit row **or** `now ≥ opened_at + 48 h`).
 6. `canReopen`: evaluating and no earlier cancelled epoch.

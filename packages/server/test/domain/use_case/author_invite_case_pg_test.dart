@@ -799,7 +799,7 @@ WHERE id = '${row.forwardEdgeId}'
       );
 
       test(
-        '0 → 5 → 7 keeps the invite pending; accept in review is refused, '
+        '0 → 5 → 0 keeps the invite pending; accept in review is refused, '
         'accept after reopen succeeds',
         () async {
           await admitHelper();
@@ -822,9 +822,10 @@ WHERE id = '${row.forwardEdgeId}'
           );
 
           await s.closure.reopen(authorId: _author, beaconId: _child);
+          // #366: Reopen returns the Request to Open (coordinating).
           expect(
             await _status(writer, _child),
-            BeaconStatus.needsMoreHelp.smallintValue,
+            BeaconStatus.open.smallintValue,
           );
           expect(
             await _inboxStatus(writer, _warm),
@@ -842,6 +843,70 @@ WHERE id = '${row.forwardEdgeId}'
           );
           expect(accepted.status, AuthorInviteStatus.accepted);
           expect(await rowSet(_warm), isNotEmpty);
+        },
+      );
+
+      test(
+        'guard (#366): choosing Needs more help in the status sheet during '
+        'the final check still lands in Needs more help',
+        () async {
+          await admitHelper();
+          await s.closure.close(authorId: _author, beaconId: _child);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.reviewOpen.smallintValue,
+          );
+
+          // The explicit sheet choice (reviewOpen → needsMoreHelp) reopens
+          // the final check; unlike a plain Reopen (→ Open) it must keep the
+          // status the author picked.
+          final result = await s.coordination.setBeaconStatus(
+            beaconId: _child,
+            authorUserId: _author,
+            status: BeaconStatus.needsMoreHelp.smallintValue,
+          );
+
+          expect(result.status, BeaconStatus.needsMoreHelp.smallintValue);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.needsMoreHelp.smallintValue,
+          );
+        },
+      );
+
+      test(
+        '#366: choosing Open in the status sheet during the final check '
+        'reopens it through Reopen and lands in Open',
+        () async {
+          await admitHelper();
+          await s.closure.close(authorId: _author, beaconId: _child);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.reviewOpen.smallintValue,
+          );
+
+          // Owner review on #366: reviewOpen → Open is allowed from the
+          // sheet and goes through ClosureCase.reopen with its default target.
+          final result = await s.coordination.setBeaconStatus(
+            beaconId: _child,
+            authorUserId: _author,
+            status: BeaconStatus.open.smallintValue,
+          );
+
+          expect(result.status, BeaconStatus.open.smallintValue);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.open.smallintValue,
+          );
+          // Routed through Reopen: the final check's epoch is cancelled and
+          // the transition is recorded as a reopen from review (not a plain
+          // neutral "Open").
+          expect(await _liveClosureEpochCount(writer, _child), 0);
+          expect(await _lastLifecycleReason(writer, _child), (
+            from: BeaconStatus.reviewOpen.smallintValue,
+            to: BeaconStatus.open.smallintValue,
+            reason: 'reopenedFromReview',
+          ));
         },
       );
 
@@ -1346,6 +1411,43 @@ Future<Set<String>> _eligiblePinned(Connection writer, String viewer) async {
     parameters: [viewer],
   );
   return {for (final r in rows) r[0]! as String};
+}
+
+/// Final-check epochs still running (status 0 = evaluating, as
+/// `ClosureRepository.liveEpoch` reads them).
+Future<int> _liveClosureEpochCount(Connection writer, String beacon) async =>
+    (await writer.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM public.beacon_closure '
+            'WHERE beacon_id = @b AND status = 0',
+          ),
+          parameters: {'b': beacon},
+        )).single.single!
+        as int;
+
+/// The newest lifecycle-change activity row (from, to, reason).
+Future<({int from, int to, String reason})> _lastLifecycleReason(
+  Connection writer,
+  String beacon,
+) async {
+  final rows = await writer.execute(
+    Sql.named(
+      "SELECT (diff->>'fromStatus')::int, (diff->>'toStatus')::int, "
+      "diff->>'reason' FROM public.beacon_activity_event "
+      'WHERE beacon_id = @b AND type = @t '
+      'ORDER BY created_at DESC, id DESC LIMIT 1',
+    ),
+    parameters: {
+      'b': beacon,
+      't': BeaconActivityEventTypeBits.beaconLifecycleChanged,
+    },
+  );
+  final row = rows.single;
+  return (
+    from: row[0]! as int,
+    to: row[1]! as int,
+    reason: row[2]! as String,
+  );
 }
 
 Future<int> _status(Connection writer, String beacon) async =>
