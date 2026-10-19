@@ -13,6 +13,7 @@ class RoomPollCard extends StatefulWidget {
     required this.poll,
     this.onVote,
     this.participants = const [],
+    this.isAuthor = false,
     super.key,
   });
 
@@ -23,6 +24,10 @@ class RoomPollCard extends StatefulWidget {
 
   /// Room participants used to resolve voter display names for open polls.
   final List<BeaconParticipant> participants;
+
+  /// Whether the viewer authored the poll. The author sees the results
+  /// (percentages, counts, averages) even before voting themselves.
+  final bool isAuthor;
 
   @override
   State<RoomPollCard> createState() => _RoomPollCardState();
@@ -59,42 +64,42 @@ class _RoomPollCardState extends State<RoomPollCard> {
   Widget _buildSingleUnvoted(
     BuildContext context,
     ThemeData theme,
-    String variantId,
-    String label,
-  ) =>
-      InkWell(
-        onTap: widget.onVote == null ? null : () => _submitVote([variantId]),
-        borderRadius: BorderRadius.circular(context.tt.buttonRadius),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: context.tt.tightGap * 2,
-            horizontal: context.tt.tightGap * 2,
+    RoomPollVariant v,
+  ) => InkWell(
+    onTap: widget.onVote == null ? null : () => _submitVote([v.id]),
+    borderRadius: BorderRadius.circular(context.tt.buttonRadius),
+    child: Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: context.tt.tightGap * 2,
+        horizontal: context.tt.tightGap * 2,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.radio_button_unchecked,
+            size: 20,
+            color: theme.colorScheme.primary,
           ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.radio_button_unchecked,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              SizedBox(width: context.tt.rowGap),
-              Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-            ],
+          SizedBox(width: context.tt.rowGap),
+          Expanded(
+            child: Text(v.description, style: theme.textTheme.bodyMedium),
           ),
-        ),
-      );
+          if (widget.isAuthor) ..._buildResultLabels(context, theme, v),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildMultipleUnvoted(
     BuildContext context,
     ThemeData theme,
-    String variantId,
-    String label,
+    RoomPollVariant v,
   ) => InkWell(
     onTap: () => setState(() {
-      if (_pendingMultiple.contains(variantId)) {
-        _pendingMultiple.remove(variantId);
+      if (_pendingMultiple.contains(v.id)) {
+        _pendingMultiple.remove(v.id);
       } else {
-        _pendingMultiple.add(variantId);
+        _pendingMultiple.add(v.id);
       }
     }),
     borderRadius: BorderRadius.circular(context.tt.buttonRadius),
@@ -106,16 +111,19 @@ class _RoomPollCardState extends State<RoomPollCard> {
       child: Row(
         children: [
           Icon(
-            _pendingMultiple.contains(variantId)
+            _pendingMultiple.contains(v.id)
                 ? Icons.check_box
                 : Icons.check_box_outline_blank,
             size: 20,
-            color: _pendingMultiple.contains(variantId)
+            color: _pendingMultiple.contains(v.id)
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,
           ),
           SizedBox(width: context.tt.rowGap),
-          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+          Expanded(
+            child: Text(v.description, style: theme.textTheme.bodyMedium),
+          ),
+          if (widget.isAuthor) ..._buildResultLabels(context, theme, v),
         ],
       ),
     ),
@@ -124,10 +132,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
   Widget _buildRangeUnvoted(
     BuildContext context,
     ThemeData theme,
-    String variantId,
-    String label,
+    RoomPollVariant v,
   ) {
-    final score = _pendingRange[variantId];
+    final score = _pendingRange[v.id];
     return Padding(
       padding: EdgeInsets.symmetric(vertical: context.tt.tightGap),
       child: Column(
@@ -136,8 +143,12 @@ class _RoomPollCardState extends State<RoomPollCard> {
           Row(
             children: [
               Expanded(
-                child: Text(label, style: theme.textTheme.bodyMedium),
+                child: Text(v.description, style: theme.textTheme.bodyMedium),
               ),
+              if (widget.isAuthor) ...[
+                ..._buildResultLabels(context, theme, v),
+                if (score != null) SizedBox(width: context.tt.tightGap * 2),
+              ],
               if (score != null)
                 Container(
                   padding: EdgeInsets.symmetric(
@@ -171,7 +182,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   label: Text('$value'),
                   selected: score == value,
                   onSelected: (_) => setState(
-                    () => _pendingRange[variantId] = value,
+                    () => _pendingRange[v.id] = value,
                   ),
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -181,6 +192,33 @@ class _RoomPollCardState extends State<RoomPollCard> {
         ],
       ),
     );
+  }
+
+  /// Primary result label for a variant: average score for range polls,
+  /// percentage of votes otherwise.
+  String _primaryResultLabel(RoomPollVariant v) {
+    final poll = widget.poll;
+    if (poll.pollType == PollType.range) {
+      return v.avgScore != null ? '${v.avgScore!.toStringAsFixed(1)}/5' : '—';
+    }
+    return '${(poll.percentageFor(v.id) * 100).round()}%';
+  }
+
+  /// Trailing result labels (primary label + vote count) shown to the poll
+  /// author next to the vote controls before they have voted.
+  List<Widget> _buildResultLabels(
+    BuildContext context,
+    ThemeData theme,
+    RoomPollVariant v,
+  ) {
+    final style = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return [
+      Text(_primaryResultLabel(v), style: style),
+      SizedBox(width: context.tt.tightGap * 2),
+      Text('(${v.votesCount})', style: style),
+    ];
   }
 
   Widget _buildVotedRow(
@@ -194,17 +232,10 @@ class _RoomPollCardState extends State<RoomPollCard> {
     final isMine = widget.poll.isMyVote(v.id);
     final poll = widget.poll;
 
-    double pct;
-    String primaryLabel;
-    if (poll.pollType == PollType.range) {
-      pct = (v.avgScore ?? 0) / 5;
-      primaryLabel = v.avgScore != null
-          ? '${v.avgScore!.toStringAsFixed(1)}/5'
-          : '—';
-    } else {
-      pct = poll.percentageFor(v.id);
-      primaryLabel = '${(pct * 100).round()}%';
-    }
+    final pct = poll.pollType == PollType.range
+        ? (v.avgScore ?? 0) / 5
+        : poll.percentageFor(v.id);
+    final primaryLabel = _primaryResultLabel(v);
 
     return Container(
       decoration: isMine
@@ -436,20 +467,17 @@ class _RoomPollCardState extends State<RoomPollCard> {
                           PollType.multiple => _buildMultipleUnvoted(
                             context,
                             theme,
-                            v.id,
-                            v.description,
+                            v,
                           ),
                           PollType.range => _buildRangeUnvoted(
                             context,
                             theme,
-                            v.id,
-                            v.description,
+                            v,
                           ),
                           _ => _buildSingleUnvoted(
                             context,
                             theme,
-                            v.id,
-                            v.description,
+                            v,
                           ),
                         },
                       ),
@@ -497,7 +525,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   child: Text(
                     l10n.beaconRoomPollVotesCount(poll.totalVotes),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.outline,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ),
