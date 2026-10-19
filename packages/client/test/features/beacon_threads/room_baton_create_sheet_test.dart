@@ -9,7 +9,11 @@
 //    viewer, keeps «Ask» disabled unless 1–12 people are picked, shows
 //    priority controls only after «Set priority» is switched on, and submits
 //    the ask text, the reply target and `[{userId, tier}]` through
-//    `RoomCubit.batonCreate`.
+//    `RoomCubit.batonCreate`;
+//  - issue #480: «Set priority» (and every 1/2/3 control) exists only while
+//    at least two people are picked, carries a one-line hint saying what the
+//    priority does, a single picked person is always sent at priority 1, and
+//    «Ask» keeps a gap above the bottom edge of the screen.
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -74,7 +78,11 @@ class _MockRoomCubit extends Mock implements RoomCubit {
     required String text,
     required List<_Candidate> candidates,
   }) async {
-    batonUpdateCalls.add((batonId: batonId, text: text, candidates: candidates));
+    batonUpdateCalls.add((
+      batonId: batonId,
+      text: text,
+      candidates: candidates,
+    ));
   }
 
   @override
@@ -193,6 +201,7 @@ void main() {
     bool batonEnabled = true,
     bool enableComposer = false,
     BeaconStatus status = BeaconStatus.open,
+    Size surface = const Size(900, 1800),
   }) async {
     final profileCubit = _MockProfileCubit(_viewer);
     final roomCubit = _MockRoomCubit(
@@ -224,7 +233,7 @@ void main() {
         ClipboardImageRepository(),
       );
 
-    await tester.binding.setSurfaceSize(const Size(900, 1800));
+    await tester.binding.setSurfaceSize(surface);
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
@@ -240,7 +249,7 @@ void main() {
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
           home: MediaQuery(
-            data: const MediaQueryData(size: Size(900, 1800)),
+            data: MediaQueryData(size: surface),
             child: TenturaResponsiveScope(
               child: Scaffold(
                 body: BeaconRoomBody(
@@ -396,7 +405,6 @@ void main() {
 
       expect(find.text(_actionLabel), findsNothing);
     });
-
 
     testWidgets('is not offered when the room is read-only', (tester) async {
       await pumpRoom(tester, status: BeaconStatus.closed);
@@ -632,30 +640,163 @@ void main() {
       final semantics = tester.ensureSemantics();
       final cubit = await pumpRoom(tester);
       await openCreateSheet(tester);
+      // Priorities exist only with two or more people picked (#480).
       await pick(tester, 'Boris Driver');
+      await pick(tester, 'Clara Helper');
       await tester.tap(find.text('Set priority'));
       await tester.pumpAndSettle();
 
       tester.semantics.tap(
         // A node the engine actually receives: not merged up, with the
-        // segment's label and tap after merging its own children.
+        // segment's label and tap after merging its own children. The first
+        // one in traversal order is Boris's (he is listed first).
         find.semantics.byPredicate((node) {
           final data = node.getSemanticsData();
           return !node.isMergedIntoParent &&
               data.label == '2' &&
               data.hasAction(SemanticsAction.tap);
-        }),
+        }).first,
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      // Neither person was unpicked by the tap.
+      expect(find.byType(SegmentedButton<int>), findsNWidgets(2));
       await tester.tap(find.text('Ask'));
       await tester.pumpAndSettle();
       expect(
         cubit.batonCreateCalls.single.candidates,
-        [(userId: 'u-boris', tier: 2)],
+        unorderedEquals([
+          (userId: 'u-boris', tier: 2),
+          (userId: 'u-clara', tier: 1),
+        ]),
       );
       semantics.dispose();
+    });
+  });
+
+  group('priority needs two people (#480)', () {
+    final l10n = lookupL10n(const Locale('en'));
+
+    Finder inSheet(Finder finder) =>
+        find.descendant(of: find.byType(BottomSheet), matching: finder);
+
+    testWidgets('no «Set priority» while nobody or one person is picked', (
+      tester,
+    ) async {
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+
+      expect(inSheet(find.byType(SwitchListTile)), findsNothing);
+      expect(find.text(l10n.batonCreateTiersToggle), findsNothing);
+
+      await pick(tester, 'Boris Driver');
+      expect(inSheet(find.byType(SwitchListTile)), findsNothing);
+      expect(find.text(l10n.batonCreateTiersToggle), findsNothing);
+      expect(find.byType(SegmentedButton<int>), findsNothing);
+      expect(find.text(l10n.batonCreateTiersHint), findsNothing);
+
+      // A second person brings it in, explained.
+      await pick(tester, 'Clara Helper');
+      expect(inSheet(find.text(l10n.batonCreateTiersToggle)), findsOneWidget);
+      expect(inSheet(find.text(l10n.batonCreateTiersHint)), findsOneWidget);
+
+      // Back to one: gone again, controls included.
+      await tester.tap(find.text(l10n.batonCreateTiersToggle));
+      await tester.pumpAndSettle();
+      expect(find.byType(SegmentedButton<int>), findsNWidgets(2));
+      await pick(tester, 'Clara Helper');
+      expect(find.text(l10n.batonCreateTiersToggle), findsNothing);
+      expect(find.text(l10n.batonCreateTiersHint), findsNothing);
+      expect(find.byType(SegmentedButton<int>), findsNothing);
+    });
+
+    testWidgets('a lone person left after setting priorities is sent at '
+        'priority 1', (tester) async {
+      final cubit = await pumpRoom(tester);
+      await openCreateSheet(tester);
+      await pick(tester, 'Boris Driver');
+      await pick(tester, 'Clara Helper');
+      await tester.tap(find.text(l10n.batonCreateTiersToggle));
+      await tester.pumpAndSettle();
+
+      // Clara (listed second) gets priority 3, then Boris is unpicked.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SegmentedButton<int>).at(1),
+          matching: find.text('3'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await pick(tester, 'Boris Driver');
+
+      // Nothing on screen says priority 3 any more, so it must not be sent.
+      expect(find.byType(SegmentedButton<int>), findsNothing);
+      await tester.tap(find.text(l10n.batonCreateSubmit));
+      await tester.pumpAndSettle();
+      expect(
+        cubit.batonCreateCalls.single.candidates,
+        [(userId: 'u-clara', tier: 1)],
+      );
+    });
+
+    test('the priority hint is written for every locale', () {
+      final en = lookupL10n(const Locale('en'));
+      final ru = lookupL10n(const Locale('ru'));
+      expect(en.batonCreateTiersHint.trim(), isNotEmpty);
+      expect(ru.batonCreateTiersHint.trim(), isNotEmpty);
+      expect(ru.batonCreateTiersHint, isNot(en.batonCreateTiersHint));
+      expect(en.batonCreateTiersHint, isNot(en.batonCreateTiersToggle));
+    });
+
+    testWidgets('«Ask» keeps a gap above the bottom edge (800 high, crowd)', (
+      tester,
+    ) async {
+      // The issue's viewport is 1280x800; the width is kept at the suite's
+      // 900 so the room lays out as in every other test here.
+      const screen = Size(900, 800);
+      await pumpRoom(
+        tester,
+        surface: screen,
+        participants: [
+          _participant(_viewer.id, _viewer.displayName),
+          ..._crowd(),
+        ],
+      );
+      await openCreateSheet(tester);
+      await pick(tester, _member(1));
+      await pick(tester, _member(2));
+
+      final ask = tester.getRect(
+        find.widgetWithText(FilledButton, l10n.batonCreateSubmit),
+      );
+      expect(ask.top, greaterThanOrEqualTo(0));
+      // Today the button is the last thing in the sheet and touches the
+      // bottom edge; it needs real padding under it.
+      expect(
+        ask.bottom,
+        lessThanOrEqualTo(screen.height - TenturaSpacing.row),
+        reason: 'Ask button bottom ${ask.bottom} vs screen ${screen.height}',
+      );
+      // The priority switch is reachable above it, not hidden behind it.
+      final toggle = tester.getRect(find.text(l10n.batonCreateTiersToggle));
+      expect(toggle.bottom, lessThanOrEqualTo(ask.top));
+    });
+
+    testWidgets('«Ask» keeps a gap above the bottom edge (few members)', (
+      tester,
+    ) async {
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+      await pick(tester, 'Boris Driver');
+
+      final sheet = tester.getRect(find.byType(BottomSheet));
+      final ask = tester.getRect(
+        find.widgetWithText(FilledButton, l10n.batonCreateSubmit),
+      );
+      expect(
+        sheet.bottom - ask.bottom,
+        greaterThanOrEqualTo(TenturaSpacing.row),
+      );
     });
   });
 
@@ -849,7 +990,8 @@ void main() {
         tester.widget<TextField>(field).controller!.text,
         'Who can drive on Friday?',
       );
-      // Boris is already asked, at priority 2 (so priorities are shown).
+      // Boris is already asked, at priority 2. He is the only one asked, so
+      // there is nothing to order yet: no priority switch, no 1/2/3 (#480).
       expect(
         tester
             .widget<CheckboxListTile>(
@@ -858,10 +1000,14 @@ void main() {
             .value,
         isTrue,
       );
-      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      expect(find.byType(SegmentedButton<int>), findsNothing);
+      expect(find.text('Set priority'), findsNothing);
 
       await tester.enterText(field, 'Who can drive on Saturday?');
       await pick(tester, 'Clara Helper');
+      // With a second person the saved priorities come back into view.
+      expect(find.text('Set priority'), findsOneWidget);
+      expect(find.byType(SegmentedButton<int>), findsNWidgets(2));
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
