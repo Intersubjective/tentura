@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:image_cropper_for_web/cropper_editor.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
@@ -50,12 +51,13 @@ class BeaconCoverCropUi implements ImageCropUiPort {
         viewwMode: WebViewMode.mode_1,
         dragMode: WebDragMode.move,
         checkCrossOrigin: false,
-        translations: WebTranslations(
+        translations: CropperWebTranslations(
           title: title,
           rotateLeftTooltip: _l10n.cropRotateLeftTooltip,
           rotateRightTooltip: _l10n.cropRotateRightTooltip,
           cancelButton: _l10n.buttonCancel,
           cropButton: _l10n.buttonSave,
+          zoomLabel: _l10n.cropZoomLabel,
         ),
       ),
     ];

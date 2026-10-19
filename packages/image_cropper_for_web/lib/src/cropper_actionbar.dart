@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_cropper_platform_interface/image_cropper_platform_interface.dart';
 
+import 'cropper_translations.dart';
+
 class CropperActionBar extends StatefulWidget {
   final Function(RotationAngle) onRotate;
   final Function(num) onScale;
@@ -24,6 +26,9 @@ class CropperActionBar extends StatefulWidget {
 class _CropperActionBarState extends State<CropperActionBar> {
   double _scaleValue = 1;
 
+  static String _formatScale(double value) =>
+      '${value.toStringAsFixed(1)}\u00d7';
+
   @override
   Widget build(BuildContext context) {
     final iconColor = widget.themeData?.rotateIconColor;
@@ -39,6 +44,10 @@ class _CropperActionBarState extends State<CropperActionBar> {
           )
         : Theme.of(context);
     final enabled = widget.enabled;
+    final translations = widget.translations;
+    final zoomLabel = translations is CropperWebTranslations
+        ? translations.zoomLabel
+        : CropperWebTranslations.defaultZoomLabel;
     return Theme(
       data: themeData,
       child: Row(
@@ -59,20 +68,41 @@ class _CropperActionBarState extends State<CropperActionBar> {
             ),
           ),
           Expanded(
-            child: Slider(
-              value: _scaleValue,
-              min: widget.themeData?.scaleSliderMinValue ?? 1.0,
-              max: widget.themeData?.scaleSliderMaxValue ?? 3.0,
-              divisions: widget.themeData?.scaleSliderDivisions,
-              label: _scaleValue.toStringAsFixed(1),
-              onChanged: enabled
-                  ? (value) {
-                      setState(() {
-                        _scaleValue = value;
-                      });
-                      widget.onScale(value);
-                    }
-                  : null,
+            // One semantics node: label = zoom label, value = factor (1.0×).
+            child: MergeSemantics(
+              child: Row(
+                children: [
+                  const Icon(Icons.zoom_in),
+                  const SizedBox(width: 4),
+                  Text(zoomLabel),
+                  Expanded(
+                    child: Slider(
+                      value: _scaleValue,
+                      min: widget.themeData?.scaleSliderMinValue ?? 1.0,
+                      max: widget.themeData?.scaleSliderMaxValue ?? 3.0,
+                      divisions: widget.themeData?.scaleSliderDivisions,
+                      semanticFormatterCallback: _formatScale,
+                      onChanged: enabled
+                          ? (value) {
+                              setState(() {
+                                _scaleValue = value;
+                              });
+                              widget.onScale(value);
+                            }
+                          : null,
+                    ),
+                  ),
+                  // Announced via the slider value; shown here for sight.
+                  ExcludeSemantics(
+                    child: Text(
+                      _formatScale(_scaleValue),
+                      style: const TextStyle(
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           IconButton(
