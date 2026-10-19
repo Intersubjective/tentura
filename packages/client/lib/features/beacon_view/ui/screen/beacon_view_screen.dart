@@ -635,8 +635,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   /// The page open over the plan, if the Plan tab is showing.
-  BeaconPlanPage? get _activePlanPage =>
-      _selectedSurface == BeaconSurface.plan
+  BeaconPlanPage? get _activePlanPage => _selectedSurface == BeaconSurface.plan
       ? BeaconPlanPage.tryParse(widget.planPage)
       : null;
 
@@ -979,17 +978,29 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             ),
             SizedBox(
               width: nowPaneWidth,
-              // A plan page takes the plan's pane; the chat stays beside it.
-              child: switch (_activePlanPage) {
-                final page? => _buildPlanPage(page, beaconState),
-                null => _buildTabbedContent(
-                  beaconViewCubit: beaconViewCubit,
-                  screenCubit: screenCubit,
-                  beaconState: beaconState,
-                  isSplit: true,
-                  roomLease: roomLease,
+              // The pane's own messenger: its bars ("Plan saved" and the
+              // like) span this pane only and never cover the chat composer
+              // beside it (#448). It wraps the whole switch so a bar shown
+              // as a plan page closes outlives that page.
+              child: ScaffoldMessenger(
+                child: Scaffold(
+                  primary: false,
+                  backgroundColor: Colors.transparent,
+                  resizeToAvoidBottomInset: false,
+                  // A plan page takes the plan's pane; the chat stays beside
+                  // it.
+                  body: switch (_activePlanPage) {
+                    final page? => _buildPlanPage(page, beaconState),
+                    null => _buildTabbedContent(
+                      beaconViewCubit: beaconViewCubit,
+                      screenCubit: screenCubit,
+                      beaconState: beaconState,
+                      isSplit: true,
+                      roomLease: roomLease,
+                    ),
+                  },
                 ),
-              },
+              ),
             ),
           ],
         );
