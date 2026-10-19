@@ -19,11 +19,20 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/consts.dart';
 
 @RoutePage()
-class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
+class SettingsScreen extends StatefulWidget implements AutoRouteWrapper {
   const SettingsScreen({super.key});
 
   @override
   Widget wrappedRoute(BuildContext context) => this;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  /// Debug is a hidden entry: a long press on the version line reveals it
+  /// for this visit only.
+  bool _isDebugRevealed = false;
 
   Future<void> _confirmResetLocal(BuildContext context) async {
     final l10n = L10n.of(context)!;
@@ -85,13 +94,18 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                     l10n: l10n,
                     authCubit: authCubit,
                     settingsCubit: cubit,
+                    isDebugRevealed: _isDebugRevealed,
                     onConfirmResetLocal: () => _confirmResetLocal(context),
                   ),
                   if (visibleVersion != null && visibleVersion.isNotEmpty)
                     Center(
-                      child: TenturaMetaText(
-                        visibleVersion,
-                        maxLines: 2,
+                      child: GestureDetector(
+                        onLongPress: () =>
+                            setState(() => _isDebugRevealed = true),
+                        child: TenturaMetaText(
+                          visibleVersion,
+                          maxLines: 2,
+                        ),
                       ),
                     ),
                 ],
@@ -109,12 +123,14 @@ class _SettingsCommandList extends StatelessWidget {
     required this.l10n,
     required this.authCubit,
     required this.settingsCubit,
+    required this.isDebugRevealed,
     required this.onConfirmResetLocal,
   });
 
   final L10n l10n;
   final AuthCubit authCubit;
   final SettingsCubit settingsCubit;
+  final bool isDebugRevealed;
   final VoidCallback onConfirmResetLocal;
 
   @override
@@ -184,11 +200,13 @@ class _SettingsCommandList extends StatelessWidget {
                     onTap: () => settingsCubit.setIntroEnabled(true),
                   ),
                 const ResetCountersButton(),
-                TenturaMenuTile(
-                  icon: Icons.bug_report_outlined,
-                  title: l10n.settingsDebug,
-                  onTap: () => context.router.push(const DebugSettingsRoute()),
-                ),
+                if (isDebugRevealed)
+                  TenturaMenuTile(
+                    icon: Icons.bug_report_outlined,
+                    title: l10n.settingsDebug,
+                    onTap: () =>
+                        context.router.push(const DebugSettingsRoute()),
+                  ),
               ],
             ),
             TenturaMenuGroup(
