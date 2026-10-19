@@ -62,13 +62,28 @@ class _BeaconActivitySheetBody extends StatelessWidget {
             builder: (context, state) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    l10n.labelBeaconTabLog,
-                    style: Theme.of(context).textTheme.titleSmall,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.labelBeaconTabLog,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          semanticLabel: l10n.buttonClose,
+                        ),
+                        tooltip: l10n.buttonClose,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
                   ),
                   SizedBox(height: tt.rowGap),
-                  Expanded(
+                  Flexible(
                     child: SingleChildScrollView(
                       child: BeaconActivityList(
                         timeline: const [],

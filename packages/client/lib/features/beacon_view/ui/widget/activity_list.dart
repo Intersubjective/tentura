@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -19,12 +20,11 @@ import '../bloc/beacon_view_state.dart';
 enum _ActivityTier { high, medium, low }
 
 _ActivityTier _tierFor(TimelineEntry e) => switch (e) {
-      TimelineCreation() ||
-      TimelineBeaconCoordinationStatusChanged() =>
-        _ActivityTier.high,
-      TimelineHelpOfferUpdated() => _ActivityTier.low,
-      _ => _ActivityTier.medium,
-    };
+  TimelineCreation() ||
+  TimelineBeaconCoordinationStatusChanged() => _ActivityTier.high,
+  TimelineHelpOfferUpdated() => _ActivityTier.low,
+  _ => _ActivityTier.medium,
+};
 
 /// Chronological timeline (newest first) for the beacon detail Timeline tab.
 class BeaconActivityList extends StatelessWidget {
@@ -72,8 +72,8 @@ class BeaconActivityList extends StatelessWidget {
         child: Text(
           l10n.beaconNoActivityYetShort,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -126,14 +126,6 @@ class BeaconActivityList extends StatelessWidget {
   }
 }
 
-enum _LogTier { high, medium, low }
-
-_LogTier _logTierFor(BeaconActivityEvent e) => switch (beaconActivityLogTier(e)) {
-      BeaconActivityLogTier.high => _LogTier.high,
-      BeaconActivityLogTier.medium => _LogTier.medium,
-      BeaconActivityLogTier.low => _LogTier.low,
-    };
-
 class _LogActivityTile extends StatelessWidget {
   const _LogActivityTile({
     required this.event,
@@ -152,9 +144,9 @@ class _LogActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tier = _logTierFor(event);
     final iconColor = beaconActivityLogIconColor(theme, event);
-    final eventIcon = coordinationCompoundActivityIcon(
+    final eventIcon =
+        coordinationCompoundActivityIcon(
           event,
           tt: context.tt,
         ) ??
@@ -168,10 +160,12 @@ class _LogActivityTile extends StatelessWidget {
       actor: actor,
       target: target,
     );
-    final bodySnippet = coordinationLogEventBodySnippet(
-      event: event,
-      fallback: label,
-    );
+    // The creation event's diff carries the request title; show the plain
+    // event label instead so every Log row reads as an event (#449).
+    final bodySnippet =
+        event.type == BeaconActivityEventTypeBits.beaconPublished
+        ? label
+        : coordinationLogEventBodySnippet(event: event, fallback: label);
 
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,9 +175,10 @@ class _LogActivityTile extends StatelessWidget {
         Expanded(
           child: Text(
             bodySnippet,
+            // One neutral body style for all rows (#449); tier colour stays
+            // on the icon only.
             style: theme.textTheme.bodySmall?.copyWith(
-              color: iconColor,
-              fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
+              color: theme.colorScheme.onSurface,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -253,8 +248,7 @@ class _ActivityEntryTile extends StatelessWidget {
             child: Text(
               _line(l10n, entry),
               style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight:
-                    tier == _ActivityTier.high ? FontWeight.w600 : null,
+                fontWeight: tier == _ActivityTier.high ? FontWeight.w600 : null,
               ),
             ),
           ),
@@ -269,13 +263,13 @@ class _ActivityEntryTile extends StatelessWidget {
 }
 
 IconData _icon(TimelineEntry e) => switch (e) {
-      TimelineCreation() => Icons.flag_rounded,
-      TimelineBeaconCoordinationStatusChanged() => Icons.sync_alt,
-      TimelineHelpOfferCreated() => Icons.handshake,
-      TimelineHelpOfferUpdated() => Icons.edit_note,
-      TimelineHelpOfferWithdrawn() => Icons.heart_broken,
-      TimelineAuthorCoordinationResponse() => Icons.reply_rounded,
-    };
+  TimelineCreation() => Icons.flag_rounded,
+  TimelineBeaconCoordinationStatusChanged() => Icons.sync_alt,
+  TimelineHelpOfferCreated() => Icons.handshake,
+  TimelineHelpOfferUpdated() => Icons.edit_note,
+  TimelineHelpOfferWithdrawn() => Icons.heart_broken,
+  TimelineAuthorCoordinationResponse() => Icons.reply_rounded,
+};
 
 Color _iconColor(ThemeData theme, TimelineEntry e, _ActivityTier tier) {
   if (tier == _ActivityTier.high) {
@@ -290,27 +284,28 @@ Color _iconColor(ThemeData theme, TimelineEntry e, _ActivityTier tier) {
 }
 
 String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
-      // Commitment/withdrawal message text is intentionally omitted from the
-      // compact log line; HelpOfferTile shows it in full.
-      final TimelineHelpOfferCreated e =>
-        l10n.timelineHelpOffered(e.helpOfferer.shownName),
-      final TimelineHelpOfferUpdated e =>
-        _timelineHelpOfferUpdatedLine(l10n, e),
-      final TimelineAuthorCoordinationResponse e =>
-        l10n.timelineAuthorCoordinationResponseLine(
-          e.author.shownName,
-          e.helpOfferer.shownName,
-          coordinationResponseLabel(l10n, e.response) ?? '',
-        ),
-      final TimelineHelpOfferWithdrawn e =>
-        l10n.timelineWithdrew(e.helpOfferer.shownName),
-      final TimelineBeaconCoordinationStatusChanged e =>
-        l10n.timelineRequestStatusChanged(
-          e.author.shownName,
-          requestStatusActivityLabel(l10n, e.status),
-        ),
-      final TimelineCreation e => l10n.timelineCreated(e.author.shownName),
-    };
+  // Commitment/withdrawal message text is intentionally omitted from the
+  // compact log line; HelpOfferTile shows it in full.
+  final TimelineHelpOfferCreated e => l10n.timelineHelpOffered(
+    e.helpOfferer.shownName,
+  ),
+  final TimelineHelpOfferUpdated e => _timelineHelpOfferUpdatedLine(l10n, e),
+  final TimelineAuthorCoordinationResponse e =>
+    l10n.timelineAuthorCoordinationResponseLine(
+      e.author.shownName,
+      e.helpOfferer.shownName,
+      coordinationResponseLabel(l10n, e.response) ?? '',
+    ),
+  final TimelineHelpOfferWithdrawn e => l10n.timelineWithdrew(
+    e.helpOfferer.shownName,
+  ),
+  final TimelineBeaconCoordinationStatusChanged e =>
+    l10n.timelineRequestStatusChanged(
+      e.author.shownName,
+      requestStatusActivityLabel(l10n, e.status),
+    ),
+  final TimelineCreation e => l10n.timelineCreated(e.author.shownName),
+};
 
 String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {
   final base = l10n.timelineHelpOfferDetailsUpdated(e.helpOfferer.shownName);
