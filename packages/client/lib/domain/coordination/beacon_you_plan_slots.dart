@@ -29,7 +29,7 @@ enum PlanYouSlotKind {
   /// A plan step (current, also running, or upcoming).
   step,
 
-  /// «Вы свободны до …»: nothing active, the nearest step starts later.
+  /// «Ничего не запланировано до …»: nothing active, the nearest step starts later.
   freeUntil,
 }
 

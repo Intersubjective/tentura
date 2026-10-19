@@ -299,6 +299,18 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 roomState: state.roomState,
                 openBlocker: state.openCoordinationBlocker,
               );
+          // Beside the Now pane (wide split) the pane carries the NOW line;
+          // the chat keeps only an open blocker (#451).
+          final showPinnedBlocker =
+              !isThreadMode &&
+              widget.capabilities.pinnedStrip ==
+                  RoomPinnedStrip.requestBlocker &&
+              beaconRoomHudNowDisplay(
+                    l10n,
+                    roomState: state.roomState,
+                    openBlocker: state.openCoordinationBlocker,
+                  ).blockerText !=
+                  null;
           final showPostRoot =
               !isThreadMode &&
               widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot &&
@@ -324,6 +336,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       widget.postRoot!.messageId,
                     ),
                   )
+                : showPinnedBlocker
+                ? _PinnedNowRow(state: state, blockerOnly: true)
                 : showPinnedNow
                 ? _PinnedNowRow(
                     state: state,
@@ -1560,10 +1574,14 @@ class _PinnedNowRow extends StatelessWidget {
   const _PinnedNowRow({
     required this.state,
     this.onEdit,
+    this.blockerOnly = false,
   });
 
   final RoomState state;
   final VoidCallback? onEdit;
+
+  /// Only the open blocker, no NOW line (the Now pane beside shows it).
+  final bool blockerOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1597,10 +1615,12 @@ class _PinnedNowRow extends StatelessWidget {
               child: HudLabeledMultiline(
                 leadingIcon: BeaconHudRowIcons.now,
                 semanticsLabel: l10n.beaconHudNowLabel,
-                text: nowDisplay.primaryText,
-                subline: nowDisplay.blockerText,
+                text: blockerOnly
+                    ? nowDisplay.blockerText ?? ''
+                    : nowDisplay.primaryText,
+                subline: blockerOnly ? null : nowDisplay.blockerText,
                 mutedColor: tt.textMuted,
-                isPlaceholder: nowDisplay.isPlaceholder,
+                isPlaceholder: !blockerOnly && nowDisplay.isPlaceholder,
                 onEdit: onEdit,
                 editSemanticLabel: l10n.beaconHudEditNowLine,
                 primaryMaxLines: 1,
