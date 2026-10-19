@@ -35,7 +35,10 @@ typedef ChooseLocationMapBuilder =
     );
 
 class ChooseLocationDialog extends StatefulWidget {
-  static Future<Location?> show(BuildContext context, {Coordinates? center}) async {
+  static Future<Location?> show(
+    BuildContext context, {
+    Coordinates? center,
+  }) async {
     if (!GetIt.I<Env>().isGoogleMapsConfigured) {
       return Future.value();
     }
@@ -87,7 +90,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
   @override
   void initState() {
     super.initState();
-    _selected = widget.center;
+    _selected = _center;
     if (kIsWeb) {
       _pollWebMapsReady();
       suspendWebSemantics();
@@ -213,26 +216,47 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
           isResolvingAddress: _isResolvingAddress,
           onConfirm: selected == null
               ? null
-              : () => Navigator.of(context).pop(
-                  Location(
-                    coords: selected,
-                    place: _addressLabel == null || _addressLabel!.isEmpty
-                        ? null
-                        : Place(locality: _addressLabel!),
-                  ),
-                ),
+              : () {
+                  _geoRepository.lastPickedCoordinates = selected;
+                  Navigator.of(context).pop(
+                    Location(
+                      coords: selected,
+                      place: _addressLabel == null || _addressLabel!.isEmpty
+                          ? null
+                          : Place(locality: _addressLabel!),
+                    ),
+                  );
+                },
         ),
       ),
     );
   }
 
+  /// The caller's center, with the empty 0,0 value treated as no center.
+  Coordinates? get _center {
+    final center = widget.center;
+    return center == null || center.isEmpty ? null : center;
+  }
+
+  /// A remembered pin or the explicit center: open zoomed in on it.
+  Coordinates? get _preferredCenter =>
+      _center ?? _geoRepository.lastPickedCoordinates;
+
   Coordinates get _initialCenter =>
-      widget.center ?? _geoRepository.myCoordinates ?? Coordinates.zero;
+      _preferredCenter ??
+      _geoRepository.myCoordinates ??
+      _defaultCenterFor(Localizations.localeOf(context));
+
+  /// Never 0,0: a rough regional default by the app locale.
+  static Coordinates _defaultCenterFor(Locale locale) =>
+      switch (locale.languageCode) {
+        'ru' => const Coordinates(lat: 55.7558, long: 37.6173), // Moscow
+        _ => const Coordinates(lat: 50.1109, long: 8.6821), // Frankfurt
+      };
 
   Widget _buildMapSurface(Coordinates? selected, L10n l10n) {
     if (!_canRenderGoogleMap) {
-      final waitingForScript =
-          _mapsConfigured && kIsWeb && !_webMapsReady;
+      final waitingForScript = _mapsConfigured && kIsWeb && !_webMapsReady;
       final message = !_mapsConfigured
           ? l10n.chooseLocationMapsKeyMissing
           : waitingForScript
@@ -278,7 +302,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
     return gmaps.GoogleMap(
       initialCameraPosition: gmaps.CameraPosition(
         target: _toGoogleLatLng(_initialCenter),
-        zoom: widget.center == null ? 4 : 16,
+        zoom: _preferredCenter == null ? 4 : 16,
       ),
       minMaxZoomPreference: const gmaps.MinMaxZoomPreference(2, 19),
       webGestureHandling: kIsWeb ? gmaps.WebGestureHandling.greedy : null,
@@ -298,7 +322,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
       onMapCreated: (controller) {
         _mapController = controller;
         final myCoordinates = _geoRepository.myCoordinates;
-        if (widget.center == null && myCoordinates != null) {
+        if (_preferredCenter == null && myCoordinates != null) {
           unawaited(
             controller.animateCamera(
               gmaps.CameraUpdate.newLatLngZoom(
@@ -495,7 +519,10 @@ class _LocationSearchBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(tt.cardRadius),
             clipBehavior: Clip.antiAlias,
             child: ListTile(
-              leading: Icon(Icons.error_outline, color: scheme.onErrorContainer),
+              leading: Icon(
+                Icons.error_outline,
+                color: scheme.onErrorContainer,
+              ),
               title: Text(
                 searchError!,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
