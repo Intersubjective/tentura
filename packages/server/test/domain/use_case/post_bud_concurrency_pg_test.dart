@@ -758,7 +758,10 @@ Future<void> main() async {
       },
     );
 
-    for (final path in ['accepting an invite', 'offering help on a pending invite']) {
+    for (final path in [
+      'accepting an invite',
+      'offering help on a pending invite',
+    ]) {
       test(
         'an author status change takes the hierarchy lock before the child '
         'row, so it cannot deadlock with the invitee $path',
@@ -794,7 +797,8 @@ Future<void> main() async {
             expect(
               await _hierarchyWaiterPids(writer, pids),
               [inviteePid],
-              reason: 'the invitee operation queues for the hierarchy lock first',
+              reason:
+                  'the invitee operation queues for the hierarchy lock first',
             );
             statusChange = _settle(
               b.coordination.setBeaconStatus(
@@ -1029,8 +1033,7 @@ Future<void> main() async {
           }
           expect(
             await _beaconStatus(writer, s.child),
-            (closeNow ? BeaconStatus.closed : BeaconStatus.needsMoreHelp)
-                .smallintValue,
+            (closeNow ? BeaconStatus.closed : BeaconStatus.open).smallintValue,
           );
           await _expectInvariants(writer, 'closure op and invite accept');
         },
@@ -1215,11 +1218,13 @@ Future<void> main() async {
               r'SELECT pg_advisory_lock(hashtextextended($1, 4242))',
               parameters: [s.child],
             );
-            offer = _settle(a.helpOffers.offerHelp(
-              beaconId: s.child,
-              userId: _invitee,
-              message: 'On my way',
-            ));
+            offer = _settle(
+              a.helpOffers.offerHelp(
+                beaconId: s.child,
+                userId: _invitee,
+                message: 'On my way',
+              ),
+            );
             await _waitForAdvisoryWaiter(writer, pid, s.child);
             final childRow = await writer.execute(
               Sql.named(
@@ -1291,7 +1296,10 @@ Future<void> main() async {
             final String child;
             if (earlierInvite) {
               final s = await buddedWithInvite();
-              await a.invites.withdraw(actorUserId: _budder, inviteId: s.invite);
+              await a.invites.withdraw(
+                actorUserId: _budder,
+                inviteId: s.invite,
+              );
               child = s.child;
             } else {
               child = (await bud(a)).childBeaconId!;
@@ -1364,7 +1372,8 @@ Future<void> main() async {
             expect(
               await _helpOfferSubmittedCount(writer, child),
               0,
-              reason: 'an admitted invitee raises no author-response obligation',
+              reason:
+                  'an admitted invitee raises no author-response obligation',
             );
             await _expectInvariants(writer, 'offer racing a new invite');
           },
@@ -1656,7 +1665,10 @@ ON CONFLICT DO NOTHING
 
 /// Backend pids among [pids] waiting for the hierarchy lock (scoped to this
 /// database, never cluster-wide).
-Future<List<int>> _hierarchyWaiterPids(Connection writer, List<int> pids) async {
+Future<List<int>> _hierarchyWaiterPids(
+  Connection writer,
+  List<int> pids,
+) async {
   final rows = await writer.execute(
     'SELECT DISTINCT l.pid FROM pg_locks l '
     "WHERE l.locktype = 'advisory' AND NOT l.granted AND l.objsubid = 1 "
@@ -1709,8 +1721,7 @@ Future<void> _waitForInviteeParkedBehindSweep(
   required int sweepPid,
   required String beaconId,
 }) async {
-  const hierarchyKey =
-      "hashtextextended('tentura.beacon_hierarchy.v1', 0)";
+  const hierarchyKey = "hashtextextended('tentura.beacon_hierarchy.v1', 0)";
   const key = '((l.classid::bigint << 32) | l.objid::bigint)';
   const inThisDb =
       'l.database = (SELECT oid FROM pg_database WHERE datname = current_database())';
@@ -1850,7 +1861,9 @@ Future<int> _writerBackendPid(Connection writer) async {
 
 /// The backend pid of [db]'s connection.
 Future<int> _backendPid(TenturaDb db) async {
-  final row = await db.customSelect('SELECT pg_backend_pid() AS pid').getSingle();
+  final row = await db
+      .customSelect('SELECT pg_backend_pid() AS pid')
+      .getSingle();
   return row.read<int>('pid');
 }
 

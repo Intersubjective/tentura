@@ -153,10 +153,11 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
-  Future<void> beaconReopen(String beaconId) async {
-    await _closureRepository.beaconReopen(beaconId);
-    await _beaconRepository.refreshAndNotify(beaconId);
-  }
+  /// Sends the reopen mutation only; throws when it fails. The screen
+  /// applies the new status at once and does the single refresh read
+  /// itself (#366).
+  Future<void> beaconReopen(String beaconId) =>
+      _closureRepository.beaconReopen(beaconId);
 
   Future<void> beaconCloseNow(String beaconId) async {
     await _closureRepository.beaconCloseNow(beaconId);

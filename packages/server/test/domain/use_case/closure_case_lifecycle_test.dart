@@ -304,9 +304,11 @@ Future<void> main() async {
         await _epochStatus(writer, 1),
         ClosureEpochStatus.cancelled.dbValue,
       );
+      // #366: Reopen returns the Request to the coordination status
+      // (Open, "Coordinating the plan"), not to Needs more help.
       expect(
         await _beaconStatus(writer),
-        BeaconStatus.needsMoreHelp.smallintValue,
+        BeaconStatus.open.smallintValue,
       );
       expect(receipts.cancelledCalls, [(_beaconId, 1)]);
       // Same status-transition effects reopenFromReview records: an activity
@@ -314,7 +316,7 @@ Future<void> main() async {
       // (reopen is ineligible for hierarchy notices).
       expect((await _transitions(writer, _beaconId)).last, (
         from: BeaconStatus.reviewOpen.smallintValue,
-        to: BeaconStatus.needsMoreHelp.smallintValue,
+        to: BeaconStatus.open.smallintValue,
         reason: 'reopenedFromReview',
       ));
       expect(outbox.recordedEvents.map((e) => e.toStatus), [
@@ -344,6 +346,80 @@ Future<void> main() async {
         closureError(ClosureExceptionCode.reopenLimit),
       );
     }, skip: skipReason);
+
+    test(
+      'reopen lands in Open (coordinating) even when the Request was Enough '
+      'help before wrapping up (#366)',
+      () async {
+        // Raw precondition: the Request is Enough help (8) when the final
+        // check starts, so "restore the pre-review status" and "back to
+        // coordinating" differ here.
+        await writer.execute(
+          "UPDATE public.beacon SET status = 8 WHERE id = '$_beaconId'",
+        );
+        expect(
+          await _beaconStatus(writer),
+          BeaconStatus.enoughHelp.smallintValue,
+        );
+        await openWith([_aId]);
+        expect(
+          await _beaconStatus(writer),
+          BeaconStatus.reviewOpen.smallintValue,
+        );
+
+        await closureCase.reopen(authorId: _authorId, beaconId: _beaconId);
+
+        expect(await _beaconStatus(writer), BeaconStatus.open.smallintValue);
+        expect((await _transitions(writer, _beaconId)).last, (
+          from: BeaconStatus.reviewOpen.smallintValue,
+          to: BeaconStatus.open.smallintValue,
+          reason: 'reopenedFromReview',
+        ));
+        expect(await repo.liveEpoch(_beaconId), isNull);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'reopen only lands in Open or Needs more help; any other target is '
+      'refused and the final check stays as it was (#366)',
+      () async {
+        await openWith([_aId]);
+        expect(
+          await _beaconStatus(writer),
+          BeaconStatus.reviewOpen.smallintValue,
+        );
+
+        for (final target in [
+          BeaconStatus.closed,
+          BeaconStatus.enoughHelp,
+          BeaconStatus.cancelled,
+          BeaconStatus.reviewOpen,
+        ]) {
+          await expectLater(
+            closureCase.reopen(
+              authorId: _authorId,
+              beaconId: _beaconId,
+              targetStatus: target,
+            ),
+            throwsA(anyOf(isA<ArgumentError>(), isA<ClosureException>())),
+            reason: 'reopen must not move the Request to $target',
+          );
+        }
+
+        expect(
+          await _beaconStatus(writer),
+          BeaconStatus.reviewOpen.smallintValue,
+        );
+        expect((await repo.liveEpoch(_beaconId))!.epoch, 1);
+        expect(
+          await _epochStatus(writer, 1),
+          ClosureEpochStatus.evaluating.dbValue,
+        );
+        expect(receipts.cancelledCalls, isEmpty);
+      },
+      skip: skipReason,
+    );
 
     test('reopen requires the author and an evaluating epoch', () async {
       await expectLater(
