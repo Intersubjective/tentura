@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
@@ -2800,7 +2801,19 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     ).chain(CurveTween(curve: _growCurve)),
   );
 
+  /// How far the hover toolbar dips into the bubble's top padding, so the
+  /// pointer crosses straight from the bubble onto it. Must stay below the
+  /// bubble's top padding (12) so the toolbar never covers text (#478).
+  static const _toolbarOverlap = 4.0;
+
+  /// The toolbar floats above the bubble's top edge in the overlay: drawn
+  /// inside the bubble it hid the first line of the text / caption (#478).
+  final _toolbarController = OverlayPortalController();
+
   bool _hovering = false;
+
+  /// The pointer is on the toolbar itself (it sits outside the bubble).
+  bool _hoveringToolbar = false;
 
   /// The picker popover lives in an overlay outside the [MouseRegion], so the
   /// toolbar must stay mounted while it is open even after the pointer leaves.
@@ -2811,6 +2824,24 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   void dispose() {
     _pressController.dispose();
     super.dispose();
+  }
+
+  /// Leaving the bubble for the toolbar delivers the bubble's exit and the
+  /// toolbar's hover in the same pointer event, so the toolbar stays up.
+  void _syncToolbar() {
+    if (!mounted) return;
+    final show = _hovering || _hoveringToolbar || _pickerOpen;
+    if (show == _toolbarController.isShowing) return;
+    final binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      binding.addPostFrameCallback((_) => _syncToolbar());
+      return;
+    }
+    if (show) {
+      _toolbarController.show();
+    } else {
+      _toolbarController.hide();
+    }
   }
 
   void _handlePressDown(LongPressDownDetails details) {
@@ -2897,36 +2928,70 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
 
     // MouseRegion hover fires only for pointer devices, so the toolbar never
     // appears on touch (where tap / long-press / double-tap already cover it).
+    // The portal's child is an empty box laid exactly over the bubble (so
+    // childPaintTransform/childSize still describe the bubble rect) rather
+    // than the bubble itself: wrapping the bubble would add a semantics node
+    // and change how its labels merge. The toolbar is laid out and hit-tested
+    // by the Overlay, so the IgnorePointer only affects the placeholder.
     return MouseRegion(
       onEnter: (_) {
-        if (!_hovering) setState(() => _hovering = true);
+        _hovering = true;
+        _syncToolbar();
       },
       onExit: (_) {
-        if (_hovering) setState(() => _hovering = false);
+        _hovering = false;
+        _syncToolbar();
       },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           content,
-          // Kept within the Stack bounds so the surrounding MouseRegion still
-          // covers it — moving the pointer onto the toolbar must not dismiss it.
-          if (_hovering || _pickerOpen)
-            Positioned(
-              top: 0,
-              left: widget.isMine ? 4 : null,
-              right: widget.isMine ? null : 4,
-              child: _HoverActionToolbar(
-                onReply: onReply,
-                onPickReaction: onPickReaction,
-                selectedReactions: widget.selectedReactions,
-                onPickerOpenChanged: (open) {
-                  if (mounted && _pickerOpen != open) {
-                    setState(() => _pickerOpen = open);
-                  }
+          Positioned.fill(
+            child: IgnorePointer(
+              child: OverlayPortal.overlayChildLayoutBuilder(
+                controller: _toolbarController,
+                overlayChildBuilder: (context, info) {
+                  final bubble = MatrixUtils.transformRect(
+                    info.childPaintTransform,
+                    Offset.zero & info.childSize,
+                  );
+                  return Positioned(
+                    left: widget.isMine ? bubble.left + 4 : null,
+                    right: widget.isMine
+                        ? null
+                        : info.overlaySize.width - bubble.right + 4,
+                    bottom:
+                        info.overlaySize.height - bubble.top - _toolbarOverlap,
+                    // Its own region keeps the toolbar up while the pointer
+                    // is on it; onHover (not onEnter) so the bubble's region
+                    // stays the only enter/exit one.
+                    child: MouseRegion(
+                      onHover: (_) {
+                        if (_hoveringToolbar) return;
+                        _hoveringToolbar = true;
+                        _syncToolbar();
+                      },
+                      onExit: (_) {
+                        _hoveringToolbar = false;
+                        _syncToolbar();
+                      },
+                      child: _HoverActionToolbar(
+                        onReply: onReply,
+                        onPickReaction: onPickReaction,
+                        selectedReactions: widget.selectedReactions,
+                        onPickerOpenChanged: (open) {
+                          _pickerOpen = open;
+                          _syncToolbar();
+                        },
+                        onMore: onActions,
+                      ),
+                    ),
+                  );
                 },
-                onMore: onActions,
+                child: const SizedBox.expand(),
               ),
             ),
+          ),
         ],
       ),
     );
