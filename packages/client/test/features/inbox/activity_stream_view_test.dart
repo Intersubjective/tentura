@@ -37,6 +37,7 @@ import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.da
 import 'package:tentura/features/inbox/ui/widget/for_you_empty_state.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
+import 'package:tentura/features/inbox/ui/widget/post_attention_row.dart';
 import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -212,11 +213,21 @@ class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   @override
   Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
 
-  @override
-  Future<int> markSeen(List<String> ids) async => 0;
+  final List<String> markSeenCalls = [];
 
   @override
-  Future<int> markUnseen(List<String> ids) async => 0;
+  Future<int> markSeen(List<String> ids) async {
+    markSeenCalls.addAll(ids);
+    return 0;
+  }
+
+  final List<String> markUnseenCalls = [];
+
+  @override
+  Future<int> markUnseen(List<String> ids) async {
+    markUnseenCalls.addAll(ids);
+    return 0;
+  }
 
   @override
   Future<int> settle({required String receiptId, required String kind}) async =>
@@ -266,6 +277,10 @@ AttentionReceipt _streamReceipt({
   String? beaconId,
   String? provenanceJson,
   String beaconAuthorName = 'Anna',
+  DateTime? createdAt,
+  int? beaconKind,
+  bool requiresAction = false,
+  DateTime? seenAt,
 }) => AttentionReceipt(
   id: id,
   category: 'requestProgress',
@@ -274,7 +289,7 @@ AttentionReceipt _streamReceipt({
   title: 'Title $id',
   body: 'Body',
   actionUrl: '/#/',
-  createdAt: DateTime.utc(2026, 9, 10, 12),
+  createdAt: createdAt ?? DateTime.utc(2026, 9, 10, 12),
   collapsedCount: 1,
   presentationPayloadJson: '{}',
   surface: AttentionSurface.activity,
@@ -288,6 +303,9 @@ AttentionReceipt _streamReceipt({
   provenanceJson: provenanceJson,
   beaconAuthorId: 'author-$id',
   beaconAuthorName: beaconAuthorName,
+  beaconKind: beaconKind,
+  requiresAction: requiresAction,
+  seenAt: seenAt,
 );
 
 AttentionReceipt _promptReceipt() => AttentionReceipt(
@@ -722,6 +740,260 @@ void main() {
       find.byKey(RequestAttentionCard.footerTimelineKey),
       findsOneWidget,
     );
+  });
+
+  // #476 — one Activity list, one age format and one trailing control. The
+  // tombstone and the Request card speak the short card age («6m», #189
+  // rev 2); the plain feed tile beside them said «7m ago» and wore a ⋮
+  // where every other Activity row wears the ×.
+  group('#476 Activity rows read the same', () {
+    Future<_Boot> bootTileAndTombstone() async {
+      final now = DateTime.now();
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [
+          _streamReceipt(
+            id: 'r1',
+            createdAt: now.subtract(const Duration(minutes: 7, seconds: 20)),
+          ),
+          _streamReceipt(
+            id: 'f1',
+            itemKind: AttentionItemKind.forward,
+            forwardOutcome: AttentionForwardOutcome.helping,
+            provenanceJson: _provenanceJson(),
+            createdAt: now.subtract(const Duration(minutes: 6, seconds: 20)),
+          ),
+        ],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: const [],
+        totalCount: 0,
+      );
+      return _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
+    }
+
+    testWidgets('a feed tile shows the same short age as the tombstone', (
+      tester,
+    ) async {
+      final boot = await bootTileAndTombstone();
+      addTearDown(boot.dispose);
+
+      await _pumpStreamView(tester, boot: boot);
+
+      final tile = find.byType(UpdatesFeedTile);
+      final tombstone = find.byType(TombstoneRow);
+      expect(tile, findsOneWidget);
+      expect(tombstone, findsOneWidget);
+
+      // Precondition: the tombstone already reads the card age.
+      expect(
+        find.descendant(of: tombstone, matching: find.text('6m')),
+        findsOneWidget,
+      );
+      // The tile beside it must read the same way, not «7m ago».
+      expect(
+        find.descendant(of: tile, matching: find.text('7m')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.textContaining('ago')),
+        findsNothing,
+      );
+      expect(find.text('7m ago'), findsNothing);
+    });
+
+    testWidgets('a feed tile ends in the same × as the tombstone, not a ⋮', (
+      tester,
+    ) async {
+      final boot = await bootTileAndTombstone();
+      addTearDown(boot.dispose);
+      final inbox = _TestInboxCubit(
+        const InboxState(projectionLoaded: true),
+      );
+
+      await _pumpStreamView(tester, boot: boot, inbox: inbox);
+
+      final tile = find.byType(UpdatesFeedTile);
+      expect(tile, findsOneWidget);
+      expect(find.byKey(TombstoneRow.dismissKey), findsOneWidget);
+
+      // No overflow menu on the Activity tile: no ⋮.
+      expect(
+        find.descendant(of: tile, matching: find.byIcon(Icons.more_vert)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.byIcon(Icons.more_horiz)),
+        findsNothing,
+      );
+
+      // The tile's trailing control is the ×, labelled like the tombstone's.
+      final tileDismiss = find.descendant(
+        of: tile,
+        matching: find.byTooltip(L10nEn().attentionEventDismiss),
+      );
+      expect(tileDismiss, findsOneWidget);
+      expect(
+        find.descendant(of: tile, matching: find.byIcon(Icons.close)),
+        findsOneWidget,
+      );
+
+      await tester.tap(tileDismiss);
+      await _pumpFrames(tester);
+
+      // The × marks this receipt seen (the stream's markSeen, as the
+      // tombstone's × does) — and nothing else.
+      expect(boot.attentionRepo.markSeenCalls, contains('r1'));
+      expect(boot.attentionRepo.markSeenCalls, isNot(contains('f1')));
+      expect(inbox.dismissedTombstones, isEmpty);
+    });
+
+    testWidgets('a Post row shows the same short age as the tombstone', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [
+          _streamReceipt(
+            id: 'p1',
+            itemKind: AttentionItemKind.requestActivity,
+            beaconKind: kBeaconKindPost,
+            beaconId: 'post-1',
+            eventTotal: 1,
+            eventsPreview: [
+              _streamReceipt(
+                id: 'p1-event',
+                beaconId: 'post-1',
+                createdAt: now.subtract(
+                  const Duration(minutes: 7, seconds: 20),
+                ),
+              ),
+            ],
+            createdAt: now.subtract(const Duration(minutes: 7, seconds: 20)),
+          ),
+          _streamReceipt(
+            id: 'f1',
+            itemKind: AttentionItemKind.forward,
+            forwardOutcome: AttentionForwardOutcome.helping,
+            provenanceJson: _provenanceJson(),
+            createdAt: now.subtract(const Duration(minutes: 6, seconds: 20)),
+          ),
+        ],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: const [],
+        totalCount: 0,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+      );
+      addTearDown(boot.dispose);
+
+      await _pumpStreamView(tester, boot: boot);
+
+      final post = find.byType(PostAttentionRow);
+      final tombstone = find.byType(TombstoneRow);
+      expect(post, findsOneWidget);
+      expect(tombstone, findsOneWidget);
+
+      // Precondition: the tombstone already reads the card age.
+      expect(
+        find.descendant(of: tombstone, matching: find.text('6m')),
+        findsOneWidget,
+      );
+      // The Post row beside it must read the same way, not «7m ago».
+      expect(
+        find.descendant(of: post, matching: find.text('7m')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: post, matching: find.textContaining('ago')),
+        findsNothing,
+      );
+    });
+
+    // A live obligation is not cleared by markSeen (#336: the clear half
+    // runs only for active-optional receipts), so a × there would leave the
+    // row in place — a broken ×. Such a tile ends in neither a × nor a ⋮;
+    // its way out is «Mark done», and Mark unread stays on long-press.
+    testWidgets('a tile that requires action has no × and no ⋮, and Mark '
+        'unread stays on long-press', (tester) async {
+      final now = DateTime.now();
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [
+          _streamReceipt(
+            id: 'ra',
+            requiresAction: true,
+            seenAt: now.subtract(const Duration(minutes: 1)),
+            createdAt: now.subtract(const Duration(minutes: 7, seconds: 20)),
+          ),
+        ],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: const [],
+        totalCount: 0,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+      );
+      addTearDown(boot.dispose);
+
+      await _pumpStreamView(tester, boot: boot);
+
+      final tile = find.byType(UpdatesFeedTile);
+      expect(tile, findsOneWidget);
+      // Its way out is the inline «Mark done».
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.text(L10nEn().updatesMarkDone),
+        ),
+        findsOneWidget,
+      );
+      // No × (markSeen would not clear it) …
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.byTooltip(L10nEn().attentionEventDismiss),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.byIcon(Icons.close)),
+        findsNothing,
+      );
+      // … and no ⋮ either: Activity rows do not wear one.
+      expect(
+        find.descendant(of: tile, matching: find.byIcon(Icons.more_vert)),
+        findsNothing,
+      );
+
+      // Mark unread is still one long-press away.
+      // Press on the headline line (top of the row body), clear of the
+      // inline «Mark done» button.
+      final rowBody = find
+          .descendant(of: tile, matching: find.byType(InkWell))
+          .first;
+      await tester.longPressAt(
+        tester.getTopLeft(rowBody) + const Offset(12, 8),
+      );
+      await _pumpFrames(tester);
+      final markUnread = find.text(L10nEn().updatesMarkUnseen);
+      expect(markUnread, findsOneWidget);
+      await tester.tap(markUnread);
+      await _pumpFrames(tester);
+      expect(boot.attentionRepo.markUnseenCalls, contains('ra'));
+    });
   });
 
   testWidgets('360x640 at 1.3x: first offer card fully visible', (

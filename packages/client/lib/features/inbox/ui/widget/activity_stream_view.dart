@@ -7,6 +7,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -1230,6 +1231,8 @@ class _ActivityStreamCell extends StatelessWidget {
           onTap: () => unawaited(onOpenParent()),
           onMarkSeen: () => streamCubit.markSeen(receipt.id),
           onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+          activityRow: true,
+          onDismiss: _feedTileDismiss(receipt),
         ),
       );
     }
@@ -1245,7 +1248,18 @@ class _ActivityStreamCell extends StatelessWidget {
       onSettle: receipt.isUserSettleable
           ? () => streamCubit.settle(receipt.id)
           : null,
+      // #476: the card age and the × every other Activity row wears.
+      activityRow: true,
+      onDismiss: _feedTileDismiss(receipt),
     );
+  }
+
+  /// #476: the × reads and clears the row (the stream's markSeen, as the
+  /// tombstone's × does). A live obligation is not cleared by markSeen, so it
+  /// gets no × — its way out is «Mark done».
+  VoidCallback? _feedTileDismiss(AttentionReceipt receipt) {
+    if (!isActiveOptional(receipt)) return null;
+    return () => unawaited(streamCubit.markSeen(receipt.id));
   }
 
   /// §8 — the last forwarder leads the row. The old paper-plane glyph is a

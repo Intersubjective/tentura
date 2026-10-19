@@ -35,9 +35,12 @@ class ActivityOfferBoundedShell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
     final localCreatedAt = createdAt.toLocal();
-    final ageLabel = compactRelativeTimeAgo(
+    // #476: the card's short age («1d»), as every other Activity row reads.
+    final now = DateTime.now();
+    final ageLabel = cardRelativeAge(when: createdAt, now: now, l10n: l10n);
+    final ageSpoken = cardRelativeAgeSpoken(
       when: createdAt,
-      now: DateTime.now(),
+      now: now,
       l10n: l10n,
     );
     final absoluteTime =
@@ -100,13 +103,14 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                                   headline,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TenturaText.titleSmall(
-                                    scheme.onSurface,
-                                  ).copyWith(
-                                    fontWeight: showUnseenDot
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                  ),
+                                  style:
+                                      TenturaText.titleSmall(
+                                        scheme.onSurface,
+                                      ).copyWith(
+                                        fontWeight: showUnseenDot
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
+                                      ),
                                 ),
                               ),
                               if (showUnseenDot) ...[
@@ -133,6 +137,7 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                                   style: TenturaText.withTabular(
                                     TenturaText.bodySmall(tt.textFaint),
                                   ),
+                                  semanticsLabel: ageSpoken,
                                 ),
                               ),
                             ],

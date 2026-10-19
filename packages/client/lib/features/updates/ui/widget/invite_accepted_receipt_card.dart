@@ -30,6 +30,8 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
     this.onPromptSettled,
     this.setupCase,
     this.activityOfferBoundedShell = false,
+    this.activityRow = false,
+    this.onDismiss,
     super.key,
   });
 
@@ -45,6 +47,11 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
 
   /// When true, render inside [ActivityOfferBoundedShell] (Activity pinned zone).
   final bool activityOfferBoundedShell;
+
+  /// #476: passed to [UpdatesFeedTile.activityRow] / [UpdatesFeedTile.onDismiss]
+  /// when the row sits in the Activity list.
+  final bool activityRow;
+  final VoidCallback? onDismiss;
 
   @override
   State<InviteAcceptedReceiptCard> createState() =>
@@ -251,6 +258,8 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       headlineOverride: copy.title,
       bodyOverride: copy.body,
       action: action,
+      activityRow: widget.activityRow,
+      onDismiss: widget.onDismiss,
     );
   }
 }
