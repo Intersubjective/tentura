@@ -101,6 +101,10 @@ class _CreateSheetState extends State<_CreateSheet> {
     super.dispose();
   }
 
+  // Priority only means something with two or more people picked; with one,
+  // the control is hidden and everyone is sent at priority 1.
+  bool get _canOrder => _tiers.length >= 2;
+
   bool get _hasText => _text.text.trim().isNotEmpty;
 
   bool get _canAsk =>
@@ -113,7 +117,10 @@ class _CreateSheetState extends State<_CreateSheet> {
     widget.onAsk(_text.text.trim(), [
       for (final p in widget.participants)
         if (_tiers.containsKey(p.userId))
-          (userId: p.userId, tier: _setPriority ? _tiers[p.userId]! : 1),
+          (
+            userId: p.userId,
+            tier: _canOrder && _setPriority ? _tiers[p.userId]! : 1,
+          ),
     ]);
   }
 
@@ -197,7 +204,7 @@ class _CreateSheetState extends State<_CreateSheet> {
                   // Kept outside the tile: CheckboxListTile merges its
                   // semantics, so a control in its subtitle would receive the
                   // row's tap (unpicking the person) instead of its own.
-                  if (_setPriority && _tiers.containsKey(p.userId))
+                  if (_canOrder && _setPriority && _tiers.containsKey(p.userId))
                     Padding(
                       padding: EdgeInsets.only(
                         left: tt.screenHPadding,
@@ -223,13 +230,19 @@ class _CreateSheetState extends State<_CreateSheet> {
               ],
             ),
           ),
-          SwitchListTile(
-            value: _setPriority,
-            onChanged: (v) => setState(() => _setPriority = v),
-            title: Text(l10n.batonCreateTiersToggle),
-          ),
+          if (_canOrder)
+            SwitchListTile(
+              value: _setPriority,
+              onChanged: (v) => setState(() => _setPriority = v),
+              title: Text(l10n.batonCreateTiersToggle),
+              subtitle: Text(l10n.batonCreateTiersHint),
+            ),
           Padding(
-            padding: hPad,
+            padding: EdgeInsets.only(
+              left: tt.screenHPadding,
+              right: tt.screenHPadding,
+              bottom: tt.rowGap,
+            ),
             child: FilledButton(
               onPressed: _canAsk ? _ask : null,
               child: Text(

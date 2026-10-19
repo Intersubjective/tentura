@@ -6702,6 +6702,10 @@
   "@batonCreateTiersToggle": {
     "description": "Switch that reveals a priority control per picked person in the create-baton sheet."
   },
+  "batonCreateTiersHint": "Спрашиваем всех сразу. Если помочь могут несколько, «Выбрать за меня» сначала берёт приоритет 1.",
+  "@batonCreateTiersHint": {
+    "description": "Subtitle under the «Set priority» switch in the create-baton sheet: everyone is asked at once; priority only steers «Pick for me»."
+  },
   "batonCreateSubmit": "Спросить",
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
