@@ -3,15 +3,29 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
-import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_copy_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'beacon_plan_test_support.dart';
+
+Widget _withRouter(StackRouter? router, Widget child) => router == null
+    ? child
+    : RouterScope(
+        controller: router,
+        stateHash: 0,
+        inheritableObserversBuilder: () => const [],
+        child: StackRouterScope(
+          controller: router,
+          stateHash: 0,
+          child: child,
+        ),
+      );
 
 /// «Скопировать план» on «Создать на основе» (#220, plan §5.11).
 void main() {
@@ -21,6 +35,7 @@ void main() {
     WidgetTester tester,
     Future<void> Function(BuildContext context) onTap, {
     Locale locale = const Locale('en'),
+    StackRouter? router,
   }) async {
     await tester.binding.setSurfaceSize(const Size(500, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -30,11 +45,14 @@ void main() {
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
         locale: locale,
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => onTap(context),
-              child: const Text('go'),
+        home: _withRouter(
+          router,
+          Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => onTap(context),
+                child: const Text('go'),
+              ),
             ),
           ),
         ),
@@ -110,61 +128,74 @@ void main() {
     expect(find.text('Начало первого шага со временем'), findsNothing);
   });
 
-  testWidgets('create-from: plan → sheet → forkWithPlan; dismiss → no fork', (
+  // #493: «Create from this request» saves nothing; it only opens the
+  // editor on the source, carrying the plan choice to the first save.
+  testWidgets('create-from: plan → sheet → editor carries the step times', (
     tester,
   ) async {
-    final calls = <String>[];
-    List<PlanStepTime>? sent;
-    Future<void> run(BuildContext context) => runBeaconCreateFromAction(
-      context,
-      fork: () async {
-        calls.add('fork');
-        return null;
-      },
-      sourcePlan: plan,
-      forkWithPlan: (times) async {
-        calls.add('forkWithPlan');
-        sent = times;
-        return null;
-      },
+    final router = _PushRouter();
+    await pumpHost(
+      tester,
+      (context) => runBeaconCreateFromAction(
+        context,
+        sourceBeaconId: 'src',
+        sourcePlan: plan,
+      ),
+      router: router,
     );
-
-    await pumpHost(tester, run);
     await tester.tap(find.byKey(PlanCopySheet.confirmKey));
     await tester.pumpAndSettle();
-    expect(calls, ['forkWithPlan']);
-    expect(sent, hasLength(plan.steps.length));
+    expect(router.pushed, hasLength(1));
+    final args = (router.pushed.single as BeaconCreateRoute).args!;
+    expect(args.forkSourceId, 'src');
+    expect(args.draftId, isEmpty);
+    expect(args.forkPlanStepTimes, hasLength(plan.steps.length));
 
-    // Dismissed: no copy at all.
-    calls.clear();
+    // Dismissed: the editor does not open at all.
+    router.pushed.clear();
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
     await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
     expect(find.byType(PlanCopySheet), findsNothing);
-    expect(calls, isEmpty);
+    expect(router.pushed, isEmpty);
   });
 
-  testWidgets('create-from without a plan forks straight away', (
+  testWidgets('create-from without a plan opens the editor straight away', (
     tester,
   ) async {
-    final calls = <String>[];
+    final router = _PushRouter();
     await pumpHost(
       tester,
       (context) => runBeaconCreateFromAction(
         context,
-        fork: () async {
-          calls.add('fork');
-          return null;
-        },
+        sourceBeaconId: 'src',
         sourcePlan: plan.withSteps(const []),
-        forkWithPlan: (_) async {
-          calls.add('forkWithPlan');
-          return null;
-        },
       ),
+      router: router,
     );
     expect(find.byType(PlanCopySheet), findsNothing);
-    expect(calls, ['fork']);
+    expect(router.pushed, hasLength(1));
+    final args = (router.pushed.single as BeaconCreateRoute).args!;
+    expect(args.forkSourceId, 'src');
+    expect(args.draftId, isEmpty);
+    expect(args.forkPlanStepTimes, isNull);
   });
+}
+
+/// Records pushes instead of navigating.
+class _PushRouter extends Mock implements StackRouter {
+  final pushed = <PageRouteInfo>[];
+
+  @override
+  PagelessRoutesObserver get pagelessRoutesObserver => PagelessRoutesObserver();
+
+  @override
+  Future<T?> push<T extends Object?>(
+    PageRouteInfo route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    pushed.add(route);
+    return null;
+  }
 }

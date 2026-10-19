@@ -699,7 +699,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                   ? () async {
                       await runBeaconCreateFromAction(
                         context,
-                        fork: () => forkBeaconViaRepository(b),
+                        sourceBeaconId: b.id,
                       );
                     }
                   : null,
@@ -778,7 +778,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
                   ? () async {
                       await runBeaconCreateFromAction(
                         context,
-                        fork: () => forkBeaconViaRepository(b),
+                        sourceBeaconId: b.id,
                       );
                     }
                   : null,
@@ -990,7 +990,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
                   ? () async {
                       await runBeaconCreateFromAction(
                         context,
-                        fork: () => forkBeaconViaRepository(b),
+                        sourceBeaconId: b.id,
                       );
                     }
                   : null,
@@ -1068,7 +1068,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
                   ? () async {
                       await runBeaconCreateFromAction(
                         context,
-                        fork: () => forkBeaconViaRepository(b),
+                        sourceBeaconId: b.id,
                       );
                     }
                   : null,

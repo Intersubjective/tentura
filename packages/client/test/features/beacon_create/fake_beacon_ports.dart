@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/image_picked.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 /// 1×1 opaque PNG, so widgets under test decode a real image.
 const kTinyPng = [
@@ -212,6 +213,15 @@ class FakeBeaconWritePort implements BeaconWritePort {
 
   @override
   Future<void> delete(String id) async => deletedIds.add(id);
+
+  /// Lineage fork; only the «Create from this request» tests use it, through
+  /// `ForkingBeaconWritePort`.
+  @override
+  Future<Beacon> fork(
+    String sourceId, {
+    bool copyPlan = false,
+    List<PlanStepTime> planStepTimes = const [],
+  }) async => throw StateError('unexpected fork($sourceId)');
 
   @override
   Future<String> stageImage({

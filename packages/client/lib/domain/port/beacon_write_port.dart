@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 /// Field and media writes a request editor needs, in domain terms only.
 abstract interface class BeaconWritePort {
@@ -16,6 +17,14 @@ abstract interface class BeaconWritePort {
   Future<void> publishDraft(String id);
 
   Future<void> delete(String id);
+
+  /// Server-side lineage fork of [sourceId] into a new DRAFT owned by the
+  /// viewer; with [copyPlan] the source plan's steps land at [planStepTimes].
+  Future<Beacon> fork(
+    String sourceId, {
+    bool copyPlan = false,
+    List<PlanStepTime> planStepTimes = const [],
+  });
 
   /// Uploads [image] as an invisible stage and returns its exact server id.
   Future<String> stageImage({

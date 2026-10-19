@@ -599,6 +599,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         },
         child: ListView(
           children: [
+            _copiedFromBanner(tt),
             // Room above the field for its floating label, which sits half
             // over the top border and was clipped by the list (#339).
             Padding(
@@ -614,6 +615,26 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       ),
     );
   }
+
+  /// One line naming the request a «Create from this request» copy came
+  /// from (#493); nothing for any other editor.
+  Widget _copiedFromBanner(TenturaTokens tt) =>
+      BlocSelector<BeaconCreateCubit, BeaconCreateState, String>(
+        bloc: _cubit,
+        selector: (state) => state.forkSourceTitle,
+        builder: (context, sourceTitle) => sourceTitle.isEmpty
+            ? const SizedBox.shrink()
+            : Padding(
+                padding: EdgeInsets.only(bottom: tt.rowGap),
+                child: Text(
+                  _l10n.beaconCopiedFromBanner(sourceTitle),
+                  key: const Key('BeaconCreate.CopiedFromBanner'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
+              ),
+      );
 
   static const _titleCounterFrom = 48;
   static final _descriptionCounterFrom = (kBeaconDescriptionMaxLength * 0.8)

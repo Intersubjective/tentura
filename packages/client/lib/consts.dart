@@ -90,6 +90,9 @@ const kQueryBeaconParentId = 'parent_id';
 /// Source General message id when promoting a child request from chat.
 const kQueryBeaconSourceMessageId = 'source_message_id';
 
+/// Request id «Create from this request» copies (#493).
+const kQueryBeaconForkFrom = 'fork_from';
+
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 

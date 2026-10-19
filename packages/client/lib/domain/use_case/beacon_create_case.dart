@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 /// Which command was in flight when a save failed.
 enum BeaconSavePhase { fields, stage, reconcile, publish }
@@ -115,6 +116,18 @@ class BeaconCreateCase {
   Future<void> publishDraft(String id) => _beacons.publishDraft(id);
 
   Future<void> delete(String id) => _beacons.delete(id);
+
+  /// Lineage fork of [sourceId] into a new server draft («Create from this
+  /// request», #493): runs at the copy's first save, never on open.
+  Future<Beacon> fork(
+    String sourceId, {
+    bool copyPlan = false,
+    List<PlanStepTime> planStepTimes = const [],
+  }) => _beacons.fork(
+    sourceId,
+    copyPlan: copyPlan,
+    planStepTimes: planStepTimes,
+  );
 
   /// Picks images and gives each one a stable client identity.
   Future<List<ImageEntity>> pickImages() async {

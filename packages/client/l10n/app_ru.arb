@@ -798,6 +798,8 @@
   "@beaconCreateDraftAction": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCopyOfTitle": "Копия: {title}",
+  "beaconCopiedFromBanner": "Скопировано из «{title}»",
   "beaconCreateLeaveTitle": "Сохранить черновик?",
   "beaconCreateLeaveBody": "Его можно будет дописать позже в черновиках.",
   "beaconCreateLeaveKeepDraft": "Сохранить черновик",

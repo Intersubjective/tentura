@@ -32,6 +32,7 @@ import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
+
 /// Initial help offer dialog + [BeaconViewCubit.offerHelp].
 Future<void> beaconViewRunInitialHelpOfferDialog(
   BuildContext context,
@@ -372,9 +373,8 @@ Widget beaconViewAppBarOverflow({
           ? () async {
               await runBeaconCreateFromAction(
                 context,
-                fork: () => cubit.forkFromThis(),
+                sourceBeaconId: beaconId,
                 sourcePlan: planCubit?.state.plan,
-                forkWithPlan: (times) => cubit.forkFromThis(planCopy: times),
               );
             }
           : null,
@@ -452,9 +452,8 @@ Widget beaconViewAppBarOverflow({
         ? () async {
             await runBeaconCreateFromAction(
               context,
-              fork: () => cubit.forkFromThis(),
+              sourceBeaconId: b.id,
               sourcePlan: planCubit?.state.plan,
-              forkWithPlan: (times) => cubit.forkFromThis(planCopy: times),
             );
           }
         : null,
