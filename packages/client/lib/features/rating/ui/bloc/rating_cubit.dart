@@ -1,6 +1,5 @@
 import 'dart:async';
 
-
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -25,7 +24,9 @@ class RatingCubit extends Cubit<RatingState> {
        _blockCase = blockCase,
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(const RatingState()) {
-    final block = _blockCase ?? (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
+    final block =
+        _blockCase ??
+        (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
     if (block != null) {
       _blockChanges = block.changes.listen(
         (_) => unawaited(fetch()),
@@ -74,9 +75,9 @@ class RatingCubit extends Cubit<RatingState> {
     );
     try {
       final myId = GetIt.I<AuthCubit>().state.currentAccountId;
-      final items = (await _repository.fetch(context: ctx))
-          .where((p) => myId.isEmpty || p.id != myId)
-          .toList();
+      final items = (await _repository.fetch(
+        context: ctx,
+      )).where((p) => myId.isEmpty || p.id != myId).toList();
       emit(
         state.copyWith(
           context: ctx,
@@ -108,36 +109,40 @@ class RatingCubit extends Cubit<RatingState> {
     _sort();
   }
 
-  /// Sort by "I trust them" (direct score). If already sorted by this column, toggles asc/desc.
+  /// Sort by "Rank from you" (direct score). If already sorted by this column, toggles asc/desc.
   void sortByDirectColumn() {
     if (!state.isSortedByReverse &&
         !state.isSortedByAlter &&
         !state.isSortedByClass) {
       toggleSortingByAsc();
     } else {
-      emit(state.copyWith(
-        isSortedByReverse: false,
-        isSortedByAlter: false,
-        isSortedByClass: false,
-        isSortedByAsc: false,
-      ));
+      emit(
+        state.copyWith(
+          isSortedByReverse: false,
+          isSortedByAlter: false,
+          isSortedByClass: false,
+          isSortedByAsc: false,
+        ),
+      );
       _sort();
     }
   }
 
-  /// Sort by "They trust me" (reverse score). If already sorted by this column, toggles asc/desc.
+  /// Sort by "Rank to you" (reverse score). If already sorted by this column, toggles asc/desc.
   void sortByReverseColumn() {
     if (state.isSortedByReverse &&
         !state.isSortedByAlter &&
         !state.isSortedByClass) {
       toggleSortingByAsc();
     } else {
-      emit(state.copyWith(
-        isSortedByReverse: true,
-        isSortedByAlter: false,
-        isSortedByClass: false,
-        isSortedByAsc: false,
-      ));
+      emit(
+        state.copyWith(
+          isSortedByReverse: true,
+          isSortedByAlter: false,
+          isSortedByClass: false,
+          isSortedByAsc: false,
+        ),
+      );
       _sort();
     }
   }
@@ -147,12 +152,14 @@ class RatingCubit extends Cubit<RatingState> {
     if (state.isSortedByAlter) {
       toggleSortingByAsc();
     } else {
-      emit(state.copyWith(
-        isSortedByAlter: true,
-        isSortedByReverse: false,
-        isSortedByClass: false,
-        isSortedByAsc: true,
-      ));
+      emit(
+        state.copyWith(
+          isSortedByAlter: true,
+          isSortedByReverse: false,
+          isSortedByClass: false,
+          isSortedByAsc: true,
+        ),
+      );
       _sort();
     }
   }
@@ -162,12 +169,14 @@ class RatingCubit extends Cubit<RatingState> {
     if (state.isSortedByClass) {
       toggleSortingByAsc();
     } else {
-      emit(state.copyWith(
-        isSortedByClass: true,
-        isSortedByReverse: false,
-        isSortedByAlter: false,
-        isSortedByAsc: true,
-      ));
+      emit(
+        state.copyWith(
+          isSortedByClass: true,
+          isSortedByReverse: false,
+          isSortedByAlter: false,
+          isSortedByAsc: true,
+        ),
+      );
       _sort();
     }
   }
@@ -199,7 +208,9 @@ class RatingCubit extends Cubit<RatingState> {
     final asc = state.isSortedByAsc;
     if (state.isSortedByAlter) {
       state.items.sort((a, b) {
-        final c = a.shownName.toLowerCase().compareTo(b.shownName.toLowerCase());
+        final c = a.shownName.toLowerCase().compareTo(
+          b.shownName.toLowerCase(),
+        );
         return asc ? c : -c;
       });
     } else if (state.isSortedByClass) {
@@ -212,16 +223,11 @@ class RatingCubit extends Cubit<RatingState> {
     } else if (state.isSortedByReverse) {
       state.items.sort(
         (a, b) =>
-            10000 *
-            (asc ? a.rScore - b.rScore : b.rScore - a.rScore)
-                .toInt(),
+            10000 * (asc ? a.rScore - b.rScore : b.rScore - a.rScore).toInt(),
       );
     } else {
       state.items.sort(
-        (a, b) =>
-            10000 *
-            (asc ? a.score - b.score : b.score - a.score)
-                .toInt(),
+        (a, b) => 10000 * (asc ? a.score - b.score : b.score - a.score).toInt(),
       );
     }
   }

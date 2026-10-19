@@ -1099,7 +1099,7 @@
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
-  "graphLegendNoteTextLabels": "В профиле и списке людей также есть текстовые метки (взаимное, исходящее, входящее, нет). Закрытый глаз объединяет исходящее, входящее и «нет».",
+  "graphLegendNoteTextLabels": "В профиле и списке людей также есть текстовые метки (взаимно, вы → они, они → вы, нет). Закрытый глаз объединяет «вы → они», «они → вы» и «нет».",
   "@graphLegendNoteTextLabels": {
     "context": "ProfileViewScreen"
   },
@@ -1920,12 +1920,20 @@
   "@alter": {
     "context": "RatingScreen"
   },
-  "iTrustThem": "Я доверяю им",
-  "@iTrustThem": {
+  "rankFromYou": "Ранг от вас",
+  "@rankFromYou": {
     "context": "RatingScreen"
   },
-  "theyTrustMe": "Они доверяют мне",
-  "@theyTrustMe": {
+  "rankFromYouHint": "Насколько высоко вы оцениваете их: рейтинг MeritRank, вычисленный по всей вашей сети доверия, а не только по тем, за кого вы поручились напрямую.",
+  "@rankFromYouHint": {
+    "context": "RatingScreen"
+  },
+  "rankToYou": "Ваш ранг у них",
+  "@rankToYou": {
+    "context": "RatingScreen"
+  },
+  "rankToYouHint": "Насколько высоко они оценивают вас: тот же рейтинг MeritRank, вычисленный по их сети доверия.",
+  "@rankToYouHint": {
     "context": "RatingScreen"
   },
   "classLabel": "Класс",
@@ -1936,11 +1944,11 @@
   "@classMutual": {
     "context": "RatingScreen"
   },
-  "classOneWayOut": "односторонне (исх.)",
+  "classOneWayOut": "вы → они",
   "@classOneWayOut": {
     "context": "RatingScreen"
   },
-  "classOneWayIn": "односторонне (вх.)",
+  "classOneWayIn": "они → вы",
   "@classOneWayIn": {
     "context": "RatingScreen"
   },

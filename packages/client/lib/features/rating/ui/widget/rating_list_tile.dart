@@ -107,111 +107,117 @@ class RatingListTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            // Alter: avatar + name (double width)
-            Expanded(
-              flex: 4,
-              child: Row(
-                children: [
-                  SelfAwareAvatar(profile: profile, withRating: true),
-                  const SizedBox(width: kSpacingSmall),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        BlocBuilder<ProfileCubit, ProfileState>(
-                          buildWhen: (p, c) => p.profile.id != c.profile.id,
-                          builder: (context, state) {
-                            final l10n = L10n.of(context)!;
-                            return Text(
-                              SelfUserHighlight.displayName(
-                                l10n,
-                                profile,
-                                state.profile.id,
-                              ),
-                              style: SelfUserHighlight.nameStyle(
-                                Theme.of(context),
-                                textTheme.titleSmall,
-                                SelfUserHighlight.profileIsSelf(
+              // Alter: avatar + name (double width)
+              Expanded(
+                flex: 4,
+                child: Row(
+                  children: [
+                    SelfAwareAvatar(profile: profile, withRating: true),
+                    const SizedBox(width: kSpacingSmall),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          BlocBuilder<ProfileCubit, ProfileState>(
+                            buildWhen: (p, c) => p.profile.id != c.profile.id,
+                            builder: (context, state) {
+                              final l10n = L10n.of(context)!;
+                              return Text(
+                                SelfUserHighlight.displayName(
+                                  l10n,
                                   profile,
                                   state.profile.id,
                                 ),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
-                      ],
+                                style: SelfUserHighlight.nameStyle(
+                                  Theme.of(context),
+                                  textTheme.titleSmall,
+                                  SelfUserHighlight.profileIsSelf(
+                                    profile,
+                                    state.profile.id,
+                                  ),
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: kRatingColumnGap),
+              // Rank from you (heatmap) – rectangle filling the cell
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Container(
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: kSpacingSmall,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: alphaDirect),
+                      borderRadius: BorderRadius.circular(kBorderRadius),
+                    ),
+                    child: Text(
+                      direct.toStringAsFixed(0),
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: scoreFg(alphaDirect),
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: kRatingColumnGap),
-            // I trust them (heatmap) – rectangle filling the cell
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: kSpacingSmall),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: alphaDirect),
-                    borderRadius: BorderRadius.circular(kBorderRadius),
+              const SizedBox(width: kRatingColumnGap),
+              // Rank to you (heatmap) – rectangle filling the cell
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Container(
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: kSpacingSmall,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(
+                        alpha: alphaReverse,
+                      ),
+                      borderRadius: BorderRadius.circular(kBorderRadius),
+                    ),
+                    child: Text(
+                      reverse.toStringAsFixed(0),
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: scoreFg(alphaReverse),
+                      ),
+                    ),
                   ),
+                ),
+              ),
+              const SizedBox(width: kRatingColumnGap),
+              // Class badge
+              Expanded(
+                flex: 2,
+                child: Center(
+                  // Plain status text, not a pill (design-system principle 2,
+                  // UI review #208); wraps instead of truncating to "one-…".
                   child: Text(
-                    direct.toStringAsFixed(0),
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: scoreFg(alphaDirect),
-                    ),
+                    badgeLabel,
+                    style: TenturaText.status(badgeFg),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: kRatingColumnGap),
-            // They trust me (heatmap) – rectangle filling the cell
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: kSpacingSmall),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: alphaReverse),
-                    borderRadius: BorderRadius.circular(kBorderRadius),
-                  ),
-                  child: Text(
-                    reverse.toStringAsFixed(0),
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: scoreFg(alphaReverse),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: kRatingColumnGap),
-            // Class badge
-            Expanded(
-              flex: 2,
-              child: Center(
-                // Plain status text, not a pill (design-system principle 2,
-                // UI review #208); wraps instead of truncating to "one-…".
-                child: Text(
-                  badgeLabel,
-                  style: TenturaText.status(badgeFg),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
