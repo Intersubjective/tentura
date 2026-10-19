@@ -1505,7 +1505,7 @@
       }
     }
   },
-  "constellationIncludeUnspecified": "Include unspecified",
+  "constellationIncludeUnspecified": "Include requests without a capability or date",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
   },

@@ -1459,7 +1459,7 @@
       }
     }
   },
-  "constellationIncludeUnspecified": "Включать не указанные",
+  "constellationIncludeUnspecified": "Включать запросы без навыка или даты",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
   },

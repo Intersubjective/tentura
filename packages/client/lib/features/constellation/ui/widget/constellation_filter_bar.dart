@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -382,6 +383,38 @@ class _CapabilityFilters extends StatelessWidget {
     }
 
     final selected = cubit.state.filterCapabilitySlugs;
+    final available = slugs.toSet();
+    // Same taxonomy and grouping as the Requirements picker (#457): only the
+    // groups present in this field, chips in catalog order.
+    final groups = <CapabilityGroup, List<String>>{
+      for (final group in CapabilityGroup.values)
+        group: [
+          for (final tag in CapabilityTag.values)
+            if (tag.group == group && available.contains(tag.slug)) tag.slug,
+        ],
+    }..removeWhere((_, groupSlugs) => groupSlugs.isEmpty);
+    final ungrouped = [
+      for (final slug in slugs)
+        if (CapabilityTag.fromSlug(slug) == null) slug,
+    ];
+
+    Widget chip(String slug) => FilterChip(
+      key: Key('constellation.filter.capability.$slug'),
+      label: Text(CapabilityTag.fromSlug(slug)?.labelOf(l10n) ?? slug),
+      selected: selected.contains(slug),
+      onSelected: (value) {
+        final next = Set<String>.from(selected);
+        value ? next.add(slug) : next.remove(slug);
+        cubit.setFilterCapabilitySlugs(next);
+      },
+    );
+
+    Widget chipWrap(List<Widget> children) => Wrap(
+      spacing: tt.tightGap,
+      runSpacing: tt.tightGap,
+      children: children,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -390,36 +423,44 @@ class _CapabilityFilters extends StatelessWidget {
           style: Theme.of(context).textTheme.labelLarge,
         ),
         SizedBox(height: tt.rowGap),
-        Wrap(
-          spacing: tt.tightGap,
-          runSpacing: tt.tightGap,
-          children: [
-            // No capability picked means every capability, like Location's
-            // "Any"; it was labelled "Unspecified" (#457).
-            FilterChip(
-              key: const Key('constellation.filter.capability.any'),
-              label: Text(l10n.constellationFilterCapabilityAny),
-              selected: selected.isEmpty,
-              onSelected: (_) => cubit.setFilterCapabilitySlugs(const {}),
-            ),
-            for (final slug in slugs)
-              FilterChip(
-                key: Key('constellation.filter.capability.$slug'),
-                label: Text(
-                  CapabilityTag.fromSlug(slug)?.labelOf(l10n) ?? slug,
-                ),
-                selected: selected.contains(slug),
-                onSelected: (value) {
-                  final next = Set<String>.from(selected);
-                  value ? next.add(slug) : next.remove(slug);
-                  cubit.setFilterCapabilitySlugs(next);
-                },
-              ),
-          ],
-        ),
+        chipWrap([
+          // No capability picked means every capability, like Location's
+          // "Any"; it was labelled "Unspecified" (#457).
+          FilterChip(
+            key: const Key('constellation.filter.capability.any'),
+            label: Text(l10n.constellationFilterCapabilityAny),
+            selected: selected.isEmpty,
+            onSelected: (_) => cubit.setFilterCapabilitySlugs(const {}),
+          ),
+        ]),
+        for (final entry in groups.entries) ...[
+          SizedBox(height: tt.rowGap),
+          Text(
+            _capabilityGroupLabel(l10n, entry.key),
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          SizedBox(height: tt.tightGap),
+          chipWrap([for (final slug in entry.value) chip(slug)]),
+        ],
+        if (ungrouped.isNotEmpty) ...[
+          SizedBox(height: tt.rowGap),
+          chipWrap([for (final slug in ungrouped) chip(slug)]),
+        ],
       ],
     );
   }
+
+  static String _capabilityGroupLabel(L10n l10n, CapabilityGroup group) =>
+      switch (group) {
+        CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
+        CapabilityGroup.communication => l10n.capabilityGroupCommunication,
+        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
+        CapabilityGroup.care => l10n.capabilityGroupCare,
+        CapabilityGroup.resources => l10n.capabilityGroupResources,
+        CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
+        CapabilityGroup.special => l10n.capabilityGroupSpecial,
+      };
 }
 
 class _LocationFilters extends StatelessWidget {
