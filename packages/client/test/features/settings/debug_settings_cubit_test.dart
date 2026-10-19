@@ -212,6 +212,64 @@ void main() {
       );
     });
   });
+
+  group('DebugSettingsCubit.loadFcmInfo without a token (#469)', () {
+    late _FcmCaseSpy fcmCase;
+    late FakeUiEffectPort effects;
+    late FcmCubit fcmCubit;
+    late DebugSettingsCubit cubit;
+
+    setUp(() {
+      fcmCase = _FcmCaseSpy(
+        _NoTokenFcmLocal(),
+        FakeFcmRemote(),
+        FakeSettings(appId: 'app-469'),
+      );
+      effects = FakeUiEffectPort();
+      final authCase = buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote());
+      fcmCubit = FcmCubit(fcmCase, authCase);
+      cubit = DebugSettingsCubit(
+        fcmCase,
+        authCase,
+        fcmCubit,
+        FakeEmailTestRepository(),
+        buildTestBookkeepingRefreshCase(),
+        _FakeDirectNotificationProbe(),
+        effects,
+      );
+    });
+
+    tearDown(() async {
+      await cubit.close();
+      await fcmCubit.close();
+    });
+
+    test('a browser that cannot mint a token raises no generic error and '
+        'still reports the rest of the registration state', () async {
+      await cubit.loadFcmInfo();
+
+      expect(fcmCase.local.getTokenCalls, greaterThan(0));
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
+      expect(cubit.state.isLoadingFcmInfo, isFalse);
+      expect(cubit.state.fcmToken, isNull);
+      expect(cubit.state.fcmAppId, 'app-469');
+      expect(cubit.state.permissionGranted, isTrue);
+      expect(cubit.state.serverSynced, isFalse);
+    });
+  });
+}
+
+/// `getToken` fails the way Firebase web does when no token can be minted
+/// (permission blocked / no push service): a non unsupported-browser error.
+class _NoTokenFcmLocal extends FakeFcmLocal {
+  @override
+  Future<String?> getToken() async {
+    getTokenCalls++;
+    throw Exception(
+      'FirebaseError: Messaging: The notification permission was not '
+      'granted and blocked instead. (messaging/permission-blocked).',
+    );
+  }
 }
 
 class _FcmCaseSpy extends FcmCase {

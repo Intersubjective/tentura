@@ -132,10 +132,19 @@ class FcmCase {
     required bool permissionGranted,
     required String platform,
   }) async {
-    final token = await _fcmLocalRepository.getToken();
+    // A browser that cannot mint a token (permission not granted, no push
+    // service) throws here; report it as "no token" so the rest of the
+    // registration state still loads.
+    String? token;
+    try {
+      token = await _fcmLocalRepository.getToken();
+    } catch (e) {
+      fcmLog('FcmCase: getToken failed for registration info: $e');
+    }
     final appId = await _settingsRepository.getAppId();
     final last = await _settingsRepository.getLastFcmRegistration();
-    final serverSynced = token != null &&
+    final serverSynced =
+        token != null &&
         token.isNotEmpty &&
         appId != null &&
         (last?.matches(
