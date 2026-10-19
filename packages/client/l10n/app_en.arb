@@ -2356,9 +2356,9 @@
   "@realtimeUpdatesPausedBanner": {
     "context": "RealtimeStatus"
   },
-  "routingMuteScreenTitle": "Help types I can provide",
+  "routingMuteScreenTitle": "Tags others can give me",
   "@routingMuteScreenTitle": {
-    "description": "Title for the routing-mute settings screen: help types the user can provide (architecture §12.2). Phrased positively — each switch below means \"I can help with this\"."
+    "description": "Title for the routing-mute settings screen: private tags other people can give the user; each switch below controls whether third parties may see tags of that type."
   },
   "routingMuteScreenDescription": "Other people can leave you private tags — for example after a completed request. Tentura may show those tags to other users as a hint about the kinds of help you can provide. If you do not want some tags shown to anyone except the person who set them, turn those types off here. The person who tagged you can still see their own mark.",
   "@routingMuteScreenDescription": {
@@ -2398,7 +2398,7 @@
     "context": "SettingsScreen",
     "description": "SettingsScreen — honest failure when the recheck did not complete."
   },
-  "settingsRoutingMute": "Help types I can provide",
+  "settingsRoutingMute": "Tags others can give me",
   "@settingsRoutingMute": {
     "description": "Settings menu entry for the routing-mute screen."
   },

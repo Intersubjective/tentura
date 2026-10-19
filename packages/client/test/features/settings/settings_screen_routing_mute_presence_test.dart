@@ -144,9 +144,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(trustPreferences.enabled, isTrue);
 
+    // Issue #468: the row names what the page does (tags other people
+    // give me), not a self-described list of help I can provide.
+    expect(find.text('Tags others can give me'), findsOneWidget);
+    expect(find.text('Help types I can provide'), findsNothing);
+
     await tester.tap(find.text(l10n.settingsRoutingMute));
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.routingMuteScreenTitle), findsOneWidget);
+    // The page it opens carries the same name.
+    expect(find.text('Tags others can give me'), findsOneWidget);
+    expect(find.text('Help types I can provide'), findsNothing);
   });
 }
