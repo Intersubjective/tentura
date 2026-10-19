@@ -963,6 +963,14 @@
   "@labelComplaintType": {
     "context": "ComplaintScreen"
   },
+  "complaintTypeHint": "What's wrong?",
+  "@complaintTypeHint": {
+    "context": "ComplaintScreen"
+  },
+  "complaintTypeRequired": "Choose what's wrong",
+  "@complaintTypeRequired": {
+    "context": "ComplaintScreen"
+  },
   "detailsRequired": "{min, plural, =1{Details, minimum 1 character} other{Details, minimum {min} characters}}",
   "@detailsRequired": {
     "context": "ComplaintScreen",
@@ -987,6 +995,10 @@
   },
   "feedbackEmail": "Email for feedback (optional)",
   "@feedbackEmail": {
+    "context": "ComplaintScreen"
+  },
+  "complaintEmailUse": "Optional. Used only to contact you about this report.",
+  "@complaintEmailUse": {
     "context": "ComplaintScreen"
   },
   "emailValidationError": "Please enter a valid email",

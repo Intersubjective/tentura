@@ -27,12 +27,15 @@ class ComplaintCubit extends Cubit<ComplaintState> {
        super(
          ComplaintState(
            id: id,
-           type: fixedType ?? ComplaintType.violatesCsaePolicy,
+           type: fixedType,
            fixedType: fixedType,
          ),
        ) {
     if (fixedType == ComplaintType.accountDeletionRequest) {
       unawaited(_prefillEmail());
+    }
+    if (fixedType == null) {
+      unawaited(_loadReportedItem());
     }
   }
 
@@ -46,6 +49,19 @@ class ComplaintCubit extends Cubit<ComplaintState> {
       return;
     }
     emit(state.copyWith(email: email));
+  }
+
+  /// Best effort: on failure the form stays usable without the item line.
+  Future<void> _loadReportedItem() async {
+    try {
+      final item = await _complaintCase.fetchReportedItem(state.id);
+      if (item == null || isClosed) {
+        return;
+      }
+      emit(state.copyWith(title: item.title, author: item.author));
+    } catch (e) {
+      _complaintCase.logger.info('Reported item ${state.id} not loaded: $e');
+    }
   }
 
   ///
@@ -64,11 +80,15 @@ class ComplaintCubit extends Cubit<ComplaintState> {
 
   ///
   Future<void> submit() async {
+    final type = state.type;
+    if (type == null) {
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _complaintCase.create(
         id: state.id,
-        type: state.type,
+        type: type,
         email: state.email,
         details: state.details,
       );
