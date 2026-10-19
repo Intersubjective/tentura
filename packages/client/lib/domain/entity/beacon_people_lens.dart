@@ -49,6 +49,11 @@ List<BeaconParticipant> beaconParticipantsVisibleForViewer({
   return list;
 }
 
+/// Number of helpers in an Active helpers section: the author row (shown
+/// first, labelled Author) is not counted.
+int activeHelperCount(List<BeaconPeopleRow> rows) =>
+    rows.where((r) => !r.isAuthor).length;
+
 /// Active-helpers fold from the admitted-helper Hasura projection.
 ///
 /// Author first (starred), then roster profiles (non-author). Optional
@@ -184,8 +189,9 @@ BeaconPeopleSections classifyBeaconPeopleSections({
         rowFor(authorId, isAuthor: true),
         for (final uid
             in admittedUserIds.where((id) => id != authorId).toList()..sort(
-              (a, b) =>
-                  profileFor(a).displayName.compareTo(profileFor(b).displayName),
+              (a, b) => profileFor(
+                a,
+              ).displayName.compareTo(profileFor(b).displayName),
             ))
           rowFor(uid, isAuthor: false),
       ];

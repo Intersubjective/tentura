@@ -225,7 +225,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
               id: BeaconPeopleAccordionSection.activeHelpers,
               initiallyExpanded: true,
               title: Text(
-                '${l10n.beaconPeopleLensActiveHelpersHeading} (${observerRows.length})',
+                '${l10n.beaconPeopleLensActiveHelpersHeading} '
+                '(${activeHelperCount(observerRows)})',
                 style: theme.textTheme.titleSmall,
               ),
               children: [
@@ -484,7 +485,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         id: sectionId,
         initiallyExpanded: initiallyExpanded,
         title: Text(
-          '$title (${rows.length})',
+          '$title (${activeHelperCount(rows)})',
           style: theme.textTheme.titleSmall,
         ),
         children: [
