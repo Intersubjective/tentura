@@ -510,6 +510,28 @@ List<Widget> _myWorkRedesignSlivers({
       SliverToBoxAdapter(
         child: CaughtUpPanel(title: l10n.myWorkCaughtUp, compact: true),
       ),
+    // #491 — the Archived filter outlives a re-entry of the Requests tab
+    // (the cubit sits above the tab shell), so say plainly that this is the
+    // archive and offer one tap back to Active (the sort is kept).
+    if (state.filter == MyWorkFilter.archived &&
+        state.nonArchivedCards.isNotEmpty)
+      SliverToBoxAdapter(
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.myWorkShowingArchived,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ),
+            TenturaTextAction(
+              label: l10n.myWorkShowActive,
+              onPressed: () =>
+                  context.read<MyWorkCubit>().setFilter(MyWorkFilter.active),
+            ),
+          ],
+        ),
+      ),
   ];
   for (final group in sections) {
     if (group.section != MyWorkDeskSection.unlabeled) {
