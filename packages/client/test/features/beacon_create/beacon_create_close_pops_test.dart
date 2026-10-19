@@ -75,7 +75,9 @@ void main() {
     await GetIt.I.reset();
   });
 
-  testWidgets('close control pops the create route', (tester) async {
+  testWidgets('back control pops the create route when the form is empty', (
+    tester,
+  ) async {
     final router = _NavRouter();
     Set<String>? returned;
     await tester.pumpWidget(
@@ -134,7 +136,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(TenturaTopBar),
-        matching: find.byIcon(Icons.close),
+        matching: find.byIcon(Icons.arrow_back),
       ),
     );
     await tester.pumpAndSettle();

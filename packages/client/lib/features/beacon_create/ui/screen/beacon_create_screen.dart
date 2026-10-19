@@ -294,28 +294,67 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     }
   }
 
-  Future<void> _leaveForm() async {
+  /// Whether leaving the info step should ask «Keep draft» / «Discard»
+  /// (#428): only a request that is or can become a draft, and only once the
+  /// form holds something.
+  bool get _hasDraftContent {
+    final s = _beaconCreateCubit.state;
+    if (s.isEditMode || s.isLive || s.isPostBud) return false;
+    return s.title.trim().isNotEmpty ||
+        s.description.trim().isNotEmpty ||
+        (s.draftId?.isNotEmpty ?? false);
+  }
+
+  /// Leaves the create flow. The recipients-step «✕» keeps the draft without
+  /// asking (#265); the info step's single exit («←» or system back) passes
+  /// [askAboutDraft] so the user picks «Keep draft» or «Discard» (#428).
+  /// Dismissing the question keeps the editor open.
+  Future<void> _leaveForm({bool askAboutDraft = false}) async {
     if (_leaveInProgress) return;
     _leaveInProgress = true;
     try {
       _formKey.currentState?.save();
+      if (askAboutDraft && _hasDraftContent) {
+        final l10n = L10n.of(context)!;
+        final discard = await TenturaConfirmDialog.show(
+          context: context,
+          title: l10n.beaconCreateLeaveTitle,
+          content: l10n.beaconCreateLeaveBody,
+          confirmLabel: l10n.beaconCreateLeaveDiscard,
+          cancelLabel: l10n.beaconCreateLeaveKeepDraft,
+          emphasizeCancel: true,
+        );
+        if (discard == null || !mounted) return;
+        if (discard) {
+          // Not deleteDraft(): its NavigateBack would maybePop into this
+          // method again.
+          await _beaconCreateCubit.discardDraft();
+          if (!mounted) return;
+          await _exitFlow();
+          return;
+        }
+      }
       await _beaconCreateCubit.flushAutosave();
       if (!mounted) return;
-      final forward = _forwardCubit?.state;
-      widget.onRecipientsChanged?.call(
-        {...(forward?.selectedIds ?? widget.initialRecipientIds)},
-        {...(forward?.perRecipientNotes ?? widget.initialNotes)},
-      );
-      // PopScope.canPop is false, so maybePop re-enters this method. Pop
-      // bypasses that guard; isFirst ignores PopScope for the deep-link case.
-      final route = ModalRoute.of(context);
-      if (route != null && !route.isFirst) {
-        Navigator.of(context).pop();
-      } else {
-        await context.router.navigatePath(kPathMyWork);
-      }
+      await _exitFlow();
     } finally {
       if (mounted) _leaveInProgress = false;
+    }
+  }
+
+  Future<void> _exitFlow() async {
+    final forward = _forwardCubit?.state;
+    widget.onRecipientsChanged?.call(
+      {...(forward?.selectedIds ?? widget.initialRecipientIds)},
+      {...(forward?.perRecipientNotes ?? widget.initialNotes)},
+    );
+    // PopScope.canPop is false, so maybePop re-enters _leaveForm. Pop
+    // bypasses that guard; isFirst ignores PopScope for the deep-link case.
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isFirst) {
+      Navigator.of(context).pop();
+    } else {
+      await context.router.navigatePath(kPathMyWork);
     }
   }
 
@@ -401,7 +440,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
           setState(() => _step = _formStep);
           return;
         }
-        await _leaveForm();
+        await _leaveForm(askAboutDraft: true);
       },
       child: Scaffold(
         appBar: TenturaTopBar.of(
@@ -414,7 +453,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 )
               : AutoLeadingWithFallback(
                   fallbackPath: kPathMyWork,
-                  onPressed: () => unawaited(_leaveForm()),
+                  onPressed: () => unawaited(_leaveForm(askAboutDraft: true)),
                 ),
           trailingIsIcon: false,
           title:
@@ -450,11 +489,14 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                 ),
               ),
           actions: [
-            IconButton(
-              icon: Icon(Icons.close, semanticLabel: l10n.buttonClose),
-              tooltip: l10n.buttonClose,
-              onPressed: () => unawaited(_leaveForm()),
-            ),
+            // The info step has one exit, «←» (#428); «✕» only on the
+            // recipients step, where «←» goes back a step (#265).
+            if (isRecipients)
+              IconButton(
+                icon: Icon(Icons.close, semanticLabel: l10n.buttonClose),
+                tooltip: l10n.buttonClose,
+                onPressed: () => unawaited(_leaveForm()),
+              ),
             if (!isRecipients)
               BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
                 bloc: _beaconCreateCubit,

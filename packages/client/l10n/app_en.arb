@@ -797,6 +797,22 @@
   "@beaconCreateDraftAction": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateLeaveTitle": "Keep this draft?",
+  "@beaconCreateLeaveTitle": {
+    "context": "BeaconCreateScreen leave dialog (#428)"
+  },
+  "beaconCreateLeaveBody": "You can finish it later from your drafts.",
+  "@beaconCreateLeaveBody": {
+    "context": "BeaconCreateScreen leave dialog (#428)"
+  },
+  "beaconCreateLeaveKeepDraft": "Keep draft",
+  "@beaconCreateLeaveKeepDraft": {
+    "context": "BeaconCreateScreen leave dialog (#428)"
+  },
+  "beaconCreateLeaveDiscard": "Discard",
+  "@beaconCreateLeaveDiscard": {
+    "context": "BeaconCreateScreen leave dialog (#428)"
+  },
   "beaconCreateAutosaving": "Saving…",
   "@beaconCreateAutosaving": {
     "context": "BeaconCreateScreen"

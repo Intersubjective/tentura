@@ -180,7 +180,7 @@ void main() {
         );
         final src = screenPath.readAsStringSync();
         final sendStart = src.indexOf('Future<void> _sendRequest()');
-        final sendEnd = src.indexOf('Future<void> _leaveForm()', sendStart);
+        final sendEnd = src.indexOf('Future<void> _leaveForm(', sendStart);
         expect(sendStart, greaterThan(0));
         expect(sendEnd, greaterThan(sendStart));
         final sendBody = src.substring(sendStart, sendEnd);

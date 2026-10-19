@@ -794,6 +794,10 @@
   "@beaconCreateDraftAction": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateLeaveTitle": "Сохранить черновик?",
+  "beaconCreateLeaveBody": "Его можно будет дописать позже в черновиках.",
+  "beaconCreateLeaveKeepDraft": "Сохранить черновик",
+  "beaconCreateLeaveDiscard": "Удалить черновик",
   "beaconCreateAutosaving": "Сохраняем…",
   "@beaconCreateAutosaving": {
     "context": "BeaconCreateScreen"
