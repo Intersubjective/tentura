@@ -395,84 +395,160 @@ void main() {
     });
   });
 
-  group('Request editor «✕» on the info step', () {
-    testWidgets('has an accessible, localized label in English and Russian', (
-      tester,
-    ) async {
+  // Issue #428: on the info step «←» and «✕» both left the editor with no
+  // visible difference. The info step now has ONE exit, «←», which asks
+  // «Keep draft» / «Discard» when the form holds content. The recipients step
+  // keeps #265's «←» (one step back) + «✕» (exit the flow, keep the draft).
+  group('Request editor info step has a single exit (#428)', () {
+    testWidgets('shows only the back arrow, no close control', (tester) async {
       typeContent();
       await openEditor(tester);
-      final enLabel = tester
-          .getSemantics(
-            find.ancestor(
-              of: topBarIcon(Icons.close),
-              matching: find.byType(IconButton),
-            ),
-          )
-          .label;
-      expect(enLabel, 'Close');
-      expect(
-        tester
-            .widget<IconButton>(
-              find.ancestor(
-                of: topBarIcon(Icons.close),
-                matching: find.byType(IconButton),
-              ),
-            )
-            .tooltip,
-        'Close',
-      );
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await openEditor(
-        tester,
-        locale: const Locale('ru'),
-      );
-      final ruLabel = tester
-          .getSemantics(
-            find.ancestor(
-              of: topBarIcon(Icons.close),
-              matching: find.byType(IconButton),
-            ),
-          )
-          .label;
-      expect(ruLabel, 'Закрыть');
-      expect(
-        tester
-            .widget<IconButton>(
-              find.ancestor(
-                of: topBarIcon(Icons.close),
-                matching: find.byType(IconButton),
-              ),
-            )
-            .tooltip,
-        'Закрыть',
-      );
+      expect(topBarIcon(Icons.arrow_back), findsOneWidget);
+      expect(topBarIcon(Icons.close), findsNothing);
+      await _drainAutosave(tester);
     });
 
     testWidgets(
-      'exits the flow in one tap and flushes the not-yet-autosaved content '
-      'to the draft store',
+      '«←» with typed content asks Keep draft or Discard and stays in the '
+      'editor until answered',
+      (tester) async {
+        await openEditor(tester);
+        await typeIntoForm(tester);
+
+        await tester.tap(topBarIcon(Icons.arrow_back));
+        await _settle(tester);
+
+        expect(find.text('Keep draft'), findsOneWidget);
+        expect(find.text('Discard'), findsOneWidget);
+        expect(find.byType(BeaconCreateScreen), findsOneWidget);
+        expect(find.text('open-editor'), findsNothing);
+        await _drainAutosave(tester);
+      },
+    );
+
+    testWidgets('the system back gesture asks the same question', (
+      tester,
+    ) async {
+      await openEditor(tester);
+      await typeIntoForm(tester);
+
+      await tester.binding.handlePopRoute();
+      await _settle(tester);
+
+      expect(find.text('Keep draft'), findsOneWidget);
+      expect(find.text('Discard'), findsOneWidget);
+      expect(find.byType(BeaconCreateScreen), findsOneWidget);
+      await _drainAutosave(tester);
+    });
+
+    testWidgets(
+      'Keep draft exits the flow in one go and flushes the not-yet-autosaved '
+      'content to the draft store',
       (tester) async {
         await openEditor(tester);
         await typeIntoForm(tester);
         expect(store.createdFields, isEmpty);
 
-        await tester.tap(topBarIcon(Icons.close));
+        await tester.tap(topBarIcon(Icons.arrow_back));
+        await _settle(tester);
+        await tester.tap(find.text('Keep draft'));
         await _settle(tester);
 
         expect(store.createdFields, isNotEmpty);
         expect(store.createdFields.last.title, _title);
         expect(store.createdFields.last.description, _description);
+        expect(store.deletedIds, isEmpty);
         expect(find.byType(BeaconCreateScreen), findsNothing);
         expect(find.text('open-editor'), findsOneWidget);
       },
     );
 
-    testWidgets('re-opening the editor restores the draft that was saved on '
-        'close', (tester) async {
+    testWidgets(
+      'Discard exits the flow and leaves no draft behind',
+      (tester) async {
+        await openEditor(tester);
+        await typeIntoForm(tester);
+
+        await tester.tap(topBarIcon(Icons.arrow_back));
+        await _settle(tester);
+        await tester.tap(find.text('Discard'));
+        await _settle(tester);
+        // A draft autosave may have created while the question was open must
+        // be gone again; ids are draft-1..draft-N in create order.
+        expect(
+          store.deletedIds,
+          containsAll(<String>[
+            for (var i = 1; i <= store.createAttempts; i++) 'draft-$i',
+          ]),
+        );
+        final attemptsAfterDiscard = store.createAttempts;
+        await tester.pump(const Duration(seconds: 2));
+        await _settle(tester);
+        expect(store.createAttempts, attemptsAfterDiscard);
+        expect(find.byType(BeaconCreateScreen), findsNothing);
+        expect(find.text('open-editor'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Discard deletes the draft autosave had already created', (
+      tester,
+    ) async {
       await openEditor(tester);
       await typeIntoForm(tester);
-      await tester.tap(topBarIcon(Icons.close));
+      await createCubit.flushAutosave();
+      await _settle(tester);
+      final savedId = createCubit.state.draftId;
+      expect(savedId, isNotNull);
+      expect(store.deletedIds, isEmpty);
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+      await tester.tap(find.text('Discard'));
+      await _settle(tester);
+
+      expect(store.deletedIds, [savedId]);
+      expect(find.byType(BeaconCreateScreen), findsNothing);
+      expect(find.text('open-editor'), findsOneWidget);
+    });
+
+    testWidgets('an empty form leaves on «←» at once, without asking and '
+        'without saving', (tester) async {
+      await openEditor(tester);
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+
+      expect(find.text('Keep draft'), findsNothing);
+      expect(find.text('Discard'), findsNothing);
+      expect(store.createAttempts, 0);
+      expect(find.byType(BeaconCreateScreen), findsNothing);
+      expect(find.text('open-editor'), findsOneWidget);
+    });
+
+    testWidgets('the question is localized in Russian', (tester) async {
+      await openEditor(tester, locale: const Locale('ru'));
+      await typeIntoForm(tester);
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+
+      expect(find.text('Сохранить черновик'), findsOneWidget);
+      expect(find.text('Удалить черновик'), findsOneWidget);
+      expect(find.text('Keep draft'), findsNothing);
+      expect(find.text('Discard'), findsNothing);
+      expect(find.byType(BeaconCreateScreen), findsOneWidget);
+      await _drainAutosave(tester);
+    });
+
+    testWidgets('re-opening the editor restores the draft kept on «←»', (
+      tester,
+    ) async {
+      await openEditor(tester);
+      await typeIntoForm(tester);
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+      await tester.tap(find.text('Keep draft'));
       await _settle(tester);
       final savedId = createCubit.state.draftId;
       expect(savedId, isNotNull);
@@ -528,4 +604,11 @@ Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 16; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
+}
+
+/// Runs out the cubit's 1 s autosave debounce so no Timer is left pending
+/// when a test ends while the editor (or its exit question) is still open.
+Future<void> _drainAutosave(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 2));
+  await _settle(tester);
 }

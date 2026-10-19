@@ -134,6 +134,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   bool _autosaveAfterInFlight = false;
 
+  /// Set by [discardDraft]: the user threw the request away, so no autosave
+  /// may bring a draft back (#428).
+  bool _discarded = false;
+
   BeaconSaveCommand? _exactRetrySnapshot;
 
   Timer? _postDraftTimer;
@@ -454,7 +458,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// required" error snackbar over the form while the user was still typing
   /// (UI review, creation flow). Child requests may have an empty one.
   bool get _shouldQuietPersist {
-    if (isClosed || state.isEditMode || state.isLive) return false;
+    if (isClosed || _discarded || state.isEditMode || state.isLive) {
+      return false;
+    }
     if (state.isPostBud) return false;
     if (state.title.trim().length < kTitleMinLength) return false;
     return state.isChildMode || state.description.trim().isNotEmpty;
@@ -1298,6 +1304,35 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       }
       _clearExactRetrySnapshot();
       _emitNavigateBack();
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  /// Throws the request away when the user leaves with «Discard» (#428):
+  /// stops autosave for good, then deletes the draft if one exists or is
+  /// being created. Unlike [deleteDraft] it does not navigate; the caller
+  /// leaves the screen.
+  Future<void> discardDraft() async {
+    _discarded = true;
+    _autosaveTimer?.cancel();
+    _autosaveTimer = null;
+    _autosaveAfterInFlight = false;
+    if (state.isAutosaving && !isClosed) {
+      await stream.firstWhere((s) => !s.isAutosaving);
+    }
+    final inFlight = _draftCreateInFlight;
+    final id =
+        state.draftId ?? (inFlight == null ? null : await inFlight.future);
+    if (id == null || id.isEmpty) return;
+    try {
+      await _case.delete(id);
+      final creationContext = state.creationContext;
+      if (creationContext != null) {
+        await _hierarchyCase?.clearCommandIdentity(creationContext);
+      }
+      _clearExactRetrySnapshot();
+      if (!isClosed) emit(state.copyWith(draftId: null));
     } catch (e) {
       _emitSnackError(e);
     }
