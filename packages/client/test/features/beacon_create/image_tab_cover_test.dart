@@ -179,4 +179,36 @@ void main() {
       findsOneWidget,
     );
   });
+
+  group('no empty placeholder before an image exists (#437)', () {
+    for (final width in [400.0, 1280.0]) {
+      testWidgets('width $width: only the Add images row, no blank block', (
+        tester,
+      ) async {
+        await pumpTab(tester, width: width);
+
+        expect(cubit.state.images, isEmpty);
+        expect(find.text('Add images'), findsOneWidget);
+        expect(find.byIcon(Icons.add_a_photo_rounded), findsOneWidget);
+        // The big placeholder was an AspectRatio box with a large
+        // photo glyph under the row.
+        expect(find.byType(AspectRatio), findsNothing);
+        expect(find.byIcon(Icons.photo_outlined), findsNothing);
+      });
+    }
+
+    testWidgets('the Add images row still picks, then cards appear', (
+      tester,
+    ) async {
+      images.picked = [_picked('a.jpg')];
+      await pumpTab(tester);
+
+      await tester.tap(find.text('Add images'));
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.images, hasLength(1));
+      expect(find.text('Selected cover'), findsOneWidget);
+      expect(find.byType(AspectRatio), findsWidgets);
+    });
+  });
 }
