@@ -4358,6 +4358,7 @@
   "coordinationInviteToRoomRow": "Допустить в обсуждение",
   "beaconRoomWaitingForApproval": "Ожидает решения",
   "beaconRoomNoAdmission": "Нет доступа к обсуждению",
+  "beaconRoomEmptyState": "Сообщений пока нет. Здесь вы и помощники договариваетесь.",
   "withdrawCantDoIt": "Больше не могу",
   "withdrawTimingChanged": "Не сходится по времени",
   "withdrawWrongFit": "Не мой формат",

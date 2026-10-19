@@ -334,6 +334,18 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         : null,
                   )
                 : null,
+            emptyPlaceholder: Center(
+              child: Padding(
+                padding: EdgeInsets.all(context.tt.screenHPadding),
+                child: Text(
+                  l10n.beaconRoomEmptyState,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
             messages: state.messages,
             myProfile: myProfile,
             participants: state.participants,

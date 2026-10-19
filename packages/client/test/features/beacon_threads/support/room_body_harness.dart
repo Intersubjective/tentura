@@ -150,6 +150,7 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
   double width = 390,
   double height = 720,
   bool enableComposer = true,
+  Locale locale = const Locale('en'),
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -175,7 +176,7 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
         BlocProvider<PresenceCubit>.value(value: presenceCubit),
       ],
       child: MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -202,6 +203,7 @@ RoomState roomBodyState({
   RoomMessage? replyTarget,
   String? scrollToMessageId,
   List<String> pinnedJumpMessageIds = const [],
+
   /// Loaded-room harness default is writable; pass null/closed to lock.
   BeaconStatus? beaconStatus = BeaconStatus.open,
 }) {
