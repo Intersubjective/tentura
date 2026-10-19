@@ -17,7 +17,6 @@ class ImageTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<BeaconCreateCubit>();
     final tt = context.tt;
-    final scheme = Theme.of(context).colorScheme;
     return BlocSelector<
       BeaconCreateCubit,
       BeaconCreateState,
@@ -98,40 +97,7 @@ class ImageTab extends StatelessWidget {
                             ),
                           ),
                     ),
-                ] else
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: tt.rowGap * 2),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(tt.cardRadius),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: cubit.pickImages,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: scheme.outlineVariant),
-                              borderRadius: BorderRadius.circular(
-                                tt.cardRadius,
-                              ),
-                            ),
-                            child: AspectRatio(
-                              aspectRatio: windowClass == WindowClass.expanded
-                                  ? 21 / 9
-                                  : 4 / 3,
-                              child: Center(
-                                child: Icon(
-                                  Icons.photo_outlined,
-                                  size: tt.iconSize * 3,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                ],
               ],
             );
           },

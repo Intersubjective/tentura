@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_cover.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
@@ -15,7 +16,9 @@ import 'cover_symbol_sheet.dart';
 ///
 /// Photo / Symbol are **actions** (open picker / symbol sheet), not a mute
 /// mode toggle: re-tapping the already-selected source still runs the action.
-/// Selected styling still reflects [BeaconCreateState.coverSource].
+/// Selected styling reflects the cover actually in use (the resolved
+/// [BeaconCreateState.coverPreview] identity), not the stored preference:
+/// with no photo the Symbol fallback is what shows, so Symbol is highlighted.
 class CoverBlock extends StatelessWidget {
   const CoverBlock({
     required this.onManageCapabilities,
@@ -112,7 +115,9 @@ class CoverBlock extends StatelessWidget {
     required L10n l10n,
     required TenturaTokens tt,
   }) {
-    final photoSelected = state.coverSource == BeaconCoverSource.photo;
+    // Highlight what the preview resolves to; Neutral (no photo, no
+    // capability) keeps Photo as the suggested action.
+    final photoSelected = state.coverPreview.identity is! BeaconIdentitySymbol;
     final photo = _sourceActionButton(
       key: const Key('BeaconCover.SourcePhoto'),
       label: l10n.beaconCoverSourcePhoto,

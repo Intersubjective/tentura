@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
@@ -52,6 +51,20 @@ void main() {
   Finder photoButton() => find.byKey(const Key('BeaconCover.SourcePhoto'));
   Finder symbolButton() => find.byKey(const Key('BeaconCover.SourceSymbol'));
 
+  /// Whether a source button is drawn as the active one: an explicit
+  /// `isSelected` wins; otherwise the filled (non-transparent) background
+  /// is what marks it, as opposed to the transparent outlined variant.
+  bool highlighted(WidgetTester tester, Finder button) {
+    final widget = tester.widget<IconButton>(button);
+    final selected = widget.isSelected;
+    if (selected != null) return selected;
+    final material = tester.widget<Material>(
+      find.descendant(of: button, matching: find.byType(Material)).first,
+    );
+    final color = material.color;
+    return color != null && color.a > 0;
+  }
+
   testWidgets('with no photos and no capabilities photo stays selected', (
     tester,
   ) async {
@@ -65,7 +78,7 @@ void main() {
     expect(find.byType(TenturaCapabilityGlyph), findsNothing);
   });
 
-  testWidgets('a valid primary shows the symbol while photo stays selected', (
+  testWidgets('a valid primary shows the symbol', (
     tester,
   ) async {
     cubit.setNeeds({'transport'});
@@ -75,25 +88,28 @@ void main() {
     expect(find.text('Symbol · Transport'), findsOneWidget);
   });
 
-  testWidgets('selecting symbol keeps the preference and names the capability', (
-    tester,
-  ) async {
-    cubit.setNeeds({'transport'});
-    await tester.pumpWidget(_harness(cubit));
+  testWidgets(
+    'selecting symbol keeps the preference and names the capability',
+    (
+      tester,
+    ) async {
+      cubit.setNeeds({'transport'});
+      await tester.pumpWidget(_harness(cubit));
 
-    await tester.tap(symbolButton());
-    await tester.pumpAndSettle();
+      await tester.tap(symbolButton());
+      await tester.pumpAndSettle();
 
-    expect(cubit.state.coverSource, BeaconCoverSource.symbol);
-    expect(find.text('Choose a symbol'), findsOneWidget);
+      expect(cubit.state.coverSource, BeaconCoverSource.symbol);
+      expect(find.text('Choose a symbol'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('BeaconCover.Symbol.transport')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('BeaconCover.Symbol.transport')));
+      await tester.pumpAndSettle();
 
-    expect(cubit.state.coverSource, BeaconCoverSource.symbol);
-    expect(find.text('Symbol · Transport'), findsOneWidget);
-    expect(find.text('Change symbol'), findsNothing);
-  });
+      expect(cubit.state.coverSource, BeaconCoverSource.symbol);
+      expect(find.text('Symbol · Transport'), findsOneWidget);
+      expect(find.text('Change symbol'), findsNothing);
+    },
+  );
 
   testWidgets('selecting symbol with several capabilities opens the sheet', (
     tester,
@@ -187,6 +203,88 @@ void main() {
     expect(cubit.state.coverKey, coverKey);
     expect(cubit.state.coverSource, BeaconCoverSource.symbol);
     expect(find.byType(TenturaCapabilityGlyph), findsWidgets);
+  });
+
+  group('the Photo / Symbol toggle reflects the cover in use (#437)', () {
+    testWidgets('no photo and a capability: Symbol is highlighted, not Photo', (
+      tester,
+    ) async {
+      cubit.setNeeds({'transport'});
+      await tester.pumpWidget(_harness(cubit));
+
+      // Precondition: the preference is still the default photo, yet the
+      // preview resolves to the symbol because no photo exists.
+      expect(cubit.state.coverSource, BeaconCoverSource.photo);
+      expect(cubit.state.images, isEmpty);
+      expect(find.byType(TenturaCapabilityGlyph), findsOneWidget);
+      expect(find.text('Symbol · Transport'), findsOneWidget);
+
+      expect(highlighted(tester, symbolButton()), isTrue);
+      expect(highlighted(tester, photoButton()), isFalse);
+    });
+
+    testWidgets('an explicit symbol choice highlights Symbol only', (
+      tester,
+    ) async {
+      cubit
+        ..setNeeds({'transport'})
+        ..selectSymbolCoverSource();
+      await tester.pumpWidget(_harness(cubit));
+
+      expect(highlighted(tester, symbolButton()), isTrue);
+      expect(highlighted(tester, photoButton()), isFalse);
+    });
+
+    testWidgets('a photo in use highlights Photo even with a capability', (
+      tester,
+    ) async {
+      images.picked = [_picked('a.jpg')];
+      await tester.pumpWidget(_harness(cubit));
+      await tester.tap(photoButton());
+      await tester.pumpAndSettle();
+      cubit.setNeeds({'transport'});
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.coverSource, BeaconCoverSource.photo);
+      expect(cubit.state.coverImage, isNotNull);
+      expect(find.byType(TenturaCapabilityGlyph), findsNothing);
+
+      expect(highlighted(tester, photoButton()), isTrue);
+      expect(highlighted(tester, symbolButton()), isFalse);
+    });
+
+    testWidgets('a symbol preference over a stored photo highlights Symbol', (
+      tester,
+    ) async {
+      images.picked = [_picked('a.jpg')];
+      await tester.pumpWidget(_harness(cubit));
+      await tester.tap(photoButton());
+      await tester.pumpAndSettle();
+      cubit
+        ..setNeeds({'transport'})
+        ..selectSymbolCoverSource();
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.coverImage, isNotNull);
+      expect(highlighted(tester, symbolButton()), isTrue);
+      expect(highlighted(tester, photoButton()), isFalse);
+    });
+
+    testWidgets('picking a photo moves the highlight from Symbol to Photo', (
+      tester,
+    ) async {
+      cubit.setNeeds({'transport'});
+      await tester.pumpWidget(_harness(cubit));
+      expect(highlighted(tester, symbolButton()), isTrue);
+
+      images.picked = [_picked('a.jpg')];
+      await tester.tap(photoButton());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Image), findsOneWidget);
+      expect(highlighted(tester, photoButton()), isTrue);
+      expect(highlighted(tester, symbolButton()), isFalse);
+    });
   });
 
   testWidgets('the block lays out at compact width and text scale 2.0', (
