@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
@@ -54,7 +55,8 @@ class _BeaconCurrentLineSheetBody extends StatefulWidget {
       _BeaconCurrentLineSheetBodyState();
 }
 
-class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody> {
+class _BeaconCurrentLineSheetBodyState
+    extends State<_BeaconCurrentLineSheetBody> {
   late final TextEditingController _controller;
   var _submitting = false;
 
@@ -79,11 +81,9 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
     super.dispose();
   }
 
-  bool get _canSubmit =>
-      _controller.text.trim().isNotEmpty && !_submitting;
+  bool get _canSubmit => _controller.text.trim().isNotEmpty && !_submitting;
 
-  bool get _isDirty =>
-      _controller.text.trim() != widget.initialText.trim();
+  bool get _isDirty => _controller.text.trim() != widget.initialText.trim();
 
   Future<void> _save() async {
     if (!_canSubmit) return;
@@ -135,72 +135,91 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
       isDirty: _isDirty,
       useRootNavigator: true,
       child: Padding(
-      padding: EdgeInsets.only(
-        left: tt.screenHPadding,
-        right: tt.screenHPadding,
-        top: tt.sectionGap,
-        bottom: bottom + tt.sectionGap,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.beaconHudEditCurrentLineTitle,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              // Same discard check as the scrim (#444).
-              IconButton(
-                tooltip: l10n.buttonClose,
-                onPressed: () => unawaited(
-                  TenturaSheetDismissGuard.requestClose(
-                    context,
-                    isDirty: _isDirty,
-                    useRootNavigator: true,
+        padding: EdgeInsets.only(
+          left: tt.screenHPadding,
+          right: tt.screenHPadding,
+          top: tt.sectionGap,
+          bottom: bottom + tt.sectionGap,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.beaconHudEditCurrentLineTitle,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                icon: Icon(Icons.close, size: tt.iconSize),
-              ),
-            ],
-          ),
-          SizedBox(height: tt.rowGap),
-          TextField(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: l10n.beaconRoomStripCurrentLineLabel,
-              helperText: l10n.beaconCurrentLineEditHelper,
-              helperMaxLines: 3,
-              errorText: _conflict,
-              errorMaxLines: 4,
+                // Same discard check as the scrim (#444).
+                IconButton(
+                  tooltip: l10n.buttonClose,
+                  onPressed: () => unawaited(
+                    TenturaSheetDismissGuard.requestClose(
+                      context,
+                      isDirty: _isDirty,
+                      useRootNavigator: true,
+                    ),
+                  ),
+                  icon: Icon(Icons.close, size: tt.iconSize),
+                ),
+              ],
             ),
-            // The conflict note is about the text they saw; once they edit,
-            // it no longer applies (B085 review).
-            onChanged: (_) => setState(() => _conflict = null),
-            maxLength: kBeaconRoomCurrentLineMaxLength,
-            maxLines: 2,
-            minLines: 1,
-            textInputAction: TextInputAction.done,
-            enabled: !_submitting,
-            autofocus: true,
-          ),
-          SizedBox(height: tt.sectionGap),
-          FilledButton(
-            onPressed: !_canSubmit ? null : _save,
-            child: _submitting
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(MaterialLocalizations.of(context).saveButtonLabel),
-          ),
-        ],
+            SizedBox(height: tt.rowGap),
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: l10n.beaconRoomStripCurrentLineLabel,
+                helperText: l10n.beaconCurrentLineEditHelper,
+                helperMaxLines: 3,
+                errorText: _conflict,
+                errorMaxLines: 4,
+              ),
+              // The conflict note is about the text they saw; once they edit,
+              // it no longer applies (B085 review).
+              onChanged: (_) => setState(() => _conflict = null),
+              maxLength: kBeaconRoomCurrentLineMaxLength,
+              // Code units, as the server counts the line (#343): maxLength
+              // alone counts characters, so an emoji fit here and failed there.
+              inputFormatters: const [
+                CodeUnitLengthLimitingTextInputFormatter(
+                  kBeaconRoomCurrentLineMaxLength,
+                ),
+              ],
+              buildCounter:
+                  (
+                    context, {
+                    required currentLength,
+                    required isFocused,
+                    required maxLength,
+                  }) => Text(
+                    '${_controller.text.length}/$maxLength',
+                    style: TenturaText.withTabular(
+                      TenturaText.bodySmall(context.tt.textMuted),
+                    ),
+                  ),
+              maxLines: 2,
+              minLines: 1,
+              textInputAction: TextInputAction.done,
+              enabled: !_submitting,
+              autofocus: true,
+            ),
+            SizedBox(height: tt.sectionGap),
+            FilledButton(
+              onPressed: !_canSubmit ? null : _save,
+              child: _submitting
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(MaterialLocalizations.of(context).saveButtonLabel),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
