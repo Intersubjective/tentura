@@ -304,7 +304,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                               padding: EdgeInsets.only(
                                 left: tt.screenHPadding,
                                 right: tt.screenHPadding,
-                                bottom: tt.sectionGap * 2,
+                                // The compact sheet runs under the home
+                                // indicator; clear it so the last category
+                                // ("Other") scrolls fully into view (#436).
+                                bottom:
+                                    tt.sectionGap * 2 +
+                                    MediaQuery.paddingOf(ctx).bottom,
                               ),
                               children: [
                                 Text(
