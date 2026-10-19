@@ -129,7 +129,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   /// Sync lifecycle from [BeaconViewCubit] (via [ThreadHostCubit]). Clears an
   /// in-progress reply when writes become locked.
-  void syncBeaconStatus(BeaconStatus status) {
+  void syncBeaconStatus(BeaconStatus status, {String? authorId}) {
     if (isClosed) return;
     final wasWritable = state.canWriteDiscussion;
     final clearReply =
@@ -139,6 +139,7 @@ class RoomCubit extends Cubit<RoomState> {
     emit(
       state.copyWith(
         beaconStatus: status,
+        beaconAuthorId: authorId ?? state.beaconAuthorId,
         replyTarget: clearReply ? null : state.replyTarget,
       ),
     );

@@ -846,7 +846,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        if (caps.plan && !isPoll)
+                        // Same gate as the plan strip / app-bar (#379):
+                        // plan editor AND allowsCoordination.
+                        if (caps.plan && !isPoll && cubit.state.canUpdatePlan)
                           ListTile(
                             leading: const Icon(Icons.edit_note_outlined),
                             title: Text(
