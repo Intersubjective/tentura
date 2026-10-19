@@ -174,6 +174,29 @@ void _openBeaconOrSelect(
 
 Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 
+/// #487 — a child Request says which Request it is part of, so it does not
+/// read as an unrelated sibling of its parent on the list. Nothing for a
+/// top-level Request or a parent the viewer cannot read.
+Widget _myWorkPartOfParentLine(BuildContext context, MyWorkCardViewModel vm) {
+  final title = vm.parentTitle.trim();
+  if (title.isEmpty) return const SizedBox.shrink();
+  final tt = context.tt;
+  final theme = Theme.of(context);
+  return Padding(
+    // On the text keyline with the title and HUD rows.
+    padding: EdgeInsetsDirectional.only(
+      start: tt.avatarSize + tt.avatarTextGap,
+      top: tt.tightGap,
+    ),
+    child: Text(
+      L10n.of(context)!.myWorkPartOfParent(title),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall!.copyWith(color: tt.textMuted),
+    ),
+  );
+}
+
 /// Live obligations render as rows with their own CTA; a YOU line saying
 /// «ответьте на предложения» above them would be the same thing twice.
 bool _myWorkHasObligationRows(BuildContext context, MyWorkCardViewModel vm) =>
@@ -706,6 +729,7 @@ class _AuthoredActiveCard extends StatelessWidget {
               onDelete: () => _confirmAndDeleteMyWorkBeacon(context, vm: vm),
             ),
           ),
+          _myWorkPartOfParentLine(context, vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -786,6 +810,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
+          _myWorkPartOfParentLine(context, vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -868,6 +893,7 @@ class _DraftAuthoredCard extends StatelessWidget {
               onDelete: () => _confirmAndDeleteMyWorkBeacon(context, vm: vm),
             ),
           ),
+          _myWorkPartOfParentLine(context, vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -997,6 +1023,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
               onDelete: () => _confirmAndDeleteMyWorkBeacon(context, vm: vm),
             ),
           ),
+          _myWorkPartOfParentLine(context, vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -1076,6 +1103,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
+          _myWorkPartOfParentLine(context, vm),
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,

@@ -33,6 +33,12 @@ abstract class InboxRoomCardHints with _$InboxRoomCardHints {
     /// #498 — what the latest message carries when it has no text: `image`,
     /// `file`, `poll` or `fact` ([kRoomLatestMessageKinds]); empty for text.
     @Default('') String lastMessageKind,
+
+    /// #487 — the Request's immediate parent (id and title), only when the
+    /// viewer may read it; empty for a top-level Request. Not a room detail:
+    /// it is sent whether or not the viewer is in the room.
+    @Default('') String parentBeaconId,
+    @Default('') String parentTitle,
   }) = _InboxRoomCardHints;
 }
 

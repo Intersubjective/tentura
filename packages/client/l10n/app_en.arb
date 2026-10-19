@@ -4018,6 +4018,14 @@
       "text": {"type": "String"}
     }
   },
+  "myWorkPartOfParent": "Part of: {title}",
+  "@myWorkPartOfParent": {
+    "context": "MyWorkScreen",
+    "description": "#487: line on a child Request's card on the Requests list naming the Request it is part of",
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
   "myWorkLatestPhoto": "📷 Photo",
   "@myWorkLatestPhoto": {
     "context": "MyWorkScreen",

@@ -293,8 +293,17 @@ final class MyWorkCase extends UseCaseBase {
       for (final c in cards)
         () {
           final h = hints[c.beaconId];
-          if (h == null || !h.isRoomMember) {
+          if (h == null) {
             return c;
+          }
+          // #487 — the parent link is not a room detail: a non-member's
+          // card still says which Request it is part of.
+          final withParent = c.copyWith(
+            parentBeaconId: h.parentBeaconId,
+            parentTitle: h.parentTitle,
+          );
+          if (!h.isRoomMember) {
+            return withParent;
           }
           final parts = <String>[];
           if (h.myNextMove.isNotEmpty) {
@@ -318,7 +327,7 @@ final class MyWorkCase extends UseCaseBase {
               parts.add('+$unread');
             }
           }
-          return c.copyWith(
+          return withParent.copyWith(
             planSlice: h.planSlice,
             roomCurrentLine: h.currentLineSnippet,
             roomOpenBlockerTitle: h.openBlockerTitle,

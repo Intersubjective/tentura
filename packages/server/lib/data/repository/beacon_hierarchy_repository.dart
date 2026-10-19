@@ -277,6 +277,45 @@ WHERE b.id = $1
   }
 
   @override
+  Future<Map<String, BeaconParentReference>> loadParentReferences({
+    required Set<String> childBeaconIds,
+    required String viewerId,
+  }) async {
+    if (childBeaconIds.isEmpty) {
+      return {};
+    }
+    // One read for the whole set; same guards as [loadParentReference]:
+    // the child and the parent must both be readable, the parent not deleted.
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT c.id AS child_id, p.id AS parent_id, p.title, p.kind
+FROM public.beacon c
+JOIN public.beacon p ON p.id = c.parent_beacon_id
+WHERE c.id = ANY($1)
+  AND p.status <> $3
+  AND public.beacon_can_read_content(c.id, $2)
+  AND public.beacon_can_read_content(p.id, $2)
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, childBeaconIds.toList())),
+            Variable<String>(viewerId),
+            Variable<int>(BeaconStatus.deleted.smallintValue),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('child_id'): BeaconParentReference(
+          state: BeaconParentReferenceState.available,
+          beaconId: row.read<String>('parent_id'),
+          title: row.read<String>('title'),
+          isPost: row.read<int>('kind') == BeaconKind.post.value,
+        ),
+    };
+  }
+
+  @override
   Future<BeaconPromotionSource> loadPromotionSource({
     required String parentBeaconId,
     required String sourceMessageId,

@@ -3859,6 +3859,7 @@
     "description": "Mid-sentence label for the current user on My Desk last-event rows"
   },
   "myWorkLatestMessage": "{name}: {text}",
+  "myWorkPartOfParent": "Часть запроса: {title}",
   "myWorkLatestPhoto": "📷 Фото",
   "myWorkLatestFile": "📎 Файл",
   "myWorkLatestPoll": "📊 Опрос",

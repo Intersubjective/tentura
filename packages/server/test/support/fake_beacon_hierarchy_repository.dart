@@ -23,8 +23,7 @@ class FakeBeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   Future<BeaconHierarchyCapabilities> loadCapabilities({
     required String parentBeaconId,
     required String viewerId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<BeaconHierarchyPage> listChildren({
@@ -33,30 +32,64 @@ class FakeBeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     required BeaconHierarchyChildGroup group,
     required int first,
     String? after,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<BeaconHierarchySummary?> loadChildPreview({
     required String beaconId,
     required String viewerId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
+
+  /// Guarded parent links by child id; a child not listed has no parent
+  /// (`BeaconParentReference.none`). Tests that exercise the Requests list
+  /// batch (#487) seed this map.
+  final Map<String, BeaconParentReference> parentReferences = {};
+
+  /// Child ids passed to the per-id [loadParentReference], in call order.
+  /// The Requests list batch must not use it (#487 review, PR #610: one
+  /// read per Request was an N+1 on the inbox).
+  final List<String> parentReferenceCalls = [];
 
   @override
   Future<BeaconParentReference> loadParentReference({
     required String childBeaconId,
     required String viewerId,
-  }) =>
-      throw UnimplementedError();
+  }) async {
+    parentReferenceCalls.add(childBeaconId);
+    return parentReferences[childBeaconId] ?? BeaconParentReference.none;
+  }
+
+  /// Each call to the batched [loadParentReferences]: the child ids asked
+  /// for and the viewer.
+  final List<({Set<String> childBeaconIds, String viewerId})>
+  parentReferencesBatchCalls = [];
+
+  /// Batched guarded parent links: only children whose parent is
+  /// [BeaconParentReferenceState.available] to the viewer are in the map.
+  @override
+  Future<Map<String, BeaconParentReference>> loadParentReferences({
+    required Set<String> childBeaconIds,
+    required String viewerId,
+  }) async {
+    parentReferencesBatchCalls.add((
+      childBeaconIds: Set<String>.of(childBeaconIds),
+      viewerId: viewerId,
+    ));
+    return {
+      for (final id in childBeaconIds)
+        if (parentReferences[id] case final ref?
+            when ref.state == BeaconParentReferenceState.available &&
+                ref.beaconId != null)
+          id: ref,
+    };
+  }
 
   @override
   Future<BeaconPromotionSource> loadPromotionSource({
     required String parentBeaconId,
     required String sourceMessageId,
     required String viewerId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   BeaconStatus statusOverride = BeaconStatus.open;
 
@@ -80,6 +113,5 @@ class PassThroughMutatingUnitOfWork extends Fake
   Future<T> run<T>({
     required Future<T> Function() action,
     String? actorUserId,
-  }) =>
-      action();
+  }) => action();
 }
