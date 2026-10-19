@@ -124,11 +124,29 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                   child: ListView(
                     padding: EdgeInsets.all(tt.screenHPadding),
                     children: [
+                      BlocSelector<
+                        ComplaintCubit,
+                        ComplaintState,
+                        (String, String)
+                      >(
+                        selector: (state) => (state.title, state.author),
+                        builder: (_, item) {
+                          final (title, author) = item;
+                          if (title.isEmpty && author.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: tt.sectionGap),
+                            child: _ReportedItem(title: title, author: author),
+                          );
+                        },
+                      ),
+
                       if (fixedType == null)
                         BlocSelector<
                           ComplaintCubit,
                           ComplaintState,
-                          (ComplaintType, bool)
+                          (ComplaintType?, bool)
                         >(
                           selector: (state) => (state.type, state.isLoading),
                           builder: (_, state) {
@@ -146,6 +164,9 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                                 ),
                               ],
                               onChanged: isLoading ? null : cubit.setType,
+                              hint: Text(l10n.complaintTypeHint),
+                              validator: (v) =>
+                                  v == null ? l10n.complaintTypeRequired : null,
                               decoration: InputDecoration(
                                 labelText: l10n.labelComplaintType,
                                 border: const OutlineInputBorder(),
@@ -194,6 +215,9 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                           enabled: !isLoading,
                           decoration: InputDecoration(
                             labelText: l10n.feedbackEmail,
+                            helperText: fixedType == null
+                                ? l10n.complaintEmailUse
+                                : null,
                             border: const OutlineInputBorder(),
                           ),
                           validator: (v) =>
@@ -238,6 +262,41 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// The item being reported: its title, and its author when there is one.
+class _ReportedItem extends StatelessWidget {
+  const _ReportedItem({required this.title, required this.author});
+
+  final String title;
+  final String author;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title.isNotEmpty)
+          Text(
+            title,
+            style: textTheme.titleMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        if (author.isNotEmpty)
+          Text(
+            author,
+            style: textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+      ],
     );
   }
 }

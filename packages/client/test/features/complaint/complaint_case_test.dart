@@ -10,6 +10,8 @@ import 'package:tentura/features/credentials/domain/use_case/credentials_case.da
 
 import '../credentials/credentials_case_test.dart'
     show FakeCredentialsRepository, TrackingAuthLocal;
+import 'recording_complaint_case.dart'
+    show FakeComplaintBeacons, FakeComplaintProfiles;
 
 class _FakeComplaintRepository extends Fake implements ComplaintRepository {}
 
@@ -29,7 +31,9 @@ void main() {
     case_ = ComplaintCase(
       _FakeComplaintRepository(),
       credentialsCase,
-      env: Env.fromEnvironment(),
+      FakeComplaintBeacons(),
+      FakeComplaintProfiles(),
+      env: const Env.fromEnvironment(),
       logger: Logger('ComplaintCaseTest'),
     );
   });

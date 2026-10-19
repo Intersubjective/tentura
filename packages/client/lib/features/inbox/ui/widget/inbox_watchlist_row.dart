@@ -149,7 +149,8 @@ class InboxWatchlistRow extends StatelessWidget {
                   ? l10n.inboxDismissTooltip
                   : null,
               onSecondary:
-                  showCtaRow && (secondaryLabel != null || secondaryIcon != null)
+                  showCtaRow &&
+                      (secondaryLabel != null || secondaryIcon != null)
                   ? _onSecondaryPressed
                   : null,
             )
@@ -243,7 +244,11 @@ class InboxWatchlistRow extends StatelessWidget {
     DateTime? endAt,
     DateTime? startAt,
   ) {
-    final meta = beaconCardCalendarDeadlineStatus(l10n, endAt, startAt: startAt);
+    final meta = beaconCardCalendarDeadlineStatus(
+      l10n,
+      endAt,
+      startAt: startAt,
+    );
     if (meta == null) return null;
     final theme = Theme.of(context);
     if (meta.overdue) {

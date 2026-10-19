@@ -932,6 +932,14 @@
   "@labelComplaintType": {
     "context": "ComplaintScreen"
   },
+  "complaintTypeHint": "Что не так?",
+  "@complaintTypeHint": {
+    "context": "ComplaintScreen"
+  },
+  "complaintTypeRequired": "Выберите, что не так",
+  "@complaintTypeRequired": {
+    "context": "ComplaintScreen"
+  },
   "detailsRequired": "{min, plural, one{Подробности, минимум {min} символ} few{Подробности, минимум {min} символа} other{Подробности, минимум {min} символов}}",
   "@detailsRequired": {
     "context": "ComplaintScreen",
@@ -956,6 +964,10 @@
   },
   "feedbackEmail": "Email для обратной связи (необязательно)",
   "@feedbackEmail": {
+    "context": "ComplaintScreen"
+  },
+  "complaintEmailUse": "Необязательно. Используется только для связи с вами по этой жалобе.",
+  "@complaintEmailUse": {
     "context": "ComplaintScreen"
   },
   "emailValidationError": "Введите корректный email",

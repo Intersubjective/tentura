@@ -692,7 +692,9 @@ void main() {
       await _settle(tester);
 
       expect(
-        h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
+        h.effects.emitted.whereType<NavigatePush>().map(
+          (e) => Uri.parse(e.path).path,
+        ),
         contains('/complaint/$_postId'),
       );
     });
