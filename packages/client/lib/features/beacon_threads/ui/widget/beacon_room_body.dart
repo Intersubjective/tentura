@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -1366,9 +1367,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       );
       return;
     }
-    final initialText = body.length > kBeaconRoomCurrentLineMaxLength
-        ? body.substring(0, kBeaconRoomCurrentLineMaxLength)
-        : body;
+    // On a character boundary, never half an emoji (#343).
+    final initialText = CodeUnitLengthLimitingTextInputFormatter.truncate(
+      body,
+      kBeaconRoomCurrentLineMaxLength,
+    );
     final openedWith = cubit.state.roomState?.currentLine;
     final plan = await showTenturaAdaptiveSheet<String>(
       context: context,
@@ -1490,6 +1493,26 @@ class _BeaconRoomTextBottomSheetState
                 maxLines: widget.maxLength != null ? 2 : 6,
                 minLines: widget.maxLength != null ? 1 : 3,
                 maxLength: widget.maxLength,
+                // Code units, as the server counts the plan line (#343).
+                inputFormatters: [
+                  if (widget.maxLength != null)
+                    CodeUnitLengthLimitingTextInputFormatter(
+                      widget.maxLength!,
+                    ),
+                ],
+                buildCounter: widget.maxLength == null
+                    ? null
+                    : (
+                        context, {
+                        required currentLength,
+                        required isFocused,
+                        required maxLength,
+                      }) => Text(
+                        '${_controller.text.length}/$maxLength',
+                        style: TenturaText.withTabular(
+                          TenturaText.bodySmall(context.tt.textMuted),
+                        ),
+                      ),
                 decoration: InputDecoration(
                   hintText: widget.hintText,
                 ),
