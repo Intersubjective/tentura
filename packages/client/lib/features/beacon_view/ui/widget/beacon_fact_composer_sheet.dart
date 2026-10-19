@@ -43,7 +43,8 @@ class _BeaconFactComposerBody extends StatefulWidget {
   final ClipboardImageRepository? clipboardImageRepository;
 
   @override
-  State<_BeaconFactComposerBody> createState() => _BeaconFactComposerBodyState();
+  State<_BeaconFactComposerBody> createState() =>
+      _BeaconFactComposerBodyState();
 }
 
 class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
@@ -51,6 +52,9 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
   final _text = TextEditingController();
   var _visibility = BeaconFactCardVisibilityBits.public;
   var _submitting = false;
+
+  /// Set when Pin is tapped with nothing to pin; cleared on typing (#481).
+  var _showEmptyError = false;
 
   @override
   ImageRepository get attachmentImageRepository =>
@@ -66,12 +70,16 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
     super.dispose();
   }
 
-  bool get _canSubmit =>
-      !_submitting &&
-      (_text.text.trim().isNotEmpty || pendingUploads.isNotEmpty);
+  bool get _hasContent =>
+      _text.text.trim().isNotEmpty || pendingUploads.isNotEmpty;
 
   Future<void> _submit() async {
-    if (!_canSubmit) return;
+    if (_submitting) return;
+    if (!_hasContent) {
+      // #481: say what is missing instead of a silently dead Pin.
+      setState(() => _showEmptyError = true);
+      return;
+    }
     final l10n = L10n.of(context)!;
     final rawText = _text.text;
     final uploads = List<RoomPendingUpload>.from(pendingUploads);
@@ -133,9 +141,12 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
               enabled: !_submitting,
               minLines: 2,
               maxLines: 6,
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() => _showEmptyError = false),
               decoration: InputDecoration(
                 hintText: l10n.beaconRoomFactCardEditHint,
+                errorText: _showEmptyError && !_hasContent
+                    ? l10n.beaconFactsComposerEmptyError
+                    : null,
               ),
             ),
             if (pendingUploads.isNotEmpty) ...[
@@ -144,7 +155,11 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
                 existing: const [],
                 pending: [
                   for (final u in pendingUploads)
-                    (bytes: u.bytes, fileName: u.fileName, mimeType: u.mimeType),
+                    (
+                      bytes: u.bytes,
+                      fileName: u.fileName,
+                      mimeType: u.mimeType,
+                    ),
                 ],
                 onRemoveExisting: (_) {},
                 onRemovePending: (i) {
@@ -229,7 +244,7 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
                 TenturaCommandButton(
                   key: TestIds.key(TestIds.beaconFactsComposerSubmit),
                   label: l10n.beaconFactsComposerPin,
-                  onPressed: _canSubmit ? () => unawaited(_submit()) : null,
+                  onPressed: _submitting ? null : () => unawaited(_submit()),
                 ),
               ],
             ),

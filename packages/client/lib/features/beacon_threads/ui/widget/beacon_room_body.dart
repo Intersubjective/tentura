@@ -36,6 +36,7 @@ import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart
 import '../bloc/room_cubit.dart';
 import '../util/room_reply_excerpt.dart';
 import '../coordination_room_navigation.dart';
+import '../room_fact_authoring.dart';
 import 'fact_actions_sheet.dart';
 import 'beacon_room_poll_sheet.dart';
 import 'fact_picker_sheet.dart';
@@ -438,7 +439,21 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 : l10n.beaconRoomMessageReadOnlyHint,
             onPickFact: canWrite
                 ? () async {
-                    await showFactPickerSheet(context, cubit: cubit);
+                    // #481: an empty picker hands off to the Add-fact form
+                    // when this room has one (Request rooms provide a
+                    // RoomFactAuthoring; Post rooms do not).
+                    final authoring = context.read<RoomFactAuthoring?>();
+                    final canAddFact =
+                        authoring != null &&
+                        widget.capabilities.facts &&
+                        authoring.canAddFact;
+                    await showFactPickerSheet(
+                      context,
+                      cubit: cubit,
+                      onAddFact: canAddFact
+                          ? () => unawaited(authoring.openAddFact(context))
+                          : null,
+                    );
                     if (!context.mounted) return;
                     if (cubit.state.pendingQuotedFact != null) {
                       _basicChatKey.currentState?.focusComposer();

@@ -14,21 +14,28 @@ const _kFactPickerSearchThreshold = 5;
 ///
 /// Lists every live (non-removed) fact from the room's fact cards; tapping
 /// one sets it as the room's pending quoted fact and closes.
+///
+/// [onAddFact] opens the host's Add-fact form; when given, an empty picker
+/// offers "Pin your first fact" instead of a dead end (#481).
 Future<void> showFactPickerSheet(
   BuildContext context, {
   required RoomCubit cubit,
+  VoidCallback? onAddFact,
 }) {
   return showTenturaAdaptiveSheet<void>(
     context: context,
     useRootNavigator: true,
-    builder: (ctx) => FactPickerSheet(cubit: cubit),
+    builder: (ctx) => FactPickerSheet(cubit: cubit, onAddFact: onAddFact),
   );
 }
 
 class FactPickerSheet extends StatefulWidget {
-  const FactPickerSheet({required this.cubit, super.key});
+  const FactPickerSheet({required this.cubit, this.onAddFact, super.key});
 
   final RoomCubit cubit;
+
+  /// Closes the picker first, then is called once (#481).
+  final VoidCallback? onAddFact;
 
   @override
   State<FactPickerSheet> createState() => _FactPickerSheetState();
@@ -42,6 +49,12 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _addFirstFact() {
+    final onAddFact = widget.onAddFact;
+    Navigator.of(context).pop();
+    onAddFact?.call();
   }
 
   void _select(BeaconFactCard fact) {
@@ -112,9 +125,25 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
               ],
               Flexible(
                 child: facts.isEmpty
-                    ? Text(
-                        l10n.beaconFactsSheetEmpty,
-                        style: TenturaText.bodyMedium(tt.textMuted),
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            l10n.beaconFactsSheetEmpty,
+                            style: TenturaText.bodyMedium(tt.textMuted),
+                          ),
+                          if (widget.onAddFact != null) ...[
+                            SizedBox(height: tt.rowGap),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TenturaCommandButton(
+                                label: l10n.beaconRoomFactPickerPinFirst,
+                                onPressed: _addFirstFact,
+                              ),
+                            ),
+                          ],
+                        ],
                       )
                     : ListView.separated(
                         shrinkWrap: true,

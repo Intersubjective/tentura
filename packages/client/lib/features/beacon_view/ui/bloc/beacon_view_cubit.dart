@@ -1,8 +1,11 @@
 import 'dart:async';
+
+import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
+import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -44,6 +47,7 @@ import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import '../message/beacon_status_messages.dart';
 import '../message/help_offer_messages.dart';
+import '../widget/beacon_fact_composer_sheet.dart';
 import 'beacon_view_state.dart';
 import 'timeline_help_offer_mapping.dart';
 
@@ -54,7 +58,8 @@ export 'beacon_view_state.dart';
 /// Marks a background refresh slice that failed and keeps its current value.
 const Object _keptSlice = Object();
 
-class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
+class BeaconViewCubit extends Cubit<BeaconViewState>
+    implements RoomHost, RoomFactAuthoring {
   BeaconViewCubit({
     required String id,
     required Profile myProfile,
@@ -122,6 +127,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
 
   @override
   bool get isAdmissionBlocked => state.isRoomAdmissionBlocked;
+
+  @override
+  bool get canAddFact => state.canCoordinateInBeaconRoom;
+
+  @override
+  Future<void> openAddFact(BuildContext context) =>
+      showBeaconFactComposerSheet(context, cubit: this);
 
   @override
   bool get coordinationDeniesAdmission =>
