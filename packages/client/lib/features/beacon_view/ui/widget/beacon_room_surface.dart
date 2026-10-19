@@ -26,6 +26,7 @@ class BeaconRoomSurface extends StatefulWidget {
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
     this.postRoot,
+    this.pinnedStrip,
     super.key,
   });
 
@@ -42,6 +43,9 @@ class BeaconRoomSurface extends StatefulWidget {
 
   /// Post rooms only: the pinned root strip.
   final RoomPostRootPin? postRoot;
+
+  /// Overrides the host's pinned strip; null keeps the host's.
+  final RoomPinnedStrip? pinnedStrip;
 
   @override
   State<BeaconRoomSurface> createState() => _BeaconRoomSurfaceState();
@@ -173,9 +177,12 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
 
             return BlocBuilder<ThreadHostCubit, ThreadHostState>(
               buildWhen: (p, c) =>
-                  p.switching != c.switching || p.openThreadId != c.openThreadId,
+                  p.switching != c.switching ||
+                  p.openThreadId != c.openThreadId,
               builder: (context, hostState) {
-                if (hostState.switching || !_roomReady || _generalThread == null) {
+                if (hostState.switching ||
+                    !_roomReady ||
+                    _generalThread == null) {
                   return const Center(
                     child: CircularProgressIndicator.adaptive(),
                   );
@@ -185,7 +192,9 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                   thread: _generalThread!,
                   beaconAuthorId: host.author.id,
                   beaconAuthor: host.author,
-                  capabilities: host.capabilities,
+                  capabilities: widget.pinnedStrip == null
+                      ? host.capabilities
+                      : host.capabilities.withPinnedStrip(widget.pinnedStrip!),
                   postRoot: widget.postRoot,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,

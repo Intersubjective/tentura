@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/room_composer_intent.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
@@ -958,6 +959,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 messageId: widget.messageId,
                 onCoordinationSaved: _refreshThreadsTab,
                 onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
+                // The Now pane beside the chat shows the NOW line; the chat
+                // keeps only an open blocker (#451).
+                pinnedStrip: RoomPinnedStrip.requestBlocker,
               ),
             ),
             TenturaVerticalResizeHandle(

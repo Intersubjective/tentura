@@ -6951,7 +6951,7 @@
   "planDeletedUser": "удалённый участник",
   "beaconHudNextLabel": "ДАЛЬШЕ",
   "beaconHudByPlanLabel": "ПО ПЛАНУ",
-  "beaconHudFreeUntil": "Вы свободны до {time}",
+  "beaconHudFreeUntil": "Ничего не запланировано до {time}",
   "beaconHudInDuration": "через {duration}",
   "beaconHudAlsoRunning": "тоже идёт",
   "beaconHudOverdueBy": "⏰ +{duration}",

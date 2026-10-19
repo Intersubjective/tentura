@@ -9340,9 +9340,9 @@
   "@beaconHudByPlanLabel": {
     "description": "HUD row label: the viewer's plan step while a system situation holds the YOU row."
   },
-  "beaconHudFreeUntil": "Free until {time}",
+  "beaconHudFreeUntil": "Nothing scheduled before {time}",
   "@beaconHudFreeUntil": {
-    "description": "HUD YOU row: nothing to do by the plan until the next step starts.",
+    "description": "HUD YOU row: the viewer has no plan step before their next one starts.",
     "placeholders": {
       "time": {
         "type": "String"

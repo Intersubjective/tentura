@@ -68,7 +68,11 @@ BeaconHudPlanData _data(BeaconPlan plan, _Calls calls, {DateTime? now}) =>
       onOpenPlan: () => calls.openPlan++,
     );
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
+Future<void> _pump(
+  WidgetTester tester,
+  Widget child, {
+  Locale locale = const Locale('en'),
+}) async {
   tester.view.physicalSize = const Size(900, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -77,7 +81,7 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      locale: const Locale('en'),
+      locale: locale,
       home: Scaffold(body: SingleChildScrollView(child: child)),
     ),
   );
@@ -309,14 +313,20 @@ void main() {
     );
   });
 
-  testWidgets('free until the next step when nothing runs', (tester) async {
+  // #451: «Free until …» read as availability status. The YOU row says
+  // nothing is scheduled for the viewer before their next step.
+  BeaconPlan freePlan(DateTime at) => _plan().withStepDone(
+    'PS000000000002',
+    done: true,
+    actorId: 'ME',
+    now: at,
+  );
+
+  testWidgets('nothing scheduled before the next step when nothing runs', (
+    tester,
+  ) async {
     final early = DateTime.utc(2026, 10, 12, 10, 40);
-    final plan = _plan().withStepDone(
-      'PS000000000002',
-      done: true,
-      actorId: 'ME',
-      now: early,
-    );
+    final plan = freePlan(early);
     await _pump(
       tester,
       BeaconHudPinnedBlock(
@@ -326,14 +336,44 @@ void main() {
       ),
     );
     expect(
-      _inRow(BeaconHudPlanKeys.you, find.textContaining('Free until')),
+      _inRow(
+        BeaconHudPlanKeys.you,
+        find.textContaining('Nothing scheduled before'),
+      ),
       findsOneWidget,
     );
+    expect(find.textContaining('Free until'), findsNothing);
+    expect(find.textContaining('Free until', findRichText: true), findsNothing);
     expect(
       _inRow(BeaconHudPlanKeys.next, find.textContaining('Build frame')),
       findsOneWidget,
     );
     expect(find.text('plan 2/4'), findsOneWidget);
+  });
+
+  testWidgets('ru: nothing scheduled before the next step, no «свободны»', (
+    tester,
+  ) async {
+    final early = DateTime.utc(2026, 10, 12, 10, 40);
+    final plan = freePlan(early);
+    await _pump(
+      tester,
+      BeaconHudPinnedBlock(
+        state: _state(),
+        now: early,
+        plan: _data(plan, _Calls(), now: early),
+      ),
+      locale: const Locale('ru'),
+    );
+    expect(
+      _inRow(
+        BeaconHudPlanKeys.you,
+        find.textContaining('Ничего не запланировано до'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('свободн'), findsNothing);
+    expect(find.textContaining('свободн', findRichText: true), findsNothing);
   });
 
   testWidgets('a finished Request hides plan rows', (tester) async {
