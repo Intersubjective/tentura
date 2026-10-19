@@ -234,7 +234,7 @@ Widget _myWorkWhatsNewSection(
       ],
     ),
   );
-  if (vm.roomLatestMessageText.trim().isEmpty) return row;
+  if (!vm.hasRoomLatestMessage) return row;
   // U087 — the latest message and the unread count, above the event line.
   return Column(
     mainAxisSize: MainAxisSize.min,

@@ -8469,6 +8469,7 @@ type v2_InboxRoomContextRow {
   lastMessageAt: String
   lastMessageAuthorId: String
   lastMessageAuthorName: String
+  lastMessageKind: String
   lastMessageText: String
   lastRoomMeaningfulChange: String
   lastSeenAt: String

@@ -7,6 +7,7 @@ final class RoomLatestActivity {
     this.lastMessageBody,
     this.lastMessageAuthorId,
     this.lastMessageAuthorName,
+    this.lastMessageKind,
   });
 
   /// Latest of: any main-room line (messages and system lines), the
@@ -18,9 +19,14 @@ final class RoomLatestActivity {
   final DateTime? lastActivityAt;
 
   /// The latest member-written main-room message (not a system line, and not
-  /// an attachment-only message with an empty body).
+  /// a blank message with nothing attached). A message with no text but a
+  /// photo, file, poll or quoted fact counts (#498).
   final DateTime? lastMessageAt;
   final String? lastMessageBody;
   final String? lastMessageAuthorId;
   final String? lastMessageAuthorName;
+
+  /// #498 — what the latest message carries when its body is blank:
+  /// `image`, `file`, `poll` or `fact`. Null for a text message.
+  final String? lastMessageKind;
 }

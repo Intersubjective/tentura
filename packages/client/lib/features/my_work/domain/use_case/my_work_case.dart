@@ -308,8 +308,13 @@ final class MyWorkCase extends UseCaseBase {
               serverSeenAt: h.lastSeenAt,
             );
             // U087 — with a "latest" line the count rides on it ("2 new");
-            // without one it stays the header's "+N".
-            if (unread > 0 && h.lastMessageText.isEmpty) {
+            // without one it stays the header's "+N". A photo-, file-, poll-
+            // or fact-only message has a line too (#498).
+            if (unread > 0 &&
+                !isRoomLatestMessageShown(
+                  text: h.lastMessageText,
+                  kind: h.lastMessageKind,
+                )) {
               parts.add('+$unread');
             }
           }
@@ -324,6 +329,7 @@ final class MyWorkCase extends UseCaseBase {
             roomLatestMessageAuthorId: h.lastMessageAuthorId,
             roomLatestMessageAuthorName: h.lastMessageAuthorName,
             roomLatestMessageAt: h.lastMessageAt,
+            roomLatestMessageKind: h.lastMessageKind,
             roomUnreadCount: unread > 0 ? unread : 0,
           );
         }(),

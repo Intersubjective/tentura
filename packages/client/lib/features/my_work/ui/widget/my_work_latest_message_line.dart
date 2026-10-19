@@ -7,7 +7,8 @@ import 'package:tentura/ui/utils/relative_time.dart';
 
 /// U087 — one "latest" line per Request card: who wrote last, what, how long
 /// ago, and how many messages are unread ("Nina: Parking sorted? · 1m",
-/// "2 new"). Renders nothing without a member message.
+/// "2 new"). A message with no text reads as what it carries ("📷 Photo",
+/// #498). Renders nothing without a member message.
 class MyWorkLatestMessageLine extends StatelessWidget {
   const MyWorkLatestMessageLine({
     required this.vm,
@@ -24,9 +25,18 @@ class MyWorkLatestMessageLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = vm.roomLatestMessageText.trim();
-    if (text.isEmpty) return const SizedBox.shrink();
     final l10n = L10n.of(context)!;
+    final caption = vm.roomLatestMessageText.trim();
+    final text = caption.isNotEmpty
+        ? caption
+        : switch (vm.roomLatestMessageKind) {
+            'image' => l10n.myWorkLatestPhoto,
+            'file' => l10n.myWorkLatestFile,
+            'poll' => l10n.myWorkLatestPoll,
+            'fact' => l10n.myWorkLatestFact,
+            _ => '',
+          };
+    if (text.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tt = context.tt;
@@ -60,9 +70,7 @@ class MyWorkLatestMessageLine extends StatelessWidget {
       details.isEmpty ? '' : '$separator$details',
     );
     final style = theme.textTheme.bodySmall!.copyWith(
-      color: unread > 0
-          ? scheme.onSurface
-          : tt.textFaint,
+      color: unread > 0 ? scheme.onSurface : tt.textFaint,
     );
     return Padding(
       padding: EdgeInsets.only(top: tt.tightGap),
