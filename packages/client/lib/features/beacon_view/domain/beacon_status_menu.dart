@@ -4,6 +4,9 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../ui/util/beacon_closure_readiness.dart';
 
 /// Stable row ids for the beacon status bottom sheet (fixed display order).
+///
+/// [draft] is shown only while the Request is still a draft; published and
+/// terminal sheets omit it (#475).
 enum BeaconStatusMenuRowId {
   draft,
   open,
@@ -135,7 +138,7 @@ List<BeaconStatusMenuRow> buildBeaconStatusMenuRows(
   }
 
   return [
-    _draftRow(input),
+    if (lifecycle == BeaconStatus.draft) _draftRow(),
     _openRow(input),
     _moreHelpRow(input),
     _enoughHelpRow(input),
@@ -149,17 +152,15 @@ List<BeaconStatusMenuRow> _terminalRows(BeaconStatus status) {
   BeaconStatusMenuRow row(
     BeaconStatusMenuRowId id, {
     required bool selected,
-  }) =>
-      BeaconStatusMenuRow(
-        id: id,
-        action: BeaconStatusMenuAction.none,
-        isSelected: selected,
-        isEnabled: false,
-        disabledReason: BeaconStatusMenuDisabledReason.terminalState,
-      );
+  }) => BeaconStatusMenuRow(
+    id: id,
+    action: BeaconStatusMenuAction.none,
+    isSelected: selected,
+    isEnabled: false,
+    disabledReason: BeaconStatusMenuDisabledReason.terminalState,
+  );
 
   return [
-    row(BeaconStatusMenuRowId.draft, selected: false),
     row(BeaconStatusMenuRowId.open, selected: false),
     row(BeaconStatusMenuRowId.moreHelp, selected: false),
     row(BeaconStatusMenuRowId.enoughHelp, selected: false),
@@ -175,18 +176,13 @@ List<BeaconStatusMenuRow> _terminalRows(BeaconStatus status) {
   ];
 }
 
-BeaconStatusMenuRow _draftRow(BeaconStatusMenuInput input) {
-  final selected = input.beacon.status == BeaconStatus.draft;
-  return BeaconStatusMenuRow(
-    id: BeaconStatusMenuRowId.draft,
-    action: BeaconStatusMenuAction.none,
-    isSelected: selected,
-    isEnabled: false,
-    disabledReason: selected
-        ? BeaconStatusMenuDisabledReason.none
-        : BeaconStatusMenuDisabledReason.terminalState,
-  );
-}
+/// The draft's own "you are here" row; only built for drafts.
+BeaconStatusMenuRow _draftRow() => const BeaconStatusMenuRow(
+  id: BeaconStatusMenuRowId.draft,
+  action: BeaconStatusMenuAction.none,
+  isSelected: true,
+  isEnabled: false,
+);
 
 BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
   final lifecycle = input.beacon.status;
@@ -223,9 +219,7 @@ BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
     );
   }
 
-  final selected =
-      lifecycle == BeaconStatus.open &&
-      coord == BeaconStatus.open;
+  final selected = lifecycle == BeaconStatus.open && coord == BeaconStatus.open;
 
   return BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.open,
@@ -245,10 +239,9 @@ BeaconStatusMenuRow _coordinationRow({
   required BeaconStatus status,
 }) {
   final lifecycle = input.beacon.status;
-  final allowsCoordination = lifecycle.isOpenFamily ||
-      lifecycle == BeaconStatus.reviewOpen;
-  final selected =
-      allowsCoordination && input.beacon.status == status;
+  final allowsCoordination =
+      lifecycle.isOpenFamily || lifecycle == BeaconStatus.reviewOpen;
+  final selected = allowsCoordination && input.beacon.status == status;
 
   if (lifecycle == BeaconStatus.draft) {
     return BeaconStatusMenuRow(
@@ -438,7 +431,8 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
   }
 
   if (lifecycle == BeaconStatus.reviewOpen) {
-    final canClose = input.canManageLifecycle && (review?.serverCanCloseNow ?? false);
+    final canClose =
+        input.canManageLifecycle && (review?.serverCanCloseNow ?? false);
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.closed,
       action: BeaconStatusMenuAction.closeNow,
