@@ -7643,6 +7643,19 @@
       }
     }
   },
+  "beaconCreateSendToCount": "Send to {count}",
+  "@beaconCreateSendToCount": {
+    "description": "Send button on the Recipients step of the new-Request form: the author sends their own Request (forwarding is the other people's flow).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconCreateRecipientNoteHint": "Add a note for this person (optional)",
+  "@beaconCreateRecipientNoteHint": {
+    "description": "Hint of the per-person note under a picked recipient on the Recipients step of the new-Request form."
+  },
   "postCreateDiscardTitle": "Discard draft?",
   "@postCreateDiscardTitle": {
     "description": "Title of the confirmation shown when closing the new-Post screen with content."

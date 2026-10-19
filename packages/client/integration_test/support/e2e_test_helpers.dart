@@ -510,7 +510,9 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
   await pumpSettleBounded(tester);
   drainTesterExceptions(tester);
-  debugPrint('[e2e] tapAndSettle(${finder.describeMatch(Plurality.one)}): done');
+  debugPrint(
+    '[e2e] tapAndSettle(${finder.describeMatch(Plurality.one)}): done',
+  );
 }
 
 /// English group-header text (this suite hardcodes English strings
@@ -675,10 +677,11 @@ Future<void> confirmUncoveredForwardNoteIfPresent(WidgetTester tester) async {
     sheetTitle,
     timeout: const Duration(seconds: 3),
   )) {
-    // Empty optional note: primary Forward commits without a skip-send CTA.
+    // Empty optional note: primary Forward / Send commits without a
+    // skip-send CTA. The author's new-Request step reads «Send to N» (#439).
     final primary = find.descendant(
       of: find.byType(FilledButton),
-      matching: find.textContaining('Forward to'),
+      matching: find.textContaining(RegExp('Forward to|Send to')),
     );
     expect(
       primary,
@@ -1243,12 +1246,15 @@ Future<void> setOrientationOverride(
   OrientationDebugOverride mode,
 ) async {
   final segment = switch (mode) {
-    OrientationDebugOverride.auto =>
-      find.byKey(TestIds.key(TestIds.debugOrientationAuto)),
-    OrientationDebugOverride.show =>
-      find.byKey(TestIds.key(TestIds.debugOrientationShow)),
-    OrientationDebugOverride.hide =>
-      find.byKey(TestIds.key(TestIds.debugOrientationHide)),
+    OrientationDebugOverride.auto => find.byKey(
+      TestIds.key(TestIds.debugOrientationAuto),
+    ),
+    OrientationDebugOverride.show => find.byKey(
+      TestIds.key(TestIds.debugOrientationShow),
+    ),
+    OrientationDebugOverride.hide => find.byKey(
+      TestIds.key(TestIds.debugOrientationHide),
+    ),
   };
   await tapAndSettle(tester, segment);
   await pumpUntil(
@@ -1779,7 +1785,11 @@ Future<void> ensureConstellationTextRequestVisible(
     }
   }
   final requestRow = find.byKey(Key('constellation.text.request.$requestId'));
-  await pumpUntilVisible(tester, requestRow, label: 'constellation text request');
+  await pumpUntilVisible(
+    tester,
+    requestRow,
+    label: 'constellation text request',
+  );
 }
 
 Future<void> pinConstellationRequestFromText(
@@ -1837,13 +1847,13 @@ Future<void> unpinConstellationTarget(
   }
   final unpin = switch (target.kind) {
     ConstellationAnchorTargetKind.person => find.descendant(
-        of: find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
-        matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
-      ),
+      of: find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
+      matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
+    ),
     ConstellationAnchorTargetKind.beacon => find.descendant(
-        of: find.byKey(Key('constellation.text.request.${target.id}')),
-        matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
-      ),
+      of: find.byKey(Key('constellation.text.request.${target.id}')),
+      matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
+    ),
   };
   await pumpUntilVisible(tester, unpin, label: 'constellation unpin target');
   await pumpUntil(
@@ -1906,7 +1916,9 @@ Future<void> dragConstellationAnchorViaGraph({
 }) async {
   await setConstellationViewMode(tester, ConstellationViewMode.map);
   await pumpBounded(tester, frames: 24);
-  final nodeFinder = find.byKey(TestIds.key(TestIds.graphNode(target.graphNodeId)));
+  final nodeFinder = find.byKey(
+    TestIds.key(TestIds.graphNode(target.graphNodeId)),
+  );
   await pumpUntilVisible(
     tester,
     nodeFinder,
@@ -1955,7 +1967,9 @@ Future<void> openConstellationFilters(WidgetTester tester) async {
 }
 
 Future<void> toggleConstellationShowClosed(WidgetTester tester) async {
-  final showClosed = find.byKey(TestIds.key(TestIds.constellationFilterShowClosed));
+  final showClosed = find.byKey(
+    TestIds.key(TestIds.constellationFilterShowClosed),
+  );
   if (!finderHasMatch(showClosed)) {
     await openConstellationFilters(tester);
   }
@@ -2534,7 +2548,8 @@ Future<int?> fetchParticipantRole({
     asEmail: asEmail,
     restoreEmail: restoreEmail,
   );
-  final rows = (data['beacon_participant']! as List).cast<Map<String, dynamic>>();
+  final rows = (data['beacon_participant']! as List)
+      .cast<Map<String, dynamic>>();
   return rows.isEmpty ? null : rows.first['role'] as int;
 }
 
