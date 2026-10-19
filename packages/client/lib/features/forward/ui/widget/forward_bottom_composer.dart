@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/snack_bar_clearance.dart';
 
 import 'forward_input_decoration.dart';
 
@@ -39,116 +40,122 @@ class ForwardBottomComposer extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final enabled = onForward != null;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          tt.screenHPadding,
-          tt.rowGap,
-          tt.screenHPadding,
-          tt.rowGap,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (noteExpanded) ...[
-              if (showSuggestedNoteHelper)
-                Padding(
-                  padding: EdgeInsets.only(bottom: tt.rowGap / 2),
-                  child: Text(
-                    l10n.beaconLineageSuggestedNoteHelper,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
-                ),
-              SizedBox(
-                height: 64,
-                child: Semantics(
-                  identifier: TestIds.forwardNote,
-                  textField: true,
-                  child: TextField(
-                    key: TestIds.key(TestIds.forwardNote),
-                    controller: sharedNoteController,
-                    onChanged: onSharedNoteChanged,
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    cursorColor: tt.info,
-                    style: TenturaText.body(tt.text),
-                    decoration: forwardNoteInputDecoration(
-                      context,
-                      hintText: l10n.forwardSharedNoteHint.toLowerCase(),
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.expand_less, color: tt.textMuted),
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).closeButtonTooltip,
-                        onPressed: onToggleNoteExpanded,
-                      ),
+    // Notice bars float above this composer instead of covering «Forward to
+    // N» (#406).
+    return SnackBarClearance(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            tt.rowGap,
+            tt.screenHPadding,
+            tt.rowGap,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (noteExpanded) ...[
+                if (showSuggestedNoteHelper)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: tt.rowGap / 2),
+                    child: Text(
+                      l10n.beaconLineageSuggestedNoteHelper,
+                      style: TenturaText.bodySmall(tt.textMuted),
                     ),
                   ),
-                ),
-              ),
-              SizedBox(height: tt.rowGap),
-            ],
-            SizedBox(
-              height: tt.buttonHeight,
-              child: Semantics(
-                identifier: TestIds.forwardSubmit,
-                button: true,
-                enabled: enabled,
-                child: OutlinedButton(
-                  key: TestIds.key(TestIds.forwardSubmit),
-                  onPressed: onForward,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: Size(0, tt.buttonHeight),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: tt.cardPadding.top,
-                    ),
-                    // With people chosen this is the screen's one action:
-                    // filled, like Forward on the Request itself.
-                    // With nobody chosen it is a hint, not a button: no
-                    // outline or fill, so it no longer reads as a large
-                    // dead control above "Make live" (UI review #216).
-                    side: enabled
-                        ? BorderSide(color: scheme.primary)
-                        : BorderSide.none,
-                    foregroundColor: enabled ? scheme.onPrimary : tt.textMuted,
-                    disabledForegroundColor: tt.textMuted,
-                    disabledBackgroundColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tt.buttonRadius),
-                    ),
-                    backgroundColor: enabled
-                        ? scheme.primary
-                        : Colors.transparent,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.send,
-                        size: tt.iconSize,
-                        color: enabled ? scheme.onPrimary : tt.textMuted,
-                      ),
-                      SizedBox(width: tt.rowGap),
-                      Text(
-                        enabled
-                            ? (sendLabel ?? l10n.forwardToCount)(
-                                selectedIds.length,
-                              )
-                            : l10n.selectRecipients,
-                        style: TenturaText.command(
-                          enabled ? scheme.onPrimary : tt.textMuted,
+                SizedBox(
+                  height: 64,
+                  child: Semantics(
+                    identifier: TestIds.forwardNote,
+                    textField: true,
+                    child: TextField(
+                      key: TestIds.key(TestIds.forwardNote),
+                      controller: sharedNoteController,
+                      onChanged: onSharedNoteChanged,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      cursorColor: tt.info,
+                      style: TenturaText.body(tt.text),
+                      decoration: forwardNoteInputDecoration(
+                        context,
+                        hintText: l10n.forwardSharedNoteHint.toLowerCase(),
+                        suffixIcon: IconButton(
+                          icon: Icon(Icons.expand_less, color: tt.textMuted),
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).closeButtonTooltip,
+                          onPressed: onToggleNoteExpanded,
                         ),
                       ),
-                    ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: tt.rowGap),
+              ],
+              SizedBox(
+                height: tt.buttonHeight,
+                child: Semantics(
+                  identifier: TestIds.forwardSubmit,
+                  button: true,
+                  enabled: enabled,
+                  child: OutlinedButton(
+                    key: TestIds.key(TestIds.forwardSubmit),
+                    onPressed: onForward,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size(0, tt.buttonHeight),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: tt.cardPadding.top,
+                      ),
+                      // With people chosen this is the screen's one action:
+                      // filled, like Forward on the Request itself.
+                      // With nobody chosen it is a hint, not a button: no
+                      // outline or fill, so it no longer reads as a large
+                      // dead control above "Make live" (UI review #216).
+                      side: enabled
+                          ? BorderSide(color: scheme.primary)
+                          : BorderSide.none,
+                      foregroundColor: enabled
+                          ? scheme.onPrimary
+                          : tt.textMuted,
+                      disabledForegroundColor: tt.textMuted,
+                      disabledBackgroundColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tt.buttonRadius),
+                      ),
+                      backgroundColor: enabled
+                          ? scheme.primary
+                          : Colors.transparent,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.send,
+                          size: tt.iconSize,
+                          color: enabled ? scheme.onPrimary : tt.textMuted,
+                        ),
+                        SizedBox(width: tt.rowGap),
+                        Text(
+                          enabled
+                              ? (sendLabel ?? l10n.forwardToCount)(
+                                  selectedIds.length,
+                                )
+                              : l10n.selectRecipients,
+                          style: TenturaText.command(
+                            enabled ? scheme.onPrimary : tt.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

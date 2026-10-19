@@ -19,6 +19,7 @@ import '../effect/ui_effect_handler.dart';
 import '../l10n/l10n.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'copy_text_to_clipboard.dart';
+import 'snack_bar_clearance.dart';
 
 /// Provides a route-local [ScreenCubit] and [UiEffectHandler] subtree.
 Widget localScreenCubitScope({required Widget child}) {
@@ -166,6 +167,13 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
             )
           : null);
 
+  // A primary action at the bottom of the body (Forward/Recipients
+  // composer) is invisible to the Scaffold's bar layout: float the bar above
+  // it so the action stays tappable (#406).
+  final clearance = snackBarBottomClearance();
+  final lifted = clearance > 0;
+  final floating = isFloating || isError || lifted;
+
   return scaffoldMessenger.showSnackBar(
     SnackBar(
       action: effectiveAction,
@@ -177,13 +185,17 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       // Errors float in the error container with an icon instead of a
       // full-bleed red bar (UI review): readable, and clearly separate from
       // the bottom navigation and CTAs it used to cover.
-      margin: isFloating || isError ? kPaddingAll : null,
+      margin: lifted
+          ? kPaddingAll.copyWith(bottom: clearance + kSpacingSmall)
+          : floating
+          ? kPaddingAll
+          : null,
       // Web: horizontal Dismissible + PointerPanZoom (Firefox trackpad) can hit-test
       // before the snack bar is laid out during route transitions (Sentry #7579576017).
       dismissDirection: kIsWeb
           ? DismissDirection.none
           : DismissDirection.horizontal,
-      behavior: isFloating || isError ? SnackBarBehavior.floating : null,
+      behavior: floating ? SnackBarBehavior.floating : null,
       shape: isError
           ? RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
