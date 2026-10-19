@@ -228,23 +228,28 @@ class _GroupSection extends StatelessWidget {
             right: context.tt.tightGap,
             bottom: context.tt.rowGap,
           ),
-          child: Wrap(
-            spacing: context.tt.tightGap,
-            runSpacing: context.tt.tightGap,
-            children: [
-              for (final tag in tags)
-                CapabilityTagFilterChip(
-                  tag: tag,
-                  l10n: l10n,
-                  theme: theme,
-                  selected: selectedSlugs.contains(tag.slug),
-                  isAutomatic: automaticSlugs.contains(tag.slug),
-                  onSelected:
-                      atSelectionLimit && !selectedSlugs.contains(tag.slug)
-                      ? null
-                      : (v) => onToggle(tag.slug, v),
-                ),
-            ],
+          // Full width: ExpansionTile centres its children column, which
+          // would centre a shrink-wrapped Wrap and float short rows (#436).
+          child: SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              spacing: context.tt.tightGap,
+              runSpacing: context.tt.tightGap,
+              children: [
+                for (final tag in tags)
+                  CapabilityTagFilterChip(
+                    tag: tag,
+                    l10n: l10n,
+                    theme: theme,
+                    selected: selectedSlugs.contains(tag.slug),
+                    isAutomatic: automaticSlugs.contains(tag.slug),
+                    onSelected:
+                        atSelectionLimit && !selectedSlugs.contains(tag.slug)
+                        ? null
+                        : (v) => onToggle(tag.slug, v),
+                  ),
+              ],
+            ),
           ),
         ),
       ],

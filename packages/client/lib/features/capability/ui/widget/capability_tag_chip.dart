@@ -29,17 +29,18 @@ class CapabilityTagFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatch = context.capabilityColors.swatchFor(tag.group);
-    // Selected: saturated on-container fill so selection reads clearly against
-    // the pastel unselected state (same swatch, inverted roles).
-    final selectedFg = swatch.container;
-    final selectedBg = swatch.onContainer;
+    // Selected: the app's primary accent, so selection looks the same in every
+    // group and matches the rest of the app (#436); idle chips keep the pastel
+    // group tint.
+    final selectedFg = theme.colorScheme.onPrimary;
+    final selectedBg = theme.colorScheme.primary;
     final idleFg = swatch.onContainer;
     final idleBg = isAutomatic
         ? swatch.container.withValues(alpha: 0.55)
         : swatch.container.withValues(alpha: 0.4);
     final chip = FilterChip(
       key: TestIds.key(TestIds.capabilityChip(tag.slug)),
-      // A trailing check marks selection by shape, not only by the inverted
+      // A trailing check marks selection by shape, not only by the accent
       // fill (UI review, ontology picker); the category glyph stays as avatar
       // because Material's checkmark would replace it.
       label: Row(
