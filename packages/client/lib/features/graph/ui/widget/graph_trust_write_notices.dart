@@ -29,6 +29,8 @@ class GraphTrustWriteNotices extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(l10n.graphTrustNotSaved),
+              // Not blocking: auto-dismiss despite the action (#470).
+              persist: false,
               action: SnackBarAction(
                 label: l10n.graphTrustRetry,
                 onPressed: () => unawaited(cubit.retryTrust(error)),

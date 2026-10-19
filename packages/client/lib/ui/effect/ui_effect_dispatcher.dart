@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
-
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -60,7 +59,6 @@ void dispatchUiEffect(
             showSnackBar(
               context,
               text: m.toL10n(localeName),
-              duration: const Duration(seconds: 8),
               action: SnackBarAction(
                 label: m.label.toL10n(localeName),
                 onPressed: m.onPressed,

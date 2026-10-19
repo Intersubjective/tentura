@@ -3,6 +3,7 @@
 
 import 'dart:async';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
@@ -53,17 +54,31 @@ final _fmtHm = DateFormat.Hm();
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
     GlobalKey<ScaffoldMessengerState>();
 
-/// Clears snack bars when a new route is stacked (e.g. leaving Inbox for a
-/// beacon). Per-navigator instance — do not use a singleton (nested routers).
-class ClearSnackBarsOnPushObserver extends NavigatorObserver {
+/// Clears snack bars when the user moves to another screen: a new route is
+/// stacked (e.g. leaving Inbox for a beacon) or a Home tab is switched (#470;
+/// AutoTabsRouter pushes no route and reports tab changes only to inherited
+/// [AutoRouterObserver]s). Per-navigator instance — do not use a singleton
+/// (nested routers).
+class ClearSnackBarsOnPushObserver extends AutoRouterObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    if (previousRoute != null) {
-      // Clear before the next pointer frame. A post-frame clear races Firefox
-      // trackpad pan-zoom hit tests against SnackBar's Dismissible overlay.
-      scheduleMicrotask(() => snackbarKey.currentState?.clearSnackBars());
-    }
+    if (previousRoute != null) _clear();
   }
+
+  @override
+  void didChangeTabRoute(TabPageRoute route, TabPageRoute previousRoute) =>
+      _clear();
+
+  @override
+  void didInitTabRoute(TabPageRoute route, TabPageRoute? previousRoute) {
+    // No previous tab = Home itself mounting, not a move away from a screen.
+    if (previousRoute != null) _clear();
+  }
+
+  // Clear before the next pointer frame. A post-frame clear races Firefox
+  // trackpad pan-zoom hit tests against SnackBar's Dismissible overlay.
+  static void _clear() =>
+      scheduleMicrotask(() => snackbarKey.currentState?.clearSnackBars());
 }
 
 /// Display-only formatters: always render the viewer's local wall-clock
@@ -102,12 +117,17 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   Duration? duration,
   Object? error,
   StackTrace? stackTrace,
+
   /// Technical text kept for the copy action when [text] is a friendly
   /// summary of it.
   String? detail,
+
+  /// Blocking bars only: stays until closed by hand. Every other bar
+  /// (errors included) auto-dismisses after `duration`, even with an action
+  /// — Flutter would otherwise pin any bar that has an action (#470).
+  bool persist = false,
 }) {
-  // Errors linger longer so the message can be read and the Copy button tapped.
-  duration ??= Duration(seconds: isError ? 15 : kSnackBarDuration);
+  duration ??= const Duration(seconds: kSnackBarDuration);
   final theme = Theme.of(context);
   final scaffoldMessenger =
       ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState!
@@ -150,6 +170,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
     SnackBar(
       action: effectiveAction,
       duration: duration,
+      persist: persist,
       // Action and close icon coexist (M3); users can dismiss without using the action.
       showCloseIcon: true,
       closeIconColor: isError ? theme.colorScheme.onErrorContainer : null,
