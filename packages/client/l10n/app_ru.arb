@@ -762,7 +762,7 @@
   "@beaconCreateTimingAnytime": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCreateTitleHint": "Что нужно?",
+  "beaconCreateTitleHint": "Что нужно? (обязательно)",
   "@beaconCreateTitleHint": {
     "context": "BeaconCreateScreen"
   },
@@ -770,7 +770,7 @@
   "@beaconCreateTextShortenedNotice": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCreateDescriptionHint": "Опишите, что нужно",
+  "beaconCreateDescriptionHint": "Опишите, что нужно (обязательно)",
   "@beaconCreateDescriptionHint": {
     "context": "BeaconCreateScreen"
   },

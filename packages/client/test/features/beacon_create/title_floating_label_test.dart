@@ -37,7 +37,6 @@ void main() {
   testWidgets('the floated title label lies inside the scroll view', (
     tester,
   ) async {
-    final l10n = lookupL10n(const Locale('en'));
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
@@ -62,9 +61,17 @@ void main() {
     await tester.enterText(title, 'Need a van');
     await tester.pumpAndSettle();
 
+    // Whatever words the label carries (#427 adds a required marker).
+    final labelText = tester
+        .widget<InputDecorator>(
+          find.descendant(of: title, matching: find.byType(InputDecorator)),
+        )
+        .decoration
+        .labelText;
+    expect(labelText, isNotNull);
     final label = find.descendant(
       of: title,
-      matching: find.text(l10n.beaconCreateTitleHint),
+      matching: find.text(labelText!),
     );
     expect(label, findsOneWidget);
     final list = tester.getRect(find.byType(ListView).first);
