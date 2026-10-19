@@ -54,6 +54,8 @@ class BeaconRoomHintsRepository {
           lastMessageAuthorId: (e.lastMessageAuthorId ?? '').trim(),
           lastMessageAuthorName: (e.lastMessageAuthorName ?? '').trim(),
           lastMessageKind: (e.lastMessageKind ?? '').trim(),
+          parentBeaconId: (e.parentBeaconId ?? '').trim(),
+          parentTitle: (e.parentTitle ?? '').trim(),
         ),
     };
   }

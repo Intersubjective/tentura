@@ -76,23 +76,30 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
       roomCurrentLine: viewModel.roomCurrentLine,
       openBlockerTitle: viewModel.roomOpenBlockerTitle,
     );
-    entries.add(
-      BeaconHudMetadataEntry(
-        icon: BeaconHudRowIcons.now,
-        semanticsLabel: l10n.beaconHudNowLabel,
-        body: HudLabeledMultiline(
-          leadingIcon: BeaconHudRowIcons.now,
+    // #487 — no next step and no blocker: the row would only print the
+    // placeholder under an unexplained flag, so it is left out.
+    final hasNowContent =
+        !nowDisplay.isPlaceholder || nowDisplay.blockerText != null;
+    if (hasNowContent) {
+      entries.add(
+        BeaconHudMetadataEntry(
+          icon: BeaconHudRowIcons.now,
           semanticsLabel: l10n.beaconHudNowLabel,
-          text: nowDisplay.primaryText,
-          subline: nowDisplay.blockerText,
-          mutedColor: tt.textMuted,
-          isPlaceholder: nowDisplay.isPlaceholder,
-          includeLead: false,
-          primaryMaxLines: 1,
-          showTruncationHint: false,
+          iconTooltip: l10n.beaconSituationCurrentLineLabel,
+          body: HudLabeledMultiline(
+            leadingIcon: BeaconHudRowIcons.now,
+            semanticsLabel: l10n.beaconHudNowLabel,
+            text: nowDisplay.primaryText,
+            subline: nowDisplay.blockerText,
+            mutedColor: tt.textMuted,
+            isPlaceholder: nowDisplay.isPlaceholder,
+            includeLead: false,
+            primaryMaxLines: 1,
+            showTruncationHint: false,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   final responsibility =

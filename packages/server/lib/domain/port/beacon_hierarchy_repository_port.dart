@@ -37,6 +37,15 @@ abstract class BeaconHierarchyRepositoryPort {
     required String viewerId,
   });
 
+  /// Batched guarded parent links (one read for all [childBeaconIds]).
+  /// The map has an entry only for a child the viewer can read whose
+  /// immediate parent exists, is not deleted and is readable by the viewer
+  /// ([BeaconParentReferenceState.available]); every other id is absent.
+  Future<Map<String, BeaconParentReference>> loadParentReferences({
+    required Set<String> childBeaconIds,
+    required String viewerId,
+  });
+
   Future<BeaconPromotionSource> loadPromotionSource({
     required String parentBeaconId,
     required String sourceMessageId,

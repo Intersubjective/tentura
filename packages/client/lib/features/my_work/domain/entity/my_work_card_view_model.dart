@@ -107,6 +107,11 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// U087 — unread discussion messages (the same count the header showed
     /// as "+N"), shown on the "latest" line.
     @Default(0) int roomUnreadCount,
+
+    /// #487 — the Request's immediate parent, when the viewer may read it
+    /// (V2 batch); empty for a top-level Request. Shown as "Part of: …".
+    @Default('') String parentBeaconId,
+    @Default('') String parentTitle,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();

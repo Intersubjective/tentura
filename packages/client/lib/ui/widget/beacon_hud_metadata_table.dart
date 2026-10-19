@@ -12,6 +12,7 @@ class BeaconHudMetadataEntry {
     this.onTap,
     this.trailing,
     this.semanticsValue,
+    this.iconTooltip,
   });
 
   final IconData icon;
@@ -22,6 +23,10 @@ class BeaconHudMetadataEntry {
 
   /// Combined label for tappable rows (a11y button on icon+body region).
   final String? semanticsValue;
+
+  /// Names the row's icon on long-press / hover (#487: the NOW flag on a
+  /// Requests card says "Next step"). Null shows no tooltip.
+  final String? iconTooltip;
 }
 
 /// Resolves the width used for responsive metadata decisions (YOU collapse, etc.).
@@ -116,6 +121,12 @@ class _MetadataTableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tooltip = entry.iconTooltip;
+    final Widget icon = Icon(
+      entry.icon,
+      size: kBeaconHudRowIconSize,
+      color: iconColor,
+    );
     final iconColumn = SizedBox(
       width: leadWidth,
       child: Align(
@@ -127,11 +138,9 @@ class _MetadataTableRow extends StatelessWidget {
               excluding: entry.onTap != null,
               child: Semantics(
                 label: entry.semanticsLabel,
-                child: Icon(
-                  entry.icon,
-                  size: kBeaconHudRowIconSize,
-                  color: iconColor,
-                ),
+                child: tooltip == null || tooltip.isEmpty
+                    ? icon
+                    : Tooltip(message: tooltip, child: icon),
               ),
             ),
           ),

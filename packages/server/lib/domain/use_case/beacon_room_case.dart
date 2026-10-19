@@ -34,6 +34,7 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 
+import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 import 'package:tentura_root/domain/mention_span_validation.dart';
 
@@ -800,10 +801,17 @@ class BeaconRoomCase extends UseCaseBase {
     }
     final slice = unique.length > 80 ? unique.sublist(0, 80) : unique;
     final snippets = await _factCards.publicFactSnippetsByBeaconIds(slice);
+    // #487 — one batched guarded read for every parent link in the slice
+    // (PR #610 review: no per-Request round trip).
+    final parents = await _hierarchyRepository.loadParentReferences(
+      childBeaconIds: slice.toSet(),
+      viewerId: userId,
+    );
     final out = <Map<String, Object?>>[];
     for (final bid in slice) {
       final allowed = await _canUseRoom(beaconId: bid, userId: userId);
       final factSnippet = snippets[bid];
+      final parentFields = _parentReferenceBatchFields(parents[bid]);
       if (!allowed) {
         out.add({
           'beaconId': bid,
@@ -818,6 +826,7 @@ class BeaconRoomCase extends UseCaseBase {
           'publicFactSnippet': factSnippet,
           'planSliceJson': null,
           ..._emptyLatestActivityBatchFields(),
+          ...parentFields,
         });
         continue;
       }
@@ -850,10 +859,28 @@ class BeaconRoomCase extends UseCaseBase {
         'publicFactSnippet': factSnippet,
         'planSliceJson': null,
         ..._emptyLatestActivityBatchFields(),
+        ...parentFields,
       });
     }
     await _attachLatestActivity(out);
     return _attachPlanSlices(userId: userId, rows: out);
+  }
+
+  /// #487 — the guarded parent link of one Request for the Requests list
+  /// ("Part of: …"), from the batched [reference]. Only an
+  /// [BeaconParentReferenceState.available] parent is named; no parent or
+  /// one the viewer cannot read is null.
+  Map<String, Object?> _parentReferenceBatchFields(
+    BeaconParentReference? reference,
+  ) {
+    final available =
+        reference != null &&
+        reference.state == BeaconParentReferenceState.available &&
+        reference.beaconId != null;
+    return {
+      'parentBeaconId': available ? reference.beaconId : null,
+      'parentTitle': available ? reference.title : null,
+    };
   }
 
   /// U087 — fills the Requests list's "Recent" order and "latest" line on

@@ -18,52 +18,66 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for beaconParentReference authorization PG test';
 
-  group('BeaconHierarchyRepository.loadParentReference authorization — disposable Postgres', () {
-    late BeaconHierarchyDisposablePgTarget target;
-    late Connection writer;
-    late BeaconHierarchyFixture fixture;
-    late BeaconHierarchyRepository repository;
+  group(
+    'BeaconHierarchyRepository.loadParentReference authorization — disposable Postgres',
+    () {
+      late BeaconHierarchyDisposablePgTarget target;
+      late Connection writer;
+      late BeaconHierarchyFixture fixture;
+      late BeaconHierarchyRepository repository;
 
-    setUpAll(() async {
-      if (skipReason != false) {
-        return;
-      }
-      target = BeaconHierarchyDisposablePgTarget.fromEnvironment();
-      await target.recreate();
-      final session = await openBeaconHierarchyPgSession(target);
-      writer = session.writer;
-      fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
-      repository = BeaconHierarchyRepository(session.db);
-    });
+      setUpAll(() async {
+        if (skipReason != false) {
+          return;
+        }
+        target = BeaconHierarchyDisposablePgTarget.fromEnvironment();
+        await target.recreate();
+        final session = await openBeaconHierarchyPgSession(target);
+        writer = session.writer;
+        fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
+        repository = BeaconHierarchyRepository(session.db);
+      });
 
-    tearDown(() async {
-      if (skipReason != false) {
-        return;
-      }
-      await fixture.tearDown();
-    });
+      tearDown(() async {
+        if (skipReason != false) {
+          return;
+        }
+        await fixture.tearDown();
+      });
 
-    tearDownAll(() async {
-      if (skipReason != false) {
-        return;
-      }
-      await fixture.db.close();
-      await writer.close();
-      await target.drop();
-    });
+      tearDownAll(() async {
+        if (skipReason != false) {
+          return;
+        }
+        await fixture.db.close();
+        await writer.close();
+        await target.drop();
+      });
 
-    // seedPublishedHierarchyTree re-creates B/C/D, which drops their
-    // participant rows; restore the fixture admissions afterwards.
-    Future<void> seedTree() async {
-      await fixture.seedFullTopology();
-      await seedPublishedHierarchyTree(writer);
-      for (final row in <(String, String, String)>[
-        ('PhierbobB01', BeaconHierarchyTopology.beaconB, BeaconHierarchyTopology.bobId),
-        ('PhiercarolC01', BeaconHierarchyTopology.beaconC, BeaconHierarchyTopology.carolId),
-        ('PhieraliceA01', BeaconHierarchyTopology.beaconA, BeaconHierarchyTopology.aliceId),
-      ]) {
-        await writer.execute(
-          Sql.named('''
+      // seedPublishedHierarchyTree re-creates B/C/D, which drops their
+      // participant rows; restore the fixture admissions afterwards.
+      Future<void> seedTree() async {
+        await fixture.seedFullTopology();
+        await seedPublishedHierarchyTree(writer);
+        for (final row in <(String, String, String)>[
+          (
+            'PhierbobB01',
+            BeaconHierarchyTopology.beaconB,
+            BeaconHierarchyTopology.bobId,
+          ),
+          (
+            'PhiercarolC01',
+            BeaconHierarchyTopology.beaconC,
+            BeaconHierarchyTopology.carolId,
+          ),
+          (
+            'PhieraliceA01',
+            BeaconHierarchyTopology.beaconA,
+            BeaconHierarchyTopology.aliceId,
+          ),
+        ]) {
+          await writer.execute(
+            Sql.named('''
 INSERT INTO public.beacon_participant (
   id, beacon_id, user_id, role, status, room_access, created_at, updated_at
 ) VALUES (
@@ -72,97 +86,107 @@ INSERT INTO public.beacon_participant (
 )
 ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
 '''),
-          parameters: {
-            'id': row.$1,
-            'beaconId': row.$2,
-            'userId': row.$3,
-            'roomAccess': RoomAccessBits.admitted,
-          },
-        );
+            parameters: {
+              'id': row.$1,
+              'beaconId': row.$2,
+              'userId': row.$3,
+              'roomAccess': RoomAccessBits.admitted,
+            },
+          );
+        }
       }
-    }
 
-    // Every persona in BeaconHierarchyTopology ends up a member of some
-    // beacon in the A/B/C/D tree once issue-146 T09's contextChild/
-    // contextAncestor grants apply (e.g. dave owns grandchild C, a
-    // descendant of both A and B). Use a freshly seeded, wholly unconnected
-    // user for tests that need a genuine stranger to the whole tree.
-    Future<String> seedStranger() async {
-      const strangerId = 'Uhierstranger';
-      await writer.execute(
-        Sql.named(r'''
+      // Every persona in BeaconHierarchyTopology ends up a member of some
+      // beacon in the A/B/C/D tree once issue-146 T09's contextChild/
+      // contextAncestor grants apply (e.g. dave owns grandchild C, a
+      // descendant of both A and B). Use a freshly seeded, wholly unconnected
+      // user for tests that need a genuine stranger to the whole tree.
+      Future<String> seedStranger() async {
+        const strangerId = 'Uhierstranger';
+        await writer.execute(
+          Sql.named(r'''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES (@id, @id, @publicKey, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 '''),
-        parameters: {
-          'id': strangerId,
-          'publicKey': pgTestPublicKey('stranger', 1),
+          parameters: {
+            'id': strangerId,
+            'publicKey': pgTestPublicKey('stranger', 1),
+          },
+        );
+        return strangerId;
+      }
+
+      Future<bool> sqlPredicate(
+        String fn,
+        String beaconId,
+        String viewerId,
+      ) async {
+        final row = await writer.execute(
+          Sql.named('SELECT public.$fn(@beaconId, @viewerId)'),
+          parameters: {'beaconId': beaconId, 'viewerId': viewerId},
+        );
+        return row.first.first! as bool;
+      }
+
+      Future<BeaconParentReference> parentOfB(String viewerId) =>
+          repository.loadParentReference(
+            childBeaconId: BeaconHierarchyTopology.beaconB,
+            viewerId: viewerId,
+          );
+
+      test(
+        'member of B who is not admitted to A gets the parent link',
+        () async {
+          await seedTree();
+          const bobId = BeaconHierarchyTopology.bobId;
+          expect(
+            await sqlPredicate(
+              'beacon_effective_admission',
+              BeaconHierarchyTopology.beaconA,
+              bobId,
+            ),
+            isFalse,
+            reason: 'precondition: bob is not admitted to A',
+          );
+
+          final ref = await parentOfB(bobId);
+          expect(ref.state, BeaconParentReferenceState.available);
+          expect(ref.beaconId, BeaconHierarchyTopology.beaconA);
+          expect(ref.title, 'Request A');
+          expect(ref.isPost, isFalse, reason: 'a Request parent');
         },
+        skip: skipReason,
       );
-      return strangerId;
-    }
 
-    Future<bool> sqlPredicate(String fn, String beaconId, String viewerId) async {
-      final row = await writer.execute(
-        Sql.named('SELECT public.$fn(@beaconId, @viewerId)'),
-        parameters: {'beaconId': beaconId, 'viewerId': viewerId},
-      );
-      return row.first.first! as bool;
-    }
-
-    Future<BeaconParentReference> parentOfB(String viewerId) =>
-        repository.loadParentReference(
-          childBeaconId: BeaconHierarchyTopology.beaconB,
-          viewerId: viewerId,
+      test('viewer who cannot read B gets no reference', () async {
+        await seedTree();
+        // A fresh, wholly unconnected stranger has no admission, help offer,
+        // forward or membership touching B (or anything in the tree).
+        final strangerId = await seedStranger();
+        expect(
+          await sqlPredicate(
+            'beacon_can_read_content',
+            BeaconHierarchyTopology.beaconB,
+            strangerId,
+          ),
+          isFalse,
+          reason: 'precondition: the stranger cannot read B',
         );
 
-    test('member of B who is not admitted to A gets the parent link', () async {
-      await seedTree();
-      const bobId = BeaconHierarchyTopology.bobId;
-      expect(
-        await sqlPredicate(
-          'beacon_effective_admission',
-          BeaconHierarchyTopology.beaconA,
-          bobId,
-        ),
-        isFalse,
-        reason: 'precondition: bob is not admitted to A',
-      );
+        final ref = await parentOfB(strangerId);
+        expect(ref.state, BeaconParentReferenceState.none);
+        expect(ref.beaconId, isNull);
+        expect(ref.title, isNull);
+      }, skip: skipReason);
 
-      final ref = await parentOfB(bobId);
-      expect(ref.state, BeaconParentReferenceState.available);
-      expect(ref.beaconId, BeaconHierarchyTopology.beaconA);
-      expect(ref.title, 'Request A');
-      expect(ref.isPost, isFalse, reason: 'a Request parent');
-    }, skip: skipReason);
-
-    test('viewer who cannot read B gets no reference', () async {
-      await seedTree();
-      // A fresh, wholly unconnected stranger has no admission, help offer,
-      // forward or membership touching B (or anything in the tree).
-      final strangerId = await seedStranger();
-      expect(
-        await sqlPredicate(
-          'beacon_can_read_content',
-          BeaconHierarchyTopology.beaconB,
-          strangerId,
-        ),
-        isFalse,
-        reason: 'precondition: the stranger cannot read B',
-      );
-
-      final ref = await parentOfB(strangerId);
-      expect(ref.state, BeaconParentReferenceState.none);
-      expect(ref.beaconId, isNull);
-      expect(ref.title, isNull);
-    }, skip: skipReason);
-
-    test('forward recipient of B with no path to A gets an unavailable reference', () async {
-      await seedTree();
-      final strangerId = await seedStranger();
-      await writer.execute(
-        Sql.named('''
+      test(
+        'forward recipient of B with no path to A gets an unavailable reference',
+        () async {
+          await seedTree();
+          final strangerId = await seedStranger();
+          await writer.execute(
+            Sql.named('''
 INSERT INTO public.beacon_forward_edge (
   id, beacon_id, sender_id, recipient_id, created_at
 ) VALUES (
@@ -171,35 +195,137 @@ INSERT INTO public.beacon_forward_edge (
 )
 ON CONFLICT DO NOTHING
 '''),
-        parameters: {
-          'beaconId': BeaconHierarchyTopology.beaconB,
-          'senderId': BeaconHierarchyTopology.bobId,
-          'recipientId': strangerId,
+            parameters: {
+              'beaconId': BeaconHierarchyTopology.beaconB,
+              'senderId': BeaconHierarchyTopology.bobId,
+              'recipientId': strangerId,
+            },
+          );
+          expect(
+            await sqlPredicate(
+              'beacon_can_read_content',
+              BeaconHierarchyTopology.beaconB,
+              strangerId,
+            ),
+            isTrue,
+            reason: 'precondition: the forward lets the stranger read B',
+          );
+          expect(
+            await sqlPredicate(
+              'beacon_can_read_content',
+              BeaconHierarchyTopology.beaconA,
+              strangerId,
+            ),
+            isFalse,
+            reason: 'precondition: the stranger has no path to A',
+          );
+
+          final ref = await parentOfB(strangerId);
+          expect(ref.state, BeaconParentReferenceState.unavailable);
+          expect(ref.beaconId, isNull);
+          expect(ref.title, isNull);
         },
-      );
-      expect(
-        await sqlPredicate(
-          'beacon_can_read_content',
-          BeaconHierarchyTopology.beaconB,
-          strangerId,
-        ),
-        isTrue,
-        reason: 'precondition: the forward lets the stranger read B',
-      );
-      expect(
-        await sqlPredicate(
-          'beacon_can_read_content',
-          BeaconHierarchyTopology.beaconA,
-          strangerId,
-        ),
-        isFalse,
-        reason: 'precondition: the stranger has no path to A',
+        skip: skipReason,
       );
 
-      final ref = await parentOfB(strangerId);
-      expect(ref.state, BeaconParentReferenceState.unavailable);
-      expect(ref.beaconId, isNull);
-      expect(ref.title, isNull);
-    }, skip: skipReason);
-  });
+      // #487 review (PR #610): the Requests list reads every parent link of
+      // its slice in one batched call; only children whose parent is
+      // available to the viewer are in the map.
+      test(
+        'loadParentReferences: child and parent readable -> present',
+        () async {
+          await seedTree();
+          const bobId = BeaconHierarchyTopology.bobId;
+
+          final refs = await repository.loadParentReferences(
+            childBeaconIds: {
+              BeaconHierarchyTopology.beaconA,
+              BeaconHierarchyTopology.beaconB,
+            },
+            viewerId: bobId,
+          );
+
+          expect(
+            refs.keys,
+            [BeaconHierarchyTopology.beaconB],
+            reason: 'A is top-level: no parent, no entry',
+          );
+          final ref = refs[BeaconHierarchyTopology.beaconB]!;
+          expect(ref.state, BeaconParentReferenceState.available);
+          expect(ref.beaconId, BeaconHierarchyTopology.beaconA);
+          expect(ref.title, 'Request A');
+          expect(ref.isPost, isFalse);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'loadParentReferences: child readable, parent hidden -> absent',
+        () async {
+          await seedTree();
+          final strangerId = await seedStranger();
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at
+) VALUES (
+  'FhierfwdBbatch01', @beaconId, @senderId, @recipientId,
+  '2026-01-02T00:00:00Z'
+)
+ON CONFLICT DO NOTHING
+'''),
+            parameters: {
+              'beaconId': BeaconHierarchyTopology.beaconB,
+              'senderId': BeaconHierarchyTopology.bobId,
+              'recipientId': strangerId,
+            },
+          );
+          expect(
+            await sqlPredicate(
+              'beacon_can_read_content',
+              BeaconHierarchyTopology.beaconB,
+              strangerId,
+            ),
+            isTrue,
+            reason: 'precondition: the forward lets the stranger read B',
+          );
+          expect(
+            await sqlPredicate(
+              'beacon_can_read_content',
+              BeaconHierarchyTopology.beaconA,
+              strangerId,
+            ),
+            isFalse,
+            reason: 'precondition: the stranger has no path to A',
+          );
+
+          final refs = await repository.loadParentReferences(
+            childBeaconIds: {BeaconHierarchyTopology.beaconB},
+            viewerId: strangerId,
+          );
+          expect(refs, isEmpty);
+        },
+        skip: skipReason,
+      );
+
+      test('loadParentReferences: child unreadable -> absent', () async {
+        await seedTree();
+        final strangerId = await seedStranger();
+
+        final refs = await repository.loadParentReferences(
+          childBeaconIds: {BeaconHierarchyTopology.beaconB},
+          viewerId: strangerId,
+        );
+        expect(refs, isEmpty);
+      }, skip: skipReason);
+
+      test('loadParentReferences: empty input -> empty map', () async {
+        final refs = await repository.loadParentReferences(
+          childBeaconIds: const {},
+          viewerId: BeaconHierarchyTopology.bobId,
+        );
+        expect(refs, isEmpty);
+      }, skip: skipReason);
+    },
+  );
 }

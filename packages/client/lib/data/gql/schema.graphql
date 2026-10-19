@@ -8482,6 +8482,8 @@ type v2_InboxRoomContextRow {
   openBlockerResponsibleUserId: String
   openBlockerTargetPersonId: String
   openBlockerTitle: String
+  parentBeaconId: String
+  parentTitle: String
   planSliceJson: String
   publicFactSnippet: String
   roomUnreadCount: Int!

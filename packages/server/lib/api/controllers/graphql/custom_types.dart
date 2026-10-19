@@ -692,6 +692,11 @@ final gqlTypeInboxRoomContextRow =
         // #498 — what a message with no text carries: image, file, poll or
         // fact (null for a text message), so the card can say "📷 Photo".
         field('lastMessageKind', graphQLString),
+        // #487 — the Request's immediate parent, only when the viewer may
+        // read it (null for a top-level Request or a hidden parent), so the
+        // Requests list can say "Part of: …" on a child card.
+        field('parentBeaconId', graphQLString),
+        field('parentTitle', graphQLString),
       ]);
 
 /// Result of marking a beacon room (or thread) as seen.

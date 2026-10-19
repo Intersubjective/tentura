@@ -23,5 +23,7 @@ query InboxRoomContextBatch($beaconIds: [String!]!) {
     lastMessageAuthorId
     lastMessageAuthorName
     lastMessageKind
+    parentBeaconId
+    parentTitle
   }
 }
