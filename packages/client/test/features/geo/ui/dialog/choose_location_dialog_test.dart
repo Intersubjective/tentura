@@ -96,15 +96,19 @@ class _DialogHarness extends StatelessWidget {
   const _DialogHarness({
     required this.onResult,
     required this.mapBuilder,
+    this.locale = const Locale('en'),
+    this.center,
   });
 
   final ValueChanged<Location?> onResult;
   final ChooseLocationMapBuilder mapBuilder;
+  final Locale locale;
+  final Coordinates? center;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       theme: TenturaTheme.light(),
@@ -117,6 +121,7 @@ class _DialogHarness extends StatelessWidget {
                   context: context,
                   useSafeArea: false,
                   builder: (_) => ChooseLocationDialog(
+                    center: center,
                     mapBuilder: mapBuilder,
                   ),
                 );
@@ -187,11 +192,14 @@ void main() {
 
   tearDown(() async => GetIt.I.reset());
 
-  ChooseLocationMapBuilder fakeMapBuilder() {
-    return (context, initialCenter, selected, selectCoordinates) => _FakeMap(
-      selected: selected,
-      selectCoordinates: selectCoordinates,
-    );
+  ChooseLocationMapBuilder fakeMapBuilder({List<Coordinates>? centers}) {
+    return (context, initialCenter, selected, selectCoordinates) {
+      centers?.add(initialCenter);
+      return _FakeMap(
+        selected: selected,
+        selectCoordinates: selectCoordinates,
+      );
+    };
   }
 
   Future<void> openDialog(WidgetTester tester) async {
@@ -386,5 +394,155 @@ void main() {
     await openDialog(tester);
 
     expect(find.textContaining('GOOGLE_MAPS_API_KEY'), findsWidgets);
+  });
+
+  group('initial camera never starts at 0,0 (#433)', () {
+    bool nearNullIsland(Coordinates c) => c.lat.abs() < 5 && c.long.abs() < 5;
+
+    // Rough bounding box of Russia (incl. Kaliningrad and the Far East).
+    bool inRussia(Coordinates c) =>
+        c.lat >= 41 && c.lat <= 82 && c.long >= 19 && c.long <= 180;
+
+    Future<void> pumpHarness(
+      WidgetTester tester, {
+      required List<Coordinates> centers,
+      Locale locale = const Locale('en'),
+      Coordinates? center,
+    }) async {
+      await tester.pumpWidget(
+        _DialogHarness(
+          onResult: (location) => result = location,
+          mapBuilder: fakeMapBuilder(centers: centers),
+          locale: locale,
+          center: center,
+        ),
+      );
+    }
+
+    Future<void> openPicker(WidgetTester tester) async {
+      await tester.tap(find.text('Open picker'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a fresh picker with no pin and no device fix is not at 0,0', (
+      tester,
+    ) async {
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers);
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(centers.last, isNot(Coordinates.zero));
+      expect(
+        nearNullIsland(centers.last),
+        isFalse,
+        reason: centers.last.toString(),
+      );
+    });
+
+    testWidgets('the Russian locale opens over Russia', (tester) async {
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers, locale: const Locale('ru'));
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(inRussia(centers.last), isTrue, reason: centers.last.toString());
+    });
+
+    testWidgets('the English locale default differs from the Russian one', (
+      tester,
+    ) async {
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers);
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(
+        nearNullIsland(centers.last),
+        isFalse,
+        reason: centers.last.toString(),
+      );
+      expect(inRussia(centers.last), isFalse, reason: centers.last.toString());
+    });
+
+    testWidgets('an empty 0,0 center is treated as no center', (tester) async {
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers, center: Coordinates.zero);
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(
+        nearNullIsland(centers.last),
+        isFalse,
+        reason: centers.last.toString(),
+      );
+      // Nothing is pre-selected either: confirm stays disabled.
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Use this location'),
+            )
+            .onPressed,
+        isNull,
+      );
+    });
+
+    testWidgets('reopening starts at the last confirmed pin', (tester) async {
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers);
+      await openPicker(tester);
+
+      await tester.tap(find.byKey(const Key('ChooseLocation.FakeMap')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Use this location'));
+      await tester.pumpAndSettle();
+      expect(result!.coords, _selectedFromMapTap);
+
+      centers.clear();
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(centers.first, _selectedFromMapTap);
+    });
+
+    testWidgets('a pin dropped and then cancelled is not remembered', (
+      tester,
+    ) async {
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers);
+      await openPicker(tester);
+      final firstCenter = centers.first;
+
+      await tester.tap(find.byKey(const Key('ChooseLocation.FakeMap')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('ChooseLocation.Close')));
+      await tester.pumpAndSettle();
+      expect(result, isNull);
+
+      centers.clear();
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(centers.first, isNot(_selectedFromMapTap));
+      expect(centers.first, firstCenter);
+    });
+
+    testWidgets('an explicit center wins over the last pin', (tester) async {
+      const draftCenter = Coordinates(lat: 48.8566, long: 2.3522);
+      final centers = <Coordinates>[];
+      await pumpHarness(tester, centers: centers);
+      await openPicker(tester);
+      await tester.tap(find.byKey(const Key('ChooseLocation.FakeMap')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Use this location'));
+      await tester.pumpAndSettle();
+
+      centers.clear();
+      await pumpHarness(tester, centers: centers, center: draftCenter);
+      await openPicker(tester);
+
+      expect(centers, isNotEmpty);
+      expect(centers.first, draftCenter);
+    });
   });
 }

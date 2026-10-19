@@ -18,6 +18,9 @@ class GeoRepository {
 
   Coordinates? get myCoordinates => _myCoords;
 
+  /// The last location confirmed in the picker during this app session.
+  Coordinates? lastPickedCoordinates;
+
   @PostConstruct()
   void init() {
     // Web: skip eager geolocation — geolocator_web checkPermission() calls
