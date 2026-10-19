@@ -7,7 +7,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_definition_body.da
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_location_actions.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
@@ -48,8 +48,12 @@ Future<void> showBeaconViewDetailsSheet(
       ];
 
       if (beacon.hasScheduleDates) {
-        final scheduleText =
-            '${dateFormatYMD(beacon.startAt)} - ${dateFormatYMD(beacon.endAt)}';
+        final scheduleText = formatScheduleSummary(
+          beacon.startAt,
+          beacon.endAt,
+          l10n: l10n,
+          now: DateTime.now(),
+        );
         children
           ..add(
             Padding(

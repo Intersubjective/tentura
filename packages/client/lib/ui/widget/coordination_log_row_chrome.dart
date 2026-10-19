@@ -1,12 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 
 /// Log tab row — semantic event icon size.
@@ -16,18 +17,18 @@ const kCoordinationLogEventIconSize = 22.0;
 const kCoordinationLogAvatarSize = 20.0;
 
 Profile profileFromBeaconParticipant(BeaconParticipant p) => Profile(
-      id: p.userId,
-      displayName: p.userTitle,
-      image: p.userHasPicture
-          ? ImageEntity(
-              id: p.userImageId,
-              authorId: p.userId,
-              blurHash: p.userBlurHash,
-              height: p.userPicHeight,
-              width: p.userPicWidth,
-            )
-          : null,
-    );
+  id: p.userId,
+  displayName: p.userTitle,
+  image: p.userHasPicture
+      ? ImageEntity(
+          id: p.userImageId,
+          authorId: p.userId,
+          blurHash: p.userBlurHash,
+          height: p.userPicHeight,
+          width: p.userPicWidth,
+        )
+      : null,
+);
 
 Widget coordinationLogParticipantAvatar(
   BeaconParticipant participant, {
@@ -89,7 +90,17 @@ String? _bodyFromDiffJson(String? diffJson) {
   return null;
 }
 
-String coordinationLogTimestampLabel(DateTime utc) {
-  final local = utc.toLocal();
-  return '${dateFormatYMD(local)} ${timeFormatHm(local)}';
+/// Log row timestamp: the schedule date format shared with the editor and
+/// public view (#450) plus a locale-aware 24h time, e.g. "Oct 17 14:30".
+String coordinationLogTimestampLabel(
+  DateTime utc, {
+  required String localeName,
+  DateTime? now,
+}) {
+  final date = formatScheduleDate(
+    utc,
+    localeName: localeName,
+    now: now ?? DateTime.now(),
+  );
+  return '$date ${DateFormat.Hm(localeName).format(utc.toLocal())}';
 }

@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../l10n/l10n.dart';
+
 /// Absolute schedule date for the card "when" line, e.g. "8 May" — or
 /// "8 May 2027" when the date is not in the current year. Locale-aware.
 String formatScheduleDate(
@@ -34,4 +36,28 @@ String formatScheduleRange(
   return '${formatScheduleDate(start, localeName: localeName, now: now)}'
       ' – '
       '${formatScheduleDate(end, localeName: localeName, now: now)}';
+}
+
+/// One-line schedule summary shared by the editor, the public view and the
+/// Details sheet (#450): both dates → [formatScheduleRange]; start only → the
+/// single date; deadline only → `by <date>`. Empty when neither is set.
+String formatScheduleSummary(
+  DateTime? start,
+  DateTime? end, {
+  required L10n l10n,
+  required DateTime now,
+}) {
+  final localeName = l10n.localeName;
+  if (start != null && end != null) {
+    return formatScheduleRange(start, end, localeName: localeName, now: now);
+  }
+  if (start != null) {
+    return formatScheduleDate(start, localeName: localeName, now: now);
+  }
+  if (end != null) {
+    return l10n.beaconCardScheduleDeadlineBy(
+      formatScheduleDate(end, localeName: localeName, now: now),
+    );
+  }
+  return '';
 }

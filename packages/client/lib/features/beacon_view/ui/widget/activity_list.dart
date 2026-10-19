@@ -186,7 +186,10 @@ class _LogActivityTile extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(
-          coordinationLogTimestampLabel(event.createdAt),
+          coordinationLogTimestampLabel(
+            event.createdAt,
+            localeName: L10n.of(context)!.localeName,
+          ),
           style: theme.textTheme.labelSmall,
         ),
         if (onTap != null) ...[
@@ -253,7 +256,10 @@ class _ActivityEntryTile extends StatelessWidget {
             ),
           ),
           Text(
-            coordinationLogTimestampLabel(entry.timestamp),
+            coordinationLogTimestampLabel(
+              entry.timestamp,
+              localeName: l10n.localeName,
+            ),
             style: theme.textTheme.labelSmall,
           ),
         ],

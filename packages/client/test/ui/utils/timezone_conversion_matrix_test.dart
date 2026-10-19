@@ -49,15 +49,21 @@ void main() {
     }
   });
 
-  test('coordinationLogTimestampLabel matches direct .toLocal() formatting', () {
-    for (final utc in [lateUtc, earlyUtc]) {
-      final local = utc.toLocal();
-      expect(
-        coordinationLogTimestampLabel(utc),
-        '${dateFormatYMD(local)} ${timeFormatHm(local)}',
-      );
-    }
-  });
+  test(
+    'coordinationLogTimestampLabel matches direct .toLocal() formatting',
+    () {
+      // #450: the Log uses the same locale-aware date as the editor
+      // (formatScheduleDate) plus a local 24h time, never a numeric y/M/d.
+      final now = DateTime.utc(2026, 6, 15, 12).toLocal();
+      for (final utc in [lateUtc, earlyUtc]) {
+        expect(
+          coordinationLogTimestampLabel(utc, localeName: 'en', now: now),
+          '${formatScheduleDate(utc, localeName: 'en', now: now)} '
+          '${DateFormat.Hm('en').format(utc.toLocal())}',
+        );
+      }
+    },
+  );
 
   test('compactRelativeTimeAgo diffs against the correct local day', () {
     final now = lateUtc.add(const Duration(days: 2)).toLocal();
