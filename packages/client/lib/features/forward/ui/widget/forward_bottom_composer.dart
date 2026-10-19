@@ -17,6 +17,7 @@ class ForwardBottomComposer extends StatelessWidget {
     required this.onForward,
     this.showSuggestedNoteHelper = false,
     this.sendLabel,
+    this.countWhenDisabled = false,
     super.key,
   });
 
@@ -32,6 +33,10 @@ class ForwardBottomComposer extends StatelessWidget {
   /// Label of the enabled send button for `count` recipients; defaults to
   /// «Forward to {count}».
   final String Function(int count)? sendLabel;
+
+  /// Keeps the count label («Send to 0») on the disabled button instead of
+  /// «Select recipients». The author's new-Request step sets it (#441).
+  final bool countWhenDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +116,12 @@ class ForwardBottomComposer extends StatelessWidget {
                       ),
                       // With people chosen this is the screen's one action:
                       // filled, like Forward on the Request itself.
-                      // With nobody chosen it is a hint, not a button: no
-                      // outline or fill, so it no longer reads as a large
-                      // dead control above "Make live" (UI review #216).
-                      side: enabled
-                          ? BorderSide(color: scheme.primary)
-                          : BorderSide.none,
+                      // With nobody chosen it stays a button, disabled: a
+                      // muted outline and no fill, so it neither reads as a
+                      // section label nor as the live action (#441).
+                      side: BorderSide(
+                        color: enabled ? scheme.primary : tt.border,
+                      ),
                       foregroundColor: enabled
                           ? scheme.onPrimary
                           : tt.textMuted,
@@ -140,7 +145,7 @@ class ForwardBottomComposer extends StatelessWidget {
                         ),
                         SizedBox(width: tt.rowGap),
                         Text(
-                          enabled
+                          enabled || countWhenDisabled
                               ? (sendLabel ?? l10n.forwardToCount)(
                                   selectedIds.length,
                                 )

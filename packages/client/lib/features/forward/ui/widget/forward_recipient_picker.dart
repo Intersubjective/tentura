@@ -52,6 +52,7 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.recipientNoteHint,
     this.promptUncoveredNotes = true,
     this.copyProfile,
+    this.countWhenDisabled = false,
     super.key,
   });
 
@@ -95,6 +96,10 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// defaults to [ForwardState.profile]. The Post composer sets it, as its
   /// draft is not a loaded beacon.
   final ForwardTargetProfile? copyProfile;
+
+  /// Whether the disabled send button keeps its count label («Send to 0»)
+  /// instead of «Select recipients»; see [ForwardBottomComposer].
+  final bool countWhenDisabled;
 
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
@@ -812,8 +817,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             ],
                           ),
                         ),
+                        // Marks where the scrolling list ends and the send
+                        // footer begins, so a cut-off row does not look
+                        // like it slides under the footer (#441).
+                        const TenturaHairlineDivider(),
                         ForwardBottomComposer(
                           sendLabel: widget.sendLabel,
+                          countWhenDisabled: widget.countWhenDisabled,
                           selectedIds: state.selectedIds,
                           noteExpanded: _noteExpanded,
                           onToggleNoteExpanded: _toggleNote,
