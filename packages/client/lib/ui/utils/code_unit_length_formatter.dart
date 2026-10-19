@@ -9,9 +9,17 @@ import 'package:flutter/widgets.dart';
 /// with text the validators then reject. This formatter truncates on a
 /// character boundary, so it never splits an emoji or a combining sequence.
 class CodeUnitLengthLimitingTextInputFormatter extends TextInputFormatter {
-  const CodeUnitLengthLimitingTextInputFormatter(this.maxLength);
+  const CodeUnitLengthLimitingTextInputFormatter(
+    this.maxLength, {
+    this.onTruncated,
+  });
 
   final int maxLength;
+
+  /// Called when an edit (typically a paste) was cut to fit, so the field can
+  /// tell the user their text was shortened. Not called when the edit is
+  /// taken whole or rejected whole (a keystroke at the cap).
+  final VoidCallback? onTruncated;
 
   /// The longest prefix of [text] that fits in [maxLength] code units and
   /// ends on a character boundary.
@@ -62,6 +70,7 @@ class CodeUnitLengthLimitingTextInputFormatter extends TextInputFormatter {
     if (kept.isEmpty) return oldValue;
     final result =
         text.substring(0, prefix) + kept + text.substring(text.length - suffix);
+    onTruncated?.call();
     return TextEditingValue(
       text: result,
       selection: TextSelection.collapsed(offset: prefix + kept.length),

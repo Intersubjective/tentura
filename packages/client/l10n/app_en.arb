@@ -769,6 +769,10 @@
   "@beaconCreateTitleHint": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateTextShortenedNotice": "Shortened to fit the limit",
+  "@beaconCreateTextShortenedNotice": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconCreateDescriptionHint": "Describe what you need",
   "@beaconCreateDescriptionHint": {
     "context": "BeaconCreateScreen"
