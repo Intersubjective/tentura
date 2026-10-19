@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_icons.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
@@ -53,12 +54,27 @@ class MyWorkEmptyBody extends StatelessWidget {
     MyWorkFilter.archived => l10n.myWorkEmptyArchived,
   };
 
+  /// One explaining sentence for the non-Active filters (#430).
+  String? _body(L10n l10n) => switch (filter) {
+    MyWorkFilter.active || MyWorkFilter.all => null,
+    MyWorkFilter.authored => l10n.myWorkEmptyAuthoredBody,
+    MyWorkFilter.helpOffered => l10n.myWorkEmptyHelpOfferedBody,
+    MyWorkFilter.drafts => l10n.myWorkEmptyDraftsBody,
+    MyWorkFilter.archived => l10n.myWorkEmptyArchivedBody,
+  };
+
+  /// Authored / Drafts lead to creating a request; Help offered / Archived
+  /// lead to the Field.
+  bool get _ctaCreates =>
+      filter == MyWorkFilter.authored || filter == MyWorkFilter.drafts;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isActive = filter == MyWorkFilter.active;
+    final body = _body(l10n);
 
     return Align(
       alignment: Alignment.topCenter,
@@ -128,6 +144,29 @@ class MyWorkEmptyBody extends StatelessWidget {
                   label: l10n.constellationFindWaysToHelp,
                   onPressed: onOpenConstellation,
                 ),
+              ],
+              if (body != null) ...[
+                const SizedBox(height: kSpacingSmall),
+                Text(
+                  body,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: kSpacingMedium),
+                if (_ctaCreates)
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: Text(l10n.myWorkEmptyActiveCreateCta),
+                    onPressed: onCreateBeacon,
+                  )
+                else
+                  FilledButton.icon(
+                    icon: const Icon(TenturaIcons.graph),
+                    label: Text(l10n.myWorkEmptyGoToFieldCta),
+                    onPressed: onOpenConstellation,
+                  ),
               ],
               if (_showShortcuts) ...[
                 if (!isActive) const SizedBox(height: kSpacingSmall),

@@ -3287,6 +3287,26 @@
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
+  "myWorkEmptyAuthoredBody": "Requests you create appear here.",
+  "@myWorkEmptyAuthoredBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyHelpOfferedBody": "Requests where you offered help appear here. Find one to help with in the Field.",
+  "@myWorkEmptyHelpOfferedBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyDraftsBody": "Requests you start but haven't sent yet land here.",
+  "@myWorkEmptyDraftsBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyArchivedBody": "Closed and cancelled requests move here. Find something new in the Field.",
+  "@myWorkEmptyArchivedBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyGoToFieldCta": "Go to Field",
+  "@myWorkEmptyGoToFieldCta": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmptyActiveTitle": "No active requests yet",
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"

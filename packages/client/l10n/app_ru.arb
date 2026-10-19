@@ -3185,6 +3185,26 @@
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
+  "myWorkEmptyAuthoredBody": "Здесь появятся запросы, которые вы создадите.",
+  "@myWorkEmptyAuthoredBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyHelpOfferedBody": "Здесь появятся запросы, на которых вы предложили помощь. Найти, кому помочь, можно в «Поле».",
+  "@myWorkEmptyHelpOfferedBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyDraftsBody": "Сюда попадают запросы, которые вы начали, но ещё не отправили.",
+  "@myWorkEmptyDraftsBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyArchivedBody": "Сюда переносятся закрытые и отменённые запросы. Новое можно найти в «Поле».",
+  "@myWorkEmptyArchivedBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyGoToFieldCta": "Перейти в «Поле»",
+  "@myWorkEmptyGoToFieldCta": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmptyActiveTitle": "Пока нет активных запросов",
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
