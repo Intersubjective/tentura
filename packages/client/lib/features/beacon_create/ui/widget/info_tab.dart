@@ -380,7 +380,15 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     ),
                     SizedBox(height: tt.rowGap),
                     SegmentedButton<BeaconScheduleKind>(
-                      showSelectedIcon: false,
+                      // Filled + checked so the choice in use is clear (#434).
+                      style: SegmentedButton.styleFrom(
+                        selectedBackgroundColor: Theme.of(
+                          ctx,
+                        ).colorScheme.primary,
+                        selectedForegroundColor: Theme.of(
+                          ctx,
+                        ).colorScheme.onPrimary,
+                      ),
                       segments: [
                         ButtonSegment(
                           value: BeaconScheduleKind.deadline,
@@ -419,6 +427,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                               builder: (_, displayText) => _pickerField(
                                 key: const Key('BeaconCreate.TimingField'),
                                 hint: l10n.beaconTimingPickDate,
+                                semanticsLabel:
+                                    timingKind == BeaconScheduleKind.deadline
+                                    ? l10n.beaconTimingDeadline
+                                    : l10n.beaconTimingEvent,
                                 displayText: displayText,
                                 suffixIcon: const Icon(TenturaIcons.calendar),
                                 onTap: () => unawaited(
@@ -1003,27 +1015,35 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     required Widget? suffixIcon,
     required VoidCallback onTap,
     bool? isEmpty,
+    String? semanticsLabel,
   }) {
     final tt = context.tt;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        canRequestFocus: false,
-        onTap: onTap,
-        child: InputDecorator(
-          key: key,
-          decoration: _createFieldDecoration(hintText: hint).copyWith(
-            suffixIcon: suffixIcon,
-          ),
-          isEmpty: isEmpty ?? displayText.isEmpty,
-          child: SizedBox(
-            width: double.infinity,
-            height: tt.buttonHeight,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                displayText,
-                style: _theme.textTheme.bodyLarge,
+    // One button node naming the mode plus the shown date or hint (#434).
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        label: semanticsLabel,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            canRequestFocus: false,
+            onTap: onTap,
+            child: InputDecorator(
+              key: key,
+              decoration: _createFieldDecoration(hintText: hint).copyWith(
+                suffixIcon: suffixIcon,
+              ),
+              isEmpty: isEmpty ?? displayText.isEmpty,
+              child: SizedBox(
+                width: double.infinity,
+                height: tt.buttonHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    displayText,
+                    style: _theme.textTheme.bodyLarge,
+                  ),
+                ),
               ),
             ),
           ),
