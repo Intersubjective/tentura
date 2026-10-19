@@ -28,6 +28,12 @@ String beaconPeopleStatusLabel(
   if (status == BeaconParticipantStatusBits.committed &&
       authorResponseForOffered != null) {
     return switch (authorResponseForOffered) {
+      // Accept stores `useful` as part of admission (#361): that is not the
+      // author marking the offer useful; the card already says "Admitted".
+      // Relies on accept writing `useful`; revisit if accept stops doing so.
+      CoordinationResponseType.useful
+          when admissionAction == HelpOfferAdmissionAction.accept =>
+        l10n.beaconPeopleStatusHelpOffered,
       CoordinationResponseType.useful =>
         l10n.beaconPeopleStatusHelpOfferedUseful,
       CoordinationResponseType.needCoordination =>
