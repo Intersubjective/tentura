@@ -178,9 +178,12 @@ class _HomeShellState extends State<_HomeShell> {
     final meActive = tabsRouter.activeIndex == meIndex;
     if (useSideNav) {
       final extendedRail = windowClass == WindowClass.expanded;
-      return Scaffold(
-        resizeToAvoidBottomInset: false,
-        body: HomeBottomNavListener(
+      // The rail sits OUTSIDE the Scaffold (as in HomeRailFrame): the app
+      // messenger draws SnackBars over its root Scaffold, so keeping the rail
+      // out confines every bar to the content area beside it (#495).
+      return Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: HomeBottomNavListener(
           tabsRouter: tabsRouter,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -227,7 +230,12 @@ class _HomeShellState extends State<_HomeShell> {
                 ),
               ),
               const TenturaVerticalHairline(),
-              Expanded(child: content),
+              Expanded(
+                child: Scaffold(
+                  resizeToAvoidBottomInset: false,
+                  body: content,
+                ),
+              ),
             ],
           ),
         ),

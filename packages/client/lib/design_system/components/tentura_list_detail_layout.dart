@@ -37,17 +37,22 @@ class TenturaListDetailLayout extends StatelessWidget {
             TenturaSpacing.listPaneWidth +
                 TenturaSpacing.supportingPrimaryMinWidth;
         if (!fits) return detail;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              key: listPaneKey,
-              width: TenturaSpacing.listPaneWidth,
-              child: list,
-            ),
-            const TenturaVerticalHairline(),
-            Expanded(child: detail),
-          ],
+        // One Scaffold over both panes: two sibling Scaffolds would both be
+        // roots of the app messenger and paint every SnackBar twice (#495).
+        return Scaffold(
+          resizeToAvoidBottomInset: false,
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                key: listPaneKey,
+                width: TenturaSpacing.listPaneWidth,
+                child: list,
+              ),
+              const TenturaVerticalHairline(),
+              Expanded(child: detail),
+            ],
+          ),
         );
       },
     );
