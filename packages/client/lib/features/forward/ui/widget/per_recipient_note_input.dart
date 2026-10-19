@@ -15,6 +15,7 @@ class PerRecipientNoteInput extends StatelessWidget {
     required this.controller,
     required this.onChanged,
     required this.onClose,
+    this.hintText,
     super.key,
   });
 
@@ -22,6 +23,9 @@ class PerRecipientNoteInput extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback? onClose;
+
+  /// Overrides the default «Note for {name}» hint.
+  final String? hintText;
 
   @override
   Widget build(BuildContext context) {
@@ -40,13 +44,15 @@ class PerRecipientNoteInput extends StatelessWidget {
             cursorColor: tt.info,
             decoration: forwardNoteInputDecoration(
               context,
-              hintText: l10n.forwardRecipientNoteHint(
-                SelfUserHighlight.displayName(
-                  l10n,
-                  profile,
-                  state.profile.id,
-                ),
-              ),
+              hintText:
+                  hintText ??
+                  l10n.forwardRecipientNoteHint(
+                    SelfUserHighlight.displayName(
+                      l10n,
+                      profile,
+                      state.profile.id,
+                    ),
+                  ),
               suffixIcon: onClose != null
                   ? IconButton(
                       icon: const Icon(Icons.close),

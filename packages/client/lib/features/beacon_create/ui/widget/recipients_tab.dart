@@ -149,6 +149,8 @@ class BeaconRecipientsTab extends StatelessWidget {
                         onSendPressed: onSendRequest,
                         sendEnabled: sendEnabled,
                         externalActionLoading: createState.isLoading,
+                        sendLabel: l10n.beaconCreateSendToCount,
+                        recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
                       );
                     },
                   );

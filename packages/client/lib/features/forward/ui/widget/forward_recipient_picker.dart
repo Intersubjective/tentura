@@ -49,6 +49,7 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.externalActionLoading = false,
     this.isLive = false,
     this.sendLabel,
+    this.recipientNoteHint,
     this.promptUncoveredNotes = true,
     this.copyProfile,
     super.key,
@@ -78,8 +79,13 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// Create-session flag: the draft was made live in this screen.
   final bool isLive;
 
-  /// Send button label for the selected count; defaults to «Forward to …».
+  /// Send button label for the selected count (also on the shared-note
+  /// sheet); defaults to «Forward to …».
   final String Function(int count)? sendLabel;
+
+  /// Hint of the per-person note under a picked recipient; defaults to
+  /// «Note for {name}». The author's new-Request step sets it.
+  final String? recipientNoteHint;
 
   /// Whether send first offers a note for recipients who have none. Off for a
   /// new Post: its text already is the message.
@@ -266,6 +272,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       builder: (ctx) => _UncoveredRecipientsSheet(
         recipientNames: names,
         selectedCount: cubit.state.selectedIds.length,
+        sendLabel: widget.sendLabel,
         initialSharedNote: cubit.state.note,
         onForward: (sharedNote) {
           cubit.setNote(sharedNote);
@@ -713,6 +720,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     candidates: state.candidates,
                                     selectedIds: state.selectedIds,
                                     beacon: beacon,
+                                    recipientNoteHint: widget.recipientNoteHint,
                                     recipientReasons: state.recipientReasons,
                                     recipientNoteControllers:
                                         _recipientNoteControllers,
@@ -897,6 +905,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               controller: _recipientNoteControllers[lineage[i].id]!,
               onChanged: (text) => cubit.setRecipientNote(lineage[i].id, text),
               onClose: () => cubit.skipPersonalNote(lineage[i].id),
+              hintText: widget.recipientNoteHint,
             ),
           ),
       ],
@@ -979,6 +988,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               controller: _recipientNoteControllers[visible[i].id]!,
               onChanged: (text) => cubit.setRecipientNote(visible[i].id, text),
               onClose: () => cubit.skipPersonalNote(visible[i].id),
+              hintText: widget.recipientNoteHint,
             ),
           ),
         );
@@ -1053,10 +1063,14 @@ class _UncoveredRecipientsSheet extends StatefulWidget {
     required this.selectedCount,
     required this.initialSharedNote,
     required this.onForward,
+    this.sendLabel,
   });
 
   final List<String> recipientNames;
   final int selectedCount;
+
+  /// Confirm button label; defaults to «Forward to …».
+  final String Function(int count)? sendLabel;
   final String initialSharedNote;
   final void Function(String sharedNote) onForward;
 
@@ -1188,7 +1202,11 @@ class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
                       height: tt.buttonHeight,
                       child: FilledButton(
                         onPressed: _forward,
-                        child: Text(l10n.forwardToCount(widget.selectedCount)),
+                        child: Text(
+                          (widget.sendLabel ?? l10n.forwardToCount)(
+                            widget.selectedCount,
+                          ),
+                        ),
                       ),
                     ),
                   ],

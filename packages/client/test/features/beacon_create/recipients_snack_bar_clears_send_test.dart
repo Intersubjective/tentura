@@ -43,9 +43,10 @@ import 'fake_beacon_ports.dart';
 
 // #406: on the new-Request Recipients step the red «Image is not attached…»
 // error bar and the «Invite saved» notice were drawn across the embedded
-// «Forward to N» send button. The step keeps its own bottom bar («Make live
-// without sending») under the picker, so a bar placed just above that bar
-// still lands on the picker's send button.
+// «Send to N» send button (it read «Forward to N» before #439). The step
+// keeps its own bottom bar («Make live without sending») under the picker,
+// so a bar placed just above that bar still lands on the picker's send
+// button.
 
 class _ContextRepositoryFake extends Fake implements ContextRepository {
   @override
@@ -271,20 +272,20 @@ void main() {
     );
     await _settle(tester);
 
-    // Precondition: the step's primary action is the enabled «Forward to 1».
+    // Precondition: the step's primary action is the enabled «Send to 1».
     expect(
-      find.descendant(of: _sendButton, matching: find.text('Forward to 1')),
+      find.descendant(of: _sendButton, matching: find.text('Send to 1')),
       findsOneWidget,
     );
 
-    // Precondition: with no bar shown, a tap on the centre of «Forward to 1»
+    // Precondition: with no bar shown, a tap on the centre of «Send to 1»
     // reaches the button.
     final hit = tester.hitTestOnBinding(tester.getCenter(_sendButton));
     final buttonBox = tester.renderObject(_sendButton);
     expect(
       hit.path.any((entry) => identical(entry.target, buttonBox)),
       isTrue,
-      reason: 'before any bar is shown, a tap on Forward to 1 must reach it',
+      reason: 'before any bar is shown, a tap on Send to 1 must reach it',
     );
   }
 
@@ -293,7 +294,7 @@ void main() {
 
     testWidgets(
       'Recipients ($label): an error bar raised by the create screen sits '
-      'above Forward to 1',
+      'above Send to 1',
       (tester) async {
         await pumpRecipientsWithOnePicked(tester, size);
 
@@ -315,7 +316,7 @@ void main() {
     );
 
     testWidgets(
-      'Recipients ($label): the Invite saved notice sits above Forward to 1',
+      'Recipients ($label): the Invite saved notice sits above Send to 1',
       (tester) async {
         await pumpRecipientsWithOnePicked(tester, size);
 

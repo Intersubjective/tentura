@@ -6512,6 +6512,8 @@
   "postCreateAllowForwarding": "Можно пересылать",
   "postCreateTextHint": "О чём ваш пост?",
   "postCreateSendToCount": "Отправить ({count})",
+  "beaconCreateSendToCount": "Отправить ({count})",
+  "beaconCreateRecipientNoteHint": "Добавьте заметку для этого человека (необязательно)",
   "postCreateDiscardTitle": "Удалить черновик?",
   "postCreateDiscardBody": "Пост ещё не отправлен. Текст и фото не сохранятся.",
   "postCreateNeedHelp": "Нужна помощь? Создать запрос ›",
