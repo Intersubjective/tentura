@@ -3287,6 +3287,14 @@
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
+  "myWorkShowingArchived": "Showing archived requests",
+  "@myWorkShowingArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkShowActive": "Show active",
+  "@myWorkShowActive": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmptyAuthoredBody": "Requests you create appear here.",
   "@myWorkEmptyAuthoredBody": {
     "context": "MyWorkScreen"

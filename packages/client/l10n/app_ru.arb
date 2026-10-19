@@ -3185,6 +3185,14 @@
   "@myWorkEmptyArchived": {
     "context": "MyWorkScreen"
   },
+  "myWorkShowingArchived": "Показаны архивные запросы",
+  "@myWorkShowingArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkShowActive": "Показать активные",
+  "@myWorkShowActive": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmptyAuthoredBody": "Здесь появятся запросы, которые вы создадите.",
   "@myWorkEmptyAuthoredBody": {
     "context": "MyWorkScreen"
