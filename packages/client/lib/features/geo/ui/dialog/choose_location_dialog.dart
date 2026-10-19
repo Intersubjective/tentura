@@ -152,9 +152,11 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
 
     return Dialog.fullscreen(
       child: Scaffold(
+        // Opaque header, and the body (map) starts below it: Google's own
+        // overlays (e.g. its "can't load Google Maps" dialog) must never sit
+        // under the header, where the title would paint over them (#432).
         appBar: AppBar(
           centerTitle: true,
-          forceMaterialTransparency: true,
           foregroundColor: tt.text,
           leading: _wrapWebMapOverlay(
             CloseButton(
@@ -164,7 +166,6 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
           ),
           title: Text(l10n.tapToChooseLocation),
         ),
-        extendBodyBehindAppBar: true,
         body: Stack(
           fit: StackFit.expand,
           children: [

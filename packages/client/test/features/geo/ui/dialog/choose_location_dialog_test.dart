@@ -545,4 +545,70 @@ void main() {
       expect(centers.first, draftCenter);
     });
   });
+
+  // #432: Google's own overlay ("This page can't load Google Maps
+  // correctly") was drawn under a see-through app header, so the title text
+  // landed on top of the dialog text. Either the header paints an opaque
+  // background, or the map starts below the header.
+  group('the header does not paint over the map (#432)', () {
+    Finder header() => find.descendant(
+      of: find.byType(ChooseLocationDialog),
+      matching: find.byType(AppBar),
+    );
+
+    bool headerIsOpaque(WidgetTester tester) {
+      final material = tester.widget<Material>(
+        find.descendant(of: header(), matching: find.byType(Material)).first,
+      );
+      final color = material.color;
+      return material.type != MaterialType.transparency &&
+          color != null &&
+          color.a >= 1;
+    }
+
+    testWidgets('the map never shows through under the header', (
+      tester,
+    ) async {
+      await openDialog(tester);
+
+      expect(header(), findsOneWidget);
+      final headerRect = tester.getRect(header());
+      final mapRect = tester.getRect(find.byType(_FakeMap));
+      final mapUnderHeader = mapRect.top < headerRect.bottom - 0.5;
+
+      expect(
+        !mapUnderHeader || headerIsOpaque(tester),
+        isTrue,
+        reason:
+            'map top ${mapRect.top} is under the header '
+            '(bottom ${headerRect.bottom}) and the header is see-through',
+      );
+    });
+
+    testWidgets('the header keeps its title and close button', (
+      tester,
+    ) async {
+      await openDialog(tester);
+
+      expect(
+        find.descendant(
+          of: header(),
+          matching: find.text('Tap to choose location'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: header(),
+          matching: find.byKey(const Key('ChooseLocation.Close')),
+        ),
+        findsOneWidget,
+      );
+      // The floating search bar still sits below the header, not under it.
+      expect(
+        tester.getRect(find.byType(SearchBar)).top,
+        greaterThanOrEqualTo(tester.getRect(header()).bottom - 0.5),
+      );
+    });
+  });
 }
