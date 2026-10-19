@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/qr_code.dart';
 
 const _link = 'https://tentura.example/invite/Iabc123';
 
@@ -160,6 +161,48 @@ void main() {
         findRichText: true,
       ),
       findsOneWidget,
+    );
+  });
+
+  // #452: on desktop the QR is rarely the primary path, so the link and
+  // Copy come first and the QR waits behind a "Show QR" control.
+  testWidgets('desktop dialog leads with link and copy, QR behind a toggle', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pumpDialog(tester);
+
+    expect(find.byType(QrCode), findsNothing);
+
+    final linkTop = tester.getTopLeft(find.text(_link)).dy;
+    final copyTop = tester.getTopLeft(find.text('Copy to clipboard')).dy;
+    final shareTop = tester.getTopLeft(find.text('Share link')).dy;
+    expect(linkTop, lessThan(copyTop));
+    expect(copyTop, lessThanOrEqualTo(shareTop));
+
+    final showQr = find.textContaining('QR');
+    expect(showQr, findsOneWidget);
+    await tester.ensureVisible(showQr);
+    await tester.tap(showQr);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(QrCode), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(QrCode)).dy, greaterThan(linkTop));
+  });
+
+  // #452 guard: the request wording belongs to request invites only; the
+  // same dialog also shares a profile link.
+  testWidgets('plain share dialog does not talk about a request', (
+    tester,
+  ) async {
+    await _pumpDialog(tester);
+
+    expect(find.textContaining('request'), findsNothing);
+    expect(
+      find.text('Invite someone to help with this request'),
+      findsNothing,
     );
   });
 }
