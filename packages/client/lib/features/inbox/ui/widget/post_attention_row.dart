@@ -114,7 +114,9 @@ class PostAttentionRow extends StatelessWidget {
       PostAttentionVariant.firstResponses => null,
     };
 
-    final age = compactRelativeTimeAgo(
+    // #476: the card's short age («7m»), as the tombstones and Request cards
+    // beside it read.
+    final age = cardRelativeAge(
       when: latest?.createdAt ?? receipt.createdAt,
       now: DateTime.now(),
       l10n: l10n,

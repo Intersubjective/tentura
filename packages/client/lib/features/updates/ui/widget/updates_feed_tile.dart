@@ -91,6 +91,8 @@ class UpdatesFeedTile extends StatefulWidget {
     this.bodyOverride,
     this.action,
     this.actor,
+    this.activityRow = false,
+    this.onDismiss,
     super.key,
   });
 
@@ -106,6 +108,16 @@ class UpdatesFeedTile extends StatefulWidget {
   /// When non-null, leading shows a tappable [TenturaAvatar.medium] instead of
   /// the type glyph. Must sit outside the row [InkWell].
   final Profile? actor;
+
+  /// #476: the row sits in the Activity list, beside tombstones and Request
+  /// cards. It then reads their short card age («7m», #189) and ends in their
+  /// × ([onDismiss]) instead of the Updates screen's «7m ago» and ⋮. Mark
+  /// seen/unseen stays on long-press, secondary tap and the hover eye.
+  final bool activityRow;
+
+  /// The trailing × in [activityRow] mode. Null: no trailing control (a live
+  /// obligation, whose way out is «Mark done»).
+  final VoidCallback? onDismiss;
 
   static const requestTitleKey = Key('updates-feed-tile-request-title');
 
@@ -175,11 +187,22 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
-    final ageLabel = compactRelativeTimeAgo(
-      when: widget.receipt.createdAt,
-      now: DateTime.now(),
-      l10n: l10n,
-    );
+    final now = DateTime.now();
+    final ageLabel = widget.activityRow
+        ? cardRelativeAge(when: widget.receipt.createdAt, now: now, l10n: l10n)
+        : compactRelativeTimeAgo(
+            when: widget.receipt.createdAt,
+            now: now,
+            l10n: l10n,
+          );
+    // The abbreviations are for the eye; a screen reader hears the words.
+    final ageSpoken = widget.activityRow
+        ? cardRelativeAgeSpoken(
+            when: widget.receipt.createdAt,
+            now: now,
+            l10n: l10n,
+          )
+        : null;
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
     final rowAction =
@@ -260,6 +283,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                 style: TenturaText.withTabular(
                   TenturaText.bodySmall(tt.textMuted),
                 ),
+                semanticsLabel: ageSpoken,
               ),
             ),
           ],
@@ -323,6 +347,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                   onMarkSeen: _markSeen,
                   onMarkUnseen: _markUnseen,
                   onShowMarkMenu: _showMarkMenu,
+                  showHoverMore: !widget.activityRow,
                   overlayColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.pressed)) {
                       return scheme.onSurface.withValues(alpha: 0.06);
@@ -335,13 +360,19 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                   child: bodyColumn,
                 ),
               ),
-              _UpdatesFeedRowOverflow(
-                isUnread: isUnread,
-                markSeenLabel: l10n.updatesMarkSeen,
-                markUnseenLabel: l10n.updatesMarkUnseen,
-                onMarkSeen: _markSeen,
-                onMarkUnseen: _markUnseen,
-              ),
+              if (!widget.activityRow)
+                _UpdatesFeedRowOverflow(
+                  isUnread: isUnread,
+                  markSeenLabel: l10n.updatesMarkSeen,
+                  markUnseenLabel: l10n.updatesMarkUnseen,
+                  onMarkSeen: _markSeen,
+                  onMarkUnseen: _markUnseen,
+                )
+              else if (widget.onDismiss != null)
+                _ActivityDismissControl(
+                  label: l10n.attentionEventDismiss,
+                  onPressed: widget.onDismiss!,
+                ),
             ],
           ),
         ),
@@ -364,6 +395,7 @@ class _UpdatesFeedRowInteraction extends StatelessWidget {
     required this.onMarkUnseen,
     required this.onShowMarkMenu,
     required this.overlayColor,
+    this.showHoverMore = true,
   });
 
   final Widget child;
@@ -377,6 +409,7 @@ class _UpdatesFeedRowInteraction extends StatelessWidget {
   final VoidCallback onMarkUnseen;
   final VoidCallback onShowMarkMenu;
   final WidgetStateProperty<Color?> overlayColor;
+  final bool showHoverMore;
 
   static const _touchOrStylus = {
     PointerDeviceKind.touch,
@@ -437,7 +470,7 @@ class _UpdatesFeedRowInteraction extends StatelessWidget {
                 markUnseenLabel: markUnseenLabel,
                 onMarkSeen: onMarkSeen,
                 onMarkUnseen: onMarkUnseen,
-                onMore: onShowMarkMenu,
+                onMore: showHoverMore ? onShowMarkMenu : null,
               ),
             ),
         ],
@@ -461,7 +494,7 @@ class _UpdatesFeedRowHoverToolbar extends StatelessWidget {
   final String markUnseenLabel;
   final VoidCallback onMarkSeen;
   final VoidCallback onMarkUnseen;
-  final VoidCallback onMore;
+  final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -488,17 +521,18 @@ class _UpdatesFeedRowHoverToolbar extends StatelessWidget {
             ),
             onPressed: isUnread ? onMarkSeen : onMarkUnseen,
           ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            iconSize: 18,
-            constraints: const BoxConstraints(
-              minWidth: kMinInteractiveDimension,
-              minHeight: kMinInteractiveDimension,
+          if (onMore != null)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 18,
+              constraints: const BoxConstraints(
+                minWidth: kMinInteractiveDimension,
+                minHeight: kMinInteractiveDimension,
+              ),
+              tooltip: markUnseenLabel,
+              icon: const Icon(Icons.more_horiz),
+              onPressed: onMore,
             ),
-            tooltip: markUnseenLabel,
-            icon: const Icon(Icons.more_horiz),
-            onPressed: onMore,
-          ),
         ],
       ),
     );
@@ -542,6 +576,31 @@ class _UpdatesFeedRowOverflow extends StatelessWidget {
             child: Text(markUnseenLabel),
           ),
       ],
+    );
+  }
+}
+
+/// #476: the same × the Activity tombstones and cards wear (48 dp target).
+class _ActivityDismissControl extends StatelessWidget {
+  const _ActivityDismissControl({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return SizedBox(
+      width: kMinInteractiveDimension,
+      height: kMinInteractiveDimension,
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: label,
+        iconSize: tt.iconSize,
+        padding: EdgeInsets.zero,
+        color: tt.textFaint,
+        icon: Icon(Icons.close, semanticLabel: label),
+      ),
     );
   }
 }
