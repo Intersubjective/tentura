@@ -23,7 +23,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_location_actions.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 
@@ -316,9 +316,12 @@ class _ShowcaseFacts extends StatelessWidget {
           if (beacon.hasScheduleDates)
             _FactRow(
               icon: Icons.event_outlined,
-              text:
-                  '${dateFormatYMD(beacon.startAt)} - '
-                  '${dateFormatYMD(beacon.endAt)}',
+              text: formatScheduleSummary(
+                beacon.startAt,
+                beacon.endAt,
+                l10n: l10n,
+                now: DateTime.now(),
+              ),
             ),
           if (hasPlace)
             _FactRow(

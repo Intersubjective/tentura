@@ -1199,27 +1199,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     BeaconScheduleKind.none => _l10n.beaconTimingNoneHint,
   };
 
-  String _timingSummary(BeaconCreateState s) {
-    final now = DateTime.now();
-    final locale = _l10n.localeName;
-    if (s.startAt != null && s.endAt != null) {
-      return formatScheduleRange(
-        s.startAt!,
-        s.endAt!,
-        localeName: locale,
-        now: now,
-      );
-    }
-    if (s.startAt != null) {
-      return formatScheduleDate(s.startAt!, localeName: locale, now: now);
-    }
-    if (s.endAt != null) {
-      return _l10n.beaconCardScheduleDeadlineBy(
-        formatScheduleDate(s.endAt!, localeName: locale, now: now),
-      );
-    }
-    return '';
-  }
+  String _timingSummary(BeaconCreateState s) => formatScheduleSummary(
+    s.startAt,
+    s.endAt,
+    l10n: _l10n,
+    now: DateTime.now(),
+  );
 
   void _onTimingKindChanged(BeaconScheduleKind kind) {
     _timingKindNotifier.value = kind;
