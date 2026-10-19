@@ -883,7 +883,8 @@ class BeaconRoomCase extends UseCaseBase {
         ..['lastMessageAt'] = latest.lastMessageAt?.toUtc().toIso8601String()
         ..['lastMessageText'] = roomReplyExcerpt(latest.lastMessageBody)
         ..['lastMessageAuthorId'] = latest.lastMessageAuthorId
-        ..['lastMessageAuthorName'] = latest.lastMessageAuthorName;
+        ..['lastMessageAuthorName'] = latest.lastMessageAuthorName
+        ..['lastMessageKind'] = latest.lastMessageKind;
     }
   }
 
@@ -893,6 +894,7 @@ class BeaconRoomCase extends UseCaseBase {
     'lastMessageText': null,
     'lastMessageAuthorId': null,
     'lastMessageAuthorName': null,
+    'lastMessageKind': null,
   };
 
   /// Fills `planSliceJson` (Request plan, #220 §4.9) on the [rows] the

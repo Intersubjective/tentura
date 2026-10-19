@@ -218,8 +218,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     if (quotedMsgs.isNotEmpty) {
       final quoteRows = await sentryDbSpan(
         'db.quote.batch',
-        (_) => _db.customSelect(
-          r'''
+        (_) => _db
+            .customSelect(
+              r'''
 SELECT
   q.fact_card_id, q.seq, r.fact_text,
   f.pinned_by, f.source_message_id,
@@ -231,19 +232,20 @@ JOIN public.beacon_fact_card f ON f.id = q.fact_card_id
 JOIN public.beacon_fact_card_revision r
   ON r.fact_card_id = q.fact_card_id AND r.seq = q.seq
 ''',
-          variables: [
-            Variable(
-              TypedValue(Type.textArray, [
-                for (final m in quotedMsgs) m.quotedFactCardId!,
-              ]),
-            ),
-            Variable(
-              TypedValue(Type.integerArray, [
-                for (final m in quotedMsgs) m.quotedFactRevisionSeq!,
-              ]),
-            ),
-          ],
-        ).get(),
+              variables: [
+                Variable(
+                  TypedValue(Type.textArray, [
+                    for (final m in quotedMsgs) m.quotedFactCardId!,
+                  ]),
+                ),
+                Variable(
+                  TypedValue(Type.integerArray, [
+                    for (final m in quotedMsgs) m.quotedFactRevisionSeq!,
+                  ]),
+                ),
+              ],
+            )
+            .get(),
       );
       for (final row in quoteRows) {
         quoteRowByKey['${row.read<String>('fact_card_id')}#'
@@ -910,8 +912,9 @@ ORDER BY tier, user_id
     if (quotedFactCardId != null || quotedFactRevisionSeq != null) {
       // Plan §8.5: one insert-select; yields a row only for a live fact of the
       // same beacon with an existing revision seq, in the General scope.
-      final rows = await _db.customSelect(
-        '''
+      final rows = await _db
+          .customSelect(
+            '''
 INSERT INTO public.beacon_room_message
   (id, beacon_id, author_id, body, reply_to_message_id, thread_item_id,
    linked_next_move_id, linked_polling_id, semantic_marker, system_payload,
@@ -929,25 +932,26 @@ WHERE f.id = \$13::text
   AND \$6::text IS NULL
 RETURNING *
 ''',
-        variables: [
-          Variable<String>(id),
-          Variable<String>(beaconId),
-          Variable<String>(authorId),
-          Variable<String>(body),
-          Variable<String>(replyToMessageId),
-          Variable<String>(threadItemId),
-          Variable<String>(linkedParticipantId),
-          Variable<String>(linkedPollingId),
-          Variable<int>(semanticMarker),
-          Variable<String>(
-            systemPayload == null ? null : jsonEncode(systemPayload),
-          ),
-          Variable(TypedValue(Type.textArray, mentions)),
-          Variable<String>(jsonEncode(mentionSpans)),
-          Variable<String>(quotedFactCardId),
-          Variable<int>(quotedFactRevisionSeq),
-        ],
-      ).get();
+            variables: [
+              Variable<String>(id),
+              Variable<String>(beaconId),
+              Variable<String>(authorId),
+              Variable<String>(body),
+              Variable<String>(replyToMessageId),
+              Variable<String>(threadItemId),
+              Variable<String>(linkedParticipantId),
+              Variable<String>(linkedPollingId),
+              Variable<int>(semanticMarker),
+              Variable<String>(
+                systemPayload == null ? null : jsonEncode(systemPayload),
+              ),
+              Variable(TypedValue(Type.textArray, mentions)),
+              Variable<String>(jsonEncode(mentionSpans)),
+              Variable<String>(quotedFactCardId),
+              Variable<int>(quotedFactRevisionSeq),
+            ],
+          )
+          .get();
       if (rows.isEmpty) {
         throw IdWrongException(
           description:
@@ -1446,7 +1450,9 @@ RETURNING *
     required String updatedBy,
   }) async {
     await _db.withMutatingUser(updatedBy, () async {
-      await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
+      await _db
+          .into(_db.beaconRoomStates)
+          .insertOnConflictUpdate(
             BeaconRoomStatesCompanion.insert(
               beaconId: beaconId,
               currentLine: Value(text),
@@ -1529,15 +1535,17 @@ SELECT public.emit_realtime_entity_change(
     required int kind,
     required String sourceId,
   }) => _db.withMutatingUser(userId, () async {
-    final rows = await _db.customSelect(
-      r'SELECT public.post_claim_first_response($1, $2, $3::smallint, $4) AS won',
-      variables: [
-        Variable<String>(beaconId),
-        Variable<String>(userId),
-        Variable<int>(kind),
-        Variable<String>(sourceId),
-      ],
-    ).get();
+    final rows = await _db
+        .customSelect(
+          r'SELECT public.post_claim_first_response($1, $2, $3::smallint, $4) AS won',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(userId),
+            Variable<int>(kind),
+            Variable<String>(sourceId),
+          ],
+        )
+        .get();
     return rows.single.read<bool>('won');
   });
 
@@ -1599,16 +1607,34 @@ SELECT
   left(regexp_replace(btrim(lm.body), '\s+', ' ', 'g'), 200)
     AS last_message_body,
   lm.author_id AS last_message_author_id,
-  u.display_name AS last_message_author_name
+  u.display_name AS last_message_author_name,
+  -- #498: a message with no text still previews as its kind.
+  CASE
+    WHEN lm.id IS NULL OR btrim(lm.body) <> '' THEN NULL
+    WHEN lm.linked_polling_id IS NOT NULL THEN 'poll'
+    WHEN EXISTS (SELECT 1 FROM public.beacon_room_message_attachment a
+      WHERE a.message_id = lm.id AND a.kind = '''
+          '${BeaconRoomMessageAttachmentKind.image}'
+          r'''
+) THEN 'image'
+    WHEN EXISTS (SELECT 1 FROM public.beacon_room_message_attachment a
+      WHERE a.message_id = lm.id) THEN 'file'
+    WHEN lm.quoted_fact_card_id IS NOT NULL THEN 'fact'
+  END AS last_message_kind
 FROM unnest($1::text[]) AS ids(beacon_id)
 LEFT JOIN LATERAL (
-  SELECT m.created_at, m.body, m.author_id
+  SELECT m.id, m.created_at, m.body, m.author_id, m.linked_polling_id,
+    m.quoted_fact_card_id
   FROM public.beacon_room_message m
   WHERE m.beacon_id = ids.beacon_id
     AND m.thread_item_id IS NULL
     AND m.system_message_kind IS NULL
     AND m.author_id IS NOT NULL
-    AND btrim(m.body) <> ''
+    AND (btrim(m.body) <> ''
+      OR m.linked_polling_id IS NOT NULL
+      OR m.quoted_fact_card_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM public.beacon_room_message_attachment a
+        WHERE a.message_id = m.id))
   ORDER BY m.created_at DESC, m.id DESC
   LIMIT 1
 ) lm ON true
@@ -1630,7 +1656,9 @@ LEFT JOIN public."user" u ON u.id = lm.author_id
           lastMessageAt: at(row.data, 'last_message_at'),
           lastMessageBody: row.data['last_message_body'] as String?,
           lastMessageAuthorId: row.data['last_message_author_id'] as String?,
-          lastMessageAuthorName: row.data['last_message_author_name'] as String?,
+          lastMessageAuthorName:
+              row.data['last_message_author_name'] as String?,
+          lastMessageKind: row.data['last_message_kind'] as String?,
         ),
     };
   }
@@ -1746,8 +1774,7 @@ RETURNING last_seen_at
     final rows =
         await (_db.select(_db.beaconRoomSeen)
               ..where(
-                (s) =>
-                    s.beaconId.equals(beaconId) & s.threadItemId.isNull(),
+                (s) => s.beaconId.equals(beaconId) & s.threadItemId.isNull(),
               )
               ..orderBy([
                 (s) => OrderingTerm(

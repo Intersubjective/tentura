@@ -4002,6 +4002,26 @@
       "text": {"type": "String"}
     }
   },
+  "myWorkLatestPhoto": "📷 Photo",
+  "@myWorkLatestPhoto": {
+    "context": "MyWorkScreen",
+    "description": "#498: latest-message line on a Requests card when the message is a photo with no text"
+  },
+  "myWorkLatestFile": "📎 File",
+  "@myWorkLatestFile": {
+    "context": "MyWorkScreen",
+    "description": "#498: latest-message line on a Requests card when the message is a file with no text"
+  },
+  "myWorkLatestPoll": "📊 Poll",
+  "@myWorkLatestPoll": {
+    "context": "MyWorkScreen",
+    "description": "#498: latest-message line on a Requests card when the message is a poll"
+  },
+  "myWorkLatestFact": "📌 Fact",
+  "@myWorkLatestFact": {
+    "context": "MyWorkScreen",
+    "description": "#498: latest-message line on a Requests card when the message quotes a fact with no text"
+  },
   "myWorkLatestSomeone": "someone",
   "@myWorkLatestSomeone": {
     "context": "MyWorkScreen",

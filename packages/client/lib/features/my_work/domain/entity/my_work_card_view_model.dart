@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 
 import 'my_work_last_event.dart';
 
@@ -99,6 +100,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default('') String roomLatestMessageAuthorName,
     DateTime? roomLatestMessageAt,
 
+    /// #498 — what the latest message carries when it has no text (`image`,
+    /// `file`, `poll`, `fact`); empty for a text message.
+    @Default('') String roomLatestMessageKind,
+
     /// U087 — unread discussion messages (the same count the header showed
     /// as "+N"), shown on the "latest" line.
     @Default(0) int roomUnreadCount,
@@ -107,6 +112,13 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
   const MyWorkCardViewModel._();
 
   bool get isArchived => viewerArchived;
+
+  /// U087/#498 — whether the card shows a "latest" line: a message with text,
+  /// or one with only a photo, file, poll or quoted fact.
+  bool get hasRoomLatestMessage => isRoomLatestMessageShown(
+    text: roomLatestMessageText,
+    kind: roomLatestMessageKind,
+  );
 
   /// U087 — what "Recent" orders by: the latest of when the Request entered
   /// the list ([entryAt]), the discussion's last activity and the latest

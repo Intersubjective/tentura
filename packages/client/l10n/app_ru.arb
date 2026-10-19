@@ -3843,6 +3843,10 @@
     "description": "Mid-sentence label for the current user on My Desk last-event rows"
   },
   "myWorkLatestMessage": "{name}: {text}",
+  "myWorkLatestPhoto": "📷 Фото",
+  "myWorkLatestFile": "📎 Файл",
+  "myWorkLatestPoll": "📊 Опрос",
+  "myWorkLatestFact": "📌 Факт",
   "myWorkLatestSomeone": "кто-то",
   "myWorkUnreadCount": "{count, plural, one{{count} новое} few{{count} новых} many{{count} новых} other{{count} новых}}",
   "myWorkLatestMessageSemantics": "Последнее сообщение. {name}: {text}{details}",

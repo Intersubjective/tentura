@@ -689,6 +689,9 @@ final gqlTypeInboxRoomContextRow =
         field('lastMessageText', graphQLString),
         field('lastMessageAuthorId', graphQLString),
         field('lastMessageAuthorName', graphQLString),
+        // #498 — what a message with no text carries: image, file, poll or
+        // fact (null for a text message), so the card can say "📷 Photo".
+        field('lastMessageKind', graphQLString),
       ]);
 
 /// Result of marking a beacon room (or thread) as seen.

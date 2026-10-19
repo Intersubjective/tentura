@@ -29,5 +29,18 @@ abstract class InboxRoomCardHints with _$InboxRoomCardHints {
     @Default('') String lastMessageText,
     @Default('') String lastMessageAuthorId,
     @Default('') String lastMessageAuthorName,
+
+    /// #498 — what the latest message carries when it has no text: `image`,
+    /// `file`, `poll` or `fact` ([kRoomLatestMessageKinds]); empty for text.
+    @Default('') String lastMessageKind,
   }) = _InboxRoomCardHints;
 }
+
+/// #498 — the kinds of a no-text latest message the Requests card can label
+/// ("📷 Photo", "📎 File", "📊 Poll", "📌 Fact").
+const kRoomLatestMessageKinds = {'image', 'file', 'poll', 'fact'};
+
+/// Whether a Requests card has a "latest" line to show: the message has text,
+/// or it has none but carries something the card can label (#498).
+bool isRoomLatestMessageShown({required String text, required String kind}) =>
+    text.trim().isNotEmpty || kRoomLatestMessageKinds.contains(kind);

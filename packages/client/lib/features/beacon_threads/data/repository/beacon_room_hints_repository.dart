@@ -53,6 +53,7 @@ class BeaconRoomHintsRepository {
           lastMessageText: _clip(e.lastMessageText ?? ''),
           lastMessageAuthorId: (e.lastMessageAuthorId ?? '').trim(),
           lastMessageAuthorName: (e.lastMessageAuthorName ?? '').trim(),
+          lastMessageKind: (e.lastMessageKind ?? '').trim(),
         ),
     };
   }
