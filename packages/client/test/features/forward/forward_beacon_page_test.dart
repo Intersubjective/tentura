@@ -243,7 +243,7 @@ void main() {
     expect(find.byType(CompactBeaconContextStrip), findsOneWidget);
   });
 
-  testWidgets('search icon opens full-screen overlay with search field', (
+  testWidgets('search icon turns the header into an in-place search field', (
     tester,
   ) async {
     _registerInvitationRepository();
@@ -501,32 +501,35 @@ void main() {
     expect(find.text(aheadHint), findsNothing);
   });
 
-  testWidgets('invite bar swaps to clear-selection once a recipient is picked', (
-    tester,
-  ) async {
-    _registerInvitationRepository();
-    _registerUiEffectPort();
+  testWidgets(
+    'invite bar swaps to clear-selection once a recipient is picked',
+    (
+      tester,
+    ) async {
+      _registerInvitationRepository();
+      _registerUiEffectPort();
 
-    final cubit = _forwardCubitWithBeacon();
-    addTearDown(cubit.close);
+      final cubit = _forwardCubitWithBeacon();
+      addTearDown(cubit.close);
 
-    await _pumpForwardPage(tester, cubit: cubit);
-    expect(find.text('Invite new person'), findsOneWidget);
-    expect(find.text('Clear selection'), findsNothing);
+      await _pumpForwardPage(tester, cubit: cubit);
+      expect(find.text('Invite new person'), findsOneWidget);
+      expect(find.text('Clear selection'), findsNothing);
 
-    cubit.toggleSelection('u1');
-    await tester.pumpAndSettle();
+      cubit.toggleSelection('u1');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Invite new person'), findsNothing);
-    expect(find.text('Clear selection'), findsOneWidget);
+      expect(find.text('Invite new person'), findsNothing);
+      expect(find.text('Clear selection'), findsOneWidget);
 
-    await tester.tap(find.text('Clear selection'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear selection'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Invite new person'), findsOneWidget);
-    expect(find.text('Clear selection'), findsNothing);
-    expect(cubit.state.selectedIds, isEmpty);
-  });
+      expect(find.text('Invite new person'), findsOneWidget);
+      expect(find.text('Clear selection'), findsNothing);
+      expect(cubit.state.selectedIds, isEmpty);
+    },
+  );
 
   testWidgets('forward page layout has no overflow at compact widths', (
     tester,
