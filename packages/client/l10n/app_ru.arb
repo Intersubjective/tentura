@@ -215,6 +215,10 @@
   "@cropRotateRightTooltip": {
     "context": "Utils"
   },
+  "cropZoomLabel": "Масштаб",
+  "@cropZoomLabel": {
+    "context": "Utils"
+  },
   "buttonClose": "Закрыть",
   "@buttonClose": {
     "context": "Utils"

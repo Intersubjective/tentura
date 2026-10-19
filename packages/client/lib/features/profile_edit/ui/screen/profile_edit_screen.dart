@@ -4,6 +4,7 @@ import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:image_cropper_for_web/cropper_editor.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -423,12 +424,13 @@ List<PlatformUiSettings> _avatarCropUiSettings(
       viewwMode: WebViewMode.mode_1,
       dragMode: WebDragMode.move,
       checkCrossOrigin: false,
-      translations: WebTranslations(
+      translations: CropperWebTranslations(
         title: l10n.titleCropAvatar,
         rotateLeftTooltip: l10n.cropRotateLeftTooltip,
         rotateRightTooltip: l10n.cropRotateRightTooltip,
         cancelButton: l10n.buttonCancel,
         cropButton: l10n.buttonSave,
+        zoomLabel: l10n.cropZoomLabel,
       ),
     ),
   ];
