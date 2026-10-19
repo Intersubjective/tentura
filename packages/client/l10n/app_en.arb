@@ -9854,5 +9854,9 @@
   "notificationPermissionBlockedApp": "Blocked for this app. To allow them, turn on notifications for Tentura in your device's settings (on a computer: the app's menu › App info).",
   "@notificationPermissionBlockedApp": {
     "description": "Notification settings: the permission is denied in an installed app (home-screen or desktop PWA, or native), which has no address bar."
+  },
+  "beaconLiveSentToNobodyHint": "Live in the Field, sent to nobody yet. Forward it to someone.",
+  "@beaconLiveSentToNobodyHint": {
+    "description": "Now panel, author only: a live Request that is discoverable in the Field but that the author has not forwarded to anyone yet (e.g. after Make live without sending)."
   }
 }

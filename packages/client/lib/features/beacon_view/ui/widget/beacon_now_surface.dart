@@ -192,6 +192,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
           p.viewerForwardEdges != c.viewerForwardEdges ||
           p.forwardsLoaded != c.forwardsLoaded ||
           p.forwardsLoading != c.forwardsLoading ||
+          p.myForwards != c.myForwards ||
           p.factCards != c.factCards ||
           p.pinnedFactsSeenAt != c.pinnedFactsSeenAt ||
           p.roomParticipants.length != c.roomParticipants.length ||
@@ -395,6 +396,32 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                           canOfferAgain:
                               state.beacon.status.isOpenFamily &&
                               state.beacon.allowsNewHelpOfferAsNonAuthor,
+                        ),
+                      ),
+                    ),
+                  // #484: made live without sending — say it reached nobody.
+                  if (state.isLiveSentToNobody)
+                    SliverPadding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: tt.screenHPadding,
+                      ).copyWith(top: tt.cardGap),
+                      // The line is an action: tapping it opens Forward.
+                      sliver: SliverToBoxAdapter(
+                        child: InkWell(
+                          onTap: state.beacon.viewerCanForward
+                              ? () => unawaited(
+                                  beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                                    context,
+                                    beaconViewCubit,
+                                    l10n,
+                                  ),
+                                )
+                              : null,
+                          child: Text(
+                            l10n.beaconLiveSentToNobodyHint,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
                         ),
                       ),
                     ),
