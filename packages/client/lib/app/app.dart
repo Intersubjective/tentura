@@ -31,6 +31,7 @@ import 'package:tentura/ui/widget/tab_attention_scope.dart';
 
 import 'di/di.dart';
 import 'di/globals.dart';
+import 'platform/emoji_font_warmup.dart';
 import 'platform/lifecycle_handler.dart';
 import 'platform/orientation_policy.dart';
 import 'router/root_router.dart';
@@ -45,6 +46,8 @@ class App extends StatelessWidget {
     FlutterNativeSplash.preserve(
       widgetsBinding: TenturaWidgetsBinding.ensureInitialized(),
     );
+    // Web: start the emoji fallback font download before startup work (#410).
+    warmUpEmojiFallbackFont();
     assertWebBuildConfig();
     // Portrait on phone-sized native windows; PWA uses manifest.json. See docs/tentura-design-system.md § Orientation policy.
     await applyInitialOrientationPolicy();
