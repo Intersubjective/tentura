@@ -22,6 +22,7 @@ import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
+import 'package:tentura/features/inbox/ui/screen/inbox_rejected_screen.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_watching_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_watchlist_row.dart';
@@ -35,10 +36,7 @@ import '../../support/noop_posts_case.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
 import 'inbox_case_test.dart'
-    show
-        FakeInboxRepository,
-        buildTestBeaconThreadsCase,
-        buildTestInboxCase;
+    show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 
@@ -54,8 +52,7 @@ class _HarnessRouter extends Mock implements StackRouter {
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      false;
+  }) => false;
 
   @override
   Future<T?> push<T extends Object?>(
@@ -93,7 +90,6 @@ class _RecordingRootRouter extends Mock implements RootRouter {
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
-
 
   @override
   void clearPendingMovedNudge() {
@@ -202,7 +198,6 @@ InboxItem _watchingItem(
     status: InboxItemStatus.watching,
   );
 }
-
 
 Future<void> _pumpInboxOverflow(
   WidgetTester tester, {
@@ -413,25 +408,101 @@ void main() {
     expect(tiles.firstWhere((t) => t.isSelected).item.beaconId, 'b-target');
   });
 
-  test('ForwardLocationMessage pushes Watching with highlight beacon', () async {
-    final router = _RecordingRootRouter();
-    if (GetIt.I.isRegistered<RootRouter>()) {
-      GetIt.I.unregister<RootRouter>();
-    }
-    GetIt.I.registerSingleton<RootRouter>(router);
-    addTearDown(() {
+  // #485: the archive of requests the viewer dismissed ("Can't help" or
+  // "Remove from Activity") must not be called "Declined"; that word belongs
+  // to help offers the author declined.
+  testWidgets('overflow names the dismissed archive Dismissed, not Declined', (
+    tester,
+  ) async {
+    final router = _HarnessRouter();
+    await _pumpInboxOverflow(tester, router: router, items: const []);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    expect(find.text('Declined'), findsNothing);
+    expect(find.text('Dismissed'), findsOneWidget);
+    await tester.tap(find.text('Dismissed'));
+    await tester.pumpAndSettle();
+
+    expect(router.pushCount, 1);
+    expect(router.lastPush, isA<InboxRejectedRoute>());
+  });
+
+  testWidgets('dismissed archive screen uses dismissed copy when empty', (
+    tester,
+  ) async {
+    final cubit = _TestInboxCubit(
+      const InboxState(
+        projectionLoaded: true,
+        currentUserId: 'viewer',
+      ),
+    );
+    unawaited(cubit.close());
+
+    final router = _HarnessRouter();
+    await tester.pumpWidget(
+      RouterScope(
+        controller: router,
+        stateHash: 0,
+        inheritableObserversBuilder: () => const [],
+        child: StackRouterScope(
+          controller: router,
+          stateHash: 0,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<InboxCubit>.value(value: cubit),
+                  BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+                  BlocProvider(create: (_) => ScreenCubit.local()),
+                ],
+                child: const InboxRejectedScreen(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Dismissed'), findsOneWidget);
+    expect(
+      find.text(
+        'Requests you dismissed land here. You can bring any of them back.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Declined'), findsNothing);
+    expect(find.textContaining('declined'), findsNothing);
+    expect(find.textContaining('decline'), findsNothing);
+  });
+
+  test(
+    'ForwardLocationMessage pushes Watching with highlight beacon',
+    () async {
+      final router = _RecordingRootRouter();
       if (GetIt.I.isRegistered<RootRouter>()) {
         GetIt.I.unregister<RootRouter>();
       }
-    });
+      GetIt.I.registerSingleton<RootRouter>(router);
+      addTearDown(() {
+        if (GetIt.I.isRegistered<RootRouter>()) {
+          GetIt.I.unregister<RootRouter>();
+        }
+      });
 
-    const message = ForwardLocationMessage(beaconId: 'B-forward');
-    message.onPressed?.call();
-    await Future<void>.delayed(Duration.zero);
+      const message = ForwardLocationMessage(beaconId: 'B-forward');
+      message.onPressed?.call();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(router.lastReplaceAll, isNotNull);
-    expect(router.lastPush, isA<InboxWatchingRoute>());
-    final route = router.lastPush! as InboxWatchingRoute;
-    expect(route.args!.highlightBeaconId, 'B-forward');
-  });
+      expect(router.lastReplaceAll, isNotNull);
+      expect(router.lastPush, isA<InboxWatchingRoute>());
+      final route = router.lastPush! as InboxWatchingRoute;
+      expect(route.args!.highlightBeaconId, 'B-forward');
+    },
+  );
 }
