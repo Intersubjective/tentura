@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -61,25 +63,30 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
         buildWhen: (p, c) =>
             p.status != c.status ||
             p.helpOffererViewerRole != c.helpOffererViewerRole,
-        builder: (context, state) => FutureBuilder<String?>(
-          future: context.read<GraphCubit>().forwardsBeaconTitle,
+        builder: (context, state) => FutureBuilder<Beacon?>(
+          future: context.read<GraphCubit>().forwardsBeacon,
           builder: (context, snapshot) {
+            final beacon = snapshot.data;
             final title = Text(
-              _titleFor(l10n, state.helpOffererViewerRole),
+              _titleFor(
+                l10n,
+                state.helpOffererViewerRole,
+                isPost: beacon?.kind == BeaconKind.post,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             );
-            final requestTitle = snapshot.data;
-            if (requestTitle == null) return title;
+            final beaconTitle = beacon?.title.trim();
+            if (beaconTitle == null || beaconTitle.isEmpty) return title;
             // A deep link or a return visit otherwise shows forwards of an
-            // unnamed Request.
+            // unnamed Request or Post.
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 title,
                 Text(
-                  requestTitle,
+                  beaconTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TenturaText.bodySmall(context.tt.textMuted),
@@ -96,9 +103,13 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     );
   }
 
-  String _titleFor(L10n l10n, ForwardsGraphViewerRole? role) {
+  String _titleFor(
+    L10n l10n,
+    ForwardsGraphViewerRole? role, {
+    required bool isPost,
+  }) {
     if (helpOffererId == null || role == null) {
-      return l10n.forwardsGraphView;
+      return isPost ? l10n.forwardsGraphViewPost : l10n.forwardsGraphView;
     }
     final name = helpOffererName?.trim();
     final hasName = name != null && name.isNotEmpty;

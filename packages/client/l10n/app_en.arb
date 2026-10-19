@@ -1125,6 +1125,10 @@
   "@forwardsGraphView": {
     "context": "ForwardsGraphScreen"
   },
+  "forwardsGraphViewPost": "How this post spread",
+  "@forwardsGraphViewPost": {
+    "context": "ForwardsGraphScreen — opened for a Post"
+  },
   "graphLegendTitle": "Legend",
   "@graphLegendTitle": {
     "context": "GraphScreen"
@@ -1145,11 +1149,11 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Open eye — you see each other and can forward requests (through trust or MeritRank in each direction)",
+  "graphLegendEyeOpen": "Open eye — you see each other and can forward to each other (through trust or MeritRank in each direction)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
-  "graphLegendEyeClosed": "Closed eye — you don't see each other yet and can't forward requests to each other",
+  "graphLegendEyeClosed": "Closed eye — you don't see each other yet and can't forward to each other",
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
@@ -1225,7 +1229,7 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Open eye means you and this person have two-way visibility and can forward requests (Trust or MeritRank in each direction)",
+  "graphLegendForwardEligible": "Open eye means you and this person have two-way visibility and can forward to each other (Trust or MeritRank in each direction)",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },

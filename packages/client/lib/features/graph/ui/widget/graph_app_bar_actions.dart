@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -139,8 +140,10 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
               tooltip: l10n.profile,
               icon: Icons.person_outline,
             ),
-            BeaconNode() => (
-              tooltip: l10n.openBeacon,
+            BeaconNode(:final beacon) => (
+              tooltip: beacon.kind == BeaconKind.post
+                  ? l10n.constellationOpenPost
+                  : l10n.openBeacon,
               icon: Icons.flag_outlined,
             ),
             FieldPersonNode() => (

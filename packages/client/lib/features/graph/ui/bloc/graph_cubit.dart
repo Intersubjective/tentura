@@ -7,6 +7,7 @@ import 'dart:ui' show Offset;
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -198,15 +199,14 @@ class GraphCubit extends Cubit<GraphState> {
 
   bool get _isTrustGraph => mode == GraphMode.trust;
 
-  /// Title of the Request whose forwards are drawn, so the screen can say
-  /// which Request it is about. `null` outside the forwards graph or when the
-  /// Request cannot be read.
-  late final Future<String?> forwardsBeaconTitle = () async {
+  /// Request or Post whose forwards are drawn, read once so the screen can
+  /// say which beacon it is about and speak of a post or a request. `null`
+  /// outside the forwards graph or when the beacon cannot be read.
+  late final Future<Beacon?> forwardsBeacon = () async {
     final id = forwardsGraphBeaconId;
     if (id == null || id.isEmpty) return null;
     try {
-      final title = (await _beaconRepository.fetchBeaconById(id)).title.trim();
-      return title.isEmpty ? null : title;
+      return await _beaconRepository.fetchBeaconById(id);
     } catch (_) {
       return null;
     }
@@ -1106,7 +1106,9 @@ class GraphCubit extends Cubit<GraphState> {
       }
       final updated = node.copyWithIsHelpOfferer(true);
       _nodes[id] = updated;
-      final onGraph = graphController.nodePayloadForId(tenturaGraphNodeId(node));
+      final onGraph = graphController.nodePayloadForId(
+        tenturaGraphNodeId(node),
+      );
       if (onGraph != null && graphController.nodes.contains(onGraph)) {
         _refreshControllerNodePayload(id, updated);
       }
