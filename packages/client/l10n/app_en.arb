@@ -4546,6 +4546,10 @@
   "coordinationInviteToRoomRow": "Admit to the discussion",
   "beaconRoomWaitingForApproval": "Waiting for approval",
   "beaconRoomNoAdmission": "No discussion admission",
+  "beaconRoomEmptyState": "No messages yet. This is where you and your helpers coordinate.",
+  "@beaconRoomEmptyState": {
+    "description": "One-line empty state shown in a request room chat with no messages yet."
+  },
   "withdrawCantDoIt": "Cannot do it anymore",
   "withdrawTimingChanged": "Timing no longer works",
   "withdrawWrongFit": "Wrong fit",
