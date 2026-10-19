@@ -14,6 +14,7 @@ import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/my_work/domain/port/my_work_sort_preference_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 
 import 'my_work_state.dart';
@@ -28,8 +29,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     MyWorkCase? myWorkCase,
     RealtimeSyncCase? realtimeSyncCase,
     BlockCase? blockCase,
+    MyWorkSortPreferencePort? sortPreference,
   }) : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
+       _sortPreference =
+           sortPreference ??
+           (GetIt.I.isRegistered<MyWorkSortPreferencePort>()
+               ? GetIt.I<MyWorkSortPreferencePort>()
+               : null),
        super(const MyWorkState()) {
+    unawaited(_restoreSort());
     _beaconChanges = _myWorkCase.beaconChanges.listen(
       _onBeaconChanged,
       cancelOnError: false,
@@ -103,6 +111,13 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   final String _userId;
   final MyWorkCase _myWorkCase;
+
+  /// The order saved on this device (#431); null = no persistence.
+  final MyWorkSortPreferencePort? _sortPreference;
+
+  /// Incremented on every user [setSort]; a saved order read after the user
+  /// already chose one must not overwrite that choice.
+  int _sortEpoch = 0;
 
   /// Incremented on every [fetch]; stale async completions must not emit.
   int _fetchSeq = 0;
@@ -379,7 +394,33 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   void setSort(MyWorkSort sort) {
     if (state.sort == sort) return;
+    _sortEpoch++;
     emit(state.copyWith(sort: sort));
+    unawaited(_saveSort(sort));
+  }
+
+  Future<void> _saveSort(MyWorkSort sort) async {
+    try {
+      await _sortPreference?.setSort(sort);
+    } catch (_) {
+      // Best effort: the order still applies for this session.
+    }
+  }
+
+  /// Restores the order saved on this device without writing it back.
+  Future<void> _restoreSort() async {
+    final preference = _sortPreference;
+    if (preference == null) return;
+    final epoch = _sortEpoch;
+    MyWorkSort? saved;
+    try {
+      saved = await preference.getSort();
+    } catch (_) {
+      return;
+    }
+    if (isClosed || saved == null || epoch != _sortEpoch) return;
+    if (saved == state.sort) return;
+    emit(state.copyWith(sort: saved));
   }
 
   Future<void> _loadArchived(int seq) async {
