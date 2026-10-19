@@ -175,6 +175,13 @@ abstract class ForwardState extends StateBase with _$ForwardState {
       c.involvement != CandidateInvolvement.unseen &&
       c.involvement != CandidateInvolvement.author;
 
+  /// [matchesInvolvedScope] for this beacon: on a Post the author counts as
+  /// already involved (listed, still not forwardable). Requests unchanged.
+  bool _inInvolvedScope(ForwardCandidate c) =>
+      matchesInvolvedScope(c) ||
+      (profile == ForwardTargetProfile.post &&
+          c.involvement == CandidateInvolvement.author);
+
   List<ForwardCandidate> _candidatesBase() =>
       List<ForwardCandidate>.from(candidates);
 
@@ -191,7 +198,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     final base = _candidatesBase();
     return ForwardScopeCounts(
       unseen: base.where((c) => c.isUnseen).length,
-      involved: base.where(matchesInvolvedScope).length,
+      involved: base.where(_inInvolvedScope).length,
     );
   }
 
@@ -218,7 +225,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
             .where((c) => c.isUnseen);
       case ForwardFilter.alreadyInvolved:
         picked = _mergedCandidatesForInvolvedScope().where(
-          matchesInvolvedScope,
+          _inInvolvedScope,
         );
     }
     final list = picked.toList();
@@ -236,7 +243,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
       case ForwardFilter.unseen:
         picked = base.where((c) => c.isUnseen);
       case ForwardFilter.alreadyInvolved:
-        picked = base.where(matchesInvolvedScope);
+        picked = base.where(_inInvolvedScope);
     }
     final list = picked.toList();
     _sortByMr(list);
