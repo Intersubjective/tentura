@@ -1375,6 +1375,7 @@ class RoomMessageTile extends StatelessWidget {
                     myVariantIds: const [],
                   ),
               participants: participants,
+              isAuthor: isMine,
               onVote: onVotePoll == null
                   ? null
                   : (variantIds, {score}) => unawaited(
