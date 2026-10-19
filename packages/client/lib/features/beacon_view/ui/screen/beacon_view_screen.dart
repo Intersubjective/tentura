@@ -17,7 +17,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
@@ -1066,17 +1065,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }) {
     if (isSplit) return const SizedBox.shrink();
 
-    if (_selectedSurface == BeaconSurface.room && showBeaconContent) {
-      return ThreadDetailGeneralTitle(
-        title: threadGeneralAppBarTitle(l10n, state.beacon),
-        beacon: state.beacon,
-        involvedProfiles: state.beacon.admittedHelperUsers,
-        helperCount: state.beacon.admittedHelperCount,
-        currentUserId: state.myProfile.id,
-        onFacePileTap: () => _switchToSurface(BeaconSurface.people),
-      );
-    }
-
+    // #492: one header on every tab (Chat included): title + status line.
+    // The involved people live on the People tab.
     return BeaconViewAppBarTitle(
       beacon: state.beacon,
       showBeaconContent: showBeaconContent,
