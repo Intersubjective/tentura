@@ -114,6 +114,19 @@ export function isLikelyAutoDerivedDisplayName(displayName) {
 }
 
 /**
+ * Server displayNameFromEmail output: the normalized (lowercase) email
+ * local-part with [._+-] turned into spaces, so lowercase ASCII only, with
+ * any other local-part characters (`_`, `%`, …) left in. Such a name is not
+ * put in the name field (#422); a name with capitals or non-ASCII letters is
+ * treated as chosen by the person and kept.
+ */
+function isLikelyEmailLocalPartName(displayName) {
+  const t = String(displayName ?? '').trim();
+  if (t.length === 0) return true;
+  return /^[a-z0-9 !#$%&'*/=?^_`{|}~]+$/.test(t);
+}
+
+/**
  * Post-signup name step (+ pager for brand-new accounts) when the session is
  * signed in, onboarding is not done, and the account still has a placeholder name.
  */
@@ -279,7 +292,11 @@ export function renderPostSignup({
     return;
   }
   card.replaceChildren(
-    renderNameStep({ prefill: currentName, track, onDone: finish }),
+    renderNameStep({
+      prefill: isLikelyEmailLocalPartName(currentName) ? '' : currentName,
+      track,
+      onDone: finish,
+    }),
   );
 }
 
@@ -311,6 +328,7 @@ function renderNameStep({ prefill, track, onDone }) {
     id: 'display-name',
     name: 'display-name',
     value: prefill,
+    placeholder: 'e.g. Anna K.',
     maxlength: '32',
     autocomplete: 'off',
     'data-lpignore': 'true',
