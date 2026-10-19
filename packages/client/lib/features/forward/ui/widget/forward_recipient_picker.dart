@@ -373,7 +373,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       // A request invite says what it does: who it brings in, to what, and
       // that the link is single-use with a limited life (#452).
       final forRequest = widget.beaconId.isNotEmpty;
-      await ShareCodeDialog.show(
+      final used = await ShareCodeDialog.show(
         context,
         header: forRequest
             ? l10n.forwardInviteDialogTitle
@@ -383,6 +383,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             : null,
         link: inviteShareUri(invitation.id),
       );
+      // Closed without Copy, Share or a visible QR: the link never left the
+      // dialog, so drop the invite instead of leaving a silent one (#454).
+      if (!used) {
+        await _invitationCubit.deleteInvitationById(invitation.id);
+        return;
+      }
       if (!context.mounted) return;
       showSnackBar(
         context,

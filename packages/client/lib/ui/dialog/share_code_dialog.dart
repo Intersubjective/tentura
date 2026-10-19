@@ -11,30 +11,43 @@ import '../utils/ui_utils.dart';
 import '../widget/qr_code.dart';
 
 class ShareCodeDialog extends StatefulWidget {
-  static Future<void> show(
+  /// Shows the dialog and completes with whether the link may have left the
+  /// screen: Copy or Share was used, or the QR was on screen (it may have been
+  /// scanned). Reported for every way of closing (Close, barrier, Esc).
+  static Future<bool> show(
     BuildContext context, {
     required String header,
     // TBD: get id only, build link here
     required Uri link,
     String? caption,
-  }) => showAdaptiveDialog(
-    context: context,
-    builder: (_) => ShareCodeDialog(
-      header: header,
-      link: link.toString(),
-      caption: caption,
-    ),
-  );
+  }) async {
+    // Not disposed: the dialog may still rebuild during its exit animation.
+    final used = ValueNotifier<bool>(false);
+    await showAdaptiveDialog<void>(
+      context: context,
+      builder: (_) => ShareCodeDialog(
+        header: header,
+        link: link.toString(),
+        caption: caption,
+        used: used,
+      ),
+    );
+    return used.value;
+  }
 
   const ShareCodeDialog({
     required this.header,
     required this.link,
     this.caption,
+    this.used,
     super.key,
   });
 
   final String header;
   final String link;
+
+  /// Set to true once the link was copied or shared or the QR was shown.
+  final ValueNotifier<bool>? used;
 
   /// Shown under the QR in the dialog only. Never included in [ShareParams].
   final String? caption;
@@ -54,7 +67,10 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
 
   String? get caption => widget.caption;
 
+  void _markUsed() => widget.used?.value = true;
+
   Future<void> _copyLink(BuildContext context, L10n l10n) async {
+    _markUsed();
     final ok = await copyTextToClipboard(link);
     if (!context.mounted) return;
     // A refused write said nothing before (#349); the link stays selectable.
@@ -76,6 +92,8 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
     // On compact (phone) the QR leads, as before; wider windows lead with the
     // link and Copy, and tuck the QR behind a toggle (#452).
     final linkFirst = context.windowClass != WindowClass.compact;
+    // The QR on screen may be scanned at any moment, so it counts as used.
+    if (!linkFirst || _qrRevealed) _markUsed();
 
     final qr = Center(child: QrCode(data: link));
     final captionText = caption != null && caption!.isNotEmpty
@@ -97,6 +115,7 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
         icon: const Icon(Icons.share_outlined),
         label: Text(l10n.shareLink),
         onPressed: () async {
+          _markUsed();
           try {
             final renderObject = context.findRenderObject();
             final sharePositionOrigin =
@@ -149,7 +168,10 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
               TextButton.icon(
                 icon: const Icon(Icons.qr_code_2_outlined),
                 label: Text(l10n.shareDialogShowQr),
-                onPressed: () => setState(() => _qrRevealed = true),
+                onPressed: () {
+                  _markUsed();
+                  setState(() => _qrRevealed = true);
+                },
               ),
           ]
         : <Widget>[
