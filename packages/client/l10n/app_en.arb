@@ -1103,7 +1103,7 @@
   "@graphLegendEyeClosed": {
     "context": "GraphScreen"
   },
-  "graphLegendNoteTextLabels": "Profile and People lists also show text labels (mutual, one-way out, one-way in, none). The closed eye merges one-way out, one-way in, and none.",
+  "graphLegendNoteTextLabels": "Profile and People lists also show text labels (mutual, you → them, them → you, none). The closed eye merges you → them, them → you, and none.",
   "@graphLegendNoteTextLabels": {
     "context": "ProfileViewScreen"
   },
@@ -1967,12 +1967,20 @@
   "@alter": {
     "context": "RatingScreen"
   },
-  "iTrustThem": "I trust them",
-  "@iTrustThem": {
+  "rankFromYou": "Rank from you",
+  "@rankFromYou": {
     "context": "RatingScreen"
   },
-  "theyTrustMe": "They trust me",
-  "@theyTrustMe": {
+  "rankFromYouHint": "How highly you rank them: a MeritRank score computed from your whole trust network, not only the people you vouched for directly.",
+  "@rankFromYouHint": {
+    "context": "RatingScreen"
+  },
+  "rankToYou": "Rank to you",
+  "@rankToYou": {
+    "context": "RatingScreen"
+  },
+  "rankToYouHint": "How highly they rank you: the same MeritRank score, computed from their trust network.",
+  "@rankToYouHint": {
     "context": "RatingScreen"
   },
   "classLabel": "Class",
@@ -1983,11 +1991,11 @@
   "@classMutual": {
     "context": "RatingScreen"
   },
-  "classOneWayOut": "one-way out",
+  "classOneWayOut": "you → them",
   "@classOneWayOut": {
     "context": "RatingScreen"
   },
-  "classOneWayIn": "one-way in",
+  "classOneWayIn": "them → you",
   "@classOneWayIn": {
     "context": "RatingScreen"
   },

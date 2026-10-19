@@ -149,11 +149,13 @@ class _RatingScreenState extends State<RatingScreen> {
                     _isScatterView ? Icons.list_rounded : Icons.scatter_plot,
                   ),
                 ),
-                if (!_isScatterView)
+                // Only offer the clear button when there is something to clear,
+                // so no disabled ✕ sits beside the working back arrow.
+                if (!_isScatterView && filter.isNotEmpty)
                   IconButton(
                     tooltip: l10n.buttonClose,
                     icon: const Icon(Icons.clear_rounded),
-                    onPressed: filter.isEmpty ? null : cubit.clearSearchFilter,
+                    onPressed: cubit.clearSearchFilter,
                   ),
               ],
               title: _isScatterView
@@ -218,8 +220,8 @@ class _RatingHeatmapHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final colorScheme = Theme.of(context).colorScheme;
-    // Column labels on the label scale: at titleSmall (15) "I trust them"
-    // and "They trust me" were cut to "I tr…" / "They t…" on a phone.
+    // Column labels on the label scale: at titleSmall (15) the two rank
+    // labels were cut to "I tr…" / "They t…" on a phone.
     final headerLabelStyle = TenturaText.labelMedium(
       colorScheme.onSurfaceVariant,
     );
@@ -254,7 +256,8 @@ class _RatingHeatmapHeader extends StatelessWidget {
             Expanded(
               flex: 2,
               child: _RatingSortHeader(
-                label: l10n.iTrustThem,
+                label: l10n.rankFromYou,
+                tooltip: l10n.rankFromYouHint,
                 isActive:
                     !isSortedByReverse && !isSortedByAlter && !isSortedByClass,
                 isAscending: isSortedByAsc,
@@ -267,7 +270,8 @@ class _RatingHeatmapHeader extends StatelessWidget {
             Expanded(
               flex: 2,
               child: _RatingSortHeader(
-                label: l10n.theyTrustMe,
+                label: l10n.rankToYou,
+                tooltip: l10n.rankToYouHint,
                 isActive:
                     isSortedByReverse && !isSortedByAlter && !isSortedByClass,
                 isAscending: isSortedByAsc,
@@ -303,9 +307,13 @@ class _RatingSortHeader extends StatelessWidget {
     required this.labelStyle,
     required this.onTap,
     this.alignment = Alignment.centerLeft,
+    this.tooltip,
   });
 
   final String label;
+
+  /// Explains what the column's number is; defaults to [label].
+  final String? tooltip;
   final bool isActive;
   final bool isAscending;
   final TextStyle labelStyle;
@@ -317,7 +325,7 @@ class _RatingSortHeader extends StatelessWidget {
     final tt = context.tt;
     final colorScheme = Theme.of(context).colorScheme;
     return Tooltip(
-      message: label,
+      message: tooltip ?? label,
       child: Semantics(
         button: true,
         label: label,
