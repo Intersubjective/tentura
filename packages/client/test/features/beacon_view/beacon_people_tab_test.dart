@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
+import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -122,12 +123,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Forwards'), findsOneWidget);
-    expect(find.text('Active helpers (1)'), findsOneWidget);
+    // #346: the author's own card is not counted as an active helper.
+    expect(find.text('Active helpers (1)'), findsNothing);
+    expect(find.textContaining('Active helpers'), findsOneWidget);
     expect(find.text('Willing to help (1)'), findsOneWidget);
     expect(find.textContaining('Declined offers'), findsNothing);
 
     final forwardsTop = tester.getTopLeft(find.text('Forwards')).dy;
-    final helpersTop = tester.getTopLeft(find.text('Active helpers (1)')).dy;
+    final helpersTop = tester
+        .getTopLeft(find.textContaining('Active helpers'))
+        .dy;
     expect(forwardsTop, lessThan(helpersTop));
   });
 
@@ -162,7 +167,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Active helpers (3)'), findsOneWidget);
+    // #346: two helpers; the author is listed but not counted.
+    expect(find.text('Active helpers (2)'), findsOneWidget);
+    expect(find.text('Active helpers (3)'), findsNothing);
     expect(find.text('Author'), findsOneWidget);
     expect(find.text('Helper One'), findsOneWidget);
     expect(find.text('Helper Two'), findsOneWidget);
@@ -340,7 +347,9 @@ void main() {
         ),
       ]);
       expect(find.text('Helper'), findsOneWidget);
-      expect(find.text('Active helpers (2)'), findsOneWidget);
+      // #346: one helper; the author is not counted.
+      expect(find.text('Active helpers (1)'), findsOneWidget);
+      expect(find.text('Active helpers (2)'), findsNothing);
       expect(find.text('Forwards (0)'), findsOneWidget);
       expect(find.text('please help'), findsNothing);
     },
@@ -609,7 +618,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final willingTop = tester.getTopLeft(find.text('Willing to help (1)')).dy;
-    final activeTop = tester.getTopLeft(find.text('Active helpers (1)')).dy;
+    // #346: only the author is in Active helpers, and the author is not
+    // counted there.
+    expect(find.text('Active helpers (1)'), findsNothing);
+    final activeTop = tester
+        .getTopLeft(find.textContaining('Active helpers'))
+        .dy;
     expect(willingTop, lessThan(activeTop));
     expect(find.text('Helper'), findsOneWidget);
   });
@@ -971,10 +985,50 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Whether the author counts under Active helpers is open (#346); this
-    // test only covers the author's own actions and marker.
+    // #346: the author is listed, but only the one helper is counted.
+    expect(find.text('Active helpers (1)'), findsOneWidget);
+    expect(find.text('Active helpers (2)'), findsNothing);
     expect(find.text(l10n.helpOffersTabActionWithdraw), findsNothing);
     expect(find.text(l10n.helpOffersTabActionEdit), findsNothing);
     expect(find.textContaining(l10n.labelEdited), findsNothing);
+  });
+
+  testWidgets('Active helpers lists the author but counts only helpers', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final l10n = lookupL10n(const Locale('en'));
+    _state = _peopleState(
+      admittedHelperRoster: const [
+        Profile(id: 'h1', displayName: 'Helper One'),
+        Profile(id: 'h2', displayName: 'Helper Two'),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: l10n,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('${l10n.beaconPeopleLensActiveHelpersHeading} (2)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('${l10n.beaconPeopleLensActiveHelpersHeading} (3)'),
+      findsNothing,
+    );
+    // The author is still shown in the section, as the author.
+    expect(find.byType(HelpOfferTile), findsNWidgets(3));
+    expect(find.text(l10n.beaconPeopleRoleAuthor), findsWidgets);
+    expect(find.text('Helper One'), findsOneWidget);
+    expect(find.text('Helper Two'), findsOneWidget);
   });
 }
