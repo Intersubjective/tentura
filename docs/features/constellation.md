@@ -100,7 +100,7 @@ Request state is visible in both Map and Text views. The legend pairs each state
 - **Capability** — multi-select from slugs present in the loaded field.
 - **Location** — filters on requests that **establish presence** via location fields (lat/long or address label). A request **without** location data is *unspecified*, never treated as "remote."
 - **Timing** — event (start set), deadline (end only), undated, or within-N-days variants where schedule data exists.
-- **Include unspecified** — whether requests missing filter-relevant data pass capability/location/timing filters.
+- **Include requests without a capability or date** — whether requests with no capability pass a capability filter, and undated requests pass a "within N days" timing filter. Location has its own *Unspecified* chip.
 - **Show closed** — includes readable wrapping-up and closed requests; it does not include cancelled requests.
 - **Only Requests I participated in** — includes requests the viewer authored, currently or historically participated in, or has a valid pending help offer for. A forward by itself does not count; a declined offer without participation does not count.
 

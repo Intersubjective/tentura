@@ -59,10 +59,11 @@ Future<void> _pumpHarness(
   required double width,
   required double textScale,
   List<Widget> extra = const [],
+  Locale locale = const Locale('en'),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
@@ -220,11 +221,14 @@ void main() {
         final rowGap = context.tt.rowGap;
         final l10n = L10n.of(context)!;
 
+        // Capability chips are grouped by the Requirements taxonomy (#457),
+        // so "Any" and "tools" need not share one Wrap; grouping is pinned
+        // by its own test below.
         for (final (label, firstChip, otherChip) in [
           (
             l10n.constellationFilterCapability,
             'constellation.filter.capability.any',
-            'constellation.filter.capability.tools',
+            'constellation.filter.capability.any',
           ),
           (
             l10n.constellationFilterLocation,
@@ -299,6 +303,159 @@ void main() {
         find.byKey(const Key('constellation.filter.limitations')),
         findsNothing,
       );
+    });
+
+    // #457 (Vadim, Oct 18): the capability chips use the same taxonomy as
+    // the Requirements picker in the request editor, grouped the same way
+    // (Logistics, Communication, Knowledge, Care, Resources, Technical...),
+    // not one flat list sorted by slug.
+    testWidgets('capability chips are grouped like the Requirements picker', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        _baseField(
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-sw',
+              authorId: 'a',
+              title: 'Need code',
+              status: 0,
+              needs: ['software'],
+            ),
+            const ConstellationRequest(
+              id: 'req-pets',
+              authorId: 'a',
+              title: 'Need a dog sitter',
+              status: 0,
+              needs: ['pets'],
+            ),
+            const ConstellationRequest(
+              id: 'req-move',
+              authorId: 'a',
+              title: 'Need a van and a drill',
+              status: 0,
+              needs: ['transport', 'tools'],
+            ),
+          ],
+        ),
+      );
+      await _pumpHarness(tester, cubit: cubit, width: 390, textScale: 1);
+      final bar = find.byKey(const Key('constellation.filter_bar'));
+      final l10n = L10n.of(tester.element(bar))!;
+
+      Finder inBar(Finder f) => find.descendant(of: bar, matching: f);
+      double top(Finder f) => tester.getTopLeft(f).dy;
+
+      final logistics = inBar(find.text(l10n.capabilityGroupLogistics));
+      final care = inBar(find.text(l10n.capabilityGroupCare));
+      final technical = inBar(find.text(l10n.capabilityGroupTechnical));
+      expect(logistics, findsOneWidget);
+      expect(care, findsOneWidget);
+      expect(technical, findsOneWidget);
+
+      // Only groups that have a capability in the field get a header; the
+      // filter does not dump the whole catalog.
+      expect(
+        inBar(find.text(l10n.capabilityGroupCommunication)),
+        findsNothing,
+      );
+      expect(inBar(find.text(l10n.capabilityGroupRpg)), findsNothing);
+      expect(
+        find.byKey(const Key('constellation.filter.capability.calls')),
+        findsNothing,
+      );
+
+      // Every available chip is visible without opening anything.
+      Finder chip(String slug) =>
+          find.byKey(Key('constellation.filter.capability.$slug'));
+      for (final slug in ['transport', 'tools', 'pets', 'software']) {
+        expect(chip(slug), findsOneWidget, reason: slug);
+      }
+      expect(
+        find.byKey(const Key('constellation.filter.capability.any')),
+        findsOneWidget,
+      );
+
+      // Taxonomy order (CapabilityGroup), each chip under its own header.
+      expect(top(logistics), lessThan(top(chip('transport'))));
+      expect(top(logistics), lessThan(top(chip('tools'))));
+      expect(top(chip('transport')), lessThan(top(care)));
+      expect(top(chip('tools')), lessThan(top(care)));
+      expect(top(care), lessThan(top(chip('pets'))));
+      expect(top(chip('pets')), lessThan(top(technical)));
+      expect(top(technical), lessThan(top(chip('software'))));
+      // The capability section still sits above Location.
+      expect(
+        top(chip('software')),
+        lessThan(
+          top(find.byKey(const Key('constellation.filter.location.any'))),
+        ),
+      );
+
+      // Grouped chips still filter.
+      await tester.ensureVisible(chip('pets'));
+      await tester.pumpAndSettle();
+      await tester.tap(chip('pets'));
+      await tester.pumpAndSettle();
+      expect(cubit.state.filterCapabilitySlugs, {'pets'});
+    });
+
+    // #457 (Vadim, Oct 18): one clearly named switch, "Include requests
+    // without a capability", instead of the generic "Include unspecified"
+    // that sat beside the Location and Timing "Unspecified" chips.
+    testWidgets('include switch names both things it governs', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        _baseField(
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+              needs: ['tools'],
+            ),
+          ],
+        ),
+      );
+      await _pumpHarness(tester, cubit: cubit, width: 390, textScale: 1);
+      final toggle = find.byKey(
+        const Key('constellation.filter.include_unspecified'),
+      );
+      expect(toggle, findsOneWidget);
+      // The switch lets through requests without a capability AND undated
+      // requests under "within N days", so the label must name both.
+      final enTitle = tester.widget<Text>(
+        find.descendant(of: toggle, matching: find.byType(Text)).first,
+      );
+      expect(enTitle.data, isNot('Include unspecified'));
+      expect(
+        enTitle.data,
+        allOf(contains('without a capability'), contains('date')),
+      );
+      expect(find.text('Include unspecified'), findsNothing);
+      // Russian: the same meaning, not the old «Включать не указанные».
+      await _pumpHarness(
+        tester,
+        cubit: cubit,
+        width: 390,
+        textScale: 1,
+        locale: const Locale('ru'),
+      );
+      final ruTitle = tester.widget<Text>(
+        find.descendant(of: toggle, matching: find.byType(Text)).first,
+      );
+      expect(ruTitle.data, isNot('Включать не указанные'));
+      expect(ruTitle.data, allOf(contains('без навык'), contains('дат')));
     });
 
     testWidgets(
