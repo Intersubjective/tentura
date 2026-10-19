@@ -34,7 +34,6 @@ import '../model/forward_recipient_row_host.dart';
 import 'forward_pinned_tab_bar_delegate.dart';
 import 'forward_recipient_row.dart';
 import 'forward_scope_links.dart';
-import 'forward_search_overlay.dart';
 import 'forward_beacon_subtitle.dart';
 import 'lineage_forward_section.dart';
 import 'per_recipient_note_input.dart';
@@ -108,16 +107,67 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   final _scrollController = ScrollController();
 
   bool _noteExpanded = false;
-  bool _searchOverlayOpen = false;
+
+  /// In-place recipient search (#453): the header turns into a search field
+  /// and the list below filters, so the footer Forward button stays visible.
+  bool _searchActive = false;
+  final _searchController = TextEditingController();
   bool _inviteFlowActive = false;
   bool _hitTestReady = false;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _hitTestReady = true);
     });
+  }
+
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _closeSearch() {
+    _searchController.clear();
+    setState(() => _searchActive = false);
+  }
+
+  /// Keeps [candidates] in their order, dropping those that do not match
+  /// [query] (same match rule as [ForwardState.filterCandidatesByQuery]).
+  static List<ForwardCandidate> _filterInPlace(
+    List<ForwardCandidate> candidates,
+    String query,
+  ) {
+    if (query.trim().isEmpty) return candidates;
+    final matchIds = ForwardState.filterCandidatesByQuery(
+      candidates,
+      query,
+    ).map((c) => c.id).toSet();
+    return candidates.where((c) => matchIds.contains(c.id)).toList();
+  }
+
+  Widget _buildSearchField({
+    required TenturaTokens tt,
+    required L10n l10n,
+  }) {
+    return Row(
+      children: [
+        Icon(Icons.search, size: 20, color: tt.textMuted),
+        SizedBox(width: tt.iconTextGap),
+        Expanded(
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            style: TenturaText.body(tt.text),
+            decoration: InputDecoration.collapsed(
+              hintText: l10n.forwardOverlaySearchHint,
+              hintStyle: TenturaText.bodySmall(tt.textFaint),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _syncRecipientNoteControllers(ForwardState state) {
@@ -257,6 +307,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     _sharedNoteController.dispose();
     _editNoteController.dispose();
     _scrollController.dispose();
+    _searchController
+      ..removeListener(_onSearchChanged)
+      ..dispose();
     unawaited(_invitation?.close());
     super.dispose();
   }
@@ -478,16 +531,22 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             }
 
             final beacon = state.beacon;
-            final visible = state.visibleRecipients;
+            final searchQuery = _searchActive ? _searchController.text : '';
+            final isFiltering = searchQuery.trim().isNotEmpty;
+            final visible = _filterInPlace(
+              state.visibleRecipients,
+              searchQuery,
+            );
             final profile = state.profile;
             final copyProfile = widget.copyProfile ?? profile;
             final showLineageBlock =
                 profile.showsLineage &&
                 state.activeFilter != ForwardFilter.alreadyInvolved;
             final lineage = showLineageBlock
-                ? state.lineageSuggestions
+                ? _filterInPlace(state.lineageSuggestions, searchQuery)
                 : const <ForwardCandidate>[];
             final showBandBlock =
+                !isFiltering &&
                 profile.showsBand &&
                 state.activeFilter != ForwardFilter.alreadyInvolved &&
                 state.band.isNotEmpty;
@@ -506,6 +565,77 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 widget.externalActionLoading ||
                 (state.isLoading && state.candidates.isNotEmpty);
 
+            final topBarLeading = _searchActive
+                ? IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: tt.buttonHeight,
+                      minHeight: tt.buttonHeight,
+                    ),
+                    icon: Icon(Icons.arrow_back, size: tt.iconSize),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: _closeSearch,
+                  )
+                : IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: tt.buttonHeight,
+                      minHeight: tt.buttonHeight,
+                    ),
+                    icon: Icon(Icons.close, size: tt.iconSize),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () {
+                      final router = context.router;
+                      if (router.canPop()) {
+                        unawaited(router.maybePop());
+                      } else if (widget.beaconId.isNotEmpty) {
+                        unawaited(
+                          router.navigate(
+                            BeaconViewRoute(
+                              id: widget.beaconId,
+                              entry: kBeaconEntryForward,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  );
+            final topBarTitle = _searchActive
+                ? _buildSearchField(tt: tt, l10n: l10n)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        copyProfile == ForwardTargetProfile.post
+                            ? l10n.forwardPostTitle
+                            : l10n.forwardBeaconTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.title(tt.text),
+                      ),
+                      Text(
+                        beacon != null && beacon.id.isNotEmpty
+                            ? forwardBeaconSubtitle(
+                                l10n: l10n,
+                                beaconTitle: beacon.title,
+                                lifecycleLabel: _lifecycleLabel(
+                                  l10n,
+                                  beacon,
+                                ),
+                              )
+                            : '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.bodySmall(tt.textMuted),
+                      ),
+                    ],
+                  );
+
             return IgnorePointer(
               ignoring: !_hitTestReady,
               child: Stack(
@@ -518,69 +648,25 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                         if (!widget.embedded) ...[
                           TenturaTopBar.of(
                             context,
-                            leading: IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints(
-                                minWidth: tt.buttonHeight,
-                                minHeight: tt.buttonHeight,
-                              ),
-                              icon: Icon(Icons.close, size: tt.iconSize),
-                              tooltip: MaterialLocalizations.of(
-                                context,
-                              ).closeButtonTooltip,
-                              onPressed: () {
-                                final router = context.router;
-                                if (router.canPop()) {
-                                  unawaited(router.maybePop());
-                                } else if (widget.beaconId.isNotEmpty) {
-                                  unawaited(
-                                    router.navigate(
-                                      BeaconViewRoute(
-                                        id: widget.beaconId,
-                                        entry: kBeaconEntryForward,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                            title: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  copyProfile == ForwardTargetProfile.post
-                                      ? l10n.forwardPostTitle
-                                      : l10n.forwardBeaconTitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TenturaText.title(tt.text),
-                                ),
-                                Text(
-                                  beacon != null && beacon.id.isNotEmpty
-                                      ? forwardBeaconSubtitle(
-                                          l10n: l10n,
-                                          beaconTitle: beacon.title,
-                                          lifecycleLabel: _lifecycleLabel(
-                                            l10n,
-                                            beacon,
-                                          ),
-                                        )
-                                      : '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TenturaText.bodySmall(tt.textMuted),
-                                ),
-                              ],
-                            ),
+                            leading: topBarLeading,
+                            title: topBarTitle,
                             actions: [
-                              IconButton(
-                                tooltip: l10n.forwardOverlaySearchHint,
-                                icon: const Icon(Icons.search),
-                                onPressed: () {
-                                  setState(() => _searchOverlayOpen = true);
-                                },
-                              ),
+                              if (!_searchActive)
+                                IconButton(
+                                  tooltip: l10n.forwardOverlaySearchHint,
+                                  icon: const Icon(Icons.search),
+                                  onPressed: () {
+                                    setState(() => _searchActive = true);
+                                  },
+                                )
+                              else if (_searchController.text.isNotEmpty)
+                                IconButton(
+                                  tooltip: MaterialLocalizations.of(
+                                    context,
+                                  ).cancelButtonLabel,
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: _searchController.clear,
+                                ),
                             ],
                           ),
                           const TenturaHairlineDivider(),
@@ -748,16 +834,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                     const Positioned.fill(
                       child: Center(
                         child: CircularProgressIndicator.adaptive(),
-                      ),
-                    ),
-                  if (_searchOverlayOpen)
-                    Positioned.fill(
-                      child: ForwardSearchOverlay(
-                        onClose: () {
-                          setState(() => _searchOverlayOpen = false);
-                        },
-                        recipientNoteControllers: _recipientNoteControllers,
-                        onRecipientNoteChanged: cubit.setRecipientNote,
                       ),
                     ),
                 ],
