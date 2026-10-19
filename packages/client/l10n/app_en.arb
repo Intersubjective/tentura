@@ -3128,6 +3128,23 @@
   "@forwardClearSelection": {
     "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
   },
+  "forwardInviteDialogTitle": "Invite someone to help with this request",
+  "@forwardInviteDialogTitle": {
+    "context": "ForwardBeaconScreen invite dialog title"
+  },
+  "forwardInviteDialogBody": "They'll join Tentura as your connection and see this request. The link works once and expires in {days, plural, =1{1 day} other{{days} days}}.",
+  "@forwardInviteDialogBody": {
+    "context": "ForwardBeaconScreen invite dialog: what the invite does, single-use and validity",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shareDialogShowQr": "Show QR code",
+  "@shareDialogShowQr": {
+    "context": "ShareCodeDialog on wider windows: reveals the QR code hidden behind the link"
+  },
   "forwardInviteCreatedHint": "Invite saved — find it in the Invitations tab",
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"

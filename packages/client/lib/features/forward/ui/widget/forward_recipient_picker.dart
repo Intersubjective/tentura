@@ -370,9 +370,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       await WidgetsBinding.instance.endOfFrame;
       if (!context.mounted) return;
 
+      // A request invite says what it does: who it brings in, to what, and
+      // that the link is single-use with a limited life (#452).
+      final forRequest = widget.beaconId.isNotEmpty;
       await ShareCodeDialog.show(
         context,
-        header: l10n.labelInvitationCode,
+        header: forRequest
+            ? l10n.forwardInviteDialogTitle
+            : l10n.labelInvitationCode,
+        caption: forRequest
+            ? l10n.forwardInviteDialogBody(kInvitationDefaultTTL ~/ 24)
+            : null,
         link: inviteShareUri(invitation.id),
       );
       if (!context.mounted) return;
@@ -621,7 +629,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     skippedPersonalNoteIds:
                                         state.skippedPersonalNoteIds,
                                     onSkipPersonalNote: cubit.skipPersonalNote,
-                                    onToggle: (userId) => _toggle(cubit, userId),
+                                    onToggle: (userId) =>
+                                        _toggle(cubit, userId),
                                     onEditReasons: (userId) => unawaited(
                                       _editReasons(
                                         context,
@@ -787,13 +796,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           onEditReasons: !state.profile.showsReasons
               ? null
               : () => unawaited(
-            _editReasons(
-              context,
-              cubit,
-              lineage[i].id,
-              state.recipientReasons[lineage[i].id] ?? const [],
-            ),
-          ),
+                  _editReasons(
+                    context,
+                    cubit,
+                    lineage[i].id,
+                    state.recipientReasons[lineage[i].id] ?? const [],
+                  ),
+                ),
         ),
         if (state.selectedIds.contains(lineage[i].id) &&
             !state.skippedPersonalNoteIds.contains(lineage[i].id))
@@ -848,13 +857,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           onEditReasons: !state.profile.showsReasons
               ? null
               : () => unawaited(
-            _editReasons(
-              context,
-              cubit,
-              visible[i].id,
-              state.recipientReasons[visible[i].id] ?? const [],
-            ),
-          ),
+                  _editReasons(
+                    context,
+                    cubit,
+                    visible[i].id,
+                    state.recipientReasons[visible[i].id] ?? const [],
+                  ),
+                ),
           onEditForward: _forwardEdgeActionsEnabled(visible[i])
               ? () {
                   _editNoteController.text = visible[i].myForwardNote ?? '';

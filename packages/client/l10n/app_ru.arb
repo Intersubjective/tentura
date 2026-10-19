@@ -3028,6 +3028,23 @@
   "@forwardClearSelection": {
     "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
   },
+  "forwardInviteDialogTitle": "Пригласите человека помочь с этим запросом",
+  "@forwardInviteDialogTitle": {
+    "context": "ForwardBeaconScreen invite dialog title"
+  },
+  "forwardInviteDialogBody": "Человек присоединится к Tentura как ваш контакт и увидит этот запрос. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
+  "@forwardInviteDialogBody": {
+    "context": "ForwardBeaconScreen invite dialog: what the invite does, single-use and validity",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shareDialogShowQr": "Показать QR-код",
+  "@shareDialogShowQr": {
+    "context": "ShareCodeDialog on wider windows: reveals the QR code hidden behind the link"
+  },
   "forwardInviteCreatedHint": "Приглашение создано — найдёте его во вкладке «Приглашения»",
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"
