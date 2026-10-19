@@ -60,6 +60,7 @@ class BeaconViewScope extends StatelessWidget {
           listener: (context, state) {
             context.read<ThreadHostCubit>().syncBeaconStatus(
               state.beacon.status,
+              authorId: state.beacon.author.id,
             );
           },
           child: BeaconOpenClearListener(beaconId: id, child: child),

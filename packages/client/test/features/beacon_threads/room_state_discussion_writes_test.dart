@@ -67,6 +67,32 @@ void main() {
       expect(closed.canUpdatePlan, isFalse);
     });
 
+    // #379: production has no author participant row; the author is known
+    // through beaconAuthorId.
+    test('the author with no participant row is a plan editor', () {
+      final s = RoomState(
+        myUserId: 'me',
+        beaconAuthorId: 'me',
+        beaconStatus: BeaconStatus.reviewOpen,
+        participants: [admitted('peer')],
+      );
+      expect(s.isPlanEditor, isTrue);
+      expect(s.canUpdatePlan, isTrue);
+      expect(
+        s.copyWith(beaconStatus: BeaconStatus.closed).canUpdatePlan,
+        isFalse,
+      );
+      expect(
+        s.copyWith(beaconStatus: BeaconStatus.draft).canUpdatePlan,
+        isFalse,
+      );
+      expect(s.copyWith(myUserId: 'other').isPlanEditor, isFalse);
+      expect(
+        const RoomState(beaconAuthorId: '').isPlanEditor,
+        isFalse,
+      );
+    });
+
     test('true for reviewOpen when viewer is plan editor', () {
       final s = RoomState(
         myUserId: 'me',

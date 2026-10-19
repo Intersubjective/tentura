@@ -68,6 +68,7 @@ class PostViewScope extends StatelessWidget {
           listener: (context, state) {
             context.read<ThreadHostCubit>().syncBeaconStatus(
               state.beacon.status,
+              authorId: state.beacon.author.id,
             );
           },
           child: PostViewScreen(id: id, inPane: onClose != null),

@@ -30,6 +30,7 @@ class RecordingRoomCubit extends Mock implements RoomCubit {
   int closeCallCount = 0;
   int syncBeaconStatusCalls = 0;
   BeaconStatus? lastSyncedStatus;
+  String? lastSyncedAuthorId;
   bool _isClosed = false;
 
   @override
@@ -42,10 +43,11 @@ class RecordingRoomCubit extends Mock implements RoomCubit {
   bool get isClosed => _isClosed;
 
   @override
-  void syncBeaconStatus(BeaconStatus status) {
+  void syncBeaconStatus(BeaconStatus status, {String? authorId}) {
     syncBeaconStatusCalls++;
     lastSyncedStatus = status;
-    _state = _state.copyWith(beaconStatus: status);
+    lastSyncedAuthorId = authorId;
+    _state = _state.copyWith(beaconStatus: status, beaconAuthorId: authorId);
   }
 
   @override
@@ -123,13 +125,13 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
   final factoryRecorder = recorder ?? RoomCubitFactoryRecorder();
   return ThreadHostCubit(
     beaconId: _kBeaconId,
-    roomCubitFactory: ({
-      required String beaconId,
-      String? threadItemId,
-      DateTime? initialUnreadAnchorAt,
-      RoomCapabilities? capabilities,
-    }) =>
-        factoryRecorder.call(
+    roomCubitFactory:
+        ({
+          required String beaconId,
+          String? threadItemId,
+          DateTime? initialUnreadAnchorAt,
+          RoomCapabilities? capabilities,
+        }) => factoryRecorder.call(
           beaconId: beaconId,
           threadItemId: threadItemId,
           initialUnreadAnchorAt: initialUnreadAnchorAt,
@@ -139,58 +141,64 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
 
 void main() {
   group('ThreadHostCubit', () {
-    test('does not construct next cubit until previous close completes', () async {
-      final recorder = RoomCubitFactoryRecorder();
-      final host = _host(recorder: recorder);
+    test(
+      'does not construct next cubit until previous close completes',
+      () async {
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
 
-      await host.select(_generalThread());
-      expect(recorder.created, hasLength(1));
-      final first = recorder.created.single;
+        await host.select(_generalThread());
+        expect(recorder.created, hasLength(1));
+        final first = recorder.created.single;
 
-      // General-only now (plan §6.1: select() no-ops for non-General
-      // threads), so re-selecting General is the only way to exercise the
-      // close-before-recreate ordering this test guards.
-      final secondSelect = host.select(_generalThread());
-      expect(recorder.created, hasLength(1));
+        // General-only now (plan §6.1: select() no-ops for non-General
+        // threads), so re-selecting General is the only way to exercise the
+        // close-before-recreate ordering this test guards.
+        final secondSelect = host.select(_generalThread());
+        expect(recorder.created, hasLength(1));
 
-      first.closeCompleter.complete();
-      await secondSelect;
+        first.closeCompleter.complete();
+        await secondSelect;
 
-      expect(recorder.created, hasLength(2));
-      expect(recorder.calls.last.threadItemId, isNull);
-      expect(first.closeCallCount, 1);
+        expect(recorder.created, hasLength(2));
+        expect(recorder.calls.last.threadItemId, isNull);
+        expect(first.closeCallCount, 1);
 
-      recorder.created.last.closeCompleter.complete();
-      await host.close();
-    });
+        recorder.created.last.closeCompleter.complete();
+        await host.close();
+      },
+    );
 
-    test('rapid repeat selects coalesce to one factory call when tail has not run', () async {
-      final recorder = RoomCubitFactoryRecorder();
-      final host = _host(recorder: recorder);
+    test(
+      'rapid repeat selects coalesce to one factory call when tail has not run',
+      () async {
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
 
-      // Only General exists to select now; rapid repeats of the same
-      // target still exercise the generation-coalescing logic this test
-      // guards (only the last of several overlapping selects should
-      // actually construct a cubit).
-      unawaited(host.select(_generalThread()));
-      unawaited(host.select(_generalThread()));
-      final finalSelect = host.select(_generalThread());
+        // Only General exists to select now; rapid repeats of the same
+        // target still exercise the generation-coalescing logic this test
+        // guards (only the last of several overlapping selects should
+        // actually construct a cubit).
+        unawaited(host.select(_generalThread()));
+        unawaited(host.select(_generalThread()));
+        final finalSelect = host.select(_generalThread());
 
-      expect(recorder.calls, isEmpty);
-      expect(host.state.selectionGeneration, 3);
-      expect(host.state.switching, isTrue);
+        expect(recorder.calls, isEmpty);
+        expect(host.state.selectionGeneration, 3);
+        expect(host.state.switching, isTrue);
 
-      await finalSelect;
+        await finalSelect;
 
-      expect(recorder.calls, hasLength(1));
-      expect(recorder.calls.single.threadItemId, isNull);
-      expect(host.state.openThreadId, RequestThread.generalId);
-      expect(host.state.switching, isFalse);
-      expect(host.roomCubit?.state.threadItemId, isNull);
+        expect(recorder.calls, hasLength(1));
+        expect(recorder.calls.single.threadItemId, isNull);
+        expect(host.state.openThreadId, RequestThread.generalId);
+        expect(host.state.switching, isFalse);
+        expect(host.roomCubit?.state.threadItemId, isNull);
 
-      recorder.created.single.closeCompleter.complete();
-      await host.close();
-    });
+        recorder.created.single.closeCompleter.complete();
+        await host.close();
+      },
+    );
 
     test('General passes threadItemId null to factory', () async {
       final recorder = RoomCubitFactoryRecorder();
@@ -208,19 +216,22 @@ void main() {
       await host.close();
     });
 
-    test('select ignores a non-General thread (General-only host, plan §6.1)', () async {
-      final recorder = RoomCubitFactoryRecorder();
-      final host = _host(recorder: recorder);
+    test(
+      'select ignores a non-General thread (General-only host, plan §6.1)',
+      () async {
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
 
-      await host.select(_semanticThread(itemId: 'semantic-42'));
+        await host.select(_semanticThread(itemId: 'semantic-42'));
 
-      expect(recorder.calls, isEmpty);
-      expect(host.state.openThreadId, isNull);
-      expect(host.state.switching, isFalse);
-      expect(host.roomCubit, isNull);
+        expect(recorder.calls, isEmpty);
+        expect(host.state.openThreadId, isNull);
+        expect(host.state.switching, isFalse);
+        expect(host.roomCubit, isNull);
 
-      await host.close();
-    });
+        await host.close();
+      },
+    );
 
     test('host close awaits owned cubit close flush', () async {
       final recorder = RoomCubitFactoryRecorder();
@@ -263,26 +274,71 @@ void main() {
       await host.close();
     });
 
-    test('select re-applies cached beaconStatus before switching clears', () async {
+    test(
+      'select re-applies cached beaconStatus before switching clears',
+      () async {
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
+
+        host.syncBeaconStatus(BeaconStatus.closed);
+        await host.select(_generalThread());
+
+        final first = recorder.created.single;
+        expect(first.syncBeaconStatusCalls, 1);
+        expect(first.lastSyncedStatus, BeaconStatus.closed);
+        expect(first.state.beaconStatus, BeaconStatus.closed);
+        expect(first.state.canWriteDiscussion, isFalse);
+
+        final secondSelect = host.select(_generalThread());
+        first.closeCompleter.complete();
+        await secondSelect;
+
+        final second = recorder.created.last;
+        expect(second.syncBeaconStatusCalls, 1);
+        expect(second.state.beaconStatus, BeaconStatus.closed);
+
+        second.closeCompleter.complete();
+        await host.close();
+      },
+    );
+
+    // #379: the request author has no participant row; the room learns who
+    // the author is from the host, together with the lifecycle status.
+    test('syncBeaconStatus passes the author id to the open room', () async {
       final recorder = RoomCubitFactoryRecorder();
       final host = _host(recorder: recorder);
+      await host.select(_generalThread());
+      final room = recorder.created.single;
 
-      host.syncBeaconStatus(BeaconStatus.closed);
+      host.syncBeaconStatus(BeaconStatus.reviewOpen, authorId: 'author-1');
+
+      expect(room.lastSyncedStatus, BeaconStatus.reviewOpen);
+      expect(room.lastSyncedAuthorId, 'author-1');
+      expect(room.state.beaconAuthorId, 'author-1');
+
+      room.closeCompleter.complete();
+      await host.close();
+    });
+
+    test('select re-applies the cached author id with the status', () async {
+      final recorder = RoomCubitFactoryRecorder();
+      final host = _host(recorder: recorder)
+        ..syncBeaconStatus(BeaconStatus.reviewOpen, authorId: 'author-1');
+
       await host.select(_generalThread());
 
       final first = recorder.created.single;
-      expect(first.syncBeaconStatusCalls, 1);
-      expect(first.lastSyncedStatus, BeaconStatus.closed);
-      expect(first.state.beaconStatus, BeaconStatus.closed);
-      expect(first.state.canWriteDiscussion, isFalse);
+      expect(first.lastSyncedStatus, BeaconStatus.reviewOpen);
+      expect(first.lastSyncedAuthorId, 'author-1');
+      expect(first.state.beaconAuthorId, 'author-1');
 
       final secondSelect = host.select(_generalThread());
       first.closeCompleter.complete();
       await secondSelect;
 
       final second = recorder.created.last;
-      expect(second.syncBeaconStatusCalls, 1);
-      expect(second.state.beaconStatus, BeaconStatus.closed);
+      expect(second.lastSyncedAuthorId, 'author-1');
+      expect(second.state.beaconAuthorId, 'author-1');
 
       second.closeCompleter.complete();
       await host.close();

@@ -38,6 +38,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   /// Cached after [BeaconViewCubit] content load; never seeded from placeholder.
   BeaconStatus? _beaconStatus;
+  String? _beaconAuthorId;
   Future<void> _switchTail = Future<void>.value();
   int _windowClassTransitionGeneration = 0;
 
@@ -58,11 +59,12 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
   }
 
   /// Push lifecycle status into the active room cubit (and cache for rebuilds).
-  void syncBeaconStatus(BeaconStatus status) {
+  void syncBeaconStatus(BeaconStatus status, {String? authorId}) {
     _beaconStatus = status;
+    if (authorId != null) _beaconAuthorId = authorId;
     final room = _roomCubit;
     if (room != null && !room.isClosed) {
-      room.syncBeaconStatus(status);
+      room.syncBeaconStatus(status, authorId: authorId);
     }
   }
 
@@ -107,7 +109,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
       );
       final cached = _beaconStatus;
       if (cached != null) {
-        _roomCubit!.syncBeaconStatus(cached);
+        _roomCubit!.syncBeaconStatus(cached, authorId: _beaconAuthorId);
       }
       final intent = _pendingComposerIntent;
       if (intent != null) {

@@ -84,26 +84,42 @@ void main() {
   BeaconParticipant roomParticipant({
     required String userId,
     required String displayName,
-  }) =>
-      BeaconParticipant(
-        id: 'p-$userId',
-        beaconId: 'b1',
-        userId: userId,
-        role: BeaconParticipantRoleBits.helper,
-        status: 0,
-        roomAccess: RoomAccessBits.admitted,
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
-        userTitle: displayName,
-      );
+  }) => BeaconParticipant(
+    id: 'p-$userId',
+    beaconId: 'b1',
+    userId: userId,
+    role: BeaconParticipantRoleBits.helper,
+    status: 0,
+    roomAccess: RoomAccessBits.admitted,
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+    userTitle: displayName,
+  );
+
+  // Plan editing needs a plan editor (RoomState.isPlanEditor). Production
+  // never has an author participant row (the author is known only through
+  // RoomState.beaconAuthorId), so the viewer is seeded as a helper row.
+  BeaconParticipant viewerHelper({
+    int roomAccess = RoomAccessBits.admitted,
+  }) => BeaconParticipant(
+    id: 'p-${viewer.id}',
+    beaconId: 'b1',
+    userId: viewer.id,
+    role: BeaconParticipantRoleBits.helper,
+    status: 0,
+    roomAccess: roomAccess,
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+    userTitle: viewer.displayName,
+  );
 
   RoomReadWatermark readWatermark(String userId, DateTime lastSeenAt) =>
       RoomReadWatermark(userId: userId, lastSeenAt: lastSeenAt);
 
   Finder avatarStackInMessageActionsSheet() => find.descendant(
-        of: find.byType(BottomSheet),
-        matching: find.byType(TenturaAvatarStack),
-      );
+    of: find.byType(BottomSheet),
+    matching: find.byType(TenturaAvatarStack),
+  );
 
   setUp(() async {
     await getIt.reset();
@@ -121,13 +137,16 @@ void main() {
     bool readWatermarksLoaded = false,
     List<BeaconParticipant> participants = const [],
     bool participantsLoaded = false,
+    BeaconStatus beaconStatus = BeaconStatus.open,
+    String? beaconAuthorId,
   }) async {
     final profileCubit = _MockProfileCubit(viewer);
     final presenceCubit = _MockPresenceCubit();
     final state = RoomState(
       beaconId: 'b1',
       myUserId: viewer.id,
-      beaconStatus: BeaconStatus.open,
+      beaconStatus: beaconStatus,
+      beaconAuthorId: beaconAuthorId,
       readWatermarks: readWatermarks,
       readWatermarksLoaded: readWatermarksLoaded,
       participants: participants,
@@ -264,7 +283,12 @@ void main() {
     'update plan from message opens NOW sheet without target picker',
     (tester) async {
       final l10n = lookupL10n(const Locale('en'));
-      await pumpRoom(tester, width: 700);
+      await pumpRoom(
+        tester,
+        width: 700,
+        participants: [viewerHelper()],
+        participantsLoaded: true,
+      );
 
       await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
       await tester.pumpAndSettle();
@@ -282,7 +306,12 @@ void main() {
     'update plan from message saves NOW line via updatePlan (no coordination item)',
     (tester) async {
       final l10n = lookupL10n(const Locale('en'));
-      final roomCubit = await pumpRoom(tester, width: 700);
+      final roomCubit = await pumpRoom(
+        tester,
+        width: 700,
+        participants: [viewerHelper()],
+        participantsLoaded: true,
+      );
 
       await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
       await tester.pumpAndSettle();
@@ -349,6 +378,8 @@ void main() {
           createdAt: messageCreatedAt,
         ),
       ],
+      participants: [viewerHelper()],
+      participantsLoaded: true,
     );
 
     await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
@@ -362,17 +393,193 @@ void main() {
     );
   });
 
+  // #379: "Update plan from message…" was offered whenever the sheet showed
+  // "Turn into…", with no plan-editor or status gate, and Save was then
+  // refused with "Request is not open." (RoomCubit._blocksPlanUpdate). The
+  // item must follow RoomState.canUpdatePlan, like the plan strip and the
+  // app-bar menu. The request author has no participant row in production;
+  // RoomState.beaconAuthorId is what makes them a plan editor.
+  group('#379 Update plan from message follows canUpdatePlan', () {
+    final peerHelper = roomParticipant(
+      userId: author.id,
+      displayName: author.displayName,
+    );
+
+    Future<void> openPeerMessageActions(WidgetTester tester) async {
+      await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
+      await tester.pumpAndSettle();
+    }
+
+    // Headline: the issue's own viewer (the author, Wrapping up). The server
+    // accepts their plan update (allowsCoordination + author), so the item
+    // stays and the room knows they are a plan editor.
+    testWidgets(
+      'Wrapping up: the author (no participant row) is offered it',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+        final roomCubit = await pumpRoom(
+          tester,
+          width: 700,
+          beaconStatus: BeaconStatus.reviewOpen,
+          beaconAuthorId: viewer.id,
+          participants: [peerHelper],
+          participantsLoaded: true,
+        );
+        expect(roomCubit.state.isPlanEditor, isTrue);
+        expect(roomCubit.state.canUpdatePlan, isTrue);
+
+        await openPeerMessageActions(tester);
+
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(
+          find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+          findsOneWidget,
+        );
+      },
+    );
+
+    for (final status in [BeaconStatus.closed, BeaconStatus.cancelled]) {
+      testWidgets(
+        '${status.name}: even the author is not offered it',
+        (tester) async {
+          final l10n = lookupL10n(const Locale('en'));
+          final roomCubit = await pumpRoom(
+            tester,
+            width: 700,
+            beaconStatus: status,
+            beaconAuthorId: viewer.id,
+            participants: [peerHelper],
+            participantsLoaded: true,
+          );
+          expect(roomCubit.state.isPlanEditor, isTrue);
+          expect(roomCubit.state.canUpdatePlan, isFalse);
+
+          await openPeerMessageActions(tester);
+
+          expect(
+            find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+            findsNothing,
+          );
+        },
+      );
+    }
+
+    testWidgets(
+      'draft: even the author is not offered it (no coordination yet)',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+        final roomCubit = await pumpRoom(
+          tester,
+          width: 700,
+          beaconStatus: BeaconStatus.draft,
+          beaconAuthorId: viewer.id,
+          participants: [peerHelper],
+          participantsLoaded: true,
+        );
+        // The room is writable, so the sheet still offers "Turn into…".
+        expect(roomCubit.state.canWriteDiscussion, isTrue);
+        expect(roomCubit.state.canUpdatePlan, isFalse);
+
+        await openPeerMessageActions(tester);
+
+        expect(find.text(l10n.beaconCreateChildRequest), findsOneWidget);
+        expect(
+          find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'Wrapping up: a non-author who is not admitted is not offered it',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+        final roomCubit = await pumpRoom(
+          tester,
+          width: 700,
+          beaconStatus: BeaconStatus.reviewOpen,
+          beaconAuthorId: 'someone-else',
+          participants: [
+            peerHelper,
+            viewerHelper(roomAccess: RoomAccessBits.requested),
+          ],
+          participantsLoaded: true,
+        );
+        expect(roomCubit.state.canWriteDiscussion, isTrue);
+        expect(roomCubit.state.canUpdatePlan, isFalse);
+
+        await openPeerMessageActions(tester);
+
+        expect(find.text(l10n.beaconCreateChildRequest), findsOneWidget);
+        expect(
+          find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'open: a non-author with no participant row is not offered it',
+      (tester) async {
+        final l10n = lookupL10n(const Locale('en'));
+        final roomCubit = await pumpRoom(
+          tester,
+          width: 700,
+          beaconAuthorId: 'someone-else',
+          participants: [peerHelper],
+          participantsLoaded: true,
+        );
+        expect(roomCubit.state.canUpdatePlan, isFalse);
+
+        await openPeerMessageActions(tester);
+
+        expect(find.text(l10n.beaconCreateChildRequest), findsOneWidget);
+        expect(
+          find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+          findsNothing,
+        );
+      },
+    );
+
+    // Guards: an admitted helper is a plan editor in the open family AND in
+    // Wrapping up (allowsCoordination). Gating on isOpenFamily would be wrong.
+    for (final status in [BeaconStatus.open, BeaconStatus.reviewOpen]) {
+      testWidgets(
+        '${status.name}: an admitted helper is still offered it',
+        (tester) async {
+          final l10n = lookupL10n(const Locale('en'));
+          final roomCubit = await pumpRoom(
+            tester,
+            width: 700,
+            beaconStatus: status,
+            beaconAuthorId: 'someone-else',
+            participants: [peerHelper, viewerHelper()],
+            participantsLoaded: true,
+          );
+          expect(roomCubit.state.canUpdatePlan, isTrue);
+
+          await openPeerMessageActions(tester);
+
+          expect(
+            find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+            findsOneWidget,
+          );
+        },
+      );
+    }
+  });
+
   group('message actions Read by row', () {
     const ownBody = 'Own message for read-by actions';
 
     RoomMessage ownMessage({String id = 'own-read-actions'}) => RoomMessage(
-          id: id,
-          beaconId: 'b1',
-          authorId: viewer.id,
-          author: viewer,
-          body: ownBody,
-          createdAt: messageCreatedAt,
-        );
+      id: id,
+      beaconId: 'b1',
+      authorId: viewer.id,
+      author: viewer,
+      body: ownBody,
+      createdAt: messageCreatedAt,
+    );
 
     Future<void> openMessageActions(WidgetTester tester) async {
       await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
@@ -395,9 +602,18 @@ void main() {
         ];
         final watermarks = {
           r1: readWatermark(r1, messageCreatedAt),
-          r2: readWatermark(r2, messageCreatedAt.add(const Duration(minutes: 1))),
-          r3: readWatermark(r3, messageCreatedAt.add(const Duration(minutes: 2))),
-          r4: readWatermark(r4, messageCreatedAt.add(const Duration(minutes: 3))),
+          r2: readWatermark(
+            r2,
+            messageCreatedAt.add(const Duration(minutes: 1)),
+          ),
+          r3: readWatermark(
+            r3,
+            messageCreatedAt.add(const Duration(minutes: 2)),
+          ),
+          r4: readWatermark(
+            r4,
+            messageCreatedAt.add(const Duration(minutes: 3)),
+          ),
         };
 
         await pumpRoom(
@@ -513,9 +729,18 @@ void main() {
         ];
         final watermarks = {
           r1: readWatermark(r1, messageCreatedAt),
-          r2: readWatermark(r2, messageCreatedAt.add(const Duration(minutes: 1))),
-          r3: readWatermark(r3, messageCreatedAt.add(const Duration(minutes: 2))),
-          r4: readWatermark(r4, messageCreatedAt.add(const Duration(minutes: 3))),
+          r2: readWatermark(
+            r2,
+            messageCreatedAt.add(const Duration(minutes: 1)),
+          ),
+          r3: readWatermark(
+            r3,
+            messageCreatedAt.add(const Duration(minutes: 2)),
+          ),
+          r4: readWatermark(
+            r4,
+            messageCreatedAt.add(const Duration(minutes: 3)),
+          ),
         };
 
         await pumpRoom(

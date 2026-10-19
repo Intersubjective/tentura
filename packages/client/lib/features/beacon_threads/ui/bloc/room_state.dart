@@ -45,6 +45,10 @@ abstract class RoomState extends StateBase with _$RoomState {
     /// Synced from `BeaconViewCubit` via `ThreadHostCubit`; null until content
     /// has loaded. Unknown is locked for UI (see [canWriteDiscussion]).
     BeaconStatus? beaconStatus,
+
+    /// Request author's user id, synced with [beaconStatus]. The author has
+    /// no participant row, so this is how [isPlanEditor] knows them (#379).
+    String? beaconAuthorId,
     @Default(StateIsSuccess()) StateStatus status,
 
     /// Message the composer is replying to; null when reply mode is off.
@@ -88,6 +92,7 @@ abstract class RoomState extends StateBase with _$RoomState {
   /// Author / steward / admitted may edit the plan when coordination is allowed.
   bool get isPlanEditor {
     if (myUserId.isEmpty) return false;
+    if (beaconAuthorId == myUserId) return true;
     for (final p in participants) {
       if (p.userId != myUserId) continue;
       if (p.role == BeaconParticipantRoleBits.author ||
