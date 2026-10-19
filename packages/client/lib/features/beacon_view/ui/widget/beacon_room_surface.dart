@@ -56,6 +56,23 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
   var _roomReady = false;
   late Stream<void> _hostChanges = widget.host.changes;
 
+  static const _fallbackGeneral = RequestThread(
+    threadId: RequestThread.generalId,
+    kind: RequestThreadKind.general,
+  );
+
+  /// #484: the thread list failed to load for a Request room. Request rooms
+  /// are General-only, so the surface opens a stand-in General instead of
+  /// leaving the room without its composer. Post rooms (no Request
+  /// collaborators) keep the plain placeholder.
+  /// A viewer still waiting for (or denied) admission gets no stand-in room:
+  /// no RoomCubit, no room reads; the admission UI in [build] shows instead.
+  bool _usesFallbackGeneral(ThreadsState threadsState) =>
+      !widget.host.isAdmissionBlocked &&
+      threadsState.threads.isEmpty &&
+      threadsState.hasError &&
+      widget.host.capabilities.coordinationItems;
+
   bool _isLegacyThreadId() {
     final id = widget.legacyThreadId?.trim();
     return id != null && id.isNotEmpty && id != RequestThread.generalId;
@@ -91,9 +108,14 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
     }
     if (!mounted) return;
 
-    if (threadsState.threads.isEmpty) return;
-
-    final general = threadsState.general;
+    // #484: a failed thread list (e.g. a busy database right after "Make live
+    // without sending") must not leave a Request room without its composer;
+    // the admission gate in [build] still decides whether the viewer sees it.
+    // A successful empty list is a real "no room for you" answer and stays a
+    // placeholder.
+    final general =
+        threadsState.general ??
+        (_usesFallbackGeneral(threadsState) ? _fallbackGeneral : null);
     if (general == null) return;
 
     await widget.roomLease.acquire(this, general);
@@ -164,7 +186,8 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
               );
             }
 
-            if (threadsState.threads.isEmpty) {
+            if (threadsState.threads.isEmpty &&
+                !_usesFallbackGeneral(threadsState)) {
               return Center(
                 child: Text(
                   l10n.beaconItemsEmptyPlaceholder,

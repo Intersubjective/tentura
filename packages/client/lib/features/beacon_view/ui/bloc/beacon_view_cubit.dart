@@ -1451,6 +1451,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       );
       if (!skipRoom && wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
+      } else if (!_authorForwardStatusTried && state.needsAuthorForwardStatus) {
+        _authorForwardStatusTried = true;
+        // #484: the Now panel tells the author of a live Request that it was
+        // sent to nobody yet; that needs the author's own forwards. Best
+        // effort: a failed read leaves the status unknown (no line, no error).
+        unawaited(_loadForwards(silent: true));
       }
     } catch (e) {
       if (isClosed) return;
@@ -1483,8 +1489,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     await _fetchBeaconByIdWithTimeline();
   }
 
+  /// #484: the silent author forward-status read runs at most once per cubit
+  /// (success or failure); later content reloads don't re-fire it.
+  bool _authorForwardStatusTried = false;
+
   /// Lazy-load forwards subsection (People tab). Cached for cubit lifetime.
-  Future<void> loadForwards() async {
+  Future<void> loadForwards() => _loadForwards(silent: false);
+
+  /// [silent] background loads report no error to the user.
+  Future<void> _loadForwards({required bool silent}) async {
     final isMember = state.beacon.accessLevel?.isMember ?? true;
     if (!isMember || state.forwardsLoaded || state.forwardsLoading) return;
     emit(state.copyWith(forwardsLoading: true));
@@ -1507,7 +1520,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
             forwardsLoading: false,
           ),
         );
-        _showSnackError(e);
+        if (!silent) _showSnackError(e);
       }
     }
   }

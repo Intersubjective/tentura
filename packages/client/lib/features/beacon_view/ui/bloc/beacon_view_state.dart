@@ -308,6 +308,23 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   bool get isBeaconMine => beacon.author.id == myProfile.id;
 
+  /// The author's own live Request that is discoverable in the Field: the
+  /// case where "sent to nobody yet" is worth saying (#484).
+  bool get _isAuthorsLiveFieldRequest =>
+      isBeaconMine &&
+      beacon.isRequest &&
+      beacon.isDiscoverable &&
+      beacon.status == BeaconStatus.open;
+
+  /// The author's forward status is still unknown and worth reading (#484).
+  bool get needsAuthorForwardStatus =>
+      _isAuthorsLiveFieldRequest && !forwardsLoaded && !forwardsLoading;
+
+  /// Live in the Field but the author has forwarded it to nobody (#484).
+  /// Unknown (forwards not loaded, e.g. the read failed) is not "nobody".
+  bool get isLiveSentToNobody =>
+      _isAuthorsLiveFieldRequest && forwardsLoaded && myForwards.isEmpty;
+
   /// The viewer is "inside" the Request: its author or a member let in
   /// (steward, admitted helper, admitted Post addressee). Inside viewers get
   /// the operational HUD; everyone else gets the showcase (#159, #104).
