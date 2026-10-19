@@ -2504,7 +2504,7 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
-  "inboxRejectedTitle": "Declined",
+  "inboxRejectedTitle": "Dismissed",
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
   },
@@ -2566,7 +2566,7 @@
   "@inboxForwardedByMe": {
     "context": "InboxScreen"
   },
-  "inboxTabRejected": "Declined",
+  "inboxTabRejected": "Dismissed",
   "@inboxTabRejected": {
     "context": "InboxScreen"
   },
@@ -2578,11 +2578,11 @@
   "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
-  "inboxTabRejectedEmpty": "No declined requests",
+  "inboxTabRejectedEmpty": "No dismissed requests",
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
-  "inboxRejectedEmptyHint": "Requests you decline in Activity land here. You can bring any of them back.",
+  "inboxRejectedEmptyHint": "Requests you dismissed land here. You can bring any of them back.",
   "@inboxRejectedEmptyHint": {
     "context": "InboxScreen"
   },

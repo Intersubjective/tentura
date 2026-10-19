@@ -2377,7 +2377,7 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
-  "inboxRejectedTitle": "Отклонённые",
+  "inboxRejectedTitle": "Убранные",
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
   },
@@ -2439,7 +2439,7 @@
   "@inboxForwardedByMe": {
     "context": "InboxScreen"
   },
-  "inboxTabRejected": "Отклонённые",
+  "inboxTabRejected": "Убранные",
   "@inboxTabRejected": {
     "context": "InboxScreen"
   },
@@ -2451,11 +2451,11 @@
   "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
-  "inboxTabRejectedEmpty": "Нет отклонённых запросов",
+  "inboxTabRejectedEmpty": "Нет убранных запросов",
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
-  "inboxRejectedEmptyHint": "Сюда попадают запросы, которые вы отклонили в «Активности». Любой из них можно вернуть.",
+  "inboxRejectedEmptyHint": "Сюда попадают запросы, которые вы убрали из «Активности». Любой из них можно вернуть.",
   "@inboxRejectedEmptyHint": {
     "context": "InboxScreen"
   },
