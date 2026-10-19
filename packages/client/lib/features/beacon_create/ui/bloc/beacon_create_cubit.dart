@@ -22,6 +22,7 @@ import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -48,6 +49,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     BeaconCreationContext? childCreationContext,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
+    String? forkSourceIdToLoad,
+    this._forkPlanStepTimes,
+    this._forkTitle,
     UiEffectPort? effects,
   }) : _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
        _hierarchyCase =
@@ -65,7 +69,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
            status:
                (draftBeaconIdToLoad != null &&
                        draftBeaconIdToLoad.isNotEmpty) ||
-                   (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty)
+                   (editBeaconIdToLoad != null &&
+                       editBeaconIdToLoad.isNotEmpty) ||
+                   (forkSourceIdToLoad != null && forkSourceIdToLoad.isNotEmpty)
                ? StateStatus.isLoading
                : const StateIsSuccess(),
          ),
@@ -74,6 +80,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       unawaited(Future<void>.microtask(() => loadDraft(draftBeaconIdToLoad)));
     } else if (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty) {
       unawaited(Future<void>.microtask(() => loadEdit(editBeaconIdToLoad)));
+    } else if (forkSourceIdToLoad != null && forkSourceIdToLoad.isNotEmpty) {
+      unawaited(
+        Future<void>.microtask(() => loadForkSource(forkSourceIdToLoad)),
+      );
     } else if (childCreationContext != null) {
       unawaited(Future<void>.microtask(_initChildComposer));
     }
@@ -112,6 +122,20 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   final UiEffectPort _effects;
 
   Completer<String?>? _draftCreateInFlight;
+
+  /// «Create from this request» (#493): the source to lineage-fork at the
+  /// copy's first save; null once forked (or for any other editor).
+  String? _forkSourceId;
+
+  /// Plan step times chosen before the copy opened; null copies no plan.
+  final List<PlanStepTime>? _forkPlanStepTimes;
+
+  /// Localized «Copy of …» title for the copy.
+  final String Function(String sourceTitle)? _forkTitle;
+
+  /// The copy as it opened; while the form still matches it nothing is
+  /// saved, so opening and leaving an untouched copy leaves no draft.
+  BeaconCreateState? _forkBaseline;
 
   /// Latch for [saveEdit]: overlapping calls join the in-flight persist
   /// instead of starting a second update (GitHub #174 double-tap).
@@ -462,6 +486,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       return false;
     }
     if (state.isPostBud) return false;
+    if (isUntouchedCopy) return false;
     if (state.title.trim().length < kTitleMinLength) return false;
     return state.isChildMode || state.description.trim().isNotEmpty;
   }
@@ -513,6 +538,70 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     } catch (e) {
       _emitSnackError(e);
     }
+  }
+
+  /// Opens «Create from this request» (#493) as a local copy of [id]: the
+  /// server draft is forked only at the first edit or save.
+  Future<void> loadForkSource(String id) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final source = await _case.fetchById(id);
+      final forkTitle = _forkTitle;
+      final title = _cutCodeUnits(
+        forkTitle == null ? source.title : forkTitle(source.title),
+        kBeaconTitleMaxLength,
+      );
+      _forkSourceId = source.id;
+      // The source's images are re-uploaded by the fork; until then the copy
+      // shows none rather than pointing at the source's.
+      emit(
+        _loadedState(source).copyWith(
+          title: title,
+          lineageParentBeaconId: source.id,
+          forkSourceTitle: source.title,
+          images: const [],
+          coverKey: null,
+          coverThumb: null,
+          initialServerImageIds: const {},
+          cachedDeadlineAt: source.startAt == null ? source.endAt : null,
+          cachedEventStartAt: source.startAt,
+          cachedEventEndAt: source.startAt != null ? source.endAt : null,
+        ),
+      );
+      validate();
+      _forkBaseline = _comparable(state);
+    } catch (e) {
+      _leaveRefusedEdit(ShowError(e));
+    }
+  }
+
+  /// True while a «Create from this request» copy is still exactly as it
+  /// opened and has no server draft yet.
+  bool get isUntouchedCopy {
+    final baseline = _forkBaseline;
+    return _forkSourceId != null &&
+        baseline != null &&
+        _comparable(state) == baseline;
+  }
+
+  /// [s] without the save / validation bookkeeping, so only form content
+  /// counts as an edit.
+  static BeaconCreateState _comparable(BeaconCreateState s) => s.copyWith(
+    isAutosaving: false,
+    lastAutosavedAt: null,
+    showValidationHints: false,
+    canTryToPublish: false,
+    status: const StateIsSuccess(),
+  );
+
+  /// [s] cut to at most [max] UTF-16 code units (the unit the server checks),
+  /// never between the two halves of a surrogate pair.
+  static String _cutCodeUnits(String s, int max) {
+    if (s.length <= max) return s;
+    var end = max;
+    final last = s.codeUnitAt(end - 1);
+    if (last >= 0xD800 && last <= 0xDBFF) end--;
+    return s.substring(0, end);
   }
 
   Future<void> loadEdit(String id) async {
@@ -580,6 +669,26 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// not say "Draft saved" beside the failure (#494).
   BeaconCreateState get _afterFailedSave =>
       state.copyWith(isAutosaving: false, lastAutosavedAt: null);
+
+  /// Takes the fork's id and the images it re-uploaded, keeping any photo
+  /// picked locally before the fork landed.
+  BeaconCreateState _adoptFork(Beacon forked) {
+    final local = [
+      for (final img in state.images)
+        if (img.id.isEmpty) img,
+    ];
+    final localCover = state.coverImage;
+    return state.copyWith(
+      draftId: forked.id,
+      images: [...forked.images, ...local],
+      coverKey: localCover?.key ?? forked.coverImage?.key,
+      coverThumb: localCover != null ? state.coverThumb : forked.coverThumb,
+      initialServerImageIds: {
+        for (final img in forked.images)
+          if (img.id.isNotEmpty) img.id,
+      },
+    );
+  }
 
   BeaconCreateState _applyServerMedia(
     BeaconCreateState from,
@@ -1102,6 +1211,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         _rememberExactRetrySnapshot(sent);
         result = await _hierarchyCase!.ensureChildDraft(childCommand);
         _clearExactRetrySnapshot();
+      } else if (_forkSourceId case final sourceId?) {
+        // #493: the copy becomes a server draft only now, through the
+        // lineage fork; the gate above keeps overlapping saves to one fork.
+        final times = _forkPlanStepTimes;
+        final forked = await _case.fork(
+          sourceId,
+          copyPlan: times != null,
+          planStepTimes: times ?? const [],
+        );
+        _forkSourceId = null;
+        if (!isClosed) emit(_adoptFork(forked));
+        // The fork copies the source verbatim; push the copy's own fields
+        // (the «Copy of …» title, any edits) onto it.
+        sent = _command(context: context, id: forked.id, draftSafeTitle: true);
+        result = await _case.saveDraft(sent);
       } else {
         final opHierarchy = kind == BeaconKind.request
             ? _hierarchyCase ??

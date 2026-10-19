@@ -9,6 +9,7 @@ import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -61,6 +62,8 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     @QueryParam(kQueryBeaconParentId) this.parentBeaconId = '',
     @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
+    @QueryParam(kQueryBeaconForkFrom) this.forkSourceId = '',
+    this.forkPlanStepTimes,
     this.initialRecipientIds = const {},
     this.initialNotes = const {},
     this.onRecipientsChanged,
@@ -96,6 +99,13 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// General message to promote into a child request.
   final String sourceMessageId;
 
+  /// «Create from this request» (#493): the request this editor copies. The
+  /// server draft is forked from it only at the first edit or save.
+  final String forkSourceId;
+
+  /// Plan step times chosen for the copy; null copies no plan.
+  final List<PlanStepTime>? forkPlanStepTimes;
+
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -109,6 +119,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => BeaconCreateCubit(
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
+          forkSourceIdToLoad: forkSourceId.isEmpty ? null : forkSourceId,
+          forkPlanStepTimes: forkPlanStepTimes,
+          forkTitle: L10n.of(context)!.beaconCopyOfTitle,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,
             sourceMessageId: sourceMessageId,
@@ -300,6 +313,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   bool get _hasDraftContent {
     final s = _beaconCreateCubit.state;
     if (s.isEditMode || s.isLive || s.isPostBud) return false;
+    // A copy left as it opened has nothing to keep (#493).
+    if (_beaconCreateCubit.isUntouchedCopy) return false;
     return s.title.trim().isNotEmpty ||
         s.description.trim().isNotEmpty ||
         (s.draftId?.isNotEmpty ?? false);
@@ -566,7 +581,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                     });
                   }
                   if ((widget.draftId.isNotEmpty && state.draftId == null ||
-                          widget.editId.isNotEmpty && state.editId == null) &&
+                          widget.editId.isNotEmpty && state.editId == null ||
+                          widget.forkSourceId.isNotEmpty &&
+                              state.forkSourceTitle.isEmpty) &&
                       state.isLoading) {
                     return const Center(
                       child: CircularProgressIndicator.adaptive(),

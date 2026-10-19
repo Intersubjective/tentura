@@ -801,6 +801,24 @@
   "@beaconCreateDraftAction": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCopyOfTitle": "Copy of {title}",
+  "@beaconCopyOfTitle": {
+    "context": "BeaconCreateScreen: title prefilled by «Create from this request» (#493)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCopiedFromBanner": "Copied from ‘{title}’",
+  "@beaconCopiedFromBanner": {
+    "context": "BeaconCreateScreen: one-line note above a «Create from this request» copy (#493)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "beaconCreateLeaveTitle": "Keep this draft?",
   "@beaconCreateLeaveTitle": {
     "context": "BeaconCreateScreen leave dialog (#428)"

@@ -58,6 +58,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     /// Server beacon id when editing a published (open) beacon; null otherwise.
     String? editId,
     String? lineageParentBeaconId,
+
+    /// Title of the request a «Create from this request» copy was made from
+    /// (#493); empty for any other editor.
+    @Default('') String forkSourceTitle,
     @Default({}) Set<String> initialServerImageIds,
     @Default(false) bool canTryToPublish,
 

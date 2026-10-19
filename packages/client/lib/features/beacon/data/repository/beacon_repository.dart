@@ -200,6 +200,7 @@ class BeaconRepository implements BeaconWritePort {
   /// draft (no assignees) at [planStepTimes], which the client computed in
   /// the viewer's zone (plan §4.10, §5.11). The server copies nothing when
   /// the caller may not read the source plan.
+  @override
   Future<Beacon> fork(
     String sourceId, {
     bool copyPlan = false,
