@@ -53,6 +53,13 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   bool _titleHadFocus = false;
   bool _descriptionHadFocus = false;
 
+  // Set by the length formatter when the current edit was cut to fit; turned
+  // into the "shortened" notice by the field's next onChanged (#397).
+  bool _titleCutThisEdit = false;
+  bool _descriptionCutThisEdit = false;
+  bool _titleShortened = false;
+  bool _descriptionShortened = false;
+
   late final _l10n = L10n.of(context)!;
 
   late final _theme = Theme.of(context);
@@ -591,10 +598,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     );
   }
 
-
   static const _titleCounterFrom = 48;
-  static final _descriptionCounterFrom =
-      (kBeaconDescriptionMaxLength * 0.8).floor();
+  static final _descriptionCounterFrom = (kBeaconDescriptionMaxLength * 0.8)
+      .floor();
 
   String? _titleError({required bool show}) {
     if (!show) return null;
@@ -626,15 +632,19 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 style: tenturaFormFieldTextStyle(context),
                 keyboardType: TextInputType.text,
                 maxLength: kBeaconTitleMaxLength,
-                inputFormatters: const [
+                inputFormatters: [
                   CodeUnitLengthLimitingTextInputFormatter(
                     kBeaconTitleMaxLength,
+                    onTruncated: () => _titleCutThisEdit = true,
                   ),
                 ],
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 onChanged: (v) {
                   _cubit.setTitle(v);
-                  setState(() {});
+                  setState(() {
+                    _titleShortened = _titleCutThisEdit;
+                    _titleCutThisEdit = false;
+                  });
                 },
                 onSaved: (value) => _cubit.setTitle(value ?? ''),
                 decoration: tenturaFormFieldDecoration(
@@ -644,6 +654,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 ).copyWith(counterText: ''),
               ),
             ),
+            if (_titleShortened) _shortenedNotice(tt),
             ListenableBuilder(
               listenable: _titleController,
               builder: (context, _) {
@@ -669,6 +680,15 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     );
   }
 
+  /// Says a paste was cut to the field's limit, so the clamp is not silent.
+  Widget _shortenedNotice(TenturaTokens tt) => Padding(
+    padding: EdgeInsets.only(top: tt.rowGap),
+    child: Text(
+      _l10n.beaconCreateTextShortenedNotice,
+      style: TenturaText.bodySmall(tt.textMuted),
+    ),
+  );
+
   Widget _descriptionField(BuildContext context, TenturaTokens tt) {
     return BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
       bloc: _cubit,
@@ -691,15 +711,19 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 minLines: 4,
                 maxLines: null,
                 maxLength: kBeaconDescriptionMaxLength,
-                inputFormatters: const [
+                inputFormatters: [
                   CodeUnitLengthLimitingTextInputFormatter(
                     kBeaconDescriptionMaxLength,
+                    onTruncated: () => _descriptionCutThisEdit = true,
                   ),
                 ],
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 onChanged: (v) {
                   _cubit.setDescription(v);
-                  setState(() {});
+                  setState(() {
+                    _descriptionShortened = _descriptionCutThisEdit;
+                    _descriptionCutThisEdit = false;
+                  });
                 },
                 onSaved: (value) => _cubit.setDescription(value ?? ''),
                 decoration: tenturaFormFieldDecoration(
@@ -710,6 +734,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 ).copyWith(counterText: ''),
               ),
             ),
+            if (_descriptionShortened) _shortenedNotice(tt),
             ListenableBuilder(
               listenable: _descriptionController,
               builder: (context, _) {
@@ -738,11 +763,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   // Inset to the rows' text keyline (after the icon column).
   Widget _detailsHairline(TenturaTokens tt) => Padding(
-        padding: EdgeInsets.only(
-          left: tt.cardPadding.left + tt.iconSize + tt.avatarTextGap,
-        ),
-        child: const TenturaHairlineDivider(subtle: true),
-      );
+    padding: EdgeInsets.only(
+      left: tt.cardPadding.left + tt.iconSize + tt.avatarTextGap,
+    ),
+    child: const TenturaHairlineDivider(subtle: true),
+  );
 
   String _requirementsSummary(Set<String> needs) {
     final labels = [
@@ -757,9 +782,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   String _coverSubtitle(BeaconCreateState s) {
     final capability = s.primaryCapability?.labelOf(_l10n);
     final count = s.images.length;
-    final countPart = count == 0
-        ? null
-        : _l10n.beaconCreateImagesCount(count);
+    final countPart = count == 0 ? null : _l10n.beaconCreateImagesCount(count);
     if (s.coverSource == BeaconCoverSource.symbol) {
       final named = capability == null
           ? _l10n.beaconCoverStatusNeedCapability
@@ -802,27 +825,27 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 valueListenable: _timingKindNotifier,
                 builder: (context, timingKind, _) =>
                     BlocSelector<BeaconCreateCubit, BeaconCreateState, String>(
-                  bloc: _cubit,
-                  selector: _timingSummary,
-                  builder: (context, summary) {
-                    final empty = timingKind == BeaconScheduleKind.none;
-                    final subtitle = empty
-                        ? _l10n.beaconCreateTimingAnytime
-                        : (summary.isEmpty
-                            ? _l10n.beaconTimingPickDate
-                            : summary);
-                    return CreateDetailsRow(
-                      keyId: const Key('BeaconCreate.TimingRow'),
-                      icon: TenturaIcons.calendar,
-                      title: _l10n.beaconTimingWhenTitle,
-                      subtitle: subtitle,
-                      filled: !empty && summary.isNotEmpty,
-                      onTap: () => unawaited(
-                        _openOverlay(() => _showTimingSheet(context)),
-                      ),
-                    );
-                  },
-                ),
+                      bloc: _cubit,
+                      selector: _timingSummary,
+                      builder: (context, summary) {
+                        final empty = timingKind == BeaconScheduleKind.none;
+                        final subtitle = empty
+                            ? _l10n.beaconCreateTimingAnytime
+                            : (summary.isEmpty
+                                  ? _l10n.beaconTimingPickDate
+                                  : summary);
+                        return CreateDetailsRow(
+                          keyId: const Key('BeaconCreate.TimingRow'),
+                          icon: TenturaIcons.calendar,
+                          title: _l10n.beaconTimingWhenTitle,
+                          subtitle: subtitle,
+                          filled: !empty && summary.isNotEmpty,
+                          onTap: () => unawaited(
+                            _openOverlay(() => _showTimingSheet(context)),
+                          ),
+                        );
+                      },
+                    ),
               ),
               _detailsHairline(tt),
               BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
@@ -856,7 +879,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 builder: (context, state) {
                   final subtitle = _coverSubtitle(state);
                   if (state.isPostBud) return const SizedBox.shrink();
-                  final filled = state.coverImage != null ||
+                  final filled =
+                      state.coverImage != null ||
                       state.coverSource == BeaconCoverSource.symbol ||
                       state.images.isNotEmpty;
                   return Column(
@@ -880,9 +904,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               if (_env.isGoogleMapsConfigured) ...[
                 _detailsHairline(tt),
                 BlocSelector<
-                    BeaconCreateCubit,
-                    BeaconCreateState,
-                    ({String location, Coordinates? coordinates})>(
+                  BeaconCreateCubit,
+                  BeaconCreateState,
+                  ({String location, Coordinates? coordinates})
+                >(
                   bloc: _cubit,
                   selector: (s) =>
                       (location: s.location, coordinates: s.coordinates),
@@ -894,8 +919,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     final subtitle = empty
                         ? _l10n.beaconCreatePlaceNone
                         : (showsUnnamed
-                            ? _l10n.locationNameUnavailable
-                            : data.location);
+                              ? _l10n.locationNameUnavailable
+                              : data.location);
                     return CreateDetailsRow(
                       keyId: const Key('BeaconCreate.LocationRow'),
                       icon: TenturaIcons.location,
@@ -935,10 +960,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 selector: (s) => s.isDiscoverable,
                 builder: (context, isDiscoverable) =>
                     BeaconDiscoverabilityControl(
-                  isAuthor: true,
-                  isDiscoverable: isDiscoverable,
-                  onChanged: _cubit.setDiscoverable,
-                ),
+                      isAuthor: true,
+                      isDiscoverable: isDiscoverable,
+                      onChanged: _cubit.setDiscoverable,
+                    ),
               ),
               BlocSelector<
                 BeaconCreateCubit,

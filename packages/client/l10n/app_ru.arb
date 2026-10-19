@@ -766,6 +766,10 @@
   "@beaconCreateTitleHint": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateTextShortenedNotice": "Сокращено до допустимой длины",
+  "@beaconCreateTextShortenedNotice": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconCreateDescriptionHint": "Опишите, что нужно",
   "@beaconCreateDescriptionHint": {
     "context": "BeaconCreateScreen"
