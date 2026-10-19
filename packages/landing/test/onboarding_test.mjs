@@ -324,7 +324,8 @@ test('U085: save name, then the pager starts with no Back; Back on step 2 return
 
   const input = card.querySelector('#display-name');
   assert.ok(input);
-  assert.equal(input.value, 'agent 3c4703tb');
+  // #422: the email-derived placeholder name is not put in the field.
+  assert.equal(input.value, '');
   input.value = 'Ada Lovelace';
   const form = card.querySelector('FORM');
   form.submit();
@@ -492,3 +493,71 @@ test('an empty name asks for a name instead of moving on', async () => {
   assert.ok(!events.includes('signup_name_skipped'));
   assert.match(card.querySelector('.error').textContent, /Enter a name/);
 });
+
+// #422: the server names a new email account after the email local-part
+// (displayNameFromEmail: `tab.qa.01@x` -> "tab qa 01"). The name step must
+// not hand that back as the field value; it shows an empty field with an
+// example placeholder instead. A real name (e.g. from Google) stays prefilled.
+async function renderNameStepFor(displayName, { nameOnly = false } = {}) {
+  installDomFake();
+  globalThis.window = globalThis;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: () => {},
+    openProductUrl: () => '/app/',
+    storage: fakeStorage(),
+    nameOnly,
+  });
+  const input = card.querySelector('#display-name');
+  assert.ok(input, 'name step rendered');
+  return { card, input };
+}
+
+// 'tab_qa_01': the server only turns [._+-] into spaces, so `_` (and `%`)
+// survive in the derived name. 'vadim': a single lowercase token is
+// intentionally not prefilled, even though a real user could have typed it.
+for (const derived of ['tab qa 01', 'agent 3c4703tb', 'ada lovelace', 'vadim', 'tab_qa_01']) {
+  test(`#422: email-derived name "${derived}" is not prefilled`, async () => {
+    const { input } = await renderNameStepFor(derived);
+    assert.equal(input.value, '');
+    assert.equal(input.getAttribute('value') ?? '', '');
+  });
+}
+
+test('#422: the empty name field shows an example placeholder', async () => {
+  const { input } = await renderNameStepFor('tab qa 01');
+  assert.equal(input.getAttribute('placeholder'), 'e.g. Anna K.');
+});
+
+test('#422: the name-only step for a returning account is not prefilled either', async () => {
+  const { input } = await renderNameStepFor('tab qa 01', { nameOnly: true });
+  assert.equal(input.value, '');
+  assert.equal(input.getAttribute('placeholder'), 'e.g. Anna K.');
+});
+
+test('#422: Save with an untouched empty field still asks for a name', async () => {
+  let patched = false;
+  const { card } = await renderNameStepFor('tab qa 01');
+  globalThis.fetch = async () => {
+    patched = true;
+    return { ok: true, json: async () => ({}) };
+  };
+  card.querySelector('FORM').submit();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(patched, false, 'nothing saved');
+  assert.equal(card.querySelector('.pager'), null, 'still on the name step');
+  assert.match(card.querySelector('.error').textContent, /Enter a name/);
+});
+
+for (const real of ['Ada Lovelace', 'Ada', 'Анна К.']) {
+  test(`#422 guard: a chosen name "${real}" stays prefilled`, async () => {
+    const { input } = await renderNameStepFor(real);
+    assert.equal(input.value, real);
+  });
+}
