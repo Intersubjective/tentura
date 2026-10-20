@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/design_system/components/tentura_focus_ring.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_spacing.dart';
 import 'package:tentura/design_system/tentura_text.dart';
@@ -3002,20 +3003,23 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
               ),
             )
           : const BoxDecoration();
-      content = Focus(
-        focusNode: _focusNode,
-        // The bubble's labels and actions are already exposed; an extra
-        // focus node would change how they merge.
-        includeSemantics: false,
-        onKeyEvent: _onKeyEvent,
-        child: Listener(
-          onPointerDown: _onPointerDown,
-          onPointerUp: _onPointerUp,
-          onPointerCancel: _onPointerCancel,
-          child: DecoratedBox(
-            position: DecorationPosition.foreground,
-            decoration: ring,
-            child: content,
+      // The bubble draws its own keyboard ring (#456); skip the app-level one.
+      content = TenturaFocusRing.exclude(
+        child: Focus(
+          focusNode: _focusNode,
+          // The bubble's labels and actions are already exposed; an extra
+          // focus node would change how they merge.
+          includeSemantics: false,
+          onKeyEvent: _onKeyEvent,
+          child: Listener(
+            onPointerDown: _onPointerDown,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: _onPointerCancel,
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: ring,
+              child: content,
+            ),
           ),
         ),
       );

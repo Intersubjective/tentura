@@ -17,6 +17,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/utils/app_reload.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/realtime_status_presenter.dart';
+import 'package:tentura/design_system/components/tentura_focus_ring.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 
@@ -251,14 +252,16 @@ class App extends StatelessWidget {
                   ),
                 ),
               );
+              // Keyboard focus ring over every route, dialogs included (#499).
+              final focused = TenturaFocusRing(child: content);
               if (!kQaIntegrationTestMode) {
-                return content;
+                return focused;
               }
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
                   disableAnimations: true,
                 ),
-                child: content,
+                child: focused,
               );
             },
           );

@@ -1354,7 +1354,8 @@ class _ConstellationMapNodeFocusState
       onFocus: defaultTargetPlatform == TargetPlatform.iOS
           ? null
           : _focusFromSemantics,
-      child: detector,
+      // The marker draws its own keyboard ring (#391); skip the app-level one.
+      child: TenturaFocusRing.exclude(child: detector),
     );
   }
 }
