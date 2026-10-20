@@ -31,7 +31,7 @@ int _compare(String a, String b) {
 }
 
 void main() {
-  group('U18c — the cutover floor', () {
+  group('Coordinated client protocol version floor', () {
     test('_compare orders the components it claims to order', () {
       expect(_compare('7.18.0', '7.18.0'), 0);
       expect(_compare('7.19.0', '7.18.0'), greaterThan(0));
@@ -134,10 +134,16 @@ void main() {
       );
     });
 
-    test('request plan release raises the floor to 7.41.0', () {
+    test('request plan obligations require the coordinated release client', () {
       // Plan obligations (#220) need the Plan UI and «Понятно» to clear;
       // older clients would receive obligations they cannot act on.
-      expect(kDefaultMinClientVersion, '7.41.0');
+      // Preserve the plan's minimum contract across later protocol releases.
+      // The current release admits its client and excludes every older one.
+      expect(
+        _compare(kDefaultMinClientVersion, '7.41.0'),
+        greaterThanOrEqualTo(0),
+      );
+      expect(kDefaultMinClientVersion, _shippedClientVersion());
       expect(
         _compare(_shippedClientVersion(), kDefaultMinClientVersion),
         greaterThanOrEqualTo(0),
@@ -151,9 +157,9 @@ void main() {
 File _clientFile(String relative) => File('../client/$relative');
 
 String _shippedClientVersion() {
-  final line = _clientFile('pubspec.yaml')
-      .readAsLinesSync()
-      .firstWhere((l) => l.startsWith('version:'));
+  final line = _clientFile(
+    'pubspec.yaml',
+  ).readAsLinesSync().firstWhere((l) => l.startsWith('version:'));
   return line.split(':')[1].trim();
 }
 

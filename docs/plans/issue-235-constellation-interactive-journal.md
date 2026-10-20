@@ -1726,3 +1726,195 @@ The rows are the same, because an edge's tier depends only on its endpoints (m02
 - The capacity level was not quiet: write p95 499 ms, with the slowest writes falling inside load spikes of 17–43. It is not used as evidence.
 - The U41 re-run overlapped a spike, so its `fallback_*` slowdowns are noise. The dense-fixture gains are far above that noise.
 - `reconnect_burst` and `concurrent_tabs` were not re-run after the narrowing; the owner closed the gate first.
+
+## UNIT U26 — partial (part 3/3: coordinated release versions) — 2026-10-20 (tentura-s7gl.62)
+
+- Coordinated `packages/client/pubspec.yaml` **7.42.0**,
+  `packages/client/web/index.html` `flutter_bootstrap.js?v=7.42.0`, and
+  `packages/server/lib/env.dart` `kDefaultMinClientVersion` **7.42.0**.
+  This minor feature release excludes clients using the retired individual
+  anchor mutations. The owner accepted the part 2/3 performance gate above.
+- Focused checks: `test/constellation_protocol_release_version_test.dart` and
+  `test/min_client_version_gate_test.dart`, using the cleanup wrapper and the
+  precompiled test runner: **12 passed** (the Flutter SDK is read-only in this
+  sandbox). `tool/verify_web_version_consistency.dart` also passed, confirming
+  the tracked bootstrap version is **7.42.0**. Tests edited: **none**.
+- App-start attempt: `flutter run -d web-server --web-port=8888
+  --web-hostname=127.0.0.1 --dart-define=ENV=test
+  --dart-define-from-file=env/test.env` failed before launch because Flutter
+  could not write `bin/cache/engine.stamp.tmp.*` and `engine.realm` on the
+  read-only SDK filesystem. The tracked cache-buster was synchronized manually.
+- Browser attempt (unwrapped): `TENTURA_WEB_CHROME_NO_SANDBOX=1
+  ./scripts/run_client_integration_web_local.sh
+  integration_test/constellation_protocol_release_test.dart` failed before
+  runtime assertions: Docker socket access at `/var/run/docker.sock` is denied.
+  Consecutive-drop persistence, camera stability, offline marker/Retry, and
+  speculative trust behavior therefore remain unverified here.
+- Full client/server (including PostgreSQL), performance and lint evidence,
+  and git operations remain Alloy-owned per this task's executor instructions.
+  No release evidence was fabricated: the release evidence gate still needs
+  `build/release/constellation_protocol/evidence.json`, successful gate logs,
+  and the committed implementation. This entry records implementation work,
+  not a completed release verification.
+
+## UNIT U26 — blocked — 2026-10-20 (tentura-s7gl.62 evidence repair)
+
+- Reproduced `release_test/constellation_protocol_release_evidence_test.dart`
+  with the cleanup wrapper and precompiled Dart test runner: **0 passed,
+  1 failed**, at line 57 because
+  `build/release/constellation_protocol/evidence.json` is absent.
+- The requested `dart test` invocation fails before loading the test because
+  the Flutter launcher cannot update its read-only SDK cache. The precompiled
+  runner reaches the original missing-evidence assertion.
+- The evidence gate requires successful full-suite, lint, browser and
+  performance artifacts, and no implementation diff against HEAD. The current
+  client version, cache-buster and server minimum remain **7.42.0**, with those
+  release changes still uncommitted. Full-suite verification and git operations
+  are explicitly Alloy-owned in this task; an implementation edit cannot
+  supply that evidence or satisfy the committed-tree prerequisite.
+- No implementation or tests changed in this repair attempt. No evidence was
+  fabricated and no assertions were weakened. Alloy must perform the release
+  verification and save the manifest and its artifacts before rerunning the
+  evidence gate.
+
+## UNIT U26 — blocked — 2026-10-20 (tentura-s7gl.62 startup and lint repair)
+
+- The startup log identified stale, ignored Injectable output: `UserBlockCase`
+  lacked `roomRepository` and `BeaconDisplayCase` received seven arguments
+  instead of eight. Regenerated server output with the cleanup wrapper and
+  `.dart_tool/pub/bin/build_runner/build_runner.dart-3.13.0.snapshot` (**exit 0**).
+  Direct Dart kernel compilation of `bin/tentura.dart` then passed (**exit 0**);
+  log: `/tmp/tentura-u26-server-compile.log`. No generated file was hand-edited.
+- Captured fresh client diagnostics in `/tmp/tentura-u26-client-analysis.log`.
+  The task-authored browser test and transport probe added four diagnostics,
+  contrary to the no-new-diagnostics requirement. Corrected three receiver
+  cascades and the nullable JavaScript cast; all assertions remain unchanged.
+  Tests edited: `packages/client/integration_test/constellation_protocol_release_test.dart`
+  and `packages/client/integration_test/support/browser_graphql_transport_probe.dart`.
+  Both files pass formatting. Focused CLI analysis after these edits still
+  fails during analyzer-plugin setup (**exit 4**), so it is not a green lint gate.
+- `scripts/check-analysis.sh packages/client` and `packages/server`, run
+  serially through the cleanup wrapper using the direct Dart SDK, both failed
+  (**exit 1**). Each invokes both the custom-lint and analyzer-baseline gates.
+  Plugin setup cannot reach `https://pub.dev` for `analysis_server_plugin`,
+  and the stock analyzer invocation also cannot update
+  `/home/vader/.dart-tool/dart-flutter-telemetry-session.json` (read-only).
+  Client diagnostics also include stale Ferry and localization output.
+  `gen-l10n` cannot open `/home/vader/development/flutter/bin/cache/lockfile`
+  (read-only), even through the direct Flutter tools snapshot. No baseline changed.
+  Server log: `/tmp/tentura-u26-server-analysis.log`.
+- Re-ran the unwrapped browser command with
+  `TENTURA_WEB_CHROME_NO_SANDBOX=1`: **exit 1**, before runtime assertions.
+  Docker cannot connect to `/var/run/docker.sock` (`operation not permitted`);
+  a separate loopback health probe also fails to open a socket. Log:
+  `/tmp/tentura-u26-web-e2e-repair.log`. Verification requires loopback service
+  and Docker socket access, a writable Flutter SDK cache and Dart plugin/user
+  caches, and pub.dev access or an already initialized analyzer-plugin cache.
+- The two focused version test files still pass: **12 passed**, with client,
+  tracked web bootstrap and server minimum all **7.42.0**. The release-evidence
+  test remains **0 passed, 1 failed** at line 57: the manifest is absent.
+  Logs: `/tmp/tentura-u26-focused-versions-repair.log` and
+  `/tmp/tentura-u26-evidence-repair.log`. No release evidence was generated.
+  Full suites and the commit required by the evidence gate remain Alloy-owned;
+  this entry records the verified subset and the exact environment blockers.
+
+## UNIT U26 — web compilation repair — 2026-10-20 (tentura-s7gl.62)
+
+- The failed web build's compiler errors came from stale client Freezed, Ferry,
+  Injectable and AutoRoute output. Regenerated it with the wrapped cached
+  `build_runner` runner (`build -d`): **exit 0**. No generated file was edited
+  manually; no application behavior or tests needed changing. Log:
+  `/tmp/tentura-u26-client-codegen-repair.log`.
+- Recompiled the failed build's generated web entry point using the same
+  Dart-to-JavaScript compiler, test defines and optimized release options:
+  **exit 0**, producing JavaScript in **97.5 seconds**. Log:
+  `/tmp/tentura-u26-web-compiler-repair.log`. This verifies compilation only.
+- The required wrapped `flutter build web --dart-define=ENV=test
+  --dart-define-from-file=env/test.env` still needs environment access: the
+  installed SDK cannot write `bin/cache/engine.stamp.tmp.*` or `engine.realm`.
+  With temporary writable SDK launcher/cache metadata, offline dependency
+  preparation passed, but the unchanged build command exited **69** fetching
+  `https://pub.dev/api/packages/archive/advisories` (DNS/network denied).
+  It needs writable SDK cache metadata and DNS/HTTPS access to pub.dev.
+  Logs: `/tmp/tentura-u26-web-build-current.log`,
+  `/tmp/tentura-u26-web-build-after-codegen.log`. No full-build or release
+  evidence was claimed or generated. Tests edited: **none**.
+- Focused release-version and minimum-client gate checks: **12 passed**;
+  client, tracked bootstrap and server minimum remain **7.42.0**. Log:
+  `/tmp/tentura-u26-web-repair-version-tests.log`.
+
+## UNIT U26 — partial (part 3/3: browser fixture acknowledgement repair) — 2026-10-20 (tentura-s7gl.62)
+
+- Corrected `integration_test/support/e2e_test_helpers.dart` to select the
+  requested target from `results[].anchor`, retaining the target-kind/id
+  check and the existing operation-id/status checks. Its former
+  `anchorProjection` lookup is provably incompatible with ARCH rev 10 D10
+  and U50, which explicitly remove that field from write acknowledgements.
+  This is a test-support correction; no assertions were weakened.
+- Wrapped focused GraphQL apply/acknowledgement checks: **23 passed**.
+  Wrapped release-version and minimum-client checks: **12 passed**. Logs:
+  `/tmp/tentura-u26-anchor-graphql-repair.log` and
+  `/tmp/tentura-u26-focused-versions-current-repair.log`. Client, tracked
+  bootstrap and server minimum remain **7.42.0**.
+- The shared analyzer reports no errors or warnings for the changed helper;
+  existing info diagnostics are outside the changed function. Formatting
+  and `git diff --check` pass.
+- The unwrapped required browser command cannot start in this sandbox:
+  Docker socket connection is denied. Log:
+  `/tmp/tentura-u26-web-e2e-current-repair.log`. The prior verifier's generic
+  server error during fixture setup remains unresolved; this correction
+  addresses a separate, certain failure after a successful acknowledgement.
+  A JSON-roundtripped generated request reaches the repository through the
+  current GraphQL schema, so local parsing alone does not explain that error.
+- Full suites, release evidence and git remain Alloy-owned. No verification
+  manifest was fabricated. Tests edited:
+  `packages/client/integration_test/support/e2e_test_helpers.dart`.
+
+## UNIT U26 — partial — 2026-10-21 (tentura-s7gl.62 release-test triage)
+
+- Corrected the task-authored release browser test's provably wrong node finder:
+  `GraphNodeWidget` is keyed by `TestIds.graphNode(node.id)`, while `fp:`/`fr:`
+  IDs address the graph controller's scene. The finder now uses
+  `target.graphNodeId` (the domain ID), matching the working pinning helper,
+  and calls `ensureVisible` before dragging. Scene-position lookup still uses
+  scene IDs. No settling wait was added between the consecutive drops; camera,
+  persistence, offline-marker, Retry and network-traffic assertions remain.
+- Deleted `packages/server/release_test/constellation_protocol_release_evidence_test.dart`
+  as directed by operator triage: Alloy's SHA/revision/journal verification gates
+  must not land on main. Removed journal-text and implementation-source policing
+  from `test/constellation_protocol_release_version_test.dart`, including its
+  unnecessary raw string. The three remaining checks cover matching client/web
+  versions, a floor excluding legacy clients and admitting the shipped client,
+  and batch apply without legacy schema mutations. This entry supersedes the
+  earlier requirement above to generate a manifest for the deleted gate.
+- Release numbers remain coordinated: `packages/client/pubspec.yaml` **7.42.0**,
+  `packages/client/web/index.html` `flutter_bootstrap.js?v=7.42.0`, and
+  `packages/server/lib/env.dart` `kDefaultMinClientVersion` **7.42.0**.
+  No server Float handling or application behavior changed.
+- Wrapped focused release-version and minimum-client gate checks: **11 passed**,
+  using the cached test runner and direct Dart SDK. Log:
+  `/tmp/tentura-u26-triage-versions.log`. Wrapped tracked web-version consistency
+  check: **passed**, log `/tmp/tentura-u26-triage-web-version.log`.
+  Touched Dart files are formatted and `git diff --check` passes.
+- Ran both packages' `scripts/check-analysis.sh` serially through the cleanup
+  wrapper with the direct Dart SDK and analytics suppressed, avoiding the
+  read-only Flutter launcher cache. Unique stock diagnostics: server **1838**
+  (baseline **1838**), client **1921** (baseline **2040**); neither edited test
+  has diagnostics. Both combined analyzer/custom-lint gates nevertheless
+  **failed** because analyzer-plugin initialization runs `dart pub upgrade`,
+  which cannot reach `https://pub.dev` in this sandbox. These are not green
+  lint gates. Logs: `/tmp/tentura-u26-triage-server-analysis-direct.log` and
+  `/tmp/tentura-u26-triage-client-analysis-direct.log`.
+- Reran the required unwrapped browser command with
+  `TENTURA_WEB_CHROME_NO_SANDBOX=1`: **exit 1 before app launch**, because access
+  to `/var/run/docker.sock` is denied. Log:
+  `/tmp/tentura-u26-triage-web-e2e.log`. Runtime browser acceptance remains
+  unverified here. The operator reports the separate Float-input server defect
+  fixed in `26c68649d`; that implementation was left untouched.
+- Full client/server (including PostgreSQL) suites and git operations remain
+  Alloy-owned under this task's explicit instructions; no full suite, task
+  tracker or git mutation was run. Tests edited this iteration:
+  `packages/client/integration_test/constellation_protocol_release_test.dart`,
+  `packages/server/test/constellation_protocol_release_version_test.dart`, and
+  `packages/server/release_test/constellation_protocol_release_evidence_test.dart`
+  (deleted).

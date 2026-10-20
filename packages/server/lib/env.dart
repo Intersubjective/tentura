@@ -84,7 +84,10 @@ Duration? _parseEnvDuration(String? raw) {
 /// docs/plans/request-plan-libretto-plan.md): plan obligations (`planStepDue`,
 /// `planStepTurn`, `planChangePending`) need the Plan UI and «Понятно» to
 /// clear, so clients without it must be gated.
-const kDefaultMinClientVersion = '7.41.0';
+/// Raised to 7.42.0 for the interactive Constellation protocol switch (#235,
+/// U26): clients must use batch anchor apply instead of retired upsert/delete
+/// mutations. The client version and web bootstrap cache-buster ship together.
+const kDefaultMinClientVersion = '7.42.0';
 
 class Env {
   Env({

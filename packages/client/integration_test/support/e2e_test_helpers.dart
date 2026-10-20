@@ -2051,9 +2051,9 @@ Future<Map<String, dynamic>> upsertConstellationAnchor({
         ..coordinateSpaceVersion = coordinateSpaceVersion;
     }),
   );
-  final projection = result['anchorProjection'] as Map<String, dynamic>;
-  return (projection['anchors'] as List)
+  return (result['results'] as List)
       .cast<Map<String, dynamic>>()
+      .map((opResult) => opResult['anchor'] as Map<String, dynamic>)
       .singleWhere(
         (anchor) =>
             anchor['targetKind'] == targetKind &&
