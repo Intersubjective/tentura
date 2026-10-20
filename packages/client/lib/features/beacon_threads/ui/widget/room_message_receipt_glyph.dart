@@ -38,10 +38,13 @@ class RoomMessageReceiptGlyph extends StatelessWidget {
         label = l10n.beaconRoomReceiptRead(receipt.readerIds.length);
     }
 
+    // #416: the label is the one announcement; the tooltip is for the mouse
+    // only (web joins label and tooltip into one aria-label).
     return Semantics(
       label: label,
       child: Tooltip(
         message: label,
+        excludeFromSemantics: true,
         child: ExcludeSemantics(
           child: Icon(iconData, size: _iconSize, color: color),
         ),

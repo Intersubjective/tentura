@@ -236,6 +236,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
         ? (v.avgScore ?? 0) / 5
         : poll.percentageFor(v.id);
     final primaryLabel = _primaryResultLabel(v);
+    final l10n = L10n.of(context)!;
 
     return Container(
       decoration: isMine
@@ -298,6 +299,11 @@ class _RoomPollCardState extends State<RoomPollCard> {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 4,
+              // #416: name the bar, or a screen reader says only "0"/"100".
+              semanticsLabel: l10n.beaconRoomPollOptionSemantic(
+                v.description,
+                l10n.beaconRoomPollVotesCount(v.votesCount),
+              ),
               backgroundColor: cs.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(
                 isMine ? cs.primary : cs.secondary,

@@ -51,7 +51,8 @@ class BeaconChildRequestCard extends StatelessWidget {
 
     return BeaconCardShell(
       onTap: () => context.router.push(BeaconViewRoute(id: summary.beaconId)),
-      tapSemanticsLabel: data.title,
+      // #416: the visible title already names the card.
+      tapSemanticsLabel: data.title.isEmpty ? null : '',
       child: BeaconRequestPreviewIdentity(
         data: data,
         currentUserId: currentUserId,

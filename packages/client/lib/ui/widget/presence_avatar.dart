@@ -20,6 +20,7 @@ class PresenceAvatar extends StatelessWidget {
     bool? withContactBadge,
     this.overlayBadge,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : withContactBadge = withContactBadge ?? withRating;
 
   const PresenceAvatar.small({
@@ -32,6 +33,7 @@ class PresenceAvatar extends StatelessWidget {
     bool? withContactBadge,
     this.overlayBadge,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.small,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -45,6 +47,7 @@ class PresenceAvatar extends StatelessWidget {
     bool? withContactBadge,
     this.overlayBadge,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.medium,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -57,6 +60,9 @@ class PresenceAvatar extends StatelessWidget {
   final bool withContactBadge;
   final Widget? overlayBadge;
   final BoxFit boxFit;
+
+  /// Opens the person's profile; the avatar is then a named button (#416).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +79,7 @@ class PresenceAvatar extends StatelessWidget {
       overlayBadge: overlayBadge,
       boxFit: boxFit,
       isOnline: isOnline,
+      onTap: onTap,
     );
   }
 }

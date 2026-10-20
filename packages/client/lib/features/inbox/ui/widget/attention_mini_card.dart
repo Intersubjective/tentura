@@ -524,15 +524,20 @@ class _DismissControl extends StatelessWidget {
       key: AttentionMiniCard.dismissKey,
       width: kMinInteractiveDimension,
       height: kMinInteractiveDimension,
-      child: IconButton(
-        key: AttentionMiniCard.dismissButtonKey,
-        focusNode: focusNode,
-        onPressed: onPressed,
-        tooltip: label,
-        iconSize: tt.iconSize,
-        padding: EdgeInsets.zero,
-        color: emphasised ? tt.text : tt.textFaint,
-        icon: Icon(Icons.close, semanticLabel: label),
+      // #416: the icon label is the one announcement; the tooltip is for
+      // the mouse only.
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: IconButton(
+          key: AttentionMiniCard.dismissButtonKey,
+          focusNode: focusNode,
+          onPressed: onPressed,
+          iconSize: tt.iconSize,
+          padding: EdgeInsets.zero,
+          color: emphasised ? tt.text : tt.textFaint,
+          icon: Icon(Icons.close, semanticLabel: label),
+        ),
       ),
     );
   }

@@ -122,6 +122,9 @@ class HelpOfferTile extends StatelessWidget {
     final avatarWidget = SelfAwareAvatar.medium(
       profile: helpOffer.user,
       showAuthorStar: showAuthorStar,
+      onTap: isMine
+          ? null
+          : () => context.read<ScreenCubit>().showProfile(helpOffer.user.id),
     );
 
     return TenturaTechCardStatic(
@@ -135,19 +138,7 @@ class HelpOfferTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Material(
-                color: Colors.transparent,
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: isMine
-                      ? null
-                      : () => context.read<ScreenCubit>().showProfile(
-                          helpOffer.user.id,
-                        ),
-                  child: avatarWidget,
-                ),
-              ),
+              avatarWidget,
               const SizedBox(width: _contentGap),
               Expanded(
                 child: Row(

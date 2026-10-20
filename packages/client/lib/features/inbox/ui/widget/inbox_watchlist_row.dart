@@ -138,7 +138,9 @@ class InboxWatchlistRow extends StatelessWidget {
     return BeaconCardShell(
       onTap: onOpenBeacon,
       selected: isSelected,
-      tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : beacon.title,
+      // #416: the visible title already names the card; repeating it as the
+      // label made a screen reader say it twice.
+      tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : '',
       footer: showFooter
           ? InboxCardActionRow(
               onOfferHelp: showCtaRow ? onOfferHelp : null,

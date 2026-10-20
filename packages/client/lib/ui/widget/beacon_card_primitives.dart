@@ -93,7 +93,8 @@ class BeaconCardShell extends StatelessWidget {
     this.padding,
     this.bodyMinHeight = kBeaconCardBodyMinHeight,
 
-    /// Screen-reader label for the card body tap target.
+    /// Screen-reader label for the card body tap target. Pass '' when the
+    /// body's own visible text (the title) already names it (#416).
     this.tapSemanticsLabel,
     super.key,
   });
@@ -541,7 +542,11 @@ class BeaconCardHeaderRow extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BeaconIdentityTile(beacon: beacon, size: identitySize),
+            BeaconIdentityTile(
+              beacon: beacon,
+              size: identitySize,
+              semanticsIncludeTitle: false,
+            ),
             const SizedBox(width: kSpacingSmall),
             Expanded(child: titleColumn),
             SizedBox(
