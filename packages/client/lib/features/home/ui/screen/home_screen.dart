@@ -201,14 +201,7 @@ class _HomeShellState extends State<_HomeShell> {
                 labelType: extendedRail
                     ? NavigationRailLabelType.none
                     : NavigationRailLabelType.all,
-                destinations: [
-                  for (final d in homeNavDestinations(l10n))
-                    NavigationRailDestination(
-                      icon: d.icon,
-                      selectedIcon: d.selectedIcon,
-                      label: Text(d.label),
-                    ),
-                ],
+                destinations: homeRailDestinations(l10n),
                 // The account sits at the rail's foot, not among the
                 // destinations.
                 trailing: Expanded(

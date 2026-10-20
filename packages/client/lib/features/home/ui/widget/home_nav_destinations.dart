@@ -74,3 +74,24 @@ List<HomeNavDestinationData> homeNavDestinations(
       HomeTab.updates || HomeTab.me => throw StateError('${spec.tab}'),
     },
 ];
+
+/// [homeNavDestinations] as [NavigationRailDestination]s, for Home's rail and
+/// the rail frame of routes pushed above Home alike.
+///
+/// Every destination is announced as a button (#338). The rail's own
+/// destination node carries no role: a browser reads it as a button only
+/// while it has no child nodes, and an icon with a semantics identifier (the
+/// Field glyph, the unread dots) is always a child node of its own, which
+/// turned Activity and Field into unnamed groups. The bottom bar already
+/// marks its destinations as buttons.
+List<NavigationRailDestination> homeRailDestinations(
+  L10n l10n, {
+  bool badged = true,
+}) => [
+  for (final d in homeNavDestinations(l10n, badged: badged))
+    NavigationRailDestination(
+      icon: Semantics(button: true, child: d.icon),
+      selectedIcon: Semantics(button: true, child: d.selectedIcon),
+      label: Text(d.label),
+    ),
+];

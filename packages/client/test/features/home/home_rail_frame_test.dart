@@ -41,6 +41,18 @@ NavigationRail _rail(WidgetTester tester) =>
 HomeRailAccountFooter _avatar(WidgetTester tester) =>
     tester.widget<HomeRailAccountFooter>(find.byType(HomeRailAccountFooter));
 
+/// The role Flutter's web engine gives [node]: the button flag, or a tappable
+/// node without children, is a button; any other node with children is a
+/// group (what #338 saw on Activity and Field).
+String _webRole(SemanticsNode node) {
+  final data = node.getSemanticsData();
+  if (data.flagsCollection.isButton) return 'button';
+  if (node.childrenCount > 0) return 'group';
+  return data.hasAction(SemanticsAction.tap) ? 'button' : 'generic';
+}
+
+const _destinationLabels = ['Requests', 'Posts', 'Activity', 'Field', 'People'];
+
 void main() {
   testWidgets('rail: Work, Conversations, Activity, Field, People', (
     tester,
@@ -182,4 +194,33 @@ void main() {
     );
     semantics.dispose();
   });
+
+  // #338: Activity and Field were exposed as unnamed groups beside three
+  // buttons. Each destination is one node: a button, tappable, with its
+  // selected state and its own label.
+  for (final size in const [Size(1280, 800), Size(760, 800)]) {
+    testWidgets('#338 every destination is a named button at ${size.width}', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _pump(tester, selectedTab: HomeTab.inbox, size: size);
+
+      for (final label in _destinationLabels) {
+        final node = tester.getSemantics(find.text(label));
+        expect(
+          node,
+          isSemantics(
+            isButton: true,
+            hasTapAction: true,
+            hasSelectedState: true,
+            isSelected: label == 'Activity',
+          ),
+          reason: label,
+        );
+        expect(node.label, contains(label), reason: label);
+        expect(_webRole(node), 'button', reason: label);
+      }
+      semantics.dispose();
+    });
+  }
 }
