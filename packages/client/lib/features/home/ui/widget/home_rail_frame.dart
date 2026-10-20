@@ -62,14 +62,7 @@ class HomeRailFrame extends StatelessWidget {
       labelType: extended
           ? NavigationRailLabelType.none
           : NavigationRailLabelType.all,
-      destinations: [
-        for (final d in homeNavDestinations(l10n, badged: badged))
-          NavigationRailDestination(
-            icon: d.icon,
-            selectedIcon: d.selectedIcon,
-            label: Text(d.label),
-          ),
-      ],
+      destinations: homeRailDestinations(l10n, badged: badged),
       // The account at the rail's foot, as on Home.
       trailing: Expanded(
         child: Align(

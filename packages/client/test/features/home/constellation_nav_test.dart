@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -82,8 +83,7 @@ final class _Repository extends AttentionRepositoryFake {
   );
 
   @override
-  Future<AttentionSurfaceSummary> surfaceSummary() async =>
-      surfaceSummaryValue;
+  Future<AttentionSurfaceSummary> surfaceSummary() async => surfaceSummaryValue;
 
   @override
   Future<AttentionFeed> fetch({
@@ -180,7 +180,7 @@ Future<HomeAttentionCubit> _seedAttentionCubit({
 }
 
 /// [HomeScreen]'s five-destination chrome without AutoRoute shell deps,
-/// built from the same [homeNavDestinations] list.
+/// built from the same [homeNavDestinations] / [homeRailDestinations] lists.
 class _HomeChromeFixture extends StatelessWidget {
   const _HomeChromeFixture({
     required this.useSideNav,
@@ -200,14 +200,7 @@ class _HomeChromeFixture extends StatelessWidget {
       return NavigationRail(
         selectedIndex: selectedIndex,
         onDestinationSelected: (_) {},
-        destinations: [
-          for (final d in destinations)
-            NavigationRailDestination(
-              icon: d.icon,
-              selectedIcon: d.selectedIcon,
-              label: Text(d.label),
-            ),
-        ],
+        destinations: homeRailDestinations(L10n.of(context)!),
       );
     }
     return HomeBottomNavigationBar(
@@ -426,6 +419,33 @@ void main() {
       expect(glyphCenter.dy, lessThan(fieldLabel.dy));
     });
 
+    testWidgets(
+      '#338 rail: every destination is a button, badges and Field included',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        await _pumpHomeChrome(
+          tester,
+          logicalSize: const Size(900, 800),
+          attention: attention,
+          useSideNav: true,
+        );
+
+        for (final label in const [
+          'Requests',
+          'Posts',
+          'Activity',
+          'Field',
+          'People',
+        ]) {
+          final node = tester.getSemantics(find.text(label));
+          final data = node.getSemanticsData();
+          expect(data.flagsCollection.isButton, isTrue, reason: label);
+          expect(data.hasAction(SemanticsAction.tap), isTrue, reason: label);
+        }
+        semantics.dispose();
+      },
+    );
+
     testWidgets('expanded rail shows Field tab label', (tester) async {
       await _pumpHomeChrome(
         tester,
@@ -460,7 +480,6 @@ void main() {
           );
           expect(constellationIcon, findsOneWidget);
           expect(_navItemShowsBadge(tester, constellationIcon), isFalse);
-
         }
       },
     );
