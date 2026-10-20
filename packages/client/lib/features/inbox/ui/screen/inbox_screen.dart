@@ -373,7 +373,7 @@ class _InboxOverflowMenu extends StatelessWidget {
       builder: (context, watchingCount) {
         return PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
-          tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+          tooltip: l10n.inboxOverflowMenuTooltip,
           padding: EdgeInsets.zero,
           constraints: BoxConstraints(
             minWidth: context.tt.buttonHeight,

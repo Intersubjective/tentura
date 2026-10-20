@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   _MockProfileCubit(this.profile);
@@ -78,11 +79,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder hoverToolbarMouseRegion() => find.byWidgetPredicate(
-    (widget) =>
-        widget is MouseRegion &&
-        widget.onEnter != null &&
-        widget.onExit != null,
+  // The bubble's own enter/exit hover region: an ancestor of the bubble's
+  // press-scale transform. Scoped so other pointer regions in the tile (e.g.
+  // the tappable author avatar's InkWell) do not count.
+  Finder hoverToolbarMouseRegion() => find.ancestor(
+    of: find.byKey(TestIds.key(TestIds.roomMessageBubblePressScale)),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is MouseRegion &&
+          widget.onEnter != null &&
+          widget.onExit != null,
+    ),
   );
 
   Future<void> hoverBubble(WidgetTester tester) async {

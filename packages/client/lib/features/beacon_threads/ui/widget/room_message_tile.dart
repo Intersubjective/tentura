@@ -1837,16 +1837,14 @@ class RoomMessageTile extends StatelessWidget {
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          GestureDetector(
+                          PresenceAvatar.medium(
+                            profile: message.author,
+                            userId: message.author.id,
+                            size: tt.avatarGutter,
                             onTap: () =>
                                 context.read<ScreenCubit>().showProfile(
                                   message.author.id,
                                 ),
-                            child: PresenceAvatar.medium(
-                              profile: message.author,
-                              userId: message.author.id,
-                              size: tt.avatarGutter,
-                            ),
                           ),
                           if (capabilities.commitmentSheet &&
                               authorParticipant != null &&

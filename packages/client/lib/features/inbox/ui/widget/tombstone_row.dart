@@ -253,13 +253,18 @@ class _DismissControl extends StatelessWidget {
       key: TombstoneRow.dismissKey,
       width: kMinInteractiveDimension,
       height: kMinInteractiveDimension,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: label,
-        iconSize: tt.iconSize,
-        padding: EdgeInsets.zero,
-        color: tt.textFaint,
-        icon: Icon(Icons.close, semanticLabel: label),
+      // #416: the icon label is the one announcement; the tooltip is for
+      // the mouse only.
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: IconButton(
+          onPressed: onPressed,
+          iconSize: tt.iconSize,
+          padding: EdgeInsets.zero,
+          color: tt.textFaint,
+          icon: Icon(Icons.close, semanticLabel: label),
+        ),
       ),
     );
   }

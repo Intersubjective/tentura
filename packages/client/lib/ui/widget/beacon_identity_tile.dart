@@ -12,11 +12,17 @@ class BeaconIdentityTile extends StatelessWidget {
   const BeaconIdentityTile({
     required this.beacon,
     this.size = 48,
+    this.semanticsIncludeTitle = true,
     super.key,
   });
 
   final Beacon beacon;
   final double size;
+
+  /// False where the title is printed beside the tile (card header rows):
+  /// the tile then names only its capability, so the title is said once
+  /// (#416).
+  final bool semanticsIncludeTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +34,13 @@ class BeaconIdentityTile extends StatelessWidget {
     );
   }
 
-  String _semanticsLabel(BuildContext context, BeaconIdentity identity) {
-    if (identity is! BeaconIdentitySymbol) return beacon.title;
+  String? _semanticsLabel(BuildContext context, BeaconIdentity identity) {
+    final title = semanticsIncludeTitle ? beacon.title : null;
+    if (identity is! BeaconIdentitySymbol) return title;
     final l10n = L10n.of(context);
-    if (l10n == null) return beacon.title;
-    return '${beacon.title}, ${identity.tag.labelOf(l10n)}';
+    if (l10n == null) return title;
+    final tag = identity.tag.labelOf(l10n);
+    return title == null ? tag : '$title, $tag';
   }
 
   Widget _content(BuildContext context, BeaconIdentity identity) =>

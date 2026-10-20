@@ -9931,5 +9931,51 @@
   "beaconLiveSentToNobodyHint": "Live in the Field, sent to nobody yet. Forward it to someone.",
   "@beaconLiveSentToNobodyHint": {
     "description": "Now panel, author only: a live Request that is discoverable in the Field but that the author has not forwarded to anyone yet (e.g. after Make live without sending)."
+  },
+  "avatarOpenProfile": "{name}, open profile",
+  "@avatarOpenProfile": {
+    "context": "TenturaAvatar: screen-reader name of a tappable avatar (#416)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "avatarOpenProfileUnnamed": "Open profile",
+  "@avatarOpenProfileUnnamed": {
+    "context": "TenturaAvatar: tappable avatar of a person with no name (#416)"
+  },
+  "beaconRoomPhotoAlt": "Photo",
+  "@beaconRoomPhotoAlt": {
+    "context": "Room: screen-reader name of an image attachment without a readable file name (#416)"
+  },
+  "beaconRoomPhotoAltNamed": "Photo: {name}",
+  "@beaconRoomPhotoAltNamed": {
+    "context": "Room: screen-reader name of an image attachment; name is the file name without extension (#416)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomPollOptionSemantic": "{option}, {votes}",
+  "@beaconRoomPollOptionSemantic": {
+    "context": "Room poll: screen-reader name of an option's result bar; votes is beaconRoomPollVotesCount (#416)",
+    "placeholders": {
+      "option": {
+        "type": "String"
+      },
+      "votes": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesRowMenuTooltip": "Update actions",
+  "@updatesRowMenuTooltip": {
+    "context": "Updates feed row: overflow menu button (#416)"
+  },
+  "inboxOverflowMenuTooltip": "Activity menu",
+  "@inboxOverflowMenuTooltip": {
+    "context": "Activity screen: top-right overflow menu button (#416)"
   }
 }

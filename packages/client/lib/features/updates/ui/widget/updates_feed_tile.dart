@@ -557,7 +557,9 @@ class _UpdatesFeedRowOverflow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<void>(
-      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+      // #416: a specific name, not the generic "Show menu" the Activity
+      // screen's own top-right menu also wears.
+      tooltip: L10n.of(context)!.updatesRowMenuTooltip,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(
         minWidth: kMinInteractiveDimension,
@@ -593,13 +595,18 @@ class _ActivityDismissControl extends StatelessWidget {
     return SizedBox(
       width: kMinInteractiveDimension,
       height: kMinInteractiveDimension,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: label,
-        iconSize: tt.iconSize,
-        padding: EdgeInsets.zero,
-        color: tt.textFaint,
-        icon: Icon(Icons.close, semanticLabel: label),
+      // #416: the icon label is the one announcement; the tooltip is for
+      // the mouse only.
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: IconButton(
+          onPressed: onPressed,
+          iconSize: tt.iconSize,
+          padding: EdgeInsets.zero,
+          color: tt.textFaint,
+          icon: Icon(Icons.close, semanticLabel: label),
+        ),
       ),
     );
   }

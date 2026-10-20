@@ -5,6 +5,7 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../tentura_colors.dart';
 import '../tentura_icons.dart';
@@ -132,13 +133,12 @@ class TenturaAvatar extends StatelessWidget {
     int? cacheHeight,
     int? cacheWidth,
     BoxFit? fit,
-  }) =>
-      Image.asset(
-        'images/placeholder/avatar.jpg',
-        cacheHeight: cacheHeight,
-        cacheWidth: cacheWidth,
-        fit: fit,
-      );
+  }) => Image.asset(
+    'images/placeholder/avatar.jpg',
+    cacheHeight: cacheHeight,
+    cacheWidth: cacheWidth,
+    fit: fit,
+  );
 
   static double resolveSize(BuildContext context, TenturaAvatarSize bucket) {
     final tt = context.tt;
@@ -256,17 +256,39 @@ class TenturaAvatar extends StatelessWidget {
     }
 
     if (onTap != null) {
-      inner = Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: inner,
+      // #416: a tappable avatar is a button named after the person, not the
+      // initials painted inside it.
+      inner = Semantics(
+        container: true,
+        button: true,
+        label: openProfileLabel(context, profile),
+        onTap: onTap,
+        excludeSemantics: true,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: inner,
+          ),
         ),
       );
     }
 
     return inner;
+  }
+
+  /// Screen-reader name of an avatar that opens [profile]:
+  /// "Name, open profile".
+  static String openProfileLabel(BuildContext context, Profile profile) {
+    final l10n = L10n.of(context);
+    final name = profile.displayName.trim();
+    if (l10n == null) {
+      return name.isEmpty ? 'Open profile' : '$name, open profile';
+    }
+    return name.isEmpty
+        ? l10n.avatarOpenProfileUnnamed
+        : l10n.avatarOpenProfile(name);
   }
 
   /// Initials when there is no profile photo (also used by room mini avatars).
@@ -308,12 +330,11 @@ class _Network extends StatelessWidget {
     final image = profile.image;
     final net = Image.network(
       profile.avatarUrl,
-      errorBuilder: (context, error, stackTrace) =>
-          ProfileAvatarInitials(
-            lettering: initials,
-            size: size,
-            hueKey: profile.id,
-          ),
+      errorBuilder: (context, error, stackTrace) => ProfileAvatarInitials(
+        lettering: initials,
+        size: size,
+        hueKey: profile.id,
+      ),
       // Only one cache dimension: both set would decode to a square and stretch.
       cacheWidth: cacheSize,
       fit: boxFit,
@@ -610,16 +631,17 @@ class _AvatarBadgePainter extends CustomPainter {
     Color color,
     IconData icon,
   ) {
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        fontFamily: icon.fontFamily,
-        textAlign: TextAlign.right,
-        fontSize: box.height / 2,
-        maxLines: 1,
-      ),
-    )
-      ..pushStyle(ui.TextStyle(color: color))
-      ..addText(String.fromCharCode(icon.codePoint));
+    final builder =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontFamily: icon.fontFamily,
+              textAlign: TextAlign.right,
+              fontSize: box.height / 2,
+              maxLines: 1,
+            ),
+          )
+          ..pushStyle(ui.TextStyle(color: color))
+          ..addText(String.fromCharCode(icon.codePoint));
     final paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: box.width));
     canvas.drawParagraph(

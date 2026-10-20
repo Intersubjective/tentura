@@ -203,15 +203,19 @@ class PostAttentionRow extends StatelessWidget {
                   key: dismissKey,
                   width: kMinInteractiveDimension,
                   height: kMinInteractiveDimension,
-                  child: IconButton(
-                    onPressed: onDismiss,
-                    tooltip: l10n.attentionEventDismiss,
-                    iconSize: tt.iconSize,
-                    padding: EdgeInsets.zero,
-                    color: tt.textFaint,
-                    icon: Icon(
-                      Icons.close,
-                      semanticLabel: l10n.attentionEventDismiss,
+                  // #416: one announcement; the tooltip is mouse-only.
+                  child: Tooltip(
+                    message: l10n.attentionEventDismiss,
+                    excludeFromSemantics: true,
+                    child: IconButton(
+                      onPressed: onDismiss,
+                      iconSize: tt.iconSize,
+                      padding: EdgeInsets.zero,
+                      color: tt.textFaint,
+                      icon: Icon(
+                        Icons.close,
+                        semanticLabel: l10n.attentionEventDismiss,
+                      ),
                     ),
                   ),
                 ),

@@ -111,7 +111,8 @@ class BeaconRequestPreviewData {
       admittedHelpers: beacon.admittedHelperUsers,
       admittedHelperCount: beacon.admittedHelperCount,
       status: beacon.status,
-      phaseStatus: phaseStatus ??
+      phaseStatus:
+          phaseStatus ??
           phaseStatusForHierarchyStatus(
             l10n,
             beacon.status,
@@ -203,8 +204,7 @@ BeaconIdentity resolveRequestPreviewIdentity(
 String requestPreviewImageUrl({
   required String ownerId,
   required String imageId,
-}) =>
-    '$kImageServer/$kImagesPath/$ownerId/$imageId.$kImageExt';
+}) => '$kImageServer/$kImagesPath/$ownerId/$imageId.$kImageExt';
 
 /// Shared request-list identity: tile, title, status, named people, face pile.
 ///
@@ -377,10 +377,11 @@ class _PreviewIdentityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context);
+    // #416: the title is printed right beside the tile; naming the tile
+    // after it too made a screen reader say the title twice.
     final label = switch (identity) {
-      BeaconIdentitySymbol(:final tag) when l10n != null =>
-        '${data.title}, ${tag.labelOf(l10n)}',
-      _ => data.title,
+      BeaconIdentitySymbol(:final tag) when l10n != null => tag.labelOf(l10n),
+      _ => null,
     };
     return TenturaIdentityTileFrame(
       size: size,

@@ -62,6 +62,29 @@ String formatRoomAttachmentSize(int bytes) {
   return '${mb.toStringAsFixed(mb >= 10 ? 0 : 1)} MB';
 }
 
+/// Camera / picker file names ("IMG_1234.jpg", "image_picker_UUID.jpg",
+/// "PXL_20261009_…") say nothing to a listener.
+final _kMachineImageName = RegExp(
+  '^(?:img|image|dsc|dscn|dcim|pxl|mvimg|photo|scaled|image_picker|'
+  r'screenshot)?[\s_\-.]*[0-9a-f\s_\-.]*$',
+  caseSensitive: false,
+);
+final _kDigit = RegExp(r'\d');
+
+/// Screen-reader alt text for an image attachment (#416): "Photo: couch" for
+/// a readable file name, plain "Photo" when there is none or it is a camera
+/// or picker name.
+String roomAttachmentImageAlt(L10n l10n, RoomMessageAttachment attachment) {
+  var name = attachment.fileName.trim();
+  final dot = name.lastIndexOf('.');
+  if (dot > 0) name = name.substring(0, dot).trim();
+  if (name.isEmpty ||
+      (_kMachineImageName.hasMatch(name) && name.contains(_kDigit))) {
+    return l10n.beaconRoomPhotoAlt;
+  }
+  return l10n.beaconRoomPhotoAltNamed(name);
+}
+
 /// Inline image strip (fixed height): one or more thumbnails, BoxFit.contain.
 class RoomMessageInlineImageAlbum extends StatefulWidget {
   const RoomMessageInlineImageAlbum({
@@ -108,36 +131,45 @@ class _RoomMessageInlineImageAlbumState
     final items = widget.attachments;
     final albumHeight = roomMessageInlineImageAlbumHeight(context);
 
-    return Semantics(
-      label: 'Image gallery',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(context.tt.cardRadius),
-            child: SizedBox(
-              height: albumHeight,
-              width: double.infinity,
-              child: items.length == 1
-                  ? GestureDetector(
+    final l10n = L10n.of(context)!;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(context.tt.cardRadius),
+          child: SizedBox(
+            height: albumHeight,
+            width: double.infinity,
+            child: items.length == 1
+                ? Semantics(
+                    image: true,
+                    label: roomAttachmentImageAlt(l10n, items.first),
+                    child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => unawaited(
                         openRoomAttachmentImageAlbum(context, items, 0),
                       ),
-                      child: roomAttachmentAlbumThumbnail(context, items.first),
-                    )
-                  : Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        PageView.builder(
-                          controller: _pageController,
-                          itemCount: items.length,
-                          onPageChanged: (i) =>
-                              setState(() => _currentPage = i),
-                          itemBuilder: (ctx, index) {
-                            final a = items[index];
-                            return GestureDetector(
+                      child: roomAttachmentAlbumThumbnail(
+                        context,
+                        items.first,
+                      ),
+                    ),
+                  )
+                : Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      PageView.builder(
+                        controller: _pageController,
+                        itemCount: items.length,
+                        onPageChanged: (i) => setState(() => _currentPage = i),
+                        itemBuilder: (ctx, index) {
+                          final a = items[index];
+                          return Semantics(
+                            image: true,
+                            label: roomAttachmentImageAlt(l10n, a),
+                            child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () => unawaited(
                                 openRoomAttachmentImageAlbum(
@@ -147,80 +179,80 @@ class _RoomMessageInlineImageAlbumState
                                 ),
                               ),
                               child: roomAttachmentAlbumThumbnail(ctx, a),
-                            );
-                          },
+                            ),
+                          );
+                        },
+                      ),
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: _RoomInlineImageNavButton(
+                          icon: Icons.chevron_left,
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).previousPageTooltip,
+                          enabled: _currentPage > 0,
+                          onPressed: () => _goTo(_currentPage - 1),
+                          scheme: scheme,
                         ),
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: _RoomInlineImageNavButton(
-                            icon: Icons.chevron_left,
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).previousPageTooltip,
-                            enabled: _currentPage > 0,
-                            onPressed: () => _goTo(_currentPage - 1),
-                            scheme: scheme,
-                          ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: _RoomInlineImageNavButton(
+                          icon: Icons.chevron_right,
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).nextPageTooltip,
+                          enabled: _currentPage < items.length - 1,
+                          onPressed: () => _goTo(_currentPage + 1),
+                          scheme: scheme,
                         ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: _RoomInlineImageNavButton(
-                            icon: Icons.chevron_right,
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).nextPageTooltip,
-                            enabled: _currentPage < items.length - 1,
-                            onPressed: () => _goTo(_currentPage + 1),
-                            scheme: scheme,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        if (items.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: kSpacingSmall),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${_currentPage + 1}/${items.length}',
+                  style: theme.textTheme.labelSmall,
+                ),
+                const SizedBox(width: kSpacingSmall),
+                ...List.generate(
+                  items.length,
+                  (index) => Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.tt.albumGridGap,
+                      vertical: context.tt.rowGap,
                     ),
+                    child: GestureDetector(
+                      onTap: () => _goTo(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: _currentPage == index ? 10 : 7,
+                        height: _currentPage == index ? 10 : 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentPage == index
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (items.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(top: kSpacingSmall),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${_currentPage + 1}/${items.length}',
-                    style: theme.textTheme.labelSmall,
-                  ),
-                  const SizedBox(width: kSpacingSmall),
-                  ...List.generate(
-                    items.length,
-                    (index) => Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.tt.albumGridGap,
-                        vertical: context.tt.rowGap,
-                      ),
-                      child: GestureDetector(
-                        onTap: () => _goTo(index),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: _currentPage == index ? 10 : 7,
-                          height: _currentPage == index ? 10 : 7,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _currentPage == index
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }
