@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
+import 'package:tentura/design_system/tentura_spacing.dart';
 import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
@@ -2737,8 +2738,10 @@ class _ReactorAvatarStrip extends StatelessWidget {
 /// when the message has one); long-press grows the bubble ~4% during the hold,
 /// confirms with a haptic and opens the sheet too; double-tap quick-reacts.
 /// Desktop/mouse/trackpad: secondary-tap (right-click / Mac ctrl-click /
-/// two-finger) opens the sheet and a hover toolbar exposes reply, the reaction
-/// picker (heart) and more. Tap / long-press / double-tap are filtered to touch
+/// two-finger) anywhere on the bubble, its selectable text included, opens the
+/// sheet and a hover toolbar exposes reply, the reaction picker (heart) and
+/// more. Keyboard: Tab focuses the bubble, and Enter, the Menu key or
+/// Shift+F10 open the sheet (#456). Tap / long-press / double-tap are filtered to touch
 /// pointers so a mouse can't trigger them and a left click stays free for text
 /// selection.
 class _MessageBubbleInteraction extends StatefulWidget {
@@ -2819,10 +2822,85 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   bool _pickerOpen = false;
   bool _reduceMotion = false;
 
+  /// Keyboard focus for the bubble itself, so Tab reaches the message and
+  /// Enter / Menu / Shift+F10 open its actions (#456).
+  final _focusNode = FocusNode(debugLabel: 'RoomMessageBubble');
+
+  /// The secondary-button pointer currently pressed on the bubble.
+  int? _secondaryPointer;
+
+  /// On web the browser's own context menu is turned off while the pointer
+  /// is over a bubble whose menu opens on right-click; the count lets the
+  /// bubbles hand over to each other without re-enabling in between.
+  static int _webMenuSuppressors = 0;
+  bool _suppressingWebMenu = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChanged);
+  }
+
   @override
   void dispose() {
+    _suppressWebMenu(false);
+    _focusNode
+      ..removeListener(_onFocusChanged)
+      ..dispose();
     _pressController.dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _suppressWebMenu(bool suppress) {
+    if (!kIsWeb || suppress == _suppressingWebMenu) return;
+    _suppressingWebMenu = suppress;
+    if (suppress) {
+      if (_webMenuSuppressors++ == 0) {
+        unawaited(BrowserContextMenu.disableContextMenu());
+      }
+    } else if (--_webMenuSuppressors == 0) {
+      unawaited(BrowserContextMenu.enableContextMenu());
+    }
+  }
+
+  /// A raw listener rather than a secondary-tap recognizer: the selectable
+  /// text's own recognizers win the gesture arena on right-click, so the
+  /// menu never opened over the text (#456). Fires once, on release.
+  void _onPointerDown(PointerDownEvent event) {
+    _secondaryPointer = event.buttons & kSecondaryMouseButton != 0
+        ? event.pointer
+        : null;
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (_secondaryPointer != event.pointer) return;
+    _secondaryPointer = null;
+    widget.onActions?.call();
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (_secondaryPointer == event.pointer) _secondaryPointer = null;
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    final onActions = widget.onActions;
+    if (onActions == null || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final opens =
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.contextMenu ||
+        (key == LogicalKeyboardKey.f10 &&
+            HardwareKeyboard.instance.isShiftPressed);
+    if (!opens) return KeyEventResult.ignored;
+    onActions();
+    return KeyEventResult.handled;
   }
 
   /// Leaving the bubble for the toolbar delivers the bubble's exit and the
@@ -2914,10 +2992,32 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     );
 
     if (onActions != null) {
-      content = GestureDetector(
-        behavior: HitTestBehavior.deferToChild,
-        onSecondaryTap: onActions,
-        child: content,
+      final ring = _focusNode.hasPrimaryFocus
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(context.tt.bubbleRadiusLarge),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary,
+                width: TenturaSpacing.focusRing,
+                strokeAlign: BorderSide.strokeAlignOutside,
+              ),
+            )
+          : const BoxDecoration();
+      content = Focus(
+        focusNode: _focusNode,
+        // The bubble's labels and actions are already exposed; an extra
+        // focus node would change how they merge.
+        includeSemantics: false,
+        onKeyEvent: _onKeyEvent,
+        child: Listener(
+          onPointerDown: _onPointerDown,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: ring,
+            child: content,
+          ),
+        ),
       );
     }
 
@@ -2935,10 +3035,12 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     return MouseRegion(
       onEnter: (_) {
         _hovering = true;
+        _suppressWebMenu(onActions != null);
         _syncToolbar();
       },
       onExit: (_) {
         _hovering = false;
+        _suppressWebMenu(false);
         _syncToolbar();
       },
       child: Stack(
@@ -3011,6 +3113,15 @@ class _HoverActionToolbar extends StatelessWidget {
   /// Wide enough for two rows of the 16-emoji grid.
   static const _pickerWidth = 320.0;
 
+  /// Pointer target of each strip button: 40 px on every platform. The
+  /// compact desktop density would shrink them to 32 (#456); the padded tap
+  /// target would grow them to 48 and widen the strip into the picker's way.
+  static final _targetStyle = IconButton.styleFrom(
+    visualDensity: VisualDensity.standard,
+    minimumSize: const Size.square(TenturaSpacing.hoverActionTarget),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
+
   final VoidCallback? onReply;
   final ValueChanged<String>? onPickReaction;
   final Set<String> selectedReactions;
@@ -3032,7 +3143,7 @@ class _HoverActionToolbar extends StatelessWidget {
         children: [
           if (onReply != null)
             IconButton(
-              visualDensity: VisualDensity.compact,
+              style: _targetStyle,
               iconSize: 18,
               tooltip: l10n.beaconRoomActionReply,
               icon: const Icon(Icons.reply_outlined),
@@ -3061,7 +3172,7 @@ class _HoverActionToolbar extends StatelessWidget {
               ],
               builder: (context, controller, _) => IconButton(
                 key: TestIds.key(TestIds.roomMessageReactionPickerButton),
-                visualDensity: VisualDensity.compact,
+                style: _targetStyle,
                 iconSize: 18,
                 tooltip: l10n.beaconRoomReactionAddTooltip,
                 icon: const Icon(Icons.favorite_border),
@@ -3071,7 +3182,7 @@ class _HoverActionToolbar extends StatelessWidget {
             ),
           if (onMore != null)
             IconButton(
-              visualDensity: VisualDensity.compact,
+              style: _targetStyle,
               iconSize: 18,
               tooltip: l10n.beaconRoomMessageActionsTitle,
               icon: const Icon(Icons.more_horiz),
