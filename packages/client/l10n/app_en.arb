@@ -2235,6 +2235,18 @@
   "@credentialRecoverySeed": {
     "context": "CredentialsScreen"
   },
+  "recoverySeedAnotherTitle": "You already have a recovery seed",
+  "@recoverySeedAnotherTitle": {
+    "context": "CredentialsScreen"
+  },
+  "recoverySeedAnotherBody": "This makes another recovery seed: a new, separate sign-in method. Your current recovery seed keeps working. The new one is shown only once, so write it down.",
+  "@recoverySeedAnotherBody": {
+    "context": "CredentialsScreen"
+  },
+  "recoverySeedAnotherConfirm": "Make another",
+  "@recoverySeedAnotherConfirm": {
+    "context": "CredentialsScreen"
+  },
   "linkEmailTitle": "Link email",
   "@linkEmailTitle": {
     "context": "CredentialsScreen"

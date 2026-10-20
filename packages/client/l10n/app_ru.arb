@@ -2160,6 +2160,18 @@
   "@credentialRecoverySeed": {
     "context": "CredentialsScreen"
   },
+  "recoverySeedAnotherTitle": "У вас уже есть seed восстановления",
+  "@recoverySeedAnotherTitle": {
+    "context": "CredentialsScreen"
+  },
+  "recoverySeedAnotherBody": "Будет создан ещё один seed восстановления — новый, отдельный способ входа. Текущий seed восстановления продолжит работать. Новый будет показан только один раз, поэтому запишите его.",
+  "@recoverySeedAnotherBody": {
+    "context": "CredentialsScreen"
+  },
+  "recoverySeedAnotherConfirm": "Создать ещё один",
+  "@recoverySeedAnotherConfirm": {
+    "context": "CredentialsScreen"
+  },
   "linkEmailTitle": "Привязать почту",
   "@linkEmailTitle": {
     "context": "CredentialsScreen"
