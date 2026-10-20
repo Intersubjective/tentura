@@ -9977,5 +9977,13 @@
   "inboxOverflowMenuTooltip": "Activity menu",
   "@inboxOverflowMenuTooltip": {
     "context": "Activity screen: top-right overflow menu button (#416)"
+  },
+  "homeNavLandmark": "Main navigation",
+  "@homeNavLandmark": {
+    "context": "Screen-reader name of Home's navigation rail / bottom bar landmark (#500)"
+  },
+  "skipToContent": "Skip to content",
+  "@skipToContent": {
+    "context": "Keyboard skip link before Home's navigation rail; moves focus to the page (#500)"
   }
 }

@@ -27,6 +27,7 @@ import '../widget/home_bottom_navigation_bar.dart';
 import '../widget/home_nav_destinations.dart';
 import '../widget/home_post_join_listener.dart';
 import '../widget/home_rail_account_footer.dart';
+import '../widget/home_rail_layout.dart';
 import '../widget/home_shell_chrome_listenable.dart';
 import '../widget/inbox_needs_me_reporter.dart';
 
@@ -185,51 +186,45 @@ class _HomeShellState extends State<_HomeShell> {
         color: Theme.of(context).scaffoldBackgroundColor,
         child: HomeBottomNavListener(
           tabsRouter: tabsRouter,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              NavigationRail(
-                extended: extendedRail,
-                selectedIndex: HomeTabSpec.destinationIndexFor(
-                  tabsRouter.activeIndex,
-                ),
-                onDestinationSelected: (index) => _onDestinationSelected(
-                  context,
-                  tabsRouter,
-                  index,
-                ),
-                labelType: extendedRail
-                    ? NavigationRailLabelType.none
-                    : NavigationRailLabelType.all,
-                destinations: homeRailDestinations(l10n),
-                // The account sits at the rail's foot, not among the
-                // destinations.
-                trailing: Expanded(
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: context.tt.cardGap),
-                      child: HomeRailAccountFooter(
-                        extended: extendedRail,
-                        selected: meActive,
-                        onPressed: () => _onDestinationSelected(
-                          context,
-                          tabsRouter,
-                          meIndex,
-                        ),
+          child: HomeRailLayout(
+            rail: NavigationRail(
+              extended: extendedRail,
+              selectedIndex: HomeTabSpec.destinationIndexFor(
+                tabsRouter.activeIndex,
+              ),
+              onDestinationSelected: (index) => _onDestinationSelected(
+                context,
+                tabsRouter,
+                index,
+              ),
+              labelType: extendedRail
+                  ? NavigationRailLabelType.none
+                  : NavigationRailLabelType.all,
+              destinations: homeRailDestinations(l10n),
+              // The account sits at the rail's foot, not among the
+              // destinations.
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: context.tt.cardGap),
+                    child: HomeRailAccountFooter(
+                      extended: extendedRail,
+                      selected: meActive,
+                      onPressed: () => _onDestinationSelected(
+                        context,
+                        tabsRouter,
+                        meIndex,
                       ),
                     ),
                   ),
                 ),
               ),
-              const TenturaVerticalHairline(),
-              Expanded(
-                child: Scaffold(
-                  resizeToAvoidBottomInset: false,
-                  body: content,
-                ),
-              ),
-            ],
+            ),
+            child: Scaffold(
+              resizeToAvoidBottomInset: false,
+              body: content,
+            ),
           ),
         ),
       );

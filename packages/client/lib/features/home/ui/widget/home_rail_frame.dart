@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/home_attention_cubit.dart';
 import 'home_rail_account_footer.dart';
+import 'home_rail_layout.dart';
 import 'home_nav_destinations.dart';
 
 /// Home's side navigation around a root route that covers the Home page.
@@ -79,16 +80,14 @@ class HomeRailFrame extends StatelessWidget {
       ),
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (badged)
-          BlocProvider.value(value: GetIt.I<HomeAttentionCubit>(), child: rail)
-        else
-          rail,
-        const TenturaVerticalHairline(),
-        Expanded(child: child),
-      ],
+    return HomeRailLayout(
+      rail: badged
+          ? BlocProvider.value(
+              value: GetIt.I<HomeAttentionCubit>(),
+              child: rail,
+            )
+          : rail,
+      child: child,
     );
   }
 }

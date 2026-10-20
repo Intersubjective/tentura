@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Compact home tab bar with a **fixed** icon + label slot per destination.
 ///
@@ -61,7 +63,10 @@ class HomeBottomNavigationBar extends StatelessWidget {
           top: false,
           child: SizedBox(
             height: height,
+            // The bar is Home's one named navigation landmark (#500).
             child: Semantics(
+              role: SemanticsRole.navigation,
+              label: L10n.of(context)!.homeNavLandmark,
               explicitChildNodes: true,
               container: true,
               child: Row(
