@@ -21,6 +21,11 @@ abstract final class TenturaSpacing {
   /// window class.
   static const double focusRing = 2;
 
+  /// Minimum pointer target of a dense icon button, e.g. the chat hover
+  /// toolbar (#456). Intentionally fixed — does not scale with the window
+  /// class.
+  static const double hoverActionTarget = 40;
+
   /// M3 search-field height on Updates and similar list screens.
   static const double searchBar = 48;
 
