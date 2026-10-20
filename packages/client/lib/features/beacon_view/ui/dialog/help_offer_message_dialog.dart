@@ -253,9 +253,11 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
               ),
               SizedBox(height: tt.sectionGap),
             ],
+            // Identifier only: a `textField` flag here would conflict with
+            // the field's own text-field node and split it in two, leaving
+            // an unlabelled text field in front of the real one (#360).
             Semantics(
               identifier: TestIds.helpOfferMessage,
-              textField: true,
               child: TextField(
                 key: TestIds.key(TestIds.helpOfferMessage),
                 autofocus: !widget.requireWithdrawReason,
@@ -277,9 +279,9 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
+                      // Identifier only: the TextButton is the named button.
                       child: Semantics(
                         identifier: TestIds.helpOfferBrowseCategories,
-                        button: true,
                         child: TextButton.icon(
                           key: TestIds.key(TestIds.helpOfferBrowseCategories),
                           onPressed: () {
@@ -331,7 +333,6 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                 SizedBox(height: tt.rowGap),
                 Semantics(
                   identifier: TestIds.helpOfferSearch,
-                  textField: true,
                   child: TextField(
                     key: TestIds.key(TestIds.helpOfferSearch),
                     controller: _searchController,
@@ -417,10 +418,10 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
                     child: _buildScrollContent(l10n, theme, tt),
                   ),
                   SizedBox(height: tt.sectionGap),
+                  // Identifier only: a `button` flag here made one unnamed
+                  // button around both Cancel and Submit (#360).
                   Semantics(
                     identifier: TestIds.helpOfferSubmit,
-                    button: true,
-                    enabled: _canSubmit,
                     child: TenturaSheetActions(
                       cancelLabel: l10n.buttonCancel,
                       onCancel: _requestClose,
