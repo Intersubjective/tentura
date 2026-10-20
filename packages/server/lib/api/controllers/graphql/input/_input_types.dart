@@ -28,6 +28,15 @@ part 'input_field_plan_step_times.dart';
 
 const kGlobalInputQueryContext = 'queryContext';
 const kGlobalInputQueryFile = 'queryFile';
+
+/// `Float` for input positions: accepts JSON integers as well as doubles.
+///
+/// Web clients encode an integral double such as `1.0` as the JSON number `1`
+/// (JavaScript has a single number type). The library's [graphQLFloat] is
+/// typed `double`, so an `int` variable fails its covariant `validate` check
+/// with a `TypeError` that reaches clients as the generic 1000 error.
+/// Resolvers read these values as `num` and call `toDouble()`.
+final graphQLFloatInput = GraphQLNumType<num>('Float');
 const kGlobalInputQueryJwt = kContextJwtKey;
 
 class InputFieldBool {
@@ -147,10 +156,10 @@ class InputFieldFloat {
   InputFieldFloat({required String fieldName})
     : fieldNonNullable = GraphQLFieldInput(
         fieldName,
-        graphQLFloat.nonNullable(),
+        graphQLFloatInput.nonNullable(),
       );
 
-  final GraphQLFieldInput<double, double> fieldNonNullable;
+  final GraphQLFieldInput<num, num> fieldNonNullable;
 
   double fromArgsNonNullable(Map<String, dynamic> args) {
     final raw = args[fieldNonNullable.name];

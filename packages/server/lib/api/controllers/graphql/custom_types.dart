@@ -1053,8 +1053,8 @@ final gqlEnumConstellationAnchorOpStatus = enumTypeFromStrings(
 final gqlInputConstellationAnchorPosition = GraphQLInputObjectType(
   'ConstellationAnchorPositionInput',
   inputFields: [
-    GraphQLInputObjectField('xUnits', graphQLFloat.nonNullable()),
-    GraphQLInputObjectField('yUnits', graphQLFloat.nonNullable()),
+    GraphQLInputObjectField('xUnits', graphQLFloatInput.nonNullable()),
+    GraphQLInputObjectField('yUnits', graphQLFloatInput.nonNullable()),
     GraphQLInputObjectField('coordinateSpaceVersion', graphQLInt.nonNullable()),
   ],
 );

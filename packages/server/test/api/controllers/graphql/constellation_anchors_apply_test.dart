@@ -211,6 +211,34 @@ void main() {
       expect(ops[1].ifRevision, isNull);
     });
 
+    // Web clients send an integral double such as `1.0` as the JSON number
+    // `1` (JavaScript has one number type), so Float inputs must accept ints.
+    test('accepts integral coordinates sent as JSON integers', () async {
+      final result = await run(
+        ops: [
+          {
+            ..._upsertOp('op-1', peerA),
+            'position': {
+              'xUnits': 1,
+              'yUnits': -2,
+              'coordinateSpaceVersion': kConstellationCoordinateSpaceVersionV1,
+            },
+          },
+        ],
+      );
+
+      expect(
+        (result['results'] as List<dynamic>).first,
+        containsPair(
+          'status',
+          'OK',
+        ),
+      );
+      final position = repository.lastOps!.single.position!;
+      expect(position.xUnits, 1.0);
+      expect(position.yUnits, -2.0);
+    });
+
     for (final argument in ['context', 'showClosed', 'participatedOnly']) {
       test('rejects removed $argument argument', () async {
         await expectLater(

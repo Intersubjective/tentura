@@ -10,16 +10,16 @@ abstract class InputFieldCoordinates {
   static final type = GraphQLInputObjectType(
     'Coordinates',
     inputFields: [
-      GraphQLInputObjectField(_latitudeKey, graphQLFloat),
-      GraphQLInputObjectField(_longitutdeKey, graphQLFloat),
+      GraphQLInputObjectField(_latitudeKey, graphQLFloatInput),
+      GraphQLInputObjectField(_longitutdeKey, graphQLFloatInput),
     ],
   );
 
   static Coordinates? fromArgs(Map<String, dynamic> args) =>
       switch (args[_fieldKey]) {
         final Map<String, dynamic> field when field.isNotEmpty => Coordinates(
-          lat: field[_latitudeKey]! as double,
-          long: field[_longitutdeKey]! as double,
+          lat: (field[_latitudeKey]! as num).toDouble(),
+          long: (field[_longitutdeKey]! as num).toDouble(),
         ),
         _ => null,
       };
