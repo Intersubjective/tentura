@@ -32,8 +32,12 @@ class FriendRemoveDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final question = l10n.confirmFriendRemoval(profile.shownName);
     return AlertDialog.adaptive(
-      title: Text(l10n.confirmFriendRemoval(profile.shownName)),
+      // Names the dialog route for screen readers (#463); without it the
+      // route is announced as a generic "Alert".
+      semanticLabel: question,
+      title: Text(question),
       actions: [
         // Stop trusting
         TextButton(
