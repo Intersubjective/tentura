@@ -947,65 +947,80 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final nowPaneWidth = _splitNowPaneWidth(tt, constraints.maxWidth);
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: BeaconRoomSurface(
-                host: beaconViewCubit,
-                roomLease: roomLease,
-                legacyThreadId: widget.threadId,
-                messageId: widget.messageId,
-                onCoordinationSaved: _refreshThreadsTab,
-                onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
-                // The Now pane beside the chat shows the NOW line; the chat
-                // keeps only an open blocker (#451).
-                pinnedStrip: RoomPinnedStrip.requestBlocker,
-              ),
-            ),
-            TenturaVerticalResizeHandle(
-              onDragDelta: (dx) {
-                // Now pane is on the trailing side: drag left (negative dx)
-                // widens it. Several moves can land before the next frame, so
-                // each one starts from the width the previous one set, not
-                // from the width this frame was built with.
-                setState(() {
-                  _nowPaneWidthOverride = _splitNowPaneWidth(
-                    tt,
-                    constraints.maxWidth,
-                    preferredWidth:
-                        (_nowPaneWidthOverride ?? nowPaneWidth) - dx,
-                  );
-                });
-              },
-            ),
-            SizedBox(
-              width: nowPaneWidth,
-              // The pane's own messenger: its bars ("Plan saved" and the
-              // like) span this pane only and never cover the chat composer
-              // beside it (#448). It wraps the whole switch so a bar shown
-              // as a plan page closes outlives that page.
-              child: ScaffoldMessenger(
-                child: Scaffold(
-                  primary: false,
-                  backgroundColor: Colors.transparent,
-                  resizeToAvoidBottomInset: false,
-                  // A plan page takes the plan's pane; the chat stays beside
-                  // it.
-                  body: switch (_activePlanPage) {
-                    final page? => _buildPlanPage(page, beaconState),
-                    null => _buildTabbedContent(
-                      beaconViewCubit: beaconViewCubit,
-                      screenCubit: screenCubit,
-                      beaconState: beaconState,
-                      isSplit: true,
+        // Tab walks the chat pane (messages, then the composer) before the
+        // Now pane, not row by row across both panes (#415).
+        return FocusTraversalGroup(
+          policy: OrderedTraversalPolicy(),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: FocusTraversalOrder(
+                  order: const NumericFocusOrder(1),
+                  child: FocusTraversalGroup(
+                    child: BeaconRoomSurface(
+                      host: beaconViewCubit,
                       roomLease: roomLease,
+                      legacyThreadId: widget.threadId,
+                      messageId: widget.messageId,
+                      onCoordinationSaved: _refreshThreadsTab,
+                      onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
+                      // The Now pane beside the chat shows the NOW line; the chat
+                      // keeps only an open blocker (#451).
+                      pinnedStrip: RoomPinnedStrip.requestBlocker,
                     ),
-                  },
+                  ),
                 ),
               ),
-            ),
-          ],
+              TenturaVerticalResizeHandle(
+                onDragDelta: (dx) {
+                  // Now pane is on the trailing side: drag left (negative dx)
+                  // widens it. Several moves can land before the next frame, so
+                  // each one starts from the width the previous one set, not
+                  // from the width this frame was built with.
+                  setState(() {
+                    _nowPaneWidthOverride = _splitNowPaneWidth(
+                      tt,
+                      constraints.maxWidth,
+                      preferredWidth:
+                          (_nowPaneWidthOverride ?? nowPaneWidth) - dx,
+                    );
+                  });
+                },
+              ),
+              SizedBox(
+                width: nowPaneWidth,
+                // The pane's own messenger: its bars ("Plan saved" and the
+                // like) span this pane only and never cover the chat composer
+                // beside it (#448). It wraps the whole switch so a bar shown
+                // as a plan page closes outlives that page.
+                child: FocusTraversalOrder(
+                  order: const NumericFocusOrder(2),
+                  child: FocusTraversalGroup(
+                    child: ScaffoldMessenger(
+                      child: Scaffold(
+                        primary: false,
+                        backgroundColor: Colors.transparent,
+                        resizeToAvoidBottomInset: false,
+                        // A plan page takes the plan's pane; the chat stays beside
+                        // it.
+                        body: switch (_activePlanPage) {
+                          final page? => _buildPlanPage(page, beaconState),
+                          null => _buildTabbedContent(
+                            beaconViewCubit: beaconViewCubit,
+                            screenCubit: screenCubit,
+                            beaconState: beaconState,
+                            isSplit: true,
+                            roomLease: roomLease,
+                          ),
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
