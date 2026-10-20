@@ -260,8 +260,23 @@ class _CredentialsScreenState extends State<CredentialsScreen>
 
   /// The seed dialog itself explains the seed and holds the "I saved it"
   /// step, so nothing follows it here.
+  ///
+  /// With a seed already on the account, ask first: every confirmed tap makes
+  /// one more, separate seed (#467), and nothing is minted on Cancel.
   Future<void> _linkSeed(BuildContext context) async {
-    final seed = await context.read<CredentialsCubit>().linkRecoverySeed();
+    final cubit = context.read<CredentialsCubit>();
+    if (cubit.state.credentials.hasType(CredentialTypes.ed25519Device)) {
+      final l10n = L10n.of(context)!;
+      final confirmed = await TenturaConfirmDialog.show(
+        context: context,
+        title: l10n.recoverySeedAnotherTitle,
+        content: l10n.recoverySeedAnotherBody,
+        confirmLabel: l10n.recoverySeedAnotherConfirm,
+        cancelLabel: l10n.buttonCancel,
+      );
+      if (!(confirmed ?? false) || !context.mounted) return;
+    }
+    final seed = await cubit.linkRecoverySeed();
     if (seed == null || !context.mounted) return;
     await ShowSeedDialog.show(context, seed: seed);
   }
