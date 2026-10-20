@@ -7126,5 +7126,7 @@
     }
   },
   "updatesRowMenuTooltip": "Действия с событием",
-  "inboxOverflowMenuTooltip": "Меню активности"
+  "inboxOverflowMenuTooltip": "Меню активности",
+  "homeNavLandmark": "Основная навигация",
+  "skipToContent": "Перейти к содержимому"
 }
