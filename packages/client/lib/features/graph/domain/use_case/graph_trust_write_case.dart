@@ -50,6 +50,7 @@ final class GraphTrustWriteCase extends UseCaseBase {
   final _peers = <String, _TrustSlot>{};
   final _reverts = StreamController<GraphTrustRevert>.broadcast();
   final _resets = StreamController<Profile>.broadcast();
+  final _acknowledgements = StreamController<Profile>.broadcast();
   final _notices = StreamController<LazyWriteNotice>.broadcast();
   late final StreamSubscription<String> _accountSubscription;
   String _accountId = '';
@@ -62,6 +63,10 @@ final class GraphTrustWriteCase extends UseCaseBase {
   /// the last acknowledged value restored.
   Stream<Profile> get resets => _resets.stream;
 
+  /// Peers whose latest intended trust value the server has just
+  /// acknowledged, with that value applied.
+  Stream<Profile> get acknowledgements => _acknowledgements.stream;
+
   Stream<LazyWriteNotice> get lazyWriteNotices => _notices.stream;
 
   Profile setTrust(Profile peer, {required bool add}) {
@@ -73,7 +78,18 @@ final class GraphTrustWriteCase extends UseCaseBase {
       ..desired = amount
       ..rejection = null;
     if (!slot.active) _start(slot, force: !supersedesRejection);
-    return peer.copyWith(myVote: amount);
+    return _withVote(peer, amount);
+  }
+
+  /// [peer] with the viewer's vote set to [amount] and the mutual bond kept in
+  /// step: withdrawing trust ends it, (re-)trusting makes it only when the
+  /// subject trusts the viewer back.
+  static Profile _withVote(Profile peer, int amount) {
+    if (peer.myVote == amount) return peer;
+    return peer.copyWith(
+      myVote: amount,
+      isMutualFriend: amount > 0 && peer.subjectExplicitlyTrustsViewer,
+    );
   }
 
   /// A Retry action belongs to its rejected intent and account, even if the
@@ -104,7 +120,7 @@ final class GraphTrustWriteCase extends UseCaseBase {
     }
     return slot == null
         ? peer
-        : peer.copyWith(myVote: slot.active ? slot.desired : slot.acknowledged);
+        : _withVote(peer, slot.active ? slot.desired : slot.acknowledged);
   }
 
   bool _isLive(_TrustSlot slot) =>
@@ -134,6 +150,9 @@ final class GraphTrustWriteCase extends UseCaseBase {
       slot.acknowledged = slot.inFlight;
       slot.active = false;
       slot.overdue?.cancel();
+      if (slot.desired == slot.acknowledged) {
+        _acknowledgements.add(_withVote(slot.profile, slot.acknowledged));
+      }
       _start(slot);
     } on Object catch (error, stackTrace) {
       if (!_isLive(slot)) return;
@@ -173,7 +192,7 @@ final class GraphTrustWriteCase extends UseCaseBase {
       slot.overdue?.cancel();
       slot.retry?.cancel();
       if (slot.desired != slot.acknowledged) {
-        _resets.add(slot.profile.copyWith(myVote: slot.acknowledged));
+        _resets.add(_withVote(slot.profile, slot.acknowledged));
       }
     }
     _peers.clear();
@@ -187,6 +206,7 @@ final class GraphTrustWriteCase extends UseCaseBase {
     await _accountSubscription.cancel();
     await _reverts.close();
     await _resets.close();
+    await _acknowledgements.close();
     await _notices.close();
   }
 }

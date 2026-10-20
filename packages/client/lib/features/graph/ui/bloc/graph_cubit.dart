@@ -183,12 +183,25 @@ class GraphCubit extends Cubit<GraphState> {
   /// Every edge ever fetched this session, keyed by `(src, dst)` — the
   /// source of truth for focus-path visibility. Unlike `graphController`
   /// (which only holds what is currently rendered), nothing is ever removed
-  /// here except on full resets ([setContext]).
+  /// here except on full resets ([setContext]) and the viewer's own
+  /// withdrawn trust edge ([patchLoadedProfile]).
   final _allEdges = <(String, String), EdgeDirected>{};
 
   /// Bumped when [_allEdges] is discarded ([setContext]). Stale async merges
   /// must not write into a newer cache generation.
   int _cacheEpoch = 0;
+
+  /// Viewer→peer edges dropped from [_allEdges] by a local trust withdrawal
+  /// ([patchLoadedProfile]), so a revert restores the original weight.
+  final _withdrawnViewerEdges = <String, EdgeDirected>{};
+
+  /// Peers whose viewer→peer edge was just withdrawn: kept on the ego view
+  /// until the next fetch, so the person does not vanish under the finger.
+  final _keptViewerPeers = <String>{};
+
+  /// Peers whose viewer→peer edge is a local stand-in (re-trust with no
+  /// stashed edge), replaced by the server edge once the write is acked.
+  final _provisionalViewerEdges = <String>{};
 
   /// Bumped at each [_fetch] start so overlapping fetches supersede older ones.
   int _fetchEpoch = 0;
@@ -248,6 +261,9 @@ class GraphCubit extends Cubit<GraphState> {
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
     _allEdges.clear();
+    _withdrawnViewerEdges.clear();
+    _keptViewerPeers.clear();
+    _provisionalViewerEdges.clear();
     if (mode == GraphMode.genealogy) {
       _genealogyChildrenCursors.clear();
       _genealogyParentChainNodeIds.clear();
@@ -448,6 +464,10 @@ class GraphCubit extends Cubit<GraphState> {
       );
       return;
     }
+    final previousVote = switch (_nodes[updated.id]) {
+      final UserNode node when _isTrustGraph => node.user.myVote,
+      _ => null,
+    };
     for (final entry in _nodes.entries) {
       final node = entry.value;
       final NodeDetails? replacement = switch (node) {
@@ -477,6 +497,96 @@ class GraphCubit extends Cubit<GraphState> {
         _refreshControllerNodePayload(controllerNode.id, replacement);
       }
     }
+    if (previousVote != null) {
+      if (previousVote > 0 &&
+          updated.myVote > 0 &&
+          _provisionalViewerEdges.contains(updated.id)) {
+        unawaited(_replaceProvisionalViewerEdge(updated.id));
+        return;
+      }
+      _patchViewerEdge(
+        updated.id,
+        wasTrusted: previousVote > 0,
+        trusts: updated.myVote > 0,
+      );
+    }
+  }
+
+  /// Overwrites the provisional viewer→[peerId] edge (and its reverse) with
+  /// what the server now holds. Keeps the stand-in if nothing comes back.
+  Future<void> _replaceProvisionalViewerEdge(String peerId) async {
+    final cacheEpoch = _cacheEpoch;
+    final egoId = _egoNode.id;
+    final Set<EdgeDirected> edges;
+    try {
+      edges = await _graphSource.fetchEdgesBetween(
+        nodeIds: {egoId, peerId},
+        positiveOnly: false,
+      );
+    } catch (e, st) {
+      developer.log(
+        'graph_edges_between failed; keeping the provisional trust edge',
+        name: 'GraphCubit',
+        error: e,
+        stackTrace: st,
+      );
+      return;
+    }
+    if (isClosed ||
+        cacheEpoch != _cacheEpoch ||
+        !_provisionalViewerEdges.contains(peerId)) {
+      return;
+    }
+    final fromViewer = edges
+        .where((e) => e.src == egoId && e.dst == peerId && e.weight > 0)
+        .firstOrNull;
+    if (fromViewer == null) return;
+    _provisionalViewerEdges.remove(peerId);
+    _mergeEdgesIntoCache({
+      for (final e in edges)
+        if ((e.src == egoId && e.dst == peerId) ||
+            (e.src == peerId && e.dst == egoId))
+          e,
+    });
+    _recomputeVisibility();
+  }
+
+  /// Keeps the viewer→[peerId] edge in step with a local trust transition
+  /// (#359): withdrawal drops it, (re-)trust restores it — the stashed edge
+  /// on a revert, else a fresh full-trust edge. No refetch; peer→viewer and
+  /// every node stay.
+  void _patchViewerEdge(
+    String peerId, {
+    required bool wasTrusted,
+    required bool trusts,
+  }) {
+    final key = (_egoNode.id, peerId);
+    if (wasTrusted && !trusts) {
+      _provisionalViewerEdges.remove(peerId);
+      final edge = _allEdges.remove(key);
+      if (edge == null) return;
+      _withdrawnViewerEdges[peerId] = edge;
+      _keptViewerPeers.add(peerId);
+    } else if (!wasTrusted && trusts) {
+      final stashed = _withdrawnViewerEdges.remove(peerId);
+      _keptViewerPeers.remove(peerId);
+      if (_allEdges.containsKey(key)) return;
+      if (stashed == null) _provisionalViewerEdges.add(peerId);
+      _allEdges[key] =
+          stashed ??
+          (
+            src: _egoNode.id,
+            dst: peerId,
+            weight: 1.0,
+            node: _nodes[peerId],
+            branch: null,
+            srcTotalNeighborCount: null,
+            dstTotalNeighborCount: null,
+          );
+    } else {
+      return;
+    }
+    _recomputeVisibility();
   }
 
   void fitCurrentPath() {
@@ -689,6 +799,9 @@ class GraphCubit extends Cubit<GraphState> {
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
     _allEdges.clear();
+    _withdrawnViewerEdges.clear();
+    _keptViewerPeers.clear();
+    _provisionalViewerEdges.clear();
     _everFocusedIds
       ..clear()
       ..add(_egoNode.id);
@@ -896,6 +1009,10 @@ class GraphCubit extends Cubit<GraphState> {
         await _resolveEdgeEndpoints(closure);
         if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
 
+        _keptViewerPeers.clear();
+        for (final e in {...star, ...closure}) {
+          if (e.src == _egoNode.id) _provisionalViewerEdges.remove(e.dst);
+        }
         _mergeEdgesIntoCache(star);
         _mergeEdgesIntoCache(closure);
         if (limitKey.isNotEmpty) {
@@ -1303,6 +1420,9 @@ class GraphCubit extends Cubit<GraphState> {
       ..._focusPathIds,
       if (focusId.isNotEmpty) focusId,
       ...extraIds,
+      if (focusId.isEmpty || focusId == _egoNode.id)
+        for (final id in _keptViewerPeers)
+          if (_nodes.containsKey(id)) id,
     };
     if (focusId.isEmpty) {
       for (final entry in _allEdges.entries) {
