@@ -131,6 +131,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// Pending account-owned replays a catch-up read must wait for, if any.
   Future<void>? Function()? _catchUpHold;
 
+  /// Pending anchor write whose realtime echo may precede its acknowledgement.
+  Future<void>? Function()? _anchorHintHold;
+
   Stream<ConstellationFieldStoreState> get changes => _changes.stream;
 
   ConstellationFieldStoreState get current => _state;
@@ -216,6 +219,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// Defer the catch-up read until the writer's replay has been dispatched.
   // ignore: use_setters_to_change_properties -- a hook, not a property
   void holdCatchUpReads(Future<void>? Function()? hold) => _catchUpHold = hold;
+
+  /// Judge queued anchor hints only after the writer's apply in flight settles.
+  // ignore: use_setters_to_change_properties -- a hook, not a property
+  void holdAnchorHints(Future<void>? Function()? hold) =>
+      _anchorHintHold = hold;
 
   bool get _visible => _browserVisible && _leases.any((l) => l.visible);
 
@@ -543,6 +551,14 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       final full = _fullInFlight;
       if (full != null && full.paramsGeneration == _paramsGeneration) {
         await full.future;
+      }
+      // An own write's echo beats its ack; the ack's settle() covers it.
+      for (
+        var hold = _anchorHintHold?.call();
+        hold != null;
+        hold = _anchorHintHold?.call()
+      ) {
+        await hold;
       }
       _anchorsQueued = false;
       final hinted = _queuedHintRevision;

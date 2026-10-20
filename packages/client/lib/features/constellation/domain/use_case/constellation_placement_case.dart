@@ -38,6 +38,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
       realtime.catchUps.listen((_) => _onCatchUp()),
     ];
     _store.holdCatchUpReads(() => _replayBarrier?.future);
+    _store.holdAnchorHints(() => _applyBarrier?.future);
   }
 
   static const _batchCap = 64;
@@ -73,6 +74,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
 
   /// Held by the store so a catch-up read follows the replay's dispatch.
   Completer<void>? _replayBarrier;
+
+  /// Held by the store so a realtime anchor hint is judged only after the
+  /// apply batch in flight (whose echo may beat its acknowledgement) settles.
+  Completer<void>? _applyBarrier;
 
   PlacementOutboxState get current => _state;
   Stream<PlacementOutboxState> get changes => _changes.stream;
@@ -339,6 +344,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
         if (!retry) {
           _watchOverdue({for (final slot in batch) slot.op.clientOpId});
         }
+        final applying = _applyBarrier = Completer<void>();
         try {
           final result = await _repository.apply(
             ops: [for (final slot in batch) _applyOp(slot.op)],
@@ -380,6 +386,9 @@ final class ConstellationPlacementCase extends UseCaseBase {
             error,
             stackTrace,
           );
+        } finally {
+          if (identical(_applyBarrier, applying)) _applyBarrier = null;
+          applying.complete();
         }
       }
     } finally {
@@ -593,7 +602,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _cancelOverdue();
     _replayBarrier?.complete();
     _replayBarrier = null;
+    _applyBarrier?.complete();
+    _applyBarrier = null;
     _store.holdCatchUpReads(null);
+    _store.holdAnchorHints(null);
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
