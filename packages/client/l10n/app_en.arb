@@ -2041,6 +2041,15 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
+  "ratingScatterClusterMore": "{count, plural, one{{count} more person here} other{{count} more people here}}",
+  "@ratingScatterClusterMore": {
+    "context": "RatingScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "alter": "Person",
   "@alter": {
     "context": "RatingScreen"
