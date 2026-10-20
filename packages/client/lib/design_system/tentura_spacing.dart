@@ -16,6 +16,11 @@ abstract final class TenturaSpacing {
   /// Intentionally fixed — does not scale with [WindowClass].
   static const double tight = 2;
 
+  /// Stroke width of a keyboard focus ring drawn around a focused control
+  /// (e.g. a map marker). Intentionally fixed — does not scale with the
+  /// window class.
+  static const double focusRing = 2;
+
   /// M3 search-field height on Updates and similar list screens.
   static const double searchBar = 48;
 
