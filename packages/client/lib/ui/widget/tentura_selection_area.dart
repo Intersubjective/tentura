@@ -17,7 +17,7 @@ bool tenturaDesktopSelectionEnabledFor(ThemeData theme) {
 /// Mobile web and native touch clients keep long-press menus unchanged.
 /// Flutter's default selection context menu is suppressed so secondary-tap
 /// can reach caller menus (message / fact actions) on ancestor [InkWell]s.
-class TenturaSelectionArea extends StatelessWidget {
+class TenturaSelectionArea extends StatefulWidget {
   const TenturaSelectionArea({
     required this.child,
     super.key,
@@ -26,14 +26,34 @@ class TenturaSelectionArea extends StatelessWidget {
   final Widget child;
 
   @override
+  State<TenturaSelectionArea> createState() => _TenturaSelectionAreaState();
+}
+
+class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
+  // Not a Tab stop: the text sits inside a control that already has its own
+  // stop, so a second, invisible stop would repeat it (#415). A click still
+  // focuses it, so Ctrl+A / Ctrl+C keep working after a mouse selection.
+  final _focusNode = FocusNode(
+    debugLabel: 'TenturaSelectionArea',
+    skipTraversal: true,
+  );
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (!tenturaDesktopSelectionEnabledFor(Theme.of(context))) {
-      return child;
+      return widget.child;
     }
 
     return SelectionArea(
+      focusNode: _focusNode,
       contextMenuBuilder: (_, _) => const SizedBox.shrink(),
-      child: child,
+      child: widget.child,
     );
   }
 }
