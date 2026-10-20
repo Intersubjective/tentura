@@ -11,6 +11,7 @@ export 'components/tentura_command_button.dart';
 export 'components/tentura_change_highlight.dart';
 export 'components/tentura_confirm_dialog.dart';
 export 'components/tentura_empty_state.dart';
+export 'components/tentura_focus_ring.dart';
 export 'components/tentura_identity_tile_frame.dart';
 export 'components/tentura_list_detail_layout.dart';
 export 'components/tentura_menu_group.dart';
