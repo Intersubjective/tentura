@@ -109,6 +109,8 @@ abstract final class TestIds {
   static const beaconForward = 'beacon.forward';
   static const beaconTabNow = 'beacon.tab.now';
   static const beaconTabPlan = 'beacon.tab.plan';
+  static const planStepTitle = 'plan.step.title';
+  static const planStepDescription = 'plan.step.description';
   static const beaconTabRoom = 'beacon.tab.room';
   static const childRequestCreate = 'request.child.create';
   static const childRequestsActive = 'request.children.active';

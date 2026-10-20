@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/plan/plan.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/plan_edit_state.dart';
 import 'plan_datetime_field.dart';
@@ -133,20 +134,30 @@ class _PlanStepEditSheetState extends State<PlanStepEditSheet> {
               style: TenturaText.titleSmall(tt.text),
             ),
             SizedBox(height: tt.rowGap),
-            TextField(
-              key: PlanStepEditSheet.titleFieldKey,
-              controller: _title,
-              autofocus: widget.isNew,
-              maxLength: PlanLimits.maxTitleLength,
-              decoration: InputDecoration(labelText: l10n.planFieldTitle),
-              onChanged: (_) => setState(() => _titleEdited = true),
+            // Identifier only: the TextField's own node is the labelled
+            // text field; a `textField` flag here would split it (#447).
+            Semantics(
+              identifier: TestIds.planStepTitle,
+              child: TextField(
+                key: PlanStepEditSheet.titleFieldKey,
+                controller: _title,
+                autofocus: widget.isNew,
+                maxLength: PlanLimits.maxTitleLength,
+                decoration: InputDecoration(labelText: l10n.planFieldTitle),
+                onChanged: (_) => setState(() => _titleEdited = true),
+              ),
             ),
-            TextField(
-              controller: _description,
-              minLines: 1,
-              maxLines: 5,
-              maxLength: PlanLimits.maxDescriptionLength,
-              decoration: InputDecoration(labelText: l10n.planFieldDescription),
+            Semantics(
+              identifier: TestIds.planStepDescription,
+              child: TextField(
+                controller: _description,
+                minLines: 1,
+                maxLines: 5,
+                maxLength: PlanLimits.maxDescriptionLength,
+                decoration: InputDecoration(
+                  labelText: l10n.planFieldDescription,
+                ),
+              ),
             ),
             SizedBox(height: tt.rowGap),
             Text(
