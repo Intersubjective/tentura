@@ -203,7 +203,6 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
         SizedBox(height: tt.rowGap),
         ConstellationAnchorTargetButton(
           target: ConstellationAnchorTarget.beacon(request.id),
-          filled: true,
         ),
       ],
     );

@@ -769,6 +769,74 @@ class ConstellationSceneController {
     }
   }
 
+  /// The pan (never a zoom) that brings [graphId]'s node inside the viewport
+  /// minus [insets] by the least distance, as the camera's scene centre now
+  /// (`from`) and after the pan (`to`); null when the node is already inside
+  /// or cannot be measured.
+  ({Offset from, Offset to})? revealPan(
+    GraphNodeId graphId,
+    EdgeInsets insets,
+  ) {
+    final pixel = graphController.viewportSize;
+    if (!graphController.canLayout || pixel == null) {
+      return null;
+    }
+    final snapshot = graphController.renderSnapshot;
+    final sceneNode = snapshot.topology.nodesById[graphId];
+    final point = snapshot.resolvePosition(graphId);
+    if (sceneNode == null || point == null) {
+      return null;
+    }
+    final bounds = constellationPlacedNodeBounds(
+      centre: (x: point.x, y: point.y),
+      footprint: layoutFootprints[graphId],
+      size: (width: sceneNode.size.width, height: sceneNode.size.height),
+    );
+    final topLeft = graphController.sceneToViewportLocal(
+      Offset(bounds.left, bounds.top),
+    );
+    final bottomRight = graphController.sceneToViewportLocal(
+      Offset(bounds.right, bounds.bottom),
+    );
+    final usable = Rect.fromLTRB(
+      insets.left,
+      insets.top,
+      pixel.width - insets.right,
+      pixel.height - insets.bottom,
+    );
+    if (usable.width <= 0 || usable.height <= 0) {
+      return null;
+    }
+    double shift(double lo, double hi, double min, double max) {
+      if (hi - lo > max - min) {
+        return (min + max) / 2 - (lo + hi) / 2;
+      }
+      if (lo < min) return min - lo;
+      if (hi > max) return max - hi;
+      return 0;
+    }
+
+    final delta = Offset(
+      shift(topLeft.dx, bottomRight.dx, usable.left, usable.right),
+      shift(topLeft.dy, bottomRight.dy, usable.top, usable.bottom),
+    );
+    if (delta == Offset.zero) {
+      return null;
+    }
+    // Re-centring the full viewport on the scene point that sits at
+    // (centre - delta) now is a pure translation by [delta] at this scale.
+    final viewportCentre = pixel.center(Offset.zero);
+    return (
+      from: graphController.viewportLocalToScene(viewportCentre),
+      to: graphController.viewportLocalToScene(viewportCentre - delta),
+    );
+  }
+
+  /// Centres the full viewport on [sceneCentre] at the current scale.
+  void panCameraTo(Offset sceneCentre) {
+    graphController.jumpToPosition(sceneCentre);
+  }
+
   void centreOnEgo(String viewerId, EdgeInsets insets) {
     if (!graphController.canLayout) {
       return;

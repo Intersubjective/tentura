@@ -17,6 +17,7 @@ import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.da
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -279,6 +280,70 @@ void main() {
         );
       },
     );
+  });
+
+  // #458: Pin was a full-width filled button, the same weight as the
+  // primary action; it is a secondary (outlined or text) button whose
+  // tooltip explains anchoring.
+  group('Pin weight', () {
+    Finder pinButton() =>
+        find.byKey(TestIds.key(TestIds.constellationPinTarget));
+
+    Iterable<Widget> filledInPreview(WidgetTester tester) => find
+        .descendant(
+          of: find.byType(ConstellationRequestPreviewSheet),
+          matching: find.byWidgetPredicate((w) => w is FilledButton),
+        )
+        .evaluate()
+        .map((e) => e.widget);
+
+    testWidgets('Pin is a secondary button, not a filled one', (
+      tester,
+    ) async {
+      await _pumpPreview(tester, request: _request(id: 'new'));
+
+      expect(pinButton(), findsOneWidget);
+      final pin = tester.widget(pinButton());
+      expect(
+        pin,
+        isNot(isA<FilledButton>()),
+        reason: 'Pin must not carry primary (filled) weight',
+      );
+      expect(
+        pin is OutlinedButton || pin is TextButton,
+        isTrue,
+        reason: 'Pin is an outlined or text button, got ${pin.runtimeType}',
+      );
+      // Guard: the primary action keeps its filled weight and is the only
+      // filled button on the sheet.
+      final filled = filledInPreview(tester).toList();
+      expect(filled, hasLength(1));
+      expect(
+        find.descendant(
+          of: find.byWidget(filled.single),
+          matching: find.text(l10n.labelOfferHelp),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Pin has a tooltip explaining anchoring', (tester) async {
+      await _pumpPreview(tester, request: _request(id: 'new'));
+
+      final tooltip = find.ancestor(
+        of: pinButton(),
+        matching: find.byType(Tooltip),
+      );
+      expect(tooltip, findsWidgets);
+      final message = tester.widget<Tooltip>(tooltip.first).message;
+      expect(message, isNotNull);
+      expect(message!.trim(), isNotEmpty);
+      expect(
+        message,
+        isNot(l10n.constellationPinTarget),
+        reason: 'the tooltip explains what pinning does, not just "Pin"',
+      );
+    });
   });
 
   // #355: the header showed the capability and "Help needed" only the status.
