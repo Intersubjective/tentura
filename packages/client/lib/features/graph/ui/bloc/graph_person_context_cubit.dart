@@ -24,12 +24,14 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
        super(const GraphPersonContextState()) {
     _revertSubscription = _trustWrites.reverts.listen(_onRevert);
     _resetSubscription = _trustWrites.resets.listen(_onReset);
+    _ackSubscription = _trustWrites.acknowledgements.listen(_onAcknowledged);
   }
 
   final ProfileViewCase _case;
   final GraphTrustWriteCase _trustWrites;
   late final StreamSubscription<GraphTrustRevert> _revertSubscription;
   late final StreamSubscription<Profile> _resetSubscription;
+  late final StreamSubscription<Profile> _ackSubscription;
 
   Stream<LazyWriteNotice> get lazyWriteNotices => _trustWrites.lazyWriteNotices;
   final String _viewerId;
@@ -141,7 +143,8 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
       return;
     }
     final selected = state.selectedProfile!.copyWith(
-      myVote: revert.acknowledgedAmount,
+      myVote: profile.myVote,
+      isMutualFriend: profile.isMutualFriend,
     );
     _authoritative = selected;
     emit(state.copyWith(selectedProfile: selected, trustError: revert));
@@ -152,8 +155,17 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     onProfilePatched?.call(profile);
     final selected = state.selectedProfile;
     if (selected == null || selected.id != profile.id) return;
-    _authoritative = selected.copyWith(myVote: profile.myVote);
+    _authoritative = selected.copyWith(
+      myVote: profile.myVote,
+      isMutualFriend: profile.isMutualFriend,
+    );
     emit(state.copyWith(selectedProfile: _authoritative, trustError: null));
+  }
+
+  /// Lets the graph swap its provisional trust edge for the server one.
+  void _onAcknowledged(Profile profile) {
+    if (isClosed) return;
+    onProfilePatched?.call(profile);
   }
 
   Future<void> retryTrust([GraphTrustRevert? revert]) async {
@@ -163,7 +175,12 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
       final profile = _trustWrites.retry(error);
       if (profile == null) return;
       if (state.selectedProfile?.id == profile.id) {
-        _patchTrust(state.selectedProfile!.copyWith(myVote: profile.myVote));
+        _patchTrust(
+          state.selectedProfile!.copyWith(
+            myVote: profile.myVote,
+            isMutualFriend: profile.isMutualFriend,
+          ),
+        );
       } else {
         if (identical(state.trustError, error)) {
           emit(state.copyWith(trustError: null));
@@ -177,6 +194,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
   Future<void> close() async {
     await _revertSubscription.cancel();
     await _resetSubscription.cancel();
+    await _ackSubscription.cancel();
     await super.close();
   }
 
