@@ -338,6 +338,7 @@ class _CameraGatedInteractiveViewerState
           // Wheel and trackpad zoom stay live during a node drag; the drag
           // re-projects its grab point on every camera change.
           scaleEnabled: !_zoomGated,
+          onInteractionStart: (_) => widget.controller._onUserCameraInput(),
           builder: (context, viewport) {
             widget.controller._updateViewport(viewport);
             return const NodeDragGesture(

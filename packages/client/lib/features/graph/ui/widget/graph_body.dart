@@ -27,7 +27,7 @@ class GraphBody extends StatefulWidget {
     required this.onToggleLegend,
     this.personContextEnabled = false,
     this.isLabeled = true,
-    this.labelSize = const Size(100, 20),
+    this.labelSize = GraphCubit.defaultNodeLabelSize,
     this.scaleRange = const Offset(0.1, 3),
     this.animationDuration = const Duration(seconds: 2),
     this.canvasSize = const GraphCanvasSize.fixed(Size(4096, 4096)),
@@ -38,6 +38,8 @@ class GraphBody extends StatefulWidget {
   final VoidCallback onToggleLegend;
   final bool personContextEnabled;
   final bool isLabeled;
+
+  /// Keep in sync with [GraphCubit.nodeLabelSize], which camera fits use.
   final Size labelSize;
   final Offset scaleRange;
   final Duration animationDuration;
@@ -328,6 +330,7 @@ class GraphBodyState extends State<GraphBody>
                     key: ValueKey(node),
                     node.label,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TenturaText.labelSmall(
                       Theme.of(context).colorScheme.onSurface,
@@ -337,6 +340,7 @@ class GraphBodyState extends State<GraphBody>
                     key: ValueKey(node),
                     node.label,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TenturaText.labelSmall(
                       Theme.of(context).colorScheme.onSurface,
@@ -346,6 +350,7 @@ class GraphBodyState extends State<GraphBody>
                     key: ValueKey(node),
                     node.label,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TenturaText.labelSmall(
                       Theme.of(context).colorScheme.onSurfaceVariant,

@@ -3,7 +3,7 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:ui' show Offset;
+import 'dart:ui' show Offset, Rect, Size;
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
@@ -63,6 +63,7 @@ class GraphCubit extends Cubit<GraphState> {
     this.genealogyMode = false,
     this.genealogyTargetId,
     this.genealogyAnonymousNodeLabel,
+    this.nodeLabelSize = defaultNodeLabelSize,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
     BlockCase? blockCase,
@@ -127,6 +128,12 @@ class GraphCubit extends Cubit<GraphState> {
   final String? genealogyTargetId;
 
   final String? genealogyAnonymousNodeLabel;
+
+  /// Label box drawn below each node (`GraphBody.labelSize`); camera fits
+  /// keep it on screen so long names aren't cut at the viewport edge.
+  final Size nodeLabelSize;
+
+  static const defaultNodeLabelSize = Size(100, 20);
 
   final BeaconRepository _beaconRepository;
 
@@ -591,19 +598,102 @@ class GraphCubit extends Cubit<GraphState> {
 
   void fitCurrentPath() {
     if (!graphController.canLayout) return;
-    var ids = _focusPathIds.toSet();
+    final ids = _focusPathIds.toSet();
     if (ids.length <= 1) {
       for (final edge in graphController.edges) {
         if (edge.source.id == _focusRootId) ids.add(edge.destination.id);
         if (edge.destination.id == _focusRootId) ids.add(edge.source.id);
       }
+      // Invite genealogy: at the origin the "path" is the whole loaded
+      // lineage (ancestors, and the target branch in between mode).
+      if (genealogyMode) ids.addAll(_genealogyParentChainNodeIds);
     }
-    graphController.fitToNodeIds(
-      graphController.nodes
-          .where((n) => ids.contains(n.id))
-          .map(tenturaGraphNodeId),
-    );
+    _fitNodeIds(ids);
   }
+
+  /// Fits [ids]' nodes, each with its label box, into the viewport.
+  void _fitNodeIds(Set<String> ids, {double? maxScale}) {
+    final snapshot = graphController.renderSnapshot;
+    Rect? bounds;
+    for (final node in graphController.nodes) {
+      if (!ids.contains(node.id)) continue;
+      final point = snapshot.resolvePosition(tenturaGraphNodeId(node));
+      if (point == null) continue;
+      final center = Offset(point.x, point.y);
+      var rect = Rect.fromCircle(center: center, radius: node.size / 2);
+      if (!nodeLabelSize.isEmpty) {
+        // Same box as BottomLabelBuilder: centred under the node.
+        rect = rect.expandToInclude(
+          Rect.fromLTWH(
+            center.dx - nodeLabelSize.width / 2,
+            center.dy + node.size / 2,
+            nodeLabelSize.width,
+            nodeLabelSize.height,
+          ),
+        );
+      }
+      bounds = bounds?.expandToInclude(rect) ?? rect;
+    }
+    if (bounds == null) return;
+    graphController.fitToRect(bounds, maxScale: maxScale);
+  }
+
+  /// Set after the genealogy bootstrap: fit the lineage once its first
+  /// layout has settled, so every hop (incl. the far endpoint) is on screen.
+  /// A pan or zoom by the person before then cancels it.
+  bool _invitePathFitPending = false;
+
+  /// The person's camera input count when the bootstrap fetch started.
+  int? _invitePathFitInputRevision;
+
+  bool get _cameraMovedSinceInviteFetch =>
+      graphController.userCameraInputRevision.value !=
+      _invitePathFitInputRevision;
+
+  void _armInvitePathFitOnOpen() {
+    if (_invitePathFitPending ||
+        _genealogyParentChainNodeIds.length < 2 ||
+        _cameraMovedSinceInviteFetch) {
+      return;
+    }
+    _invitePathFitPending = true;
+    graphController.addListener(_onControllerForInvitePathFit);
+    graphController.userCameraInputRevision.addListener(
+      _cancelInvitePathFitOnOpen,
+    );
+    _onControllerForInvitePathFit();
+  }
+
+  void _cancelInvitePathFitOnOpen() {
+    _invitePathFitPending = false;
+    graphController
+      ..removeListener(_onControllerForInvitePathFit)
+      ..userCameraInputRevision.removeListener(_cancelInvitePathFitOnOpen);
+  }
+
+  void _onControllerForInvitePathFit() {
+    if (!_invitePathFitPending ||
+        isClosed ||
+        !graphController.canLayout ||
+        graphController.isLayoutSettling) {
+      return;
+    }
+    _cancelInvitePathFitOnOpen();
+    // Out of the notifying call stack (may be mid-frame) before moving the
+    // camera.
+    scheduleMicrotask(() {
+      if (isClosed ||
+          !graphController.canLayout ||
+          _cameraMovedSinceInviteFetch) {
+        return;
+      }
+      _fitInvitePath();
+    });
+  }
+
+  /// Fits the loaded lineage without zooming in past 1:1 for short paths.
+  void _fitInvitePath() =>
+      _fitNodeIds(_genealogyParentChainNodeIds, maxScale: 1);
 
   @Deprecated('Use selectNode or expandNode')
   void setFocus(NodeDetails node) => selectNode(node);
@@ -834,6 +924,7 @@ class GraphCubit extends Cubit<GraphState> {
       Set<EdgeDirected> edges;
       final source = _graphSource;
       var showNoHelpOffererPathMessage = false;
+      var fitInvitePathAfterUpdate = false;
       var forwardsAuthorId = '';
       if (helpOffererFocusUserId != null &&
           forwardsGraphBeaconId != null &&
@@ -898,6 +989,10 @@ class GraphCubit extends Cubit<GraphState> {
       } else if (genealogyMode && source is InviteGenealogyRepository) {
         List<EdgeDirected> rawEdges;
         if (fetchFocus.isEmpty) {
+          // A pan or zoom made while the lineage loads also counts against
+          // the open fit, not just one made during the first layout.
+          _invitePathFitInputRevision =
+              graphController.userCameraInputRevision.value;
           final graph = await source.fetchGenealogyBootstrap(
             targetId: genealogyTargetId,
           );
@@ -923,6 +1018,7 @@ class GraphCubit extends Cubit<GraphState> {
           );
           if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
           rawEdges = _genealogyEdgesFromGraph(graph);
+          fitInvitePathAfterUpdate = true;
         } else {
           final cursor = _genealogyChildrenCursors[fetchFocus];
           final page = await source.fetchChildren(
@@ -1049,6 +1145,9 @@ class GraphCubit extends Cubit<GraphState> {
       loadingOwned = false;
 
       _updateGraph(edges);
+      if (fitInvitePathAfterUpdate) {
+        _armInvitePathFitOnOpen();
+      }
 
       if (showNoHelpOffererPathMessage) {
         _effects.emit(const ShowMessage(NoHelpOffererForwardPathMessage()));

@@ -39,6 +39,7 @@ class GraphController<N, E> with ChangeNotifier {
   LazyBuilding? _lazyBuilding;
   TransformationController? _transformationController;
   final ValueNotifier<int> _cameraRevision = ValueNotifier<int>(0);
+  final ValueNotifier<int> _userCameraInputRevision = ValueNotifier<int>(0);
   final ValueNotifier<int> _topologyRevision = ValueNotifier<int>(0);
   GraphCanvasSize? _size;
   Size? _lastLayoutConstraints;
@@ -135,6 +136,10 @@ class GraphController<N, E> with ChangeNotifier {
 
   /// Increments on every camera transform change (pan/zoom/fit/jump).
   ValueListenable<int> get cameraRevision => _cameraRevision;
+
+  /// Increments when the person starts a pan or zoom on the view (drag,
+  /// pinch, mouse wheel, trackpad); programmatic fits and jumps don't count.
+  ValueListenable<int> get userCameraInputRevision => _userCameraInputRevision;
 
   /// Changes only when layout-affecting node/edge topology changes.
   ValueListenable<int> get topologyRevision => _topologyRevision;
@@ -607,6 +612,10 @@ class GraphController<N, E> with ChangeNotifier {
       return Offset.zero & pixel;
     }
     return usable;
+  }
+
+  void _onUserCameraInput() {
+    if (!_disposed) _userCameraInputRevision.value++;
   }
 
   void _onCameraChanged() {
@@ -1309,6 +1318,7 @@ class GraphController<N, E> with ChangeNotifier {
     _ticker?.dispose();
     _ticker = null;
     _cameraRevision.dispose();
+    _userCameraInputRevision.dispose();
     _topologyRevision.dispose();
     for (final position in _nodePositions.values) {
       position.dispose();
