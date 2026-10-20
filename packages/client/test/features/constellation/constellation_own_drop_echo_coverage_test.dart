@@ -265,6 +265,17 @@ void main() {
     });
   });
 
+  test('disposing while a drop is in flight, then acknowledging it, does '
+      'not throw', () async {
+    drop('dropped');
+    await _drain();
+    expect(anchors.calls, hasLength(1));
+
+    await placement.dispose();
+    anchors.acknowledge(0, before: covered, after: 6);
+    await _drain();
+  });
+
   group('hints the acknowledgement does not cover', () {
     test('a hint from another device while no drop is in flight causes one '
         'ANCHORS read', () async {

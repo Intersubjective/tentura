@@ -388,7 +388,8 @@ final class ConstellationPlacementCase extends UseCaseBase {
           );
         } finally {
           if (identical(_applyBarrier, applying)) _applyBarrier = null;
-          applying.complete();
+          // dispose() may already have released it.
+          if (!applying.isCompleted) applying.complete();
         }
       }
     } finally {
