@@ -1621,7 +1621,15 @@
   "constellationUnpinTarget": "Открепить",
   "@constellationUnpinTarget": {
     "context": "ConstellationAnchorControls"
+  },  "constellationPinTargetTooltip": "Оставить на поле на постоянном месте, даже если раскладка изменится",
+  "@constellationPinTargetTooltip": {
+    "context": "ConstellationAnchorControls"
   },
+  "constellationUnpinTargetTooltip": "Вернуть автоматическое размещение на поле",
+  "@constellationUnpinTargetTooltip": {
+    "context": "ConstellationAnchorControls"
+  },
+
   "constellationRequestStatusOpen": "Открыт",
   "@constellationRequestStatusOpen": {
     "context": "ConstellationRequestStatusMarker"

@@ -1676,6 +1676,27 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _scene.centreOnBeacon(beaconId, insets);
   }
 
+  /// The camera pan (no zoom) that keeps [node] clear of [insets], e.g.
+  /// beside the preview sheet or person panel (#458); null when no pan is
+  /// needed. The caller animates it through [panCameraTo].
+  ({Offset from, Offset to})? revealPanFor(
+    NodeDetails node, {
+    required EdgeInsets insets,
+  }) {
+    if (isClosed || state.placementPhase != ConstellationPlacementPhase.idle) {
+      return null;
+    }
+    return _scene.revealPan(tenturaGraphNodeId(node), insets);
+  }
+
+  /// Centres the viewport on [sceneCentre] at the current zoom.
+  void panCameraTo(Offset sceneCentre) {
+    if (isClosed) {
+      return;
+    }
+    _scene.panCameraTo(sceneCentre);
+  }
+
   void centerOnEgo({required EdgeInsets insets}) {
     if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;

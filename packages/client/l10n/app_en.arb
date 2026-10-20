@@ -1697,6 +1697,14 @@
   "@constellationUnpinTarget": {
     "context": "ConstellationAnchorControls"
   },
+  "constellationPinTargetTooltip": "Keep this on your field in a fixed spot, even when the layout changes",
+  "@constellationPinTargetTooltip": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationUnpinTargetTooltip": "Let the field place this automatically again",
+  "@constellationUnpinTargetTooltip": {
+    "context": "ConstellationAnchorControls"
+  },
   "constellationRequestStatusOpen": "Open",
   "@constellationRequestStatusOpen": {
     "context": "ConstellationRequestStatusMarker"
