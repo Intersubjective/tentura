@@ -197,11 +197,14 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
       _chipRectStart(body, chip.size, gap, rtl: rtl),
       _chipRectAbove(body, chip.size, gap),
     ];
+    // The author's own label slot is reserved: a chip placed first must
+    // never take it (#459).
     final placed =
         _firstFittingCandidate(
           candidates,
           cullToViewport ? viewportRect : null,
           occupied,
+          reserved: author.labelSize.isEmpty ? null : reservedBelow.inflate(1),
         ) ??
         candidates.first;
     placedChips[chip.authorId] = placed;
@@ -278,11 +281,13 @@ int constellationPlacementCount = 0;
 Rect? _firstFittingCandidate(
   List<Rect> candidates,
   Rect? viewport,
-  _OccupiedGrid occupied,
-) {
+  _OccupiedGrid occupied, {
+  Rect? reserved,
+}) {
   constellationPlacementCount++;
   for (final candidate in candidates) {
     if (viewport != null && !_rectFullyInside(candidate, viewport)) continue;
+    if (reserved != null && candidate.overlaps(reserved)) continue;
     if (!occupied.intersects(candidate)) {
       return candidate;
     }

@@ -6,6 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
+import 'constellation_camera_controls.dart';
 
 /// Measured size of [ConstellationOverflowGroup] for a [label] at the current
 /// theme, tokens, and text scaler — matches the widget layout math.
@@ -52,6 +53,18 @@ class ConstellationOverflowGroup extends StatelessWidget {
     );
   }
 
+  void _toggle(BuildContext context, ConstellationCubit cubit) {
+    final state = cubit.state;
+    cubit.toggleSatelliteOverflow(
+      authorId,
+      refitInsets: ConstellationCameraControls.cameraViewportInsets(
+        context,
+        contextPanelVisible:
+            state.selectedPersonId != null || state.selectedRequestId != null,
+      ),
+    );
+  }
+
   Widget _buildChip(BuildContext context) {
     final cubit = context.read<ConstellationCubit>();
     final expanded = cubit.isSatelliteOverflowExpanded(authorId);
@@ -83,8 +96,8 @@ class ConstellationOverflowGroup extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(tt.cardRadius),
           child: InkWell(
-            onTap: () => cubit.toggleSatelliteOverflow(authorId),
-            onSecondaryTap: () => cubit.toggleSatelliteOverflow(authorId),
+            onTap: () => _toggle(context, cubit),
+            onSecondaryTap: () => _toggle(context, cubit),
             borderRadius: BorderRadius.circular(tt.cardRadius),
             child: Padding(
               padding: EdgeInsets.symmetric(

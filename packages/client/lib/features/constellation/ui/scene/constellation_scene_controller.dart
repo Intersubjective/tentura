@@ -705,7 +705,11 @@ class ConstellationSceneController {
 
   // Camera.
 
-  void fitWholeField(EdgeInsets insets) {
+  void fitWholeField(EdgeInsets insets) => fitNodes(insets);
+
+  /// Fits the camera (never zooming past 1) to the placed footprints of the
+  /// nodes [include] accepts, or of every node when [include] is null.
+  void fitNodes(EdgeInsets insets, {bool Function(GraphNodeId)? include}) {
     if (!graphController.canLayout) {
       return;
     }
@@ -713,6 +717,9 @@ class ConstellationSceneController {
     Rect? bounds;
     for (final entry in snapshot.topology.nodesById.entries) {
       final graphId = entry.key;
+      if (include != null && !include(graphId)) {
+        continue;
+      }
       final point = snapshot.resolvePosition(graphId);
       if (point == null) {
         continue;
