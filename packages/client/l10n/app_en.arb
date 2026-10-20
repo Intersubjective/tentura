@@ -291,7 +291,7 @@
   "@chooseAccount": {
     "context": "AuthLoginScreen"
   },
-  "alreadyHaveAccount": "Already have an account?\nAccess it by scanning a QR code from another device\nor by using your saved seed phrase.",
+  "alreadyHaveAccount": "Already have an account?\nAccess it by scanning a QR code from another device\nor by using your saved recovery seed.",
   "@alreadyHaveAccount": {
     "context": "AuthLoginScreen"
   },
@@ -343,7 +343,7 @@
   "@shareAccount": {
     "context": "AccountListTile"
   },
-  "showSeed": "Show seed",
+  "showSeed": "Show recovery seed",
   "@showSeed": {
     "context": "AccountListTile, SettingsScreen"
   },
@@ -2249,15 +2249,11 @@
   },
   "seedBackupTitle": "Save your recovery seed",
   "@seedBackupTitle": {
-    "context": "CredentialsScreen"
-  },
-  "seedBackupBody": "Store this seed somewhere safe. You will not see it again.",
-  "@seedBackupBody": {
-    "context": "CredentialsScreen"
+    "context": "ShowSeedDialog"
   },
   "seedBackupConfirm": "I saved it",
   "@seedBackupConfirm": {
-    "context": "CredentialsScreen"
+    "context": "ShowSeedDialog"
   },
   "credentialLinkConflict": "This sign-in method is already linked to another account",
   "@credentialLinkConflict": {
@@ -2311,8 +2307,12 @@
   "@errorGenericAction": {},
   "copyErrorDetails": "Copy details",
   "@copyErrorDetails": {},
-  "seedCopied": "Seed copied to clipboard!",
+  "seedCopied": "Recovery seed copied to clipboard!",
   "@seedCopied": {
+    "context": "ShowSeedDialog"
+  },
+  "seedDialogWarning": "This is your recovery seed: the key to your account. Anyone who has it can sign in as you. Keep it private and offline — don't screenshot it or send it to anyone.",
+  "@seedDialogWarning": {
     "context": "ShowSeedDialog"
   },
   "shareLink": "Share link",

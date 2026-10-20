@@ -179,12 +179,12 @@ class _CredentialsScreenState extends State<CredentialsScreen>
               ),
             if (state.canAddRecoverySeed)
               TenturaMenuTile(
-                // Not the device-key glyph: a seed phrase is a different
+                // Not the device-key glyph: a recovery seed is a different
                 // thing to have.
                 icon: Icons.password_outlined,
                 title: l10n.credentialRecoverySeed,
                 trailing: Icon(Icons.add, color: tt.info),
-                onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
+                onTap: state.isLoading ? null : () => _linkSeed(context),
               ),
           ],
         ),
@@ -258,17 +258,12 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     await context.read<CredentialsCubit>().startEmailLink(email);
   }
 
-  Future<void> _linkSeed(BuildContext context, L10n l10n) async {
+  /// The seed dialog itself explains the seed and holds the "I saved it"
+  /// step, so nothing follows it here.
+  Future<void> _linkSeed(BuildContext context) async {
     final seed = await context.read<CredentialsCubit>().linkRecoverySeed();
     if (seed == null || !context.mounted) return;
     await ShowSeedDialog.show(context, seed: seed);
-    if (!context.mounted) return;
-    await TenturaConfirmDialog.show(
-      context: context,
-      title: l10n.seedBackupTitle,
-      content: l10n.seedBackupBody,
-      confirmLabel: l10n.seedBackupConfirm,
-    );
   }
 
   Future<void> _confirmRemove(
@@ -296,7 +291,7 @@ class _CredentialsScreenState extends State<CredentialsScreen>
   };
 
   String _typeLabel(L10n l10n, String type) => switch (type) {
-    CredentialTypes.ed25519Device => l10n.credentialDeviceKey,
+    CredentialTypes.ed25519Device => l10n.credentialRecoverySeed,
     CredentialTypes.oidcGoogle => l10n.credentialGoogle,
     CredentialTypes.emailOtp => l10n.credentialEmail,
     _ => type,
