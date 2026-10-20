@@ -389,6 +389,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _scene.awaitingLayoutOutcome = false;
+    if (outcome is! GraphLayoutOutcomeSucceeded) {
+      _pendingOverflowRefit = null;
+    }
 
     if (!kReleaseMode &&
         (outcome is GraphLayoutOutcomeSucceeded ||
@@ -396,6 +399,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _finishDropReflowSpans();
     }
     if (outcome is GraphLayoutOutcomeSucceeded) {
+      _runPendingOverflowRefit();
       _layoutRecoveryAttempted = false;
       if (_forgetPriorHintNodeIds.isNotEmpty) {
         _forgetPriorHintNodeIds = {};
@@ -1965,18 +1969,52 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
-  void toggleSatelliteOverflow(String authorId) {
+  /// Expands or collapses [authorId]'s hidden request satellites. Expanding
+  /// with [refitInsets] refits the camera once, after the new layout lands, to
+  /// the author and the satellites it revealed (#459); collapsing leaves the
+  /// camera where it is.
+  void toggleSatelliteOverflow(String authorId, {EdgeInsets? refitInsets}) {
     if (isClosed) {
       return;
     }
-    if (expandedSatelliteAuthorIds.contains(authorId)) {
-      expandedSatelliteAuthorIds.remove(authorId);
-    } else {
+    final expanding = !expandedSatelliteAuthorIds.contains(authorId);
+    if (expanding) {
       expandedSatelliteAuthorIds.add(authorId);
+    } else {
+      expandedSatelliteAuthorIds.remove(authorId);
     }
-    if (!state.hasPendingPlacementWrite) {
-      _recomposeAndLayout();
+    if (state.hasPendingPlacementWrite) {
+      return;
     }
+    final idsBefore = graphController.renderSnapshot.topology.nodesById.keys
+        .toSet();
+    _recomposeAndLayout();
+    if (expanding && refitInsets != null) {
+      _pendingOverflowRefit = (
+        authorGraphId: constellationGraphNodeIdForDomain(authorId),
+        idsBefore: idsBefore,
+        insets: refitInsets,
+      );
+    }
+  }
+
+  /// Camera refit owed to the next successful layout after an overflow
+  /// expand; any other recompose drops it.
+  ({GraphNodeId authorGraphId, Set<GraphNodeId> idsBefore, EdgeInsets insets})?
+  _pendingOverflowRefit;
+
+  void _runPendingOverflowRefit() {
+    final refit = _pendingOverflowRefit;
+    _pendingOverflowRefit = null;
+    if (refit == null ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    _scene.fitNodes(
+      refit.insets,
+      include: (graphId) =>
+          graphId == refit.authorGraphId || !refit.idsBefore.contains(graphId),
+    );
   }
 
   bool isSatelliteOverflowExpanded(String authorId) =>
@@ -2426,6 +2464,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _recomposeAndLayout() {
+    _pendingOverflowRefit = null;
     final field = state.field;
     if (field == null) {
       return;

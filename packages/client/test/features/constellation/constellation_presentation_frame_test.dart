@@ -55,10 +55,12 @@ void main() {
 
   group('computeConstellationPresentationFrame', () {
     test('two distant nodes place labels below', () {
-      final frame = compute(nodes: [
-        node(id: 'a', centre: const Offset(100, 100)),
-        node(id: 'b', centre: const Offset(300, 100)),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'a', centre: const Offset(100, 100)),
+          node(id: 'b', centre: const Offset(300, 100)),
+        ],
+      );
 
       expect(frame.labels.length, 2);
       for (final id in ['a', 'b']) {
@@ -71,9 +73,11 @@ void main() {
 
     test('node near bottom viewport edge places label above', () {
       final centre = Offset(viewport.width / 2, viewport.height - 10);
-      final frame = compute(nodes: [
-        node(id: 'edge', centre: centre),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'edge', centre: centre),
+        ],
+      );
 
       final body = frame.bodies['edge']!;
       final label = frame.labels['edge']!;
@@ -82,60 +86,65 @@ void main() {
 
     test('two close nodes get non-overlapping labels', () {
       final y = 120.0;
-      final frame = compute(nodes: [
-        node(id: 'left', centre: Offset(150, y)),
-        node(id: 'right', centre: Offset(180, y)),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'left', centre: Offset(150, y)),
+          node(id: 'right', centre: Offset(180, y)),
+        ],
+      );
 
       final leftLabel = frame.labels['left']!;
       final rightLabel = frame.labels['right']!;
       expect(leftLabel.overlaps(rightLabel), isFalse);
     });
 
-    test('overview suppresses Request labels but keeps ego and ring<=1 people', () {
-      final frame = compute(
-        detail: ConstellationDetailLevel.overview,
-        nodes: [
-          node(
-            id: 'ego',
-            centre: const Offset(200, 200),
-            priority: 1,
-            ring: 0,
-            labelCandidate: constellationLabelCandidateForDetail(
-              detail: ConstellationDetailLevel.overview,
+    test(
+      'overview suppresses Request labels but keeps ego and ring<=1 people',
+      () {
+        final frame = compute(
+          detail: ConstellationDetailLevel.overview,
+          nodes: [
+            node(
+              id: 'ego',
+              centre: const Offset(200, 200),
               priority: 1,
               ring: 0,
+              labelCandidate: constellationLabelCandidateForDetail(
+                detail: ConstellationDetailLevel.overview,
+                priority: 1,
+                ring: 0,
+              ),
             ),
-          ),
-          node(
-            id: 'peer',
-            centre: const Offset(280, 200),
-            priority: 2,
-            ring: 1,
-            labelCandidate: constellationLabelCandidateForDetail(
-              detail: ConstellationDetailLevel.overview,
+            node(
+              id: 'peer',
+              centre: const Offset(280, 200),
               priority: 2,
               ring: 1,
+              labelCandidate: constellationLabelCandidateForDetail(
+                detail: ConstellationDetailLevel.overview,
+                priority: 2,
+                ring: 1,
+              ),
             ),
-          ),
-          node(
-            id: 'req',
-            centre: const Offset(200, 280),
-            priority: 3,
-            ring: 0,
-            labelCandidate: constellationLabelCandidateForDetail(
-              detail: ConstellationDetailLevel.overview,
+            node(
+              id: 'req',
+              centre: const Offset(200, 280),
               priority: 3,
               ring: 0,
+              labelCandidate: constellationLabelCandidateForDetail(
+                detail: ConstellationDetailLevel.overview,
+                priority: 3,
+                ring: 0,
+              ),
             ),
-          ),
-        ],
-      );
+          ],
+        );
 
-      expect(frame.labels.containsKey('ego'), isTrue);
-      expect(frame.labels.containsKey('peer'), isTrue);
-      expect(frame.labels.containsKey('req'), isFalse);
-    });
+        expect(frame.labels.containsKey('ego'), isTrue);
+        expect(frame.labels.containsKey('peer'), isTrue);
+        expect(frame.labels.containsKey('req'), isFalse);
+      },
+    );
 
     test('ego with no room is forced below and listed in forcedLabels', () {
       final frame = computeConstellationPresentationFrame(
@@ -179,6 +188,104 @@ void main() {
       final chip = frame.chips['in']!;
       for (final body in frame.bodies.values) {
         expect(chip.overlaps(body), isFalse);
+      }
+    });
+
+    // #459: the overflow chip must never sit on its author's name label.
+    // Ego at (200, 150); one body blocks the slot below the label and one
+    // blocks the start-side label slot. The chip's end-side candidate then
+    // overlaps the label slot below the author, and a chip placed before
+    // the label pushes the label out (or, for the ego, the label is forced
+    // underneath the chip).
+    List<ConstellationFrameNodeInput> crowdedAuthor({required int priority}) {
+      return [
+        node(
+          id: 'author',
+          centre: const Offset(200, 150),
+          bodyDiameter: 32,
+          labelSize: const Size(100, 20),
+          priority: priority,
+        ),
+        node(
+          id: 'blockBelow',
+          centre: const Offset(200, 212),
+          labelSize: Size.zero,
+          priority: 3,
+          labelCandidate: false,
+        ),
+        node(
+          id: 'blockStart',
+          centre: const Offset(120, 150),
+          labelSize: Size.zero,
+          priority: 3,
+          labelCandidate: false,
+        ),
+      ];
+    }
+
+    ConstellationPresentationFrame computeCrowded({required int priority}) {
+      return computeConstellationPresentationFrame(
+        snapshot: snapshot,
+        cameraRevision: 1,
+        detail: ConstellationDetailLevel.normal,
+        viewport: viewport,
+        nodesInPaintOrder: crowdedAuthor(priority: priority),
+        chips: const [
+          ConstellationFrameChipInput(
+            authorId: 'ego',
+            authorGraphId: 'author',
+            size: Size(100, 44),
+          ),
+        ],
+        gap: gap,
+        minTarget: minTarget,
+        rtl: false,
+        // The live overlay places with cullToViewport: false.
+        cullToViewport: false,
+      );
+    }
+
+    test('ego overflow chip does not cover the ego name label (#459)', () {
+      final frame = computeCrowded(priority: 1);
+
+      final chip = frame.chips['ego'];
+      final label = frame.labels['author'];
+      expect(chip, isNotNull, reason: 'the chip must still be placed');
+      expect(label, isNotNull, reason: 'the ego always keeps its label');
+      expect(
+        chip!.overlaps(label!),
+        isFalse,
+        reason: 'chip $chip sits on the name label $label',
+      );
+      for (final entry in frame.bodies.entries) {
+        expect(
+          chip.overlaps(entry.value),
+          isFalse,
+          reason: 'chip covers body ${entry.key}',
+        );
+      }
+      // The chip stays next to its author rather than being thrown away.
+      final body = frame.bodies['author']!;
+      expect(
+        (chip.center - body.center).distance,
+        lessThan(body.width + chip.width + chip.height),
+      );
+    });
+
+    test('overflow chip does not cost a person their name label (#459)', () {
+      final frame = computeCrowded(priority: 2);
+
+      final chip = frame.chips['ego'];
+      final label = frame.labels['author'];
+      expect(chip, isNotNull, reason: 'the chip must still be placed');
+      expect(
+        label,
+        isNotNull,
+        reason: 'a free label slot exists once the chip moves aside',
+      );
+      expect(chip!.overlaps(label!), isFalse);
+      for (final other in frame.labels.values) {
+        expect(chip.overlaps(other), isFalse);
       }
     });
 
@@ -235,18 +342,22 @@ void main() {
 
     test('later paint order wins for overlapping bodies', () {
       final centre = const Offset(200, 200);
-      final frame = compute(nodes: [
-        node(id: 'first', centre: centre),
-        node(id: 'second', centre: centre),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'first', centre: centre),
+          node(id: 'second', centre: centre),
+        ],
+      );
       expect(resolveConstellationTap(frame, centre), 'second');
     });
 
     test('nearest body centre among overlapping tap targets', () {
-      final frame = compute(nodes: [
-        node(id: 'near', centre: const Offset(200, 200)),
-        node(id: 'far', centre: const Offset(230, 200)),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'near', centre: const Offset(200, 200)),
+          node(id: 'far', centre: const Offset(230, 200)),
+        ],
+      );
       final nearTarget = frame.tapTargets['near']!;
       final farTarget = frame.tapTargets['far']!;
       final overlap = nearTarget.intersect(farTarget);
@@ -258,17 +369,21 @@ void main() {
     });
 
     test('returns null when nothing hit', () {
-      final frame = compute(nodes: [
-        node(id: 'a', centre: const Offset(50, 50)),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'a', centre: const Offset(50, 50)),
+        ],
+      );
       expect(resolveConstellationTap(frame, const Offset(390, 390)), isNull);
     });
 
     test('21px outside body radius still hits expanded tap target (R06)', () {
       final centre = const Offset(200, 200);
-      final frame = compute(nodes: [
-        node(id: 'req', centre: centre, bodyDiameter: 40),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'req', centre: centre, bodyDiameter: 40),
+        ],
+      );
       final body = frame.bodies['req']!;
       final p = body.center + const Offset(21, 0);
       expect(body.contains(p), isFalse);
@@ -278,10 +393,12 @@ void main() {
 
     test('overlapping nodes at same centre prefer later paint order (D21)', () {
       final centre = const Offset(200, 200);
-      final frame = compute(nodes: [
-        node(id: 'req-in-1', centre: centre),
-        node(id: 'req-in-2', centre: centre),
-      ]);
+      final frame = compute(
+        nodes: [
+          node(id: 'req-in-1', centre: centre),
+          node(id: 'req-in-2', centre: centre),
+        ],
+      );
       expect(resolveConstellationTap(frame, centre), 'req-in-2');
     });
   });

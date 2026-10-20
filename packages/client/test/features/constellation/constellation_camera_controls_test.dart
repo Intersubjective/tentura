@@ -334,10 +334,8 @@ void main() {
         );
       }
 
-      cubit.toggleSatelliteOverflow('ego');
-      await tester.pumpAndSettle(const Duration(milliseconds: 400));
-      expectUnchanged();
-
+      // Expanding a person's overflow refits the camera on purpose (#459);
+      // see 'expanding the overflow chip refits the camera'.
       cubit.setFilterCapabilitySlugs({'tools'});
       await tester.pumpAndSettle();
       expectUnchanged();
@@ -351,6 +349,71 @@ void main() {
       await cubit.load();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       expectUnchanged();
+    });
+
+    testWidgets('expanding the overflow chip refits the camera (#459)', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+
+      await pumpConstellationBody(tester, cubit);
+      await tester.pumpAndSettle();
+
+      final controller = cubit.graphController;
+      final idsBefore = controller.renderSnapshot.topology.nodesById.keys
+          .toSet();
+
+      // Zoom right in on the ego: the satellites revealed by the chip fan out
+      // beyond the visible area unless the camera refits.
+      const egoGraphId = '${TenturaGraphNodeKind.fieldPerson}:ego';
+      final egoPoint = controller.renderSnapshot.resolvePosition(egoGraphId)!;
+      final insets = ConstellationCameraControls.cameraViewportInsets(
+        tester.element(find.byType(ConstellationBody)),
+        contextPanelVisible: false,
+      );
+      controller.zoomBy(10);
+      controller.jumpToPosition(
+        Offset(egoPoint.x, egoPoint.y),
+        viewportInsets: insets,
+      );
+      await tester.pump();
+      expect(controller.cameraScale, greaterThan(2.5));
+
+      final chip = find.byKey(const Key('constellation.overflow.ego'));
+      expect(chip, findsOneWidget);
+      expect(cubit.isSatelliteOverflowExpanded('ego'), isFalse);
+      tester
+          .widget<InkWell>(
+            find.descendant(of: chip, matching: find.byType(InkWell)),
+          )
+          .onTap!();
+      await tester.pumpAndSettle(const Duration(milliseconds: 400));
+      expect(cubit.isSatelliteOverflowExpanded('ego'), isTrue);
+
+      final revealed = controller.renderSnapshot.topology.nodesById.keys
+          .toSet()
+          .difference(idsBefore);
+      expect(revealed, isNotEmpty, reason: 'expanding must reveal requests');
+
+      final usable = _usableViewport(tester, cubit, contextPanelVisible: false);
+      for (final graphId in {egoGraphId, ...revealed}) {
+        final sceneRect = _sceneNodeRect(cubit, graphId);
+        expect(sceneRect, isNot(Rect.zero), reason: '$graphId not placed');
+        final viewportRect = Rect.fromPoints(
+          controller.sceneToViewportLocal(sceneRect.topLeft),
+          controller.sceneToViewportLocal(sceneRect.bottomRight),
+        );
+        final grown = usable.inflate(1);
+        expect(
+          viewportRect.left >= grown.left &&
+              viewportRect.top >= grown.top &&
+              viewportRect.right <= grown.right &&
+              viewportRect.bottom <= grown.bottom,
+          isTrue,
+          reason: '$graphId at $viewportRect is outside $usable after expand',
+        );
+      }
     });
   });
 
