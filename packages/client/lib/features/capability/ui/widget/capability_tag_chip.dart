@@ -28,6 +28,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSelected = this.onSelected;
     final swatch = context.capabilityColors.swatchFor(tag.group);
     // Selected: the app's primary accent, so selection looks the same in every
     // group and matches the rest of the app (#436); idle chips keep the pastel
@@ -77,11 +78,17 @@ class CapabilityTagFilterChip extends StatelessWidget {
         width: 1.5,
       ),
     );
+    // One node for the chip: its own (nested) button node is excluded so the
+    // labelled node is also the one that can be tapped and focused (#360).
     final semanticChip = Semantics(
       identifier: TestIds.capabilityChip(tag.slug),
       button: true,
+      enabled: onSelected != null,
+      focusable: onSelected != null,
       selected: selected,
       label: '${tag.labelOf(l10n)}, ${_groupLabel(l10n, tag.group)}',
+      onTap: onSelected == null ? null : () => onSelected(!selected),
+      excludeSemantics: true,
       child: chip,
     );
     return semanticChip;
