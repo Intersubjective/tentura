@@ -323,6 +323,22 @@
   "@recoverFromSeedPrivacyNote": {
     "context": "RecoverScreen"
   },
+  "recoverAccountTitle": "Восстановление аккаунта",
+  "@recoverAccountTitle": {
+    "context": "RecoverScreen"
+  },
+  "recoverScanQrAction": "Сканировать QR",
+  "@recoverScanQrAction": {
+    "context": "RecoverScreen"
+  },
+  "recoverCameraNotFound": "Камера не найдена. Вставьте seed ниже.",
+  "@recoverCameraNotFound": {
+    "context": "RecoverScreen"
+  },
+  "recoverCameraBlocked": "Доступ к камере заблокирован. Вставьте seed ниже.",
+  "@recoverCameraBlocked": {
+    "context": "RecoverScreen"
+  },
   "shareAccount": "Поделиться аккаунтом",
   "@shareAccount": {
     "context": "AccountListTile"

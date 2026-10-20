@@ -37,6 +37,7 @@ class _RecoverScreenState extends State<RecoverScreen> {
   final _seedController = TextEditingController();
 
   var _hasScanResult = false;
+  var _isScanning = false;
   final _scanLiveRegionKey = GlobalKey();
 
   @override
@@ -107,12 +108,21 @@ class _RecoverScreenState extends State<RecoverScreen> {
     final theme = Theme.of(context);
     final tt = context.tt;
 
+    // Session-loss flows (banner "Fix sign-in", repeated loss) set
+    // [AuthState.authRecoveryNeeded]; the landing's "Recover from seed" link
+    // does not, so that visit gets its own title and no session-error block.
+    final isSessionProblem = authCubit.state.authRecoveryNeeded;
+
     return Scaffold(
       appBar: TenturaTopBar.of(
         context,
         centerTitle: true,
         leading: const AutoLeadingButton(),
-        title: Text(l10n.authRecoveryHubTitle),
+        title: Text(
+          isSessionProblem
+              ? l10n.authRecoveryHubTitle
+              : l10n.recoverAccountTitle,
+        ),
         progress: BlocSelector<AuthCubit, AuthState, bool>(
           selector: (state) => state.isLoading,
           builder: TenturaTopBar.loadingBar,
@@ -130,46 +140,77 @@ class _RecoverScreenState extends State<RecoverScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      l10n.authSessionProblemBanner,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    SizedBox(height: tt.sectionGap),
-                    FilledButton(
-                      onPressed: isLoading ? null : authCubit.signInAgain,
-                      child: Text(l10n.authRecoverySignInAgain),
-                    ),
-                    SizedBox(height: tt.rowGap),
-                    OutlinedButton(
-                      onPressed: isLoading
-                          ? null
-                          : () => unawaited(_confirmResetLocal()),
-                      child: Text(l10n.authRecoveryResetLocalTitle),
-                    ),
-                    SizedBox(height: tt.sectionGap * 2),
+                    if (isSessionProblem) ...[
+                      Text(
+                        l10n.authSessionProblemBanner,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      SizedBox(height: tt.sectionGap),
+                      FilledButton(
+                        onPressed: isLoading ? null : authCubit.signInAgain,
+                        child: Text(l10n.authRecoverySignInAgain),
+                      ),
+                      SizedBox(height: tt.rowGap),
+                      OutlinedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => unawaited(_confirmResetLocal()),
+                        child: Text(l10n.authRecoveryResetLocalTitle),
+                      ),
+                      SizedBox(height: tt.sectionGap * 2),
+                    ],
                     Text(
                       l10n.recoverFromSeedHint,
                       style: theme.textTheme.bodyMedium,
                     ),
                     SizedBox(height: tt.sectionGap),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final viewportH = MediaQuery.sizeOf(context).height;
-                        final qrHeight = (viewportH * 0.28).clamp(180.0, 320.0);
-                        return SizedBox(
-                          height: qrHeight,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(tt.cardRadius),
-                            child: Semantics(
-                              key: _scanLiveRegionKey,
-                              label: l10n.recoverFromSeedHint,
-                              liveRegion: true,
-                              child: MobileScanner(onDetect: _handleBarcode),
+                    if (!_isScanning)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: isLoading
+                              ? null
+                              : () => setState(() => _isScanning = true),
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          label: Text(l10n.recoverScanQrAction),
+                        ),
+                      )
+                    else
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final viewportH = MediaQuery.sizeOf(context).height;
+                          final qrHeight = (viewportH * 0.28).clamp(
+                            180.0,
+                            320.0,
+                          );
+                          return SizedBox(
+                            height: qrHeight,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                tt.cardRadius,
+                              ),
+                              child: Semantics(
+                                key: _scanLiveRegionKey,
+                                label: l10n.recoverFromSeedHint,
+                                liveRegion: true,
+                                child: MobileScanner(
+                                  onDetect: _handleBarcode,
+                                  errorBuilder: (context, error) => Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(tt.rowGap),
+                                      child: Text(
+                                        recoverScannerErrorText(l10n, error),
+                                        textAlign: TextAlign.center,
+                                        style: theme.textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
                     SizedBox(height: tt.sectionGap),
                     TextField(
                       controller: _seedController,
@@ -208,13 +249,16 @@ class _RecoverScreenState extends State<RecoverScreen> {
                         Expanded(
                           child: Align(
                             alignment: Alignment.centerRight,
-                            child: FilledButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => _recover(_seedController.text),
-                              child: Text(
-                                l10n.recoverFromSeedAction,
-                                textAlign: TextAlign.center,
+                            child: ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: _seedController,
+                              builder: (context, seed, _) => FilledButton(
+                                onPressed: isLoading || seed.text.trim().isEmpty
+                                    ? null
+                                    : () => _recover(_seedController.text),
+                                child: Text(
+                                  l10n.recoverFromSeedAction,
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ),
@@ -231,3 +275,11 @@ class _RecoverScreenState extends State<RecoverScreen> {
     );
   }
 }
+
+/// Plain copy for a scanner that could not start (no camera, blocked
+/// permission, browser `NotFoundError`): never the raw exception text.
+String recoverScannerErrorText(L10n l10n, MobileScannerException error) =>
+    switch (error.errorCode) {
+      MobileScannerErrorCode.permissionDenied => l10n.recoverCameraBlocked,
+      _ => l10n.recoverCameraNotFound,
+    };

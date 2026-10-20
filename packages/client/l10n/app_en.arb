@@ -323,6 +323,22 @@
   "@recoverFromSeedPrivacyNote": {
     "context": "RecoverScreen"
   },
+  "recoverAccountTitle": "Recover your account",
+  "@recoverAccountTitle": {
+    "context": "RecoverScreen"
+  },
+  "recoverScanQrAction": "Scan QR",
+  "@recoverScanQrAction": {
+    "context": "RecoverScreen"
+  },
+  "recoverCameraNotFound": "No camera found. Paste your seed below instead.",
+  "@recoverCameraNotFound": {
+    "context": "RecoverScreen"
+  },
+  "recoverCameraBlocked": "Camera access is blocked. Paste your seed below instead.",
+  "@recoverCameraBlocked": {
+    "context": "RecoverScreen"
+  },
   "shareAccount": "Share account",
   "@shareAccount": {
     "context": "AccountListTile"

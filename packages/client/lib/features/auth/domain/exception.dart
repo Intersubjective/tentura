@@ -38,10 +38,13 @@ class AuthSeedIsWrongException extends AuthException {
   const AuthSeedIsWrongException();
 
   @override
-  String get toEn => '${super.toEn} there is no correct seed!';
+  String get toEn =>
+      "That seed doesn't match an account. Check for missing characters.";
 
   @override
-  String get toRu => '${super.toRu} некорректная seed-фраза!';
+  String get toRu =>
+      'Этот seed не подходит ни к одному аккаунту. '
+      'Проверьте, не пропущены ли символы.';
 }
 
 ///
