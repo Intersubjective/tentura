@@ -360,7 +360,7 @@ async function main() {
   console.log(`[e2e_mention] runId=${runId} prefix=@${pfx} handles=${handles.join(',')}`);
 
   const health = await fetch(`${API}/health`).then((r) => r.text());
-  if (!health.includes('fine')) throw new Error(`API unhealthy: ${health}`);
+  if (!health.includes('fine') && !health.includes('"status":"ok"')) throw new Error(`API unhealthy: ${health}`);
 
   // 1) Bootstrap author + 3 helpers (shared author email on extras)
   const boot = await bootstrapPair({ runId });
