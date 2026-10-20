@@ -221,6 +221,7 @@ final _expectedErrorText = RegExp(
   'Only open requests can be edited|'
   'Image is not attached to this request|'
   r'(?:Auth error: )?there is no correct seed!|'
+  r"That seed doesn't match an account\. Check for missing characters|"
   r'Id not found: \[[^\]\n]*\])\.?$',
 );
 
