@@ -1966,6 +1966,15 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
+  "ratingScatterClusterMore": "{count, plural, one{Ещё {count} человек здесь} few{Ещё {count} человека здесь} many{Ещё {count} человек здесь} other{Ещё {count} человека здесь}}",
+  "@ratingScatterClusterMore": {
+    "context": "RatingScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "alter": "Человек",
   "@alter": {
     "context": "RatingScreen"
