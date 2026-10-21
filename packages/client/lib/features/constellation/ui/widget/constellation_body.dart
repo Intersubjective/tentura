@@ -1409,10 +1409,18 @@ class _ConstellationMapNode extends StatelessWidget {
   }
 }
 
+typedef _EdgeDashPath = ({
+  Offset a,
+  Offset b,
+  double dash,
+  double gap,
+  Path? path,
+});
+
 @immutable
 class ConstellationEdgePainter
     implements RepaintingEdgePainter<NodeDetails, EdgeDetails> {
-  const ConstellationEdgePainter({
+  ConstellationEdgePainter({
     required this.edgeKindByPair,
     required this.tt,
     required this.scheme,
@@ -1428,6 +1436,10 @@ class ConstellationEdgePainter
   @override
   final Listenable repaint;
   final double Function() cameraScale;
+
+  /// Dash geometry per edge, rebuilt only when the edge's trimmed endpoints or
+  /// dash pattern change (a drag moves a few edges per frame, not all).
+  final _dashPaths = <String, _EdgeDashPath>{};
 
   // Painting depends only on these inputs (and the scene), so equal painters
   // paint identically and the render layer can skip redundant repaints.
@@ -1489,6 +1501,32 @@ class ConstellationEdgePainter
       dstInset: destinationRadius + 2,
     );
 
+    Path? dashPath;
+    if (dashLength > 0) {
+      final cached = _dashPaths[edge.semanticId];
+      if (cached != null &&
+          cached.a == trimmed.$1 &&
+          cached.b == trimmed.$2 &&
+          cached.dash == dashLength &&
+          cached.gap == dashGap) {
+        dashPath = cached.path;
+      } else {
+        dashPath = constellationEdgeDashPath(
+          trimmed.$1,
+          trimmed.$2,
+          dash: dashLength,
+          gap: dashGap,
+        );
+        _dashPaths[edge.semanticId] = (
+          a: trimmed.$1,
+          b: trimmed.$2,
+          dash: dashLength,
+          gap: dashGap,
+          path: dashPath,
+        );
+      }
+    }
+
     final paint = Paint()
       ..color = style.color.withValues(
         alpha: style.color.a * (edgeFadeBySemanticId[edge.semanticId] ?? 1),
@@ -1506,6 +1544,7 @@ class ConstellationEdgePainter
       dash: dashLength,
       gap: dashGap,
       endDots: style.endDots,
+      dashPath: dashPath,
     );
   }
 

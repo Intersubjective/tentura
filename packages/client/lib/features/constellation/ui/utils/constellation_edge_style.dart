@@ -22,11 +22,48 @@ final _endDotPaint = Paint()
   ..style = PaintingStyle.fill
   ..isAntiAlias = true;
 
+/// Times dashed stroke geometry was constructed; tests pin it to prove edges
+/// that did not move are not rebuilt.
+@visibleForTesting
+int get constellationEdgeDashPathBuildCount => _dashPathBuildCount;
+var _dashPathBuildCount = 0;
+
+/// One [Path] holding every dash of `a → b`, or null for a zero-length edge.
+Path? constellationEdgeDashPath(
+  Offset a,
+  Offset b, {
+  required double dash,
+  required double gap,
+}) {
+  _dashPathBuildCount++;
+  final delta = b - a;
+  final length = delta.distance;
+  if (length <= 0) {
+    return null;
+  }
+  final direction = delta / length;
+  final path = Path();
+  var travelled = 0.0;
+  while (travelled < length) {
+    final dashEnd = math.min(travelled + dash, length);
+    final from = a + direction * travelled;
+    final to = a + direction * dashEnd;
+    path
+      ..moveTo(from.dx, from.dy)
+      ..lineTo(to.dx, to.dy);
+    travelled += dash + gap;
+  }
+  return path;
+}
+
 /// Strokes `a → b` the way the edge style says, with [paint] already carrying the
 /// color and (camera-scaled) stroke width. Shared by the Constellation canvas
 /// and its legend so samples match the graph.
 ///
 /// A dashed edge is one [Path] (one draw call), not one `drawLine` per dash.
+/// A caller that keeps the path of an edge between frames passes it as
+/// [dashPath] (built by [constellationEdgeDashPath] for the same `a`, `b`,
+/// [dash] and [gap]); otherwise it is built here.
 void paintConstellationEdgeStroke(
   Canvas canvas,
   Offset a,
@@ -35,25 +72,14 @@ void paintConstellationEdgeStroke(
   required double dash,
   required double gap,
   required bool endDots,
+  Path? dashPath,
 }) {
   if (dash <= 0) {
     canvas.drawLine(a, b, paint);
   } else {
-    final delta = b - a;
-    final length = delta.distance;
-    if (length > 0) {
-      final direction = delta / length;
-      final path = Path();
-      var travelled = 0.0;
-      while (travelled < length) {
-        final dashEnd = math.min(travelled + dash, length);
-        final from = a + direction * travelled;
-        final to = a + direction * dashEnd;
-        path
-          ..moveTo(from.dx, from.dy)
-          ..lineTo(to.dx, to.dy);
-        travelled += dash + gap;
-      }
+    final path =
+        dashPath ?? constellationEdgeDashPath(a, b, dash: dash, gap: gap);
+    if (path != null) {
       canvas.drawPath(path, paint);
     }
   }
