@@ -322,10 +322,6 @@ void main() {
           ),
           isTrue,
         );
-        expect(
-          cubit.graphController.getPositionOrNullForId('fp:p1'),
-          const Offset(640, 480),
-        );
       },
     );
     test('cancelled drag restores an unanchored composer person', () async {

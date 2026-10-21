@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
@@ -166,13 +167,24 @@ void main() {
           const Offset(40, 40),
         );
         final after = _positions(cubit);
+        // The scene is never laid out here, so a node with no position yet
+        // has nothing to keep; the pinned peer is drawn at its pin instead.
         for (final entry in before.entries) {
+          if (entry.value == null) continue;
           expect(
             after[entry.key],
             entry.value,
             reason: 'existing node ${entry.key} (pinned or not) must not move',
           );
         }
+        final pin = constellationV1AnchorToPoint(
+          const ConstellationAnchorPosition(
+            xUnits: 300,
+            yUnits: 200,
+            coordinateSpaceVersion: 1,
+          ),
+        );
+        expect(after['fp:$_pinnedPeer'], Offset(pin.x, pin.y));
       },
     );
 

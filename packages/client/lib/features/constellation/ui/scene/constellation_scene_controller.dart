@@ -962,14 +962,10 @@ class ConstellationSceneController {
       placedPersonIds.add(added[i]);
     }
     if (confirmedAnchors != null) {
-      final anchors = constellationAnchorsByNodeId(confirmedAnchors);
       for (final node in nodes.whereType<FieldPersonNode>()) {
         final id = node.graphNodeId;
         if (id == heldPersonId) continue;
-        final anchor = anchors[id];
-        final point = anchor == null
-            ? null
-            : constellationV1AnchorToPoint(anchor.position);
+        final point = pins[id];
         final current = graphController.renderSnapshot.resolvePosition(id);
         final moved = movedPersonIds.contains(id) ? personPositions[id] : null;
         final position =
