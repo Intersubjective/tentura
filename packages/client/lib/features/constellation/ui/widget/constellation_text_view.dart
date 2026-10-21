@@ -51,19 +51,23 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           }
         }
       },
-      buildWhen: (previous, current) =>
-          previous.field != current.field ||
-          previous.paths != current.paths ||
-          previous.graphRevision != current.graphRevision ||
-          previous.selectedRequestId != current.selectedRequestId ||
-          previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
-          previous.filterLocation != current.filterLocation ||
-          previous.filterTiming != current.filterTiming ||
-          previous.filterIncludeUnspecified !=
-              current.filterIncludeUnspecified ||
-          previous.loadError != current.loadError,
+      buildWhen: (previous, current) {
+        // Hidden behind the map: skip; switching to the view rebuilds it.
+        if (current.viewMode != ConstellationViewMode.text) return false;
+        if (previous.viewMode != ConstellationViewMode.text) return true;
+        return previous.field != current.field ||
+            previous.paths != current.paths ||
+            previous.graphRevision != current.graphRevision ||
+            previous.selectedRequestId != current.selectedRequestId ||
+            previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
+            previous.filterLocation != current.filterLocation ||
+            previous.filterTiming != current.filterTiming ||
+            previous.filterIncludeUnspecified !=
+                current.filterIncludeUnspecified ||
+            previous.loadError != current.loadError;
+      },
       builder: (context, state) {
-        final cubit = context.read<ConstellationCubit>();
+        final cubit = context.read<ConstellationCubit>()..noteTextViewBuild();
         final l10n = L10n.of(context)!;
         final tt = context.tt;
         final theme = Theme.of(context);

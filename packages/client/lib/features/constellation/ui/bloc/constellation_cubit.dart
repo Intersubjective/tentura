@@ -265,6 +265,21 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   int get layoutReconciliationCount => _layoutReconciliationCount;
 
+  /// How many times the pin layout input was built (one per composition,
+  /// shared by every Pin button).
+  int get pinLayoutInputBuildCount => _pinLayoutInputBuildCount;
+
+  /// How many times the Text view builder ran (a view hidden behind the map
+  /// must not rebuild).
+  int get textViewBuildCount => _textViewBuildCount;
+
+  void noteTextViewBuild() => _textViewBuildCount++;
+
+  int _pinLayoutInputBuildCount = 0;
+  int _textViewBuildCount = 0;
+  Object? _pinLayoutInputComposition;
+  ConstellationPlacedLayoutInput? _pinLayoutInput;
+
   @visibleForTesting
   Set<String> get forgetPriorHintNodeIdsForTest => _forgetPriorHintNodeIds;
 
@@ -1813,15 +1828,21 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (composition == null) {
       return false;
     }
-    final layoutInput = layoutInputFromComposition(
-      viewerId: _viewer.id,
-      composition: composition,
-      labelPlan: composition.labelPlan,
-      nodeSizes: const {},
-      spacing: 16,
-      priorHints: _layoutPriorHints,
-      footprints: layoutFootprints,
-    );
+    if (_pinLayoutInput == null ||
+        !identical(_pinLayoutInputComposition, composition)) {
+      _pinLayoutInputBuildCount++;
+      _pinLayoutInputComposition = composition;
+      _pinLayoutInput = layoutInputFromComposition(
+        viewerId: _viewer.id,
+        composition: composition,
+        labelPlan: composition.labelPlan,
+        nodeSizes: const {},
+        spacing: 16,
+        priorHints: _layoutPriorHints,
+        footprints: layoutFootprints,
+      );
+    }
+    final layoutInput = _pinLayoutInput!;
     return computeConstellationPinPosition(
           target: target,
           layoutInput: layoutInput,
