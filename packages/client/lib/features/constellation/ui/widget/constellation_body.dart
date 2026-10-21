@@ -768,15 +768,19 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  const ConstellationTextView(),
-                                  if (panelVisible &&
-                                      state.viewMode ==
-                                          ConstellationViewMode.text)
-                                    _buildContextOverlay(
-                                      context,
-                                      cubit,
-                                      state,
-                                    ),
+                                  // Not mounted while hidden: its Pin
+                                  // buttons would keep running pin layouts
+                                  // on every map recompose.
+                                  if (state.viewMode ==
+                                      ConstellationViewMode.text) ...[
+                                    const ConstellationTextView(),
+                                    if (panelVisible)
+                                      _buildContextOverlay(
+                                        context,
+                                        cubit,
+                                        state,
+                                      ),
+                                  ],
                                 ],
                               ),
                             ],
