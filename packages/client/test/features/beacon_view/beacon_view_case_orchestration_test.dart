@@ -176,14 +176,24 @@ void main() {
       expect(beacon.refreshAndNotifyCalls, ['B1']);
     });
 
-    test('beaconCancel refreshes beacon after closure', () async {
-      final beacon = TrackingBeaconRepository();
-      final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
+    test(
+      'beaconCancel sends the cancel mutation and leaves the one refresh '
+      'read to the screen (#611)',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final closure = _RecordingLifecycleClosureRepository();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          closureRepo: closure,
+        );
 
-      await case_.beaconCancel('B2');
+        await case_.beaconCancel('B2');
 
-      expect(beacon.refreshAndNotifyCalls, ['B2']);
-    });
+        expect(closure.cancelled, ['B2']);
+        expect(beacon.refreshAndNotifyCalls, isEmpty);
+        expect(beacon.fetchByIdCalls, 0);
+      },
+    );
 
     test('beaconExtendReview refreshes beacon after closure', () async {
       final beacon = TrackingBeaconRepository();
@@ -199,7 +209,7 @@ void main() {
       'read to the screen (#366)',
       () async {
         final beacon = TrackingBeaconRepository();
-        final closure = _RecordingReopenClosureRepository();
+        final closure = _RecordingLifecycleClosureRepository();
         final case_ = buildTestBeaconViewCase(
           beaconRepo: beacon,
           closureRepo: closure,
@@ -215,14 +225,24 @@ void main() {
       },
     );
 
-    test('beaconCloseNow refreshes beacon after closure', () async {
-      final beacon = TrackingBeaconRepository();
-      final case_ = buildTestBeaconViewCase(beaconRepo: beacon);
+    test(
+      'beaconCloseNow sends the close-now mutation and leaves the one '
+      'refresh read to the screen (#611)',
+      () async {
+        final beacon = TrackingBeaconRepository();
+        final closure = _RecordingLifecycleClosureRepository();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beacon,
+          closureRepo: closure,
+        );
 
-      await case_.beaconCloseNow('B5');
+        await case_.beaconCloseNow('B5');
 
-      expect(beacon.refreshAndNotifyCalls, ['B5']);
-    });
+        expect(closure.closedNow, ['B5']);
+        expect(beacon.refreshAndNotifyCalls, isEmpty);
+        expect(beacon.fetchByIdCalls, 0);
+      },
+    );
 
     test('setBeaconStatus refreshes beacon after mutation', () async {
       final beacon = TrackingBeaconRepository();
@@ -415,13 +435,28 @@ void main() {
   });
 }
 
-class _RecordingReopenClosureRepository
+class _RecordingLifecycleClosureRepository
     extends FakeBeaconViewClosureRepository {
   final reopened = <String>[];
+
+  final cancelled = <String>[];
+  final closedNow = <String>[];
 
   @override
   Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) async {
     reopened.add(beaconId);
     return super.beaconReopen(beaconId);
+  }
+
+  @override
+  Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) async {
+    cancelled.add(beaconId);
+    return super.beaconCancel(beaconId);
+  }
+
+  @override
+  Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) async {
+    closedNow.add(beaconId);
+    return super.beaconCloseNow(beaconId);
   }
 }

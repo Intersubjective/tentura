@@ -84,7 +84,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     );
     _beaconChangesSub = _case.beaconChanges.listen(
       (event) {
-        if ((_closingBeacon || _reopeningBeacon) &&
+        if ((_closingBeacon || _applyingLifecycleStatus) &&
             event is RepositoryEventUpdate<Beacon>) {
           return;
         }
@@ -187,9 +187,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   bool _closingBeacon = false;
 
-  /// Set while reopenBeacon notifies other screens and runs its one refresh
-  /// read, so its own notify does not start a second full refresh (#366).
-  bool _reopeningBeacon = false;
+  /// Set while a successful reopen / cancel / close now notifies other
+  /// screens and runs its one refresh read, so its own notify does not start
+  /// a second full refresh (#366, #611).
+  bool _applyingLifecycleStatus = false;
 
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
@@ -466,10 +467,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.beaconCancel(state.beacon.id);
-      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
+      // The cancel itself failed: the Request stays as it was.
       _showSnackError(e);
+      return;
     }
+    // The cancel went through: show it at once, even if the follow-up read
+    // fails (#611, same shape as Reopen in #366).
+    await _applyLifecycleStatus(BeaconStatus.cancelled);
   }
 
   Future<void> reopenBeacon() async {
@@ -481,26 +486,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       _showSnackError(e);
       return;
     }
-    if (isClosed) return;
     // The reopen went through: back to coordinating at once, even if the
     // follow-up read fails (#366). The cancelled epoch's snapshot goes.
-    final reopened = state.beacon.copyWith(status: BeaconStatus.open);
-    emit(
-      state.copyWith(
-        beacon: reopened,
-        closureState: null,
-        status: const StateIsSuccess(),
-      ),
-    );
-    _reopeningBeacon = true;
-    try {
-      _case.notifyBeaconUpdated(reopened);
-      // One quiet refresh read (with its one retry): a failed read keeps the
-      // local status, no error shown.
-      await _fetchBeaconByIdWithTimeline(background: true);
-    } finally {
-      _reopeningBeacon = false;
-    }
+    await _applyLifecycleStatus(BeaconStatus.open);
   }
 
   Future<void> closeBeaconNow() async {
@@ -508,13 +496,36 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.beaconCloseNow(state.beacon.id);
-      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
+      // The close itself failed: the final check stays.
       _showSnackError(e);
+      return;
+    }
+    // The close went through: show it at once, even if the follow-up read
+    // fails (#611). The finished final check's snapshot goes.
+    await _applyLifecycleStatus(BeaconStatus.closed);
+  }
+
+  /// After a lifecycle mutation that succeeded (reopen, cancel, close now):
+  /// applies [status] at once, drops the final-check snapshot, tells other
+  /// screens, then runs one quiet refresh read (with its one retry). A failed
+  /// read keeps the local status and shows no error (#366, #611).
+  Future<void> _applyLifecycleStatus(BeaconStatus status) async {
+    if (isClosed) return;
+    final updated = state.beacon.copyWith(status: status);
+    emit(
+      state.copyWith(
+        beacon: updated,
+        closureState: null,
+        status: const StateIsSuccess(),
+      ),
+    );
+    _applyingLifecycleStatus = true;
+    try {
+      _case.notifyBeaconUpdated(updated);
+      await _fetchBeaconByIdWithTimeline(background: true);
     } finally {
-      if (!isClosed && state.status == StateStatus.isLoading) {
-        emit(state.copyWith(status: const StateIsSuccess()));
-      }
+      _applyingLifecycleStatus = false;
     }
   }
 

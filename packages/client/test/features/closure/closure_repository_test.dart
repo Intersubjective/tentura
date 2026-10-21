@@ -642,6 +642,36 @@ void main() {
       },
     );
 
+    test(
+      'beaconCloseNow succeeds without a closure state read after the '
+      'close (#611): a failed follow-up read is not a failed Close now',
+      () async {
+        final sent = <_Sent>[];
+        await _withRemote(
+          {
+            'BeaconCloseNow': {'beaconCloseNow': true},
+            'ClosureState': {
+              '__typename': 'query_root',
+              'closureState': _stateJson(),
+            },
+          },
+          sent,
+          (repo) async {
+            final result = await repo.beaconCloseNow(_beaconId);
+            expect(result.beaconId, _beaconId);
+            expect(result.state, BeaconStatus.closed.smallintValue);
+          },
+          // A read after the close fails (e.g. a busy database).
+          errorsAfterFirst: {'ClosureState': _codeError(1002)},
+        );
+        expect(sent.map((s) => s.operationName), [
+          'ClosureState',
+          'BeaconCloseNow',
+        ]);
+        expect(sent.last.variables['expectedEpoch'], 2);
+      },
+    );
+
     test('typed exceptions are localizable and numbered', () {
       expect(ClosureStaleEpochException.codeNumber, 1803);
       expect(const ClosureStaleEpochException().toEn, isNotEmpty);
