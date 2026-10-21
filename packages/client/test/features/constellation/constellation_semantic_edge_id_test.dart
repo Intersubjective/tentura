@@ -119,9 +119,26 @@ class _RecordingCanvas extends Fake implements Canvas {
   final lines = <_RecordedLine>[];
   final dots = <Offset>[];
 
+  /// One entry per dash: a dashed edge is a single path with one contour each.
+  final dashes = <_RecordedLine>[];
+
   @override
   void drawLine(Offset p1, Offset p2, Paint paint) {
     lines.add(_RecordedLine(p1, p2, paint.color, paint.strokeWidth));
+  }
+
+  @override
+  void drawPath(Path path, Paint paint) {
+    for (final metric in path.computeMetrics()) {
+      dashes.add(
+        _RecordedLine(
+          metric.getTangentForOffset(0)!.position,
+          metric.getTangentForOffset(metric.length)!.position,
+          paint.color,
+          paint.strokeWidth,
+        ),
+      );
+    }
   }
 
   @override
@@ -376,8 +393,9 @@ void main() {
       painter.paint(dashedCanvas, dashed, Offset.zero, const Offset(200, 0));
 
       expect(solidCanvas.lines, hasLength(1), reason: 'solid is one segment');
+      expect(dashedCanvas.lines, isEmpty, reason: 'dashed is one path');
       expect(
-        dashedCanvas.lines.length,
+        dashedCanvas.dashes.length,
         greaterThan(1),
         reason: 'dashed is several segments',
       );
@@ -396,12 +414,13 @@ void main() {
         solidStyle.color.toARGB32(),
       );
       expect(solidCanvas.lines.single.width, solidStyle.width);
-      for (final line in dashedCanvas.lines) {
+      for (final line in dashedCanvas.dashes) {
         expect(line.color.toARGB32(), dashedStyle.color.toARGB32());
         expect(line.width, dashedStyle.width);
       }
       expect(
-        (dashedCanvas.lines.first.to - dashedCanvas.lines.first.from).distance,
+        (dashedCanvas.dashes.first.to - dashedCanvas.dashes.first.from)
+            .distance,
         closeTo(dashedStyle.dash, 0.001),
         reason: 'each dash segment has the dash length of its own kind',
       );

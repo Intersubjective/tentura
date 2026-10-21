@@ -16,9 +16,17 @@ typedef ConstellationEdgeStyle = ({
   bool endDots,
 });
 
+/// Shared by every edge's end dots: the painter is synchronous, so the color is
+/// set right before each draw instead of allocating a Paint per edge.
+final _endDotPaint = Paint()
+  ..style = PaintingStyle.fill
+  ..isAntiAlias = true;
+
 /// Strokes `a → b` the way the edge style says, with [paint] already carrying the
 /// color and (camera-scaled) stroke width. Shared by the Constellation canvas
 /// and its legend so samples match the graph.
+///
+/// A dashed edge is one [Path] (one draw call), not one `drawLine` per dash.
 void paintConstellationEdgeStroke(
   Canvas canvas,
   Offset a,
@@ -35,27 +43,26 @@ void paintConstellationEdgeStroke(
     final length = delta.distance;
     if (length > 0) {
       final direction = delta / length;
+      final path = Path();
       var travelled = 0.0;
       while (travelled < length) {
         final dashEnd = math.min(travelled + dash, length);
-        canvas.drawLine(
-          a + direction * travelled,
-          a + direction * dashEnd,
-          paint,
-        );
+        final from = a + direction * travelled;
+        final to = a + direction * dashEnd;
+        path
+          ..moveTo(from.dx, from.dy)
+          ..lineTo(to.dx, to.dy);
         travelled += dash + gap;
       }
+      canvas.drawPath(path, paint);
     }
   }
   if (endDots) {
-    final dotPaint = Paint()
-      ..color = paint.color
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
+    _endDotPaint.color = paint.color;
     final radius = paint.strokeWidth * 1.6;
     canvas
-      ..drawCircle(a, radius, dotPaint)
-      ..drawCircle(b, radius, dotPaint);
+      ..drawCircle(a, radius, _endDotPaint)
+      ..drawCircle(b, radius, _endDotPaint);
   }
 }
 
