@@ -441,21 +441,77 @@ void main() {
     expect(find.text('Завершить сейчас'), findsOneWidget);
   });
 
-  testWidgets('footer: «Завершить сейчас» enabled by canCloseNow + hint', (
+  // #364 (TEST_DISPUTE, see run report): the early-close date is no longer
+  // shown beside an ENABLED «Завершить сейчас»; it stays for a disabled one.
+  testWidgets('footer: «Завершить сейчас» enabled by canCloseNow, no hint', (
     tester,
   ) async {
     final fake = await _pump(
       tester,
       _state(canCloseNow: true, earlyCloseAt: DateTime.utc(2030, 1, 5, 9)),
     );
+    expect(find.textContaining('Можно закрыть раньше после'), findsNothing);
+    await tester.tap(find.text('Завершить сейчас'));
+    await tester.pumpAndSettle();
+    expect(fake.calls['closeNow'], {'expectedEpoch': _epoch});
+  });
+
+  testWidgets('footer: early-close hint while waiting on the review', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _state(
+        outcomes: {..._allDone, 'u4': ClosureOutcome.done},
+        earlyCloseAt: DateTime.utc(2030, 1, 5, 9),
+      ),
+    );
+    expect(_button(tester, 'Завершить сейчас').onPressed, isNull);
     expect(find.textContaining('Можно закрыть раньше после'), findsOneWidget);
     expect(
       find.textContaining('или когда все помощники ответят'),
       findsOneWidget,
     );
-    await tester.tap(find.text('Завершить сейчас'));
-    await tester.pumpAndSettle();
-    expect(fake.calls['closeNow'], {'expectedEpoch': _epoch});
+    expect(find.textContaining('Выберите итог'), findsNothing);
+  });
+
+  group('#364: the only helper was removed after a Reopen', () {
+    const pickHint =
+        'Выберите итог для каждого помощника, чтобы завершить сейчас';
+    final removed = [_member('u1', departure: 'removed')];
+
+    testWidgets('unjudged: Finish now disabled, explains what to do', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(members: removed, earlyCloseAt: DateTime.utc(2030, 1, 5, 9)),
+      );
+      expect(_button(tester, 'Завершить сейчас').onPressed, isNull);
+      expect(find.text(pickHint), findsOneWidget);
+      // Nobody is left to answer the review: no misleading date.
+      expect(find.textContaining('Можно закрыть раньше после'), findsNothing);
+    });
+
+    testWidgets('judged: hint gone, Finish now enabled, no date', (
+      tester,
+    ) async {
+      final fake = await _pump(
+        tester,
+        _state(
+          members: removed,
+          outcomes: {'u1': ClosureOutcome.notDone},
+          canCloseNow: true,
+          earlyCloseAt: DateTime.utc(2030, 1, 5, 9),
+        ),
+      );
+      expect(find.text(pickHint), findsNothing);
+      expect(find.textContaining('Можно закрыть раньше после'), findsNothing);
+      expect(_button(tester, 'Завершить сейчас').onPressed, isNotNull);
+      await tester.tap(find.text('Завершить сейчас'));
+      await tester.pumpAndSettle();
+      expect(fake.calls['closeNow'], {'expectedEpoch': _epoch});
+    });
   });
 
   testWidgets('never shows who has answered', (tester) async {
