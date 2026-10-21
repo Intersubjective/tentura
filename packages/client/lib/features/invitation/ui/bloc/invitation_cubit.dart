@@ -53,9 +53,14 @@ class InvitationCubit extends Cubit<InvitationState> {
 
   static const _refreshDebounce = Duration(milliseconds: 100);
 
-  /// A background refetch is running. It does not emit `isLoading`, so the
-  /// People loading bar does not flash on every push.
-  bool _silentInFlight = false;
+  /// Bumped by every fetch of the first page. Only the latest fetch may
+  /// apply its answer: a newer one was asked for after something changed,
+  /// and a slow or stuck older answer must not block or overwrite it.
+  int _fetchGeneration = 0;
+
+  /// Bumped by every local create/update/delete. A fetch answer taken
+  /// before a local change is older than the lists on screen (#502).
+  int _localChanges = 0;
 
   void _scheduleSilentFetch() {
     if (isClosed) return;
@@ -64,7 +69,7 @@ class InvitationCubit extends Cubit<InvitationState> {
       _refreshTimer = null;
       if (isClosed) return;
       // A load in progress may predate the change; try again after it.
-      if (state.isLoading || _silentInFlight) {
+      if (state.isLoading) {
         _scheduleSilentFetch();
         return;
       }
@@ -79,22 +84,33 @@ class InvitationCubit extends Cubit<InvitationState> {
   /// [showError] is false for background refetches: a failure there keeps
   /// the visible lists without a snackbar.
   Future<void> fetch({bool showError = true}) async {
-    if (state.isLoading || _silentInFlight) {
+    if (state.isLoading) {
+      // The running load may predate what this fetch was asked for (a
+      // pushed accept, a pull to refresh): run it after, don't drop it.
+      _scheduleSilentFetch();
       return;
     }
 
     // Keep the current lists while loading — a failed refetch must not
     // wipe what the user already sees (counts, list rows). A background
-    // refetch shows no loading state and keeps the current status.
+    // refetch shows no loading state and keeps the current status. A
+    // background refetch still running does not block this one (#502).
     final silent = !showError;
-    if (silent) {
-      _silentInFlight = true;
-    } else {
-      emit(state.copyWith(status: StateStatus.isLoading));
-    }
+    if (!silent) emit(state.copyWith(status: StateStatus.isLoading));
 
+    final generation = ++_fetchGeneration;
+    final localChangesAtStart = _localChanges;
     try {
       final result = await _invitationRepository.fetchMine();
+      // A newer fetch was started meanwhile; its answer is the fresher one.
+      if (isClosed || generation != _fetchGeneration) return;
+      if (_localChanges != localChangesAtStart) {
+        // A local edit landed meanwhile: this answer would bring back a
+        // deleted invite or hide a new one. Fetch again instead.
+        if (!silent) emit(state.copyWith(status: StateStatus.isSuccess));
+        _scheduleSilentFetch();
+        return;
+      }
       final pending = [...result.pending]
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       final accepted = [...result.accepted]
@@ -112,9 +128,7 @@ class InvitationCubit extends Cubit<InvitationState> {
     } catch (e) {
       // A silent failure leaves the state alone: no snackbar, and an earlier
       // error state is not turned into an empty "success".
-      if (showError) _emitSnackError(e);
-    } finally {
-      if (silent) _silentInFlight = false;
+      if (showError && generation == _fetchGeneration) _emitSnackError(e);
     }
   }
 
@@ -190,6 +204,7 @@ class InvitationCubit extends Cubit<InvitationState> {
         ...state.pendingInvitations,
         invitation,
       ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      _localChanges++;
       emit(
         state.copyWith(
           pendingInvitations: next,
@@ -217,6 +232,7 @@ class InvitationCubit extends Cubit<InvitationState> {
       final next = [
         for (final e in state.pendingInvitations) e.id == id ? updated : e,
       ];
+      _localChanges++;
       emit(
         state.copyWith(pendingInvitations: next, status: StateStatus.isSuccess),
       );
@@ -230,6 +246,7 @@ class InvitationCubit extends Cubit<InvitationState> {
     try {
       await _invitationRepository.deleteById(id);
       final next = state.pendingInvitations.where((e) => e.id != id).toList();
+      _localChanges++;
       emit(
         state.copyWith(
           pendingInvitations: next,
