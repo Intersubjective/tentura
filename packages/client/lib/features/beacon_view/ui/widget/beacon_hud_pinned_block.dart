@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -123,6 +124,25 @@ class BeaconHudPinnedBlock extends StatelessWidget {
   ) {
     final tt = context.tt;
     final status = state.beacon.status;
+    // #380: during the final check the row shows when it ends, so the new
+    // end date after an extension is visible to the author and helpers.
+    final closure = state.closureState;
+    if (status == BeaconStatus.reviewOpen && closure != null) {
+      final label = l10n.beaconHudFinalCheckEndsLabel;
+      return [
+        BeaconHudMetadataEntry(
+          icon: BeaconHudRowIcons.schedule,
+          semanticsLabel: label,
+          body: _LabeledLine(
+            label: label,
+            text: DateFormat.MMMd(
+              l10n.localeName,
+            ).add_Hm().format(closure.closesAt.toLocal()),
+            color: tt.text,
+          ),
+        ),
+      ];
+    }
     // Lifecycle summaries (deleted, cancelled, in review) stay on the app
     // bar status; the step row only carries the team's own plan.
     if (status == BeaconStatus.deleted ||

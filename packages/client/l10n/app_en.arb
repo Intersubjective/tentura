@@ -5701,6 +5701,44 @@
   "@beaconActivityLifecycleReopened": {
     "description": "Activity log: author reopened beacon from review"
   },
+  "beaconActivityLifecycleFinalCheckExtended": "Final check extended to {date}",
+  "@beaconActivityLifecycleFinalCheckExtended": {
+    "description": "Activity log: the author extended the final check; {date} is the new end date (#380)",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconFinalCheckEndsAt": "Final check ends {when}",
+  "@beaconFinalCheckEndsAt": {
+    "description": "Status sheet, under the final check row: its end date (#380)",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconFinalCheckExtensionsUsed": "Extensions: {used} of {limit}",
+  "@beaconFinalCheckExtensionsUsed": {
+    "description": "Status sheet, author only: final check extensions used out of the limit (#380)",
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconFinalCheckNoExtensionsLeft": "No extensions left",
+  "@beaconFinalCheckNoExtensionsLeft": {
+    "description": "Status sheet, author only: both final check extensions are used, so Extend is gone (#380)"
+  },
+  "beaconHudFinalCheckEndsLabel": "FINAL CHECK UNTIL",
+  "@beaconHudFinalCheckEndsLabel": {
+    "description": "Overview HUD row label during the final check, followed by its end date (#380)"
+  },
   "beaconActivityLifecycleReviewExpired": "Final check ended",
   "@beaconActivityLifecycleReviewExpired": {
     "description": "Activity log: review window expired and beacon closed"
