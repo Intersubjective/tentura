@@ -2117,3 +2117,58 @@ Checked with a throwaway widget test (the real `ConstellationScreen` in `Materia
 **What is left.** The remaining long frames are raster-dominated: drag *total* frame p95 is 27–28 ms against 3.3 ms of build, because CanvasKit on Chrome rasterizes on the main thread and the default `OffscreenCanvasRasterizer` spends ~16 ms per frame in `createImageBitmap` (round-3 profile, `packages/client/build/bench/u40_round3_profile_20261021/`). A prototype with `FLUTTER_WEB_CANVASKIT_FORCE_MULTI_SURFACE_RASTERIZER=true` cut drag raster p95 from 24–30 to ~7 ms and removed the drop task. Switching the rasterizer (or a `--wasm` skwasm build) is an engine-level change awaiting an owner decision; it needs verification on headed Chrome and devices and on the Google Maps platform view.
 
 **Web e2e.** `constellation_protocol_release_test`, `constellation_pinning_test`, `constellation_interactive_flows_test`: all pass.
+
+## UNIT U40 — part 2/3: I4 on the production renderer (skwasm) — 2026-10-22 (tentura-s7gl.71)
+
+**Why a new measurement.** Production ships `flutter build web --wasm`: multi-threaded skwasm, cross-origin isolated by COOP/COEP from the production Caddyfile (locally from `packages/client/web_dev_config.yaml` and `Caddyfile.local`). The tracked bench (`scripts/run_client_profile_web_bench_local.sh`) built without `--wasm`, so every earlier U40 entry measured the dart2js/CanvasKit fallback, not what Chrome users get. A rasterizer-options matrix (2026-10-21/22, host i5-12600K + RTX 4070 Ti, Chrome 143, Flutter 3.47.0, commit `66b7addf4`, clean tree; evidence `packages/client/build/bench/u40_rasterizer_options_20261021/`, gitignored: `README.txt`, `summary_cells.txt`, `summary_matrix.txt`, `summary_mainthread_profile.txt`, scratch tools in `tools/`) measured the same bench on skwasm and on CanvasKit with both rasterizers, headless and headed.
+
+**N = 300** (ms, range over runs per cell; "fw Frame" = the framework's own per-frame `Frame` measure; tasks are main-thread tasks > 50 ms over mouse cycle / touch cycle):
+
+| cell [runs] | drag build p95 | drag fw Frame max | drag raster p95 | drag total p95 | pan build p95 | pan total p95 | grab mouse / touch | tasks > 50 ms |
+|---|---|---|---|---|---|---|---|---|
+| wasm (skwasm) headless [3] | 11.2–16.0 | 3.1–3.9 | 19.7–20.9 | 32.5–35.4 | 1.8–2.1 | 22.9–25.1 | 34.7–44.2 / 46.9–57.1 | none |
+| wasm (skwasm) headed [3] | 2.1–2.8 | 3.2–4.2 | 7.1–8.3 | 9.0–10.9 | 3.0–3.9 | 17.9–19.4 | 25.5–38.9 / 41.6–50.4 | none |
+| CanvasKit default (OffscreenCanvas) headless [2] | 2.9–3.0 | 4.8–5.3 | 23.4 | 25.6–27.1 | 4.5–6.0 | 33.2–37.3 | 72.0–82.2 / 99.9–101.3 | grab 51–66, drop 50, reflow 51–55 |
+| CanvasKit default headed [2] | 2.5–2.8 | 4.0–4.3 | 8.5–8.8 | 10.3 | 2.9–6.4 | 12.2–19.0 | 50.4–51.7 / 56.5–75.2 | grab 52 (1 run) |
+| CanvasKit multi-surface headless [2] | 3.3–3.5 | 4.8–5.3 | 7.1–7.8 | 10.8–11.0 | 3.1–3.2 | 13.2–13.8 | 73.7–85.4 / 72.2–86.1 | grab 51–56 |
+| CanvasKit multi-surface headed [2] | 3.2 | 5.8–6.2 | 7.4–8.2 | 10.9–11.2 | 4.5–5.7 | 15.4–19.3 | 48.3–48.8 / 59.5–61.9 | none |
+
+All cells were crossOriginIsolated, DPR 1. Main-thread CPU profile at N = 300 (mouse drag window, 100 µs sampling): skwasm headless busy 19 % of the window, busy segments p95 4.7 / max 9.9 ms; skwasm headed 17 %, p95 3.5 / max 5.8; CanvasKit default headless 86 %, p95 272 / max 418 (raster on the main thread); CanvasKit default headed 60 %, p95 20.7; multi-surface headed 58 %, p95 12.0.
+
+**The skwasm build-duration artifact.** Under skwasm the `FrameTiming` build duration is not the framework's work. The engine stamps build-finish when the scene leaves its render queue (`renderScene` / `_kickRenderLoop`): while the render worker is still rasterizing the previous frame, the new scene waits, and that wait is counted as build. In headless Chrome (slower raster pacing) drag build p95 is 11–16 ms although the framework's `Frame` measure never exceeds 3.1–3.9 ms and the main thread is idle 81 % of the window; headed, the same build p95 is 2.1–2.8. So under skwasm the bench must judge per-frame framework work by the `Frame` measure, and it now reports it (below). Raster and total are reported for context; raster runs on the skwasm worker, off the main thread.
+
+**Who gets the CanvasKit fallback.** With Flutter's default loader configuration only Chromium browsers load the skwasm build; Firefox and every iOS browser (all WebKit) get the dart2js/CanvasKit build. On those engines Flutter's CanvasKit already uses the multi-surface rasterizer by default (the OffscreenCanvas rasterizer is used on Chromium), so the "CanvasKit multi-surface" rows are the representative fallback numbers; the "CanvasKit default" rows are Chrome running the dart2js build, which production does not serve.
+
+**Bench and e2e changes** (test/script/doc only, no application code):
+- `scripts/run_client_profile_web_bench_local.sh` defaults to `--wasm` (production); `TENTURA_BENCH_JS=1` measures the dart2js/CanvasKit fallback, `TENTURA_BENCH_HEADED=1` passes `--no-headless`. It prints the requested configuration up front and, from the report, the renderer that ran (skwasm/canvaskit), crossOriginIsolated and headless/headed at the end, warning when they differ from the request or when skwasm runs single-threaded; a stale report is removed before the run.
+- `integration_test/constellation_profile_web_bench_test.dart` + `test_driver/constellation_profile_web_bench_driver.dart`: per-frame `Frame` measure (`frameworkFrameMs` p50/p95/max plus the per-frame list) for drag, pan and drop → reflow next to FrameTiming build/raster/total; `renderer`, `crossOriginIsolated` and `headless` in the JSON environment; the summary prints an environment line and an `N | phase | frames | fw Frame | build | raster | total` table (p50/p95/max). No budget assertions.
+- `scripts/run_client_integration_web_local.sh`: opt-in `TENTURA_WEB_E2E_WASM=1` runs `flutter drive --wasm --web-launch-url=https://dev.lvh.me:9443/` with `env/integration-web-caddy.env` (SERVER_NAME / WS_SERVER_NAME on the Caddy origin, no secrets) behind `Caddyfile.local` (`LOCAL_ROOT_SPLIT=off LOCAL_FLUTTER_UPSTREAM=localhost:8888`), starting Caddy if nothing listens on :9443 and stopping it on exit; a running Caddy is reused only if `/` serves the app page with COOP/COEP. Default mode unchanged. Documented in the script header and `docs/local-integration-tests.md` § 10.
+
+**Verification** (host, serial, tracked scripts at this unit's commits; ms):
+
+| run | N | drag fw Frame p50/p95/max | drag build p95 | drag raster p95 | pan fw Frame p50/p95/max | pan build p95/max | grab mouse / touch | tasks > 50 ms |
+|---|---|---|---|---|---|---|---|---|
+| default (skwasm headless) | 100 | 1.29/2.55/3.50 | 15.87 | 21.67 | 1.30/2.32/5.65 | 1.69/5.37 | 37.6 / 30.0 | none |
+| default (skwasm headless) | 300 | 1.44/2.89/5.17 | 15.46 | 23.27 | 1.70/3.10/4.80 | 3.04/12.05 | 41.3 / 50.8 | none |
+| default (skwasm headless) | 600 | 1.67/2.99/4.10 | 14.26 | 21.13 | 1.88/3.61/**23.20** | 3.03/22.91 | 52.5 / 48.3 | none |
+| `TENTURA_BENCH_JS=1` (CanvasKit default, headless) | 100 | 2.26/3.00/3.25 | 2.52 | 23.41 | 1.73/4.08/8.78 | 2.92/8.38 | 83.9 / 74.4 | none |
+| `TENTURA_BENCH_JS=1` | 300 | 2.31/3.99/6.04 | 3.46 | 26.87 | 2.61/6.05/8.36 | 4.67/6.77 | 99.7 / 86.0 | grab 59 / 58, reflow 53 / 50 |
+| `TENTURA_BENCH_JS=1` | 600 | 1.83/3.94/5.77 | 3.39 | 21.55 | 4.80/6.99/21.50 | 5.79/20.94 | 75.0 / 87.0 | reflow 56; grab 60, drop 53, reflow 53 (touch) |
+
+Both runs reported what was requested (`renderer=skwasm crossOriginIsolated=true headless`, `renderer=canvaskit crossOriginIsolated=true headless`). skwasm drop → ack 87–104, drop → layout idle 888–1264, drop → settled fw Frame max 10.7–15.9 (no task > 50 ms).
+- Web e2e `constellation_protocol_release_test`, `constellation_pinning_test`, `constellation_interactive_flows_test`: **pass** in `TENTURA_WEB_E2E_WASM=1` (Caddy started and stopped by the runner) and **pass** in the default mode. Nothing left on 2080 / 4444 / 8888 / 9443.
+- Runner self-tests (`scripts/test_run_client_integration_web_local*.sh`, 3 files) pass; `bash -n` on both scripts OK.
+- Client `test/features/constellation/`: 978 pass, 1 skipped. Custom lints 23 (baseline 23). Analyzer baseline 1945 ≤ 2040.
+
+**Against I4 at N = 300 on the production renderer (skwasm).** Drag frame < 8 ms: **pass** (framework `Frame` max 3.1–5.2 over 4 runs, p95 ≤ 2.9 today). Pan frame < 8 ms: **pass** (`Frame` max 4.8 today; pan build p95 1.8–3.0). No task > 50 ms across drop → ack → reflow: **pass** (none in any skwasm run, headless or headed; the grab also has none). **I4 passes at N = 300 on the production renderer on this host.** The owner decides on closure of #235 / s7gl.71, after the device checks below.
+
+**Open, outside the N = 300 budget.** At N = 600 the pan has one 11–25 ms frame (pan build max 11.4–24.8 in the matrix, `Frame` max 23.2 today) when nodes enter the viewport: the membership change rebuilds the node layer and the overlay structure (see the s7gl.86–.89 attribution, item 4). Not an I4 window at N = 300; it stays open.
+
+**Owner's real-device checklist** (not doable on this host):
+1. Mid-range Android phone, Chrome: drag / pan / drop → reflow at N = 300 on skwasm (`TENTURA_BENCH_*` cannot reach it; use the production build with DevTools remote profiling).
+2. iOS Safari: gets the CanvasKit fallback (multi-surface); check drag, pan and the grab / drop tasks.
+3. Desktop Firefox: CanvasKit fallback (multi-surface); same checks.
+4. 2× / 3× DPR (every run here was DPR 1): raster grows with pixel count; re-check raster and pan.
+5. Production: `window.crossOriginIsolated === true` and no "single-threaded skwasm" warning in the console, on the real domain.
+6. Third-party scripts and resources (Google Maps platform view, fonts, cropperjs from cdnjs, Firebase messaging) still load under `Cross-Origin-Embedder-Policy: credentialless`.
+7. Mobile battery and heat during a few minutes of dragging and panning (skwasm adds a render worker thread).
