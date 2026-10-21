@@ -152,4 +152,46 @@ void main() {
       expect(missingAsset.stderr, contains('missing asset'));
     },
   );
+  // Issue #622: a CacheStorage failure (Cache.put() rejecting for the 22 MB
+  // main.dart.wasm, private mode, full disk) must never fail the fetch, and a
+  // fixed worker must take over from an old one. The behaviour is exercised by
+  // test/hook/sw_cache_behaviour_test.mjs against the worker generated here.
+  test('generated service worker survives cache failures (node)', () async {
+    final ProcessResult nodeVersion;
+    try {
+      nodeVersion = await Process.run('node', ['--version']);
+    } on ProcessException {
+      markTestSkipped('node is not installed');
+      return;
+    }
+    if (nodeVersion.exitCode != 0) {
+      markTestSkipped('node is not usable');
+      return;
+    }
+    final script = File('test/hook/sw_cache_behaviour_test.mjs');
+    if (!script.existsSync()) {
+      markTestSkipped('run from packages/client');
+      return;
+    }
+    final dir = Directory.systemTemp.createTempSync('tentura_sw_test');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File('${dir.path}/main.dart.wasm').writeAsStringSync('');
+    File('${dir.path}/main.dart.mjs').writeAsStringSync('');
+    File('${dir.path}/flutter_bootstrap.js').writeAsStringSync('');
+    File('${dir.path}/index.html').writeAsStringSync(
+      '<script src="flutter_bootstrap.js?v=0.0.1"></script>',
+    );
+    hook.generateWasmPreloadArtifacts(buildWebDir: dir.path, version: '1.2.3');
+    final sw = File('${dir.path}/tentura-app-cache-sw.js');
+
+    final result = await Process.run(
+      'node',
+      ['--test', script.path],
+      environment: {'SW_FILE': sw.path},
+    );
+
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    expect(sw.readAsStringSync(), contains('self.skipWaiting()'));
+    expect(sw.readAsStringSync(), contains('self.clients.claim()'));
+  });
 }
