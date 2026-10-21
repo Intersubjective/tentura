@@ -2,10 +2,30 @@
 # Profile-web benchmark of the Constellation graph (issue #235 U40, I4):
 # grab → first moved frame (mouse and touch), drag frame, pan frame, drop →
 # ack → reflow and every > 50 ms main-thread task by phase, at N = 100/300/600
-# in headless Chrome, from a `flutter drive --profile` build.
+# in Chrome, from a `flutter drive --profile` build.
 #
 # Usage:
-#   ./scripts/run_client_profile_web_bench_local.sh
+#   ./scripts/run_client_profile_web_bench_local.sh                    # production: --wasm, headless
+#   TENTURA_BENCH_JS=1 ./scripts/run_client_profile_web_bench_local.sh # dart2js/CanvasKit fallback
+#   TENTURA_BENCH_HEADED=1 ./scripts/run_client_profile_web_bench_local.sh
+#
+# Renderer. By default the benchmark builds with `--wasm`, the configuration
+# production ships (`flutter build web --wasm`): multi-threaded skwasm, which
+# needs the page to be cross-origin isolated. Production gets COOP/COEP from
+# the Caddyfile; here flutter drive's dev server sends them
+# (packages/client/web_dev_config.yaml). TENTURA_BENCH_JS=1 drops `--wasm` and
+# measures the dart2js/CanvasKit build, which is what browsers without WasmGC
+# get from Flutter's loader (Firefox and every iOS browser by default).
+#
+# Reading the numbers. Under skwasm the FrameTiming build duration includes the
+# scene's wait in the engine's render queue (renderScene / _kickRenderLoop:
+# build-finish is stamped when the previous frame's raster on the render worker
+# is done), so it is not the framework's work and runs high in headless Chrome.
+# Judge per-frame framework work by the "fw Frame" column (the framework's own
+# "Frame" measure, p50/p95/max), reported next to build/raster/total for drag
+# and pan. The summary starts and ends with the renderer that actually ran
+# (skwasm/canvaskit), whether the page was crossOriginIsolated, and whether
+# Chrome was headless or headed.
 #
 # The benchmark uses in-memory repositories, so unlike
 # run_client_integration_web_local.sh it needs no backend: only Google Chrome
@@ -14,6 +34,10 @@
 # and printed as a summary; the benchmark asserts no budgets.
 #
 # Optional env knobs:
+#   TENTURA_BENCH_JS=1               dart2js/CanvasKit build (no --wasm)
+#   TENTURA_BENCH_HEADED=1           pass --no-headless (needs a display); the
+#       default headless Chrome is what CI-like runs see, headed is closer to a
+#       user's browser (its compositor paces frames differently)
 #   TENTURA_WEB_CHROME_NO_SANDBOX=1  pass --web-browser-flag=--no-sandbox
 #   BROWSER_DIMENSION=WxH            browser window (default 1600x1024)
 #   CHROMEDRIVER_PORT                default 4444
@@ -33,6 +57,7 @@ CHROMEDRIVER_DIR="$ROOT/.local/chromedriver"
 WEB_PORT=8888
 TARGET=integration_test/constellation_profile_web_bench_test.dart
 DRIVER=test_driver/constellation_profile_web_bench_driver.dart
+REPORT="$CLIENT_DIR/build/bench/constellation_profile_web.json"
 
 log() { printf '\n[bench] %s\n' "$*"; }
 die() { echo "[bench] ERROR: $*" >&2; exit 1; }
@@ -88,6 +113,22 @@ cleanup() {
 }
 trap cleanup EXIT
 
+MODE_FLAGS=()
+if [[ "${TENTURA_BENCH_JS:-}" == "1" ]]; then
+  REQUESTED_RENDERER=canvaskit
+  BUILD_LABEL="dart2js (CanvasKit fallback)"
+else
+  REQUESTED_RENDERER=skwasm
+  BUILD_LABEL="--wasm (production: skwasm)"
+  MODE_FLAGS+=(--wasm)
+fi
+if [[ "${TENTURA_BENCH_HEADED:-}" == "1" ]]; then
+  REQUESTED_BROWSER=headed
+  MODE_FLAGS+=(--no-headless)
+else
+  REQUESTED_BROWSER=headless
+fi
+
 DRIVE_BROWSER_FLAGS=()
 if [[ "${TENTURA_WEB_CHROME_NO_SANDBOX:-}" == "1" ]]; then
   DRIVE_BROWSER_FLAGS+=(--web-browser-flag=--no-sandbox)
@@ -113,11 +154,16 @@ echo "[bench]   $("$CHROMEDRIVER_BIN" --version | head -1)"
 flutter --version 2>/dev/null | head -1 | sed 's/^/[bench]   /'
 echo "[bench]   commit: $(git -C "$ROOT" rev-parse --short HEAD)$(git -C "$ROOT" diff --quiet || echo ' (dirty)')"
 echo "[bench]   load average: $(cut -d' ' -f1-3 /proc/loadavg)"
+echo "[bench]   requested: $BUILD_LABEL, $REQUESTED_BROWSER Chrome"
 
 cd "$CLIENT_DIR"
-log "flutter drive --profile: $TARGET"
+# A failed run must not leave the previous run's numbers looking current.
+rm -f "$REPORT"
+log "flutter drive --profile${MODE_FLAGS[*]:+ ${MODE_FLAGS[*]}}: $TARGET"
+set +e
 flutter drive \
   --profile \
+  ${MODE_FLAGS[@]+"${MODE_FLAGS[@]}"} \
   --driver="$DRIVER" \
   --target="$TARGET" \
   -d web-server \
@@ -126,3 +172,26 @@ flutter drive \
   --browser-dimension="${BROWSER_DIMENSION:-1600x1024}" \
   ${DEFINES[@]+"${DEFINES[@]}"} \
   --dart-define-from-file=env/integration-web.env
+DRIVE_RC=$?
+set -e
+
+# What actually ran, from the browser's own report: a --wasm build falls back
+# to single-threaded skwasm when the page is not cross-origin isolated, and to
+# the dart2js build when the browser lacks WasmGC.
+if [[ -f "$REPORT" ]]; then
+  RAN="$(jq -r '.environment | "\(.renderer // "unknown") \(.crossOriginIsolated // "unknown") \(if .headless == true then "headless" elif .headless == false then "headed" else "unknown" end)"' "$REPORT")"
+  read -r RAN_RENDERER RAN_COI RAN_BROWSER <<<"$RAN"
+  log "ran: renderer=$RAN_RENDERER crossOriginIsolated=$RAN_COI $RAN_BROWSER (requested $REQUESTED_RENDERER, $REQUESTED_BROWSER)"
+  if [[ "$RAN_RENDERER" != "$REQUESTED_RENDERER" ]]; then
+    echo "[bench] WARNING: requested $REQUESTED_RENDERER but $RAN_RENDERER ran — these are not the requested configuration's numbers" >&2
+  fi
+  if [[ "$RAN_RENDERER" == skwasm && "$RAN_COI" != true ]]; then
+    echo "[bench] WARNING: skwasm without crossOriginIsolated is single-threaded (no COOP/COEP headers?) — not the production configuration" >&2
+  fi
+  if [[ "$RAN_BROWSER" != "$REQUESTED_BROWSER" ]]; then
+    echo "[bench] WARNING: requested $REQUESTED_BROWSER Chrome but it ran $RAN_BROWSER" >&2
+  fi
+else
+  log "no report at $REPORT"
+fi
+exit "$DRIVE_RC"
