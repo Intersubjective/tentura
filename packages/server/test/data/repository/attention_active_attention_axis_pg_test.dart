@@ -347,18 +347,22 @@ WHERE id = 'Naxis04'
     });
 
     test('U15R-d §6 my desk.dot — an uncleared outcome on an owned Request '
-        'lights it', () async {
+        'lights it only where one exists, and an author has none (#412)',
+        () async {
       // A forward edge on the viewer's own Request materialises an
-      // `inbox_item` inside the responsibility scope: Set O membership with
-      // no optional receipt anywhere.
+      // `inbox_item`, but an author is never their own forward recipient, so
+      // it is no outcome row (#412). The outcome leg of the dot is pinned on
+      // Requests the viewer is helping in
+      // attention_my_desk_dot_outcome_scope_pg_test.dart.
       await _forwardEdge(writer, id: 'FEd01', beaconId: _ownedBeaconId);
 
       final summary = await query.surfaceSummary(accountId: _viewerId);
       expect(
         summary.myDeskDot,
-        isTrue,
-        reason: '§6 request.dot counts an uncleared *outcome* too, not only '
-            'optional events',
+        isFalse,
+        reason: 'docs/features/request-attention.md §6: request.dot = '
+            'uncleared optional event or uncleared outcome; an own Request '
+            'has no outcome row, so the forward edge alone lights nothing',
       );
     });
 
