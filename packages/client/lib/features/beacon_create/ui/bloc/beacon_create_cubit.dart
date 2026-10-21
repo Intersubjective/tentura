@@ -470,10 +470,27 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     _autosaveTimer?.cancel();
     _autosaveTimer = null;
     if (state.isAutosaving) {
-      await stream.firstWhere((s) => !s.isAutosaving);
+      await _autosaveSettled();
       if (isClosed) return;
     }
     await _quietPersist();
+  }
+
+  /// Waits for the in-flight autosave to land. Completes (rather than
+  /// throwing a StateError) when the cubit closes first (#607).
+  Future<void> _autosaveSettled() async {
+    if (isClosed || !state.isAutosaving) return;
+    await stream.firstWhere((s) => !s.isAutosaving, orElse: () => state);
+  }
+
+  /// Whether leaving the editor now keeps a draft: one already exists or is
+  /// being created, or the form is complete enough for autosave to save it.
+  /// A shorter form is not kept, so the editor must not offer «Keep draft»
+  /// for it (#607).
+  bool get keepsDraftOnLeave {
+    if (state.draftId?.isNotEmpty ?? false) return true;
+    if (_draftCreateInFlight != null) return true;
+    return _shouldQuietPersist;
   }
 
   /// Autosave only once the server would accept the draft: a standalone
@@ -1433,9 +1450,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     _autosaveTimer?.cancel();
     _autosaveTimer = null;
     _autosaveAfterInFlight = false;
-    if (state.isAutosaving && !isClosed) {
-      await stream.firstWhere((s) => !s.isAutosaving);
-    }
+    await _autosaveSettled();
     if (!isClosed) emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.delete(id);
@@ -1468,9 +1483,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     _autosaveTimer?.cancel();
     _autosaveTimer = null;
     _autosaveAfterInFlight = false;
-    if (state.isAutosaving && !isClosed) {
-      await stream.firstWhere((s) => !s.isAutosaving);
-    }
+    await _autosaveSettled();
     final inFlight = _draftCreateInFlight;
     final id =
         state.draftId ?? (inFlight == null ? null : await inFlight.future);

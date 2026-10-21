@@ -570,6 +570,95 @@ void main() {
     });
   });
 
+  // Issue #607: «Keep draft» was offered for any non-empty title, but
+  // autosave keeps a draft only once the title is long enough and (for a
+  // standalone request) there is a description, so a short draft was quietly
+  // lost. Such a form now asks Discard / Keep editing instead.
+  group('Request editor «←» with nothing a draft would keep (#607)', () {
+    Future<void> typeTitleOnly(WidgetTester tester, String title) async {
+      await tester.enterText(find.byType(TextFormField).at(0), title);
+      await tester.pump();
+    }
+
+    testWidgets('a title too short to save does not offer Keep draft', (
+      tester,
+    ) async {
+      await openEditor(tester);
+      await typeTitleOnly(tester, 'ab');
+      await tester.enterText(find.byType(TextFormField).at(1), _description);
+      await tester.pump();
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+
+      expect(find.text('Keep draft'), findsNothing);
+      expect(find.text('Keep editing'), findsOneWidget);
+      expect(find.text('Discard'), findsOneWidget);
+      expect(find.byType(BeaconCreateScreen), findsOneWidget);
+      await _drainAutosave(tester);
+    });
+
+    testWidgets('a title with no description does not offer Keep draft', (
+      tester,
+    ) async {
+      await openEditor(tester);
+      await typeTitleOnly(tester, _title);
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+
+      expect(find.text('Keep draft'), findsNothing);
+      expect(find.text('Keep editing'), findsOneWidget);
+      expect(find.byType(BeaconCreateScreen), findsOneWidget);
+      await _drainAutosave(tester);
+    });
+
+    testWidgets('Keep editing stays in the editor with the text intact', (
+      tester,
+    ) async {
+      await openEditor(tester);
+      await typeTitleOnly(tester, 'ab');
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+      await tester.tap(find.text('Keep editing'));
+      await _settle(tester);
+
+      expect(find.byType(BeaconCreateScreen), findsOneWidget);
+      expect(find.text('open-editor'), findsNothing);
+      expect(createCubit.state.title, 'ab');
+      await _drainAutosave(tester);
+    });
+
+    testWidgets('Discard leaves the flow and writes nothing', (tester) async {
+      await openEditor(tester);
+      await typeTitleOnly(tester, 'ab');
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+      await tester.tap(find.text('Discard'));
+      await _settle(tester);
+
+      expect(store.createAttempts, 0);
+      expect(find.byType(BeaconCreateScreen), findsNothing);
+      expect(find.text('open-editor'), findsOneWidget);
+    });
+
+    testWidgets('the question is localized in Russian', (tester) async {
+      await openEditor(tester, locale: const Locale('ru'));
+      await typeTitleOnly(tester, 'ab');
+
+      await tester.tap(topBarIcon(Icons.arrow_back));
+      await _settle(tester);
+
+      expect(find.text('Продолжить редактирование'), findsOneWidget);
+      expect(find.text('Не сохранять'), findsOneWidget);
+      expect(find.text('Сохранить черновик'), findsNothing);
+      expect(find.text('Keep editing'), findsNothing);
+      await _drainAutosave(tester);
+    });
+  });
+
   // Issue #625: Draft menu › Delete request deleted the draft but left the
   // editor open; autosave then wrote to the deleted id, and the cubit's
   // NavigateBack re-entered «←» and asked «Keep this draft?».

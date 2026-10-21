@@ -820,6 +820,10 @@
   "beaconCreateLeaveBody": "Его можно будет дописать позже в черновиках.",
   "beaconCreateLeaveKeepDraft": "Сохранить черновик",
   "beaconCreateLeaveDiscard": "Удалить черновик",
+  "beaconCreateLeaveUnsavedTitle": "Отменить этот запрос?",
+  "beaconCreateLeaveUnsavedBody": "Он пока заполнен недостаточно, чтобы сохранить черновик.",
+  "beaconCreateLeaveUnsavedDiscard": "Не сохранять",
+  "beaconCreateLeaveKeepEditing": "Продолжить редактирование",
   "beaconCreateAutosaving": "Сохраняем…",
   "@beaconCreateAutosaving": {
     "context": "BeaconCreateScreen"

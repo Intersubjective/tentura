@@ -851,6 +851,22 @@
   "@beaconCreateLeaveDiscard": {
     "context": "BeaconCreateScreen leave dialog (#428)"
   },
+  "beaconCreateLeaveUnsavedTitle": "Discard this request?",
+  "@beaconCreateLeaveUnsavedTitle": {
+    "context": "BeaconCreateScreen leave dialog when nothing would be kept as a draft (#607)"
+  },
+  "beaconCreateLeaveUnsavedBody": "It's not complete enough to save as a draft yet.",
+  "@beaconCreateLeaveUnsavedBody": {
+    "context": "BeaconCreateScreen leave dialog when nothing would be kept as a draft (#607)"
+  },
+  "beaconCreateLeaveUnsavedDiscard": "Discard",
+  "@beaconCreateLeaveUnsavedDiscard": {
+    "context": "BeaconCreateScreen leave dialog when nothing would be kept as a draft (#607)"
+  },
+  "beaconCreateLeaveKeepEditing": "Keep editing",
+  "@beaconCreateLeaveKeepEditing": {
+    "context": "BeaconCreateScreen leave dialog when nothing would be kept as a draft (#607)"
+  },
   "beaconCreateAutosaving": "Saving…",
   "@beaconCreateAutosaving": {
     "context": "BeaconCreateScreen"
