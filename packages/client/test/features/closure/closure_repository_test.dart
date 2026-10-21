@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -31,6 +32,7 @@ Future<void> _withRemote(
   List<_Sent> sent,
   Future<void> Function(ClosureRepository repo) body, {
   Map<String, Map<String, dynamic>> errors = const {},
+  Map<String, Map<String, dynamic>> errorsAfterFirst = const {},
 }) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
@@ -62,7 +64,11 @@ Future<void> _withRemote(
       operationName: name,
       variables: (json['variables'] as Map).cast<String, dynamic>(),
     ));
-    final error = errors[name];
+    final error =
+        errors[name] ??
+        (sent.where((s) => s.operationName == name).length > 1
+            ? errorsAfterFirst[name]
+            : null);
     if (error != null) {
       return http.Response(
         jsonEncode({
@@ -266,9 +272,21 @@ void main() {
     final json = _stateJson()
       ..['role'] = 'member'
       ..['outcomes'] = [
-        {'helperId': 'Ua', 'outcome': 'done', '__typename': 'ClosureOutcomeEntry'},
-        {'helperId': 'Ub', 'outcome': 'notDone', '__typename': 'ClosureOutcomeEntry'},
-        {'helperId': 'Uc', 'outcome': 'cantJudge', '__typename': 'ClosureOutcomeEntry'},
+        {
+          'helperId': 'Ua',
+          'outcome': 'done',
+          '__typename': 'ClosureOutcomeEntry',
+        },
+        {
+          'helperId': 'Ub',
+          'outcome': 'notDone',
+          '__typename': 'ClosureOutcomeEntry',
+        },
+        {
+          'helperId': 'Uc',
+          'outcome': 'cantJudge',
+          '__typename': 'ClosureOutcomeEntry',
+        },
       ];
     await _withRemote(
       {
@@ -364,7 +382,8 @@ void main() {
         },
       },
       <_Sent>[],
-      (repo) async => expect(await repo.fetchResultForViewer(_beaconId), isNull),
+      (repo) async =>
+          expect(await repo.fetchResultForViewer(_beaconId), isNull),
     );
   });
 
@@ -592,6 +611,36 @@ void main() {
         },
       );
     }
+
+    test(
+      'beaconReopen succeeds without reading the cancelled epoch (#366): '
+      'the closure state is gone once reopened (1002 Id not found)',
+      () async {
+        final sent = <_Sent>[];
+        await _withRemote(
+          {
+            'BeaconReopen': {'beaconReopen': true},
+            'ClosureState': {
+              '__typename': 'query_root',
+              'closureState': _stateJson(),
+            },
+          },
+          sent,
+          (repo) async {
+            final result = await repo.beaconReopen(_beaconId);
+            expect(result.beaconId, _beaconId);
+            expect(result.state, BeaconStatus.open.smallintValue);
+          },
+          // Any closure state read after the reopen answers not-found.
+          errorsAfterFirst: {'ClosureState': _codeError(1002)},
+        );
+        expect(sent.map((s) => s.operationName), [
+          'ClosureState',
+          'BeaconReopen',
+        ]);
+        expect(sent.last.variables['expectedEpoch'], 2);
+      },
+    );
 
     test('typed exceptions are localizable and numbered', () {
       expect(ClosureStaleEpochException.codeNumber, 1803);

@@ -5,12 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_anchor_status.dart';
+import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/closure/domain/entity/closure_role.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
@@ -41,6 +45,42 @@ class _ReopenClosureRepository extends FakeBeaconViewClosureRepository {
   @override
   Future<ClosureState> fetchState(String beaconId) async {
     if (reopened) throw const BeaconFetchException();
+    return ClosureState(
+      epoch: 1,
+      status: BeaconStatus.reviewOpen.smallintValue,
+      role: ClosureRole.author,
+      members: const [],
+      closesAt: DateTime.utc(2026, 10, 20),
+      canReopen: true,
+    );
+  }
+}
+
+/// Runs the production `ClosureRepository.beaconReopen` sequence (read the
+/// epoch, send the reopen) over a fake wire. Like the server, the closure
+/// state is gone once reopened: a read answers 1002 "Id not found".
+class _WireClosureRepository extends ClosureRepository {
+  _WireClosureRepository(super._remoteApiService);
+
+  bool reopened = false;
+  int reopenCalls = 0;
+  int readsAfterReopen = 0;
+
+  @override
+  Future<void> reopen({
+    required String beaconId,
+    required int expectedEpoch,
+  }) async {
+    reopenCalls++;
+    reopened = true;
+  }
+
+  @override
+  Future<ClosureState> fetchState(String beaconId) async {
+    if (reopened) {
+      readsAfterReopen++;
+      throw RemoteApiException('Id not found: [$beaconId]', code: '1002');
+    }
     return ClosureState(
       epoch: 1,
       status: BeaconStatus.reviewOpen.smallintValue,
@@ -91,7 +131,7 @@ void main() {
 
   Future<BeaconViewCubit> loadedCubit({
     required TrackingBeaconRepository beaconRepo,
-    required _ReopenClosureRepository closureRepo,
+    required ClosureRepository closureRepo,
     FakeUiEffectPort? effects,
   }) async {
     final cubit = BeaconViewCubit(
@@ -320,6 +360,52 @@ void main() {
           beaconViewStatusSlots(l10n, cubit.state).displayLine,
           isNot(contains(l10n.beaconPhaseWrappingUp)),
         );
+      },
+    );
+
+    test(
+      'Reopen shows no error when the closure state is already gone '
+      '(1002 Id not found) right after the reopen',
+      () async {
+        final effects = FakeUiEffectPort();
+        // Never called on the wire: the repository's reads are faked.
+        final remote = RemoteApiService(
+          const Env(),
+          const WebSocketClientRealtimeSocketFactory(),
+        );
+        addTearDown(remote.close);
+        final closureRepo = _WireClosureRepository(remote);
+        final beaconRepo = _ProdLikeBeaconRepository()
+          ..fetchByIdHandler = (_) async => beacon(
+            closureRepo.reopened ? BeaconStatus.open : BeaconStatus.reviewOpen,
+          );
+        addTearDown(beaconRepo.dispose);
+        final cubit = await loadedCubit(
+          beaconRepo: beaconRepo,
+          closureRepo: closureRepo,
+          effects: effects,
+        );
+
+        await cubit.reopenBeacon();
+        await pumpEventQueue();
+        await Future<void>.delayed(_retrySettle);
+
+        expect(closureRepo.reopenCalls, 1);
+        expect(
+          effects.emitted.whereType<ShowError>(),
+          isEmpty,
+          reason:
+              'no closure epoch after a reopen is the normal state, not an '
+              'error to flash',
+        );
+        expect(cubit.state.beacon.status, BeaconStatus.open);
+        expect(cubit.state.isLoading, isFalse);
+        expect(cubit.state.closureState, isNull);
+        expect(
+          beaconViewStatusSlots(l10n, cubit.state).displayLine,
+          isNot(contains(l10n.beaconPhaseWrappingUp)),
+        );
+        expect(closureRepo.readsAfterReopen, 0);
       },
     );
 
