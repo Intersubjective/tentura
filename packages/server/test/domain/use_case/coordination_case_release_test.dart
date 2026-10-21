@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -64,6 +66,33 @@ class _FakeImageObjectGc extends Fake implements ImageObjectGcPort {}
 
 class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 
+/// Models the hierarchy advisory lock for two racing releases: the first
+/// caller holds the lock until the second has also passed its pre-checks and
+/// is waiting on it, and the second gets the lock only once [releaseFirst]
+/// runs (the first transaction has committed). So the second caller's reads
+/// before the lock are stale, and only reads after it see the first's writes.
+class _RacingLockHierarchy extends FakeBeaconHierarchyRepository {
+  final Completer<void> _secondArrived = Completer<void>();
+  final Completer<void> _firstDone = Completer<void>();
+  int _arrivals = 0;
+
+  void releaseFirst() => _firstDone.complete();
+
+  @override
+  Future<void> lockMutationScope() async {
+    // Take the arrival ticket before any await, so both callers get distinct
+    // ones even though the counter in super is bumped asynchronously.
+    final ticket = ++_arrivals;
+    await super.lockMutationScope();
+    if (ticket == 1) {
+      await _secondArrived.future;
+    } else if (ticket == 2) {
+      _secondArrived.complete();
+      await _firstDone.future;
+    }
+  }
+}
+
 void main() {
   const beaconId = 'B-release';
   const authorId = 'U-author';
@@ -89,7 +118,7 @@ void main() {
   late TestAttentionHarness attention;
   late CoordinationCase coordinationCase;
 
-  void buildCoordinationCase() {
+  void buildCoordinationCase({FakeBeaconHierarchyRepository? hierarchy}) {
     attention = TestAttentionHarness();
     commitmentQueryCase = CommitmentQueryCase(
       commitmentRepo,
@@ -105,7 +134,7 @@ void main() {
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,
-      FakeBeaconHierarchyRepository(),
+      hierarchy ?? FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       guard: FakeBeaconAccessGuard(),
@@ -347,4 +376,62 @@ void main() {
       hasLength(1),
     );
   });
+
+  test(
+    'two racing releases record one releasedByAuthor and one notice',
+    () async {
+      // PR #633 review: the stake is read before the transaction; a second
+      // release that passed that check must re-read it after the lock.
+      commitmentRepo = RecordingCommitmentRepository();
+      await commitmentRepo.record(
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: authorId,
+        kind: CommitmentEventKind.offered,
+      );
+      await commitmentRepo.record(
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: authorId,
+        kind: CommitmentEventKind.acknowledged,
+      );
+      final hierarchy = _RacingLockHierarchy();
+      buildCoordinationCase(hierarchy: hierarchy);
+
+      final first = coordinationCase.releaseCommitment(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        authorUserId: authorId,
+        reason: 'done',
+      );
+      final second = coordinationCase.releaseCommitment(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        authorUserId: authorId,
+        reason: 'done too',
+      );
+      await first;
+      hierarchy.releaseFirst();
+      final secondResult = await second;
+
+      expect(hierarchy.lockMutationScopeCalls, 2);
+      expect(
+        commitmentRepo.recordCalls.where(
+          (c) => c.kind == CommitmentEventKind.releasedByAuthor,
+        ),
+        hasLength(1),
+      );
+      expect(
+        attention.recorded.where(
+          (intent) => intent.eventType == AttentionEventType.commitmentReleased,
+        ),
+        hasLength(1),
+      );
+      // The loser deactivates nothing again; it returns the snapshot.
+      verify(
+        helpOfferRepo.deactivate(beaconId: beaconId, userId: helperId),
+      ).called(1);
+      expect(secondResult.beaconId, beaconId);
+    },
+  );
 }

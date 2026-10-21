@@ -705,6 +705,18 @@ final class CoordinationCase extends UseCaseBase {
       actorUserId: authorUserId,
       action: (transaction) async {
         await _hierarchyRepository.lockMutationScope();
+        // Re-read under the lock (PR #633 review): a concurrent release may
+        // have committed since the check above; it then ends here unchanged.
+        final lockedStake = currentStakeState(
+          await _eventsForPair(beaconId: beaconId, userId: offerUserId),
+        );
+        if (lockedStake == CommitmentStakeState.released ||
+            lockedStake == CommitmentStakeState.exited) {
+          final snap = await _coordinationRepository.beaconStatusSnapshot(
+            beaconId,
+          );
+          return _statusResult(beaconId, snap);
+        }
         final participant = await _beaconRoomRepository.findParticipant(
           beaconId: beaconId,
           userId: offerUserId,
@@ -754,6 +766,17 @@ final class CoordinationCase extends UseCaseBase {
           actorUserId: authorUserId,
           reason: trimmedReason,
           sourceEventKey: 'admission:${generateId('A')}',
+        );
+        // Ending participation ends the offer too, admitted or not (#621):
+        // like a removal (#401) it stops counting as active, with no exit
+        // reason. A helper who was never admitted (or was already removed)
+        // used to keep an active offer here. Only after the release notice
+        // is built: it snapshots the helper's read access, and with the offer
+        // gone it would fall to recipient_safe, which `commitment_released`
+        // may not use (notification_outbox__recipient_safe_chk).
+        await _helpOfferRepository.deactivate(
+          beaconId: beaconId,
+          userId: offerUserId,
         );
         await _closureCase?.lockRequest(beaconId);
         await _commitmentRepository.record(

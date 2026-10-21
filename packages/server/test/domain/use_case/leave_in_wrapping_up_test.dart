@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/repository/mock/closure_repository_mock.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
@@ -464,5 +465,183 @@ void main() {
         expect(closureRepo.departures, isEmpty);
       });
     }
+  });
+
+  // #621: ending the participation of a helper who is not in the room (never
+  // admitted, or already out) must end their help offer too, as it does for
+  // an admitted helper; it used to stay active and keep counting.
+  group('#621 releasing a helper who is not admitted closes their offer', () {
+    BeaconParticipantRecord helperWithAccess(int roomAccess) =>
+        BeaconParticipantRecord(
+          id: 'P-helper-489',
+          beaconId: _beaconId,
+          userId: _helperId,
+          role: BeaconParticipantRoleBits.helper,
+          status: 0,
+          roomAccess: roomAccess,
+          createdAt: t0,
+          updatedAt: t0,
+        );
+
+    void stubHelperParticipant(BeaconParticipantRecord? participant) => when(
+      roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
+    ).thenAnswer((_) async => participant);
+
+    Future<void> releaseHelper() => coordinationCase.releaseCommitment(
+      beaconId: _beaconId,
+      offerUserId: _helperId,
+      authorUserId: _authorId,
+      reason: 'never showed up',
+    );
+
+    Future<void> expectOfferClosedWithoutExitReason() async {
+      expect(
+        await helpOffers.hasActiveHelpOffer(
+          beaconId: _beaconId,
+          userId: _helperId,
+        ),
+        isFalse,
+        reason: 'a released helper no longer has an active offer',
+      );
+      final offer = (await helpOffers.fetchAllByBeaconId(_beaconId)).single;
+      expect(offer.withdrawReason, isNull, reason: 'not a helper withdrawal');
+    }
+
+    final notAdmitted = <String, BeaconParticipantRecord? Function()>{
+      'never admitted (access requested)': () =>
+          helperWithAccess(RoomAccessBits.requested),
+      'removed (no room access)': () => helperWithAccess(RoomAccessBits.none),
+      'no participant row': () => null,
+    };
+
+    for (final MapEntry(key: label, value: participant)
+        in notAdmitted.entries) {
+      test('in Wrapping up: $label', () async {
+        await seedAcceptedHelperThenWrappingUp();
+        stubHelperParticipant(participant());
+        expect(
+          await helpOffers.hasActiveHelpOffer(
+            beaconId: _beaconId,
+            userId: _helperId,
+          ),
+          isTrue,
+        );
+
+        await releaseHelper();
+
+        await expectOfferClosedWithoutExitReason();
+        expect(
+          commitments.recordCalls.where(
+            (c) => c.kind == CommitmentEventKind.releasedByAuthor,
+          ),
+          hasLength(1),
+        );
+      });
+    }
+
+    test('in Coordinating (open): never admitted', () async {
+      await seedAcceptedHelperThenWrappingUp();
+      beacons.beacon = beacons.beacon.copyWith(status: BeaconStatus.open);
+      stubHelperParticipant(helperWithAccess(RoomAccessBits.requested));
+
+      await releaseHelper();
+
+      await expectOfferClosedWithoutExitReason();
+    });
+
+    test(
+      'an admitted helper released in Wrapping up loses the offer too',
+      () async {
+        await seedAcceptedHelperThenWrappingUp();
+
+        await releaseHelper();
+
+        await expectOfferClosedWithoutExitReason();
+      },
+    );
+
+    test(
+      'the release notice is built while the helper can still read the '
+      'request (offer closed after it)',
+      () async {
+        // CI pg: closing the offer first made an admitted helper's
+        // `commitmentReleased` notice recipient_safe, which the outbox
+        // check constraint refuses for `commitment_released`. Access here
+        // follows the live offer, as the real guard does once the helper is
+        // out of the room.
+        final liveAccess = TestAttentionHarness(
+          canReadContent: (viewerId) async =>
+              viewerId == _authorId ||
+              await helpOffers.hasActiveHelpOffer(
+                beaconId: _beaconId,
+                userId: viewerId,
+              ),
+        );
+        final caseWithLiveAccess = CoordinationCase(
+          beacons,
+          helpOffers,
+          coordinationRepo,
+          roomRepo,
+          FakeUserBlockRepository(),
+          commitments,
+          CommitmentQueryCase(
+            commitments,
+            helpOffers,
+            env: env,
+            logger: Logger('LeaveInWrappingUpTest'),
+          ),
+          FakeBeaconHierarchyRepository(),
+          attentionIntents: liveAccess.intents,
+          attention: liveAccess.transactional,
+          guard: FakeBeaconAccessGuard(),
+          closureCase: closureCase,
+          env: env,
+          logger: Logger('LeaveInWrappingUpTest'),
+        );
+        await seedAcceptedHelperThenWrappingUp();
+
+        await caseWithLiveAccess.releaseCommitment(
+          beaconId: _beaconId,
+          offerUserId: _helperId,
+          authorUserId: _authorId,
+          reason: 'scope changed',
+        );
+
+        final released = liveAccess.recorded
+            .where((i) => i.eventType == AttentionEventType.commitmentReleased)
+            .single;
+        final helper = released.recipients.singleWhere(
+          (r) => r.recipientId == _helperId,
+        );
+        expect(helper.role.canReadBeaconContent, isTrue);
+        await expectOfferClosedWithoutExitReason();
+      },
+    );
+
+    test(
+      'a helper who is not admitted is not removed from the room again',
+      () async {
+        // Guard: only the offer is closed; no second removal, no room line.
+        await seedAcceptedHelperThenWrappingUp();
+        stubHelperParticipant(helperWithAccess(RoomAccessBits.none));
+
+        await releaseHelper();
+
+        verifyNever(
+          coordinationRepo.removeFromRoom(
+            beaconId: anyNamed('beaconId'),
+            offerUserId: anyNamed('offerUserId'),
+            actorUserId: anyNamed('actorUserId'),
+            reason: anyNamed('reason'),
+          ),
+        );
+        verifyNever(
+          roomRepo.recordParticipantRemoved(
+            beaconId: anyNamed('beaconId'),
+            userId: anyNamed('userId'),
+          ),
+        );
+      },
+    );
   });
 }

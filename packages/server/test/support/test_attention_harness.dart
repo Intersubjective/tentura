@@ -19,11 +19,12 @@ final class TestAttentionHarness {
     bool canReadBeaconContent = true,
     void Function()? onContextLoaded,
     FakeUserBlockRepository? userBlocks,
+    Future<bool> Function(String viewerId)? canReadContent,
   }) : _dispatch = _RecordingDispatch(),
        intents = AttentionIntentCase(
          _Context(context, onContextLoaded),
          _Users(),
-         _Access(allowed: canReadBeaconContent),
+         _Access(allowed: canReadBeaconContent, read: canReadContent),
          userBlocks ?? FakeUserBlockRepository(),
        ) {
     transactional = TransactionalAttentionCase(
@@ -78,13 +79,19 @@ final class _Users extends Fake implements UserRepositoryPort {
 }
 
 final class _Access extends Fake implements BeaconAccessGuard {
-  _Access({required this.allowed});
+  _Access({required this.allowed, this.read});
 
   final bool allowed;
+
+  /// When set, decides per viewer at call time (e.g. from live repo state).
+  final Future<bool> Function(String viewerId)? read;
 
   @override
   Future<bool> canReadContent({
     required String beaconId,
     required String viewerId,
-  }) async => allowed;
+  }) async {
+    final read = this.read;
+    return read == null ? allowed : read(viewerId);
+  }
 }
