@@ -71,5 +71,6 @@ test/test_test.dart
 # Env
 *.env
 !env/test.env
+!env/integration-web-caddy.env
 web/google_maps_config.js
 .cert/

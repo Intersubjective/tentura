@@ -14,6 +14,13 @@ That one command starts whatever local infra isn't already running, downloads a
 matching chromedriver, and runs every top-level browser test file headless. It exits 0
 on success, non-zero if any target fails (after reporting every target).
 
+It has two modes (§ 10):
+
+| Mode | Build | Browser opens | Caddy |
+|---|---|---|---|
+| default | dart2js, debug | `http://localhost:8888/` (flutter drive's dev server, which proxies the API) | not used |
+| `TENTURA_WEB_E2E_WASM=1` | `--wasm` (skwasm, the renderer production ships) | `https://dev.lvh.me:9443/` | `Caddyfile.local` with `LOCAL_ROOT_SPLIT=off LOCAL_FLUTTER_UPSTREAM=localhost:8888`, started by the runner if not running |
+
 For simultaneous realtime convergence and reconnect proof, run:
 
 ```bash
@@ -71,7 +78,8 @@ Test IDs used to find widgets: `packages/client/lib/ui/test_ids.dart`.
                                    └── /_qa/*           → Tentura API  :2080
 ```
 
-**Caddy is NOT in the loop for these tests.** The Flutter dev server
+**In the default mode Caddy is NOT in the loop.** (The wasm mode puts it in
+front; see § 10.) The Flutter dev server
 (`flutter drive -d web-server`) serves the app on `localhost:8888` and proxies
 API calls to the backend itself (see `packages/client/web_dev_config.yaml`).
 Only the docker-compose infra and the Tentura API server need to be running.
@@ -264,3 +272,52 @@ owned by both modeled workers, while recovery on one LISTEN connection must
 send catch-up only to that worker's sessions. This is the deterministic
 multi-worker topology proof; the QA suspension gate remains intentionally
 isolate-local for the single-worker browser recovery journey.
+
+## 10. Wasm mode (the production renderer)
+
+Production ships `flutter build web --wasm`: multi-threaded skwasm, which only
+runs when the page is cross-origin isolated (COOP/COEP, sent by the production
+Caddyfile). The default mode tests the dart2js build instead — the fallback
+that browsers without WasmGC get. To run the same journeys on the production
+renderer:
+
+```bash
+TENTURA_WEB_E2E_WASM=1 ./scripts/run_client_integration_web_local.sh \
+  integration_test/constellation_protocol_release_test.dart
+```
+
+What changes against the default mode:
+
+```
+ headless Chrome ──HTTPS──> Caddy (https://dev.lvh.me:9443, Caddyfile.local)
+                              ├── /                  → page rendered from web/index.html
+                              ├── /api/*, /_qa/*, ws → Tentura API :2080 / Hasura :8080
+                              └── other app paths    → flutter drive --wasm dev server :8888
+                              (COOP/COEP on app paths)
+```
+
+- `flutter drive` gets `--wasm --web-launch-url=https://dev.lvh.me:9443/` and
+  `--dart-define-from-file=env/integration-web-caddy.env`, whose
+  `SERVER_NAME` / `WS_SERVER_NAME` are `https://dev.lvh.me:9443` (everything
+  else as in `integration-web.env`; `QA_AUTH_TOKEN` still comes from `.env`).
+- If nothing listens on :9443 the runner starts
+  `LOCAL_ROOT_SPLIT=off LOCAL_FLUTTER_UPSTREAM=localhost:8888 caddy run --config Caddyfile.local`
+  (log: `/tmp/tentura-caddy-it.log`, override with `CADDY_LOG`) and stops it on
+  exit. With the root split off, Caddy serves `/` itself from `LOCAL_APP_ROOT`,
+  so the runner points that at a page it renders from `web/index.html` under
+  `packages/client/build/integration-web-caddy/` (no dependency on a stale
+  `build/web`).
+- A Caddy that is already running is reused, but only if `/` serves the app page
+  (not the landing) with COOP/COEP; start yours with the two variables above
+  (`flutter drive` binds `localhost`, which may be `::1`, so the default
+  `127.0.0.1:8888` upstream gives 502).
+- Caddy's local CA must be trusted by this machine and Chrome
+  (`./scripts/trust-caddy-local-ca.sh`, once). No `sudo` is needed: 9080/9443
+  are unprivileged ports.
+- Running `--wasm` on the plain dev server (no Caddy) does not work: the QA
+  bootstrap `POST /_qa/integration/bootstrap` returns 404 there.
+
+The Constellation profile benchmark (`scripts/run_client_profile_web_bench_local.sh`)
+needs no backend or Caddy: it defaults to `--wasm` and gets COOP/COEP from
+`web_dev_config.yaml`; `TENTURA_BENCH_JS=1` measures the dart2js/CanvasKit
+build, `TENTURA_BENCH_HEADED=1` a headed Chrome.

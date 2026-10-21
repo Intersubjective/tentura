@@ -5,6 +5,29 @@
 # Usage:
 #   ./scripts/run_client_integration_web_local.sh                 # all tests
 #   ./scripts/run_client_integration_web_local.sh integration_test/request_lifecycle_create_forward_inbox_test.dart
+#   TENTURA_WEB_E2E_WASM=1 ./scripts/run_client_integration_web_local.sh ...   # wasm build behind Caddy
+#
+# Two modes:
+#   default  dart2js debug build; Chrome opens the app on flutter drive's dev
+#            server (http://localhost:8888), which proxies the API itself.
+#            Caddy is not involved.
+#   TENTURA_WEB_E2E_WASM=1
+#            the production renderer: `flutter drive --wasm` (skwasm), opened
+#            at https://dev.lvh.me:9443/ through the local Caddy
+#            (Caddyfile.local with LOCAL_ROOT_SPLIT=off
+#            LOCAL_FLUTTER_UPSTREAM=localhost:8888). Caddy proxies app paths to
+#            the dev server on :8888, sends COOP/COEP (multi-threaded skwasm
+#            needs a cross-origin isolated page) and routes /api, WebSocket
+#            and /_qa paths to the backend; the app is built with
+#            env/integration-web-caddy.env (SERVER_NAME/WS_SERVER_NAME =
+#            https://dev.lvh.me:9443). The runner starts Caddy if nothing
+#            listens on :9443 and stops it on exit; `/` is served from a page
+#            it renders from web/index.html. A Caddy that is already running
+#            is reused only if it serves the app (not the landing) at `/` —
+#            start it with the two variables above. Needs `caddy` on PATH and
+#            Caddy's local CA trusted (./scripts/trust-caddy-local-ca.sh). The
+#            plain dev-server path does not work for --wasm: the QA bootstrap
+#            POST to /_qa/ returns 404 there.
 #
 # What it does (reuses whatever is already running, starts what is not):
 #   1. docker compose infra (postgres, meritrank, hasura, minio) — started if down
@@ -13,12 +36,16 @@
 #      the installed Google Chrome major version
 #   4. flutter drive -d web-server (headless Chrome) per test file
 #
-# The app under test is served by Flutter's dev server on localhost:8888 which
-# proxies /api/v2, /api/v1/graphql and /_qa to the backend (web_dev_config.yaml
-# in packages/client). Caddy is NOT in the test data path — only the compose
-# infra and tentura-server are required. See docs/local-integration-tests.md.
+# Default mode: the app under test is served by Flutter's dev server on
+# localhost:8888 which proxies /api/v2, /api/v1/graphql and /_qa to the backend
+# (web_dev_config.yaml in packages/client). Caddy is NOT in the test data path —
+# only the compose infra and tentura-server are required. See
+# docs/local-integration-tests.md.
 #
 # Optional env knobs:
+#   TENTURA_WEB_E2E_WASM=1  wasm build behind Caddy (see "Two modes" above)
+#   CADDY_LOG               log of a Caddy this runner starts
+#       (default /tmp/tentura-caddy-it.log)
 #   TENTURA_WEB_CHROME_NO_SANDBOX=1  pass --web-browser-flag=--no-sandbox to
 #       flutter drive. Needed inside Alloy's per-bead bwrap sandbox, whose
 #       mounts are nosuid: Chrome's default setuid sandbox then aborts with
@@ -39,6 +66,11 @@ CHROMEDRIVER_PORT="${CHROMEDRIVER_PORT:-4444}"
 CHROMEDRIVER_DIR="$ROOT/.local/chromedriver"
 WEB_PORT=8888
 SERVER_LOG="${SERVER_LOG:-/tmp/tentura-server-it.log}"
+CADDY_LOG="${CADDY_LOG:-/tmp/tentura-caddy-it.log}"
+WASM_MODE=0
+[[ "${TENTURA_WEB_E2E_WASM:-}" == "1" ]] && WASM_MODE=1
+CADDY_ORIGIN=https://dev.lvh.me:9443
+CADDY_PORT=9443
 
 log() { printf '\n[integration] %s\n' "$*"; }
 die() { echo "[integration] ERROR: $*" >&2; exit 1; }
@@ -164,7 +196,12 @@ reap_leaked_browsers() {
   kill -9 $leaked >/dev/null 2>&1 || true
 }
 
+STARTED_CADDY=""
 cleanup() {
+  if [[ -n "$STARTED_CADDY" ]]; then
+    kill "$STARTED_CADDY" >/dev/null 2>&1 || true
+    wait "$STARTED_CADDY" 2>/dev/null || true
+  fi
   if [[ -n "$CHROMEDRIVER_PGID" ]]; then
     kill -- "-$CHROMEDRIVER_PGID" >/dev/null 2>&1 || true
   elif [[ -n "$STARTED_CHROMEDRIVER" ]]; then
@@ -181,6 +218,55 @@ if ss -tln 2>/dev/null | grep -qE "[.:]$WEB_PORT "; then
   die "port $WEB_PORT busy — stop the local flutter dev server first (fuser -k $WEB_PORT/tcp)"
 fi
 
+# --- 4b. wasm mode: Caddy HTTPS origin ----------------------------------------
+DEFINES_FILE=env/integration-web.env
+MODE_FLAGS=()
+if [[ "$WASM_MODE" == "1" ]]; then
+  DEFINES_FILE=env/integration-web-caddy.env
+  MODE_FLAGS+=(--wasm "--web-launch-url=$CADDY_ORIGIN/")
+  [[ -f "$CLIENT_DIR/$DEFINES_FILE" ]] || die "missing $CLIENT_DIR/$DEFINES_FILE"
+  command -v caddy >/dev/null || die "TENTURA_WEB_E2E_WASM=1 needs caddy on PATH"
+  if ! ss -tln 2>/dev/null | grep -qE "[.:]$CADDY_PORT "; then
+    # With LOCAL_ROOT_SPLIT=off Caddy serves `/` itself from LOCAL_APP_ROOT
+    # (every other app path goes to the dev server). Render that page from
+    # web/index.html so the run does not depend on a stale build/web.
+    CADDY_APP_ROOT="$CLIENT_DIR/build/integration-web-caddy"
+    mkdir -p "$CADDY_APP_ROOT"
+    sed 's|\$FLUTTER_BASE_HREF|/|' "$CLIENT_DIR/web/index.html" >"$CADDY_APP_ROOT/index.html"
+    log "starting Caddy on :$CADDY_PORT (log: $CADDY_LOG)"
+    (
+      cd "$ROOT"
+      LOCAL_ROOT_SPLIT=off LOCAL_FLUTTER_UPSTREAM=localhost:$WEB_PORT \
+        LOCAL_APP_ROOT="$CADDY_APP_ROOT" exec caddy run --config Caddyfile.local
+    ) >"$CADDY_LOG" 2>&1 &
+    STARTED_CADDY=$!
+    for _ in $(seq 1 30); do
+      ss -tln 2>/dev/null | grep -qE "[.:]$CADDY_PORT " && break
+      kill -0 "$STARTED_CADDY" 2>/dev/null || die "Caddy exited (see $CADDY_LOG)"
+      sleep 1
+    done
+  else
+    log "reusing the Caddy already on :$CADDY_PORT (it must run with LOCAL_ROOT_SPLIT=off LOCAL_FLUTTER_UPSTREAM=localhost:$WEB_PORT)"
+  fi
+  # Before flutter drive runs, `/` is the only app path that answers: it must
+  # be the app page (not the landing, i.e. root split off) with COOP/COEP, over
+  # a TLS certificate this machine trusts.
+  root_ok=0
+  for _ in $(seq 1 15); do
+    if root_page="$(curl -sS -m 5 -D - "$CADDY_ORIGIN/" 2>&1)"; then
+      root_ok=1
+      break
+    fi
+    sleep 1
+  done
+  [[ "$root_ok" == "1" ]] || die "cannot fetch $CADDY_ORIGIN/ ($(printf '%s' "$root_page" | tail -1)); is Caddy's local CA trusted? (./scripts/trust-caddy-local-ca.sh)"
+  grep -q 'flutter_bootstrap.js' <<<"$root_page" \
+    || die "$CADDY_ORIGIN/ does not serve the app page (landing root split on, or no index.html under its LOCAL_APP_ROOT?) — restart Caddy with LOCAL_ROOT_SPLIT=off LOCAL_FLUTTER_UPSTREAM=localhost:$WEB_PORT, or stop it and let this runner start one"
+  grep -qi '^cross-origin-embedder-policy:' <<<"$root_page" \
+    || die "$CADDY_ORIGIN/ sends no Cross-Origin-Embedder-Policy; skwasm would run single-threaded"
+  log "Caddy OK ($CADDY_ORIGIN, app at /, COOP/COEP)"
+fi
+
 # --- 5. run the tests --------------------------------------------------------
 if [[ $# -gt 0 ]]; then
   TARGETS=("$@")
@@ -193,6 +279,12 @@ fi
 DRIVE_BROWSER_FLAGS=()
 if [[ "${TENTURA_WEB_CHROME_NO_SANDBOX:-}" == "1" ]]; then
   DRIVE_BROWSER_FLAGS+=(--web-browser-flag=--no-sandbox)
+fi
+
+if [[ "$WASM_MODE" == "1" ]]; then
+  log "mode: --wasm (skwasm) via Caddy $CADDY_ORIGIN/, defines $DEFINES_FILE"
+else
+  log "mode: dart2js debug on the dev server http://localhost:$WEB_PORT/, defines $DEFINES_FILE"
 fi
 
 cd "$CLIENT_DIR"
@@ -209,13 +301,14 @@ for target in "${TARGETS[@]}"; do
   fi
   log "=== flutter drive: $target (browser $browser_dimension)"
   if flutter drive \
+    ${MODE_FLAGS[@]+"${MODE_FLAGS[@]}"} \
     --driver=test_driver/integration_test.dart \
     --target="$target" \
     -d web-server \
     --browser-name=chrome \
     ${DRIVE_BROWSER_FLAGS[@]+"${DRIVE_BROWSER_FLAGS[@]}"} \
     --browser-dimension="$browser_dimension" \
-    --dart-define-from-file=env/integration-web.env \
+    --dart-define-from-file="$DEFINES_FILE" \
     --dart-define=QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \
     --dart-define=QA_INTEGRATION_TEST_MODE=true; then
     log "PASS: $target"
