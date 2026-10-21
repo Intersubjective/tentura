@@ -2099,3 +2099,21 @@ Checked with a throwaway widget test (the real `ConstellationScreen` in `Materia
 - Client `test/features/constellation/` + `test/features/graph/`: 1253 pass, 1 skipped. Custom lints: 23 (baseline 23). Analyzer baseline: 1934 ≤ 2040.
 
 **Status.** Partial: I4 fails at N = 300 on all three budgets (drag build p95 ~11 ms, pan build max up to 12 ms, drop 74–77 ms + reflow 5 × 54–83 ms tasks); #235 stays open. Proposals 1–3 above are the expected path to I4.
+
+## UNIT U40 — partial (part 2/3: I4 re-measure after s7gl.90–.98) — 2026-10-21 (tentura-s7gl.71)
+
+**Run.** Operator, host (i5-12600K, 16 threads; headless Chrome 143, Flutter 3.47.0, profile build), commit `ddd633dd1`, clean tree, Alloy stopped. `./scripts/run_client_profile_web_bench_local.sh` three times; raw JSON in `packages/client/build/bench/u40_profile_web_round4_20261021/run1-3.json` (gitignored). Changes since the previous entry: s7gl.90 (placementPhase out of the body/overlay buildWhen), .91 (reflow label overlay), .92 (edge Path cache, ineffective — the web engine frees native paths every frame), .93 (overflow chips on ack), .94 (per-node RepaintBoundary removed — regressed drag, superseded by .97), .95 (Text view scroll), .96 (keyed overlay Positioneds), .97 (shared resting-node layer + dragged-node layer), .98 (cached layer for non-incident edges).
+
+**Numbers** (ms, range over three runs; "UI" = framework build time per frame; tasks are main-thread tasks over 50 ms by phase, mouse and touch cycles):
+
+| N | drag build max / p95 | pan build max / p95 | grab → first moved frame (mouse / touch) | tasks > 50 ms | drop → ack |
+|---|---|---|---|---|---|
+| 100 | 2.9–3.4 / 2.4–2.6 | 8.6–9.7 / 2.6–3.8 | 81–93 / 69–74 | one drop 51 in 1 of 3 runs, else none | 89–103 |
+| 300 | 3.8–5.0 / 3.2–3.4 | 6.7–7.6 / 6.2–6.9 | 83–90 / 87–100 | grab 50–66, reflow 53 (in 2 of 3 runs), one pan 52 | 101–106 |
+| 600 | 3.7–5.8 / 3.0–3.8 | 20–30 / 3.3–7.3 | 87–101 / 92–111 | grab 53–68, reflow 50–65 | 104–106 |
+
+**Against I4 at N = 300.** Drag frame < 8 ms: **pass** (p95 3.2–3.4, was 27–29 before s7gl.86). Pan frame < 8 ms: **pass** (p95 6.2–6.9). No task > 50 ms across drop → ack → reflow: drop and ack **pass** (no task), reflow **marginal** (one 53 ms frame in 2 of 3 runs); the grab frame (50–66 ms, was ~1 s) is still just over.
+
+**What is left.** The remaining long frames are raster-dominated: drag *total* frame p95 is 27–28 ms against 3.3 ms of build, because CanvasKit on Chrome rasterizes on the main thread and the default `OffscreenCanvasRasterizer` spends ~16 ms per frame in `createImageBitmap` (round-3 profile, `packages/client/build/bench/u40_round3_profile_20261021/`). A prototype with `FLUTTER_WEB_CANVASKIT_FORCE_MULTI_SURFACE_RASTERIZER=true` cut drag raster p95 from 24–30 to ~7 ms and removed the drop task. Switching the rasterizer (or a `--wasm` skwasm build) is an engine-level change awaiting an owner decision; it needs verification on headed Chrome and devices and on the Google Maps platform view.
+
+**Web e2e.** `constellation_protocol_release_test`, `constellation_pinning_test`, `constellation_interactive_flows_test`: all pass.
