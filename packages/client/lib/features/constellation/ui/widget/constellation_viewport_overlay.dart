@@ -217,7 +217,6 @@ class _ConstellationViewportOverlayState
           previous.selectedPersonId != current.selectedPersonId ||
           previous.selectedRequestId != current.selectedRequestId ||
           previous.graphRevision != current.graphRevision ||
-          previous.placementPhase != current.placementPhase ||
           previous.viewMode != current.viewMode,
       builder: (context, state) {
         if (state.viewMode != ConstellationViewMode.map) {

@@ -119,7 +119,7 @@ void main() {
     });
 
     testWidgets(
-      'one person drag move rebuilds exactly its pinned cluster once',
+      'one person drag move moves its pinned cluster without rebuilding any node',
       (tester) async {
         final builds = <String, int>{};
         final rebuiltElements = <Element>{};
@@ -206,25 +206,11 @@ void main() {
         expect(controller.scene.topologyRevision, topologyRevision);
         expect(controller.relayoutInvocationCount, layoutCount);
         expect(controller.cameraRevision.value, cameraRevision);
-        final expectedAffectedIds = <String>{'fp:am', 'fr:req-am-1'};
-        final expectedBuildCounts = {
-          for (final id in mountedIds)
-            id: expectedAffectedIds.contains(id) ? 1 : 0,
-        };
-        final actualBuildCounts = {
-          for (final id in mountedIds) id: builds[id] ?? 0,
-          ...builds,
-        };
         expect(
-          builds.keys.toSet(),
-          expectedAffectedIds,
-          reason: 'The dragged cluster must be the complete affected-node set',
-        );
-        expect(
-          actualBuildCounts,
-          expectedBuildCounts,
+          builds,
+          isEmpty,
           reason:
-              'Each dragged node must rebuild exactly once and every other node zero times',
+              'A move relays the nodes out; no node subtree is rebuilt for it',
         );
         expect(canvasBuilds, 0, reason: 'A move must not rebuild GraphView');
         await tester.pumpWidget(const SizedBox.shrink());

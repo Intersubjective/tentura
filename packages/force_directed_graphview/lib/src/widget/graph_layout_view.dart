@@ -36,6 +36,10 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
   static GraphSceneRenderScope membershipOf(BuildContext context) =>
       InheritedModel.inheritFrom<GraphSceneRenderScope>(context, aspect: true)!;
 
+  /// Paint order only; position-only snapshot changes do not notify.
+  static GraphSceneRenderScope paintOrderOf(BuildContext context) =>
+      InheritedModel.inheritFrom<GraphSceneRenderScope>(context, aspect: false)!;
+
   @override
   bool updateShouldNotify(GraphSceneRenderScope oldWidget) =>
       snapshot != oldWidget.snapshot ||
@@ -46,8 +50,14 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
     GraphSceneRenderScope oldWidget,
     Set<bool> dependencies,
   ) =>
-      snapshot.topology != oldWidget.snapshot.topology ||
-      !setEquals(orderedNodeIds.toSet(), oldWidget.orderedNodeIds.toSet());
+      (dependencies.contains(true) &&
+          (snapshot.topology != oldWidget.snapshot.topology ||
+              !setEquals(
+                orderedNodeIds.toSet(),
+                oldWidget.orderedNodeIds.toSet(),
+              ))) ||
+      (dependencies.contains(false) &&
+          !listEquals(orderedNodeIds, oldWidget.orderedNodeIds));
 }
 
 /// { @nodoc }

@@ -640,7 +640,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
             previous.filterTiming != current.filterTiming ||
             previous.filterIncludeUnspecified !=
                 current.filterIncludeUnspecified ||
-            previous.placementPhase != current.placementPhase ||
             previous.membershipFilters != current.membershipFilters,
         builder: (context, state) {
           return LayoutBuilder(
@@ -1045,20 +1044,25 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 if (mapNode is! _ConstellationMapNode) {
                   return mapNode;
                 }
-                return ValueListenableBuilder<Offset>(
-                  valueListenable: cubit.graphController
-                      .positionListenableForId(
-                        node.graphNodeId,
-                      ),
-                  builder: (context, _, _) =>
-                      _wrapConstellationMapNodeSemantics(
-                        context: context,
-                        cubit: cubit,
-                        state: state,
-                        node: node,
-                        panelVisible: panelVisible,
-                        mapNode: mapNode,
-                      ),
+                // The semantics label changes only with the pin state, so a
+                // move or a phase change leaves the node subtree alone.
+                final anchorTarget = cubit.anchorTargetForNode(node);
+                return BlocSelector<
+                  ConstellationCubit,
+                  ConstellationState,
+                  bool
+                >(
+                  bloc: cubit,
+                  selector: (_) =>
+                      anchorTarget != null && cubit.isAnchored(anchorTarget),
+                  builder: (context, _) => _wrapConstellationMapNodeSemantics(
+                    context: context,
+                    cubit: cubit,
+                    state: state,
+                    node: node,
+                    panelVisible: panelVisible,
+                    mapNode: mapNode,
+                  ),
                 );
               },
             ),

@@ -43,10 +43,11 @@ class _NodesLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = GraphSceneRenderScope.of(context);
+    final scope = GraphSceneRenderScope.paintOrderOf(context);
+    final controller = InheritedConfiguration.controllerOf(context);
     return CustomMultiChildLayout(
       delegate: _NodesLayoutDelegate(
-        snapshot: scope.snapshot,
+        controller: controller,
         orderedNodeIds: scope.orderedNodeIds,
       ),
       children: [
@@ -58,15 +59,18 @@ class _NodesLayout extends StatelessWidget {
 
 class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
   _NodesLayoutDelegate({
-    required this.snapshot,
+    required this.controller,
     required this.orderedNodeIds,
-  });
+  }) : super(relayout: controller);
 
-  final GraphSceneSnapshot<Object?, Object?> snapshot;
+  /// Positions are read at layout time, so a position-only scene change
+  /// relays out without rebuilding this widget.
+  final GraphController<dynamic, dynamic> controller;
   final List<GraphNodeId> orderedNodeIds;
 
   @override
   void performLayout(Size size) {
+    final snapshot = controller.renderSnapshot;
     for (final id in orderedNodeIds) {
       final sceneNode = snapshot.topology.nodesById[id];
       final point = snapshot.resolvePosition(id);
@@ -84,6 +88,6 @@ class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
 
   @override
   bool shouldRelayout(covariant _NodesLayoutDelegate oldDelegate) =>
-      snapshot != oldDelegate.snapshot ||
+      controller != oldDelegate.controller ||
       orderedNodeIds != oldDelegate.orderedNodeIds;
 }
