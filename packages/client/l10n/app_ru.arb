@@ -6451,6 +6451,7 @@
   "closureAuthorExtend": "Продлить на 7 дней",
   "closureAuthorCloseNow": "Завершить сейчас",
   "closureAuthorCloseEarlyHint": "Можно закрыть раньше после {when}, или когда все помощники ответят",
+  "closureAuthorPickOutcomesHint": "Выберите итог для каждого помощника, чтобы завершить сейчас",
   "closureAuthorReopen": "Вернуть в работу",
   "closureAuthorStale": "Запрос изменился, данные обновлены",
   "closureHelperHeader": "Чья работа, по-твоему, была важной? Твоя часть от этого не меняется",

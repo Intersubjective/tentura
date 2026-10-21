@@ -7358,6 +7358,10 @@
       }
     }
   },
+  "closureAuthorPickOutcomesHint": "Pick an outcome for each helper to finish now",
+  "@closureAuthorPickOutcomesHint": {
+    "description": "Shown under a disabled Finish now while some member (removed ones included) has no outcome."
+  },
   "closureAuthorReopen": "Return to work",
   "@closureAuthorReopen": {
     "description": "Reopens the request."
