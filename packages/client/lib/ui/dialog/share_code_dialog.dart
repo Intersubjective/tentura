@@ -12,7 +12,8 @@ import '../widget/qr_code.dart';
 
 class ShareCodeDialog extends StatefulWidget {
   /// Shows the dialog and completes with whether the link may have left the
-  /// screen: Copy or Share was used, or the QR was on screen (it may have been
+  /// screen: Copy or Share was used, the link text was selected (it may have
+  /// been copied by hand), or the QR was on screen (it may have been
   /// scanned). Reported for every way of closing (Close, barrier, Esc).
   static Future<bool> show(
     BuildContext context, {
@@ -46,7 +47,8 @@ class ShareCodeDialog extends StatefulWidget {
   final String header;
   final String link;
 
-  /// Set to true once the link was copied or shared or the QR was shown.
+  /// Set to true once the link was copied, shared or selected, or the QR
+  /// was shown.
   final ValueNotifier<bool>? used;
 
   /// Shown under the QR in the dialog only. Never included in [ShareParams].
@@ -104,6 +106,11 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
           )
         : null;
     final linkText = SelectionArea(
+      // Selecting the link by hand (to copy it without the Copy button)
+      // counts as used, so the hand-copied link keeps working (#605).
+      onSelectionChanged: (content) {
+        if (content != null && content.plainText.isNotEmpty) _markUsed();
+      },
       child: Text(
         link,
         style: theme.textTheme.bodySmall,

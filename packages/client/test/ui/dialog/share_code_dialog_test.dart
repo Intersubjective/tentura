@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -204,5 +205,49 @@ void main() {
       find.text('Invite someone to help with this request'),
       findsNothing,
     );
+  });
+  // #605: on desktop the link is selectable text; selecting it by hand (to
+  // copy it without the Copy button) counts as used, like Copy and Share.
+  testWidgets('desktop: selecting the link by hand counts as used', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final used = ValueNotifier<bool>(false);
+    addTearDown(used.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: Scaffold(
+          body: ShareCodeDialog(
+            header: 'Invitation Code',
+            link: _link,
+            used: used,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Guard: just showing the link-first dialog is not a use.
+    expect(used.value, isFalse);
+
+    final box = tester.getRect(find.text(_link));
+    final gesture = await tester.startGesture(
+      box.centerLeft + const Offset(1, 0),
+      kind: PointerDeviceKind.mouse,
+    );
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+    await gesture.moveTo(box.centerRight - const Offset(1, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(used.value, isTrue);
   });
 }

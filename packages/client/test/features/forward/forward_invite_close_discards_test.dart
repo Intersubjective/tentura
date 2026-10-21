@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -258,6 +259,32 @@ Future<void> _closeAndSettle(WidgetTester tester) async {
   expect(find.byType(ShareCodeDialog), findsNothing);
 }
 
+/// Selects the whole link text by hand with a mouse drag (desktop), then
+/// presses Ctrl+C — the person copies it without the Copy button (#605).
+Future<void> _handCopyLink(WidgetTester tester) async {
+  final linkText = _inDialog(find.textContaining('/invite/'));
+  expect(linkText, findsOneWidget);
+  await tester.ensureVisible(linkText);
+  await tester.pumpAndSettle();
+
+  final box = tester.getRect(linkText);
+  final gesture = await tester.startGesture(
+    box.centerLeft + const Offset(1, 0),
+    kind: PointerDeviceKind.mouse,
+  );
+  addTearDown(gesture.removePointer);
+  await tester.pump();
+  await gesture.moveTo(box.centerRight - const Offset(1, 0));
+  await tester.pump();
+  await gesture.up();
+  await tester.pumpAndSettle();
+
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pumpAndSettle();
+}
+
 /// The person did use the invite: it stays, nothing was deleted, and they
 /// are told where to find it.
 void _expectKept(_Harness h) {
@@ -387,6 +414,22 @@ void main() {
       await _tapInDialog(tester, 'Share link');
       expect(shareCalls, hasLength(1), reason: 'share sheet was opened');
 
+      await _closeAndSettle(tester);
+
+      _expectKept(h);
+    },
+  );
+  // #605: on desktop the link is selectable text, so a person may copy it by
+  // hand (select + Ctrl+C) instead of tapping Copy. That link must keep
+  // working: closing the dialog keeps the invite.
+  testWidgets(
+    'Forward invite: on desktop, copying the link by hand then Close keeps '
+    'the invite and shows Invite saved',
+    (tester) async {
+      _mockClipboard(tester);
+      final h = await _openInviteDialog(tester);
+
+      await _handCopyLink(tester);
       await _closeAndSettle(tester);
 
       _expectKept(h);
