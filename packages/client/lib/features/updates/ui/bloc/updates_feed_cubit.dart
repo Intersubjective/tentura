@@ -260,33 +260,32 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     return null;
   }
 
-  Future<void> markUnseen(String id) async {
-    try {
-      await _attention.markUnseen([id]);
-      emit(state.copyWith(actionError: null));
-    } catch (error, stackTrace) {
-      _logger.warning('Updates mark-unseen failed', error, stackTrace);
-      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
-    }
-  }
+  /// "Mark unread" (#601): returns false when it failed
+  /// ([UpdatesFeedState.actionError]) so the caller can say so.
+  Future<bool> markUnseen(String id) =>
+      _runAction('mark-unseen', () => _attention.markUnseen([id]));
 
-  Future<void> markAllSeen() async {
-    try {
-      await _attention.markAllSeen();
-      emit(state.copyWith(actionError: null));
-    } catch (error, stackTrace) {
-      _logger.warning('Updates mark-all-seen failed', error, stackTrace);
-      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
-    }
-  }
+  /// "Read all" (#601): returns false when it failed.
+  Future<bool> markAllSeen() =>
+      _runAction('mark-all-seen', _attention.markAllSeen);
 
-  Future<void> settle(String id) async {
+  /// "Mark done" (#601): returns false when it failed.
+  Future<bool> settle(String id) =>
+      _runAction('settle', () => _attention.settle(id));
+
+  Future<bool> _runAction(String name, Future<void> Function() action) async {
     try {
-      await _attention.settle(id);
-      emit(state.copyWith(actionError: null));
+      await action();
+      if (!isClosed) emit(state.copyWith(actionError: null));
+      return true;
     } catch (error, stackTrace) {
-      _logger.warning('Updates settle failed', error, stackTrace);
-      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
+      _logger.warning('Updates $name failed', error, stackTrace);
+      if (!isClosed) {
+        emit(
+          state.copyWith(actionError: error, status: const StateIsSuccess()),
+        );
+      }
+      return false;
     }
   }
 

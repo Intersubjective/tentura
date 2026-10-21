@@ -125,8 +125,10 @@ final class MarkSeenServerFake extends AttentionRepositoryFake {
   }
 
   @override
-  Future<int> settle({required String receiptId, required String kind}) async =>
-      0;
+  Future<int> settle({required String receiptId, required String kind}) async {
+    if (failWrites) throw StateError('offline');
+    return 0;
+  }
 
   @override
   Future<AttentionClearSnapshot> clearSnapshot({

@@ -6629,6 +6629,18 @@
   "@updatesMarkSeenFailed": {
     "description": "Error snackbar when the per-item Updates \"Mark seen\" action fails."
   },
+  "updatesMarkUnseenFailed": "Couldn't mark as unread. Try again.",
+  "@updatesMarkUnseenFailed": {
+    "description": "Error snackbar when the per-item Updates \"Mark unread\" action fails (#601)."
+  },
+  "updatesMarkAllSeenFailed": "Couldn't mark everything as read. Try again.",
+  "@updatesMarkAllSeenFailed": {
+    "description": "Error snackbar when the Updates \"Read all\" action fails (#601)."
+  },
+  "updatesMarkDoneFailed": "Couldn't mark as done. Try again.",
+  "@updatesMarkDoneFailed": {
+    "description": "Error snackbar when the per-item Updates \"Mark done\" action fails (#601)."
+  },
   "updatesMarkUnseen": "Mark unread",
   "@updatesMarkUnseen": {
     "description": "Tooltip for the Updates trailing control that marks a receipt unread."
@@ -8552,6 +8564,24 @@
   "attentionCardChangeOfferDeclined": "Offer declined: {reason}",
   "@attentionCardChangeOfferDeclined": {
     "context": "For You Request card (#189) change line: the author declined your help offer, with their reason (#381)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardChangeOfferRemoved": "Removed from the discussion: {reason}",
+  "@attentionCardChangeOfferRemoved": {
+    "context": "For You Request card (#189) change line: the author removed you from the request discussion, with their reason (#601)",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionCardChangeCommitmentReleased": "Participation ended: {reason}",
+  "@attentionCardChangeCommitmentReleased": {
+    "context": "For You Request card (#189) change line: the author ended your participation in the request, with their reason (#601)",
     "placeholders": {
       "reason": {
         "type": "String"
