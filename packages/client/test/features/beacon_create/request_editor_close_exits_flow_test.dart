@@ -26,6 +26,7 @@ import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -566,6 +567,124 @@ void main() {
       expect(reopened.state.description, _description);
       expect(find.text(_title), findsOneWidget);
       expect(find.text(_description), findsOneWidget);
+    });
+  });
+
+  // Issue #625: Draft menu › Delete request deleted the draft but left the
+  // editor open; autosave then wrote to the deleted id, and the cubit's
+  // NavigateBack re-entered «←» and asked «Keep this draft?».
+  group('Draft menu › Delete request (#625)', () {
+    late FakeUiEffectPort effects;
+    late BeaconCreateCubit cubit;
+
+    setUp(() {
+      effects = FakeUiEffectPort();
+      cubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: store),
+        effects: effects,
+      )..setAutosaveContext('');
+    });
+
+    tearDown(() => cubit.close());
+
+    final draftMenu = find.descendant(
+      of: find.byType(TenturaTopBar),
+      matching: find.text('Draft'),
+    );
+
+    int writes() =>
+        store.createAttempts +
+        store.updatedDraftFields.length +
+        store.updatedFields.length;
+
+    /// Opens the editor on a draft autosave has already created, with a
+    /// further edit still waiting on the autosave debounce.
+    Future<String> openSavedDraftWithPendingEdit(WidgetTester tester) async {
+      await openEditor(tester, cubit: cubit);
+      // Like the app's effect handler: NavigateBack maybePops the top route.
+      final sub = effects.effects.listen((effect) {
+        if (effect is NavigateBack) {
+          tester.state<NavigatorState>(find.byType(Navigator).first).maybePop();
+        }
+      });
+      addTearDown(sub.cancel);
+      await typeIntoForm(tester);
+      await cubit.flushAutosave();
+      await _settle(tester);
+      final savedId = cubit.state.draftId;
+      expect(savedId, isNotNull);
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        '$_title soon',
+      );
+      await tester.pump();
+      return savedId!;
+    }
+
+    Future<void> deleteFromDraftMenu(WidgetTester tester) async {
+      await tester.tap(draftMenu);
+      await _settle(tester);
+      await tester.tap(find.text('Delete request'));
+      await _settle(tester);
+      expect(find.text('Delete draft?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await _settle(tester);
+    }
+
+    testWidgets('deletes the draft and closes the editor without asking '
+        '«Keep this draft?»', (tester) async {
+      final savedId = await openSavedDraftWithPendingEdit(tester);
+
+      await deleteFromDraftMenu(tester);
+
+      expect(store.deletedIds, [savedId]);
+      expect(find.text('Keep this draft?'), findsNothing);
+      expect(find.text('Keep draft'), findsNothing);
+      expect(find.byType(BeaconCreateScreen), findsNothing);
+      expect(find.text('open-editor'), findsOneWidget);
+      await _drainAutosave(tester);
+    });
+
+    testWidgets('no autosave reaches the server after the delete', (
+      tester,
+    ) async {
+      final savedId = await openSavedDraftWithPendingEdit(tester);
+      final writesBeforeDelete = writes();
+
+      // Short pumps: the edit must still sit on the 1 s autosave debounce
+      // when the delete is confirmed.
+      await tester.tap(draftMenu);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Delete request'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Delete draft?'), findsOneWidget);
+      expect(writes(), writesBeforeDelete, reason: 'edit still pending');
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await _settle(tester);
+      expect(store.deletedIds, [savedId]);
+      await _drainAutosave(tester);
+
+      expect(writes(), writesBeforeDelete);
+    });
+
+    testWidgets('cancelling the confirmation keeps the editor and the draft', (
+      tester,
+    ) async {
+      final savedId = await openSavedDraftWithPendingEdit(tester);
+
+      await tester.tap(draftMenu);
+      await _settle(tester);
+      await tester.tap(find.text('Delete request'));
+      await _settle(tester);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await _settle(tester);
+
+      expect(store.deletedIds, isEmpty);
+      expect(find.byType(BeaconCreateScreen), findsOneWidget);
+      expect(cubit.state.draftId, savedId);
+      await _drainAutosave(tester);
     });
   });
 
