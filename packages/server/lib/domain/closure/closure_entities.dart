@@ -102,12 +102,20 @@ final class ClosureMemberRow {
     required this.activeAtOpen,
     this.arrivalEdgeId,
     this.departure,
+    this.displayName,
+    this.avatarId,
   });
 
   final String userId;
   final bool activeAtOpen;
   final String? arrivalEdgeId;
   final Departure? departure;
+
+  /// The member's `user.display_name`, departed members included.
+  final String? displayName;
+
+  /// The member's `user.image_id`, when they have one.
+  final String? avatarId;
 }
 
 final class ClosureOutcomeRow {

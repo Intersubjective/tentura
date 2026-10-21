@@ -150,6 +150,14 @@ void main() {
     when(
       roomRepo.findParticipant(beaconId: beaconId, userId: helperId),
     ).thenAnswer((_) async => null);
+    // #489: an admitted helper's removal posts a room line; strict mocks
+    // need it stubbed.
+    when(
+      roomRepo.recordParticipantRemoved(
+        beaconId: anyNamed('beaconId'),
+        userId: anyNamed('userId'),
+      ),
+    ).thenAnswer((_) async {});
     when(
       helpOfferRepo.fetchAllByBeaconId(beaconId),
     ).thenAnswer(

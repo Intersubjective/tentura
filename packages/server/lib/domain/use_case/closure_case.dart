@@ -745,6 +745,8 @@ final class ClosureCase extends UseCaseBase {
       for (final m in rows)
         ClosureMemberView(
           id: m.userId,
+          displayName: m.displayName,
+          avatarId: m.avatarId,
           notInRequest: m.departure != null || blocked.contains(m.userId),
           departure: isAuthor
               ? (m.departure ??

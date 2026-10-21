@@ -811,6 +811,21 @@ ON CONFLICT DO NOTHING
             payload: {'factText': 'Unpinned fact text'},
             withAttachment: false,
           ),
+              // #489: the author-side removal line (marker 19) previews like a
+              // voluntary leave; an unmapped marker throws in the preview query.
+              (
+                messageId: 'Rthpgprev13',
+                threadItemId: null,
+                expectedKind: ThreadMessagePreviewKind.participantStatus,
+                body: '',
+                marker: BeaconRoomSemanticMarker.participantRemoved,
+                linkedItemId: null,
+                linkedEventKind: null,
+                pollId: null,
+                factId: null,
+                payload: {'removedUserId': targetId},
+                withAttachment: false,
+              ),
         ];
 
         for (final c in previewCases) {

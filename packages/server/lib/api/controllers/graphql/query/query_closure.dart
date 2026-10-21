@@ -68,6 +68,8 @@ final class QueryClosure extends GqlNodeBase {
       for (final m in s.members)
         {
           'id': m.id,
+          'displayName': m.displayName,
+          'avatarId': m.avatarId,
           'notInRequest': m.notInRequest,
           'departure': m.departure,
         },

@@ -5210,6 +5210,14 @@
       }
     }
   },
+  "beaconRoomParticipantRemoved": "{name} больше не в запросе",
+  "@beaconRoomParticipantRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantLeftWithNote": "{name} покинул(а) запрос ({reason}): «{note}»",
   "@beaconRoomParticipantLeftWithNote": {
     "placeholders": {

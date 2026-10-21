@@ -260,6 +260,28 @@ class RoomMessageTile extends StatelessWidget {
     }
   }
 
+  /// `participantRemoved` system payload (server contract, #489): only
+  /// `removedUserId`. Anything else in the payload is ignored (U41).
+  @visibleForTesting
+  static String? participantRemovedUserId(RoomMessage m) {
+    if (m.semanticMarker != BeaconRoomSemanticMarker.participantRemoved) {
+      return null;
+    }
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final removedUserId = decoded['removedUserId'];
+      if (removedUserId is! String || removedUserId.trim().isEmpty) {
+        return null;
+      }
+      return removedUserId.trim();
+    } on Object {
+      return null;
+    }
+  }
+
   /// Status names as the status sheet shows them.
   static String _statusLineLabel(L10n l10n, BeaconStatus status) =>
       switch (status) {
@@ -465,6 +487,8 @@ class RoomMessageTile extends StatelessWidget {
       l10n.beaconRoomSemanticParticipantJoined,
     BeaconRoomSemanticMarker.participantLeft =>
       l10n.beaconRoomSemanticParticipantLeft,
+    BeaconRoomSemanticMarker.participantRemoved =>
+      l10n.beaconRoomSemanticParticipantStatus,
     _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
   };
 
@@ -810,6 +834,52 @@ class RoomMessageTile extends StatelessWidget {
                 line,
                 textAlign: TextAlign.center,
                 maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                  height: 1.15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final removedUserId = participantRemovedUserId(message);
+    if (removedUserId != null) {
+      // Neutral line (U41): names the removed helper only, never who removed
+      // them (the message author may be the author) or why.
+      final name = message.authorId == removedUserId
+          ? SelfUserHighlight.displayName(l10n, message.author, myProfile.id)
+          : _participantDisplayName(
+              participants: participants,
+              userId: removedUserId,
+              viewer: myProfile,
+              l10n: l10n,
+            );
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad / 2,
+          tt.screenHPadding,
+          bottomPad / 2,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_remove_outlined,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
+            SizedBox(width: tt.iconTextGap / 2),
+            Flexible(
+              child: Text(
+                l10n.beaconRoomParticipantRemoved(name),
+                textAlign: TextAlign.center,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: scheme.onSurfaceVariant,

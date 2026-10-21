@@ -1444,6 +1444,36 @@ RETURNING *
   });
 
   @override
+  Future<void> recordParticipantRemoved({
+    required String beaconId,
+    required String userId,
+  }) {
+    Future<void> body() async {
+      await _db.managers.beaconRoomMessages.create(
+        (o) => o(
+          id: generateId('R'),
+          beaconId: beaconId,
+          // The line is about the removed helper, as a leave line is; who
+          // removed them is not shown to the room (U41).
+          authorId: Value(userId),
+          body: const Value(''),
+          semanticMarker: const Value(
+            BeaconRoomSemanticMarker.participantRemoved,
+          ),
+          systemPayload: Value(<String, Object?>{'removedUserId': userId}),
+          createdAt: const Value.absent(),
+        ),
+      );
+    }
+
+    // Runs inside the author's removal unit of work; the actor there is the
+    // author, so no new actor scope is opened here.
+    return _db.isInAmbientMutatingTransaction
+        ? body()
+        : _db.withMutatingSystem(body);
+  }
+
+  @override
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

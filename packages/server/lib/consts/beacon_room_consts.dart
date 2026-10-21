@@ -68,6 +68,10 @@ abstract final class BeaconRoomSemanticMarker {
   /// An admitted helper withdrew and left the room. `systemPayload` carries
   /// `leftUserId`, `withdrawReason` (key) and an optional `note` (B084).
   static const participantLeft = 18;
+
+  /// The author ended an admitted helper's participation. `systemPayload`
+  /// carries only `removedUserId`: no actor, no reason (U41, #489).
+  static const participantRemoved = 19;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).

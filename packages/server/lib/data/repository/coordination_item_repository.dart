@@ -1700,7 +1700,8 @@ int _previewKindForSemanticMarker(int marker) => switch (marker) {
       BeaconRoomSemanticMarker.done => ThreadMessagePreviewKind.done,
       BeaconRoomSemanticMarker.poll => ThreadMessagePreviewKind.poll,
       BeaconRoomSemanticMarker.participantJoined => ThreadMessagePreviewKind.join,
-      BeaconRoomSemanticMarker.participantLeft =>
+  BeaconRoomSemanticMarker.participantLeft ||
+  BeaconRoomSemanticMarker.participantRemoved =>
         ThreadMessagePreviewKind.participantStatus,
       BeaconRoomSemanticMarker.factEdited => ThreadMessagePreviewKind.factEdited,
       BeaconRoomSemanticMarker.factUnpinned =>
