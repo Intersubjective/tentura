@@ -1,15 +1,37 @@
+import 'package:meta/meta.dart' show visibleForTesting;
+
 import 'constellation_anchor_composition.dart';
 import 'constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+int _pinLayoutRunCount = 0;
+
+/// Placed-layout runs performed on behalf of pin positions.
+@visibleForTesting
+int get constellationPinLayoutRunCount => _pinLayoutRunCount;
+
+ConstellationLayout _runPinLayout(ConstellationPlacedLayoutInput input) {
+  _pinLayoutRunCount++;
+  return computeConstellationPlacedLayout(input: input);
+}
+
+/// The placed layout of [layoutInput] for pin positions, to be shared by
+/// every [computeConstellationPinPosition] call over the same input.
+ConstellationLayout computeConstellationPinBaseLayout(
+  ConstellationPlacedLayoutInput layoutInput,
+) => _runPinLayout(layoutInput);
+
+/// [placedLayout], when given, must be [computeConstellationPinBaseLayout] of
+/// the same [layoutInput]; it saves rerunning the layout per target.
 ConstellationAnchorPosition? computeConstellationPinPosition({
   required ConstellationAnchorTarget target,
   required ConstellationPlacedLayoutInput layoutInput,
+  ConstellationLayout? placedLayout,
 }) {
   final nodeId = target.graphNodeId;
 
-  final placedLayout = computeConstellationPlacedLayout(input: layoutInput);
+  placedLayout ??= _runPinLayout(layoutInput);
   final composed = placedLayout.positions[nodeId];
   if (composed != null) {
     return constellationPointToV1Anchor(composed);
@@ -23,7 +45,7 @@ ConstellationAnchorPosition? computeConstellationPinPosition({
     return null;
   }
 
-  final candidateLayout = computeConstellationPlacedLayout(input: scratchInput);
+  final candidateLayout = _runPinLayout(scratchInput);
   final candidate = candidateLayout.positions[nodeId];
   if (candidate == null) {
     return null;

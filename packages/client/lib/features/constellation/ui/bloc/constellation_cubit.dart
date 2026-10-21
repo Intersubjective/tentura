@@ -279,6 +279,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   int _textViewBuildCount = 0;
   Object? _pinLayoutInputComposition;
   ConstellationPlacedLayoutInput? _pinLayoutInput;
+  ConstellationLayout? _pinBaseLayout;
+  final _pinAvailability = <ConstellationAnchorTarget, bool>{};
 
   @visibleForTesting
   Set<String> get forgetPriorHintNodeIdsForTest => _forgetPriorHintNodeIds;
@@ -1838,6 +1840,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         !identical(_pinLayoutInputComposition, composition)) {
       _pinLayoutInputBuildCount++;
       _pinLayoutInputComposition = composition;
+      _pinBaseLayout = null;
+      _pinAvailability.clear();
       _pinLayoutInput = layoutInputFromComposition(
         viewerId: _viewer.id,
         composition: composition,
@@ -1849,9 +1853,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
     final layoutInput = _pinLayoutInput!;
-    return computeConstellationPinPosition(
+    return _pinAvailability[target] ??= computeConstellationPinPosition(
           target: target,
           layoutInput: layoutInput,
+          placedLayout: _pinBaseLayout ??= computeConstellationPinBaseLayout(
+            layoutInput,
+          ),
         ) !=
         null;
   }
