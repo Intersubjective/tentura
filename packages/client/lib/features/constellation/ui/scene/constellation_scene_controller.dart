@@ -928,6 +928,20 @@ class ConstellationSceneController {
     final center = egoPoint == null
         ? const Offset(kConstellationCanvasCentre, kConstellationCanvasCentre)
         : Offset(egoPoint.x, egoPoint.y);
+    // A pinned person re-joining the scene (the first composing pass, before
+    // the composer's people load, has none) goes back to its pin, not a slot.
+    final pins = <GraphNodeId, ConstellationPoint>{
+      for (final anchor in confirmedAnchors ?? const <ConstellationAnchor>[])
+        if (anchor.target.kind == ConstellationAnchorTargetKind.person)
+          constellationGraphNodeIdForTarget(anchor.target):
+              constellationV1AnchorToPoint(anchor.position),
+    };
+    for (final id in added.where(pins.containsKey)) {
+      final pin = pins[id]!;
+      graphController.beginNodePresentationDragForId(id, Offset(pin.x, pin.y));
+      placedPersonIds.add(id);
+    }
+    added.removeWhere(pins.containsKey);
     final firstSlot = placedPersonIds.length;
     for (var i = 0; i < added.length; i++) {
       var slot = firstSlot + i;

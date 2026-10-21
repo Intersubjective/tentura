@@ -172,10 +172,11 @@ composerHarnessControlledStore(ConstellationRepositoryPort repository) {
 ConstellationComposerCubit buildComposerHarnessComposer({
   Future<({Map<String, Offset> positions, Set<String> eligible})> Function()?
   peopleSnapshot,
+  Set<String> eligible = const {'a'},
 }) {
   final composer = ConstellationComposerCubit(
     positions: const {},
-    eligible: const {'a'},
+    eligible: eligible,
     peopleSnapshot: peopleSnapshot,
     createCubitFactory: (kind) => BeaconCreateCubit(
       kind: kind,

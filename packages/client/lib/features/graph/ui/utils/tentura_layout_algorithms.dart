@@ -530,9 +530,12 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         result[graphId] = prior;
         continue;
       }
-      // The composer's draft is placed by its presentation, never by layout.
+      // The composer's draft is placed by its presentation, never by layout,
+      // but a frame must still position every requested node (the frame
+      // protocol rejects a partial one), so it gets a placeholder.
       if (domainId == FieldDraftNode.draftId &&
           graphId == const FieldDraftNode().graphNodeId) {
+        result[graphId] = _centerPoint(_canvasSize(request));
         continue;
       }
       assert(

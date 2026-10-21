@@ -54,18 +54,24 @@ void main() {
       expect(positions[tenturaGraphNodeId(peerNode)], isNotNull);
     });
 
-    test('the composer draft needs no layout position', () async {
-      const draft = FieldDraftNode();
-      final positions = await layoutPositionsOnce(
-        algorithm,
-        nodes: {egoNode, peerNode, draft},
-        edges: const {},
-        canvasSize: const Size(4200, 4200),
-      );
-      expect(positions[tenturaGraphNodeId(egoNode)], isNotNull);
-      expect(positions[tenturaGraphNodeId(peerNode)], isNotNull);
-      expect(positions.containsKey(tenturaGraphNodeId(draft)), isFalse);
-    });
+    test(
+      'a layout while composing positions every requested node, the draft '
+      'included, so the frame protocol accepts it',
+      () async {
+        const draft = FieldDraftNode();
+        final request = sceneLayoutRequest(
+          nodes: {egoNode, peerNode, draft},
+          edges: const {},
+          canvasSize: const Size(4200, 4200),
+        );
+        final frame = await algorithm.layout(request).first;
+        expect(frame.positions.keys.toSet(), request.nodeIds);
+        expect(
+          GraphLayoutFrameIngress(request).classify(frame),
+          GraphLayoutFrameDisposition.accepted,
+        );
+      },
+    );
 
     test('a kept person on no trust path still gets a layout seat', () async {
       // A composer candidate (or a member kept after its Request closed) is

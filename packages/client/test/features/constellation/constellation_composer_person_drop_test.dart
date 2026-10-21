@@ -96,7 +96,13 @@ typedef _Harness = ({
   _SilentAnchorRepository server,
 });
 
-Future<_Harness> _mount(WidgetTester tester, {required bool pinA}) async {
+/// [peopleLoaded] seeds the composer with its audience, as a harness can;
+/// the screen's composer starts with none and loads it when a session opens.
+Future<_Harness> _mount(
+  WidgetTester tester, {
+  required bool pinA,
+  bool peopleLoaded = true,
+}) async {
   final repository = ComposerHarnessRepository(() => _field(pinA: pinA));
   final server = _SilentAnchorRepository();
   final sync = buildTestRealtimeSync();
@@ -127,6 +133,7 @@ Future<_Harness> _mount(WidgetTester tester, {required bool pinA}) async {
   }
   final composer = buildComposerHarnessComposer(
     peopleSnapshot: cubit.composerPeople,
+    eligible: peopleLoaded ? const {'a'} : const {},
   );
   await pumpComposerHarnessScreen(tester, cubit: cubit, composer: composer);
   await tester.pumpAndSettle();
@@ -171,6 +178,37 @@ Future<Offset> _dragAOntoCircle(WidgetTester tester, _Harness h) async {
 }
 
 void main() {
+  testWidgets(
+    'a pinned person stays on its pin when the composer opens before its '
+    'people have loaded',
+    (tester) async {
+      final h = await _mount(tester, pinA: true, peopleLoaded: false);
+      final controller = h.cubit.graphController;
+      final pin = constellationV1AnchorToPoint(_pinnedAt);
+      final pinOffset = Offset(pin.x, pin.y);
+      expect(
+        (controller.getPositionOrNullForId('fp:a')! - pinOffset).distance,
+        lessThan(1),
+      );
+      final ego = controller.getPositionOrNullForId('fp:ego')!;
+      // The first composing pass has no audience yet, so the person leaves
+      // the scene and comes back once the composer has loaded its people.
+      h.composer.start(
+        BeaconKind.post,
+        pinOffset + (pinOffset - ego) / (pinOffset - ego).distance * 160,
+      );
+      await tester.pumpAndSettle();
+
+      expect(h.cubit.state.isComposing, isTrue);
+      expect(h.composer.selection.eligible, contains('a'));
+      expect(
+        (controller.getPositionOrNullForId('fp:a')! - pinOffset).distance,
+        lessThan(1),
+        reason: 'opening the composer does not move a pinned person',
+      );
+    },
+  );
+
   testWidgets('a dropped person stays and joins the recipients', (
     tester,
   ) async {
