@@ -15,6 +15,35 @@ Size constellationOverflowChipSize(BuildContext context, String label) {
   final theme = Theme.of(context);
   final textScaler = MediaQuery.textScalerOf(context);
   final style = theme.textTheme.labelLarge;
+  final key = (
+    label,
+    style,
+    textScaler,
+    Directionality.of(context),
+    tt.screenHPadding,
+    tt.iconSize,
+    tt.iconTextGap,
+    tt.buttonHeight,
+    tt.tightGap,
+  );
+  return _chipSizeCache.putIfAbsent(key, () {
+    if (_chipSizeCache.length >= _chipSizeCacheLimit) {
+      _chipSizeCache.clear();
+    }
+    return _measureChip(context, label, tt, style, textScaler);
+  });
+}
+
+const _chipSizeCacheLimit = 256;
+final _chipSizeCache = <Object, Size>{};
+
+Size _measureChip(
+  BuildContext context,
+  String label,
+  TenturaTokens tt,
+  TextStyle? style,
+  TextScaler textScaler,
+) {
   final textPainter = TextPainter(
     text: TextSpan(text: label, style: style),
     maxLines: 1,
