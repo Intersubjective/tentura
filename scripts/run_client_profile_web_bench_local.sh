@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Profile-web benchmark of the Constellation graph (issue #235 U40, I4):
-# drag frame, pan frame and drop → ack → reflow at N = 100/300/600 in headless
-# Chrome, from a `flutter drive --profile` build.
+# grab → first moved frame (mouse and touch), drag frame, pan frame, drop →
+# ack → reflow and every > 50 ms main-thread task by phase, at N = 100/300/600
+# in headless Chrome, from a `flutter drive --profile` build.
 #
 # Usage:
 #   ./scripts/run_client_profile_web_bench_local.sh
