@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
@@ -110,6 +111,11 @@ class BeaconCreateCase {
   final BeaconImagePort _images;
 
   static const _uuid = Uuid();
+
+  static const _maxSetMediaAttempts = 3;
+
+  /// Kept short: the author is waiting on Save (owner review, #510).
+  static const _maxBusyWait = Duration(seconds: 2);
 
   Future<Beacon> fetchById(String id) => _beacons.fetchBeaconById(id);
 
@@ -295,7 +301,7 @@ class BeaconCreateCase {
     final coverImageId = imageIds.contains(cover) ? cover : null;
 
     try {
-      final beacon = await _beacons.setMedia(
+      final beacon = await _setMediaRetryingBusy(
         beaconId: beaconId,
         imageIds: imageIds,
         coverImageId: imageIds.isEmpty ? null : coverImageId ?? imageIds.first,
@@ -308,7 +314,9 @@ class BeaconCreateCase {
         coverThumb: progressedThumb,
       );
     } catch (e) {
-      if (allowStageRecovery) {
+      // A busy server ("retry later") did not reject the staged ids, so it is
+      // never a reason to re-stage.
+      if (allowStageRecovery && e is! RemoteApiRetryLaterException) {
         final recovered = await _recoverExpiredStages(
           beaconId: beaconId,
           progressed: progressed,
@@ -334,6 +342,34 @@ class BeaconCreateCase {
         coverKey: cover,
         coverThumb: progressedThumb,
       );
+    }
+  }
+
+  /// Sends the same BeaconSetMedia again while the server answers "retry
+  /// later" (#510), waiting its hint capped at [_maxBusyWait], at most
+  /// [_maxSetMediaAttempts] times in all; then the busy answer is rethrown.
+  Future<Beacon> _setMediaRetryingBusy({
+    required String beaconId,
+    required List<String> imageIds,
+    required String? coverImageId,
+    required String? coverThumbImageId,
+    required BeaconCoverSource coverSource,
+  }) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _beacons.setMedia(
+          beaconId: beaconId,
+          imageIds: imageIds,
+          coverImageId: coverImageId,
+          coverThumbImageId: coverThumbImageId,
+          coverSource: coverSource,
+        );
+      } on RemoteApiRetryLaterException catch (e) {
+        if (attempt >= _maxSetMediaAttempts) rethrow;
+        await Future<void>.delayed(
+          e.retryAfter < _maxBusyWait ? e.retryAfter : _maxBusyWait,
+        );
+      }
     }
   }
 
