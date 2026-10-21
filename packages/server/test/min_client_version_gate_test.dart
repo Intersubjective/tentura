@@ -138,12 +138,12 @@ void main() {
       // Plan obligations (#220) need the Plan UI and «Понятно» to clear;
       // older clients would receive obligations they cannot act on.
       // Preserve the plan's minimum contract across later protocol releases.
-      // The current release admits its client and excludes every older one.
+      // The floor is a separate decision from each client bump; the shipped
+      // client must always clear it.
       expect(
         _compare(kDefaultMinClientVersion, '7.41.0'),
         greaterThanOrEqualTo(0),
       );
-      expect(kDefaultMinClientVersion, _shippedClientVersion());
       expect(
         _compare(_shippedClientVersion(), kDefaultMinClientVersion),
         greaterThanOrEqualTo(0),
