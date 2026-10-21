@@ -12,11 +12,15 @@ final class ClosureMemberView {
     required this.id,
     required this.notInRequest,
     this.departure,
+    this.displayName,
+    this.avatarId,
   });
 
   final String id;
   final bool notInRequest;
   final String? departure;
+  final String? displayName;
+  final String? avatarId;
 }
 
 /// Role-specific read model of `closureState`: each role's builder fills only

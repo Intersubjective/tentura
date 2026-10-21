@@ -229,6 +229,18 @@ abstract class BeaconRoomRepositoryPort {
     String note = '',
   });
 
+  /// The author ended an admitted helper's participation: post the neutral
+  /// `participantRemoved` system line (`systemPayload` carries only
+  /// `removedUserId`; no actor, no reason, per U41) so the others see the
+  /// helper is no longer in the request. The removal reason stays on the
+  /// author-side records (`CoordinationRepositoryPort.removeFromRoom`). The
+  /// caller decides who qualifies (`CoordinationCase.releaseCommitment`:
+  /// admitted, once per release) (#489).
+  Future<void> recordParticipantRemoved({
+    required String beaconId,
+    required String userId,
+  });
+
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

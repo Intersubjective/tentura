@@ -5508,6 +5508,14 @@
       }
     }
   },
+  "beaconRoomParticipantRemoved": "{name} is no longer in the request",
+  "@beaconRoomParticipantRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantLeftWithNote": "{name} left the request ({reason}): “{note}”",
   "@beaconRoomParticipantLeftWithNote": {
     "placeholders": {

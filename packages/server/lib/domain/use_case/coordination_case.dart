@@ -723,6 +723,12 @@ final class CoordinationCase extends UseCaseBase {
             actorUserId: authorUserId,
             reason: trimmedReason,
           );
+          // Neutral room line: the others see the helper is no longer in the
+          // request, not who ended it or why (U41, #489).
+          await _beaconRoomRepository.recordParticipantRemoved(
+            beaconId: beaconId,
+            userId: offerUserId,
+          );
           await _recordRemovedFromChatIfTransition(
             beaconId: beaconId,
             userId: offerUserId,

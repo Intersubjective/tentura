@@ -317,10 +317,12 @@ WHERE beacon_id = $1 AND epoch = $2 AND user_id = $3
   }) => _database
       .customSelect(
         r'''
-SELECT user_id, active_at_open, arrival_edge_id, departure
-FROM public.beacon_closure_member
-WHERE beacon_id = $1 AND epoch = $2
-ORDER BY user_id
+SELECT m.user_id, m.active_at_open, m.arrival_edge_id, m.departure,
+  u.display_name, u.image_id::text AS image_id
+FROM public.beacon_closure_member m
+LEFT JOIN public."user" u ON u.id = m.user_id
+WHERE m.beacon_id = $1 AND m.epoch = $2
+ORDER BY m.user_id
 ''',
         variables: [Variable<String>(beaconId), Variable<int>(epoch)],
       )
@@ -330,6 +332,8 @@ ORDER BY user_id
           activeAtOpen: row.read<bool>('active_at_open'),
           arrivalEdgeId: row.readNullable<String>('arrival_edge_id'),
           departure: _departureFromInt(row.readNullable<int>('departure')),
+          displayName: row.readNullable<String>('display_name'),
+          avatarId: row.readNullable<String>('image_id'),
         ),
       )
       .get();
