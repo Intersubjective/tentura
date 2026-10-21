@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -32,7 +33,14 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
   final List<BeaconParticipant> suggestions;
   final Rect anchor;
   final int selectedIndex;
-  final void Function(BeaconParticipant participant) onSelect;
+
+  /// `pointerKind` is the pointer that picked the row (`unknown` for an
+  /// accessibility tap); null when picked from the keyboard.
+  final void Function(
+    BeaconParticipant participant, {
+    PointerDeviceKind? pointerKind,
+  })
+  onSelect;
   final VoidCallback onDismiss;
   final void Function(int index) onHighlight;
 
@@ -42,13 +50,13 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
     rowHeight: _kMentionSuggestionRowHeight,
     anchor: anchor,
     selectedIndex: selectedIndex,
-    onSelectIndex: (i) => onSelect(suggestions[i]),
+    onSelectIndex: (i, kind) => onSelect(suggestions[i], pointerKind: kind),
     onDismiss: onDismiss,
     rowBuilder: (i, selected) => _MentionSuggestionRow(
       participant: suggestions[i],
       selected: selected,
       onHover: () => onHighlight(i),
-      onTap: () => onSelect(suggestions[i]),
+      onTap: (kind) => onSelect(suggestions[i], pointerKind: kind),
     ),
   );
 }
@@ -78,7 +86,7 @@ final class EmojiSuggestionsOverlay extends StatelessWidget {
     rowHeight: _kEmojiSuggestionRowHeight,
     anchor: anchor,
     selectedIndex: selectedIndex,
-    onSelectIndex: (i) => onSelect(suggestions[i]),
+    onSelectIndex: (i, _) => onSelect(suggestions[i]),
     onDismiss: onDismiss,
     rowBuilder: (i, selected) => _EmojiSuggestionRow(
       match: suggestions[i],
@@ -106,7 +114,7 @@ final class _ComposerSuggestionsOverlay extends StatelessWidget {
   final double rowHeight;
   final Rect anchor;
   final int selectedIndex;
-  final void Function(int index) onSelectIndex;
+  final void Function(int index, PointerDeviceKind kind) onSelectIndex;
   final VoidCallback onDismiss;
   final Widget Function(int index, bool selected) rowBuilder;
 
@@ -165,7 +173,7 @@ final class _ComposerSuggestionsOverlay extends StatelessWidget {
                     0,
                     max - 1,
                   );
-                  onSelectIndex(index);
+                  onSelectIndex(index, event.kind);
                 },
               ),
             ),
@@ -208,7 +216,7 @@ class _MentionSuggestionRow extends StatelessWidget {
   final BeaconParticipant participant;
   final bool selected;
   final VoidCallback onHover;
-  final VoidCallback onTap;
+  final ValueChanged<PointerDeviceKind> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +238,7 @@ class _MentionSuggestionRow extends StatelessWidget {
         onEnter: (_) => onHover(),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onTap,
+          onTapUp: (details) => onTap(details.kind),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: selected

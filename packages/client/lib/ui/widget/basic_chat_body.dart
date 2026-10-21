@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -1185,7 +1186,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     return topLeft & targetRender.size;
   }
 
-  bool _acceptMentionSuggestion(BeaconParticipant participant) {
+  bool _acceptMentionSuggestion(
+    BeaconParticipant participant, {
+    PointerDeviceKind? pointerKind,
+  }) {
     final inserted = participant.handle.isNotEmpty
         ? _text.insertMention(participant.handle.toLowerCase())
         : _text.insertLiteralMentionText(
@@ -1194,7 +1198,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
           );
     _removeOverlay();
     if (inserted) {
-      if (!_composerFocus.hasFocus) {
+      if (pointerKind != null &&
+          (kIsWeb || pointerKind != PointerDeviceKind.touch)) {
+        // A click on the list takes the browser's focus off the field while
+        // the field still counts as focused, so the next words went nowhere
+        // (#624). Re-attach the field, as clicking into it does. Native touch
+        // keeps focus as is, so the soft keyboard does not flicker.
+        _composerFocus.unfocus();
+        requestComposerFocus();
+      } else if (!_composerFocus.hasFocus) {
         _composerFocus.requestFocus();
       }
     }
