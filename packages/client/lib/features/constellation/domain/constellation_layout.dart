@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
@@ -384,6 +385,7 @@ Iterable<void> constellationPlacedLayoutSteps({
   }
 
   final obstacles = <String, ConstellationBounds>{};
+  final scan = _PlacedScan(positions, input.nodeSizes);
 
   void recordPlacedObstacle(String nodeId, ConstellationPoint point) {
     final footprint = input.footprints[nodeId];
@@ -437,6 +439,7 @@ Iterable<void> constellationPlacedLayoutSteps({
       spacing: input.spacing,
       placed: positions,
       placedSizes: input.nodeSizes,
+      scan: scan,
       priorHints: input.priorHints,
       paths: input.paths,
       ring: ring,
@@ -528,8 +531,7 @@ Iterable<void> constellationPlacedLayoutSteps({
           candidate: hint,
           size: size,
           spacing: input.spacing,
-          placed: positions,
-          placedSizes: input.nodeSizes,
+          scan: scan,
           result: overlap,
           stopAtFirstOverlap: true,
         );
@@ -655,6 +657,7 @@ Iterable<void> _chooseAutomaticPosition({
   required double spacing,
   required Map<String, ConstellationPoint> placed,
   required Map<String, ConstellationSize> placedSizes,
+  required _PlacedScan scan,
   required ConstellationLayoutPriorHints? priorHints,
   required ConstellationPathResolution paths,
   required Map<String, int> ring,
@@ -807,8 +810,7 @@ Iterable<void> _chooseAutomaticPosition({
         candidate: candidate,
         size: size,
         spacing: spacing,
-        placed: placed,
-        placedSizes: placedSizes,
+        scan: scan,
         result: overlap,
         stopAtFirstOverlap: true,
       );
@@ -827,8 +829,7 @@ Iterable<void> _chooseAutomaticPosition({
         candidate: candidates[i],
         size: size,
         spacing: spacing,
-        placed: placed,
-        placedSizes: placedSizes,
+        scan: scan,
         result: score,
       );
       if (score.value < bestScore ||
@@ -914,8 +915,7 @@ Iterable<void> _totalIntersectionArea({
   required ConstellationPoint candidate,
   required ConstellationSize size,
   required double spacing,
-  required Map<String, ConstellationPoint> placed,
-  required Map<String, ConstellationSize> placedSizes,
+  required _PlacedScan scan,
   required _LayoutDoubleValue result,
   bool stopAtFirstOverlap = false,
 }) sync* {
@@ -924,32 +924,39 @@ Iterable<void> _totalIntersectionArea({
     spacing: spacing,
   );
   final halfSpacing = spacing / 2;
-  final ids = placed.keys.iterator;
+  scan.sync();
+  final count = scan.count;
+  final cx = scan.centreX;
+  final cy = scan.centreY;
+  final hw = scan.halfWidth;
+  final hh = scan.halfHeight;
+  var next = 0;
   result.value = 0;
   // Keep arithmetic outside the suspended generator frame so intermediate
   // doubles stay unboxed. Only the accumulated chunk total crosses a yield.
   bool scanChunk() {
     var total = result.value;
     for (var i = 0; i < 32; i++) {
-      if (!ids.moveNext()) {
+      if (next >= count) {
         result.value = total;
         return true;
       }
-      final centre = placed[ids.current]!;
-      final placedSize = placedSizes[ids.current] ?? (width: 64, height: 64);
-      final halfW = placedSize.width / 2;
-      final halfH = placedSize.height / 2;
-      if (bounds.right <= centre.x - halfW - halfSpacing ||
-          bounds.left >= centre.x + halfW + halfSpacing ||
-          bounds.bottom <= centre.y - halfH - halfSpacing ||
-          bounds.top >= centre.y + halfH + halfSpacing) {
+      final x = cx[next];
+      final y = cy[next];
+      final halfW = hw[next];
+      final halfH = hh[next];
+      next++;
+      if (bounds.right <= x - halfW - halfSpacing ||
+          bounds.left >= x + halfW + halfSpacing ||
+          bounds.bottom <= y - halfH - halfSpacing ||
+          bounds.top >= y + halfH + halfSpacing) {
         continue;
       }
       // Inlined: a call returning double would box every term.
-      final left = math.max(bounds.left, centre.x - halfW - halfSpacing);
-      final top = math.max(bounds.top, centre.y - halfH - halfSpacing);
-      final right = math.min(bounds.right, centre.x + halfW + halfSpacing);
-      final bottom = math.min(bounds.bottom, centre.y + halfH + halfSpacing);
+      final left = math.max(bounds.left, x - halfW - halfSpacing);
+      final top = math.max(bounds.top, y - halfH - halfSpacing);
+      final right = math.min(bounds.right, x + halfW + halfSpacing);
+      final bottom = math.min(bounds.bottom, y + halfH + halfSpacing);
       if (right > left && bottom > top) {
         total += (right - left) * (bottom - top);
       }
@@ -964,6 +971,48 @@ Iterable<void> _totalIntersectionArea({
 
   while (!scanChunk()) {
     yield null;
+  }
+}
+
+/// Flat copy of the placed seats and half-sizes, in `placed` insertion order,
+/// so the overlap scan reads arrays instead of two map lookups per node.
+/// `placed` only grows once scanning starts; [sync] appends the new entries and
+/// resolves each node's size once.
+class _PlacedScan {
+  _PlacedScan(this._placed, this._sizes);
+
+  final Map<String, ConstellationPoint> _placed;
+  final Map<String, ConstellationSize> _sizes;
+  int count = 0;
+  Float64List centreX = Float64List(64);
+  Float64List centreY = Float64List(64);
+  Float64List halfWidth = Float64List(64);
+  Float64List halfHeight = Float64List(64);
+
+  void sync() {
+    if (_placed.length == count) return;
+    if (_placed.length > centreX.length) {
+      var capacity = centreX.length;
+      while (capacity < _placed.length) {
+        capacity *= 2;
+      }
+      centreX = Float64List(capacity)..setRange(0, count, centreX);
+      centreY = Float64List(capacity)..setRange(0, count, centreY);
+      halfWidth = Float64List(capacity)..setRange(0, count, halfWidth);
+      halfHeight = Float64List(capacity)..setRange(0, count, halfHeight);
+    }
+    var i = 0;
+    for (final entry in _placed.entries) {
+      if (i >= count) {
+        final size = _sizeFor(entry.key, _sizes);
+        centreX[i] = entry.value.x;
+        centreY[i] = entry.value.y;
+        halfWidth[i] = size.width / 2;
+        halfHeight[i] = size.height / 2;
+      }
+      i++;
+    }
+    count = _placed.length;
   }
 }
 
