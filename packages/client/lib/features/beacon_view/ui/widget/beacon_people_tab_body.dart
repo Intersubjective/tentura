@@ -375,6 +375,14 @@ class BeaconPeopleTabBody extends StatelessWidget {
           !isMine &&
           state.isAuthorOrSteward &&
           hasHelpOffer;
+      // Ending participation stays possible in Wrapping up (#489); admitting
+      // new offers does not.
+      final canEndParticipation =
+          beacon.status.allowsCoordination &&
+          !row.isAuthor &&
+          !isMine &&
+          state.isAuthorOrSteward &&
+          hasHelpOffer;
       return HelpOfferTile(
         helpOffer: c,
         beaconId: beacon.id,
@@ -408,7 +416,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
               }
             : null,
         onReleaseCommitment:
-            canManageOffer && c.stakeState == CommitmentStakeState.acknowledged
+            canEndParticipation &&
+                c.stakeState == CommitmentStakeState.acknowledged
             ? () async {
                 final reason = await HelpOfferAdmissionReasonDialog.show(
                   context,

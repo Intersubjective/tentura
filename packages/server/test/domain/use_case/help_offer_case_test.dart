@@ -178,26 +178,45 @@ void main() {
       );
     });
 
-    test('rejects WRAPPING UP (reviewOpen)', () async {
+    // #489: a helper may still leave while the Request is Wrapping up.
+    test('allows WRAPPING UP (reviewOpen)', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.reviewOpen));
+      when(
+        roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => null);
+      when(helpOfferRepo.fetchAllByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          ),
+        ],
+      );
 
-      await expectLater(
-        case_.withdraw(
+      await case_.withdraw(
+        beaconId: 'B1',
+        userId: 'U1',
+        withdrawReason: 'other',
+      );
+
+      expect(commitmentRepo.recordCalls, [
+        (
+          beaconId: 'B1',
+          userId: 'U1',
+          actorUserId: 'U1',
+          kind: CommitmentEventKind.withdrawnByHelper,
+          reason: 'other',
+        ),
+      ]);
+      verify(
+        helpOfferRepo.withdraw(
           beaconId: 'B1',
           userId: 'U1',
           withdrawReason: 'other',
         ),
-        throwsA(
-          isA<HelpOfferCoordinationException>().having(
-            (e) =>
-                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
-            'code',
-            HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
-          ),
-        ),
-      );
-      verifyZeroInteractions(helpOfferRepo);
-      verifyZeroInteractions(inboxRepo);
+      ).called(1);
     });
 
     test('allows OPEN (0)', () async {

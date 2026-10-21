@@ -88,12 +88,19 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
     }
   }
 
-  bool get canManageOffer {
+  bool get canManageOffer =>
+      state.beacon.status.isOpenFamily && _canActOnOtherOffer;
+
+  /// Author may end a helper's participation in every non-final status,
+  /// Wrapping up included (#489); admitting offers stays open-only.
+  bool get canEndParticipation =>
+      state.beacon.status.allowsCoordination && _canActOnOtherOffer;
+
+  bool get _canActOnOtherOffer {
     final offer = state.offer;
     if (offer == null || offer.isWithdrawn) return false;
     if (offer.offerKind == 1) return false;
     final beacon = state.beacon;
-    if (!beacon.status.isOpenFamily) return false;
     if (offer.user.id == beacon.author.id) return false;
     if (offer.user.id == state.myProfile.id) return false;
     return state.isAuthorOrSteward;
@@ -129,7 +136,7 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
   }
 
   Future<bool> release({required String reason}) async {
-    if (!canManageOffer) return false;
+    if (!canEndParticipation) return false;
     final offer = state.offer;
     if (offer == null ||
         offer.stakeState != CommitmentStakeState.acknowledged) {

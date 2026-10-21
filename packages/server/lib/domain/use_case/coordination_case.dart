@@ -676,7 +676,8 @@ final class CoordinationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: authorUserId,
     );
-    if (!beacon.status.isOpenFamily) {
+    // Ending a helper's participation stays possible in Wrapping up (#489).
+    if (!beacon.status.allowsCoordination) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
       );

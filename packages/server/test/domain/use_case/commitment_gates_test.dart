@@ -125,24 +125,27 @@ void main() {
     });
 
     group('Coordination invariants', () {
-      test('7 — decline after accept throws commitmentAlreadyAcknowledged',
-          () async {
-        final harness = CommitmentGatesHarness();
-        await harness.offerHelp();
-        await harness.acceptOffer();
+      test(
+        '7 — decline after accept throws commitmentAlreadyAcknowledged',
+        () async {
+          final harness = CommitmentGatesHarness();
+          await harness.offerHelp();
+          await harness.acceptOffer();
 
-        await expectLater(
-          harness.declineOffer(),
-          throwsA(
-            isA<HelpOfferCoordinationException>().having(
-              (e) =>
-                  (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
-              'code',
-              HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
+          await expectLater(
+            harness.declineOffer(),
+            throwsA(
+              isA<HelpOfferCoordinationException>().having(
+                (e) => (e.code as HelpOfferCoordinationExceptionCodes)
+                    .exceptionCode,
+                'code',
+                HelpOfferCoordinationExceptionCode
+                    .commitmentAlreadyAcknowledged,
+              ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
 
       test(
         '8 — setCoordinationResponse(notSuitable) after accept throws commitmentAlreadyAcknowledged',
@@ -157,9 +160,8 @@ void main() {
             ),
             throwsA(
               isA<HelpOfferCoordinationException>().having(
-                (e) =>
-                    (e.code as HelpOfferCoordinationExceptionCodes)
-                        .exceptionCode,
+                (e) => (e.code as HelpOfferCoordinationExceptionCodes)
+                    .exceptionCode,
                 'code',
                 HelpOfferCoordinationExceptionCode
                     .commitmentAlreadyAcknowledged,
@@ -182,9 +184,8 @@ void main() {
             ),
             throwsA(
               isA<HelpOfferCoordinationException>().having(
-                (e) =>
-                    (e.code as HelpOfferCoordinationExceptionCodes)
-                        .exceptionCode,
+                (e) => (e.code as HelpOfferCoordinationExceptionCodes)
+                    .exceptionCode,
                 'code',
                 HelpOfferCoordinationExceptionCode
                     .admissionRequiresAcknowledgement,
@@ -196,30 +197,30 @@ void main() {
     });
 
     group('Withdraw in Wrapping up', () {
-      test('15 — beaconWithdraw in reviewOpen throws beaconWithdrawForbidden',
-          () async {
-        final harness = CommitmentGatesHarness();
-        await harness.offerHelp();
-        harness.beaconRepo.beacon = harness.beaconRepo.beacon.copyWith(
-          status: BeaconStatus.reviewOpen,
-        );
+      // #489: leaving stays possible in every non-final status.
+      test(
+        '15 — beaconWithdraw in reviewOpen records the withdrawal',
+        () async {
+          final harness = CommitmentGatesHarness();
+          await harness.offerHelp();
+          harness.beaconRepo.beacon = harness.beaconRepo.beacon.copyWith(
+            status: BeaconStatus.reviewOpen,
+          );
 
-        await expectLater(
-          harness.helpOfferCase.withdraw(
+          await harness.helpOfferCase.withdraw(
             beaconId: harness.beaconId,
             userId: harness.helperId,
             withdrawReason: 'other',
-          ),
-          throwsA(
-            isA<HelpOfferCoordinationException>().having(
-              (e) =>
-                  (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
-              'code',
-              HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
-            ),
-          ),
-        );
-      });
+          );
+
+          final kinds = (await harness.commitmentRepo.eventsForPair(
+            beaconId: harness.beaconId,
+            userId: harness.helperId,
+          )).map((e) => e.kind).toList();
+          expect(kinds.last, CommitmentEventKind.withdrawnByHelper);
+          expect(await harness.activeOfferCount(), 0);
+        },
+      );
     });
 
     group('D13 release reversibility', () {
@@ -239,9 +240,7 @@ void main() {
           final kinds = (await harness.commitmentRepo.eventsForPair(
             beaconId: harness.beaconId,
             userId: harness.helperId,
-          ))
-              .map((e) => e.kind)
-              .toList();
+          )).map((e) => e.kind).toList();
           expect(kinds, contains(CommitmentEventKind.releasedByAuthor));
           expect(kinds, contains(CommitmentEventKind.acknowledged));
         },

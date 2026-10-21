@@ -84,9 +84,11 @@ void main() {
           status.isOpenFamily,
           reason: '$status',
         );
+        // #489: a helper may leave in every non-final published status,
+        // Wrapping up included.
         expect(
           b.allowsWithdrawWhileHelpOffered,
-          status.isOpenFamily,
+          status.isOpenFamily || status == BeaconStatus.reviewOpen,
           reason: '$status',
         );
         expect(b.allowsCoordination, status.allowsCoordination);
@@ -94,6 +96,39 @@ void main() {
         expect(b.isFinished, status.isFinished);
       }
     });
+
+    test(
+      '#489 a helper may still withdraw while the Request is wrapping up',
+      () {
+        final b = _beacon(
+          kind: BeaconKind.request,
+          status: BeaconStatus.reviewOpen,
+        );
+        expect(b.allowsWithdrawWhileHelpOffered, isTrue);
+        expect(
+          _beacon(
+            kind: BeaconKind.post,
+            status: BeaconStatus.reviewOpen,
+          ).allowsWithdrawWhileHelpOffered,
+          isFalse,
+        );
+        for (final status in [
+          BeaconStatus.closed,
+          BeaconStatus.cancelled,
+          BeaconStatus.deleted,
+          BeaconStatus.draft,
+        ]) {
+          expect(
+            _beacon(
+              kind: BeaconKind.request,
+              status: status,
+            ).allowsWithdrawWhileHelpOffered,
+            isFalse,
+            reason: '$status',
+          );
+        }
+      },
+    );
 
     test('Post still opens for a viewer who can read it', () {
       expect(_beacon(kind: BeaconKind.post).canOpenAsViewer, isTrue);

@@ -107,28 +107,29 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
                     : null,
                 onDecline: canManage
                     ? () async {
-                        final reason = await HelpOfferAdmissionReasonDialog.show(
-                          context,
-                          title: l10n.helpOfferDeclineDialogTitle,
-                          hintText: l10n.helpOfferDeclineDialogHint,
-                          submitLabel: l10n.helpOfferAdmissionDecline,
-                          destructive: true,
-                        );
+                        final reason =
+                            await HelpOfferAdmissionReasonDialog.show(
+                              context,
+                              title: l10n.helpOfferDeclineDialogTitle,
+                              hintText: l10n.helpOfferDeclineDialogHint,
+                              submitLabel: l10n.helpOfferAdmissionDecline,
+                              destructive: true,
+                            );
                         if (reason == null || !context.mounted) return;
                         final ok = await cubit.decline(reason: reason);
                         if (ok && context.mounted) Navigator.of(context).pop();
                       }
                     : null,
                 onReleaseCommitment:
-                    canManage &&
+                    cubit.canEndParticipation &&
                         offer.stakeState == CommitmentStakeState.acknowledged
                     ? () async {
                         final reason =
                             await HelpOfferAdmissionReasonDialog.show(
-                          context,
-                          title: l10n.helpOfferReleaseDialogTitle,
-                          hintText: l10n.helpOfferReleaseDialogHint,
-                        );
+                              context,
+                              title: l10n.helpOfferReleaseDialogTitle,
+                              hintText: l10n.helpOfferReleaseDialogHint,
+                            );
                         if (reason == null || !context.mounted) return;
                         final ok = await cubit.release(reason: reason);
                         if (ok && context.mounted) Navigator.of(context).pop();
