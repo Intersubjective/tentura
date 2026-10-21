@@ -1,4 +1,4 @@
-// While the map is shown, the Text view stays mounted behind it in the
+// While the map is shown, the Text view is unmounted from the
 // IndexedStack. Its tiles' Pin buttons must not keep computing pin
 // availability (a full placed layout, twice for a miss) every time the map
 // recomposes: nobody can see them. Switching to the Text view must still show
@@ -21,6 +21,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_anchor_controls.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_text_view.dart';
 
 import '../../support/constellation_composer_screen_harness.dart';
 
@@ -131,6 +132,44 @@ Future<void> _recomposeMap(
 
 void main() {
   group('Text view hidden behind the map', () {
+    testWidgets('restores scroll offset after Text view is unmounted', (
+      tester,
+    ) async {
+      final (:cubit, composer: _) = await _pumpScreen(tester);
+      final textView = find.byType(ConstellationTextView, skipOffstage: false);
+      final list = find.byKey(
+        const PageStorageKey<String>('constellation.text.list'),
+      );
+      final scrollable = find.descendant(
+        of: list,
+        matching: find.byType(Scrollable),
+      );
+
+      expect(cubit.state.viewMode, ConstellationViewMode.map);
+      expect(textView, findsNothing);
+      cubit.setViewMode(ConstellationViewMode.text);
+      await tester.pumpAndSettle();
+      await tester.drag(list, const Offset(0, -580));
+      await tester.pumpAndSettle();
+      final offset = tester.state<ScrollableState>(scrollable).position.pixels;
+      expect(offset, greaterThan(0));
+
+      for (var cycle = 0; cycle < 2; cycle++) {
+        final previousState = tester.state<ScrollableState>(scrollable);
+        cubit.setViewMode(ConstellationViewMode.map);
+        await tester.pumpAndSettle();
+        expect(textView, findsNothing);
+        expect(previousState.mounted, isFalse);
+
+        cubit.setViewMode(ConstellationViewMode.text);
+        await tester.pumpAndSettle();
+        expect(textView, findsOneWidget);
+        final restoredState = tester.state<ScrollableState>(scrollable);
+        expect(restoredState, isNot(same(previousState)));
+        expect(restoredState.position.pixels, closeTo(offset, 0.01));
+      }
+    });
+
     testWidgets(
       'recomposing the map does no pin availability work',
       (tester) async {

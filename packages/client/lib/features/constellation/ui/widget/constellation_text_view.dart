@@ -119,7 +119,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         return Semantics(
           label: l10n.constellationTextViewSemantics,
           child: ListView(
-            key: const Key('constellation.text.list'),
+            key: const PageStorageKey<String>('constellation.text.list'),
             padding: EdgeInsets.symmetric(
               horizontal: tt.screenHPadding,
               vertical: tt.rowGap,

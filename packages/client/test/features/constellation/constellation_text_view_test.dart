@@ -258,7 +258,7 @@ void main() {
 
         expect(_eligibleRequestIds(cubit), mapEligible);
         expect(
-          find.byKey(const Key('constellation.text.list')),
+          find.byKey(const PageStorageKey<String>('constellation.text.list')),
           findsOneWidget,
         );
         expect(
