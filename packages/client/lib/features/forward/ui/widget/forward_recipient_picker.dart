@@ -448,8 +448,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             : null,
         link: inviteShareUri(invitation.id),
       );
-      // Closed without Copy, Share or a visible QR: the link never left the
-      // dialog, so drop the invite instead of leaving a silent one (#454).
+      // Closed without Copy, Share, a hand selection of the link (#605) or a
+      // visible QR: the link never left the dialog, so drop the invite
+      // instead of leaving a silent one (#454).
       if (!used) {
         await _invitationCubit.deleteInvitationById(invitation.id);
         return;
