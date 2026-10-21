@@ -427,14 +427,19 @@ final class QueryAttention extends GqlNodeBase {
     'roleLabel',
   };
 
+  /// #189 — the one allowed key whose value is a bool, not a String.
+  static const attentionPresentationPayloadPersonalKey = 'personal';
+
   @visibleForTesting
   static void validateAttentionPresentationPayload(
     Map<String, Object?> payload,
   ) {
-    if (payload.keys.any(
-          (key) => !attentionPresentationPayloadAllowedKeys.contains(key),
-        ) ||
-        payload.values.any((value) => value is! String)) {
+    bool allowed(MapEntry<String, Object?> entry) =>
+        entry.key == attentionPresentationPayloadPersonalKey
+        ? entry.value is bool
+        : attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
+              entry.value is String;
+    if (!payload.entries.every(allowed)) {
       throw StateError('Unexpected attention presentation payload');
     }
   }
@@ -446,11 +451,16 @@ final class QueryAttention extends GqlNodeBase {
   static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
     // Stored receipts may carry writer-specific metadata outside the public
     // presentation contract. Keep the receipt while omitting those fields.
-    final payload = <String, String>{
+    final payload = <String, Object>{
       for (final entry in receipt.presentationPayload.entries)
         if (attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
             entry.value is String)
-          entry.key: entry.value! as String,
+          entry.key: entry.value! as String
+        // #189 — the «вам» zone's flag is the one non-String field the client
+        // reads (`attentionReceiptIsPersonal`); stripping it hid the zone.
+        else if (entry.key == attentionPresentationPayloadPersonalKey &&
+            entry.value is bool)
+          entry.key: entry.value! as bool,
     };
     if (payload.length != receipt.presentationPayload.length) {
       _log.warning('Omitted unsupported attention presentation fields');

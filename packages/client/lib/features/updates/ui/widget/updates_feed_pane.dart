@@ -144,7 +144,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
               title: l10n.updatesTitle,
               markAllLabel: l10n.updatesMarkAllSeen,
               hasUnread: hasUnread,
-              onMarkAll: () => context.read<UpdatesFeedCubit>().markAllSeen(),
+              onMarkAll: () => unawaited(markAllUpdatesSeen(context)),
               showSearchIcon: compact,
               searchOpen: _searchOpen,
               onSearchPressed: () => setState(() => _searchOpen = !_searchOpen),
@@ -165,7 +165,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
                   TenturaTextAction(
                     label: l10n.updatesMarkAllSeen,
                     onPressed: hasUnread
-                        ? () => context.read<UpdatesFeedCubit>().markAllSeen()
+                        ? () => unawaited(markAllUpdatesSeen(context))
                         : null,
                   ),
                   if (compact)
@@ -340,10 +340,18 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
   Widget _receiptRow(BuildContext context, AttentionReceipt receipt) {
     void onTap() => _open(context, receipt);
     void onMarkSeen() => unawaited(_markSeen(receipt.id));
-    void onMarkUnseen() =>
-        unawaited(context.read<UpdatesFeedCubit>().markUnseen(receipt.id));
-    void onSettle() =>
-        unawaited(context.read<UpdatesFeedCubit>().settle(receipt.id));
+    void onMarkUnseen() => unawaited(
+      _runOrSay(
+        (cubit) => cubit.markUnseen(receipt.id),
+        (l10n) => l10n.updatesMarkUnseenFailed,
+      ),
+    );
+    void onSettle() => unawaited(
+      _runOrSay(
+        (cubit) => cubit.settle(receipt.id),
+        (l10n) => l10n.updatesMarkDoneFailed,
+      ),
+    );
     final actors = context.read<UpdatesFeedCubit>().state.actors;
     final actorId = receipt.actorUserId?.trim() ?? '';
     final actor = actorId.isEmpty ? null : actors[actorId];
@@ -410,6 +418,17 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
       text: L10n.of(context)!.updatesMarkSeenFailed,
       isError: true,
     );
+  }
+
+  /// #601 — "Mark unread" and "Mark done" say when they fail, like
+  /// [_markSeen]; the pane's own context outlives the row's.
+  Future<void> _runOrSay(
+    Future<bool> Function(UpdatesFeedCubit cubit) action,
+    String Function(L10n l10n) failure,
+  ) async {
+    final ok = await action(context.read<UpdatesFeedCubit>());
+    if (ok || !mounted) return;
+    showSnackBar(context, text: failure(L10n.of(context)!), isError: true);
   }
 
   Future<void> _open(BuildContext context, AttentionReceipt receipt) async {
@@ -575,4 +594,16 @@ class InvitePromptPinPlacement {
   final List<AttentionReceipt> collapsedReceipts;
   final int collapsedCount;
   final Set<String> liftedReceiptIds;
+}
+
+/// "Read all" (#601): a refusal is shown, never a silent no-op. Shared by
+/// the pane and the screens whose app bar owns the action.
+Future<void> markAllUpdatesSeen(BuildContext context) async {
+  final ok = await context.read<UpdatesFeedCubit>().markAllSeen();
+  if (ok || !context.mounted) return;
+  showSnackBar(
+    context,
+    text: L10n.of(context)!.updatesMarkAllSeenFailed,
+    isError: true,
+  );
 }

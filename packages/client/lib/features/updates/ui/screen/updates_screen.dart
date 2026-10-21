@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
@@ -61,7 +63,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   TenturaTextAction(
                     label: l10n.updatesMarkAllSeen,
                     onPressed: hasUnread
-                        ? () => context.read<UpdatesFeedCubit>().markAllSeen()
+                        ? () => unawaited(markAllUpdatesSeen(context))
                         : null,
                   ),
                   if (compact)

@@ -236,6 +236,7 @@ class RequestAttentionCard extends StatelessWidget {
                     key: changeLineKey,
                     receipt: change,
                     text: _changeText(l10n, change),
+                    carriesReason: _changeCarriesReason(change),
                     onTap: onEventTap == null
                         ? null
                         : () => onEventTap!(change),
@@ -595,6 +596,10 @@ class RequestAttentionCard extends StatelessWidget {
       ),
       'offerDeclined' when words.isNotEmpty && words != beacon.title =>
         l10n.attentionCardChangeOfferDeclined(words),
+      'offerRemoved' when words.isNotEmpty && words != beacon.title =>
+        l10n.attentionCardChangeOfferRemoved(words),
+      'commitmentReleased' when words.isNotEmpty && words != beacon.title =>
+        l10n.attentionCardChangeCommitmentReleased(words),
       'helpOfferSubmitted' when name.isNotEmpty =>
         l10n.attentionCardChangeHelpOffered(name),
       'coordinationChanged' ||
@@ -605,6 +610,18 @@ class RequestAttentionCard extends StatelessWidget {
       'commitmentCancelled' ||
       'commitmentRedirected' => l10n.attentionCardChangeItemsUpdated,
       _ => scoped.event,
+    };
+  }
+
+  /// The author's own words ride the line (a decline, removal or release
+  /// reason), so it wraps instead of cutting the reason off at one line.
+  bool _changeCarriesReason(AttentionReceipt receipt) {
+    final payload = receipt.presentationPayloadJson;
+    final words = excerptFromPresentationPayload(payload) ?? '';
+    if (words.isEmpty || words == beacon.title) return false;
+    return switch (attentionEventTypeOf(payload)) {
+      'offerDeclined' || 'offerRemoved' || 'commitmentReleased' => true,
+      _ => false,
     };
   }
 
@@ -913,17 +930,27 @@ class _ForYouIndicator extends StatelessWidget {
   }
 }
 
+/// How many lines a change line carrying the author's reason may wrap to
+/// (#601). The server caps the reason at a short excerpt, so this is room for
+/// all of it, not a new cut.
+const kChangeLineReasonMaxLines = 4;
+
 /// The card's one change line: glyph, text, age. No ×, no avatar, no count.
 class _ChangeLine extends StatelessWidget {
   const _ChangeLine({
     required this.receipt,
     required this.text,
+    this.carriesReason = false,
     this.onTap,
     super.key,
   });
 
   final AttentionReceipt receipt;
   final String text;
+
+  /// A reason (at most a short excerpt) wraps to a few lines; every other
+  /// change line stays one line.
+  final bool carriesReason;
   final VoidCallback? onTap;
 
   @override
@@ -963,7 +990,7 @@ class _ChangeLine extends StatelessWidget {
               Expanded(
                 child: Text(
                   text,
-                  maxLines: 1,
+                  maxLines: carriesReason ? kChangeLineReasonMaxLines : 1,
                   overflow: TextOverflow.ellipsis,
                   style: style,
                 ),

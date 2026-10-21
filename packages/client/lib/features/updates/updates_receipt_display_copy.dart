@@ -419,19 +419,21 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
       ? bodyOverrideTrim
       : null;
   final String line2;
-  final declineReason = presentationKey == 'offer_declined'
+  // The author's reason for declining (#381), removing you from the
+  // discussion or ending your participation (#601).
+  final authorReason = _authorReasonPresentationKeys.contains(presentationKey)
       ? structuredExcerpt
       : null;
   if (subjectOverride != null && subjectOverride != headline) {
     line2 = subjectOverride;
-  } else if (declineReason != null &&
-      declineReason.isNotEmpty &&
-      declineReason != beaconTitle) {
-    // The author's reason for declining (#381) — only the structured
-    // excerpt, never the push body; the Request title stays beside it.
+  } else if (authorReason != null &&
+      authorReason.isNotEmpty &&
+      authorReason != beaconTitle) {
+    // Only the structured excerpt, never the push body; the Request title
+    // stays beside it.
     line2 = beaconTitle != null && beaconTitle.isNotEmpty
-        ? l10n.updatesOfferDeclinedBody(beaconTitle, declineReason)
-        : declineReason;
+        ? l10n.updatesOfferDeclinedBody(beaconTitle, authorReason)
+        : authorReason;
   } else if (beaconTitle != null &&
       beaconTitle.isNotEmpty &&
       beaconTitle != headline) {
@@ -450,6 +452,13 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     body: _isServerCannedSentence(line2) ? '' : line2,
   );
 }
+
+/// Receipts whose structured excerpt is the author's reason (#381, #601).
+const _authorReasonPresentationKeys = {
+  'offer_declined',
+  'offer_removed',
+  'commitment_released',
+};
 
 final _statusTransitionTail = RegExp(r'from (\w+) to (\w+)\s*$');
 
