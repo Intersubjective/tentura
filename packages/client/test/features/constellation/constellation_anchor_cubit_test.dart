@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
@@ -290,6 +291,75 @@ _harness({
 }
 
 void main() {
+  group('Composer person pin settlement', () {
+    const dropCentre = Offset(640, 480);
+    final target = ConstellationAnchorTarget.person('p1');
+    final expectedPosition = constellationPointToV1Anchor(
+      (x: dropCentre.dx, y: dropCentre.dy),
+    );
+
+    Future<ConstellationCubit> prepareComposerPersonDrag() async {
+      final harness = await _harness();
+      final cubit = harness.cubit;
+      addTearDown(cubit.close);
+      expect(
+        cubit.state.confirmedProjection!.anchors.single.position.xUnits,
+        1,
+      );
+      expect(
+        cubit.state.confirmedProjection!.anchors.single.position.yUnits,
+        2,
+      );
+      cubit.enterComposing(
+        draftCentre: const Offset(100, 100),
+        candidateIds: {'p1'},
+        selectedIds: {'p1'},
+        onToggle: (_) {},
+      );
+      cubit.beginDragExisting(target: target);
+      cubit.updateDragPresentation(
+        nodeId: 'fp:p1',
+        sceneCentre: dropCentre,
+      );
+      return cubit;
+    }
+
+    test(
+      'settled person pin stays at the drop position after queued updates',
+      () async {
+        final cubit = await prepareComposerPersonDrag();
+        await cubit.onExistingNodeDrop(target: target, sceneCentre: dropCentre);
+        expect(cubit.state.hasPendingPlacementWrite, isFalse);
+
+        // Drain acknowledgement publications without forcing another graph rebuild.
+        await pumpEventQueue();
+
+        expect(cubit.state.isComposing, isTrue);
+        expect(cubit.state.hasPendingPlacementWrite, isFalse);
+        final anchor = cubit.state.confirmedProjection!.anchors.single;
+        expect(anchor.target, target);
+        expect(anchor.position.xUnits, expectedPosition.xUnits);
+        expect(anchor.position.yUnits, expectedPosition.yUnits);
+        expect(cubit.graphController.nodePayloadForId('fd:draft'), isNotNull);
+        expect(
+          cubit.graphController.edges.any(
+            (edge) => edge.semanticId == 'fd:draft->fp:p1#draftRecipient',
+          ),
+          isTrue,
+        );
+        expect(
+          cubit.graphController.getPositionOrNullForId('fp:p1'),
+          // Settled pins use the persisted anchor's scene coordinates, whose
+          // normalization round trip can introduce floating-point rounding.
+          Offset(
+            constellationV1AnchorToPoint(expectedPosition).x,
+            constellationV1AnchorToPoint(expectedPosition).y,
+          ),
+        );
+      },
+    );
+  });
+
   group('ConstellationAnchorCubit', () {
     test(
       'composer survives person pin',

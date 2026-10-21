@@ -2606,7 +2606,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         heldPersonId: _composerDragGraphId,
         confirmedAnchors: state.hasPendingPlacementWrite
             ? null
-            : state.confirmedProjection?.anchors ??
+            : composition?.anchorOverlay.anchors ??
+                  state.confirmedProjection?.anchors ??
                   const <ConstellationAnchor>[],
         draftCentre: _composingDraftCentre,
       );
