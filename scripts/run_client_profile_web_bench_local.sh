@@ -22,7 +22,7 @@
 #       (raster times from software GL say nothing about real devices); the
 #       WebGL renderer actually used is recorded in the JSON.
 #   TENTURA_BENCH_PROFILE_OBJECTS=1  diagnostic run: per-widget build/layout/
-#       paint Timeline events during drop → reflow (adds overhead; not the
+#       paint Timeline events from grab through reflow (adds overhead; not the
 #       benchmark's numbers)
 set -euo pipefail
 

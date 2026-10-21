@@ -2030,3 +2030,72 @@ The bead's acceptance numbers (N = 300 drag/pan < 8 ms, no task > 50 ms) are **n
 - `integration_test/map_composer_remove_recipient_anchor_test.dart` fails ("Timed out waiting for recipient chip", the composer opens with «Will receive · 0»), **also on unchanged `0025525e9` app code** (checked by reverting this unit's two app fixes): pre-existing, not one of the five flows, not investigated here.
 - Client `test/features/constellation/` + `test/features/graph/`: 1201 pass, 1 skipped. Custom lints: 23 (baseline 23). Analyzer baseline: 1922 ≤ 2040.
 - The benchmark numbers above were taken before the two app fixes; neither touches the measured paths (the bench never composes).
+
+
+## UNIT U40 — partial (part 2/3: I4 re-measure after s7gl.86–.89) — 2026-10-21 (tentura-s7gl.71)
+
+**Scope.** Re-measure I4 after s7gl.86 (pin layout once per input), s7gl.87 (Text view not mounted while hidden), s7gl.88 (one Path per dashed edge) and s7gl.89 (faster overlap scan), with a bench that now also sees the drag start and every long task. Numbers and attribution only; no application code changed. **I4 is still not met at N = 300** (nor at 100 / 600): the second-long drop/ack tasks are gone (1 s + 1 s → one ~75–90 ms task), but drag build p95 is ~11 ms, pan build max reaches 12 ms, and the drop, the reflow frames and the grab are still 50–120 ms tasks.
+
+**Bench extension** (`fed3a28b8`, test-only). Per N the pinned person `p0` now goes through a full grab → drag → drop → ack → reflow cycle twice, with a **mouse** and then a **touch** pointer, then the pan runs as before. Each cycle records *grab → first moved frame* (pointer-down to the end of the first pumped frame that drew the node off its start position; the long tasks inside it), the drag frames, drop → ack → reflow, and **every** main-thread task > 50 ms from pointer-down to the reflow settling, labelled `grab` / `drag` / `drop` / `ack` / `reflow` by the phase it started in (a task spanning the pointer-up or the ack belongs to the phase that event opens), with the phase boundaries. Top-level `drag` / `dropAckReflow` are the mouse cycle (same fields as before); `cycles.{mouse,touch}` hold the rest. The driver prints grab → first moved frame mouse/touch in the summary table plus one "tasks > 50 ms by phase" line per N and pointer kind. One idle frame separates the harness's finder work (an element-tree walk, ~55 ms at N = 300) from the pointer-down, so it is not counted as grab. `TENTURA_BENCH_PROFILE_OBJECTS=1` now also covers the grab (this entry's commit).
+
+**Command** (repo root, nothing else running, serial): `./scripts/run_client_profile_web_bench_local.sh`, three consecutive runs at `fed3a28b8` (clean tree). Raw data: `packages/client/build/bench/u40_profile_web_after_fixes_20261021/` (gitignored, `SHA256SUMS`): `run1..3.json` + logs; `cdp_prof1/` (CPU profiles per N over CDP, 200 µs sampling, with the source map); `diag_profile_objects/` and `diag_measures/` (per-widget Timeline events, all measures per N); `ab_revert_s7gl88/` (one run with s7gl.88's edge change reverted in the working tree, then restored); `e2e.log`. Scratch tools (not in the repo): CDP profiler attach, source-map-resolving profile analyser, per-task widget-measure attribution.
+
+**Environment.** As in the previous entry: i5-12600K (16 threads), load average 2.0–2.6; Google Chrome 143.0.7499.169 headless, ChromeDriver 143.0.7499.192; WebGL ANGLE/Vulkan on the RTX 4070 Ti; Flutter 3.47.0 stable, `--profile`, dart2js + CanvasKit; 1600×1024 window, 1200×800 surface, DPR 1; rendered nodes 166 / 314 / 374 at N = 100 / 300 / 600.
+
+**Numbers** (ms; range over three runs; build = `FrameTiming.buildDuration`; tasks = every > 50 ms task of the mouse cycle, each run's list; touch in the notes):
+
+| N | drag build max / p95 (mouse; touch p95) | pan build max / p95 | grab → first moved frame mouse / touch (grab task) | drop task(s) | ack task | reflow tasks (count, range) | drop → ack | drop → layout idle |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 100 | 8.8–10.6 / 7.2–8.2 (6.4–6.7) | 7.0–7.6 / 4.3–6.8 | 124–136 / 98–101 (76–86 / 56–63) | 61–62 (+ one 50) | none | 2–3 × 51–59 | 88–121 | 1102–1172 |
+| 300 | 12.4–19.4 / 10.4–11.8 (10.5–11.2) | 6.1–12.3 / 5.3–11.0 | 134–140 / 135–150 (90–97 / 92–100) | 74–77 | none (touch: one 52 in 1 of 3) | 5 × 54–83 | 87–88 | 1494–1575 |
+| 600 | 12.0–20.1 / 10.5–11.4 (10.6–11.3) | 26.8–27.9 / 9.7–11.0 | 144–167 / 147–163 (111–119 / 109–117) | 91–96 | 52–56 in 2 of 3 | 5 × 59–88 | 104–108 | 1676–1868 |
+
+- Drag tasks > 50 ms: none at N = 300 / 600; at N = 100 two (50, 63) in one mouse run and one (60) in one touch run. Pan tasks > 50 ms (not an I4 window): N = 300 0–5 × 50–55, N = 600 1–2 × 50–66.
+- Touch cycle (second drop of the same person): grab and drop like mouse (drop 81–91 at N = 300); reflow 5–6 × 50–79; drop → layout idle shorter (1022–1062 at N = 300; not investigated).
+- Raster (same JS thread on web, not I4's "UI time"): drag raster p95 29–32 ms and pan raster p95 29–38 ms at every N, up from 15–17 / 17–18 before. The A/B run with s7gl.88 reverted gives drag build p95 27.5 / raster p95 22.6 at N = 300 (pan raster 23): one Path per edge moved ~17 ms of build out of the frame but added ~8–10 ms of raster (Skia tessellating one multi-contour stroked path per edge); the sum of build and raster p95 still dropped (~42 vs ~50 ms).
+
+**Against I4** (drag frame < 8 ms UI time, pan frame < 8 ms UI time, no task > 50 ms across drop → ack → reflow):
+
+| N | drag < 8 ms | pan < 8 ms | no task > 50 ms drop → ack → reflow | (grab, not an I4 window) |
+|---|---|---|---|---|
+| 100 | **fail** (max 8.8–10.6; p95 7.2–8.2, passes in 1 of 3) | pass (max 7.0–7.6) | **fail** (drop 61–62, reflow 51–59) | 76–86 ms task |
+| 300 | **fail** (max 12.4–19.4, p95 10.4–11.8) | **fail** (max 6.1–12.3: passes in 1 of 3; p95 5.3–11.0) | **fail** (drop 74–77, reflow 5 × 54–83) | 90–100 ms task |
+| 600 | **fail** (max 12.0–20.1, p95 10.5–11.4) | **fail** (max 26.8–27.9) | **fail** (drop 91–96, ack 52–56, reflow 5 × 59–88) | 109–119 ms task |
+
+**Compared with before s7gl.86–.89** (`c051e78a3` rerun, `u40_profile_web_rerun_20261021/`; grab from the investigation at the same commit, mouse):
+
+| N = 300 | before | now |
+|---|---:|---:|
+| drag build max / p95 | 31.9–37.0 / 26.8–28.8 | 12.4–19.4 / 10.4–11.8 |
+| pan build max / p95 | 6.4–10.9 / 5.7–9.3 | 6.1–12.3 / 5.3–11.0 |
+| grab → first moved frame (grab task) | 1014 (972) | 134–140 (90–97) |
+| drop task + task after the ack | 1031–1054 + 1001–1054 | 74–77 + none |
+| reflow tasks | 5 × 66–84 | 5 × 54–83 |
+| drop → ack / → layout idle | 1042–1065 / 3063–3147 | 87–88 / 1494–1575 |
+
+At N = 600 the drop and post-ack tasks went from ~6.4 s + ~6.4 s to 91–96 + 52–56 ms and the grab from 5741 ms (5697 task) to 144–167 ms; at N = 100 from 195–206 + 166–191 to 61–62 + none and the grab from 280 (238) to 124–136. Drag build p95 at N = 100 / 600 went 15 / 22–23 → 7.2–8.2 / 10.5–11.4. The reflow tasks are unchanged: none of the four fixes touched them.
+
+**Where the remaining time goes** (N = 300 unless noted; CPU profile at 200 µs, attributions from the per-widget Timeline run, which inflates absolute times ~3–4× but not the shares):
+1. *Grab and drop tasks (90–100 and 74–91 ms).* `beginDragExisting` / the drop change `placementPhase`, which is in the buildWhen of `ConstellationBody`'s top-level `BlocBuilder` (`constellation_body.dart` ~629) and of `ConstellationViewportOverlay`'s `BlocBuilder` (`constellation_viewport_overlay.dart` ~214). The body rebuild hands `GraphView` new closures, so `NodesView.build` (`force_directed_graphview/lib/src/widget/nodes_view.dart`) calls `nodeBuilder` for **every** node and the whole node layer (313 × `_ConstellationMapNodeFocus` → `FocusableActionDetector` / `Semantics` / `MouseRegion` / `_ConstellationMapNode` / `TenturaAvatar` / `ConstellationMarkerBadge`) is updated inside the `LayoutBuilder` layout pass: ~65 % of the frame (≈ 50–55 ms of the 65 ms flushLayout in a 104 ms profiled grab task). The overlay's full label/chip rebuild is another ~17 % (≈ 10–13 ms); paint ~8 ms, raster the rest.
+2. *Reflow frames (5 × 54–83 ms).* Every layout-transition frame bumps the overlay's `_structure` notifier (`_onController` → `_isDragMoveOnly` is false for a transition), so the `ListenableBuilder` at `constellation_viewport_overlay.dart:227` rebuilds all ~230 `_LabelPlate`s, 34 `ConstellationOverflowGroup`s (each re-measured with a fresh `TextPainter` in `constellationOverflowChipSize`, `constellation_overflow_group.dart:13`, ≈ 4 ms per frame) and recomputes `computeConstellationPresentationFrame`: ~45 % of the frame. ~126 animating nodes rebuild through their `ValueListenableBuilder<Offset>` (~15 %); `ConstellationEdgePainter.paint` ≈ 5 ms; raster ≈ 25 ms.
+3. *Drag build p95 (10.4–11.8 ms).* Per moved frame: edge painting ≈ 5.5 ms (`_EdgesPainter.paint` → `ConstellationEdgePainter.paint` → `paintConstellationEdgeStroke`, `constellation_edge_style.dart:30`; EdgesView repaints all ~260 edges when one node moves; ≈ 3.9 ms of it is `EnginePath._backendPathBuilder` replaying every dash's moveTo/lineTo into a new SkPath, plus ≈ 0.9 ms `CkPaint.toSkPaint`), other paint ≈ 1.2 ms, layout ≈ 1.7 ms, build ≈ 1.2 ms, engine preroll/measure ≈ 0.3 ms.
+4. *Pan build max (6–12 ms at N = 300, 27 ms spike at N = 600).* The slow pan frames are engine compositing: `MeasureVisitor` / `PrerollVisitor` over ~320 picture layers (one `RepaintBoundary` per node from `NodesView`) ≈ 3 ms plus ≈ 2 ms paint. The N = 600 spike (LAYOUT 24 ms with BUILD inside) is a membership change when new nodes enter the viewport: `NodesView` rebuilds every node again and the overlay takes a `_structure` rebuild.
+5. *Ack task at N = 600 (52–56 ms).* The ack's state change (composition / `graphRevision`) passes the buildWhen of every `ConstellationOverflowGroup`'s `BlocBuilder` (62 at N = 600, `constellation_overflow_group.dart:47`), ~54 % of the frame.
+
+**Ranked fix proposals** (not done here; each needs an owner decision / bead):
+1. Stop the full node-layer rebuild on `placementPhase` changes and viewport-membership changes: drop `placementPhase` from the body `BlocBuilder`'s buildWhen (move its few dependants into narrow `BlocSelector`s), keep `GraphView`'s builder/callback identities stable, and let `NodesView` reuse a node's child widget while its payload is unchanged. Targets grab (−50 ms), drop (−50 ms), the N = 600 pan spike. Expected to bring grab and drop under 50 ms at N = 300.
+2. Treat layout-transition frames like drag moves in `ConstellationViewportOverlay` (translate cached plates/chips through the `_frameTick` path, or freeze labels for the 350 ms transition and rebuild once at the end), keep chip widgets across `_structure` bumps, and cache `constellationOverflowChipSize` per label/style. Targets the 5 reflow tasks (−30 to −40 ms each).
+3. Edge painting: cache each edge's dashed `Path` by endpoints + style so unchanged edges reuse their SkPath, or paint edges not incident to the dragged node into a cached layer and repaint only the incident ones (the EdgesView follow-up noted in s7gl.88). Targets drag build (−4 to −5 ms → p95 ≈ 6 ms) and the reflow/drop paint, and should win back the raster that s7gl.88 added.
+4. Narrow `ConstellationOverflowGroup`'s `BlocBuilder` to the state it shows (its own expanded flag / hidden count). Targets the N = 600 ack task.
+5. Pan: fewer picture layers (no per-node `RepaintBoundary` for static nodes, or one layer for idle nodes) to cut engine preroll/measure per pan frame; check what repaints on a pure pan.
+
+### Text view scroll position after s7gl.87
+
+Checked with a throwaway widget test (the real `ConstellationScreen` in `MaterialApp`, 40 people with a Request each; not committed): scroll the Text list to 580 px, switch map → Text → map → Text: the list comes back at **0**. With `constellation_body.dart` from before `ad47ee8dd` the same test returns at 580 (the hidden `IndexedStack` child kept its `ScrollPosition`). So `ad47ee8dd` loses the Text list's scroll position on every map round trip: the `ListView` (`constellation_text_view.dart`, key `constellation.text.list`) has neither a `PageStorageKey` nor an externally owned `ScrollController`. Not fixed (report only); a `PageStorageKey` on the list (or a controller owned by `_ConstellationBodyState`) would restore it.
+
+### Web e2e and checks (host, serial)
+
+- `./scripts/run_client_integration_web_local.sh integration_test/constellation_protocol_release_test.dart integration_test/constellation_pinning_test.dart integration_test/constellation_interactive_flows_test.dart` → all three files pass (drag, refresh-mid-drag, failure, Re-arrange, composer). The runner started tentura-server on :2080 itself and stopped it; nothing left on 2080 / 8888 / 4444 / 9333.
+- Client `test/features/constellation/` + `test/features/graph/`: 1253 pass, 1 skipped. Custom lints: 23 (baseline 23). Analyzer baseline: 1934 ≤ 2040.
+
+**Status.** Partial: I4 fails at N = 300 on all three budgets (drag build p95 ~11 ms, pan build max up to 12 ms, drop 74–77 ms + reflow 5 × 54–83 ms tasks); #235 stays open. Proposals 1–3 above are the expected path to I4.

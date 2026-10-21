@@ -648,6 +648,7 @@ _dragCycle(
   // The finders above walk the whole element tree (> 50 ms at N = 300);
   // one idle frame keeps that harness task out of the grab.
   await tester.pump(const Duration(milliseconds: 16));
+  _setProfileObjects(enabled: _profileObjects);
   at['pointerDown'] = _now();
   final gesture = await tester.startGesture(centre, kind: kind);
   // Past kTouchSlop (18) in scene space at any camera scale.
@@ -679,7 +680,6 @@ _dragCycle(
 
   // --- Drag: one pointer move per frame.
   final dragStart = controller.getPositionForId(graphId);
-  _setProfileObjects(enabled: _profileObjects);
   final dragAt = _now();
   frames.open();
   for (var i = 0; i < _dragFrames; i++) {
@@ -748,6 +748,12 @@ _dragCycle(
         'downAndMoveDispatchMs': dispatchedAt - at['pointerDown']!,
         'pumps': grabPumps,
         'longTasks': grabTasks,
+        if (_profileObjects)
+          'topMeasuresByTotal': _window(
+            at['pointerDown']!,
+            at['firstMovedFrame']!,
+            top: 150,
+          )['topMeasuresByTotal'],
       },
       ...phases,
       'drag': {
