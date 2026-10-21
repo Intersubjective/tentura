@@ -43,8 +43,11 @@ abstract final class BeaconLifecycleChangeReason {
   static const directClose = 'directClose';
   static const authorCloseNow = 'authorCloseNow';
   static const closureExpired = 'closureExpired';
+
   /// Stored activity events may still carry the pre-closure-redesign wires.
-  static const legacyClosureOpenReason = 'review' 'WindowOpened';
+  static const legacyClosureOpenReason =
+      'review'
+      'WindowOpened';
   static const reviewExpired = 'reviewExpired';
   static const reopenedFromReview = 'reopenedFromReview';
   static const cancelled = 'cancelled';
@@ -52,4 +55,8 @@ abstract final class BeaconLifecycleChangeReason {
   static const needsMoreHelp = 'needsMoreHelp';
   static const enoughHelp = 'enoughHelp';
   static const neutralOpen = 'neutralOpen';
+
+  /// #380: the author extended the final check; `diff.closesAt` carries the
+  /// new end date (status stays in review).
+  static const closureExtended = 'closureExtended';
 }

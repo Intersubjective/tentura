@@ -41,6 +41,10 @@ abstract final class BeaconLifecycleChangeReason {
   static const needsMoreHelp = 'needsMoreHelp';
   static const enoughHelp = 'enoughHelp';
   static const neutralOpen = 'neutralOpen';
+
+  /// #380: the author extended the final check; status stays reviewOpen and
+  /// `diff.closesAt` carries the new end date. Room visibility only.
+  static const closureExtended = 'closureExtended';
 }
 
 /// Matches client [`BeaconActivityEvent.isCoordinationLogEvent`] / Log tab filter.

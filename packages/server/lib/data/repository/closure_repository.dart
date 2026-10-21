@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/domain/closure/closure_band.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
@@ -129,6 +132,33 @@ WHERE beacon_id = $1 AND epoch = $2
 ''',
     variables: [Variable<String>(beaconId), Variable<int>(epoch)],
   );
+
+  @override
+  Future<void> insertExtendedLogEvent({
+    required String beaconId,
+    required String actorId,
+    required DateTime closesAt,
+  }) async {
+    const status = BeaconStatus.reviewOpen;
+    await _database.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.room,
+        type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+        actorId: Value(actorId),
+        diff: Value(<String, Object?>{
+          'fromState': status.smallintValue,
+          'toState': status.smallintValue,
+          'fromStatus': status.smallintValue,
+          'toStatus': status.smallintValue,
+          'reason': BeaconLifecycleChangeReason.closureExtended,
+          'closesAt': closesAt.toUtc().toIso8601String(),
+        }),
+        createdAt: const Value.absent(),
+      ),
+    );
+  }
 
   @override
   Future<void> expireLiveEpoch(String beaconId) => _database.customUpdate(

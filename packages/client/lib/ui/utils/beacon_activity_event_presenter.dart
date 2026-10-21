@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -12,6 +13,11 @@ import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 enum BeaconActivityLogTier { high, medium, low }
 
 String? lifecycleChangeReasonFromEvent(BeaconActivityEvent e) {
+  final reason = _lifecycleDiffValue(e, 'reason');
+  return reason is String && reason.isNotEmpty ? reason : null;
+}
+
+Object? _lifecycleDiffValue(BeaconActivityEvent e, String key) {
   if (e.type != BeaconActivityEventTypeBits.beaconLifecycleChanged) {
     return null;
   }
@@ -19,12 +25,16 @@ String? lifecycleChangeReasonFromEvent(BeaconActivityEvent e) {
   if (raw == null || raw.trim().isEmpty) return null;
   try {
     final decoded = jsonDecode(raw);
-    if (decoded is! Map) return null;
-    final reason = decoded['reason'];
-    return reason is String && reason.isNotEmpty ? reason : null;
+    return decoded is Map ? decoded[key] : null;
   } on Object {
     return null;
   }
+}
+
+/// #380: the new final check end date of a `closureExtended` event.
+DateTime? _lifecycleClosesAt(BeaconActivityEvent e) {
+  final raw = _lifecycleDiffValue(e, 'closesAt');
+  return raw is String ? DateTime.tryParse(raw) : null;
 }
 
 bool beaconLifecycleEventIsSystem(BeaconActivityEvent e) {
@@ -114,6 +124,7 @@ IconData _beaconLifecycleLogIcon(String? reason) => switch (reason) {
   BeaconLifecycleChangeReason.enoughHelp => Icons.check_circle_outline,
   BeaconLifecycleChangeReason.neutralOpen => Icons.campaign_outlined,
   BeaconLifecycleChangeReason.deleted => Icons.delete_outline,
+  BeaconLifecycleChangeReason.closureExtended => Icons.more_time_outlined,
   _ => Icons.flag_circle_outlined,
 };
 
@@ -245,6 +256,14 @@ String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
     BeaconLifecycleChangeReason.enoughHelp => l10n.coordinationEnoughHelp,
     BeaconLifecycleChangeReason.neutralOpen => l10n.beaconLifecycleOpen,
     BeaconLifecycleChangeReason.deleted => l10n.beaconLifecycleDeleted,
+    BeaconLifecycleChangeReason.closureExtended => switch (_lifecycleClosesAt(
+      e,
+    )) {
+      final closesAt? => l10n.beaconActivityLifecycleFinalCheckExtended(
+        DateFormat.MMMd(l10n.localeName).add_Hm().format(closesAt.toLocal()),
+      ),
+      null => l10n.beaconReviewExtendSuccess,
+    },
     _ => l10n.beaconLifecycleClosed,
   };
 }

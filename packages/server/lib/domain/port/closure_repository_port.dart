@@ -32,6 +32,14 @@ abstract class ClosureRepositoryPort {
   /// `closes_at += 7 days`, `extensions_used += 1` on the live epoch.
   Future<void> extendEpoch({required String beaconId, required int epoch});
 
+  /// #380: room-visible Log line (lifecycle event, reason `closureExtended`)
+  /// carrying the new final check end date in `diff.closesAt`.
+  Future<void> insertExtendedLogEvent({
+    required String beaconId,
+    required String actorId,
+    required DateTime closesAt,
+  });
+
   /// QA only: `closes_at = now() - 1 second` on the live (evaluating) epoch of
   /// [beaconId], so the next sweep pass finalizes it.
   Future<void> expireLiveEpoch(String beaconId);

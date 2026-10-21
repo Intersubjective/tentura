@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
@@ -11,6 +12,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -476,6 +478,70 @@ Future<void> main() async {
       await expectLater(
         closureCase.extend(authorId: _authorId, beaconId: _beaconId),
         closureError(ClosureExceptionCode.extendLimit),
+      );
+    }, skip: skipReason);
+
+    // #380: an extension was silent. Each one leaves a Log line for the
+    // room: a lifecycle event (type 16, room visibility) with reason
+    // `closureExtended` and the new end date in `diff.closesAt`. The status
+    // itself does not change, so `status_changed_at` stays put, and a
+    // refused extension logs nothing.
+    test('#380 extend logs the new final check end date', () async {
+      await openWith([_aId, _bId, _cId]);
+      final statusChangedBefore = await _statusChangedAt(writer, _beaconId);
+
+      await closureCase.extend(authorId: _authorId, beaconId: _beaconId);
+      final first = (await repo.liveEpoch(_beaconId))!;
+      await closureCase.extend(authorId: _authorId, beaconId: _beaconId);
+      final second = (await repo.liveEpoch(_beaconId))!;
+      await expectLater(
+        closureCase.extend(authorId: _authorId, beaconId: _beaconId),
+        closureError(ClosureExceptionCode.extendLimit),
+      );
+
+      final rows = await writer.execute('''
+SELECT visibility, actor_id, diff::text
+FROM public.beacon_activity_event
+WHERE beacon_id = '$_beaconId' AND type = 16
+  AND diff->>'reason' = 'closureExtended'
+ORDER BY created_at, id
+''');
+      expect(rows, hasLength(2), reason: 'one Log line per extension');
+      final logged = <int>{};
+      for (final row in rows) {
+        expect(
+          row[0],
+          BeaconActivityEventVisibilityBits.room,
+          reason: 'room-only: the end date is closure-role data, not public',
+        );
+        expect(row[1], _authorId);
+        final diff = jsonDecode(row[2]! as String) as Map<String, dynamic>;
+        expect(diff['fromStatus'], BeaconStatus.reviewOpen.smallintValue);
+        expect(diff['toStatus'], BeaconStatus.reviewOpen.smallintValue);
+        logged.add(
+          DateTime.parse(diff['closesAt'] as String).microsecondsSinceEpoch,
+        );
+      }
+      expect(
+        logged,
+        {
+          first.closesAt.microsecondsSinceEpoch,
+          second.closesAt.microsecondsSinceEpoch,
+        },
+        reason: 'diff.closesAt carries each new end date',
+      );
+
+      expect(
+        await _statusChangedAt(writer, _beaconId),
+        statusChangedBefore,
+        reason: 'an extension is not a status change',
+      );
+      expect(
+        (await _transitions(writer, _beaconId)).where(
+          (t) => t.reason != 'closureExtended' && t.from == t.to,
+        ),
+        isEmpty,
+        reason: 'no same-status transition rows besides the extension lines',
       );
     }, skip: skipReason);
 
@@ -1084,6 +1150,13 @@ Future<int> _epochStatus(Connection writer, int epoch) async {
     "SELECT status FROM public.beacon_closure WHERE beacon_id = '$_beaconId' AND epoch = $epoch",
   );
   return r.single.single! as int;
+}
+
+Future<DateTime?> _statusChangedAt(Connection writer, String beaconId) async {
+  final r = await writer.execute(
+    "SELECT status_changed_at FROM public.beacon WHERE id = '$beaconId'",
+  );
+  return r.single.single as DateTime?;
 }
 
 typedef _Transition = ({int from, int to, String reason});

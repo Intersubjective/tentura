@@ -249,6 +249,14 @@ final class ClosureCase extends UseCaseBase {
         throw const ClosureException.extendLimit();
       }
       await _repo.extendEpoch(beaconId: beaconId, epoch: live.epoch);
+      final extended = await _repo.liveEpoch(beaconId);
+      if (extended != null) {
+        await _repo.insertExtendedLogEvent(
+          beaconId: beaconId,
+          actorId: authorId,
+          closesAt: extended.closesAt,
+        );
+      }
     },
   );
 

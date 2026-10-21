@@ -39,6 +39,13 @@ class ClosureRepositoryMock implements ClosureRepositoryPort {
   }) async {}
 
   @override
+  Future<void> insertExtendedLogEvent({
+    required String beaconId,
+    required String actorId,
+    required DateTime closesAt,
+  }) async {}
+
+  @override
   Future<void> expireLiveEpoch(String beaconId) async {}
 
   @override

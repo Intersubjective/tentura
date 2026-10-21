@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.da
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart'
     show beaconViewOpenClosureReview;
+import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -105,6 +107,12 @@ Future<void> showBeaconViewUpdateStatusSheet(
                     row: row,
                     beacon: liveState.beacon,
                     isLoading: isLoading,
+                    closure:
+                        row.secondaryAction ==
+                            BeaconStatusMenuAction.extendReview
+                        ? liveState.closureState
+                        : null,
+                    showExtensions: liveState.isBeaconMine,
                     onTap: row.isEnabled && !isLoading
                         ? () => unawaited(
                             beaconViewDispatchStatusMenuAction(
@@ -161,6 +169,8 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
     required this.isLoading,
     required this.onTap,
     this.onSecondaryTap,
+    this.closure,
+    this.showExtensions = false,
     super.key,
   });
 
@@ -169,6 +179,13 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
   final bool isLoading;
   final VoidCallback? onTap;
   final VoidCallback? onSecondaryTap;
+
+  /// Final check snapshot for the row that offers Extend (#380): its end
+  /// date and, when [showExtensions], how many extensions are used.
+  final ClosureState? closure;
+  final bool showExtensions;
+
+  static const _maxExtensions = ClosureMenuSnapshot.kMaxBeaconClosureExtensions;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +227,31 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
                   onTap!();
                 },
         ),
+        if (closure case final closure?)
+          Padding(
+            padding: EdgeInsets.only(
+              left: tt.screenHPadding + tt.iconSize + tt.iconTextGap,
+              right: tt.screenHPadding,
+              bottom: tt.tightGap,
+            ),
+            child: Text(
+              [
+                l10n.beaconFinalCheckEndsAt(
+                  DateFormat.MMMd(
+                    l10n.localeName,
+                  ).add_Hm().format(closure.closesAt.toLocal()),
+                ),
+                if (showExtensions && closure.extensionsUsed >= _maxExtensions)
+                  l10n.beaconFinalCheckNoExtensionsLeft
+                else if (showExtensions)
+                  l10n.beaconFinalCheckExtensionsUsed(
+                    closure.extensionsUsed,
+                    _maxExtensions,
+                  ),
+              ].join(' · '),
+              style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+            ),
+          ),
         if (onSecondaryTap != null)
           Align(
             alignment: Alignment.centerLeft,
