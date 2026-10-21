@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' show debugOnRebuildDirtyWidget;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
@@ -14,7 +15,9 @@ import 'package:tentura/features/constellation/domain/port/constellation_anchor_
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_apply_via_writes.dart';
@@ -189,7 +192,214 @@ _countChipBuilderBuilds() {
   );
 }
 
+Future<void> _testRetention(WidgetTester tester, {required bool drop}) async {
+  final field = _crowdedField();
+  final server = _AnchorRepository(field.resolvedAnchorProjection);
+  final sync = buildTestRealtimeSync();
+  final store = ConstellationStoreFixture(
+    _FieldRepository(field),
+    accountId: 'ego',
+    realtime: sync.case_,
+  ).store;
+  final placement = ConstellationPlacementCase(
+    server,
+    store,
+    FakeClockPort(),
+    FakeWakeUpPort(),
+    realtime: sync.case_,
+    env: const Env.fromEnvironment(),
+    logger: Logger('OverlayElementRetentionTest'),
+  );
+  final cubit = ConstellationCubit(
+    case_: store,
+    placementCase: placement,
+    viewer: kRefEgo,
+  );
+  addTearDown(cubit.close);
+  await cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+  // A selected person's label is always placed, even in this crowded field.
+  // Ensure grabbing really inserts a plate before the chip slots.
+  cubit.selectPerson('p0');
+  final holder = ConstellationPresentationFrameHolder();
+  await pumpConstellationBody(
+    tester,
+    cubit,
+    size: const Size(1600, 1000),
+    presentationFrameHolder: holder,
+  );
+  await tester.pumpAndSettle();
+
+  expect(holder.frame!.labels, contains('fp:p0'));
+
+  final chips = find.byType(ConstellationOverflowGroup);
+  expect(chips, findsAtLeastNWidgets(8));
+  Set<Element> chipElements() => {
+    for (final chip in chips.evaluate()) ..._subtree(chip),
+  };
+  final original = chipElements();
+  final renderObjects = {
+    for (final e in original.whereType<RenderObjectElement>()) e.renderObject,
+  };
+  final renderCounts = <Type, int>{};
+  for (final object in renderObjects) {
+    renderCounts.update(object.runtimeType, (n) => n + 1, ifAbsent: () => 1);
+  }
+  final overlay = tester.element(find.byType(ConstellationViewportOverlay));
+  final layersBefore = _layerCounts(overlay);
+  final boundariesBefore = _boundaryCount(overlay);
+  expect(boundariesBefore, greaterThan(0));
+  expect(layersBefore, isNotEmpty);
+  final authorsBefore = holder.frame!.chips.keys.toSet();
+  final inflatedElements = <Element>{};
+  final paints = <Type, int>{};
+  final oldBuild = debugOnRebuildDirtyWidget;
+  final oldPaint = debugOnProfilePaint;
+  addTearDown(() {
+    debugOnRebuildDirtyWidget = oldBuild;
+    debugOnProfilePaint = oldPaint;
+  });
+  debugOnRebuildDirtyWidget = (element, builtOnce) {
+    oldBuild?.call(element, builtOnce);
+    // This SDK only updates builtOnce when debugPrintRebuildDirtyWidgets is
+    // enabled. Element identity distinguishes a mount from a retained rebuild.
+    if (original.contains(element)) return;
+    var isChip = element.widget is ConstellationOverflowGroup;
+    element.visitAncestorElements((ancestor) {
+      isChip = isChip || ancestor.widget is ConstellationOverflowGroup;
+      return !isChip;
+    });
+    if (isChip) inflatedElements.add(element);
+  };
+  debugOnProfilePaint = (object) {
+    oldPaint?.call(object);
+    if (renderObjects.contains(object)) {
+      paints.update(object.runtimeType, (n) => n + 1, ifAbsent: () => 1);
+    }
+  };
+
+  Future<void> checkFrame({bool expectPaint = false}) async {
+    await tester.pump();
+    expect(
+      inflatedElements.length,
+      0,
+      reason: 'no chip subtree may be inflated afresh',
+    );
+    // Chip descendants have no GlobalKeys: removed elements cannot be
+    // reactivated under another slot. Count removals as well as mounts.
+    final deactivations = original.where((e) => !e.debugIsActive).length;
+    expect(deactivations, 0);
+    expect(chipElements(), original, reason: 'retain Material/InkWell/Bloc');
+    expect(holder.frame!.chips.keys.toSet(), authorsBefore);
+    expect(_boundaryCount(overlay), boundariesBefore);
+    expect(_layerCounts(overlay), layersBefore);
+    if (expectPaint) {
+      expect(
+        paints,
+        isNotEmpty,
+        reason: 'paint instrumentation must observe work',
+      );
+    }
+    // Each retained render object may paint at most once in this frame.
+    // Pin the budget per render type, with no wall-clock threshold.
+    for (final entry in paints.entries) {
+      expect(entry.value, lessThanOrEqualTo(renderCounts[entry.key]!));
+    }
+    paints.clear();
+  }
+
+  cubit.beginDragExisting(target: _person);
+  await checkFrame(expectPaint: true);
+  final dragged = find.byKey(const ValueKey('constellation.dragged.fp:p0'));
+  expect(dragged, findsOneWidget, reason: 'grab must add a dragged plate');
+  final draggedElement = tester.element(dragged);
+  final start = cubit.graphController.getPositionForId('fp:p0');
+  final labelBefore = holder.frame!.labels['fp:p0']!;
+  cubit.updateDragPresentation(
+    nodeId: 'fp:p0',
+    sceneCentre: start + const Offset(20, 12),
+  );
+  await checkFrame();
+  expect(tester.element(dragged), same(draggedElement));
+  final moved = cubit.graphController.getPositionForId('fp:p0') - start;
+  expect(moved.distance, greaterThan(0));
+  expect(
+    (holder.frame!.labels['fp:p0']!.center -
+            labelBefore.center -
+            moved * cubit.graphController.cameraScale)
+        .distance,
+    lessThan(1),
+    reason: 'label must follow the node',
+  );
+  if (drop) {
+    await cubit.onExistingNodeDrop(
+      target: _person,
+      sceneCentre: cubit.graphController.getPositionForId('fp:p0'),
+    );
+    await checkFrame();
+    expect(server.calls, hasLength(1));
+    server.ack(0);
+    await checkFrame();
+  } else {
+    cubit.cancelPlacement();
+    await checkFrame();
+  }
+  await tester.pumpAndSettle();
+  paints.clear();
+  await checkFrame();
+  expect(dragged, findsNothing, reason: 'release must remove dragged plate');
+  // Rendering debug hooks must be unset before the test body ends: the
+  // binding checks them before tear-downs run.
+  debugOnRebuildDirtyWidget = oldBuild;
+  debugOnProfilePaint = oldPaint;
+}
+
+Set<Element> _subtree(Element root) {
+  final elements = <Element>{};
+  void visit(Element element) {
+    elements.add(element);
+    element.visitChildren(visit);
+  }
+
+  visit(root);
+  return elements;
+}
+
+int _boundaryCount(Element root) => _subtree(root)
+    .whereType<RenderObjectElement>()
+    .where((e) => e.renderObject.isRepaintBoundary)
+    .length;
+
+Map<Type, int> _layerCounts(Element root) {
+  final layers = <Layer>{};
+  void visit(Layer layer) {
+    if (!layers.add(layer)) return;
+    if (layer is ContainerLayer) {
+      var child = layer.firstChild;
+      while (child != null) {
+        visit(child);
+        child = child.nextSibling;
+      }
+    }
+  }
+
+  for (final e in _subtree(root).whereType<RenderObjectElement>()) {
+    final layer = e.renderObject.debugLayer;
+    if (layer != null) visit(layer);
+  }
+  final counts = <Type, int>{};
+  for (final layer in layers) {
+    counts.update(layer.runtimeType, (n) => n + 1, ifAbsent: () => 1);
+  }
+  return counts;
+}
+
 void main() {
+  for (final drop in [false, true]) {
+    testWidgets(
+      'chip elements survive grab, move and ${drop ? 'drop' : 'cancel'}',
+      (tester) => _testRetention(tester, drop: drop),
+    );
+  }
   group('Overflow chips on a server acknowledgement of a placement', () {
     testWidgets('no mounted chip rebuilds when a drop is acknowledged '
         'unchanged', (tester) async {
@@ -224,11 +434,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final chipCount = find.byType(ConstellationOverflowGroup).evaluate().length;
+      final chipCount = find
+          .byType(ConstellationOverflowGroup)
+          .evaluate()
+          .length;
       expect(
         chipCount,
         greaterThanOrEqualTo(8),
-        reason: 'fixture must mount many overflow chips to make the ack '
+        reason:
+            'fixture must mount many overflow chips to make the ack '
             'fan-out measurable',
       );
 

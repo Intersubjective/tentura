@@ -633,6 +633,7 @@ class _ConstellationViewportOverlayState
                   final authorId = entry.key;
                   chipWidgets.add(
                     Positioned.fromRect(
+                      key: ValueKey('constellation.chip.$authorId'),
                       rect: entry.value,
                       child: _chipByAuthor.putIfAbsent(authorId, () {
                         final person = widget.cubit.profileForPersonId(
@@ -657,7 +658,11 @@ class _ConstellationViewportOverlayState
                 final draggedLabels = <Widget>[
                   for (final entry in _draggedPlates.entries)
                     if (frame.labels[entry.key] case final rect?)
-                      Positioned.fromRect(rect: rect, child: entry.value),
+                      Positioned.fromRect(
+                        key: ValueKey('constellation.dragged.${entry.key}'),
+                        rect: rect,
+                        child: entry.value,
+                      ),
                 ];
 
                 final postChipWidgets = <Widget>[];
