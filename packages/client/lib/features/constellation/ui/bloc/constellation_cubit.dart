@@ -1805,7 +1805,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.composition?.anchorOverlay.anchors ??
         state.confirmedProjection?.anchors ??
         const <ConstellationAnchor>[];
-    return anchors.any((anchor) => anchor.target == target);
+    if (anchors.any((anchor) => anchor.target == target)) return true;
+    // The people-only composing scene strips Request anchors from the
+    // composition, but a pinned Request stays pinned (and unpinnable).
+    return state.isComposing &&
+        target.kind == ConstellationAnchorTargetKind.beacon &&
+        (state.confirmedProjection?.anchors ?? const <ConstellationAnchor>[])
+            .any((anchor) => anchor.target == target);
   }
 
   /// Re-lays out the nodes the user has not placed as a fresh plan, with no
