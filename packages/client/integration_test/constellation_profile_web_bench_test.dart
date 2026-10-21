@@ -14,6 +14,16 @@
 // and then with a touch: each cycle records grab → first moved frame, the
 // drag frames, drop → ack → reflow and every main-thread task over 50 ms with
 // its phase (grab / drag / drop / ack / reflow). Then the camera is panned.
+//
+// Drag and pan frames are reported three ways: the engine's FrameTiming
+// build / raster / total, and the framework's own "Frame" measure (the
+// SchedulerBinding begin-frame → draw-frame span: build, layout, paint and
+// scene submission). Under skwasm the FrameTiming build duration is not the
+// framework's work: the engine stamps build-finish when the scene leaves its
+// render queue (renderScene / _kickRenderLoop), so it also counts the wait for
+// the previous frame's raster on the render worker. Judge per-frame framework
+// work by the "Frame" measure there; the environment records which renderer
+// ran and whether the page was cross-origin isolated (multi-threaded skwasm).
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:ui' show FrameTiming, PointerDeviceKind;
@@ -94,18 +104,20 @@ void _installObservers() {
     longTasks: [], measures: [], longTaskSupported: false, error: null,
     window(t0, t1) {
       const measures = {};
+      const frameworkFrames = [];
       for (const m of this.measures) {
         if (m.start < t0 || m.start > t1) continue;
         const a = measures[m.name] ??= {count: 0, totalMs: 0, maxMs: 0};
         a.count++; a.totalMs += m.duration;
         if (m.duration > a.maxMs) a.maxMs = m.duration;
+        if (m.name === 'Frame') frameworkFrames.push(m.duration);
       }
       // A task overlapping the window counts: the drop runs inside the task
       // that dispatched the pointer-up, which began before it.
       const longTasks = this.longTasks
           .filter(t => t.start + t.duration >= t0 && t.start <= t1)
           .map(t => ({offsetMs: t.start - t0, durationMs: t.duration}));
-      return {measures, longTasks};
+      return {measures, longTasks, frameworkFrames};
     }
   };
   try {
@@ -128,7 +140,9 @@ void _installObservers() {
 }
 
 /// Long tasks and measures between two `performance.now()` readings: the top
-/// [top] measure names by total time, plus the client's own spans.
+/// [top] measure names by total time, the client's own spans and the
+/// framework's per-frame "Frame" measure (one per frame that began in the
+/// window).
 Map<String, Object?> _window(double t0, double t1, {int top = 20}) {
   final raw =
       (jsonDecode(
@@ -149,7 +163,12 @@ Map<String, Object?> _window(double t0, double t1, {int top = 20}) {
   final durations = [
     for (final t in longTasks) (t['durationMs'] as num).toDouble(),
   ];
+  final frameworkFrames = [
+    for (final d in raw['frameworkFrames'] as List) (d as num).toDouble(),
+  ];
   return {
+    'frameworkFrameMsPerFrame': frameworkFrames,
+    'frameworkFrameMs': _stats(frameworkFrames),
     'longTasksOver50Ms': longTasks.length,
     'longestTaskMs': durations.isEmpty
         ? 0
@@ -190,6 +209,8 @@ JSON.stringify((() => {
     viewport: [window.innerWidth, window.innerHeight],
     webglRenderer: renderer,
     canvasKit: typeof window.flutterCanvasKit !== 'undefined',
+    crossOriginIsolated: window.crossOriginIsolated === true,
+    headless: /HeadlessChrome/.test(navigator.userAgent),
   };
 })())
 '''),
@@ -215,24 +236,28 @@ double _percentile(List<double> values, double p) {
 
 double _ms(Duration d) => d.inMicroseconds / 1000;
 
-/// Build (framework, the UI-thread work), raster (CanvasKit, same JS thread
-/// on web) and their vsync-to-raster-finish span, per frame.
+Map<String, double> _stats(List<double> v) => {
+  'max': v.isEmpty ? double.nan : v.reduce((a, b) => a > b ? a : b),
+  'p95': _percentile(v, 0.95),
+  'p50': _percentile(v, 0.5),
+};
+
+/// The engine's FrameTiming per frame: build, raster (CanvasKit rasterizes on
+/// the main JS thread, skwasm on a worker) and their vsync-to-raster-finish
+/// span. Under skwasm the build duration also counts the scene's wait in the
+/// engine's render queue (see the header); `frameworkFrameMs` from [_window]
+/// is the framework's own work.
 Map<String, Object?> _summarise(List<FrameTiming> frames) {
   final build = [for (final f in frames) _ms(f.buildDuration)];
   final raster = [for (final f in frames) _ms(f.rasterDuration)];
   final total = [for (final f in frames) _ms(f.totalSpan)];
-  Map<String, double> stats(List<double> v) => {
-    'max': v.isEmpty ? double.nan : v.reduce((a, b) => a > b ? a : b),
-    'p95': _percentile(v, 0.95),
-    'p50': _percentile(v, 0.5),
-  };
   return {
     'frames': frames.length,
     'buildMsPerFrame': build,
     'rasterMsPerFrame': raster,
-    'buildMs': stats(build),
-    'rasterMs': stats(raster),
-    'totalSpanMs': stats(total),
+    'buildMs': _stats(build),
+    'rasterMs': _stats(raster),
+    'totalSpanMs': _stats(total),
   };
 }
 
@@ -456,6 +481,11 @@ Future<void> _bench(
           ? 'release'
           : 'debug',
       'wasm': const bool.fromEnvironment('dart.tool.dart2wasm'),
+      'renderer': isSkwasm
+          ? 'skwasm'
+          : isCanvasKit
+          ? 'canvaskit'
+          : 'other',
       'surface': [_surface.width, _surface.height],
       'fixtureSeed': kSyntheticFieldDefaultSeed,
       'dragFrames': _dragFrames,
@@ -757,7 +787,13 @@ _dragCycle(
       },
       ...phases,
       'drag': {
-        for (final key in ['frames', 'buildMs', 'rasterMs', 'totalSpanMs'])
+        for (final key in [
+          'frames',
+          'frameworkFrameMs',
+          'buildMs',
+          'rasterMs',
+          'totalSpanMs',
+        ])
           key: drag[key],
       },
       'dropAckReflow': {

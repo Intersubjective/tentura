@@ -9,7 +9,16 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 const _reportKey = 'constellationProfileWebBench';
 const _output = 'build/bench/constellation_profile_web.json';
 
-String _f(Object? value) => value is num ? value.toStringAsFixed(2) : '$value';
+String _f(Object? value) =>
+    value == null ? '-' : (value is num ? value.toStringAsFixed(2) : '$value');
+
+/// `p50/p95/max` of a stats map from the benchmark, `-` when it is absent.
+String _stats(Object? stats) {
+  if (stats is! Map) return '-';
+  return [
+    for (final k in ['p50', 'p95', 'max']) _f(stats[k]),
+  ].join('/');
+}
 
 String _list(List<Object?> values) =>
     values.isEmpty ? '-' : values.map(_f).join(', ');
@@ -37,11 +46,29 @@ Future<void> main() => integrationDriver(
     for (final error in (report['errors'] as List?) ?? const []) {
       stdout.writeln('[bench] ERROR $error');
     }
-    stdout.writeln(
-      '[bench] N | drag build max/p95 | drag total max/p95 | '
-      'pan build max/p95 | pan total max/p95 | drop→settled frame max | '
-      'grab→first moved frame mouse/touch | drop→ack | drop→settled (ms)',
-    );
+    final environment =
+        (report['environment'] as Map?)?.cast<String, dynamic>() ?? {};
+    final browserMode = switch (environment['headless']) {
+      true => 'headless',
+      false => 'headed',
+      _ => 'headless: -',
+    };
+    stdout
+      ..writeln(
+        '[bench] renderer: ${environment['renderer'] ?? '-'} | '
+        'crossOriginIsolated: ${environment['crossOriginIsolated'] ?? '-'} | '
+        '$browserMode | wasm: ${environment['wasm'] ?? '-'} | '
+        'build: ${environment['buildMode'] ?? '-'} | '
+        'DPR: ${environment['devicePixelRatio'] ?? '-'} | '
+        'WebGL: ${environment['webglRenderer'] ?? '-'}',
+      )
+      // "fw Frame" is the framework's per-frame "Frame" measure; under skwasm
+      // FrameTiming build also counts the wait in the engine's render queue.
+      ..writeln(
+        '[bench] N | phase | frames | fw Frame p50/p95/max | '
+        'build p50/p95/max | raster p50/p95/max | total p50/p95/max (ms)',
+      );
+    final cycleLines = <String>[];
     final phaseLines = <String>[];
     for (final entry in report.entries) {
       if (!RegExp(r'^n\d+$').hasMatch(entry.key)) continue;
@@ -50,9 +77,12 @@ Future<void> main() => integrationDriver(
       final pan = n['pan'] as Map<String, dynamic>;
       final drop = n['dropAckReflow'] as Map<String, dynamic>;
       final cycles = (n['cycles'] as Map?)?.cast<String, dynamic>() ?? {};
-      String pair(Map<String, dynamic> m, String key) {
-        final stats = m[key] as Map<String, dynamic>;
-        return '${_f(stats['max'])}/${_f(stats['p95'])}';
+      for (final (phase, m) in [('drag', drag), ('pan', pan)]) {
+        stdout.writeln(
+          '[bench] ${n['size']} | $phase | ${m['frames']} | '
+          '${_stats(m['frameworkFrameMs'])} | ${_stats(m['buildMs'])} | '
+          '${_stats(m['rasterMs'])} | ${_stats(m['totalSpanMs'])}',
+        );
       }
 
       String grab(String kind) {
@@ -61,10 +91,9 @@ Future<void> main() => integrationDriver(
         return _f((cycle['grab'] as Map)['grabToFirstMovedFrameMs']);
       }
 
-      stdout.writeln(
-        '[bench] ${n['size']} | ${pair(drag, 'buildMs')} | '
-        '${pair(drag, 'totalSpanMs')} | ${pair(pan, 'buildMs')} | '
-        '${pair(pan, 'totalSpanMs')} | '
+      cycleLines.add(
+        '[bench] ${n['size']} | '
+        '${_f((drop['frameworkFrameMs'] as Map?)?['max'])} | '
         '${_f((drop['totalSpanMs'] as Map)['max'])} | '
         '${grab('mouse')}/${grab('touch')} | '
         '${_f(drop['dropToAckMs'])} | ${_f(drop['dropToSettledMs'])}',
@@ -87,6 +116,11 @@ Future<void> main() => integrationDriver(
         );
       }
     }
+    stdout.writeln(
+      '[bench] N | drop→settled fw Frame max | drop→settled total max | '
+      'grab→first moved frame mouse/touch | drop→ack | drop→settled (ms)',
+    );
+    cycleLines.forEach(stdout.writeln);
     stdout.writeln('[bench] tasks > 50 ms by phase (ms each):');
     phaseLines.forEach(stdout.writeln);
   },
