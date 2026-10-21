@@ -1918,3 +1918,60 @@ The rows are the same, because an edge's tier depends only on its endpoints (m02
   `packages/server/test/constellation_protocol_release_version_test.dart`, and
   `packages/server/release_test/constellation_protocol_release_evidence_test.dart`
   (deleted).
+
+## UNIT U26 — complete (part 3/3: operator host verification) — 2026-10-21 (tentura-s7gl.62)
+
+**Why by hand.** The Alloy run stopped on its iteration budget, and its sandbox has no Docker socket or network, so it could not run the browser e2e, the pg/mr suites or the analyzer-plugin lint gates. The operator ran them on the host at `ef50b7cd7`.
+
+**Defects found and fixed on the way.**
+- `26c68649d` (tentura-772s): web clients encode `1.0` as JSON `1`; `graphQLFloat` is `double`-typed, so its non-null wrapper threw a `TypeError` that reached the client as generic error 1000. Placing a node at an integral position failed on web (also broke `constellation_pinning_test`). Float inputs now use a `num`-typed `Float` scalar.
+- `af9efab66` + `ef50b7cd7` (tentura-s7gl.81): the server's own-drop realtime echo can beat the apply HTTP ack, so the store queued a redundant ANCHORS read per drop. Anchor hints now wait for an in-flight apply batch (`holdAnchorHints`); a dispose mid-apply no longer completes the barrier twice.
+
+**Verified (host, wrapped, serial).**
+- Web e2e: `constellation_protocol_release_test` (two consecutive drops persist, no pan, offline marker → Retry persists, no ANCHORS/FULL after a drop) and `constellation_pinning_test`: both pass.
+- Custom lints and analyzer baselines, client and server: pass.
+- Client suite 6819 pass. Server: `--exclude-tags pg` 2943; `TENTURA_TEST_PG_POOL_SIZE=1 --tags pg --exclude-tags mr,multi-connection` 2141; `--tags multi-connection --exclude-tags mr -j 1` 96; `--tags mr --exclude-tags load -j 1` 706 (after tentura-5sv7 corrected a test stale since #412).
+- Release numbers: client 7.42.0 == `web/index.html` `?v=7.42.0`; `kDefaultMinClientVersion` 7.42.0.
+
+## UNIT U40 — complete (part 1/3: server perf re-run) — 2026-10-21 (tentura-s7gl.41)
+
+**Scope.** Numbers only. The owner accepted the U26 gate on 2026-10-16 with the limits and design kept; the write-p95 gap stays in GitHub #553. Nothing was tuned.
+
+**Run.** Local workstation (i5-12600K, 16 threads, 63 GiB; generator shares the host; load average ≤ 3.8, CPU p50 9 % / p95 22 % during D8), commit `07a88b123`, clean tree. Fresh prod-config perf stack per step (`.local/d8-run/u40_run.sh`, a copy of the U26 gate script): MeritRank `v0.12.0` (cache 300, snapshots 256 MB), Postgres `v0.9.1` / pgmer2 0.9.1. Steps: the U41 matrix (`perf_fixture_matrix_pg_only_pg_test` + `perf_fixture_matrix_meritrank_pg_test`, 30 attempts) and D8 publication burst (1000 sessions, 16 workers). Raw data: `packages/server/build/perf/u40_host_20261021/` (gitignored, `SHA256SUMS`, 49 files).
+
+**U41 fixtures** (ms, nearest-rank, 30 attempts; 16.10 = `u26_host_20261016`):
+
+| fixture | p50 | p95 | p95 on 16.10 | MR RPCs/op (p50) | WAL B/op (p50) |
+|---|---:|---:|---:|---:|---:|
+| anchors_a0 / a20 / a200 | 4.7 / 3.7 / 4.1 | 8.3 / 8.9 / 7.7 | 18.2 / 17.1 / 10.8 | 0 | 1112 |
+| apply_batch_b1 | 4.5 | 28.8 | 23.5 | 0 | 856 |
+| batch_b16 | 12.2 | 16.9 | 33.8 | 0 | 5336 |
+| apply_batch_b64 | 18.6 | 46.5 | 25.4 | 0 | 49432 |
+| candidates_c100 / c1000 / c10000 | 1.7 / 3.9 / 3.3 | 2.6 / 6.4 / 5.4 | 3.0 / 6.1 / 7.0 | 0 | 0 |
+| v100 sparse / dense | 18.8 / 53.7 | 52.0 / 107.5 | 30.9 / 107.1 | 0 | 0 |
+| v300 sparse / dense | 14.9 / 207.2 | 28.4 / 245.6 | 50.1 / 476.6 | 0 | 0 |
+| v1000 sparse / dense | 32.9 / 288.7 | 82.2 / 330.3 | 80.3 / 5489.0 | 0 | 0 |
+| fallback reciprocal u0 / u10 / u100 / u1000 | 11.4 / 10.3 / 12.7 / 14.8 | 47.2 / 15.7 / 59.0 / 37.3 | 19.1 / 47.0 / 49.2 / 85.6 | 0 | 0 |
+| fallback score u0 / u10 / u100 / u1000 | 15.3 / 10.6 / 12.1 / 15.5 | 46.8 / 17.7 / 40.7 / 56.4 | 41.8 / 42.0 / 21.1 / 66.8 | 0 | 0 |
+| scenario_aged_logs | 3.8 | 5.9 | 15.0 | 0 | 736 |
+| scenario_rejection_ratio | 40.2 | 55.5 | 87.3 | 0 | 15720 |
+| scenario_multi_worker_tabs | 99.9 | 115.0 | 130.7 | 0 | 1872 |
+| scenario_failure_injection | 2.4 | 3.8 | 20.1 | 0 | 0 |
+| scenario_trust_churn | 12.4 | 37.0 | 32.6 | 50 | 0 |
+
+- MR RPCs per apply: **0** in every apply fixture (ack-only since rev 6). Only trust churn calls MeritRank (50/op, by design).
+- Failure injection: 15 of 30 attempts fail by design (injected), 0 failures elsewhere.
+- Op-log growth: exactly one `constellation_anchor_op_log` row per accepted op, 200 tuple bytes each (b1: 30 rows / 6000 B; b64: 1920 rows / 384000 B), i.e. **1000 rows ≈ 195 KiB per 1k ops**.
+- The dense trust graphs (`v1000_dense` 330 ms, `v300_dense` 246 ms p95) are still over their frozen budgets: FULL over a complete trust graph, tracked in #553. `v1000_dense` p95 dropped from 5.5 s on 16.10, mainly from the narrowed FULL trust-edge query that landed with `3c0002c46`.
+
+**D8 publication burst** (1000 sessions, 3000 users / 88.7k trust edges / 14k Requests):
+
+| level | duration | completed FULLs | FULL/s (agg.) | peak FULL/s (10 s) | max staleness | staleness p95 | RETRY_LATER | max queue age | write p50 | write p95 | write DB p95 | write admission-wait p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| load | 1205 s | 4000 | 3.32 | 79.4 | 53.6 s | 44.9 s | 2098 | 1.0 s | 10.3 ms | **100.2 ms** | 19.9 ms | 36.3 ms |
+| capacity | 2105 s | 7000 | 3.33 | 69.2 | 62.9 s | 50.5 s | 2358 | 1.0 s | 11.9 ms | **256.7 ms** | 22.9 ms | 37.6 ms |
+
+- Freshness holds at both levels (max staleness ≤ 63 s of 300 s, 0 unacknowledged, 0 failed or unfinished writes). Write MeritRank time is 0 (ack-only).
+- D8 write p95 (U53 ack-only write) is **100 ms at load / 257 ms at capacity** against the 70 ms budget: still over, down from 615–1,660 ms on 16.10. At capacity the main→worker hop p95 is 183 ms, so the tail is still worker event-loop stalls during FULLs (the 16.10 diagnosis); the DB part stays ≤ 23 ms. Not tuned here (#553).
+
+**Listener → WS.** No end-to-end listener→WebSocket timer exists in the suite; the recorded proxy is the U15 trigger perf (`anchor_notification_triggers_perf_pg_test`, now `anchor_notification_triggers.json` in the run folder): COMMIT p50/p95 0.88/1.40 ms with the notify triggers vs 0.59/0.73 ms without (+0.28/+0.67 ms); 4 concurrent writers COMMIT p95 5.5 ms; a 5 ms-per-message listener fed 100 back-to-back notifications peaks at a backlog of 36 and drains in 214 ms. The realtime fan-out broadcast window is 30 s (`broadcastWindowMs`).
