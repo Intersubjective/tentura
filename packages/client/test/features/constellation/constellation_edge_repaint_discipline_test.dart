@@ -121,9 +121,11 @@ void main() {
         controller.getPositionForId('fp:am'),
         before + const Offset(40, 30),
       );
-      _expectNewLayers(
-        edgePictureLayers(tester),
-        edgeLayers,
+      // Only the edges that end at the dragged node repaint (live layer); the
+      // cached layer of the other edges is reused.
+      expect(
+        sameEdgeLayers(edgePictureLayers(tester), edgeLayers),
+        isFalse,
         reason: 'A changed endpoint position is a geometry change: repaint',
       );
     });
