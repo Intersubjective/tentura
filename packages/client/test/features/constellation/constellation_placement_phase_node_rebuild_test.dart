@@ -27,6 +27,11 @@ const _movedNodeKey = ValueKey<String>('fr:req-a');
 
 bool _isMovedNode(Widget widget) => widget.key == _movedNodeKey;
 
+/// The container that moves the grabbed node between the shared resting layer
+/// and its own layer rebuilds itself (not the node tiles) on a grab or drop.
+bool _isNodeLayers(Widget widget) =>
+    widget.runtimeType.toString() == '_NodesLayers';
+
 /// Rebuilds of any `NodesView` element, or of anything beneath one (except the
 /// moved node's own subtree), while [body] runs.
 Future<int> _nodeSubtreeRebuildsDuring(Future<void> Function() body) async {
@@ -43,7 +48,9 @@ Future<int> _nodeSubtreeRebuildsDuring(Future<void> Function() body) async {
         return !underNodes;
       });
     }
-    if (underNodes && !underMovedNode) rebuilds++;
+    if (underNodes && !underMovedNode && !_isNodeLayers(element.widget)) {
+      rebuilds++;
+    }
   };
   try {
     await body();

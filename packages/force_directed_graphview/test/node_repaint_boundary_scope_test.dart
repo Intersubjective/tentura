@@ -85,7 +85,7 @@ void main() {
     );
 
     testWidgets(
-      'a node animating towards a new layout is isolated until it settles',
+      'a node animating towards a new layout stays in the shared resting layer',
       (tester) async {
         final harness = await _pumpGraph(tester);
         final controller = harness.controller;
@@ -103,8 +103,9 @@ void main() {
         expect(controller.isLayoutTransitioning, isTrue);
         expect(
           _nodeBoundaryCount(tester, 1),
-          1,
-          reason: 'Node 1 moves every frame of the transition',
+          _nodeBoundaryCount(tester, 3),
+          reason: 'A transition mover shares the resting layer instead of '
+              'getting a boundary (and a GlobalKey re-parent) of its own',
         );
 
         await tester.pumpAndSettle();
@@ -116,7 +117,7 @@ void main() {
     );
 
     testWidgets(
-      'every node animating towards a new layout is isolated, others are not',
+      'nodes animating towards a new layout are not isolated from resting ones',
       (tester) async {
         final harness = await _pumpGraph(tester);
         final controller = harness.controller;
@@ -132,14 +133,15 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
 
         expect(controller.isLayoutTransitioning, isTrue);
-        expect(_nodeBoundaryCount(tester, 1), 1);
-        expect(_nodeBoundaryCount(tester, 2), 1);
         expect(
+          _nodeBoundaryCount(tester, 1),
           _nodeBoundaryCount(tester, 3),
-          0,
+        );
+        expect(
+          _nodeBoundaryCount(tester, 2),
+          _nodeBoundaryCount(tester, 3),
           reason: 'Node 3 keeps its position and is not animating',
         );
-        expect(_nodesLayerBoundaryCount(tester), 2);
 
         await tester.pumpAndSettle();
 
