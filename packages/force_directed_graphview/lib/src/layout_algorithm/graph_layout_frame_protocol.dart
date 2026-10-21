@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:force_directed_graphview/src/layout_algorithm/graph_layout_request.dart';
 import 'package:force_directed_graphview/src/layout_algorithm/scene_layout_algorithm.dart';
 import 'package:force_directed_graphview/src/scene/graph_ids.dart';
@@ -83,24 +85,64 @@ final class GraphLayoutFrameIngress {
 
   /// Yields only accepted frames; fails the stream on rejection or if the
   /// source completes without a terminal frame.
+  ///
+  /// Once the subscriber cancels, the source is cancelled synchronously and
+  /// later frames are dropped unvalidated (an `async*` body would only notice
+  /// the cancel at its next `yield`, and validate the late frame first).
   static Stream<GraphLayoutFrame> enforce(
     Stream<GraphLayoutFrame> source,
     GraphLayoutRequest request,
-  ) async* {
+  ) {
     final ingress = GraphLayoutFrameIngress(request);
+    late final StreamController<GraphLayoutFrame> controller;
+    StreamSubscription<GraphLayoutFrame>? subscription;
     var sawFrame = false;
-    await for (final frame in source) {
-      ingress.accept(frame);
-      sawFrame = true;
-      yield frame;
-      if (frame.isTerminal) {
-        return;
-      }
+
+    void fail(Object error, StackTrace stackTrace) {
+      unawaited(subscription?.cancel());
+      controller
+        ..addError(error, stackTrace)
+        ..close();
     }
-    if (!sawFrame || !ingress.terminalReceived) {
-      throw GraphLayoutFrameProtocolException(
-        sawFrame ? 'stream closed without terminal frame' : 'stream emitted no frames',
-      );
-    }
+
+    controller = StreamController<GraphLayoutFrame>(
+      onListen: () {
+        subscription = source.listen(
+          (frame) {
+            try {
+              ingress.accept(frame);
+            } catch (error, stackTrace) {
+              fail(error, stackTrace);
+              return;
+            }
+            sawFrame = true;
+            controller.add(frame);
+            if (frame.isTerminal) {
+              unawaited(subscription?.cancel());
+              controller.close();
+            }
+          },
+          onError: fail,
+          onDone: () {
+            if (!sawFrame || !ingress.terminalReceived) {
+              fail(
+                GraphLayoutFrameProtocolException(
+                  sawFrame
+                      ? 'stream closed without terminal frame'
+                      : 'stream emitted no frames',
+                ),
+                StackTrace.current,
+              );
+            } else {
+              controller.close();
+            }
+          },
+        );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () => subscription?.cancel(),
+    );
+    return controller.stream;
   }
 }
