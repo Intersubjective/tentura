@@ -158,8 +158,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   bool _autosaveAfterInFlight = false;
 
-  /// Set by [discardDraft]: the user threw the request away, so no autosave
-  /// may bring a draft back (#428).
+  /// Set by [discardDraft] and [deleteDraft]: the user threw the request
+  /// away, so no autosave may bring a draft back (#428, #625).
   bool _discarded = false;
 
   BeaconSaveCommand? _exactRetrySnapshot;
@@ -1416,10 +1416,22 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  Future<void> deleteDraft() async {
+  /// Deletes the saved draft from the editor's Draft menu (#625). Autosave
+  /// stops first, so nothing writes to the deleted id afterwards; an
+  /// autosave already on the wire is waited for. Returns true once the draft
+  /// is gone. With [navigateBack] false the caller leaves the screen.
+  Future<bool> deleteDraft({bool navigateBack = true}) async {
     final id = state.draftId;
-    if (id == null || id.isEmpty) return;
-    emit(state.copyWith(status: StateStatus.isLoading));
+    if (id == null || id.isEmpty) return false;
+    final wasDiscarded = _discarded;
+    _discarded = true;
+    _autosaveTimer?.cancel();
+    _autosaveTimer = null;
+    _autosaveAfterInFlight = false;
+    if (state.isAutosaving && !isClosed) {
+      await stream.firstWhere((s) => !s.isAutosaving);
+    }
+    if (!isClosed) emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.delete(id);
       final creationContext = state.creationContext;
@@ -1427,9 +1439,18 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         await _hierarchyCase?.clearCommandIdentity(creationContext);
       }
       _clearExactRetrySnapshot();
-      _emitNavigateBack();
+      if (!isClosed) emit(state.copyWith(draftId: null));
+      if (navigateBack) {
+        _emitNavigateBack();
+      } else if (!isClosed) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
+      return true;
     } catch (e) {
+      // The draft is still there: keep autosaving it.
+      _discarded = wasDiscarded;
       _emitSnackError(e);
+      return false;
     }
   }
 

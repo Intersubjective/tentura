@@ -403,9 +403,13 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
         status: BeaconStatus.draft,
         hasEverHadCommitter: false,
       );
-      if ((confirmed ?? false) && mounted) {
-        await _beaconCreateCubit.deleteDraft();
-      }
+      if (!(confirmed ?? false) || !mounted) return;
+      // Leave here rather than through the cubit's NavigateBack, which would
+      // maybePop into _leaveForm and ask «Keep this draft?» (#625).
+      final deleted = await _beaconCreateCubit.deleteDraft(
+        navigateBack: false,
+      );
+      if (deleted && mounted) await _exitFlow();
     }
   }
 
