@@ -4930,7 +4930,6 @@
   "beaconReviewReopenAction": "Reopen",
   "beaconReviewCloseNowAction": "Close now",
   "beaconReviewExtendSuccess": "Final check extended",
-  "beaconReviewReopenSuccess": "Request reopened",
   "beaconReviewCloseNowSuccess": "Request closed",
   "beaconReviewReopenTitle": "Reopen request?",
   "beaconReviewReopenBodyNoSent": "The final check stops; saved answers stay drafts. A request can be reopened only once.",
@@ -5133,7 +5132,7 @@
   "beaconStatusHintBlocked": "Resolve open blockers first",
   "beaconStatusHintMarkEnoughHelpFirst": "Mark enough help first",
   "@beaconStatusHintMarkEnoughHelpFirst": {
-    "description": "Status sheet hint on Wrapping up / Closed while the request is Needs more help (e.g. right after a reopen)"
+    "description": "Status sheet hint on Wrapping up / Closed while the request is Needs more help (e.g. after choosing Needs more help on the status sheet during the final check)"
   },
   "beaconStatusHintNotReadyToClose": "Not ready to close yet",
   "beaconStatusHintAuthorOnly": "Only the request author can change this",

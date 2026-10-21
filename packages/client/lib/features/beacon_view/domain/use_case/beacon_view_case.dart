@@ -142,9 +142,11 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
+  /// Sends the cancel mutation only; throws when it fails. The screen
+  /// applies the new status at once and does the single refresh read
+  /// itself, so a failed read is not a failed cancel (#611).
   Future<void> beaconCancel(String beaconId) async {
     await _closureRepository.beaconCancel(beaconId);
-    await _beaconRepository.refreshAndNotify(beaconId);
   }
 
   Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) async {
@@ -159,9 +161,10 @@ final class BeaconViewCase extends UseCaseBase {
   Future<void> beaconReopen(String beaconId) =>
       _closureRepository.beaconReopen(beaconId);
 
+  /// Sends the close-now mutation only; throws when it fails. Like
+  /// [beaconCancel], the screen does the single refresh read (#611).
   Future<void> beaconCloseNow(String beaconId) async {
     await _closureRepository.beaconCloseNow(beaconId);
-    await _beaconRepository.refreshAndNotify(beaconId);
   }
 
   Future<void> archiveBeacon(String beaconId) =>

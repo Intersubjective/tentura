@@ -315,13 +315,14 @@ class ClosureRepository {
     );
   }
 
+  /// Close now always finalizes the Request (closed); no closure state is
+  /// read afterwards, so a failed read cannot pass for a failed close (#611).
   Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) async {
     final before = await fetchState(beaconId);
     await closeNow(beaconId: beaconId, expectedEpoch: before.epoch);
-    final after = await fetchState(beaconId);
     return BeaconLifecycleMutationResult(
       beaconId: beaconId,
-      state: after.status,
+      state: BeaconStatus.closed.smallintValue,
     );
   }
 }

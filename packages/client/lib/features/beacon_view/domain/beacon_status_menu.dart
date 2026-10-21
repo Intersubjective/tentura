@@ -52,8 +52,9 @@ enum BeaconStatusMenuDisabledReason {
   cancelHasCommitters,
   reopenLimitReached,
 
-  /// The request is «Needs more help» (where a reopen lands it): marking
-  /// «Enough help» is the step before wrapping up or closing (B081).
+  /// The request is «Needs more help» (e.g. chosen on the status sheet; a
+  /// reopen lands in Open): marking «Enough help» is the step before
+  /// wrapping up or closing (B081).
   markEnoughHelpFirst,
 }
 

@@ -4670,7 +4670,6 @@
   "beaconReviewReopenAction": "Открыть снова",
   "beaconReviewCloseNowAction": "Закрыть сейчас",
   "beaconReviewExtendSuccess": "Время на итоги продлено",
-  "beaconReviewReopenSuccess": "Запрос снова открыт",
   "beaconReviewCloseNowSuccess": "Запрос закрыт",
   "beaconReviewReopenTitle": "Открыть запрос снова?",
   "beaconReviewReopenBodyNoSent": "Подведение итогов прервётся, сохранённые ответы останутся черновиками. Вернуть запрос можно только один раз.",
