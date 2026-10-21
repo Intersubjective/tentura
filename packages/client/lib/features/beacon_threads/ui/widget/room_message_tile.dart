@@ -2830,12 +2830,6 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   /// The secondary-button pointer currently pressed on the bubble.
   int? _secondaryPointer;
 
-  /// On web the browser's own context menu is turned off while the pointer
-  /// is over a bubble whose menu opens on right-click; the count lets the
-  /// bubbles hand over to each other without re-enabling in between.
-  static int _webMenuSuppressors = 0;
-  bool _suppressingWebMenu = false;
-
   @override
   void initState() {
     super.initState();
@@ -2844,7 +2838,6 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
 
   @override
   void dispose() {
-    _suppressWebMenu(false);
     _focusNode
       ..removeListener(_onFocusChanged)
       ..dispose();
@@ -2854,18 +2847,6 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
 
   void _onFocusChanged() {
     if (mounted) setState(() {});
-  }
-
-  void _suppressWebMenu(bool suppress) {
-    if (!kIsWeb || suppress == _suppressingWebMenu) return;
-    _suppressingWebMenu = suppress;
-    if (suppress) {
-      if (_webMenuSuppressors++ == 0) {
-        unawaited(BrowserContextMenu.disableContextMenu());
-      }
-    } else if (--_webMenuSuppressors == 0) {
-      unawaited(BrowserContextMenu.enableContextMenu());
-    }
   }
 
   /// A raw listener rather than a secondary-tap recognizer: the selectable
@@ -3039,12 +3020,10 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     return MouseRegion(
       onEnter: (_) {
         _hovering = true;
-        _suppressWebMenu(onActions != null);
         _syncToolbar();
       },
       onExit: (_) {
         _hovering = false;
-        _suppressWebMenu(false);
         _syncToolbar();
       },
       child: Stack(

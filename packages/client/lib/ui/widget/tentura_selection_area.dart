@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// Whether [ThemeData.platform] is a desktop coordinator target (mouse select).
 bool tenturaDesktopSelectionEnabledFor(ThemeData theme) {
@@ -26,14 +24,6 @@ class TenturaSelectionArea extends StatefulWidget {
   });
 
   final Widget child;
-
-  /// Whether Flutter's [SelectableRegion] currently wraps its content in the
-  /// browser context-menu view: on web, while [BrowserContextMenu.enabled].
-  /// Replaceable in tests, where `kIsWeb` is always false.
-  @visibleForTesting
-  static bool Function() browserContextMenuEnabled = _browserContextMenuOn;
-
-  static bool _browserContextMenuOn() => kIsWeb && BrowserContextMenu.enabled;
 
   @override
   State<TenturaSelectionArea> createState() => _TenturaSelectionAreaState();
@@ -61,13 +51,6 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
     }
 
     return SelectionArea(
-      // SelectableRegion adds or drops a browser context-menu wrapper when
-      // BrowserContextMenu.enabled flips (chat bubbles flip it on hover,
-      // #456). A rebuild across a flip re-creates the region's inner
-      // SelectionContainer, which re-registers before layout and throws
-      // "Null check operator used on a null value" (grey box, #623). Start a
-      // fresh region instead whenever the flag differs from the last build.
-      key: ValueKey<bool>(TenturaSelectionArea.browserContextMenuEnabled()),
       focusNode: _focusNode,
       contextMenuBuilder: (_, _) => const SizedBox.shrink(),
       child: widget.child,
