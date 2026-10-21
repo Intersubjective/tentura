@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
 import 'package:tentura/features/beacon_threads/ui/widget/thread_host.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
+import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 
@@ -53,23 +54,27 @@ class ThreadDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ThreadHost(
-      child: TenturaChatColumn(
-        child: Column(
-          key: ValueKey(thread.threadId),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: BeaconRoomBody(
-                beaconAuthorId: beaconAuthorId,
-                beaconAuthor: beaconAuthor,
-                onCoordinationSaved: onCoordinationSaved,
-                onOpenCoordinationItem: onOpenCoordinationItem,
-                capabilities: capabilities,
-                postRoot: postRoot,
+    // Right-click on a message opens its actions, so on web the browser's
+    // own menu stays off for as long as the room is up (#456, #623).
+    return BrowserContextMenuHold(
+      child: ThreadHost(
+        child: TenturaChatColumn(
+          child: Column(
+            key: ValueKey(thread.threadId),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: BeaconRoomBody(
+                  beaconAuthorId: beaconAuthorId,
+                  beaconAuthor: beaconAuthor,
+                  onCoordinationSaved: onCoordinationSaved,
+                  onOpenCoordinationItem: onOpenCoordinationItem,
+                  capabilities: capabilities,
+                  postRoot: postRoot,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
