@@ -1139,6 +1139,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Keeps the known beacon id and every already-staged image so a retry never
   /// re-creates the request or re-uploads a staged photo.
   void _emitSaveFailure(BeaconSaveFailure failure) {
+    _keepSaveProgress(failure);
+    _emitSnackError(failure.cause);
+  }
+
+  /// Keeps the beacon id and staged progress of [failure] for a retry.
+  void _keepSaveProgress(BeaconSaveFailure failure) {
     if (!isClosed) {
       emit(
         state.copyWith(
@@ -1156,7 +1162,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         draftSafeTitle: true,
       ),
     );
-    _emitSnackError(failure.cause);
   }
 
   void _emitChildPromotionConflict(BeaconChildPromotionConflict conflict) {
@@ -1700,10 +1705,19 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         ),
       );
       if (navigateBack) {
+        _effects.emit(const ShowMessage(BeaconChangesSavedMessage()));
         _emitNavigateBack();
       }
     } on BeaconSaveFailure catch (e) {
-      _emitSaveFailure(e);
+      if (e.phase == BeaconSavePhase.fields) {
+        _emitSaveFailure(e);
+      } else {
+        // The fields are already saved; only the photos/cover did not go
+        // through. Keep them in the editor for Save changes to send again
+        // instead of a raw error that reads as a failed save (#510).
+        _keepSaveProgress(e);
+        _emitSnackMessage(const BeaconPhotosNotUpdatedMessage());
+      }
     } catch (e) {
       _emitSnackError(e);
     }
