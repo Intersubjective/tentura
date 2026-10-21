@@ -66,9 +66,15 @@ class FcmService extends ServiceBase {
       );
       return NotificationPermissions(authorized: authorized);
     } on Object catch (e, st) {
-      if (!_isUnsupportedBrowserMessaging(e)) rethrow;
-      logger.fine('FCM requestPermission unsupported browser', e, st);
-      fcmLog('FcmService: requestPermission unsupported-browser → denied');
+      if (_isUnsupportedBrowserMessaging(e)) {
+        logger.fine('FCM requestPermission unsupported browser', e, st);
+        fcmLog('FcmService: requestPermission unsupported-browser → denied');
+      } else {
+        // Any other plugin error reads as "not authorized" too: callers
+        // (account-change sync, Settings → Debug) must not crash on it (#607).
+        logger.warning('FCM requestPermission failed', e, st);
+        fcmLog('FcmService: requestPermission failed → denied: $e');
+      }
       return const NotificationPermissions();
     }
   }

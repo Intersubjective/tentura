@@ -222,6 +222,93 @@ void main() {
       expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
     });
   });
+
+  // #607: leaving the editor while an autosave was on the wire waited on
+  // `stream.firstWhere`, which throws a StateError when the cubit closes
+  // (the screen is disposed) before that autosave lands.
+  group('cubit closes while an autosave is in flight (#607)', () {
+    Future<(BeaconCreateCubit, FakeBeaconWritePort, Completer<void>)>
+    inFlight() async {
+      final hold = Completer<void>();
+      final write = FakeBeaconWritePort()..createHold = hold;
+      final cubit =
+          BeaconCreateCubit(
+              beaconCreateCase: fakeBeaconCreateCase(write: write),
+              effects: FakeUiEffectPort(),
+            )
+            ..setAutosaveContext('')
+            ..setTitle('Valid title')
+            ..setDescription('A description that is required.');
+      unawaited(cubit.flushAutosave());
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.isAutosaving, isTrue);
+      return (cubit, write, hold);
+    }
+
+    test('flushAutosave completes without a StateError', () async {
+      final (cubit, _, hold) = await inFlight();
+
+      final flush = cubit.flushAutosave();
+      await cubit.close();
+      hold.complete();
+
+      await expectLater(flush, completes);
+    });
+
+    test('discardDraft completes and still deletes the new draft', () async {
+      final (cubit, write, hold) = await inFlight();
+
+      final discard = cubit.discardDraft();
+      await cubit.close();
+      hold.complete();
+
+      await expectLater(discard, completes);
+      expect(write.deletedIds, ['server-beacon']);
+    });
+  });
+
+  // #607: «Keep draft» is offered only when leaving really keeps one.
+  group('keepsDraftOnLeave (#607)', () {
+    BeaconCreateCubit build(FakeBeaconWritePort write) {
+      final cubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      return cubit..setAutosaveContext('');
+    }
+
+    test('false for a title too short to autosave', () async {
+      final cubit = build(FakeBeaconWritePort())
+        ..setTitle('x' * (kTitleMinLength - 1))
+        ..setDescription('A description that is required.');
+      expect(cubit.keepsDraftOnLeave, isFalse);
+    });
+
+    test('false for a standalone title with no description', () async {
+      final cubit = build(FakeBeaconWritePort())..setTitle('Borrow a ladder');
+      expect(cubit.keepsDraftOnLeave, isFalse);
+    });
+
+    test('true once the form would autosave', () async {
+      final cubit = build(FakeBeaconWritePort())
+        ..setTitle('Borrow a ladder')
+        ..setDescription('Need a 3 m ladder this weekend.');
+      expect(cubit.keepsDraftOnLeave, isTrue);
+    });
+
+    test('true for a saved draft even after the title is cut short', () async {
+      final write = FakeBeaconWritePort();
+      final cubit = build(write)
+        ..setTitle('Borrow a ladder')
+        ..setDescription('Need a 3 m ladder this weekend.');
+      await cubit.flushAutosave();
+      expect(cubit.state.draftId, isNotNull);
+
+      cubit.setTitle('ab');
+      expect(cubit.keepsDraftOnLeave, isTrue);
+    });
+  });
 }
 
 class _HeldUpdateDraftPort extends FakeBeaconWritePort {

@@ -329,6 +329,25 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     _leaveInProgress = true;
     try {
       _formKey.currentState?.save();
+      if (askAboutDraft &&
+          _hasDraftContent &&
+          !_beaconCreateCubit.keepsDraftOnLeave) {
+        // Too little for a draft (#607): «Keep draft» would keep nothing.
+        final l10n = L10n.of(context)!;
+        final discard = await TenturaConfirmDialog.show(
+          context: context,
+          title: l10n.beaconCreateLeaveUnsavedTitle,
+          content: l10n.beaconCreateLeaveUnsavedBody,
+          confirmLabel: l10n.beaconCreateLeaveUnsavedDiscard,
+          cancelLabel: l10n.beaconCreateLeaveKeepEditing,
+          emphasizeCancel: true,
+        );
+        if (discard != true || !mounted) return;
+        await _beaconCreateCubit.discardDraft();
+        if (!mounted) return;
+        await _exitFlow();
+        return;
+      }
       if (askAboutDraft && _hasDraftContent) {
         final l10n = L10n.of(context)!;
         final discard = await TenturaConfirmDialog.show(
