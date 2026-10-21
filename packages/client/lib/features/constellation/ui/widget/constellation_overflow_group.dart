@@ -60,7 +60,7 @@ Size _measureChip(
 
 /// Labelled expansion control for a person's request satellites hidden by the
 /// label budget. A secondary tap on the author node may toggle the same state.
-class ConstellationOverflowGroup extends StatelessWidget {
+class ConstellationOverflowGroup extends StatefulWidget {
   const ConstellationOverflowGroup({
     required this.authorId,
     required this.authorName,
@@ -73,11 +73,26 @@ class ConstellationOverflowGroup extends StatelessWidget {
   final int hiddenCount;
 
   @override
+  State<ConstellationOverflowGroup> createState() =>
+      _ConstellationOverflowGroupState();
+}
+
+class _ConstellationOverflowGroupState
+    extends State<ConstellationOverflowGroup> {
+  /// Expansion the chip last drew. The expanded set lives on the cubit, not in
+  /// the state, so this is the only baseline `buildWhen` can compare against.
+  bool? _shownExpanded;
+
+  String get authorId => widget.authorId;
+
+  @override
   Widget build(BuildContext context) {
     return BlocBuilder<ConstellationCubit, ConstellationState>(
-      buildWhen: (previous, current) =>
-          previous.composition != current.composition ||
-          previous.graphRevision != current.graphRevision,
+      buildWhen: (_, _) =>
+          context.read<ConstellationCubit>().isSatelliteOverflowExpanded(
+            authorId,
+          ) !=
+          _shownExpanded,
       builder: (context, state) => _buildChip(context),
     );
   }
@@ -97,6 +112,9 @@ class ConstellationOverflowGroup extends StatelessWidget {
   Widget _buildChip(BuildContext context) {
     final cubit = context.read<ConstellationCubit>();
     final expanded = cubit.isSatelliteOverflowExpanded(authorId);
+    _shownExpanded = expanded;
+    final hiddenCount = widget.hiddenCount;
+    final authorName = widget.authorName;
     if (!expanded && hiddenCount <= 0) {
       return const SizedBox.shrink();
     }
