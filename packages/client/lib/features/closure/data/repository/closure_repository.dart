@@ -1,5 +1,6 @@
 import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -303,13 +304,14 @@ class ClosureRepository {
     );
   }
 
+  /// Reopen cancels the epoch: there is no closure state left to read
+  /// afterwards (it answers 1002 "Id not found"), so none is read (#366).
   Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) async {
     final before = await fetchState(beaconId);
     await reopen(beaconId: beaconId, expectedEpoch: before.epoch);
-    final after = await fetchState(beaconId);
     return BeaconLifecycleMutationResult(
       beaconId: beaconId,
-      state: after.status,
+      state: BeaconStatus.open.smallintValue,
     );
   }
 
