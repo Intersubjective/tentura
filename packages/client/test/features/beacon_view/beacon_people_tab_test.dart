@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -1030,5 +1031,175 @@ void main() {
     expect(find.text(l10n.beaconPeopleRoleAuthor), findsWidgets);
     expect(find.text('Helper One'), findsOneWidget);
     expect(find.text('Helper Two'), findsOneWidget);
+  });
+
+  group('#489 leaving stays possible while the Request is wrapping up', () {
+    BeaconViewState acknowledgedHelperState(BeaconStatus status) {
+      final base = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: const Profile(id: 'h1', displayName: 'Helper'),
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+            stakeState: CommitmentStakeState.acknowledged,
+            roomAccess: RoomAccessBits.admitted,
+          ),
+        ],
+        roomParticipants: [
+          BeaconParticipant(
+            id: 'p-h1',
+            beaconId: 'B1',
+            userId: 'h1',
+            userTitle: 'Helper',
+            role: BeaconParticipantRoleBits.helper,
+            status: BeaconParticipantStatusBits.committed,
+            roomAccess: RoomAccessBits.admitted,
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+        ],
+      );
+      return base.copyWith(beacon: base.beacon.copyWith(status: status));
+    }
+
+    BeaconViewState ownOfferState(BeaconStatus status) {
+      const helper = Profile(id: 'h1', displayName: 'Helper');
+      final base = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help Monday morning',
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+        ],
+        myProfile: helper,
+      );
+      return base.copyWith(beacon: base.beacon.copyWith(status: status));
+    }
+
+    Future<void> pumpPeople(WidgetTester tester) async {
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: lookupL10n(const Locale('en')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('author still sees End participation in Wrapping up', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = acknowledgedHelperState(BeaconStatus.reviewOpen);
+
+      await pumpPeople(tester);
+
+      expect(find.text(l10n.helpOfferReleaseCommitment), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.helpOfferRelease('h1'))),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('author sees no End participation once closed', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = acknowledgedHelperState(BeaconStatus.closed);
+
+      await pumpPeople(tester);
+
+      expect(find.text(l10n.helpOfferReleaseCommitment), findsNothing);
+    });
+
+    testWidgets('helper still sees Withdraw on their own card in Wrapping up', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = ownOfferState(BeaconStatus.reviewOpen);
+
+      await pumpPeople(tester);
+
+      expect(find.text(l10n.helpOffersTabActionWithdraw), findsOneWidget);
+    });
+
+    BeaconViewState mixedState(BeaconStatus status) {
+      final base = acknowledgedHelperState(status);
+      return base.copyWith(
+        helpOffers: [
+          ...base.helpOffers,
+          TimelineHelpOffer(
+            user: const Profile(id: 'h2', displayName: 'Newcomer'),
+            message: 'I could also help',
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+        ],
+      );
+    }
+
+    testWidgets('open: a pending offer still gets Accept and Decline', (
+      tester,
+    ) async {
+      // Control for the Wrapping-up case below.
+      // Two cards with action rows do not fit the default 800x600 surface.
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      _state = mixedState(BeaconStatus.open);
+
+      await pumpPeople(tester);
+
+      expect(
+        find.byKey(TestIds.key(TestIds.helpOfferAccept('h2'))),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(TestIds.key(TestIds.helpOfferDecline('h2'))),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'Wrapping up: End participation shows, but a pending offer gets no '
+      'Accept or Decline',
+      (tester) async {
+        // Two cards with action rows do not fit the default 800x600 surface.
+        await tester.binding.setSurfaceSize(const Size(800, 2000));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        _state = mixedState(BeaconStatus.reviewOpen);
+
+        await pumpPeople(tester);
+
+        expect(
+          find.byKey(TestIds.key(TestIds.helpOfferRelease('h1'))),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(TestIds.key(TestIds.helpOfferAccept('h2'))),
+          findsNothing,
+        );
+        expect(
+          find.byKey(TestIds.key(TestIds.helpOfferDecline('h2'))),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets('helper sees no Withdraw on their own card once closed', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = ownOfferState(BeaconStatus.closed);
+
+      await pumpPeople(tester);
+
+      expect(find.text(l10n.helpOffersTabActionWithdraw), findsNothing);
+    });
   });
 }

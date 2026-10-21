@@ -130,8 +130,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// Non-author may offer help only when status is open-family (matches server).
   bool get allowsNewHelpOfferAsNonAuthor => isRequest && status.isOpenFamily;
 
-  /// Help offerer may withdraw only while beacon is open-family (not Wrapping up).
-  bool get allowsWithdrawWhileHelpOffered => isRequest && status.isOpenFamily;
+  /// Help offerer may withdraw in every non-final status, Wrapping up included.
+  bool get allowsWithdrawWhileHelpOffered =>
+      isRequest && status.allowsCoordination;
 
   bool get allowsCoordination => isRequest && status.allowsCoordination;
 

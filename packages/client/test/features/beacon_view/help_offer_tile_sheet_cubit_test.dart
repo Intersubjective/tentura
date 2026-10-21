@@ -19,6 +19,7 @@ FakeHelpOfferCoordinationRow _row({
   int offerKind = 0,
   int status = 0,
   String message = 'I can help',
+  int stakeState = 0,
 }) {
   final user = Profile(id: userId, displayName: 'Offerer');
   final now = DateTime.utc(2026, 9, 1);
@@ -40,7 +41,7 @@ FakeHelpOfferCoordinationRow _row({
     admissionAction: null,
     lastDeclineReason: null,
     lastRemoveReason: null,
-    stakeState: 0,
+    stakeState: stakeState,
     offerKind: offerKind,
     isDirectAuthorForward: false,
     authorSeenAt: null,
@@ -56,6 +57,27 @@ class _FailAcceptCoordination extends FakeBeaconViewCoordinationRepository {
     required String offerUserId,
   }) async {
     throw StateError('accept failed');
+  }
+}
+
+class _ReleaseCoordination extends FakeBeaconViewCoordinationRepository {
+  _ReleaseCoordination({required super.rows});
+
+  final releaseCalls =
+      <({String beaconId, String offerUserId, String reason})>[];
+
+  @override
+  Future<({BeaconStatus status, DateTime? updatedAt})> releaseCommitment({
+    required String beaconId,
+    required String offerUserId,
+    required String reason,
+  }) async {
+    releaseCalls.add((
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      reason: reason,
+    ));
+    return (status: BeaconStatus.reviewOpen, updatedAt: DateTime.utc(2026));
   }
 }
 
@@ -193,6 +215,72 @@ void main() {
     expect(await cubit.accept(), isFalse);
 
     await cubit.close();
+  });
+
+  group('#489 ending participation while wrapping up', () {
+    // 2 = CommitmentStakeState.acknowledged (DB ordinal).
+    const acknowledged = 2;
+
+    Future<({HelpOfferTileSheetCubit cubit, _ReleaseCoordination coord})> build(
+      BeaconStatus status, {
+      int stakeState = acknowledged,
+    }) async {
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (id) async => Beacon.empty.copyWith(
+          id: id,
+          status: status,
+          author: author,
+        );
+      final coord = _ReleaseCoordination(
+        rows: [_row(userId: offerer.id, stakeState: stakeState)],
+      );
+      final cubit = HelpOfferTileSheetCubit(
+        beaconId: 'b1',
+        offerUserId: offerer.id,
+        myProfile: author,
+        beaconViewCase: buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          coordinationRepo: coord,
+        ),
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.load();
+      return (cubit: cubit, coord: coord);
+    }
+
+    test('author can end an acknowledged helper in reviewOpen', () async {
+      final (:cubit, :coord) = await build(BeaconStatus.reviewOpen);
+
+      expect(await cubit.release(reason: 'no-show'), isTrue);
+      expect(coord.releaseCalls, [
+        (beaconId: 'b1', offerUserId: offerer.id, reason: 'no-show'),
+      ]);
+
+      await cubit.close();
+    });
+
+    test('admitting a pending offer stays disabled in reviewOpen', () async {
+      final (:cubit, :coord) = await build(
+        BeaconStatus.reviewOpen,
+        stakeState: 1, // offered
+      );
+
+      expect(await cubit.accept(), isFalse);
+      expect(coord.acceptHelpOfferCalls, isEmpty);
+      expect(await cubit.decline(reason: 'late'), isFalse);
+      expect(coord.declineHelpOfferCalls, isEmpty);
+
+      await cubit.close();
+    });
+
+    test('closed Request: release is refused', () async {
+      final (:cubit, :coord) = await build(BeaconStatus.closed);
+
+      expect(await cubit.release(reason: 'no-show'), isFalse);
+      expect(coord.releaseCalls, isEmpty);
+
+      await cubit.close();
+    });
   });
 
   test('backup offer kind disables admit', () async {
