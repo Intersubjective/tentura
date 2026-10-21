@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -68,19 +68,34 @@ class _ConstellationViewportOverlayState
   final _chipByAuthor = <String, Widget>{};
   // Scale and viewport size: the camera facts a translation leaves alone.
   late final ValueNotifier<(double, Size?)> _cameraShape;
+  // Bumped by every scene change except a pure drag move of the same nodes.
+  final _structure = ValueNotifier<int>(0);
+  // Drives the cheap per-move layer: camera pans and drag moves.
+  final _frameTick = ValueNotifier<int>(0);
+  late GraphSceneSnapshot<NodeDetails, EdgeDetails> _seenSnapshot;
+  // Dragged nodes at placement time: their scene point and cached plate.
+  final _placementScene = <GraphNodeId, Offset>{};
+  final _draggedPlates = <GraphNodeId, Widget>{};
+  final _chipAuthorGraphId = <String, GraphNodeId>{};
 
   @override
   void initState() {
     super.initState();
     final controller = widget.cubit.graphController;
     _cameraShape = ValueNotifier(_shapeOf(controller));
+    _seenSnapshot = controller.renderSnapshot;
     controller.cameraRevision.addListener(_onCamera);
+    controller.addListener(_onController);
   }
 
   @override
   void dispose() {
-    widget.cubit.graphController.cameraRevision.removeListener(_onCamera);
+    final controller = widget.cubit.graphController;
+    controller.cameraRevision.removeListener(_onCamera);
+    controller.removeListener(_onController);
     _cameraShape.dispose();
+    _structure.dispose();
+    _frameTick.dispose();
     super.dispose();
   }
 
@@ -89,6 +104,48 @@ class _ConstellationViewportOverlayState
 
   void _onCamera() {
     _cameraShape.value = _shapeOf(widget.cubit.graphController);
+    _frameTick.value++;
+  }
+
+  void _onController() {
+    final next = widget.cubit.graphController.renderSnapshot;
+    final previous = _seenSnapshot;
+    _seenSnapshot = next;
+    if (_isDragMoveOnly(previous, next)) {
+      _frameTick.value++;
+    } else {
+      _structure.value++;
+    }
+  }
+
+  static bool _isDragMoveOnly(
+    GraphSceneSnapshot<NodeDetails, EdgeDetails> a,
+    GraphSceneSnapshot<NodeDetails, EdgeDetails> b,
+  ) {
+    if (!identical(a.topology, b.topology) ||
+        !identical(a.layout, b.layout) ||
+        !identical(a.transition, b.transition) ||
+        !mapEquals(a.seedPositions, b.seedPositions)) {
+      return false;
+    }
+    final pa = a.presentation;
+    final pb = b.presentation;
+    if (pa.overrides.length != pb.overrides.length ||
+        !listEquals(pa.paintOrder, pb.paintOrder) ||
+        !mapEquals(pa.holds, pb.holds)) {
+      return false;
+    }
+    var moved = false;
+    for (final entry in pb.overrides.entries) {
+      final old = pa.overrides[entry.key];
+      if (old == null) {
+        return false;
+      }
+      if (old != entry.value) {
+        moved = true;
+      }
+    }
+    return moved;
   }
 
   void _maybeClearLabelCache(BuildContext context, int nodeCount) {
@@ -168,7 +225,7 @@ class _ConstellationViewportOverlayState
         }
         final controller = widget.cubit.graphController;
         return ListenableBuilder(
-          listenable: Listenable.merge([controller, _cameraShape]),
+          listenable: Listenable.merge([_structure, _cameraShape]),
           builder: (context, _) {
             if (!controller.canLayout) {
               widget.frameHolder.frame = null;
@@ -361,6 +418,7 @@ class _ConstellationViewportOverlayState
               Theme.of(context),
               _cacheLocale,
               _cacheTextScaleKey,
+              ...(snapshot.presentation.overrides.keys.toList()..sort()),
               for (final input in inputs)
                 (
                   input.id,
@@ -383,6 +441,18 @@ class _ConstellationViewportOverlayState
               _placementOrigin = origin;
               _labelLayer = null;
               _chipByAuthor.clear();
+              _draggedPlates.clear();
+              _placementScene.clear();
+              _chipAuthorGraphId.clear();
+              for (final id in snapshot.presentation.overrides.keys) {
+                final point = snapshot.resolvePosition(id);
+                if (point != null) {
+                  _placementScene[id] = Offset(point.x, point.y);
+                }
+              }
+              for (final chip in chipInputs) {
+                _chipAuthorGraphId[chip.authorId] = chip.authorGraphId;
+              }
               _placementFrame = computeConstellationPresentationFrame(
                 snapshot: snapshot,
                 cameraRevision: controller.cameraRevision.value,
@@ -423,22 +493,25 @@ class _ConstellationViewportOverlayState
                   ),
                   _ => ('', 1, tt.graphLabelMaxWidthPerson),
                 };
-                labelWidgets.add(
-                  Positioned.fromRect(
-                    rect: labelRect,
-                    child: IgnorePointer(
-                      child: ExcludeSemantics(
-                        child: _LabelPlate(
-                          key: ValueKey('constellation.label.$graphId'),
-                          text: text,
-                          maxLines: maxLines,
-                          plateWidth: plateWidth,
-                          style: labelStyle,
-                          padding: labelPadding,
-                        ),
-                      ),
+                final plate = IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: _LabelPlate(
+                      key: ValueKey('constellation.label.$graphId'),
+                      text: text,
+                      maxLines: maxLines,
+                      plateWidth: plateWidth,
+                      style: labelStyle,
+                      padding: labelPadding,
                     ),
                   ),
+                );
+                // A dragged node's plate follows it outside the cached layer.
+                if (_placementScene.containsKey(graphId)) {
+                  _draggedPlates[graphId] = plate;
+                  continue;
+                }
+                labelWidgets.add(
+                  Positioned.fromRect(rect: labelRect, child: plate),
                 );
               }
               return Stack(
@@ -449,14 +522,33 @@ class _ConstellationViewportOverlayState
 
             // A pure pan only moves the cached layers; nothing above re-runs.
             return ValueListenableBuilder<int>(
-              valueListenable: controller.cameraRevision,
+              valueListenable: _frameTick,
               builder: (context, _, _) {
                 final origin = controller.sceneToViewportLocal(Offset.zero);
-                final frame = _placementFrame!.translated(
-                  snapshot: snapshot,
-                  cameraRevision: controller.cameraRevision.value,
-                  delta: origin - _placementOrigin,
-                );
+                final nodeDeltas = <GraphNodeId, Offset>{};
+                for (final entry in _placementScene.entries) {
+                  final now = controller.getPositionOrNullForId(entry.key);
+                  if (now != null) {
+                    nodeDeltas[entry.key] = (now - entry.value) * scale;
+                  }
+                }
+                final chipDeltas = <String, Offset>{};
+                for (final entry in _chipAuthorGraphId.entries) {
+                  final delta = nodeDeltas[entry.value];
+                  if (delta != null) {
+                    chipDeltas[entry.key] = delta;
+                  }
+                }
+                final frame = _placementFrame!
+                    .translated(
+                      snapshot: controller.renderSnapshot,
+                      cameraRevision: controller.cameraRevision.value,
+                      delta: origin - _placementOrigin,
+                    )
+                    .withDragShifts(
+                      nodeDeltas: nodeDeltas,
+                      chipDeltas: chipDeltas,
+                    );
                 widget.frameHolder.frame = frame;
 
                 final chipWidgets = <Widget>[];
@@ -485,6 +577,12 @@ class _ConstellationViewportOverlayState
                   );
                 }
 
+                final draggedLabels = <Widget>[
+                  for (final entry in _draggedPlates.entries)
+                    if (frame.labels[entry.key] case final rect?)
+                      Positioned.fromRect(rect: rect, child: entry.value),
+                ];
+
                 final postChipWidgets = <Widget>[];
                 if (selectedRequestId != null) {
                   final count =
@@ -495,12 +593,10 @@ class _ConstellationViewportOverlayState
                   final postGraphId = 'fr:$selectedRequestId';
                   final scenePoint =
                       count > 0 && nodeByGraphId.containsKey(postGraphId)
-                      ? snapshot.resolvePosition(postGraphId)
+                      ? controller.getPositionOrNullForId(postGraphId)
                       : null;
                   if (scenePoint != null) {
-                    final centre = controller.sceneToViewportLocal(
-                      Offset(scenePoint.x, scenePoint.y),
-                    );
+                    final centre = controller.sceneToViewportLocal(scenePoint);
                     final chipSize = constellationOverflowChipSize(
                       context,
                       '+$count',
@@ -530,6 +626,7 @@ class _ConstellationViewportOverlayState
                       offset: origin - _placementOrigin,
                       child: RepaintBoundary(child: _labelLayer),
                     ),
+                    ...draggedLabels,
                     ...chipWidgets,
                     ...postChipWidgets,
                   ],

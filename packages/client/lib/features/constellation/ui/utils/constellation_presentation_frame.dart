@@ -119,6 +119,34 @@ final class ConstellationPresentationFrame {
       forcedLabels: forcedLabels,
     );
   }
+
+  /// Moves the rects of nodes (and their chips) dragged since placement.
+  ConstellationPresentationFrame withDragShifts({
+    required Map<GraphNodeId, Offset> nodeDeltas,
+    required Map<String, Offset> chipDeltas,
+  }) {
+    if (nodeDeltas.isEmpty && chipDeltas.isEmpty) {
+      return this;
+    }
+    Map<K, Rect> shift<K>(Map<K, Rect> rects, Map<K, Offset> deltas) => {
+      for (final entry in rects.entries)
+        entry.key: switch (deltas[entry.key]) {
+          final delta? => entry.value.shift(delta),
+          null => entry.value,
+        },
+    };
+    return ConstellationPresentationFrame(
+      snapshot: snapshot,
+      cameraRevision: cameraRevision,
+      detail: detail,
+      paintOrder: paintOrder,
+      bodies: shift(bodies, nodeDeltas),
+      labels: shift(labels, nodeDeltas),
+      tapTargets: shift(tapTargets, nodeDeltas),
+      chips: shift(chips, chipDeltas),
+      forcedLabels: forcedLabels,
+    );
+  }
 }
 
 ConstellationPresentationFrame computeConstellationPresentationFrame({
