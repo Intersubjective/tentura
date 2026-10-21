@@ -20,21 +20,30 @@ const _ids = ['a', 'b', 'c', 'd', 'e', 'f'];
 bool _isNodesView(Widget widget) =>
     widget.runtimeType.toString() == 'NodesView';
 
-/// Rebuilds of any `NodesView` element, or of anything beneath one, while
-/// [body] runs.
+/// The one node the tests grab and move. A moving node is isolated into its
+/// own repaint boundary, which re-parents its content and rebuilds it; every
+/// other node must stay untouched.
+const _movedNodeKey = ValueKey<String>('fr:req-a');
+
+bool _isMovedNode(Widget widget) => widget.key == _movedNodeKey;
+
+/// Rebuilds of any `NodesView` element, or of anything beneath one (except the
+/// moved node's own subtree), while [body] runs.
 Future<int> _nodeSubtreeRebuildsDuring(Future<void> Function() body) async {
   var rebuilds = 0;
   final previous = debugOnRebuildDirtyWidget;
   debugOnRebuildDirtyWidget = (element, builtOnce) {
     previous?.call(element, builtOnce);
     var underNodes = _isNodesView(element.widget);
+    var underMovedNode = _isMovedNode(element.widget);
     if (!underNodes) {
       element.visitAncestorElements((ancestor) {
+        underMovedNode = underMovedNode || _isMovedNode(ancestor.widget);
         underNodes = _isNodesView(ancestor.widget);
         return !underNodes;
       });
     }
-    if (underNodes) rebuilds++;
+    if (underNodes && !underMovedNode) rebuilds++;
   };
   try {
     await body();

@@ -23,8 +23,9 @@ class NodesView extends StatelessWidget {
           id: LayoutId(
             key: ValueKey<String>(id),
             id: id,
-            child: RepaintBoundary(
+            child: _NodeIsolation(
               key: ValueKey<String>(id),
+              id: id,
               child: configuration.nodeBuilder.build(
                 context,
                 scope.snapshot.topology.nodesById[id]!.payload,
@@ -33,6 +34,67 @@ class NodesView extends StatelessWidget {
           ),
       },
     );
+  }
+}
+
+/// Gives a node its own repaint boundary only while it is being moved
+/// (dragged or animating towards a new layout), so resting nodes paint into
+/// the shared scene layer instead of each adding a picture layer.
+class _NodeIsolation extends StatefulWidget {
+  const _NodeIsolation({
+    required this.id,
+    required this.child,
+    super.key,
+  });
+
+  final GraphNodeId id;
+  final Widget child;
+
+  @override
+  State<_NodeIsolation> createState() => _NodeIsolationState();
+}
+
+class _NodeIsolationState extends State<_NodeIsolation> {
+  /// Keeps the node content's state when the boundary is added or removed.
+  final _contentKey = GlobalKey();
+
+  GraphController<dynamic, dynamic>? _controller;
+  bool _moving = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = InheritedConfiguration.controllerOf(context);
+    if (!identical(controller, _controller)) {
+      _controller?.removeListener(_onSceneChanged);
+      _controller = controller..addListener(_onSceneChanged);
+    }
+    _moving = _isMoving();
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onSceneChanged);
+    super.dispose();
+  }
+
+  bool _isMoving() {
+    final snapshot = _controller!.renderSnapshot;
+    return snapshot.presentation.overrides.containsKey(widget.id) ||
+        (snapshot.transition?.positions.containsKey(widget.id) ?? false);
+  }
+
+  void _onSceneChanged() {
+    final moving = _isMoving();
+    if (moving != _moving) {
+      setState(() => _moving = moving);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = KeyedSubtree(key: _contentKey, child: widget.child);
+    return _moving ? RepaintBoundary(child: content) : content;
   }
 }
 
