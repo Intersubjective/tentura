@@ -17,6 +17,7 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -82,6 +83,12 @@ class _FakeRoomHost implements RoomHost {
   @override
   Stream<void> get changes => _changes.stream;
 
+  /// The owner approved the viewer: the host flips and notifies.
+  void admit() {
+    isAdmissionBlocked = false;
+    _changes.add(null);
+  }
+
   Future<void> close() => _changes.close();
 }
 
@@ -104,8 +111,11 @@ class _ScriptedThreadsCubit extends Mock implements ThreadsCubit {
     _controller.add(next);
   }
 
+  /// Every `fetch` the surface asked for (the cubit itself does nothing).
+  final fetches = <bool>[];
+
   @override
-  Future<void> fetch({bool silent = false}) async {}
+  Future<void> fetch({bool silent = false}) async => fetches.add(silent);
 
   @override
   Future<void> close() => _controller.close();
@@ -379,6 +389,91 @@ void main() {
       expect(reads.created, 0);
       expect(find.byType(BeaconRoomComposer), findsNothing);
       expect(find.text(l10n.beaconItemsEmptyPlaceholder), findsOneWidget);
+    });
+  });
+
+  // #609 (from #484): a viewer admitted while the thread list is failed
+  // stayed on a spinner until the room was reopened — the room was set up
+  // once, while the viewer was still blocked, and never again; and nothing
+  // retried the failed list.
+  group('#609 a viewer admitted while the list is failed gets the room', () {
+    testWidgets('admitted with the list still failed: room and composer', (
+      tester,
+    ) async {
+      final host = _FakeRoomHost()..isAdmissionBlocked = true;
+      final threads = _ScriptedThreadsCubit(_failedList());
+      await _pumpSurface(tester, host: host, threads: threads);
+      await _pumpUntilRoomBody(tester);
+      expect(find.text(l10n.beaconRoomWaitingForApproval), findsOneWidget);
+
+      host.admit();
+      await _pumpUntilRoomBody(tester);
+
+      expect(find.text(l10n.beaconRoomWaitingForApproval), findsNothing);
+      expect(find.byType(BeaconRoomBody), findsOneWidget);
+      expect(find.byType(BeaconRoomComposer), findsOneWidget);
+    });
+
+    testWidgets('admission retries the failed thread list', (tester) async {
+      final host = _FakeRoomHost()..isAdmissionBlocked = true;
+      final threads = _ScriptedThreadsCubit(_failedList());
+      await _pumpSurface(tester, host: host, threads: threads);
+      await _pumpUntilRoomBody(tester);
+      expect(threads.fetches, isEmpty);
+
+      host.admit();
+      await _pumpUntilRoomBody(tester);
+
+      expect(threads.fetches, isNotEmpty);
+      // A background retry: the room already shown does not blink.
+      expect(threads.fetches, everyElement(isTrue));
+    });
+
+    testWidgets('the retried list brings General: the room opens on it', (
+      tester,
+    ) async {
+      final reads = _RoomReads();
+      final host = _FakeRoomHost()..isAdmissionBlocked = true;
+      // Non-member: the server omits General, so the list is empty.
+      final threads = _ScriptedThreadsCubit(ThreadsState(myUserId: _author.id));
+      await _pumpSurface(tester, host: host, threads: threads, reads: reads);
+      await _pumpUntilRoomBody(tester);
+      expect(reads.created, 0);
+
+      host.admit();
+      await tester.pump();
+      threads.push(
+        ThreadsState(
+          myUserId: _author.id,
+          threads: const [
+            RequestThread(
+              threadId: RequestThread.generalId,
+              kind: RequestThreadKind.general,
+            ),
+          ],
+        ),
+      );
+      await _pumpUntilRoomBody(tester);
+
+      expect(find.byType(BeaconRoomBody), findsOneWidget);
+      expect(find.byType(BeaconRoomComposer), findsOneWidget);
+    });
+
+    testWidgets('guard: still waiting — no retry, no room', (tester) async {
+      final reads = _RoomReads();
+      final host = _FakeRoomHost()..isAdmissionBlocked = true;
+      final threads = _ScriptedThreadsCubit(_failedList());
+      await _pumpSurface(tester, host: host, threads: threads, reads: reads);
+      await _pumpUntilRoomBody(tester);
+
+      // An unrelated host change while still blocked.
+      host._changes.add(null);
+      threads.push(_failedList());
+      await _pumpUntilRoomBody(tester);
+
+      expect(threads.fetches, isEmpty);
+      expect(reads.created, 0);
+      expect(find.text(l10n.beaconRoomWaitingForApproval), findsOneWidget);
     });
   });
 }
