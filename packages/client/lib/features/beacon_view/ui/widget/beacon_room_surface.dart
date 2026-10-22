@@ -55,6 +55,10 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
   RequestThread? _generalThread;
   var _roomReady = false;
   late Stream<void> _hostChanges = widget.host.changes;
+  late bool _wasAdmissionBlocked;
+  StreamSubscription<void>? _hostSub;
+  StreamSubscription<ThreadsState>? _threadsSub;
+  var _ensuring = false;
 
   static const _fallbackGeneral = RequestThread(
     threadId: RequestThread.generalId,
@@ -81,7 +85,15 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
   @override
   void initState() {
     super.initState();
+    // Read now, not lazily on the first change: by then the host has already
+    // flipped and the blocked -> admitted transition would be missed.
+    _wasAdmissionBlocked = widget.host.isAdmissionBlocked;
+    _hostSub = widget.host.changes.listen((_) => _onHostChanged());
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _threadsSub = context.read<ThreadsCubit>().stream.listen(
+        (_) => unawaited(_ensureRoom()),
+      );
       unawaited(_ensureRoom());
     });
   }
@@ -89,16 +101,50 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
   @override
   void didUpdateWidget(covariant BeaconRoomSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.host != widget.host) _hostChanges = widget.host.changes;
+    if (oldWidget.host != widget.host) {
+      _hostChanges = widget.host.changes;
+      unawaited(_hostSub?.cancel());
+      _wasAdmissionBlocked = widget.host.isAdmissionBlocked;
+      _hostSub = widget.host.changes.listen((_) => _onHostChanged());
+    }
   }
 
   @override
   void dispose() {
+    unawaited(_hostSub?.cancel());
+    unawaited(_threadsSub?.cancel());
     widget.roomLease.release(this);
     super.dispose();
   }
 
+  /// #609: a viewer admitted after the room was first set up (e.g. while the
+  /// thread list was failed) gets the room now, and the thread list is
+  /// retried in the background when it holds no General for them yet.
+  void _onHostChanged() {
+    final blocked = widget.host.isAdmissionBlocked;
+    final admitted = _wasAdmissionBlocked && !blocked;
+    _wasAdmissionBlocked = blocked;
+    if (!admitted || !mounted) return;
+    final threadsCubit = context.read<ThreadsCubit>();
+    if (threadsCubit.state.general == null) {
+      unawaited(threadsCubit.fetch(silent: true));
+    }
+    unawaited(_ensureRoom());
+  }
+
+  /// Sets the room up once; re-run on admission and on thread list changes
+  /// until it is (#609), so a later General or admission is not missed.
   Future<void> _ensureRoom() async {
+    if (_ensuring || _generalThread != null) return;
+    _ensuring = true;
+    try {
+      await _setUpRoom();
+    } finally {
+      _ensuring = false;
+    }
+  }
+
+  Future<void> _setUpRoom() async {
     if (!mounted || _isLegacyThreadId()) return;
 
     final threadsCubit = context.read<ThreadsCubit>();
