@@ -22,6 +22,7 @@ import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -1261,6 +1262,7 @@ class RoomCubit extends Cubit<RoomState> {
         messages: _sortMessages(
           _dedupeMessages([...state.messages, localMessage]),
         ),
+        sendFailedOffline: false,
       ),
     );
     try {
@@ -1323,6 +1325,10 @@ class RoomCubit extends Cubit<RoomState> {
           messages: state.messages
               .where((message) => message.id != localId)
               .toList(),
+          // No connection: the composer shows «Not sent» with Retry (#513).
+          // A refusal from the server keeps the snackbar below only.
+          sendFailedOffline:
+              e is ConnectionUplinkException || e is TimeoutException,
         ),
       );
       _flushDeferredOwnPaints();

@@ -151,13 +151,17 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
   double height = 720,
   bool enableComposer = true,
   Locale locale = const Locale('en'),
+
+  /// A harness cubit subclass to use instead of a plain one (it must have
+  /// been created with `roomState`).
+  RoomBodyHarnessCubit? cubit,
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
 
   final profileCubit = RoomBodyHarnessProfileCubit(viewer);
   final presenceCubit = RoomBodyHarnessPresenceCubit();
-  final roomCubit = RoomBodyHarnessCubit(roomState);
+  final roomCubit = cubit ?? RoomBodyHarnessCubit(roomState);
 
   getIt.registerSingleton<ProfileCubit>(profileCubit);
   getIt.registerSingleton<ImageRepository>(ImageRepository());

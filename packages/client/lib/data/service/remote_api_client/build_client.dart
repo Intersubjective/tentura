@@ -1,7 +1,14 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:ferry/ferry.dart'
-    show Client, FetchPolicy, Link, NextLink, OperationType;
+    show
+        Client,
+        FetchPolicy,
+        Link,
+        NextLink,
+        OperationRequest,
+        OperationResponse,
+        OperationType;
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
 import 'package:gql_http_link/gql_http_link.dart';
 import 'package:gql_error_link/gql_error_link.dart';
@@ -9,6 +16,8 @@ import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/app/sentry/sentry_init.dart';
+import 'package:tentura/data/service/network_reachability.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 import 'package:tentura/features/beacon_plan/data/model/beacon_plan_error_mapper.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
@@ -34,6 +43,7 @@ Future<Client> buildClient({
   required ClientParams params,
   required Future<String?> Function() getToken,
   http.Client? httpClient,
+  NetworkReachability? reachability,
 }) async {
   final defaultHeaders = {
     kHeaderAccept: kContentApplicationJson,
@@ -47,13 +57,15 @@ Future<Client> buildClient({
     httpClient ?? _createGraphqlHttpClient(),
   );
 
-  return Client(
+  return _DeferredDeliveryClient(
     defaultFetchPolicies: {
       OperationType.query: FetchPolicy.NoCache,
       OperationType.mutation: FetchPolicy.NoCache,
       OperationType.subscription: FetchPolicy.NoCache,
     },
     link: Link.from([
+      if (reachability != null) _ReachabilityLink(reachability),
+
       _TimeoutLink(params.requestTimeout),
 
       _HasuraSetofScalarFixLink(),
@@ -161,6 +173,77 @@ class _TimeoutLink extends Link {
       },
     );
   }
+}
+
+/// Hands every response to the caller one microtask after ferry produced it.
+///
+/// Ferry shares one cached stream between equal requests until its last
+/// listener leaves. Delivered synchronously, a caller awaiting `.first`
+/// resumes while that stream is still firing: its cancel cannot release the
+/// shared stream, and an equal request it sends right away joins it and is
+/// handed the previous answer instead of its own (#513: a retry after an
+/// offline failure kept seeing that failure). Delivered a microtask later, the
+/// caller leaves before anything else is sent, so every request gets its own
+/// answer.
+class _DeferredDeliveryClient extends Client {
+  _DeferredDeliveryClient({
+    required super.link,
+    super.defaultFetchPolicies,
+  });
+
+  @override
+  Stream<OperationResponse<TData, TVars>> request<TData, TVars>(
+    OperationRequest<TData, TVars> request, [
+    Stream<OperationResponse<TData, TVars>> Function(
+      OperationRequest<TData, TVars>,
+    )?
+    forward,
+  ]) {
+    final source = super.request(request, forward);
+    return Stream.multi(
+      (controller) {
+        final subscription = source.listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+        controller
+          ..onPause = subscription.pause
+          ..onResume = subscription.resume
+          ..onCancel = subscription.cancel;
+      },
+      isBroadcast: source.isBroadcast,
+    );
+  }
+}
+
+/// Tells [NetworkReachability] what each request learned about the network
+/// (#513): any answer from the server (data or its own error) means online, a
+/// transport failure or timeout means offline. Sits outermost so it sees the
+/// errors already classified by the error link and the timeout link.
+class _ReachabilityLink extends Link {
+  _ReachabilityLink(this.reachability);
+
+  final NetworkReachability reachability;
+
+  @override
+  Stream<Response> request(Request request, [NextLink? forward]) =>
+      forward!(request).transform(
+        StreamTransformer.fromHandlers(
+          handleData: (response, sink) {
+            reachability.reportSuccess();
+            sink.add(response);
+          },
+          handleError: (error, stackTrace, sink) {
+            if (mapRemoteFailure(error) is ConnectionUplinkException) {
+              reachability.reportTransportFailure();
+            } else {
+              reachability.reportSuccess();
+            }
+            sink.addError(error, stackTrace);
+          },
+        ),
+      );
 }
 
 http.Client _createGraphqlHttpClient() {

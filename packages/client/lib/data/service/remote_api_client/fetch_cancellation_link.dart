@@ -47,6 +47,13 @@ class CancellableDedupeLink extends Link {
                 remove();
                 sink.add(response);
               },
+              handleError: (error, stackTrace, sink) {
+                // A failed fetch must not be joined by a later retry either:
+                // its stream may stay open until its last consumer leaves,
+                // and a retry joining it would only see it close (#513).
+                remove();
+                sink.addError(error, stackTrace);
+              },
               handleDone: (sink) {
                 remove();
                 sink.close();

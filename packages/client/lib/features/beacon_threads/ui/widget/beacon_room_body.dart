@@ -283,6 +283,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 c.pendingQuotedFact?.factCardId ||
             p.composerPrefillSeq != c.composerPrefillSeq ||
             p.composerPrefill != c.composerPrefill ||
+            p.sendFailedOffline != c.sendFailedOffline ||
             p.beaconStatus != c.beaconStatus ||
             p.myUserId != c.myUserId ||
             p.readWatermarksLoaded != c.readWatermarksLoaded ||
@@ -437,6 +438,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             composerReadOnlyHint: canWrite
                 ? null
                 : l10n.beaconRoomMessageReadOnlyHint,
+            composerSendFailedOffline: state.sendFailedOffline,
             onPickFact: canWrite
                 ? () async {
                     // #481: an empty picker hands off to the Add-fact form

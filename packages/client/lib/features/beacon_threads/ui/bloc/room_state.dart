@@ -78,6 +78,10 @@ abstract class RoomState extends StateBase with _$RoomState {
 
     /// Cleared after mark-seen is flushed (`markSeenNowIfNeeded`) this session.
     @Default(true) bool pendingMarkSeen,
+
+    /// The last send failed because the network was unreachable; the
+    /// composer keeps the text and shows «Not sent» with Retry (#513).
+    @Default(false) bool sendFailedOffline,
     Object? loadError,
   }) = _RoomState;
 

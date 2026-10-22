@@ -94,6 +94,7 @@ class BasicChatBody extends StatefulWidget {
     this.enableParticipantMentions = true,
     this.composerReadOnlyHint,
     this.composerSendEnabled = true,
+    this.composerSendFailedOffline = false,
     this.onComposerContentChanged,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
     this.onScrollToPromoteSource,
@@ -213,6 +214,10 @@ class BasicChatBody extends StatefulWidget {
 
   /// Host gate on top of the composer's own rules: false disables Send.
   final bool composerSendEnabled;
+
+  /// The last send failed for lack of a connection (#513): the composer
+  /// shows «Not sent» with Retry while it still holds that text.
+  final bool composerSendFailedOffline;
 
   /// Reports whether the composer holds text or an attachment, on change.
   final ValueChanged<bool>? onComposerContentChanged;
@@ -809,6 +814,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             widget.enableParticipantMentions,
                         readOnlyHint: widget.composerReadOnlyHint,
                         sendEnabled: widget.composerSendEnabled,
+                        sendFailedOffline: widget.composerSendFailedOffline,
                         onContentChanged: widget.onComposerContentChanged,
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
@@ -844,6 +850,7 @@ class BeaconRoomComposer extends StatefulWidget {
     this.enableParticipantMentions = true,
     this.readOnlyHint,
     this.sendEnabled = true,
+    this.sendFailedOffline = false,
     this.onContentChanged,
     this.replyTarget,
     this.onCancelReply,
@@ -886,6 +893,10 @@ class BeaconRoomComposer extends StatefulWidget {
   /// Host gate: false disables Send (and the Enter key) without locking the
   /// field.
   final bool sendEnabled;
+
+  /// The host's last send failed for lack of a connection (#513). Shown as
+  /// «Not sent» with Retry only while the field holds the text that failed.
+  final bool sendFailedOffline;
 
   /// Called when the composer starts or stops holding text or an attachment.
   final ValueChanged<bool>? onContentChanged;
@@ -950,6 +961,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   var _hasText = false;
   var _reportedContent = false;
   var _submitting = false;
+
+  /// Text of the last send that came back unsent; cleared once the field
+  /// holds anything else (#513).
+  String? _unsentText;
 
   @override
   ImageRepository get attachmentImageRepository => widget.imageRepository;
@@ -1103,6 +1118,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     final hasText = _text.text.trim().isNotEmpty;
     if (hasText != _hasText) {
       setState(() => _hasText = hasText);
+    }
+    if (_unsentText != null && _text.text != _unsentText) {
+      setState(() => _unsentText = null);
     }
     _reportContent();
     _scheduleOverlaySync();
@@ -1334,8 +1352,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
         return;
       }
       if (!sent) {
+        _unsentText = body;
         return;
       }
+      _unsentText = null;
       _removeOverlay();
       _text.clear();
       clearPendingUploads();
@@ -1524,11 +1544,22 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     final isCompact = context.windowClass == WindowClass.compact;
     final showAttach =
         widget.enableAttachments && !readOnly && !(isCompact && _hasText);
+    final showUnsent =
+        widget.sendFailedOffline &&
+        !readOnly &&
+        _unsentText != null &&
+        _text.text == _unsentText;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (showUnsent)
+          _ComposerUnsentNotice(
+            onRetry: busy || !widget.sendEnabled
+                ? null
+                : () => unawaited(_submit()),
+          ),
         if (widget.replyTarget != null)
           _ComposerReplyBanner(
             target: widget.replyTarget!,
@@ -1661,6 +1692,40 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
           ],
         ),
       ],
+    );
+  }
+}
+
+/// «Not sent — you're offline» with Retry, above the field that still holds
+/// the text (#513).
+class _ComposerUnsentNotice extends StatelessWidget {
+  const _ComposerUnsentNotice({required this.onRetry});
+
+  /// Null while a send is in flight.
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: kSpacingSmall),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_outlined, size: 18, color: tt.warn),
+          SizedBox(width: tt.iconTextGap),
+          Expanded(
+            child: Text(
+              l10n.beaconRoomSendFailedOffline,
+              style: TenturaText.bodySmall(tt.warn),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(l10n.beaconRoomSendRetry),
+          ),
+        ],
+      ),
     );
   }
 }

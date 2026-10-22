@@ -4,7 +4,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/realtime_status_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Non-blocking app-root banner shown only after a sustained live outage.
+/// Non-blocking app-root banner shown only after a sustained live outage, or
+/// at once when the network is unreachable (#513).
 class RealtimeStatusPresenter extends StatelessWidget {
   const RealtimeStatusPresenter({required this.child, super.key});
 
@@ -12,24 +13,37 @@ class RealtimeStatusPresenter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      BlocSelector<RealtimeStatusCubit, RealtimeStatusState, bool>(
-        selector: (state) => state.showPausedBanner,
-        builder: (context, showPausedBanner) => Stack(
+      BlocSelector<
+        RealtimeStatusCubit,
+        RealtimeStatusState,
+        ({bool offline, bool paused})
+      >(
+        selector: (state) =>
+            (offline: state.showOfflineBanner, paused: state.showPausedBanner),
+        builder: (context, banners) => Stack(
           fit: StackFit.expand,
           children: [
             child,
-            if (showPausedBanner)
+            // Offline explains a paused socket too, so it wins.
+            if (banners.offline)
               const Align(
                 alignment: Alignment.topCenter,
-                child: _RealtimePausedBanner(),
+                child: _RealtimeStatusBanner(offline: true),
+              )
+            else if (banners.paused)
+              const Align(
+                alignment: Alignment.topCenter,
+                child: _RealtimeStatusBanner(offline: false),
               ),
           ],
         ),
       );
 }
 
-class _RealtimePausedBanner extends StatelessWidget {
-  const _RealtimePausedBanner();
+class _RealtimeStatusBanner extends StatelessWidget {
+  const _RealtimeStatusBanner({required this.offline});
+
+  final bool offline;
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +64,18 @@ class _RealtimePausedBanner extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.sync_problem_outlined, color: tt.warn),
+              Icon(
+                offline
+                    ? Icons.cloud_off_outlined
+                    : Icons.sync_problem_outlined,
+                color: tt.warn,
+              ),
               SizedBox(width: tt.iconTextGap),
               Flexible(
                 child: Text(
-                  L10n.of(context)!.realtimeUpdatesPausedBanner,
+                  offline
+                      ? L10n.of(context)!.connectivityOfflineBanner
+                      : L10n.of(context)!.realtimeUpdatesPausedBanner,
                   style: TenturaText.bodySmall(tt.text),
                   textAlign: TextAlign.center,
                 ),
