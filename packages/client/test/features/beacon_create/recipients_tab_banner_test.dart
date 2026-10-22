@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -88,7 +89,12 @@ Future<void> _pumpRecipientsTab(
 }
 
 void main() {
+  // A new Request is discoverable by default, so the banner must not claim
+  // that nobody sees it until it is sent (#440).
   const bannerText =
+      'Choose who gets this request. People who can see you may also find '
+      'it in the Field.';
+  const hiddenBannerText =
       'Nobody will see this request until you send it to someone.';
 
   setUp(() {
@@ -244,7 +250,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(bannerText), findsOneWidget);
-    expect(find.text('No reachable contacts'), findsOneWidget);
+    expect(find.text('No one to send to yet'), findsOneWidget);
   });
 
   // #442: the banner still said nobody would see the request behind the
@@ -284,5 +290,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(bannerText), findsNothing);
+  });
+
+  testWidgets('a Request hidden from the Field keeps the nobody-sees-it '
+      'banner (#440)', (tester) async {
+    final createCubit = BeaconCreateCubit(
+      beaconCreateCase: fakeBeaconCreateCase(),
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(createCubit.close);
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+
+    await _pumpRecipientsTab(
+      tester,
+      forwardCubit: cubit,
+      createCubit: createCubit,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(bannerText), findsOneWidget);
+    expect(find.text(hiddenBannerText), findsNothing);
+
+    createCubit.emit(createCubit.state.copyWith(isDiscoverable: false));
+    await tester.pumpAndSettle();
+
+    expect(find.text(hiddenBannerText), findsOneWidget);
+    expect(find.text(bannerText), findsNothing);
+
+    // A hidden child Request is readable by the parent Request's members.
+    createCubit.emit(
+      createCubit.state.copyWith(
+        creationContext: const BeaconCreationContextChild(
+          parentBeaconId: 'parent-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(hiddenBannerText), findsNothing);
+    expect(
+      find.text(
+        'Until you send it, only people in the request it belongs to will '
+        'see this request.',
+      ),
+      findsOneWidget,
+    );
   });
 }

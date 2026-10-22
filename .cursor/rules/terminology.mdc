@@ -9,6 +9,8 @@ alwaysApply: true
 
 **Approved Post amendment (A1–A2):** user-facing **Post** / **Posts**, Russian **Пост** / **посты** (running copy: «пост»), is an addressed `beacon` with `kind = 1`; **Request** / «запрос» is `kind = 0`. Its workspace is **Chat** / «Чат», a General-only room. This Post feature vocabulary follows [`post-and-constellation-composer-plan.md`](../../docs/plans/post-and-constellation-composer-plan.md); it does not certify that the feature has shipped. Existing Request **discussion** / **обсуждение** copy remains valid. Do not introduce a parallel `Post` domain entity, table, repository, or route; internal `beacon_*` identifiers stay unchanged.
 
+**Post conversation = chat (D8/Q1, 2026-10-22):** a Post's conversation is user-facing **chat** / «чат» — not a personal chat (those do not exist) and never "conversation" / «разговор». The action that starts a Post reads **New chat** / «Новый чат» (`postsTabNewPost`); the object noun stays **Post** / «пост». Pinned by `packages/client/test/l10n/request_terminology_contract_test.dart`.
+
 **Post budding copy:** the Post action (menu «⋮» and message action) is labelled «Оформить запрос»; it introduces no new noun — the result is an ordinary **Request** / «запрос». «Budding» / «отпочкование» is an internal word for code and docs and is never user-facing copy.
 
 | Layer | Primary object | Coordination workspace |

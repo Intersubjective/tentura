@@ -39,8 +39,12 @@ class ForwardRecipientRow extends StatelessWidget {
     this.showPresenceLine = true,
     this.requiredCapabilitySlugs = const {},
     this.todayUtc,
+    this.isPost = false,
     super.key,
   });
+
+  /// The forwarded beacon is a Post: relation lines say «post» (#501).
+  final bool isPost;
 
   final ForwardCandidate candidate;
   final ForwardRecipientRowHost host;
@@ -99,6 +103,7 @@ class ForwardRecipientRow extends StatelessWidget {
       tierEvidenceLabel: tierEvidenceLabel,
       tierEvidenceTone: tierEvidenceTone,
       showPresenceLine: showPresenceLine,
+      isPost: isPost,
     );
     final nameBaseStyle = TenturaText.titleSmall(
       canSelectNew ? tt.text : tt.textMuted,
@@ -141,8 +146,8 @@ class ForwardRecipientRow extends StatelessWidget {
                               builder: (context, state) {
                                 final displayProfile =
                                     profileWithContactOverlay(
-                                  candidate.profile,
-                                );
+                                      candidate.profile,
+                                    );
                                 return Text(
                                   SelfUserHighlight.displayName(
                                     l10n,
@@ -178,8 +183,7 @@ class ForwardRecipientRow extends StatelessWidget {
                                 spacing: tt.iconTextGap,
                                 runSpacing: tt.tightGap,
                                 children: [
-                                  for (final slug
-                                      in candidate.topCapabilities)
+                                  for (final slug in candidate.topCapabilities)
                                     if (CapabilityTag.fromSlug(slug.trim())
                                         case final tag?)
                                       _CapabilityHintChip(

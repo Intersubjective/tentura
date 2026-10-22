@@ -8,6 +8,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/entity/forward_inbound_source.dart';
 import '../../domain/forward_draft_policy.dart';
+import '../../domain/forward_target_profile.dart';
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
@@ -403,6 +404,17 @@ class ForwardCubit extends Cubit<ForwardState> {
       skippedCount = skipped;
     }
 
+    if (state.profile == ForwardTargetProfile.post) {
+      _effects.emit(
+        ShowMessage(
+          ForwardPostSentMessage(
+            skippedName: skippedName,
+            skippedCount: skippedCount,
+          ),
+        ),
+      );
+      return;
+    }
     final inWatching = !state.viewerIsAuthor && !state.viewerHasActiveHelpOffer;
     final message = inWatching
         ? ForwardLocationMessage(

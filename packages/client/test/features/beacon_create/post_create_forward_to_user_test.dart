@@ -1,4 +1,4 @@
-// Opening «Новый пост» from a profile (`/post/new?forward_to=<user id>`)
+// Opening «Новый чат» from a profile (`/post/new?forward_to=<user id>`)
 // pre-selects that user as the recipient on the screen's shared ForwardCubit:
 // after «Далее: получатели» they are already chosen, so «Отправить (1)»
 // publishes to them without any picking.
@@ -357,7 +357,7 @@ Future<void> _writeAndGoToRecipients(WidgetTester tester) async {
 }
 
 void main() {
-  group('opening «Новый пост» for a specific user', () {
+  group('opening «Новый чат» for a specific user', () {
     testWidgets('has that user chosen on the recipients step', (tester) async {
       await _pumpScreen(tester, forwardToUserId: 'U-target');
 

@@ -71,6 +71,29 @@ void main() {
       );
     });
 
+    // #272: opening your own invite link while signed in says plainly that
+    // it is yours, how to use it, and offers to copy the link.
+    test('own invite link explains itself and offers Copy link', () async {
+      repo.previewResult = const InvitePreview(
+        codeStatus: InviteCodeStatus.available,
+        callerStatus: InviteCallerStatus.isInviter,
+      );
+      await cubit.start('Iabc123');
+      expect(repo.acceptCalls, 0);
+      final message = effects.emitted
+          .whereType<ShowMessage>()
+          .map((e) => e.message)
+          .whereType<InviteOwnInviteLinkMessage>()
+          .single;
+      expect(message.code, 'Iabc123');
+      expect(message.toEn, contains('your own invite link'));
+      expect(message.toEn, contains('private browser window'));
+      expect(message.toRu, contains('приватном окне'));
+      expect(message.label.toEn, 'Copy link');
+      expect(message.label.toRu, 'Копировать ссылку');
+      expect(effects.emitted.whereType<NavigateReplace>(), isNotEmpty);
+    });
+
     test('existing-user awaits confirmation', () async {
       repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,
@@ -128,6 +151,39 @@ void main() {
       final dest = postJoin.takeDestination();
       expect(dest?.beaconId, 'B1');
       expect(dest?.showSnackbar, isTrue);
+    });
+
+    // #501: a Post invite keeps saying "post" after accepting.
+    test('a Post invite carries its kind to the post-join message', () async {
+      repo.previewResult = InvitePreview(
+        codeStatus: InviteCodeStatus.available,
+        callerStatus: InviteCallerStatus.existingUser,
+        inviter: const InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        beacon: InvitePreviewBeacon.fromJson(const {
+          'id': 'P1',
+          'title': '',
+          'kind': 'post',
+        }),
+      );
+      await cubit.start('Iabc123');
+      await cubit.confirmAccept();
+      final dest = postJoin.takeDestination();
+      expect(dest?.beaconId, 'P1');
+      expect(dest?.isPost, isTrue);
+
+      final message = BeaconInviteAcceptedMessage(
+        inviterName: 'Alice',
+        beaconId: 'P1',
+        beaconTitle: '',
+        isPost: dest!.isPost,
+      );
+      expect(message.toEn, 'Alice shared a post with you.');
+      expect(message.toRu, 'Alice поделился(ась) с вами постом.');
+      expect(message.label.toEn, 'Open post');
+      expect(
+        InvitePreviewBeacon.fromJson(const {'id': 'B1', 'title': 'x'}).isPost,
+        isFalse,
+      );
     });
 
     test('confirmAccept posts accept-as-existing', () async {

@@ -71,6 +71,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     super.key,
   });
 
+  /// Line under «Publish without sending» saying who can see the Request.
+  static const publishHintKey = Key('BeaconCreate.PublishWithoutSendingHint');
+
   /// Recipients preselected on the Recipients tab (graph composer hand-off).
   final Set<String> initialRecipientIds;
 
@@ -763,6 +766,23 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                               ),
                           ],
                         ),
+                        // The action publishes the Request (#440): say who
+                        // can see it without being sent it.
+                        if (!state.isLive) ...[
+                          SizedBox(height: tt.tightGap),
+                          Text(
+                            state.isDiscoverable
+                                ? l10n.beaconPublishWithoutSendingDiscoverableHint
+                                // Members of the parent Request can read a
+                                // child Request without being sent it.
+                                : state.isChildMode && !state.isPostBud
+                                ? l10n.beaconPublishWithoutSendingHiddenChildHint
+                                : l10n.beaconPublishWithoutSendingHiddenHint,
+                            key: BeaconCreateScreen.publishHintKey,
+                            textAlign: TextAlign.center,
+                            style: TenturaText.bodySmall(tt.textMuted),
+                          ),
+                        ],
                       ],
                     );
                   }

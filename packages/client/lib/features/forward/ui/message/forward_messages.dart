@@ -52,6 +52,23 @@ String forwardLocationCopyRu({
   return '$base${_forwardLocationPauseSuffixRu(skippedName: skippedName, skippedCount: skippedCount)}';
 }
 
+/// Standalone forward of a Post (#501): a Post is not a request and has no
+/// Following / My Work home, so the line names the Post and stops there.
+final class ForwardPostSentMessage extends LocalizableMessage {
+  const ForwardPostSentMessage({this.skippedName, this.skippedCount});
+
+  final String? skippedName;
+  final int? skippedCount;
+
+  @override
+  String get toEn =>
+      'Post forwarded.${_forwardLocationPauseSuffixEn(skippedName: skippedName, skippedCount: skippedCount)}';
+
+  @override
+  String get toRu =>
+      'Пост переслан.${_forwardLocationPauseSuffixRu(skippedName: skippedName, skippedCount: skippedCount)}';
+}
+
 final class ForwardSentMessage extends LocalizableMessage {
   const ForwardSentMessage(this.count);
 
@@ -148,7 +165,11 @@ final class ForwardLocationMessage extends LocalizableActionMessage {
 Future<void> _openForwardedRequestInWatching(String beaconId) async {
   final router = GetIt.I<RootRouter>();
   await router.replaceAll([
-    HomeRoute(children: [inboxTabShell(children: [InboxRoute()])]),
+    HomeRoute(
+      children: [
+        inboxTabShell(children: [InboxRoute()]),
+      ],
+    ),
   ]);
   await router.push(
     InboxWatchingRoute(highlightBeaconId: beaconId),

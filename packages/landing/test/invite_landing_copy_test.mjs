@@ -55,3 +55,15 @@ test('the recovery link says what it is for', () => {
   assert.equal(copy.recoverLink, RECOVER_SEED_LINK_LABEL);
   assert.match(copy.recoverLink, /recovery seed/);
 });
+
+// #501: a Post-scoped invite points at the post card and never says request.
+test('a post-scoped invite points at the post, not a request', () => {
+  const copy = inviteLandingCopy({
+    inviterName: 'Nina',
+    hasRequest: true,
+    isPost: true,
+    inApp: false,
+  });
+  assert.match(copy.why, /Nina shared the post above with you/);
+  assert.doesNotMatch(copy.why, /request/i);
+});

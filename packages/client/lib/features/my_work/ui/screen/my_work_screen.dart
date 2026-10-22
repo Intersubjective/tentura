@@ -17,6 +17,7 @@ import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
+import 'package:tentura/features/home/ui/widget/orientation_inviter_builder.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_sections.dart';
@@ -404,23 +405,33 @@ class _MyWorkListBody extends StatelessWidget {
                   slivers: [
                     switch (decision) {
                       OrientationDecision.show => SliverToBoxAdapter(
-                        child: HomeOrientationPanel(
-                          inboxNeedsMeCount: inboxNeedsMeCount,
-                          onCreateBeacon: () =>
-                              context.read<ScreenCubit>().showBeaconCreate(),
-                          onOpenInbox: () =>
-                              AutoTabsRouter.of(context).setActiveIndex(
-                                HomeTabSpec.forTab(HomeTab.inbox).index,
-                              ),
-                          onOpenConstellation: () =>
-                              AutoTabsRouter.of(context).setActiveIndex(
-                                HomeTabSpec.forTab(HomeTab.constellation).index,
-                              ),
-                          onOpenTab: (tab) => AutoTabsRouter.of(
-                            context,
-                          ).setActiveIndex(HomeTabSpec.forTab(tab).index),
-                          onDismiss: () =>
-                              context.read<HomeActivationCubit>().dismiss(),
+                        child: OrientationInviterBuilder(
+                          builder: (context, inviter) => HomeOrientationPanel(
+                            inviter: inviter,
+                            onOpenInviter: inviter == null
+                                ? null
+                                : () => context
+                                      .read<ScreenCubit>()
+                                      .showBeaconsOf(inviter.id),
+                            inboxNeedsMeCount: inboxNeedsMeCount,
+                            onCreateBeacon: () =>
+                                context.read<ScreenCubit>().showBeaconCreate(),
+                            onOpenInbox: () =>
+                                AutoTabsRouter.of(context).setActiveIndex(
+                                  HomeTabSpec.forTab(HomeTab.inbox).index,
+                                ),
+                            onOpenConstellation: () =>
+                                AutoTabsRouter.of(context).setActiveIndex(
+                                  HomeTabSpec.forTab(
+                                    HomeTab.constellation,
+                                  ).index,
+                                ),
+                            onOpenTab: (tab) => AutoTabsRouter.of(
+                              context,
+                            ).setActiveIndex(HomeTabSpec.forTab(tab).index),
+                            onDismiss: () =>
+                                context.read<HomeActivationCubit>().dismiss(),
+                          ),
                         ),
                       ),
                       OrientationDecision.ordinaryEmpty => SliverFillRemaining(

@@ -36,6 +36,7 @@ import 'constellation_composer_radius.dart';
 import 'constellation_composer_sheet.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
+import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
@@ -723,6 +724,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                         if (!state.isComposing) ...[
                           const ConstellationFieldNotices(),
                           const ConstellationEmptyFilterBanner(),
+                          const ConstellationNoContactsBanner(),
                         ],
                         if (_selectionUnavailableMessage != null)
                           Material(

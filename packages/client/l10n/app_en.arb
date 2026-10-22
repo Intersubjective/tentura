@@ -528,7 +528,7 @@
     "context": "BeaconCreateScreen"
   },
   "buttonMakeLive": "Make live",
-  "beaconMakeLiveWithoutSending": "Make live without sending",
+  "beaconMakeLiveWithoutSending": "Publish without sending",
   "@beaconMakeLiveWithoutSending": {
     "description": "Secondary action on the recipients step: publish the request without forwarding it to anyone yet."
   },
@@ -1181,7 +1181,7 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Open eye — you see each other and can forward to each other (through trust or MeritRank in each direction)",
+  "graphLegendEyeOpen": "Open eye — you see each other and can forward to each other (each of you trusts the other, directly or through people you trust)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
@@ -1261,7 +1261,7 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Open eye means you and this person have two-way visibility and can forward to each other (Trust or MeritRank in each direction)",
+  "graphLegendForwardEligible": "Open eye means you and this person see each other and can forward to each other: each of you trusts the other, directly or through people you trust",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
@@ -2074,7 +2074,7 @@
   "@rankFromYou": {
     "context": "RatingScreen"
   },
-  "rankFromYouHint": "How highly you rank them: a MeritRank score computed from your whole trust network, not only the people you vouched for directly.",
+  "rankFromYouHint": "How strongly your trust network vouches for them: your own trust, the trust of people you trust, and so on.",
   "@rankFromYouHint": {
     "context": "RatingScreen"
   },
@@ -2082,7 +2082,7 @@
   "@rankToYou": {
     "context": "RatingScreen"
   },
-  "rankToYouHint": "How highly they rank you: the same MeritRank score, computed from their trust network.",
+  "rankToYouHint": "How strongly their trust network vouches for you, counted the same way.",
   "@rankToYouHint": {
     "context": "RatingScreen"
   },
@@ -6061,9 +6061,9 @@
   "profileEyeClosed": "You don't see each other yet",
   "profileEyeInfoTitle": "Who sees whom",
   "profileEyeReasonMutualTrust": "Because you trust each other.",
-  "profileEyeReasonMeritRank": "Through people you both know (MeritRank).",
-  "profileEyeClosedHint": "To see each other, you need trust or people you both know, in both directions.",
-  "profileEyeTrustNote": "Trust is your own vote. The open eye is the result: it can open without trust, through people you both know.",
+  "profileEyeReasonMeritRank": "Through your trust networks: each of you is linked to the other, directly or through people you trust.",
+  "profileEyeClosedHint": "To see each other, each of you needs to trust the other, directly or through people you trust.",
+  "profileEyeTrustNote": "Trust is your own choice. The eye shows the result: it can also open without direct trust, through people you trust.",
   "profileMyLabelsLine": "You link them with: {tags}",
   "@profileMyLabelsLine": {
     "placeholders": {
@@ -7677,7 +7677,7 @@
   "@postsTabSelectConversation": {
     "description": "Placeholder of the chat pane beside the conversations list on a wide window, before one is chosen."
   },
-  "postsTabNewPost": "New post",
+  "postsTabNewPost": "New chat",
   "@postsTabNewPost": {
     "description": "Empty-state action that starts a new Post."
   },
@@ -7742,7 +7742,7 @@
   "@postDeleteConfirmTitle": {
     "description": "Title of the confirmation shown before the Post root message is deleted."
   },
-  "postDeleteConfirmBody": "The post and the whole conversation will be deleted permanently.",
+  "postDeleteConfirmBody": "The post and its whole chat will be deleted permanently.",
   "@postDeleteConfirmBody": {
     "description": "Body of the confirmation shown before the Post root message is deleted."
   },
@@ -7780,7 +7780,7 @@
   "@postParticipantAuthor": {
     "description": "Label next to the Post author in the participants sheet."
   },
-  "postParticipantsInConversation": "IN THE CONVERSATION · {count}",
+  "postParticipantsInConversation": "IN THE CHAT · {count}",
   "@postParticipantsInConversation": {
     "description": "Heading of the Post participants list for members who are in the conversation.",
     "placeholders": {
@@ -7946,11 +7946,11 @@
   "@postMuteForever": {
     "description": "Mute duration: no end."
   },
-  "postMenuLeave": "Leave conversation",
+  "postMenuLeave": "Leave chat",
   "@postMenuLeave": {
     "description": "Post overflow (recipient): leave the conversation."
   },
-  "postLeaveConfirmTitle": "Leave conversation?",
+  "postLeaveConfirmTitle": "Leave chat?",
   "@postLeaveConfirmTitle": {
     "description": "Title of the leave-conversation confirmation."
   },
@@ -10092,5 +10092,128 @@
   "skipToContent": "Skip to content",
   "@skipToContent": {
     "context": "Keyboard skip link before Home's navigation rail; moves focus to the page (#500)"
+  },
+  "forwardEmptyNoContactsTitle": "No one to send to yet",
+  "@forwardEmptyNoContactsTitle": {
+    "description": "Recipient picker empty state title when no one can be picked at all (#252). Truthful even when the viewer trusts someone who has not trusted back."
+  },
+  "trustWidensReachHint": "People you trust, and who trust you back, widen whom you can see and send to.",
+  "@trustWidensReachHint": {
+    "description": "One truthful sentence on trust and visibility under the recipient picker / Field empty states (#252, D6). No fixed-hop promise."
+  },
+  "emptyInviteSomeoneAction": "Invite someone you know",
+  "@emptyInviteSomeoneAction": {
+    "description": "Invite CTA on the recipient picker / Field empty states (#252)."
+  },
+  "forwardSearchNoMatches": "No one found",
+  "@forwardSearchNoMatches": {
+    "description": "Recipient picker: the name search matched nobody (filtered-empty, #252)."
+  },
+  "forwardScopeUnseenEmpty": "Everyone you can send to is already involved.",
+  "@forwardScopeUnseenEmpty": {
+    "description": "Recipient picker, «Not yet seen» tab empty while other candidates exist (#252)."
+  },
+  "forwardScopeInvolvedEmpty": "No one is involved yet.",
+  "@forwardScopeInvolvedEmpty": {
+    "description": "Recipient picker, «Already involved» tab empty (#252)."
+  },
+  "constellationNoContactsTitle": "No one is on your Field yet",
+  "@constellationNoContactsTitle": {
+    "description": "Field empty state when nobody but the viewer is on the field (#252). Relies on the field always showing direct contacts (#246)."
+  },
+  "graphLegendConstellationDirectConnectionHint": "One of these two people has marked the other as someone they trust.",
+  "@graphLegendConstellationDirectConnectionHint": {
+    "description": "Field legend tooltip for «Direct connection» (#261)."
+  },
+  "graphLegendConstellationIndirectConnectionHint": "These two are linked through other people's trust, not by a direct mark.",
+  "@graphLegendConstellationIndirectConnectionHint": {
+    "description": "Field legend tooltip for «Indirect connection» (#261)."
+  },
+  "graphLegendConstellationRequestLinkHint": "Joins a request to the person who asked for help.",
+  "@graphLegendConstellationRequestLinkHint": {
+    "description": "Field legend tooltip for «Request link» (#261)."
+  },
+  "graphLegendConstellationWiderNetworkReachHint": "You and this person see each other through the trust network, but the Field can't show the path between you.",
+  "@graphLegendConstellationWiderNetworkReachHint": {
+    "description": "Field legend tooltip for «Wider network reach» (#261)."
+  },
+  "ratingColumnsInfoLabel": "What these numbers mean",
+  "@ratingColumnsInfoLabel": {
+    "description": "Rating screen: info button that explains the two rank columns (#261; tap works on touch)."
+  },
+  "forwardSectionDirectContacts": "Your connections",
+  "@forwardSectionDirectContacts": {
+    "description": "Recipient picker section: people the viewer trusts directly (#440)."
+  },
+  "forwardSectionOthersReachable": "Others you can reach",
+  "@forwardSectionOthersReachable": {
+    "description": "Recipient picker section: reachable people the viewer does not trust directly (#440)."
+  },
+  "forwardSectionOthersReachableHint": "Not your direct connections: you see each other through the trust network or a shared request.",
+  "@forwardSectionOthersReachableHint": {
+    "description": "Helper line under «Others you can reach» (#440)."
+  },
+  "beaconPublishWithoutSendingDiscoverableHint": "People who can see you may find it in the Field. Nobody gets it directly until you send it.",
+  "@beaconPublishWithoutSendingDiscoverableHint": {
+    "description": "Under «Publish without sending» on the new-Request recipients step when the Request is discoverable (#440)."
+  },
+  "beaconPublishWithoutSendingHiddenHint": "Hidden from the Field: only people it is sent or forwarded to will see it.",
+  "@beaconPublishWithoutSendingHiddenHint": {
+    "description": "Under «Publish without sending» on the new-Request recipients step when the Request is not discoverable (#440)."
+  },
+  "beaconRoutingBannerDiscoverable": "Choose who gets this request. People who can see you may also find it in the Field.",
+  "@beaconRoutingBannerDiscoverable": {
+    "description": "Recipients-step banner for a discoverable new Request; the old banner («Nobody will see…») stays for hidden ones (#440)."
+  },
+  "orientationInviterTitle": "{name} vouched for you",
+  "@orientationInviterTitle": {
+    "description": "First-run panel title naming the inviter (#523).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "orientationInviterIntro": "Start by seeing what they need, or ask for help yourself.",
+  "@orientationInviterIntro": {
+    "description": "First-run panel line under the inviter title (#523)."
+  },
+  "orientationSeeWhatInviterNeeds": "See what {name} needs",
+  "@orientationSeeWhatInviterNeeds": {
+    "description": "First-run panel action opening the inviter's Requests (#523).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardAuthorPost": "Post author",
+  "@forwardAuthorPost": {
+    "description": "Forward picker relation line for the author of a Post (#501)."
+  },
+  "forwardInviteDialogTitlePost": "Invite someone to see this post",
+  "@forwardInviteDialogTitlePost": {
+    "description": "Forward picker invite dialog title when forwarding a Post (#501)."
+  },
+  "forwardInviteDialogBodyPost": "They'll join Tentura as your connection and see this post. The link works once and expires in {days, plural, =1{1 day} other{{days} days}}.",
+  "@forwardInviteDialogBodyPost": {
+    "description": "Forward picker invite dialog body when forwarding a Post (#501).",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "postChatReadOnlyHint": "This chat is read-only",
+  "@postChatReadOnlyHint": {
+    "description": "Composer hint in a Post's chat when the viewer cannot write (#501)."
+  },
+  "beaconPublishWithoutSendingHiddenChildHint": "Hidden from the Field: only people in the request it belongs to, and people it is sent or forwarded to, will see it.",
+  "@beaconPublishWithoutSendingHiddenChildHint": {
+    "description": "Under «Publish without sending» for a hidden child Request: members of the parent Request can read it without being sent it (#440)."
+  },
+  "beaconRoutingBannerChild": "Until you send it, only people in the request it belongs to will see this request.",
+  "@beaconRoutingBannerChild": {
+    "description": "Recipients-step banner for a hidden child Request (#440); the parent Request's members can read it."
   }
 }

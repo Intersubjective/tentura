@@ -20,6 +20,7 @@ PostJoinDestination? readPostJoinBeaconHandoff() {
       beaconTitle: map['title']?.toString() ?? '',
       inviterName: map['inviterName']?.toString() ?? '',
       showSnackbar: true,
+      isPost: map['kind']?.toString() == 'post',
     );
   } catch (_) {
     return null;

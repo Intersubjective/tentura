@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -195,7 +196,14 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
         note: trimmedNote.isEmpty ? null : trimmedNote,
       );
       if (result.deliveredRecipientIds.contains(person.id)) {
-        _effects.emit(ShowMessage(PersonForwardSentMessage(person.shownName)));
+        _effects.emit(
+          ShowMessage(
+            PersonForwardSentMessage(
+              person.shownName,
+              isPost: row.beacon.kind == BeaconKind.post,
+            ),
+          ),
+        );
         await load();
         if (!isClosed) {
           emit(

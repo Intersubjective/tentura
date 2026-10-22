@@ -9,6 +9,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_anchor_controls.dart';
+import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
@@ -94,6 +95,13 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         }
 
         final authorIds = _authorIdsWithEligibleRequests(cubit, field);
+        if (authorIds.isEmpty &&
+            !cubit.hasActiveFilters &&
+            constellationFieldHasNoContacts(field, cubit.viewerId)) {
+          // #252: nobody on the field yet — say what to do, not just
+          // "no requests".
+          return const ConstellationNoContactsEmptyState();
+        }
         if (authorIds.isEmpty) {
           return Semantics(
             liveRegion: true,

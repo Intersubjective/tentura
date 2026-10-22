@@ -1,6 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
+import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
+import 'package:tentura/features/forward/ui/message/person_forward_messages.dart';
+import 'package:tentura/features/forward/ui/model/forward_recipient_row_host.dart';
+import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/l10n/l10n_ru.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
 void main() {
@@ -74,6 +81,45 @@ void main() {
         message.toEn,
         "Delivered to 0 of 1 — Alice isn't taking new requests right now.",
       );
+    });
+  });
+
+  // #501: Post surfaces never say "request".
+  group('Post copy', () {
+    test('forwarding a Post names the Post, not a Following home', () {
+      const message = ForwardPostSentMessage();
+      expect(message.toEn, 'Post forwarded.');
+      expect(message.toRu, 'Пост переслан.');
+      const paused = ForwardPostSentMessage(skippedName: 'Alice');
+      expect(paused.toEn, startsWith('Post forwarded. — Alice'));
+    });
+
+    test('sending a Post to one person', () {
+      expect(
+        const PersonForwardSentMessage('Ann', isPost: true).toEn,
+        'Post sent to Ann',
+      );
+      expect(
+        const PersonForwardSentMessage('Ann', isPost: true).toRu,
+        'Пост отправлен: Ann',
+      );
+      expect(const PersonForwardSentMessage('Ann').toEn, 'Request sent to Ann');
+    });
+
+    test('the author row of a Post says «post author»', () {
+      const author = ForwardCandidate(
+        profile: Profile(id: 'a', displayName: 'Ann'),
+        involvement: CandidateInvolvement.author,
+      );
+      expect(
+        forwardRecipientRelationLabel(L10nEn(), author, isPost: true),
+        'Post author',
+      );
+      expect(
+        forwardRecipientRelationLabel(L10nRu(), author, isPost: true),
+        'Автор поста',
+      );
+      expect(forwardRecipientRelationLabel(L10nEn(), author), 'Request author');
     });
   });
 }

@@ -88,7 +88,11 @@ function beaconOverlay(p) {
 
   const children = [
     el('div', { class: 'beacon-label' }, `${inviterName(p)} shared`),
-    el('div', { class: 'beacon-title' }, p.beacon.title || 'a request'),
+    el(
+      'div',
+      { class: 'beacon-title' },
+      p.beacon.title || (p.beacon.kind === 'post' ? 'a post' : 'a request'),
+    ),
   ];
   if (initialBody) children.push(body);
 
@@ -724,6 +728,7 @@ function renderAnonymous(p) {
   const copy = inviteLandingCopy({
     inviterName: inviterName(p),
     hasRequest: Boolean(p.beacon),
+    isPost: p.beacon?.kind === 'post',
     inApp: env.inApp,
   });
   return el(
@@ -749,6 +754,7 @@ function persistPostJoinBeacon(p) {
       JSON.stringify({
         id: p.beacon.id,
         title: p.beacon.title || '',
+        kind: p.beacon.kind || 'request',
         inviterName: p.inviter?.displayName || '',
       }),
     );

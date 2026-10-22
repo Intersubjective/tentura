@@ -341,11 +341,11 @@ void main() {
 
     expect(_forwardButton, findsOneWidget);
     expect(
-      find.text('Это обсуждение доступно только для чтения'),
+      find.text('Этот чат доступен только для чтения'),
       findsNothing,
     );
     await _openOverflow(tester);
-    expect(find.text('Выйти из разговора'), findsOneWidget);
+    expect(find.text('Выйти из чата'), findsOneWidget);
     await tester.tapAt(Offset.zero);
     await _settle(tester);
 
@@ -365,13 +365,13 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Это обсуждение доступно только для чтения'),
+      find.text('Этот чат доступен только для чтения'),
       findsOneWidget,
     );
     expect(_forwardButton, findsNothing);
 
     await _openOverflow(tester);
-    expect(find.text('Выйти из разговора'), findsNothing);
+    expect(find.text('Выйти из чата'), findsNothing);
     await tester.tapAt(Offset.zero);
     await _settle(tester);
 

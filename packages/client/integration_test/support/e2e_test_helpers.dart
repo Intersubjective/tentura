@@ -2258,11 +2258,11 @@ Future<int?> fetchParticipantRoomAccess({
   }
 }
 
-/// Leaves the open Post's conversation: overflow menu → "Leave conversation"
+/// Leaves the open Post's conversation: overflow menu → "Leave chat"
 /// → confirm "Leave".
 Future<void> leavePostConversation(WidgetTester tester) async {
   await tapAndSettle(tester, find.byIcon(Icons.more_vert).first);
-  await tapAndSettle(tester, find.text('Leave conversation'));
+  await tapAndSettle(tester, find.text('Leave chat'));
   final confirm = find.descendant(
     of: find.byType(AlertDialog),
     matching: find.text('Leave'),
@@ -2352,7 +2352,7 @@ Future<void> openFullFormFromMapComposer(WidgetTester tester) => tapAndSettle(
 /// handoff) and sends; returns the published Post's beacon id, read back from
 /// the post-send navigation URL (`/beacon/view/<id>`).
 ///
-/// «Новый пост» is a two-step form — text first, then the recipient picker
+/// «Новый чат» (a new Post) is a two-step form — text first, then the recipient picker
 /// with «Отправить (N)» (docs/plans/post-ux-mockups.md M3 rev 2).
 Future<String> sendPostFromFullForm(
   WidgetTester tester, {

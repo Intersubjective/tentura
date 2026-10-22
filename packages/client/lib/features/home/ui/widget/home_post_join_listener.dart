@@ -74,6 +74,7 @@ class _HomePostJoinListenerState extends State<HomePostJoinListener> {
           inviterName: dest.inviterName ?? '',
           beaconId: dest.beaconId!,
           beaconTitle: dest.beaconTitle ?? '',
+          isPost: dest.isPost,
         ),
       ),
     );

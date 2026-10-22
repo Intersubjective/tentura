@@ -18,12 +18,14 @@ class PostJoinNavigationCubit {
     required String beaconTitle,
     String inviterName = '',
     bool showSnackbar = true,
+    bool isPost = false,
   }) {
     _pending = PostJoinDestination(
       beaconId: beaconId,
       beaconTitle: beaconTitle,
       inviterName: inviterName,
       showSnackbar: showSnackbar,
+      isPost: isPost,
     );
   }
 
