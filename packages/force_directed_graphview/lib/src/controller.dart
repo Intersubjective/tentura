@@ -1208,11 +1208,18 @@ class GraphController<N, E> with ChangeNotifier {
     if (!layoutCurrent) _requestSceneLayout();
   }
 
-  void _updateViewport(Quad viewport) {
+  void _updateViewport(Quad viewport, Size pixelSize) {
     final rect = viewport.toRect();
     _actualViewport = rect;
+    // The view's own layout size, not one rebuilt from the scene-space quad:
+    // that round trip through the inverted camera matrix differs in the last
+    // bit as the translation changes (1200 vs 1199.9999999999998), and a
+    // viewport size that changes on a plain pan invalidates everything keyed
+    // on it (tentura-s7gl.99).
     final scale = _transformationController?.value.getMaxScaleOnAxis() ?? 1.0;
-    _viewportPixelSize = Size(rect.width * scale, rect.height * scale);
+    _viewportPixelSize = pixelSize.isFinite
+        ? pixelSize
+        : Size(rect.width * scale, rect.height * scale);
     final actualViewport = rect;
     final newEffectiveViewport = switch (_lazyBuilding) {
       LazyBuildingViewport(scale: final scale) => actualViewport.scale(scale),

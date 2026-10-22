@@ -340,7 +340,7 @@ class _CameraGatedInteractiveViewerState
           scaleEnabled: !_zoomGated,
           onInteractionStart: (_) => widget.controller._onUserCameraInput(),
           builder: (context, viewport) {
-            widget.controller._updateViewport(viewport);
+            widget.controller._updateViewport(viewport, constraints.biggest);
             return const NodeDragGesture(
               child: GraphLayoutView(),
             );

@@ -8,6 +8,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_presentati
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 
 import 'fixtures/constellation_reference_fixture.dart';
+import 'fixtures/synthetic_field.dart';
 
 void main() {
   group('Constellation label placement cache', () {
@@ -92,6 +93,56 @@ void main() {
             'A camera pan must reuse label placement at unchanged zoom '
             'and layout revision',
       );
+    });
+
+    // tentura-s7gl.99: the graph's viewport size was rebuilt from the
+    // scene-space quad and changed in its last bit as the pan crossed some
+    // camera origins (1200 vs 1199.9999999999998). The overlay keys placement
+    // on that size, so such a pan frame re-placed every label and chip and
+    // rebuilt the label and chip layers (11-25 ms at N = 600).
+    testWidgets('a long pan from a fractional origin never re-places labels', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit(
+        field: syntheticConstellationField(size: 100),
+      );
+      addTearDown(cubit.close);
+      final holder = ConstellationPresentationFrameHolder();
+      await pumpConstellationBody(
+        tester,
+        cubit,
+        size: const Size(1200, 800),
+        presentationFrameHolder: holder,
+      );
+      await tester.pumpAndSettle();
+      final controller = cubit.graphController;
+      cubit.panCameraTo(const Offset(1500.3, 1500.3));
+      await tester.pumpAndSettle();
+      expect(holder.frame!.labels, isNotEmpty);
+      final viewport = controller.viewportSize;
+      final camera = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+
+      constellationPlacementCount = 0;
+      final viewportSizes = <Size?>{};
+      for (var i = 0; i < 120; i++) {
+        camera.value = camera.value.clone()
+          ..setTranslationRaw(
+            camera.value.storage[12] + 4,
+            camera.value.storage[13] + 2,
+            camera.value.storage[14],
+          );
+        await tester.pump(const Duration(milliseconds: 16));
+        viewportSizes.add(controller.viewportSize);
+      }
+
+      expect(
+        constellationPlacementCount,
+        0,
+        reason: 'A pan at unchanged zoom and layout must not re-place labels',
+      );
+      expect(viewportSizes, {viewport});
     });
   });
 }

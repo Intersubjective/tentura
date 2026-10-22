@@ -2172,3 +2172,23 @@ Both runs reported what was requested (`renderer=skwasm crossOriginIsolated=true
 5. Production: `window.crossOriginIsolated === true` and no "single-threaded skwasm" warning in the console, on the real domain.
 6. Third-party scripts and resources (Google Maps platform view, fonts, cropperjs from cdnjs, Firebase messaging) still load under `Cross-Origin-Embedder-Policy: credentialless`.
 7. Mobile battery and heat during a few minutes of dragging and panning (skwasm adds a render worker thread).
+
+## tentura-s7gl.99 — N = 600 pan spike: viewport-size float jitter, not viewport entry — 2026-10-22
+
+**Cause.** The pan spikes were not nodes entering the viewport (the graph is built without lazy building, so a pan changes no membership and `NodesView` never rebuilt). `GraphController.viewportSize` was rebuilt on every camera change from the scene-space quad (`rect.width * scale`), a round trip through the inverted camera matrix whose result flips in its last bit at some camera origins (1200 ↔ 1199.9999999999998). `ConstellationViewportOverlay` keys its `_cameraShape` listenable and its placement key on that size, so such a pan frame re-ran the whole placement (436 label/chip placements at N = 600 in a VM probe of the bench's pan) and rebuilt the label layer (269 slots) and every overflow chip (62 `ConstellationOverflowGroup`s). It hit pan frames 0 and 29 of the bench at every N; the cost grows with N. Per-widget diagnostic run (`CONSTELLATION_BENCH_PROFILE_OBJECTS`, inflated ×~5): spike frame 119–128 ms, of which the overlay `ListenableBuilder` 64–66 ms (chip rebuilds ~42, label layer 12–15, placement ~5–9 before the builds) plus 19–24 ms of the overlay's layout; plain run: `Frame` 12.0 / 17.2 ms with BUILD 13.5 ms inside LAYOUT.
+
+**Fix.** `force_directed_graphview`: `_updateViewport` takes the view's layout size (`constraints.biggest` of the `LayoutBuilder` around the `InteractiveViewer.builder`, which builds the quad from that same size) as `viewportSize`; the quad-derived size remains only as the fallback for unbounded constraints. No visible change (sizes differ by ≤ 1 ulp). Tests: `force_directed_graphview/test/viewport_size_pan_stability_test.dart` (one `viewportSize` over a 120-frame pan from a fractional origin; failed with two sizes before) and `constellation_label_placement_pan_cache_test.dart` "a long pan from a fractional origin never re-places labels" (`constellationPlacementCount` 0; was 342 before).
+
+**Numbers** (host i5-12600K, headless Chrome 143, Flutter 3.47.0, `--wasm` skwasm, crossOriginIsolated; fw Frame p50/p95/max ms; before = 97900c443, after = this unit, 2 runs):
+
+| N | phase | before | after run 1 | after run 2 |
+|---|---|---|---|---|
+| 100 | pan | 1.33/2.10/6.17 | 1.29/2.52/3.35 | 1.36/2.67/3.70 |
+| 300 | drag | 1.48/2.75/3.34 | 1.55/2.71/3.65 | 1.51/2.53/3.61 |
+| 300 | pan | 2.40/4.00/5.34 | 2.34/3.06/3.98 | 2.62/3.43/4.08 |
+| 600 | drag | 1.73/3.12/4.95 | 1.66/2.70/3.93 | 1.69/2.83/3.31 |
+| 600 | pan | 1.78/3.16/**17.24** | 2.24/3.63/**4.06** | 1.99/3.77/**4.49** |
+
+No task > 50 ms in any phase, any N, before or after. Grab → first moved frame (mouse/touch) at N = 300: 34.4/46.7 before, 35.7/45.1 and 34.5/52.8 after. Drop → settled fw Frame max at N = 600 varies run to run (22.7 before; 31.4 and 16.0 after; the reflow does not read the viewport size).
+
+**Checks.** Client `test/features/constellation/` + `test/features/graph/`: 1287 pass, 1 skipped. `force_directed_graphview`: 214 pass. Custom lints 23 (baseline 23); analyzer baseline 1945 ≤ 2040. Web e2e `constellation_protocol_release_test`, `constellation_pinning_test`, `constellation_interactive_flows_test`: pass. Client 7.42.12.
