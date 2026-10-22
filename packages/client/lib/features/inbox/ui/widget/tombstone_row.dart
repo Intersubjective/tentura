@@ -79,8 +79,10 @@ class TombstoneRow extends StatelessWidget {
       l10n,
       receipt.forwardOutcome,
       presentationPayloadJson: receipt.presentationPayloadJson,
-      // #367: the one who accepts an offer is the Request's author.
+      // #367: the one who accepts an offer is the Request's author, unless
+      // the payload names someone else (#507: a steward).
       authorName: authorName,
+      authorId: authorId,
     );
     final localCreatedAt = receipt.createdAt.toLocal();
     // #189: the card's short age, so a tombstone and the card beside it
