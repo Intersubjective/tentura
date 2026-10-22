@@ -31,8 +31,9 @@ const _viewerId = 'helper-1';
 
 final class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
-  ProfileState get state =>
-      const ProfileState(profile: Profile(id: _viewerId, displayName: 'Me'));
+  ProfileState get state => const ProfileState(
+    profile: Profile(id: _viewerId, displayName: 'Me'),
+  );
 
   @override
   Stream<ProfileState> get stream =>
@@ -56,6 +57,7 @@ MyWorkHelpOfferedRow _row(Beacon beacon) => (
   forwarderSenders: const <Profile>[],
   helpOfferRowUpdatedAt: DateTime(2026, 9, 4),
   authorCoordinationUpdatedAt: null,
+  coordinationAuthor: null,
 );
 
 void main() {
@@ -151,8 +153,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(MyWorkCardRouter), findsOneWidget);
-      expect(cubit.state.nonArchivedCards.single.beacon.status,
-          BeaconStatus.open);
+      expect(
+        cubit.state.nonArchivedCards.single.beacon.status,
+        BeaconStatus.open,
+      );
       // The affordance is the localized «archive» action (key myWorkArchive).
       final archiveLabel = L10n.of(
         tester.element(find.byType(Scaffold)),

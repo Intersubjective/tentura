@@ -33,6 +33,10 @@ query MyWorkInit($userId: String!, $obligationBeaconIds: [String!]!) {
     coordination {
       response_type
       updated_at
+      author_user_id
+      author {
+        ...UserModel
+      }
     }
     beacon {
       ...BeaconModelWithHelpOfferUsers
@@ -94,6 +98,10 @@ query MyWorkArchived($userId: String!) {
     coordination {
       response_type
       updated_at
+      author_user_id
+      author {
+        ...UserModel
+      }
     }
     beacon {
       ...BeaconModelWithHelpOfferUsers

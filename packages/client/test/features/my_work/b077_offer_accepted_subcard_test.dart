@@ -80,6 +80,7 @@ Beacon _openBeacon(String id, {bool admitted = false}) => Beacon.empty.copyWith(
 MyWorkHelpOfferedRow _row(
   Beacon beacon, {
   CoordinationResponseType? response,
+  Profile? coordinationAuthor,
 }) => (
   beacon: beacon,
   offerHelpMessage: 'I can help',
@@ -89,6 +90,7 @@ MyWorkHelpOfferedRow _row(
   forwarderSenders: const <Profile>[],
   helpOfferRowUpdatedAt: DateTime(2026, 9, 4),
   authorCoordinationUpdatedAt: response == null ? null : DateTime(2026, 9, 5),
+  coordinationAuthor: coordinationAuthor,
 );
 
 Future<MyWorkCubit> _cubitFor(MyWorkHelpOfferedRow row) async {
@@ -282,5 +284,85 @@ void main() {
     addTearDown(cubit.close);
     await _pumpDesk(tester, cubit);
     expect(find.byType(AttentionMiniCard), findsOneWidget);
+  });
+
+  // #507: whoever accepted is named — a steward, not the Request's author.
+  group('#507: names the one who accepted', () {
+    Finder subcardText(String text) => find.descendant(
+      of: find.byType(OfferAcceptedEventSubcard),
+      matching: find.text(text),
+    );
+
+    testWidgets("a steward's accept names the steward, not the author", (
+      tester,
+    ) async {
+      final cubit = await _cubitFor(
+        _row(
+          _openBeacon('open-6', admitted: true),
+          response: CoordinationResponseType.useful,
+          coordinationAuthor: const Profile(
+            id: 'steward-1',
+            displayName: 'Steward Sam',
+          ),
+        ),
+      );
+      addTearDown(cubit.close);
+      await _pumpDesk(tester, cubit);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(
+        subcardText(l10n.attentionCardOfferAccepted('Steward Sam')),
+        findsOneWidget,
+      );
+      expect(
+        subcardText(l10n.attentionCardOfferAccepted('Author Co')),
+        findsNothing,
+      );
+    });
+
+    testWidgets("a steward's accept with no profile names no one", (
+      tester,
+    ) async {
+      final cubit = await _cubitFor(
+        _row(
+          _openBeacon('open-7', admitted: true),
+          response: CoordinationResponseType.useful,
+          coordinationAuthor: const Profile(id: 'steward-1'),
+        ),
+      );
+      addTearDown(cubit.close);
+      await _pumpDesk(tester, cubit);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(
+        subcardText(l10n.activityForwardOutcomeAcceptedNoAuthor),
+        findsOneWidget,
+      );
+      expect(
+        subcardText(l10n.attentionCardOfferAccepted('Author Co')),
+        findsNothing,
+      );
+    });
+
+    testWidgets("the author's accept names the author", (tester) async {
+      final cubit = await _cubitFor(
+        _row(
+          _openBeacon('open-8', admitted: true),
+          response: CoordinationResponseType.useful,
+          coordinationAuthor: const Profile(
+            id: 'auth',
+            displayName: 'Author Co',
+          ),
+        ),
+      );
+      addTearDown(cubit.close);
+      await _pumpDesk(tester, cubit);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(
+        subcardText(l10n.attentionCardOfferAccepted('Author Co')),
+        findsOneWidget,
+      );
+    });
   });
 }

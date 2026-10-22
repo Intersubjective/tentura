@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/gql/_g/user_model.data.gql.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
@@ -48,8 +49,9 @@ class MyWorkRepository {
       authoredNonArchived: d.authoredNonArchived
           .map((e) => BeaconModelWithHelpOfferUsers(e).toEntity())
           .toList(),
-      helpOfferedNonArchived:
-          d.helpOfferedNonArchived.map(_mapInitHelpOfferedRow).toList(),
+      helpOfferedNonArchived: d.helpOfferedNonArchived
+          .map(_mapInitHelpOfferedRow)
+          .toList(),
       obligationBeacons: d.obligationBeacons.map((e) {
         final beacon = BeaconModelWithHelpOfferUsers(e).toEntity();
         final viewerArchived = e.beacon_archiveds.isNotEmpty;
@@ -125,8 +127,9 @@ class MyWorkRepository {
       authoredArchived: d.archivedRows
           .map((e) => BeaconModelWithHelpOfferUsers(e.beacon).toEntity())
           .toList(),
-      helpOfferedArchived:
-          d.helpOfferedArchived.map(_mapArchivedHelpOfferedRow).toList(),
+      helpOfferedArchived: d.helpOfferedArchived
+          .map(_mapArchivedHelpOfferedRow)
+          .toList(),
     );
   }
 
@@ -149,6 +152,10 @@ class MyWorkRepository {
       forwarderSenders: forwarders,
       helpOfferRowUpdatedAt: e.updated_at,
       authorCoordinationUpdatedAt: e.coordination?.updated_at,
+      coordinationAuthor: _coordinationAuthor(
+        e.coordination?.author,
+        e.coordination?.author_user_id,
+      ),
     );
   }
 
@@ -171,7 +178,19 @@ class MyWorkRepository {
       forwarderSenders: forwarders,
       helpOfferRowUpdatedAt: e.updated_at,
       authorCoordinationUpdatedAt: e.coordination?.updated_at,
+      coordinationAuthor: _coordinationAuthor(
+        e.coordination?.author,
+        e.coordination?.author_user_id,
+      ),
     );
+  }
+
+  /// #507: who accepted (author or steward); only the id when the profile
+  /// did not come back.
+  static Profile? _coordinationAuthor(GUserModel? author, String? authorId) {
+    if (author != null) return UserModel(author).toEntity();
+    final id = authorId?.trim() ?? '';
+    return id.isEmpty ? null : Profile(id: id);
   }
 
   static const _label = 'MyWork';

@@ -318,6 +318,9 @@ Widget? _composeMyWorkFooter(
           beaconId: vm.beaconId,
           viewerId: currentUserId!,
           author: vm.beacon.author,
+          // #507: a steward's accept names the steward.
+          acceptorId: vm.coordinationAuthor?.id,
+          acceptor: vm.coordinationAuthor,
           acceptedAt: offerAcceptedAt,
           requestTitle: vm.beacon.title,
           // One gesture: the receipt behind it is cleared too, so the

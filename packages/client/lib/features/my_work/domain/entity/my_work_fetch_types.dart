@@ -17,6 +17,11 @@ typedef MyWorkHelpOfferedRow = ({
 
   /// `beacon_help_offer_coordinations.updated_at` when author response exists.
   DateTime? authorCoordinationUpdatedAt,
+
+  /// Who wrote that coordination response — the author or a steward (#507);
+  /// null when there is none. Only `id` is set when the profile was not
+  /// readable.
+  Profile? coordinationAuthor,
 });
 
 /// Obligation-backed beacon from init fetch (archive state is per viewer, not split query).
