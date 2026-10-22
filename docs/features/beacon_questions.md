@@ -70,12 +70,23 @@ mention candidates and realtime hints.
   (`/beacon/lobby/<id>`). Questions notifications never store or push the
   message text ("New message in Questions"), because a receipt outlives a
   later ban or block; the text is read only through the gated API.
-- Realtime: a separate trigger (`notify_questions_message_change`) sends the
-  usual bare `room_message` hint to audience members who are not General room
-  recipients; General recipients already get the General hint. No Questions
-  text is painted over the socket; clients refetch through the gated API.
-  Nobody blocked with the message author gets the hint. The General notify
-  path (`notify_entity_change`) is unchanged.
+- Realtime: hints about a Questions message, its reactions and its
+  attachments go **only** to the Questions audience
+  (`questions_hint_recipients`, m0255: `questions_audience` minus anyone
+  blocked with the message author), through the Questions publishers
+  (`notify_questions_message_change`, `notify_questions_reaction_change`,
+  `notify_questions_attachment_change`). They use the General wire kinds and
+  envelopes (bare `room_message` with the message id; `room_reaction` with the
+  Request id only). The General publishers (`notify_entity_change`,
+  `notify_room_message_attachment_change`) skip Questions rows through a
+  trigger `WHEN` clause, so General room recipients outside the audience
+  (removed from Questions, blocked with the author) get nothing; General rows
+  are published exactly as before. Moving a row into or out of Questions
+  (never done by the API) publishes to the audience only; deleting the
+  Questions item deletes its messages first so their hints stay scoped; a
+  Questions message can never link a poll (`room_poll` goes to General). No
+  Questions text is painted over the socket; clients refetch through the
+  gated API.
 - Questions do not move `beacon.last_activity_at`.
 
 ## Client
@@ -92,9 +103,6 @@ mention candidates and realtime hints.
 
 ## Known limits
 
-- General room recipients (including people removed from Questions) still
-  receive a bare `room_message` hint (beacon id + message id, no text) for
-  Questions messages: the General notify path belongs to the realtime owner.
 - No unread badge for Questions beyond the author's attention items.
 - No attachments in Questions: room images are served from the shared image
   store, which the Questions policy does not gate. Reactions work through the
