@@ -48,6 +48,7 @@ final class MutationAttention extends GqlNodeBase {
     attentionMarkAllSeen,
     attentionMarkSeenForBeacon,
     attentionMarkUnseen,
+    attentionMarkUnread,
     attentionSettle,
     attentionClear,
     attentionDismissAll,
@@ -236,6 +237,30 @@ final class MutationAttention extends GqlNodeBase {
             );
           }
           return _ack.markUnseen(
+            accountId: getCredentials(args).sub,
+            ids: ids,
+          );
+        },
+      );
+
+  /// #601: *Mark unread* on an Updates item. The Unread view is the clear
+  /// axis, so this un-clears (and un-reads) the caller's own visible optional
+  /// receipts; [attentionMarkUnseen] stays the read-axis-only command.
+  GraphQLObjectField<dynamic, dynamic> get attentionMarkUnread =>
+      GraphQLObjectField(
+        'attentionMarkUnread',
+        graphQLInt.nonNullable(),
+        arguments: [_ids.field],
+        resolve: (_, args) {
+          final ids = _ids.fromArgsNonNullable(args);
+          if (ids.length > 200) {
+            throw ArgumentError.value(
+              ids.length,
+              'ids',
+              'must contain at most 200 ids',
+            );
+          }
+          return _ack.markUnread(
             accountId: getCredentials(args).sub,
             ids: ids,
           );
