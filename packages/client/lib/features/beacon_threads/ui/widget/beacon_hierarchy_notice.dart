@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 import 'child_beacon_preview_loader.dart';
 
@@ -253,38 +254,42 @@ class _CenteredLinkNotice extends StatelessWidget {
         tt.screenHPadding,
         tt.tightGap / 2,
       ),
-      child: Semantics(
-        button: true,
-        label: line,
-        excludeSemantics: true,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: () => context.router.push(
-              BeaconViewRoute(id: childBeaconId),
-            ),
-            borderRadius: BorderRadius.circular(tt.cardRadius),
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 14, color: scheme.onSurfaceVariant),
-                  SizedBox(width: tt.iconTextGap / 2),
-                  Flexible(
-                    child: Text(
-                      line,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                        height: 1.15,
+      // #415: the line names itself, so it carries the focus state too.
+      child: TenturaFocusSemantics(
+        builder: (context, focused) => Semantics(
+          button: true,
+          label: line,
+          focused: focused,
+          excludeSemantics: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: () => context.router.push(
+                BeaconViewRoute(id: childBeaconId),
+              ),
+              borderRadius: BorderRadius.circular(tt.cardRadius),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+                    SizedBox(width: tt.iconTextGap / 2),
+                    Flexible(
+                      child: Text(
+                        line,
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                          height: 1.15,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

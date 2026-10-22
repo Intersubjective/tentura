@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 import '../tentura_colors.dart';
 import '../tentura_icons.dart';
@@ -258,18 +259,23 @@ class TenturaAvatar extends StatelessWidget {
     if (onTap != null) {
       // #416: a tappable avatar is a button named after the person, not the
       // initials painted inside it.
-      inner = Semantics(
-        container: true,
-        button: true,
-        label: openProfileLabel(context, profile),
-        onTap: onTap,
-        excludeSemantics: true,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: inner,
+      // #415: and it carries the focus state, so Tab shows on the web.
+      final avatar = inner;
+      inner = TenturaFocusSemantics(
+        builder: (context, focused) => Semantics(
+          container: true,
+          button: true,
+          label: openProfileLabel(context, profile),
+          focused: focused,
+          onTap: onTap,
+          excludeSemantics: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              child: avatar,
+            ),
           ),
         ),
       );

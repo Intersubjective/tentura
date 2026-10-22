@@ -3090,18 +3090,25 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
       content = TenturaFocusRing.exclude(
         child: Focus(
           focusNode: _focusNode,
-          // The bubble's labels and actions are already exposed; an extra
-          // focus node would change how they merge.
           includeSemantics: false,
           onKeyEvent: _onKeyEvent,
-          child: Listener(
-            onPointerDown: _onPointerDown,
-            onPointerUp: _onPointerUp,
-            onPointerCancel: _onPointerCancel,
-            child: DecoratedBox(
-              position: DecorationPosition.foreground,
-              decoration: ring,
-              child: content,
+          // #415: the bubble is its own semantics node and says when it has
+          // keyboard focus. Without it a Tab onto the bubble focused no
+          // node, so on the web the browser's focus stayed on the control
+          // before it, and that control seemed to take two presses.
+          child: Semantics(
+            container: true,
+            focused: _focusNode.hasPrimaryFocus,
+            onFocus: _focusNode.requestFocus,
+            child: Listener(
+              onPointerDown: _onPointerDown,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: _onPointerCancel,
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: ring,
+                child: content,
+              ),
             ),
           ),
         ),

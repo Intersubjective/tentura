@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_multiline_body.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 /// HUD row: fixed-width icon lead + multiline body (+ optional edit).
 ///
@@ -56,8 +57,9 @@ class HudLabeledMultiline extends StatelessWidget {
     }
 
     final scheme = Theme.of(context).colorScheme;
-    final textColor =
-        isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
+    final textColor = isPlaceholder
+        ? scheme.onSurfaceVariant
+        : scheme.onSurface;
     final semanticsText = subline == null ? text : '$text\n$subline';
     final primaryStyle = TenturaText.hudBodySmall(textColor);
 
@@ -74,10 +76,11 @@ class HudLabeledMultiline extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final editReserved = onEdit != null ? HudMultilineLayout.editColumnWidth : 0.0;
-        final bodyMaxWidth = constraints.maxWidth -
-            kBeaconHudRowLeadWidth -
-            editReserved;
+        final editReserved = onEdit != null
+            ? HudMultilineLayout.editColumnWidth
+            : 0.0;
+        final bodyMaxWidth =
+            constraints.maxWidth - kBeaconHudRowLeadWidth - editReserved;
 
         final exceeds = HudMultilineLayout.textExceedsMaxLines(
           text: text,
@@ -85,7 +88,8 @@ class HudLabeledMultiline extends StatelessWidget {
           maxWidth: bodyMaxWidth,
           maxLines: primaryMaxLines,
         );
-        final singleLine = subline == null &&
+        final singleLine =
+            subline == null &&
             !exceeds &&
             HudMultilineLayout.textFitsSingleLine(
               text: text,
@@ -106,14 +110,20 @@ class HudLabeledMultiline extends StatelessWidget {
 
         final detailTarget = onShowDetail == null
             ? iconRow
-            : Semantics(
-                button: true,
-                label: showDetailSemanticLabel ?? '$semanticsLabel $semanticsText',
-                child: ExcludeSemantics(
-                  child: InkWell(
-                    onTap: onShowDetail,
-                    borderRadius: BorderRadius.circular(8),
-                    child: iconRow,
+            // #415: the row names itself, so it carries the focus state.
+            : TenturaFocusSemantics(
+                builder: (_, focused) => Semantics(
+                  button: true,
+                  label:
+                      showDetailSemanticLabel ??
+                      '$semanticsLabel $semanticsText',
+                  focused: focused,
+                  child: ExcludeSemantics(
+                    child: InkWell(
+                      onTap: onShowDetail,
+                      borderRadius: BorderRadius.circular(8),
+                      child: iconRow,
+                    ),
                   ),
                 ),
               );

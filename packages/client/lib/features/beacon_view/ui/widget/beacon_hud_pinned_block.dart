@@ -14,6 +14,7 @@ import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 import 'beacon_hud_plan_rows.dart';
 
@@ -419,40 +420,44 @@ class _HudCounter extends StatelessWidget {
     final color = attention
         ? tenturaToneColor(tt, attentionTone)
         : tt.textMuted;
-    return Semantics(
-      button: onTap != null,
-      label: semanticsLabel,
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(tt.buttonRadius),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: kMinInteractiveDimension,
-            minWidth: kMinInteractiveDimension,
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: kBeaconHudRowIconSize, color: color),
-                  SizedBox(width: tt.tightGap),
-                ],
-                Text(
-                  label,
-                  style: TenturaText.withTabular(
-                    TenturaText.status(
-                      icon == null && attention ? color : tt.text,
+    // #415: the pill names itself, so it carries the focus state too.
+    return TenturaFocusSemantics(
+      builder: (_, focused) => Semantics(
+        button: onTap != null,
+        label: semanticsLabel,
+        focused: onTap == null ? null : focused,
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(tt.buttonRadius),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: kMinInteractiveDimension,
+              minWidth: kMinInteractiveDimension,
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: kBeaconHudRowIconSize, color: color),
+                    SizedBox(width: tt.tightGap),
+                  ],
+                  Text(
+                    label,
+                    style: TenturaText.withTabular(
+                      TenturaText.status(
+                        icon == null && attention ? color : tt.text,
+                      ),
                     ),
                   ),
-                ),
-                if (note != null) ...[
-                  SizedBox(width: tt.tightGap),
-                  Text(note!, style: TenturaText.status(color)),
+                  if (note != null) ...[
+                    SizedBox(width: tt.tightGap),
+                    Text(note!, style: TenturaText.status(color)),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
