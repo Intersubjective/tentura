@@ -107,8 +107,10 @@ Adapted from the closure release gate (`docs/plans/episode-closure-implementatio
 
 ## 5. Minimal funnel events
 
-No analytics stack exists today. Prefer facts the server already stores; add one small,
-pseudonymous event table only for what cannot be derived.
+The landing already has a funnel: `track()` in `packages/landing/analytics.js` records
+Sentry breadcrumbs (`funnel:<event>`, visit and auth-attempt tags) for the invite → signup path
+before any WASM loads. Nothing equivalent exists inside the app. Prefer facts the server already
+stores; add one small, pseudonymous event table only for what cannot be derived.
 
 **Derived (no new instrumentation):** signup time (`user.created_at`), invitation accepted
 (`invite_genealogy.created_at`), first forward sent (`beacon_forward_edge`), first offer
