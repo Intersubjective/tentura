@@ -138,18 +138,6 @@ Color coordinationResponseOnSurfaceColor(
         ),
     };
 
-String? withdrawReasonLabel(L10n l10n, String? wireKey) {
-  if (wireKey == null || wireKey.isEmpty) return null;
-  return switch (wireKey) {
-    'cannot_do_it' => l10n.withdrawCantDoIt,
-    'timing' => l10n.withdrawTimingChanged,
-    'wrong_fit' => l10n.withdrawWrongFit,
-    'someone_else' => l10n.withdrawSomeoneElseTookOver,
-    'other' => l10n.withdrawOther,
-    _ => wireKey,
-  };
-}
-
 /// Parses `beacon_help_offers.help_type`: a single slug, or JSON array (server
 /// stores jsonEncode of selected slugs; see server HelpOfferRepository).
 List<String> helpOfferTypeSlugs(String? wire) {

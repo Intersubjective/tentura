@@ -590,6 +590,13 @@ class RequestAttentionCard extends StatelessWidget {
       actorName: name,
       l10n: l10n,
     );
+    final helperLeft = helperLeftEventLine(
+      presentationPayloadJson: payload,
+      actorName: name,
+      l10n: l10n,
+      note: words == beacon.title ? '' : words,
+    );
+    if (helperLeft != null) return helperLeft;
     return switch (attentionEventTypeOf(payload)) {
       'blockerOpened' when words.isNotEmpty => l10n.attentionCardChangeBlocker(
         words,
@@ -621,6 +628,9 @@ class RequestAttentionCard extends StatelessWidget {
     if (words.isEmpty || words == beacon.title) return false;
     return switch (attentionEventTypeOf(payload)) {
       'offerDeclined' || 'offerRemoved' || 'commitmentReleased' => true,
+      // #516: a helper's withdrawal note.
+      'promiseWithdrawn' =>
+        withdrawReasonFromPresentationPayload(payload) != null,
       _ => false,
     };
   }
