@@ -69,7 +69,6 @@ AttentionReceipt _withdrawn({
 
 RequestAttentionCard _card(AttentionReceipt event) => RequestAttentionCard(
   beacon: _beacon,
-  relation: RequestAttentionRelation.none,
   facts: const RequestAttentionFacts(
     requestId: 'b1',
     unclearedOptionalEvents: 1,
@@ -83,25 +82,24 @@ RequestAttentionCard _card(AttentionReceipt event) => RequestAttentionCard(
   onClearAll: () {},
 );
 
-Widget _host(Widget child, {Locale locale = const Locale('en')}) =>
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      locale: locale,
-      theme: TenturaTheme.light(),
-      localizationsDelegates: L10n.localizationsDelegates,
-      supportedLocales: L10n.supportedLocales,
-      home: MediaQuery(
-        data: const MediaQueryData(size: Size(1280, 800)),
-        child: TenturaResponsiveScope(
-          child: Scaffold(
-            body: Align(
-              alignment: Alignment.topCenter,
-              child: SizedBox(width: 600, child: child),
-            ),
-          ),
+Widget _host(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
+  debugShowCheckedModeBanner: false,
+  locale: locale,
+  theme: TenturaTheme.light(),
+  localizationsDelegates: L10n.localizationsDelegates,
+  supportedLocales: L10n.supportedLocales,
+  home: MediaQuery(
+    data: const MediaQueryData(size: Size(1280, 800)),
+    child: TenturaResponsiveScope(
+      child: Scaffold(
+        body: Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(width: 600, child: child),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 Finder _onChangeLine(Finder matching) => find.descendant(
   of: find.byKey(RequestAttentionCard.changeLineKey),

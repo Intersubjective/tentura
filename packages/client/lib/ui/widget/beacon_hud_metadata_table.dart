@@ -181,7 +181,6 @@ class _MetadataTableRow extends StatelessWidget {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minHeight: 44),
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             iconColumn,
                             Expanded(child: bodyContent),
