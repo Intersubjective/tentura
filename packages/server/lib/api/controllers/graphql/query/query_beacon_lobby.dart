@@ -16,7 +16,22 @@ final class QueryBeaconLobby extends GqlNodeBase {
 
   final _beaconIdStr = InputFieldString(fieldName: 'beaconId');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [beaconLobby];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    beaconLobby,
+    beaconLobbyAccess,
+  ];
+
+  /// Request Questions — the viewer's own standing, for the entry row.
+  GraphQLObjectField<dynamic, dynamic> get beaconLobbyAccess =>
+      GraphQLObjectField(
+        'BeaconLobbyAccess',
+        gqlTypeBeaconLobbyAccess.nonNullable(),
+        arguments: [_beaconIdStr.field],
+        resolve: (_, args) => _case.beaconLobbyAccess(
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get beaconLobby => GraphQLObjectField(
     'BeaconLobby',

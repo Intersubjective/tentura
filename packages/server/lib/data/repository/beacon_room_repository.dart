@@ -33,6 +33,25 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
   final TenturaDb _db;
 
+  /// Of [peerIds], those with a block either way with [viewerUserId].
+  Future<Set<String>> _blockHiddenPeers({
+    required String viewerUserId,
+    required Set<String> peerIds,
+  }) async {
+    if (peerIds.isEmpty) return const {};
+    final rows = await _db
+        .customSelect(
+          r'SELECT peer FROM unnest($2::text[]) AS peer '
+          r'WHERE public.block_hides($1, peer)',
+          variables: [
+            Variable<String>(viewerUserId),
+            Variable<List<String>>(peerIds.toList(), PgTypes.textArray),
+          ],
+        )
+        .get();
+    return {for (final r in rows) r.read<String>('peer')};
+  }
+
   // DORMANT(item-threads): thread_item_id message filter (non-null selects item thread).
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<BeaconRoomMessage>> listMessages({
@@ -41,6 +60,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     DateTime? before,
     String? messageId,
     int limit = 50,
+    String? hideBlockedAuthorsFor,
   }) async {
     Expression<bool> threadFilter($BeaconRoomMessagesTable m) {
       final tid = threadItemId;
@@ -53,13 +73,34 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     Expression<bool> messageFilter($BeaconRoomMessagesTable m) =>
         messageId == null ? const Constant(true) : m.id.equals(messageId);
 
+    // Request Questions: its audience is wider than one room, so a message
+    // is hidden from a viewer when its author and the viewer blocked each
+    // other (either way), the same wall as `block_hides`.
+    Expression<bool> blockFilter($BeaconRoomMessagesTable m) {
+      final viewer = hideBlockedAuthorsFor;
+      if (viewer == null) return const Constant(true);
+      final ub = _db.userBlocks;
+      return m.authorId.isNull() |
+          notExistsQuery(
+            _db.selectOnly(ub)
+              ..addColumns([ub.blockerId])
+              ..where(
+                (ub.blockerId.equals(viewer) &
+                        ub.blockedId.equalsExp(m.authorId)) |
+                    (ub.blockedId.equals(viewer) &
+                        ub.blockerId.equalsExp(m.authorId)),
+              ),
+          );
+    }
+
     if (before == null) {
       return (_db.select(_db.beaconRoomMessages)
             ..where(
               (m) =>
                   m.beaconId.equals(beaconId) &
                   threadFilter(m) &
-                  messageFilter(m),
+                  messageFilter(m) &
+                  blockFilter(m),
             )
             ..orderBy([
               (m) => OrderingTerm(
@@ -76,6 +117,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
                 m.beaconId.equals(beaconId) &
                 threadFilter(m) &
                 messageFilter(m) &
+                blockFilter(m) &
                 m.createdAt.isSmallerThanValue(PgDateTime(before)),
           )
           ..orderBy([
@@ -202,6 +244,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       before: before,
       messageId: messageId,
       limit: limit,
+      // The only live thread scope is Request Questions, whose audience
+      // crosses blocks: hide authors blocked either way from the viewer.
+      hideBlockedAuthorsFor: threadItemId == null ? null : viewerUserId,
     );
     if (msgs.isEmpty) {
       return [];
@@ -468,7 +513,19 @@ JOIN public.beacon_fact_card_revision r
                     parentThreadFilter(t),
               ))
               .get();
+      // Questions (the only live thread scope): a reply never quotes an
+      // author the viewer is blocked with, either way.
+      final hiddenParentAuthors = threadItemId == null
+          ? const <String>{}
+          : await _blockHiddenPeers(
+              viewerUserId: viewerUserId,
+              peerIds: {
+                for (final p in parents)
+                  if (p.authorId case final String id) id,
+              },
+            );
       for (final parent in parents) {
+        if (hiddenParentAuthors.contains(parent.authorId)) continue;
         parentById[parent.id] = parent;
       }
       final missingParentAuthorIds = parents

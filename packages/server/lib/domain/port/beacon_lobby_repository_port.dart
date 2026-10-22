@@ -1,24 +1,41 @@
-/// U088 — the Request lobby: its scope item and who is banned from it.
+import 'package:tentura_server/domain/entity/questions_access.dart';
+
+/// Request Questions (internally: the Request lobby, U088): its scope item,
+/// who is banned from it, and the one access policy (m0254).
 abstract class BeaconLobbyRepositoryPort {
-  /// The lobby item id of [beaconId], creating it on first use.
+  /// The Questions item id of [beaconId], creating it on first use.
   Future<String> ensureLobby({
     required String beaconId,
     required String authorId,
   });
 
-  /// The Request a lobby item belongs to, or null when [itemId] is not a
-  /// lobby.
+  /// The Questions item id of [beaconId], or null before its first open.
+  Future<String?> findLobby(String beaconId);
+
+  /// The Request a Questions item belongs to, or null when [itemId] is not a
+  /// Questions item.
   Future<String?> lobbyBeaconId(String itemId);
 
-  /// Whether [userId] has a live (not withdrawn) help offer on [beaconId].
-  Future<bool> hasActiveHelpOffer({
+  /// The policy for each of [userIds] on [beaconId], in one query. Ids the
+  /// policy does not return (e.g. a Post, an unknown beacon) are
+  /// [QuestionsAccess.none].
+  Future<Map<String, QuestionsAccess>> accessLevels({
     required String beaconId,
-    required String userId,
+    required Iterable<String> userIds,
   });
 
-  Future<bool> isBanned({required String beaconId, required String userId});
+  /// Everyone who may read [beaconId]'s Questions, with names for mentions.
+  Future<List<QuestionsAudienceMember>> audience(String beaconId);
 
-  Future<void> ban({
+  /// Messages of [lobbyId] that [viewerId] would see (authors with a block
+  /// either way are hidden).
+  Future<int> countVisibleMessages({
+    required String lobbyId,
+    required String viewerId,
+  });
+
+  /// Bans [userId]. Returns false when there is no such user.
+  Future<bool> ban({
     required String beaconId,
     required String userId,
     required String bannedBy,
@@ -26,6 +43,6 @@ abstract class BeaconLobbyRepositoryPort {
 
   Future<void> unban({required String beaconId, required String userId});
 
-  /// Banned user ids of [beaconId], oldest ban first.
-  Future<List<String>> bannedUserIds(String beaconId);
+  /// Banned people of [beaconId], oldest ban first.
+  Future<List<QuestionsBannedUser>> bannedUsers(String beaconId);
 }

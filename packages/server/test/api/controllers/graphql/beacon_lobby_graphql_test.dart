@@ -27,6 +27,23 @@ final class _RecordingLobbyCase extends Fake implements BeaconRoomCase {
       'isAuthor': true,
       'canPost': true,
       'bannedUserIds': ['Unina'],
+      'banned': [
+        {'userId': 'Unina', 'title': 'Nina'},
+      ],
+    };
+  }
+
+  @override
+  Future<Map<String, Object?>> beaconLobbyAccess({
+    required String beaconId,
+    required String userId,
+  }) async {
+    calls.add('access $beaconId $userId');
+    return {
+      'beaconId': beaconId,
+      'canRead': true,
+      'canPost': false,
+      'messageCount': 3,
     };
   }
 
@@ -78,7 +95,8 @@ void main() {
   test('BeaconLobby opens the lobby for the caller', () async {
     final data = await run(
       'query { BeaconLobby(beaconId: "B1") '
-      '{ beaconId lobbyId isAuthor canPost bannedUserIds } }',
+      '{ beaconId lobbyId isAuthor canPost bannedUserIds '
+      'banned { userId title } } }',
     );
     expect(data['BeaconLobby'], {
       'beaconId': 'B1',
@@ -86,8 +104,25 @@ void main() {
       'isAuthor': true,
       'canPost': true,
       'bannedUserIds': ['Unina'],
+      'banned': [
+        {'userId': 'Unina', 'title': 'Nina'},
+      ],
     });
     expect(lobbyCase.calls, ['open B1 Uauthor']);
+  });
+
+  test("BeaconLobbyAccess reports the caller's own standing", () async {
+    final data = await run(
+      'query { BeaconLobbyAccess(beaconId: "B1") '
+      '{ beaconId canRead canPost messageCount } }',
+    );
+    expect(data['BeaconLobbyAccess'], {
+      'beaconId': 'B1',
+      'canRead': true,
+      'canPost': false,
+      'messageCount': 3,
+    });
+    expect(lobbyCase.calls, ['access B1 Uauthor']);
   });
 
   test(

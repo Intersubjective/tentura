@@ -447,16 +447,19 @@ final class DiscussionScopeDisabledException extends ExceptionBase {
       );
 }
 
-/// U088 — the caller may not use this Request's lobby: not the author, no
-/// live help offer, or removed by the author. Its own code so the client can
-/// tell "not for you" from a failed request.
+/// Request Questions (internally the lobby, U088): the caller is not in its
+/// audience (see `questions_access_levels`), was removed by the author, or
+/// is blocked. Its own code so the client can tell "not for you" from a
+/// failed request.
 final class BeaconLobbyAccessException extends ExceptionBase {
   const BeaconLobbyAccessException({String? description})
     : super(
         code: const BeaconExceptionCodes(
           BeaconExceptionCode.beaconLobbyAccessDenied,
         ),
-        description: description ?? 'The lobby is for people who offered help',
+        description:
+            description ??
+            'Questions are for the people this request was sent to',
       );
 }
 
