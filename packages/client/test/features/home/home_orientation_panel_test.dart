@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/design_system/components/tentura_command_button.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -17,6 +18,9 @@ Future<void> _pumpPanel(
   VoidCallback? onOpenConstellation,
   void Function(HomeTab)? onOpenTab,
   VoidCallback? onDismiss,
+  Profile? inviter,
+  VoidCallback? onOpenInviter,
+  VoidCallback? onShowHowItWorks,
   Size surfaceSize = const Size(800, 1200),
 }) async {
   await tester.pumpWidget(
@@ -42,6 +46,9 @@ Future<void> _pumpPanel(
               onOpenConstellation: onOpenConstellation ?? () {},
               onOpenTab: onOpenTab ?? (_) {},
               onDismiss: onDismiss ?? () {},
+              inviter: inviter,
+              onOpenInviter: onOpenInviter,
+              onShowHowItWorks: onShowHowItWorks,
             ),
           ),
         ),
@@ -141,6 +148,64 @@ void main() {
         );
         expect(tester.takeException(), isNull);
       }
+    });
+    // #523: the first screen names the person who vouched for the newcomer
+    // instead of repeating the onboarding pager.
+    testWidgets('names the inviter and opens what they need', (tester) async {
+      var openedInviter = false;
+      var howItWorks = false;
+      await _pumpPanel(
+        tester,
+        theme: TenturaTheme.light(),
+        inviter: const Profile(id: 'U1', displayName: 'Tab QA'),
+        onOpenInviter: () => openedInviter = true,
+        onShowHowItWorks: () => howItWorks = true,
+      );
+
+      expect(find.text('Tab QA vouched for you'), findsOneWidget);
+      expect(find.text('Welcome to Tentura'), findsNothing);
+      // The pager's four-tab legend is no longer inline.
+      expect(find.text('How it works'), findsNothing);
+      expect(find.byType(TenturaCommandButton), findsOneWidget);
+
+      await tester.ensureVisible(find.text('See what Tab QA needs'));
+      await tester.tap(find.text('See what Tab QA needs'));
+      await tester.pumpAndSettle();
+      expect(openedInviter, isTrue);
+
+      await tester.ensureVisible(
+        find.byKey(HomeOrientationPanel.howItWorksKey),
+      );
+      await tester.tap(find.byKey(HomeOrientationPanel.howItWorksKey));
+      await tester.pumpAndSettle();
+      expect(howItWorks, isTrue);
+    });
+
+    testWidgets('without an inviter keeps the generic welcome', (
+      tester,
+    ) async {
+      await _pumpPanel(tester, theme: TenturaTheme.light());
+
+      expect(find.text('Welcome to Tentura'), findsOneWidget);
+      expect(find.byKey(HomeOrientationPanel.inviterTitleKey), findsNothing);
+      expect(
+        find.byKey(HomeOrientationPanel.seeInviterNeedsKey),
+        findsNothing,
+      );
+      expect(find.text('How Tentura works'), findsOneWidget);
+    });
+
+    testWidgets('"How Tentura works" opens the sheet by default', (
+      tester,
+    ) async {
+      await _pumpPanel(tester, theme: TenturaTheme.light());
+
+      await tester.ensureVisible(
+        find.byKey(HomeOrientationPanel.howItWorksKey),
+      );
+      await tester.tap(find.byKey(HomeOrientationPanel.howItWorksKey));
+      await tester.pumpAndSettle();
+      expect(find.text('Where things are'), findsOneWidget);
     });
   });
 }
