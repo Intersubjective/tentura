@@ -70,7 +70,9 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
             key: const Key('beaconLobbyUnavailable'),
             icon: TenturaIcons.comments,
             title: l10n.beaconLobbyTitle,
-            body: l10n.beaconLobbyUnavailable,
+            body: state.unavailableReason == BeaconLobbyLimitReason.removed
+                ? l10n.beaconLobbyUnavailableRemoved
+                : l10n.beaconLobbyUnavailable,
           );
         }
         return Column(
@@ -79,7 +81,10 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
             Padding(
               padding: tt.listRowPadding,
               child: Text(
-                l10n.beaconLobbyEntrySubtitle,
+                // Copy for the one reading: the author answers (#657).
+                state.isAuthor
+                    ? l10n.beaconLobbyEntrySubtitleAuthor
+                    : l10n.beaconLobbyEntrySubtitle,
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
             ),
@@ -101,7 +106,9 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                               key: const Key('beaconLobbyEmpty'),
                               icon: TenturaIcons.comments,
                               title: l10n.beaconLobbyEmpty,
-                              body: l10n.beaconLobbyEmptyBody,
+                              body: state.isAuthor
+                                  ? l10n.beaconLobbyEmptyBodyAuthor
+                                  : l10n.beaconLobbyEmptyBody,
                             ),
                           ),
                         ],
@@ -121,6 +128,9 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                           for (final m in state.messages)
                             _LobbyMessageTile(
                               message: m,
+                              byAuthor:
+                                  state.authorId.isNotEmpty &&
+                                  m.authorId == state.authorId,
                               canBan:
                                   state.isAuthor &&
                                   m.authorId != widget.myUserId &&
@@ -147,8 +157,18 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                         controller: _composer,
                         minLines: 1,
                         maxLines: 4,
+                        // Like the Chat composer (#658): Enter sends.
+                        textInputAction: TextInputAction.send,
+                        // Keep the focus for the next message (the default
+                        // would drop it after a send action).
+                        onEditingComplete: () {},
+                        onSubmitted: (text) {
+                          if (!state.sending) unawaited(cubit.post(text));
+                        },
                         decoration: InputDecoration(
-                          hintText: l10n.beaconLobbyComposerHint,
+                          hintText: state.isAuthor
+                              ? l10n.beaconLobbyComposerHintAuthor
+                              : l10n.beaconLobbyComposerHint,
                         ),
                       ),
                     ),
@@ -168,7 +188,7 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                 key: const Key('beaconLobbyReadOnly'),
                 padding: tt.listRowPadding,
                 child: Text(
-                  l10n.beaconLobbyReadOnly,
+                  beaconLobbyReadOnlyText(l10n, state.readOnlyReason),
                   style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
@@ -178,6 +198,17 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
     );
   }
 }
+
+/// The read-only note under the thread, naming the viewer's own reason
+/// when the server gives one (#657).
+String beaconLobbyReadOnlyText(L10n l10n, BeaconLobbyLimitReason? reason) =>
+    switch (reason) {
+      BeaconLobbyLimitReason.closed => l10n.beaconLobbyReadOnlyClosed,
+      BeaconLobbyLimitReason.cantHelp => l10n.beaconLobbyReadOnlyCantHelp,
+      BeaconLobbyLimitReason.withdrew => l10n.beaconLobbyReadOnlyWithdrew,
+      BeaconLobbyLimitReason.declined => l10n.beaconLobbyReadOnlyDeclined,
+      BeaconLobbyLimitReason.removed || null => l10n.beaconLobbyReadOnly,
+    };
 
 /// The author's fold of people removed from Questions, with names from the
 /// server (never from route arguments).
@@ -223,11 +254,16 @@ class _BannedFold extends StatelessWidget {
 class _LobbyMessageTile extends StatelessWidget {
   const _LobbyMessageTile({
     required this.message,
+    required this.byAuthor,
     required this.canBan,
     required this.onBan,
   });
 
   final BeaconLobbyMessage message;
+
+  /// Written by the Request author: marked, so readers tell answers from
+  /// questions (#657).
+  final bool byAuthor;
   final bool canBan;
   final VoidCallback onBan;
 
@@ -240,6 +276,13 @@ class _LobbyMessageTile extends StatelessWidget {
       title: Row(
         children: [
           Flexible(child: Text(message.authorName)),
+          if (byAuthor) ...[
+            SizedBox(width: tt.iconTextGap),
+            TenturaTypeLabel(
+              L10n.of(context)!.beaconLobbyAuthorBadge,
+              key: const Key('beaconLobbyAuthorBadge'),
+            ),
+          ],
           if (at != null) ...[
             SizedBox(width: tt.iconTextGap),
             TenturaMetaText(

@@ -23,6 +23,7 @@ import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_boundary_ticker.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_step_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_lobby_standing.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_pinned_block.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_plan_rows.dart';
@@ -330,7 +331,11 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                     SliverToBoxAdapter(
                       child: Material(
                         color: scheme.surface,
-                        child: BeaconLobbyEntryRow(beaconId: state.beacon.id),
+                        child: BeaconLobbyEntryRow(
+                          beaconId: state.beacon.id,
+                          isAuthor: state.isBeaconMine,
+                          standing: beaconLobbyStanding(state),
+                        ),
                       ),
                     ),
                   SliverToBoxAdapter(

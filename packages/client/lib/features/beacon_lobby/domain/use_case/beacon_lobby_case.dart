@@ -61,6 +61,8 @@ final class BeaconLobbyCase {
             RealtimeEntityKind.forward,
             RealtimeEntityKind.participant,
             RealtimeEntityKind.beacon,
+            // "Can't help" moves the viewer's own inbox item (#655, #657).
+            RealtimeEntityKind.inboxItem,
           },
           aggregateId: beaconId,
         )

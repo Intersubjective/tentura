@@ -26,6 +26,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
       canRead: a.canRead,
       canPost: a.canPost,
       messageCount: a.messageCount,
+      limitReason: BeaconLobbyLimitReason.fromWire(a.readOnlyReason),
     );
   }
 
@@ -40,6 +41,8 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
       lobbyId: l.lobbyId,
       isAuthor: l.isAuthor,
       canPost: l.canPost,
+      authorId: l.authorId,
+      readOnlyReason: BeaconLobbyLimitReason.fromWire(l.readOnlyReason),
       banned: [
         ...?l.banned?.map(
           (b) => BeaconLobbyBannedPerson(userId: b.userId, name: b.title),

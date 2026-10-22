@@ -10294,7 +10294,7 @@
     "description": "Request Questions: empty-state body",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyReadOnly": "Read-only: the request is closed, or you are no longer helping with it. Offer help to ask again.",
+  "beaconLobbyReadOnly": "You can read the questions and answers here, but not write.",
   "@beaconLobbyReadOnly": {
     "description": "Request Questions: shown instead of the composer when the viewer may read but not post",
     "context": "BeaconLobbyScreen"
@@ -10642,5 +10642,55 @@
   "beaconCurrentLineKeepTheirs": "Keep their version",
   "@beaconCurrentLineKeepTheirs": {
     "context": "Next-step editor after someone else changed the next step meanwhile (#517): closes the editor and keeps their line instead of saving yours"
+  },
+  "beaconLobbyEntrySubtitleAuthor": "People you sent this request to can ask you here before offering help. Everyone it was sent to sees your answers.",
+  "@beaconLobbyEntrySubtitleAuthor": {
+    "description": "Request Questions entry and screen intro, shown to the Request author (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyComposerHintAuthor": "Write an answer",
+  "@beaconLobbyComposerHintAuthor": {
+    "description": "Request Questions composer hint for the Request author (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyEmptyBodyAuthor": "When someone asks, the question appears here. Everyone this request was sent to sees your answers.",
+  "@beaconLobbyEmptyBodyAuthor": {
+    "description": "Request Questions empty state for the Request author (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyReadOnlyClosed": "This request is closed. You can read the questions and answers, but not write.",
+  "@beaconLobbyReadOnlyClosed": {
+    "description": "Request Questions read-only note: the Request is closed (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyReadOnlyCantHelp": "You said you can't help, so you can read but not ask. Offer help to ask again.",
+  "@beaconLobbyReadOnlyCantHelp": {
+    "description": "Request Questions read-only note: the viewer answered Can't help (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyReadOnlyWithdrew": "You withdrew your help offer, so you can read but not ask. Offer help again to ask.",
+  "@beaconLobbyReadOnlyWithdrew": {
+    "description": "Request Questions read-only note: the viewer withdrew their help offer (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyReadOnlyDeclined": "The author declined your help offer, so you can read but not ask.",
+  "@beaconLobbyReadOnlyDeclined": {
+    "description": "Request Questions read-only note: the author declined the viewer's offer (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyUnavailableRemoved": "The author removed you from Questions on this request.",
+  "@beaconLobbyUnavailableRemoved": {
+    "description": "Request Questions screen when the author removed the viewer (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyAuthorBadge": "Author",
+  "@beaconLobbyAuthorBadge": {
+    "description": "Request Questions: marks the Request author's messages (#657)",
+    "context": "Request Questions"
+  },
+  "updatesQuestionsMessage": "New message in Questions",
+  "@updatesQuestionsMessage": {
+    "description": "Update row / timeline / Updates feed for a message in a Request's Questions; follows the sender's name (#656)",
+    "context": "Request Questions"
   }
 }

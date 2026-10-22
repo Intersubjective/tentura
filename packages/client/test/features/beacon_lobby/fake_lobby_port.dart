@@ -30,6 +30,9 @@ class FakeLobbyPort implements BeaconLobbyPort {
   final calls = <String>[];
   bool canPost = true;
 
+  /// What the server would say about the viewer's own limit (#657).
+  BeaconLobbyLimitReason? limitReason;
+
   /// The next call of any kind fails like a dropped connection.
   bool failNext = false;
 
@@ -54,6 +57,8 @@ class FakeLobbyPort implements BeaconLobbyPort {
       lobbyId: 'Llobby',
       isAuthor: viewerId == authorId,
       canPost: canPost,
+      authorId: authorId,
+      readOnlyReason: canPost ? null : limitReason,
       banned: viewerId == authorId
           ? [
               for (final id in banned)
@@ -71,6 +76,7 @@ class FakeLobbyPort implements BeaconLobbyPort {
       canRead: _allowed,
       canPost: _allowed && canPost,
       messageCount: _allowed ? messagesList.length : 0,
+      limitReason: limitReason,
     );
   }
 

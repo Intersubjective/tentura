@@ -5,7 +5,9 @@ query BeaconLobby($beaconId: String!) {
     beaconId
     lobbyId
     isAuthor
+    authorId
     canPost
+    readOnlyReason
     banned {
       userId
       title
@@ -20,6 +22,7 @@ query BeaconLobbyAccess($beaconId: String!) {
     canRead
     canPost
     messageCount
+    readOnlyReason
   }
 }
 

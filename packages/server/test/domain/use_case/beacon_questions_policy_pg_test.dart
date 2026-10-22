@@ -423,6 +423,60 @@ Future<void> main() async {
       }
     });
 
+    test("the read-only reason names the reader's own act (#657)", () async {
+      await openAsAuthor();
+      // The departed helper withdrew themselves (a withdraw reason is set);
+      // the forwardee's offer was declined by the author (no reason).
+      await sql(
+        "UPDATE public.beacon_help_offer SET withdraw_reason = 'busy' "
+        "WHERE user_id = '$departed'",
+      );
+      await offer(forwardee, status: 1);
+      const expected = <String, String?>{
+        author: null,
+        steward: null,
+        addressee: null,
+        helper: null,
+        offerer: null,
+        rejected: 'cant_help',
+        rejectedAddressee: 'cant_help',
+        departed: 'withdrew',
+        forwardee: 'declined',
+        banned: 'removed',
+        cancelled: null,
+        discovery: null,
+        blocksAuthor: null,
+        blockedByAuthor: null,
+      };
+      for (final e in expected.entries) {
+        final probe = await rooms.beaconLobbyAccess(
+          beaconId: beaconId,
+          userId: e.key,
+        );
+        expect(probe['readOnlyReason'], e.value, reason: e.key);
+        if (probe['canRead'] == true) {
+          final opened = await rooms.beaconLobby(
+            beaconId: beaconId,
+            userId: e.key,
+          );
+          expect(opened['readOnlyReason'], e.value, reason: e.key);
+          expect(opened['authorId'], author, reason: e.key);
+        }
+      }
+      await sql("UPDATE public.beacon SET status = 6 WHERE id = '$beaconId'");
+      final closedRooms = buildRooms(
+        hierarchy: FakeBeaconHierarchyRepository()
+          ..statusOverride = BeaconStatus.closed,
+      );
+      for (final id in [author, helper, rejected]) {
+        final opened = await closedRooms.beaconLobby(
+          beaconId: beaconId,
+          userId: id,
+        );
+        expect(opened['readOnlyReason'], 'closed', reason: id);
+      }
+    });
+
     test('read, history and seen: everyone who may read, nobody else', () async {
       final lobbyId = await openAsAuthor();
       await rooms.createMessage(

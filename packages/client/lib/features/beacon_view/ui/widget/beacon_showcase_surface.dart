@@ -6,8 +6,10 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
+import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_entry_row.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_lobby_standing.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_anchor_status.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_definition_body.dart';
@@ -94,6 +96,16 @@ class BeaconShowcaseSurface extends StatelessWidget {
                     SizedBox(height: tt.rowGap),
                     BeaconShowcaseDescription(text: beacon.description),
                     _ShowcaseFacts(beacon: beacon),
+                    // Request Questions (#526, D1): ask the author before
+                    // offering help. Shown only when the server policy lets
+                    // this viewer read it (never to discovery-only readers).
+                    if (beacon.isRequest && !isPreview)
+                      BeaconLobbyEntryRow(
+                        beaconId: beacon.id,
+                        isAuthor: state.isBeaconMine,
+                        standing: beaconLobbyStanding(state),
+                        prominent: true,
+                      ),
                     if (state.myDeclinedHelpOffer case final declined?) ...[
                       SizedBox(height: tt.cardGap),
                       DeclinedOfferNotice(
