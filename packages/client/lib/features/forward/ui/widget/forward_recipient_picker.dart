@@ -486,17 +486,25 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   bool _isPost(ForwardState state) =>
       (widget.copyProfile ?? state.profile) == ForwardTargetProfile.post;
 
+  bool _inviteEnabled(ForwardState state) => inviteNewPersonEnabled(
+    beaconId: widget.beaconId,
+    allowsForward: state.beacon?.viewerCanForward == true,
+    isLive: widget.isLive,
+  );
+
+  /// The empty-state invite may leave for People › Invitations only from the
+  /// standalone forward route: inside a create flow that would abandon the
+  /// draft (a new Post's text is not saved yet).
+  bool _canInviteFromEmptyState(ForwardState state) =>
+      _inviteEnabled(state) || !widget.embedded;
+
   /// Empty-state invite: a request-tied invite where the picker may mint one,
-  /// otherwise the People › Invitations tab (e.g. a new Post's draft).
+  /// otherwise the People › Invitations tab.
   Future<void> _inviteFromEmptyState(
     BuildContext context,
     ForwardState state,
   ) async {
-    if (inviteNewPersonEnabled(
-      beaconId: widget.beaconId,
-      allowsForward: state.beacon?.viewerCanForward == true,
-      isLive: widget.isLive,
-    )) {
+    if (_inviteEnabled(state)) {
       await _inviteNewPerson(context);
     } else {
       await GetIt.I<RootRouter>().openInvitations();
@@ -823,9 +831,14 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                               ForwardFilter.alreadyInvolved
                                         ? _PickerEmptyKind.noOneInvolved
                                         : _PickerEmptyKind.everyoneInvolved,
-                                    onInvite: () => unawaited(
-                                      _inviteFromEmptyState(context, state),
-                                    ),
+                                    onInvite: _canInviteFromEmptyState(state)
+                                        ? () => unawaited(
+                                            _inviteFromEmptyState(
+                                              context,
+                                              state,
+                                            ),
+                                          )
+                                        : null,
                                   ),
                                 )
                               else ...[
@@ -1096,10 +1109,12 @@ enum _PickerEmptyKind {
 }
 
 class _ForwardPickerEmptyState extends StatelessWidget {
-  const _ForwardPickerEmptyState({required this.kind, required this.onInvite});
+  const _ForwardPickerEmptyState({required this.kind, this.onInvite});
 
   final _PickerEmptyKind kind;
-  final VoidCallback onInvite;
+
+  /// Null hides the invite action.
+  final VoidCallback? onInvite;
 
   @override
   Widget build(BuildContext context) {
@@ -1111,7 +1126,7 @@ class _ForwardPickerEmptyState extends StatelessWidget {
         icon: Icons.group_add_outlined,
         title: l10n.forwardEmptyNoContactsTitle,
         body: l10n.trustWidensReachHint,
-        actionLabel: l10n.emptyInviteSomeoneAction,
+        actionLabel: onInvite == null ? null : l10n.emptyInviteSomeoneAction,
         onAction: onInvite,
       ),
       _PickerEmptyKind.searchNoMatches => TenturaEmptyState(

@@ -615,9 +615,53 @@ void main() {
         ),
         findsOneWidget,
       );
+      // A create-flow draft that cannot mint an invite does not offer one:
+      // leaving for People › Invitations would abandon the draft.
+      expect(find.byKey(TenturaEmptyState.actionKey), findsNothing);
+      expect(find.text("Couldn't load"), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the genuinely empty picker offers an invite where it can mint one',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'b1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      cubit.emit(
+        ForwardState(
+          beaconId: 'b1',
+          beacon: Beacon.empty.copyWith(id: 'b1', viewerCanForward: true),
+          candidatesLoad: const ForwardCandidatesEmpty(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(beaconId: 'b1', embedded: true),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No one to send to yet'), findsOneWidget);
       expect(find.byKey(TenturaEmptyState.actionKey), findsOneWidget);
       expect(find.text('Invite someone you know'), findsOneWidget);
-      expect(find.text("Couldn't load"), findsNothing);
     },
   );
 
