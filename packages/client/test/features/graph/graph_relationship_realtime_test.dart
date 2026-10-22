@@ -11,6 +11,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
+import '../../support/graph_trust_write_fixture.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -263,4 +264,38 @@ void main() {
     await _afterRefresh();
     expect(cubit.viewerLink('Ualice'), (fromViewer: 1.0, toViewer: 1.0));
   });
+
+  test(
+    'the open person card follows the other person stopping trust',
+    () async {
+      final fixture = GraphTrustWriteFixture();
+      addTearDown(fixture.dispose);
+      fixture.profiles.byId['Ualice'] = _aliceMutual;
+      final card = fixture.createCubit();
+      card.selectProfile(_aliceMutual, intentional: true);
+      await _settle();
+      expect(card.state.selectedProfile!.subjectExplicitlyTrustsViewer, isTrue);
+
+      fixture.profiles.byId['Ualice'] = _aliceMutual.copyWith(
+        subjectExplicitlyTrustsViewer: false,
+        isMutualFriend: false,
+      );
+      fixture.realtimePort.emitChange(_relationshipHint('Ualice'));
+      await _afterRefresh();
+
+      expect(card.state.selectedProfile!.id, 'Ualice');
+      expect(
+        card.state.selectedProfile!.subjectExplicitlyTrustsViewer,
+        isFalse,
+      );
+      expect(card.state.selectedProfile!.isMutualFriend, isFalse);
+
+      // Nothing selected: hints no longer re-read anyone.
+      card.clearSelection();
+      final reads = fixture.profiles.fetchCalls;
+      fixture.realtimePort.emitChange(_relationshipHint('Ualice'));
+      await _afterRefresh();
+      expect(fixture.profiles.fetchCalls, reads);
+    },
+  );
 }

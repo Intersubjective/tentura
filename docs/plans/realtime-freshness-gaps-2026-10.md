@@ -127,6 +127,9 @@ Legend: ✓ delivered / subscribed / refetches; ✗ gap; — not affected.
   fixed; whether a tap in the trust graph should keep the ego's other
   neighbours visible is a product question for the owner, not a freshness
   bug, and is left unchanged.
+- The open person card (`GraphPersonContextCubit`) re-reads the selected
+  person on `ProfileViewCase.projectionChanges` (relationship, profile, block
+  marker, catch-up), so its trust/visibility lines follow too.
 - Tests: `test/features/graph/graph_relationship_realtime_test.dart`
   (remote untrust drops the edge and badge and keeps everyone else; remote
   trust appears; burst read once; catch-up refetches; local withdrawal holds
@@ -179,9 +182,6 @@ Inbox/My Work refetch per burst. Filed as #639.
   and the related rename case was won't-fix; left. The contract impact test
   only checks that a mapped file exists, which is how both this and the graph
   gap passed it.
-- **Graph person card** (`GraphPersonContextCubit`) keeps the profile it
-  loaded on selection; after a remote untrust the graph and node badge update
-  but the open card's visibility line does not until reselected.
 - **After-measurement on dev for the graph** needs a deploy (not done in this
   lane); local acceptance is by unit test.
 - Read amplification (§6), by owner decision (perf paused).
