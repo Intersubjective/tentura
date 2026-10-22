@@ -577,7 +577,18 @@ List<Widget> _myWorkRedesignSlivers({
         separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
         itemBuilder: (context, index) {
           final vm = group.cards[index];
-          return _myWorkCardTile(context: context, vm: vm);
+          final tile = _myWorkCardTile(context: context, vm: vm);
+          // #487 — a child Request sits indented under its parent; past two
+          // levels the "Part of: …" line carries the rest, so narrow
+          // screens keep a usable card width.
+          final depth = group.depthOf(vm.beaconId);
+          if (depth == 0) return tile;
+          return Padding(
+            padding: EdgeInsetsDirectional.only(
+              start: tt.screenHPadding * (depth > 2 ? 2 : depth),
+            ),
+            child: tile,
+          );
         },
       ),
     );

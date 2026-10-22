@@ -135,8 +135,9 @@ class _LatestStubRoom extends Fake implements BeaconRoomRepositoryPort {
 
   @override
   Future<Map<String, RoomLatestActivity>> latestRoomActivities(
-    Iterable<String> beaconIds,
-  ) async => {
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => {
     for (final id in beaconIds)
       if (latest[id] case final RoomLatestActivity a) id: a,
   };

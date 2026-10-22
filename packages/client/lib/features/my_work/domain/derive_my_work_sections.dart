@@ -17,10 +17,96 @@ class MyWorkDeskSectionGroup {
   const MyWorkDeskSectionGroup({
     required this.section,
     required this.cards,
+    this.nestingDepth = const {},
   });
 
   final MyWorkDeskSection section;
   final List<MyWorkCardViewModel> cards;
+
+  /// #487 — how deep each card sits under a parent Request listed in the
+  /// same section (1 = child, 2 = grandchild, …); absent = top level.
+  final Map<String, int> nestingDepth;
+
+  int depthOf(String beaconId) => nestingDepth[beaconId] ?? 0;
+}
+
+/// #487 — lists each child Request right under its parent when both are in
+/// [ordered] (one section), so a child no longer reads as an unrelated
+/// sibling. A family keeps the place of its highest-ranked member, so a busy
+/// child still lifts its family up the "Recent" order (#525); inside a family,
+/// siblings keep the order of their own highest-ranked descendant. A child
+/// whose parent is not in [ordered] stays where the sort put it (its card
+/// still says "Part of: …").
+MyWorkDeskSectionGroup nestMyWorkChildCards({
+  required MyWorkDeskSection section,
+  required List<MyWorkCardViewModel> ordered,
+}) {
+  final indexById = <String, int>{
+    for (var i = 0; i < ordered.length; i++) ordered[i].beaconId: i,
+  };
+  String? listedParent(MyWorkCardViewModel card) {
+    final p = card.parentBeaconId;
+    return p.isNotEmpty && p != card.beaconId && indexById.containsKey(p)
+        ? p
+        : null;
+  }
+
+  final byId = {for (final c in ordered) c.beaconId: c};
+  // Parentage never changes after creation, so a cycle cannot happen; if one
+  // ever did, its members are treated as top level instead of vanishing.
+  final parentOf = <String, String?>{};
+  for (final card in ordered) {
+    final seen = <String>{card.beaconId};
+    var cursor = listedParent(card);
+    var cyclic = false;
+    while (cursor != null) {
+      if (!seen.add(cursor)) {
+        cyclic = true;
+        break;
+      }
+      cursor = listedParent(byId[cursor]!);
+    }
+    parentOf[card.beaconId] = cyclic ? null : listedParent(card);
+  }
+  if (parentOf.values.every((p) => p == null)) {
+    return MyWorkDeskSectionGroup(section: section, cards: ordered);
+  }
+
+  final children = <String, List<String>>{};
+  for (final card in ordered) {
+    final p = parentOf[card.beaconId];
+    if (p != null) (children[p] ??= []).add(card.beaconId);
+  }
+  final rank = <String, int>{};
+  int subtreeRank(String id) => rank[id] ??= [
+    indexById[id]!,
+    for (final c in children[id] ?? const <String>[]) subtreeRank(c),
+  ].reduce((a, b) => a < b ? a : b);
+  int byRank(String a, String b) => subtreeRank(a).compareTo(subtreeRank(b));
+
+  final out = <MyWorkCardViewModel>[];
+  final depth = <String, int>{};
+  void emit(String id, int level) {
+    out.add(byId[id]!);
+    if (level > 0) depth[id] = level;
+    final kids = [...?children[id]]..sort(byRank);
+    for (final kid in kids) {
+      emit(kid, level + 1);
+    }
+  }
+
+  final roots = [
+    for (final card in ordered)
+      if (parentOf[card.beaconId] == null) card.beaconId,
+  ]..sort(byRank);
+  for (final root in roots) {
+    emit(root, 0);
+  }
+  return MyWorkDeskSectionGroup(
+    section: section,
+    cards: out,
+    nestingDepth: depth,
+  );
 }
 
 bool myWorkCardHasLiveObligation(
@@ -53,7 +139,8 @@ bool _filterUsesResponsibilitySections(MyWorkFilter filter) =>
 /// Priority: live obligation → Needs you; else finished → Finished; else In progress.
 ///
 /// [cards] must already be ordered for the desk (e.g. [visibleMyWorkCardsForDesk]);
-/// order within each section is preserved from that list.
+/// order within each section is preserved from that list, except that child
+/// Requests are listed under their parent ([nestMyWorkChildCards], #487).
 List<MyWorkDeskSectionGroup> deriveMyWorkSections({
   required List<MyWorkCardViewModel> cards,
   required Map<String, MyWorkBeaconAttention> attentionByBeacon,
@@ -64,9 +151,9 @@ List<MyWorkDeskSectionGroup> deriveMyWorkSections({
       return const [];
     }
     return [
-      MyWorkDeskSectionGroup(
+      nestMyWorkChildCards(
         section: MyWorkDeskSection.unlabeled,
-        cards: List<MyWorkCardViewModel>.from(cards),
+        ordered: List<MyWorkCardViewModel>.from(cards),
       ),
     ];
   }
@@ -88,25 +175,25 @@ List<MyWorkDeskSectionGroup> deriveMyWorkSections({
   final groups = <MyWorkDeskSectionGroup>[];
   if (needsYou.isNotEmpty) {
     groups.add(
-      MyWorkDeskSectionGroup(
+      nestMyWorkChildCards(
         section: MyWorkDeskSection.needsYou,
-        cards: needsYou,
+        ordered: needsYou,
       ),
     );
   }
   if (inProgress.isNotEmpty) {
     groups.add(
-      MyWorkDeskSectionGroup(
+      nestMyWorkChildCards(
         section: MyWorkDeskSection.inProgress,
-        cards: inProgress,
+        ordered: inProgress,
       ),
     );
   }
   if (finished.isNotEmpty) {
     groups.add(
-      MyWorkDeskSectionGroup(
+      nestMyWorkChildCards(
         section: MyWorkDeskSection.finished,
-        cards: finished,
+        ordered: finished,
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/repository/fetch_by_id_batches.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -61,10 +62,11 @@ class MyWorkRepository {
 
   Future<Map<String, MyWorkLastEvent?>> fetchLastActivityEventsByBeaconId(
     List<String> beaconIds,
+  ) => fetchByIdBatches(beaconIds, _fetchLastActivityEventsBatch);
+
+  Future<Map<String, MyWorkLastEvent?>> _fetchLastActivityEventsBatch(
+    List<String> beaconIds,
   ) async {
-    if (beaconIds.isEmpty) {
-      return const {};
-    }
     final r = await _remoteApiService
         .request(
           GMyWorkLastActivityEventReq(

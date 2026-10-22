@@ -25,6 +25,7 @@ import 'package:tentura/features/home/domain/port/home_orientation_preferences_p
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
@@ -561,6 +562,67 @@ void main() {
 
     expect(cubit.state.sort, MyWorkSort.oldest);
     expect(find.byTooltip('Change sort order: Oldest first'), findsOneWidget);
+
+    unawaited(cubit.close());
+    unawaited(homeAttention.close());
+    unawaited(boot.accounts.close());
+  });
+
+  // W5 — #487: a child Request is listed indented under its parent, and the
+  // family takes the place of its busiest member in "Recent" (#525).
+  testWidgets('a child Request sits indented under its parent', (
+    tester,
+  ) async {
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = const [];
+    Beacon at(String id, String title, int day) =>
+        _beacon(id, title).copyWith(createdAt: DateTime.utc(2026, 9, day));
+    final myWorkRepo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [
+          at('b-parent', 'Couch move', 1),
+          at('b-child', 'Borrow moving straps', 2),
+          at('b-other', 'Unrelated', 3),
+        ],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final hints = FakeRoomHints()
+      ..hintsByBeaconId = {
+        'b-child': InboxRoomCardHints(
+          isRoomMember: true,
+          roomUnreadCount: 0,
+          lastActivityAt: DateTime.utc(2026, 9, 10),
+          parentBeaconId: 'b-parent',
+          parentTitle: 'Couch move',
+        ),
+      };
+    final boot = await _bootAttention(attentionRepo);
+    final cubit = MyWorkCubit(
+      userId: _accountId,
+      myWorkCase: buildTestMyWorkCase(
+        repo: myWorkRepo,
+        roomHints: hints,
+        attentionCase: boot.attention,
+      ),
+    );
+    final homeAttention = HomeAttentionCubit(
+      boot.attention,
+      boot.accounts,
+      Logger('nested-child'),
+    );
+
+    await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
+
+    final parent = tester.getTopLeft(find.text('Couch move'));
+    final child = tester.getTopLeft(find.text('Borrow moving straps'));
+    final other = tester.getTopLeft(find.text('Unrelated'));
+    expect(parent.dy, lessThan(child.dy));
+    expect(child.dy, lessThan(other.dy));
+    expect(child.dx, greaterThan(parent.dx));
+    expect(other.dx, parent.dx);
+    expect(find.text('Part of: Couch move'), findsOneWidget);
 
     unawaited(cubit.close());
     unawaited(homeAttention.close());

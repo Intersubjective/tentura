@@ -36,11 +36,13 @@ abstract class BeaconRoomRepositoryPort {
 
   /// U087 — last activity + latest member message of each Request's main
   /// room, keyed by beacon id, read in one query. Callers pass only Requests
-  /// the viewer may read; ids with no room rows still get an entry with null
-  /// fields.
+  /// [viewerUserId] may read; ids with no room rows still get an entry with
+  /// null fields. A new help offer counts as activity only when the viewer is
+  /// the Request's author or a steward (the people who decide on offers).
   Future<Map<String, RoomLatestActivity>> latestRoomActivities(
-    Iterable<String> beaconIds,
-  );
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  });
 
   Future<DateTime?> getMainRoomLastSeen({
     required String beaconId,

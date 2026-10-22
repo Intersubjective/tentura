@@ -128,7 +128,9 @@ Future<void> main() async {
       );
       expect(raw.single.single, '');
 
-      final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+      final a = (await room.latestRoomActivities([
+        beaconId,
+      ], viewerUserId: authorId))[beaconId]!;
       expect(a.lastMessageAt, DateTime.utc(2026, 1, 2, 11));
       expect(a.lastMessageAuthorId, ninaId);
       expect(a.lastMessageAuthorName, 'Nina');
@@ -142,7 +144,9 @@ Future<void> main() async {
       await message('Mfile', author: ninaId, body: '', at: laterAt);
       await attachment('Mfile', kind: BeaconRoomMessageAttachmentKind.file);
 
-      final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+      final a = (await room.latestRoomActivities([
+        beaconId,
+      ], viewerUserId: authorId))[beaconId]!;
       expect(a.lastMessageAt, DateTime.utc(2026, 1, 2, 11));
       expect(a.lastMessageAuthorId, ninaId);
       expect(a.lastMessageKind, 'file');
@@ -163,7 +167,9 @@ Future<void> main() async {
         pollingId: 'Pnontext01',
       );
 
-      final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+      final a = (await room.latestRoomActivities([
+        beaconId,
+      ], viewerUserId: authorId))[beaconId]!;
       expect(a.lastMessageAt, DateTime.utc(2026, 1, 2, 11));
       expect(a.lastMessageAuthorId, ninaId);
       expect(a.lastMessageKind, 'poll');
@@ -196,7 +202,9 @@ Future<void> main() async {
           quotedFactSeq: 1,
         );
 
-        final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+        final a = (await room.latestRoomActivities([
+          beaconId,
+        ], viewerUserId: authorId))[beaconId]!;
         expect(a.lastMessageAt, DateTime.utc(2026, 1, 2, 11));
         expect(a.lastMessageAuthorId, ninaId);
         expect(a.lastMessageKind, 'fact');
@@ -209,14 +217,18 @@ Future<void> main() async {
       await message('Mcap', author: ninaId, body: 'The van', at: laterAt);
       await attachment('Mcap', kind: BeaconRoomMessageAttachmentKind.image);
 
-      final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+      final a = (await room.latestRoomActivities([
+        beaconId,
+      ], viewerUserId: authorId))[beaconId]!;
       expect(a.lastMessageBody, 'The van');
       expect(a.lastMessageAuthorId, ninaId);
     });
 
     test('guard: a plain text message has no kind', () async {
       await textFirst();
-      final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+      final a = (await room.latestRoomActivities([
+        beaconId,
+      ], viewerUserId: authorId))[beaconId]!;
       expect(a.lastMessageBody, 'Parking sorted?');
       expect(a.lastMessageKind, isNull);
     });
@@ -227,7 +239,9 @@ Future<void> main() async {
         await textFirst();
         await message('Mblank', author: ninaId, body: '   ', at: laterAt);
 
-        final a = (await room.latestRoomActivities([beaconId]))[beaconId]!;
+        final a = (await room.latestRoomActivities([
+          beaconId,
+        ], viewerUserId: authorId))[beaconId]!;
         expect(a.lastMessageBody, 'Parking sorted?');
         expect(a.lastMessageAuthorId, authorId);
         expect(a.lastMessageAt, DateTime.utc(2026, 1, 2, 10));

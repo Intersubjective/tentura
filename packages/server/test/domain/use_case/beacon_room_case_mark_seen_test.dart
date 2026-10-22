@@ -92,8 +92,9 @@ class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
 
   @override
   Future<Map<String, RoomLatestActivity>> latestRoomActivities(
-    Iterable<String> beaconIds,
-  ) async {
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
     final ids = beaconIds.toList();
     latestActivityCalls.add(ids);
     return {for (final id in ids) id: latestActivity};
