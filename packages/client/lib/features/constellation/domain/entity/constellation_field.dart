@@ -26,6 +26,11 @@ abstract class ConstellationField with _$ConstellationField {
     @Default([]) List<ConstellationMemberWeb> memberWebs,
     @Default(false) bool peersCapped,
     @Default(false) bool requestsCapped,
+
+    /// Everyone the viewer trusts directly (#246): always on the field and
+    /// outside both peer caps. Kept across ANCHORS refreshes, which carry
+    /// none.
+    @Default([]) List<String> directContactIds,
     ConstellationAnchorProjection? anchorProjection,
   }) = _ConstellationField;
 
@@ -45,6 +50,11 @@ abstract class ConstellationPerson with _$ConstellationPerson {
 
     /// False for a pinned person outside the viewer's visible set.
     @Default(true) bool visible,
+
+    /// A contact node without content (#246): someone the viewer trusts
+    /// directly who is outside the viewer's visible set. Identity only; the
+    /// field holds no edge of theirs but the viewer's own.
+    @Default(false) bool contactOnly,
   }) = _ConstellationPerson;
 }
 

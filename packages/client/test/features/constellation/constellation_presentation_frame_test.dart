@@ -403,6 +403,117 @@ void main() {
     });
   });
 
+  group('bare detail below the small zoom (#595)', () {
+    test('no node is a label candidate, whatever its priority', () {
+      for (var priority = 0; priority <= 3; priority++) {
+        for (var ring = 0; ring <= 3; ring++) {
+          expect(
+            constellationLabelCandidateForDetail(
+              detail: ConstellationDetailLevel.bare,
+              priority: priority,
+              ring: ring,
+            ),
+            isFalse,
+          );
+        }
+      }
+    });
+
+    test('zooming out never adds a candidate', () {
+      for (var priority = 0; priority <= 3; priority++) {
+        for (var ring = 0; ring <= 3; ring++) {
+          bool at(ConstellationDetailLevel detail) =>
+              constellationLabelCandidateForDetail(
+                detail: detail,
+                priority: priority,
+                ring: ring,
+              );
+          if (at(ConstellationDetailLevel.bare)) {
+            expect(at(ConstellationDetailLevel.overview), isTrue);
+          }
+          if (at(ConstellationDetailLevel.overview)) {
+            expect(at(ConstellationDetailLevel.normal), isTrue);
+          }
+        }
+      }
+    });
+
+    test('places no overflow chip and forces no label', () {
+      final frame = computeConstellationPresentationFrame(
+        snapshot: snapshot,
+        cameraRevision: 1,
+        detail: ConstellationDetailLevel.bare,
+        viewport: const Size(120, 120),
+        nodesInPaintOrder: [
+          node(
+            id: 'ego',
+            centre: const Offset(60, 60),
+            priority: 1,
+            labelSize: const Size(100, 50),
+          ),
+        ],
+        chips: [
+          ConstellationFrameChipInput(
+            authorId: 'ego',
+            authorGraphId: 'ego',
+            size: const Size(40, 20),
+          ),
+        ],
+        gap: gap,
+        minTarget: minTarget,
+        rtl: false,
+      );
+
+      expect(frame.labels, isEmpty);
+      expect(frame.forcedLabels, isEmpty);
+      expect(frame.chips, isEmpty);
+    });
+
+    test('overview forces no label that does not fit', () {
+      final frame = computeConstellationPresentationFrame(
+        snapshot: snapshot,
+        cameraRevision: 1,
+        detail: ConstellationDetailLevel.overview,
+        viewport: const Size(120, 120),
+        nodesInPaintOrder: [
+          node(
+            id: 'ego',
+            centre: const Offset(60, 60),
+            priority: 1,
+            labelSize: const Size(100, 50),
+          ),
+        ],
+        chips: const [],
+        gap: gap,
+        minTarget: minTarget,
+        rtl: false,
+      );
+
+      expect(frame.forcedLabels, isEmpty);
+      expect(frame.labels.containsKey('ego'), isFalse);
+    });
+
+    test('the cut-off is the same from either direction', () {
+      for (final previous in ConstellationDetailLevel.values) {
+        expect(
+          nextConstellationDetailLevel(0.2, previous),
+          ConstellationDetailLevel.bare,
+        );
+        expect(
+          nextConstellationDetailLevel(
+            kConstellationBareDetailScale,
+            previous,
+          ),
+          isNot(ConstellationDetailLevel.bare),
+        );
+      }
+      expect(
+        nextConstellationDetailLevel(0.77, ConstellationDetailLevel.bare),
+        ConstellationDetailLevel.overview,
+      );
+    });
+  });
+
   group('nextConstellationDetailLevel', () {
     test('scale thresholds and hysteresis band', () {
       expect(

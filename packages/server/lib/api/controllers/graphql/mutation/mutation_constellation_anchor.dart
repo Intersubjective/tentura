@@ -25,9 +25,29 @@ final class MutationConstellationAnchor extends GqlNodeBase {
 
   final _ops = GraphQLFieldInput('ops', _AnchorOpListType().nonNullable());
 
+  final _clientOpId = GraphQLFieldInput(
+    'clientOpId',
+    graphQLString.nonNullable(),
+  );
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     constellationAnchorsApply,
+    constellationAnchorsReset,
   ];
+
+  /// «Сбросить позиции» (#251): removes every user-placed position.
+  GraphQLObjectField<dynamic, dynamic> get constellationAnchorsReset =>
+      GraphQLObjectField(
+        'constellationAnchorsReset',
+        gqlTypeConstellationAnchorsResetResult.nonNullable(),
+        arguments: [_clientOpId],
+        resolve: (_, args) => _constellationAnchorCase
+            .reset(
+              viewerId: getCredentials(args).sub,
+              clientOpId: args[_clientOpId.name]! as String,
+            )
+            .then(constellationAnchorsResetResultToGqlMap),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get constellationAnchorsApply =>
       GraphQLObjectField(
@@ -63,6 +83,7 @@ final class MutationConstellationAnchor extends GqlNodeBase {
       coordinateSpaceVersion: (position?['coordinateSpaceVersion'] as num?)
           ?.toInt(),
       ifRevisionWire: raw['ifRevision'] as String?,
+      baseRevisionWire: raw['baseRevision'] as String?,
     );
   }
 }

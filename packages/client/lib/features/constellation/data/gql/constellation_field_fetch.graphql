@@ -14,8 +14,10 @@ query ConstellationFieldFetch(
     context
     peersCapped
     requestsCapped
+    directContactIds
     peers {
       id
+      contactOnly
       displayName
       handle
       image {

@@ -159,9 +159,12 @@ $$
     () async {
       final snapshot = await readFull();
 
+      // The viewer trusts the first peer directly: it rides on top of the
+      // cap (#246 Q6), which then takes the next peers in id order.
       expect(snapshot.peersCapped, isTrue);
-      expect(snapshot.peers, hasLength(kConstellationPeerCap));
-      expect(recorder.nodeCounts, [kConstellationPeerCap + 1]);
+      expect(snapshot.directContactIds, [peers.first]);
+      expect(snapshot.peers, hasLength(kConstellationPeerCap + 1));
+      expect(recorder.nodeCounts, [kConstellationPeerCap + 2]);
       expect(edgeSet(snapshot.edges), await expectedEdges(snapshot));
       expect(snapshot.edges, isNotEmpty);
     },

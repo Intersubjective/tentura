@@ -26,6 +26,10 @@ import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 
 final class _Anchors implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   final ack = Completer<void>();
   ConstellationAnchor? anchor;
 

@@ -7211,5 +7211,20 @@
   "declineRemainingOffersNote": "Отклоняются только предложения, которые ещё ждут вашего ответа. Принятые помощники остаются, запасные предложения сохраняются. Причину каждый увидит только сам.",
   "declineRemainingOffersDefaultReason": "Спасибо! Помощи уже достаточно.",
   "declineRemainingOffersConfirm": "Отклонить все",
-  "helpOfferAcceptSharedChatHint": "Принятые помощники попадают в общее обсуждение запроса. Личных чатов нет."
+  "helpOfferAcceptSharedChatHint": "Принятые помощники попадают в общее обсуждение запроса. Личных чатов нет.",
+  "constellationViewModeList": "Список",
+  "constellationSearchHint": "Поиск по имени",
+  "constellationSearchPeople": "Найти человека на поле",
+  "constellationSearchClear": "Очистить поиск",
+  "constellationSearchNoMatch": "На поле нет никого с таким именем.",
+  "constellationListDirectContacts": "Кому вы доверяете",
+  "constellationListOthers": "Остальные на поле",
+  "constellationListSemantics": "Люди на поле, их запросы и посты",
+  "constellationListPostLabel": "Пост",
+  "constellationContactOnlyNote": "Вы им доверяете. Их запросы и посты появятся здесь, когда вы сможете видеть друг друга.",
+  "constellationResetPositions": "Сбросить позиции",
+  "constellationResetPositionsTitle": "Сбросить все позиции?",
+  "constellationResetPositionsBody": "Все люди, запросы и посты, которые вы переместили на поле, вернутся на свои автоматические места — в том числе скрытые фильтрами и те, что за краем экрана, — на всех ваших устройствах. Отменить это нельзя.",
+  "constellationResetPositionsConfirm": "Сбросить",
+  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз."
 }

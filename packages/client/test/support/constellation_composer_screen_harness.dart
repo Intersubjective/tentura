@@ -199,8 +199,8 @@ Future<void> pumpComposerHarnessScreen(
   WidgetTester tester, {
   required ConstellationCubit cubit,
   required ConstellationComposerCubit composer,
+  Size size = const Size(1280, 800),
 }) async {
-  const size = Size(1280, 800);
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
@@ -210,7 +210,7 @@ Future<void> pumpComposerHarnessScreen(
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       home: MediaQuery(
-        data: const MediaQueryData(size: size),
+        data: MediaQueryData(size: size),
         child: TenturaResponsiveScope(
           child: MultiBlocProvider(
             providers: [

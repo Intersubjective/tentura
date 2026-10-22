@@ -314,7 +314,10 @@ WHERE id = 'Bstartat001'
 
       final snapshot = await loadField(egoId);
 
-      expect(snapshot.peersCapped, isTrue);
+      // Direct contacts are never capped (#246 Q6); the blocked one is gone.
+      expect(snapshot.peersCapped, isFalse);
+      expect(snapshot.peers.map((p) => p.id), contains(overflowPeer));
+      expect(snapshot.directContactIds, isNot(contains(blockedAuthor)));
       expect(snapshot.peers.map((p) => p.id), isNot(contains(blockedAuthor)));
       expect(snapshot.requests.map((r) => r.authorId), isNot(contains(blockedAuthor)));
     }, skip: skipReason);
@@ -336,13 +339,19 @@ WHERE id = 'Bstartat001'
 
       final snapshot = await loadField(egoId);
 
-      expect(snapshot.peersCapped, isTrue);
+      // Direct contacts are never capped (#246 Q6); the blocked one is gone.
+      expect(snapshot.peersCapped, isFalse);
+      expect(snapshot.peers.map((p) => p.id), contains(overflowPeer));
+      expect(snapshot.directContactIds, isNot(contains(blockedAuthor)));
       expect(snapshot.peers.map((p) => p.id), isNot(contains(blockedAuthor)));
       expect(snapshot.requests.map((r) => r.authorId), isNot(contains(blockedAuthor)));
     }, skip: skipReason);
 
-    test('peer overflow keeps graph cap, edges inside graph, authors in peers',
-        () async {
+    // Without MeritRank every visible peer here is a mutual direct contact,
+    // so the cap never applies (#246 Q6); the indirect-peer cap is covered by
+    // constellation_field_direct_contacts_mr_pg_test.dart.
+    test('direct contacts beyond the graph cap are all present, edges inside '
+        'the field, authors in peers', () async {
       final graphPeerIds = [
         for (var i = 0; i < kConstellationPeerCap + 1; i++)
           'Ucfpeer${i.toString().padLeft(3, '0')}',
@@ -358,10 +367,11 @@ WHERE id = 'Bstartat001'
 
       final snapshot = await loadField(egoId);
 
-      expect(snapshot.peersCapped, isTrue);
-      final graphSet = graphPeerIds.take(kConstellationPeerCap).toSet();
+      expect(snapshot.peersCapped, isFalse);
+      final graphSet = graphPeerIds.toSet();
       final edgeAllowed = graphSet.union({egoId});
-      expect(snapshot.peers.map((p) => p.id).toSet(), graphSet.union({graphPeerIds.last}));
+      expect(snapshot.peers.map((p) => p.id).toSet(), graphSet);
+      expect(snapshot.directContactIds, graphPeerIds);
       expect(snapshot.peers.length, kConstellationPeerCap + 1);
       for (final edge in snapshot.edges) {
         expect(edgeAllowed, contains(edge.src));

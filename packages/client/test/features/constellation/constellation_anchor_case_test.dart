@@ -84,6 +84,10 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
 }
 
 final class _FakeAnchorRepository implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   Completer<void> upsertGate = Completer<void>()..complete();
   Completer<void> deleteGate = Completer<void>()..complete();
   int upsertCount = 0;

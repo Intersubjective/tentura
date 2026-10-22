@@ -15,6 +15,7 @@ import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
+import '../../domain/constellation_people.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -1828,6 +1829,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileLayout(immediateHandoff: true);
   }
 
+  /// «Сбросить позиции» (#251): removes every user-placed position of the
+  /// account, hidden and off-screen ones included; the moved nodes return to
+  /// the automatic layout here and, through the anchor hint, on the account's
+  /// other devices. False when the reset could not be confirmed.
+  Future<bool> resetAllPositions() async {
+    final placement = _placementCase;
+    if (isClosed || placement == null) {
+      return false;
+    }
+    _writeCount++;
+    try {
+      await placement.resetAll();
+      return true;
+    } on Object catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+      return false;
+    }
+  }
+
   bool canPinTarget(ConstellationAnchorTarget target) {
     if (isAnchored(target)) {
       return true;
@@ -2389,12 +2409,67 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null) {
       return null;
     }
-    for (final peer in field.peers) {
-      if (peer.id == personId) {
-        return _profileFromPeer(peer);
+    final projection = field.resolvedAnchorProjection;
+    for (final peers in [
+      field.peers,
+      projection.pinnedPeers,
+      projection.supportPeers,
+    ]) {
+      for (final peer in peers) {
+        if (peer.id == personId) {
+          return _profileFromPeer(peer);
+        }
       }
     }
     return null;
+  }
+
+  ConstellationComposedPresentation? _peopleFor;
+  List<ConstellationFieldPerson> _people = const [];
+
+  /// The field's people, the same population the map draws (#253): the
+  /// viewer first, then everyone else by name.
+  List<ConstellationFieldPerson> get fieldPeople {
+    final field = state.field;
+    final composition = state.composition;
+    if (field == null || composition == null) {
+      return const [];
+    }
+    if (!identical(composition, _peopleFor)) {
+      _peopleFor = composition;
+      _people = constellationFieldPeople(
+        field: field,
+        composition: composition,
+        viewerId: _viewer.id,
+        viewerName: _viewer.shownName,
+      );
+    }
+    return _people;
+  }
+
+  /// [personId]'s Posts that are on the field, latest activity first.
+  List<ConstellationPost> postsForPerson(String personId) {
+    final eligible = state.composition?.eligibleRequestIds ?? const {};
+    return [
+      for (final post in state.field?.posts ?? const <ConstellationPost>[])
+        if (post.authorId == personId && eligible.contains(post.id)) post,
+    ]..sort((a, b) {
+      final byActivity = b.lastActivityAt.compareTo(a.lastActivityAt);
+      return byActivity != 0 ? byActivity : a.id.compareTo(b.id);
+    });
+  }
+
+  /// Selects [personId] (which highlights the node and opens the person
+  /// panel) and centres the camera on them, keeping the zoom (#253).
+  void focusPerson(String personId, {required EdgeInsets insets}) {
+    if (isClosed || personId == _viewer.id) {
+      return;
+    }
+    selectPerson(personId);
+    if (state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    _scene.centreOnPerson(personId, insets);
   }
 
   List<ConstellationRequest> discoverableRequestsForPerson(String personId) {

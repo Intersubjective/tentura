@@ -85,8 +85,27 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _HarnessAnchorRepository
-    implements ConstellationWriteFake {
+final class _HarnessAnchorRepository implements ConstellationWriteFake {
+  final resetIds = <String>[];
+  Object? resetError;
+
+  @override
+  Future<ConstellationAnchorResetResult> reset({
+    required String clientOpId,
+  }) async {
+    resetIds.add(clientOpId);
+    final error = resetError;
+    if (error != null) throw error;
+    final cleared = _confirmedAnchors.length;
+    _confirmedAnchors.clear();
+    _applyRevision += BigInt.from(100);
+    return ConstellationAnchorResetResult(
+      beforeRevision: ConstellationAnchorRevision(BigInt.one),
+      afterRevision: ConstellationAnchorRevision(_applyRevision),
+      clearedCount: cleared,
+    );
+  }
+
   int applyCount = 0;
   int upsertCount = 0;
   int deleteCount = 0;
@@ -461,7 +480,82 @@ Future<void> _placeTwoNodes(
   await tester.pumpAndSettle(const Duration(milliseconds: 400));
 }
 
+Finder _resetButton() =>
+    find.byKey(const Key('constellation.camera.reset_positions'));
+
 void main() {
+  group('Reset positions (#251)', () {
+    testWidgets('is offered beside re-arrange once something was moved', (
+      tester,
+    ) async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpShell(tester, harness.cubit);
+      expect(_resetButton(), findsNothing);
+
+      await _placeTwoNodes(tester, harness.cubit);
+
+      expect(_resetButton().hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('asks first, and cancelling resets nothing', (tester) async {
+      final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
+      addTearDown(harness.cubit.close);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpShell(tester, harness.cubit);
+
+      await tester.tap(_resetButton());
+      await tester.pumpAndSettle();
+      expect(find.text('Reset all positions?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(harness.anchorRepo.resetIds, isEmpty);
+      expect(harness.cubit.state.hasUserPlacements, isTrue);
+    });
+
+    testWidgets('confirming removes every placement and the button goes', (
+      tester,
+    ) async {
+      final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
+      addTearDown(harness.cubit.close);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpShell(tester, harness.cubit);
+
+      await tester.tap(_resetButton());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 400));
+
+      expect(harness.anchorRepo.resetIds, hasLength(1));
+      expect(harness.cubit.state.hasUserPlacements, isFalse);
+      expect(_resetButton(), findsNothing);
+      expect(_rearrangeButton(), findsNothing);
+    });
+
+    testWidgets('a failed reset says so and keeps the placements', (
+      tester,
+    ) async {
+      final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
+      harness.anchorRepo.resetError = StateError('offline');
+      addTearDown(harness.cubit.close);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpShell(tester, harness.cubit);
+
+      await tester.tap(_resetButton());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text("Couldn't reset positions. Try again."),
+        findsOneWidget,
+      );
+      expect(harness.cubit.state.hasUserPlacements, isTrue);
+    });
+  });
+
   group('Constellation re-arrange action', () {
     testWidgets('is hidden until the user has moved something', (
       tester,

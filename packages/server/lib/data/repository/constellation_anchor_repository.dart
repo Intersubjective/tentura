@@ -4,6 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show ServerException, Type, TypedValue;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/domain/port/constellation_db_admission_port.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -44,7 +46,9 @@ class ConstellationAnchorRepository
     maxAttempts: applyBatchMaxAttempts,
     () async {
       await _lockViewerBatch(viewerId);
-      final before = await _lockViewerCursor(viewerId);
+      final (watermark: before, :resetRevision) = await _lockViewerCursor(
+        viewerId,
+      );
       final existingTargets = await _existingUpsertTargets(ops);
       final recordedRows = await _db
           .customSelect(
@@ -123,6 +127,7 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
         final rejection = _batchOpRejection(
           viewerId,
           op,
+          resetRevision: resetRevision,
           targetExists: existingTargets.contains(op.target),
           targetRevision:
               watermarks[(op.target.kind.wireValue, op.target.id)] ??
@@ -330,12 +335,19 @@ WHERE viewer_id = $1 AND (target_kind, target_id) IN (
   AnchorApplyOpResult? _batchOpRejection(
     String viewerId,
     AnchorApplyOp op, {
+    required ConstellationAnchorRevision resetRevision,
     required bool targetExists,
     required ConstellationAnchorRevision targetRevision,
   }) {
     if (validateConstellationAnchorTarget(target: op.target, viewerId: viewerId)
         is! ConstellationAnchorTargetValid) {
       return _rejected(op, 'invalid_target');
+    }
+    // Made before a reset the client had not seen yet (#251): a late or
+    // replayed placement must not bring a reset position back.
+    final base = op.baseRevision;
+    if (base != null && base.compareTo(resetRevision) < 0) {
+      return _rejected(op, 'reset');
     }
     final position = op.position;
     if (op.kind == AnchorOpKind.upsert) {
@@ -425,6 +437,157 @@ WHERE viewer_id = $1
     return ConstellationAnchorRevision(revision);
   }
 
+  /// Fingerprint of a reset in the op log; a reset carries no arguments.
+  static final _resetFingerprint = sha256
+      .convert(utf8.encode(jsonEncode(['RESET'])))
+      .toString();
+
+  @override
+  Future<AnchorResetResult> resetAll({
+    required String viewerId,
+    required String clientOpId,
+  }) => _db.withMutatingRepeatableRead(
+    viewerId,
+    maxAttempts: applyBatchMaxAttempts,
+    () async {
+      await _lockViewerBatch(viewerId);
+      final (watermark: before, resetRevision: _) = await _lockViewerCursor(
+        viewerId,
+      );
+      final recorded = await _db
+          .customSelect(
+            r'''
+SELECT encode(fingerprint, 'hex') AS fingerprint, result::text AS result
+FROM public.constellation_anchor_op_log
+WHERE viewer_id = $1 AND client_op_id = $2
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable<String>(clientOpId),
+            ],
+          )
+          .getSingleOrNull();
+      if (recorded != null) {
+        if (recorded.read<String>('fingerprint') != _resetFingerprint) {
+          throw ConstellationException(
+            constellationCode: ConstellationExceptionCode.invalidTarget,
+            description: 'The reset operation id was used for another write',
+          );
+        }
+        final result =
+            jsonDecode(recorded.read<String>('result')) as Map<String, dynamic>;
+        return AnchorResetResult(
+          beforeRevision: before.revision,
+          afterRevision: ConstellationAnchorRevision(
+            BigInt.parse(result['revision']! as String),
+          ),
+          clearedCount: result['cleared']! as int,
+          replayed: true,
+        );
+      }
+
+      // Every anchor, tombstones and filter-hidden or off-screen ones
+      // included. The revision trigger advances the locked cursor per row.
+      final cleared = await _db
+          .customSelect(
+            r'''
+DELETE FROM public.constellation_anchor
+WHERE viewer_id = $1
+RETURNING target_kind, target_id
+''',
+            variables: [Variable<String>(viewerId)],
+          )
+          .get();
+      // One more step for the reset itself, so even an empty reset moves
+      // the cursor (and fires its hint) and the watermark is a fresh value.
+      final afterRow = await _db
+          .customSelect(
+            r'''
+UPDATE public.constellation_anchor_cursor
+SET revision = revision + 1, reset_revision = revision + 1
+WHERE viewer_id = $1
+RETURNING revision
+''',
+            variables: [Variable<String>(viewerId)],
+          )
+          .getSingle();
+      final after = ConstellationAnchorRevision(
+        afterRow.read<BigInt>('revision'),
+      );
+      // A conditional write (ifRevision) based on any earlier target
+      // revision conflicts from now on.
+      await _db
+          .customSelect(
+            r'''
+INSERT INTO public.constellation_anchor_target_watermark
+  (viewer_id, target_kind, target_id, revision)
+SELECT $1, t.kind, t.id, $4::text::bigint
+FROM unnest($2::text[], $3::text[]) AS t(kind, id)
+ON CONFLICT (viewer_id, target_kind, target_id)
+DO UPDATE SET revision = EXCLUDED.revision
+RETURNING 1
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable(
+                TypedValue(Type.textArray, [
+                  for (final row in cleared) row.read<String>('target_kind'),
+                ]),
+              ),
+              Variable(
+                TypedValue(Type.textArray, [
+                  for (final row in cleared) row.read<String>('target_id'),
+                ]),
+              ),
+              Variable<String>(after.toDecimalString()),
+            ],
+          )
+          .get();
+      await _db
+          .customSelect(
+            r'''
+UPDATE public.constellation_anchor_target_watermark
+SET revision = $2::text::bigint
+WHERE viewer_id = $1 AND revision < $2::text::bigint
+RETURNING 1
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable<String>(after.toDecimalString()),
+            ],
+          )
+          .get();
+      await _db
+          .customSelect(
+            r'''
+INSERT INTO public.constellation_anchor_op_log
+  (viewer_id, client_op_id, fingerprint, result, revision)
+VALUES ($1, $2, decode($3, 'hex'), $4::text::jsonb, $5::text::bigint)
+RETURNING 1
+''',
+            variables: [
+              Variable<String>(viewerId),
+              Variable<String>(clientOpId),
+              Variable<String>(_resetFingerprint),
+              Variable<String>(
+                jsonEncode({
+                  'status': AnchorOpStatus.ok.wireValue,
+                  'revision': after.toDecimalString(),
+                  'cleared': cleared.length,
+                }),
+              ),
+              Variable<String>(after.toDecimalString()),
+            ],
+          )
+          .get();
+      return AnchorResetResult(
+        beforeRevision: before.revision,
+        afterRevision: after,
+        clearedCount: cleared.length,
+      );
+    },
+  );
+
   /// Serializes this viewer's batches (lock-first order). Waiting means the
   /// previous holder committed after this transaction's snapshot, so the
   /// cursor lock would fail with 40001 after a wasted preparation: fail now.
@@ -448,13 +611,17 @@ WHERE viewer_id = $1
     );
   }
 
-  Future<ConstellationAnchorWatermark> _lockViewerCursor(
-    String viewerId,
-  ) async {
+  Future<
+    ({
+      ConstellationAnchorWatermark watermark,
+      ConstellationAnchorRevision resetRevision,
+    })
+  >
+  _lockViewerCursor(String viewerId) async {
     Future<QueryRow?> lock() => _db
         .customSelect(
           r'''
-SELECT revision
+SELECT revision, reset_revision
 FROM public.constellation_anchor_cursor
 WHERE viewer_id = $1
 FOR UPDATE
@@ -468,8 +635,13 @@ FOR UPDATE
       await _ensureViewerCursor(viewerId);
       row = await lock();
     }
-    return ConstellationAnchorWatermark(
-      ConstellationAnchorRevision(row!.read<BigInt>('revision')),
+    return (
+      watermark: ConstellationAnchorWatermark(
+        ConstellationAnchorRevision(row!.read<BigInt>('revision')),
+      ),
+      resetRevision: ConstellationAnchorRevision(
+        row.read<BigInt>('reset_revision'),
+      ),
     );
   }
 

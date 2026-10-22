@@ -1,0 +1,8 @@
+mutation ConstellationAnchorsReset($clientOpId: String!) {
+  constellationAnchorsReset(clientOpId: $clientOpId) {
+    beforeRevision
+    afterRevision
+    clearedCount
+    replayed
+  }
+}

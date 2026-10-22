@@ -5,6 +5,8 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
+import 'package:tentura_server/data/database/migration/_migrations.dart'
+    show m0256;
 import 'package:tentura_server/data/database/tentura_db.dart' show TenturaDb;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
@@ -104,6 +106,13 @@ final class ConstellationAnchorTombstoneFixture {
       createPgmer2Extension: true,
       lastInclusiveVersion: throughVersion,
     );
+    if (throughVersion != null) {
+      // Pins are seeded through today's repository, which reads the reset
+      // watermark (m0256, #251); give the older schema that one column.
+      await _session.writer.execute(
+        m0256.statements.single,
+      );
+    }
     db = openDisposablePgDatabase(target);
     repository = constellationAnchorRepositoryFor(db);
     _fields = ConstellationFieldRepository(db, _PgTombstoneProfiles(db));

@@ -117,6 +117,10 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 }
 
 final class _HarnessAnchorRepository implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   Completer<void> upsertGate = Completer<void>()..complete();
   Completer<void> deleteGate = Completer<void>()..complete();
   int upsertCount = 0;

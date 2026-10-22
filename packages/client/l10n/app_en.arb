@@ -10402,5 +10402,65 @@
   "helpOfferAcceptSharedChatHint": "Helpers you accept join this Request's shared discussion. There are no private chats.",
   "@helpOfferAcceptSharedChatHint": {
     "description": "#268: one line above the offers waiting for the author's answer, explaining the shared-discussion-only model."
+  },
+  "constellationViewModeList": "List",
+  "@constellationViewModeList": {
+    "context": "Field view switch: the list of people on the field (#253)"
+  },
+  "constellationSearchHint": "Search by name",
+  "@constellationSearchHint": {
+    "context": "Field: hint of the name search over the people on the field (#253)"
+  },
+  "constellationSearchPeople": "Find a person on the field",
+  "@constellationSearchPeople": {
+    "context": "Field map: tooltip of the search button that finds and centres a person (#253)"
+  },
+  "constellationSearchClear": "Clear search",
+  "@constellationSearchClear": {
+    "context": "Field list: tooltip of the button that clears the name search (#253)"
+  },
+  "constellationSearchNoMatch": "No one on the field has this name.",
+  "@constellationSearchNoMatch": {
+    "context": "Field: the name search found nobody (#253)"
+  },
+  "constellationListDirectContacts": "People you trust",
+  "@constellationListDirectContacts": {
+    "context": "Field list: section of the people the viewer trusts directly (#253)"
+  },
+  "constellationListOthers": "Others on the field",
+  "@constellationListOthers": {
+    "context": "Field list: section of everyone else on the field (#253)"
+  },
+  "constellationListSemantics": "People on the field with their Requests and Posts",
+  "@constellationListSemantics": {
+    "context": "Field list: screen-reader name of the list (#253)"
+  },
+  "constellationListPostLabel": "Post",
+  "@constellationListPostLabel": {
+    "context": "Field list: screen-reader prefix of a Post row (#253)"
+  },
+  "constellationContactOnlyNote": "You trust them. Their Requests and Posts show up here once you can see each other.",
+  "@constellationContactOnlyNote": {
+    "context": "Field list: under a person the viewer trusts who is outside the viewer's visible set, so the field shows nothing of theirs (#246)"
+  },
+  "constellationResetPositions": "Reset positions",
+  "@constellationResetPositions": {
+    "context": "Field map: button that removes every position the user placed by hand (#251)"
+  },
+  "constellationResetPositionsTitle": "Reset all positions?",
+  "@constellationResetPositionsTitle": {
+    "context": "Field map: title of the confirmation before resetting positions (#251)"
+  },
+  "constellationResetPositionsBody": "Everyone and everything you moved on the field goes back to its automatic place, including items hidden by filters or off-screen, on all your devices. This can't be undone.",
+  "@constellationResetPositionsBody": {
+    "context": "Field map: body of the confirmation before resetting positions (#251)"
+  },
+  "constellationResetPositionsConfirm": "Reset",
+  "@constellationResetPositionsConfirm": {
+    "context": "Field map: confirm button of the reset-positions dialog (#251)"
+  },
+  "constellationResetPositionsFailed": "Couldn't reset positions. Try again.",
+  "@constellationResetPositionsFailed": {
+    "context": "Field map: the reset of positions failed (#251)"
   }
 }

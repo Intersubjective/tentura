@@ -11,6 +11,9 @@ enum ConstellationAnchorOpStatus { ok, rejected }
 
 /// One ordered operation of a batched anchor apply; [position] is required for
 /// upserts and [ifRevision] guards against a stale per-target revision.
+/// [baseRevision] is the account anchor revision the client held when the
+/// user made the write: the server rejects it (reason `reset`) when a reset
+/// happened after that (#251).
 @freezed
 abstract class ConstellationAnchorApplyOp with _$ConstellationAnchorApplyOp {
   const factory ConstellationAnchorApplyOp({
@@ -19,6 +22,7 @@ abstract class ConstellationAnchorApplyOp with _$ConstellationAnchorApplyOp {
     required ConstellationAnchorTarget target,
     ConstellationAnchorPosition? position,
     ConstellationAnchorRevision? ifRevision,
+    ConstellationAnchorRevision? baseRevision,
   }) = _ConstellationAnchorApplyOp;
 }
 
@@ -48,10 +52,29 @@ abstract class ConstellationAnchorApplyResult
   }) = _ConstellationAnchorApplyResult;
 }
 
-// ignore: one_member_abstracts -- injectable boundary with a test replacement
+/// Outcome of «Сбросить позиции» (#251).
+@freezed
+abstract class ConstellationAnchorResetResult
+    with _$ConstellationAnchorResetResult {
+  const factory ConstellationAnchorResetResult({
+    required ConstellationAnchorRevision beforeRevision,
+
+    /// The account anchor revision after the reset; also the reset watermark.
+    required ConstellationAnchorRevision afterRevision,
+    required int clearedCount,
+
+    /// The same operation id was already applied; nothing was written again.
+    @Default(false) bool replayed,
+  }) = _ConstellationAnchorResetResult;
+}
+
 abstract interface class ConstellationAnchorRepositoryPort {
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,
     required ConstellationFieldMembershipFilters params,
   });
+
+  /// Removes every user-placed position of the account; a retry with the
+  /// same [clientOpId] returns the recorded outcome.
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId});
 }

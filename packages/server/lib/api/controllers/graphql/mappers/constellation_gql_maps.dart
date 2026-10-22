@@ -15,6 +15,10 @@ Map<String, dynamic> constellationFieldToGqlMap(
   'requests': snapshot.requests.map(_requestToGqlMap).toList(growable: false),
   'peersCapped': snapshot.peersCapped,
   'requestsCapped': snapshot.requestsCapped,
+  'directContactIds': List<String>.from(
+    snapshot.directContactIds,
+    growable: false,
+  ),
   'posts': snapshot.posts.map(_postToGqlMap).toList(growable: false),
   'memberWebs': snapshot.memberWebs
       .map(constellationMemberWebToGqlMap)
@@ -83,10 +87,20 @@ Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
       .toList(growable: false),
 };
 
+Map<String, dynamic> constellationAnchorsResetResultToGqlMap(
+  AnchorResetResult result,
+) => {
+  'beforeRevision': result.beforeRevision.toDecimalString(),
+  'afterRevision': result.afterRevision.toDecimalString(),
+  'clearedCount': result.clearedCount,
+  'replayed': result.replayed,
+};
+
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
   'pinState': peer.pinState,
   'visible': peer.visible,
+  'contactOnly': peer.contactOnly,
   'displayName': peer.displayName,
   'handle': peer.handle,
   'image': peer.image == null ? null : imagePublicToGqlMap(peer.image!),

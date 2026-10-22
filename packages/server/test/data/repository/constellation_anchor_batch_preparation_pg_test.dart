@@ -680,6 +680,7 @@ WHERE viewer_id = '$viewer'
                 'targetKind',
                 'pinState',
                 'visible',
+                'contactOnly',
               };
               for (final entry in placeholder.entries) {
                 if (!identityFields.contains(entry.key)) {

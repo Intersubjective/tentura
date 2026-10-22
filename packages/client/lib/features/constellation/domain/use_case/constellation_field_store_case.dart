@@ -167,8 +167,14 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     final requests = {for (final r in held.pinnedRequests) r.id: r};
     final peerRecords = {for (final p in capturedPeers) p.id: p};
     final requestRecords = {for (final r in capturedRequests) r.id: r};
+    final covered = _state.coveredRevision;
     for (final op in result.results) {
       if (op.status != ConstellationAnchorOpStatus.ok || op.replayed) continue;
+      // A projection already newer than this write holds its outcome, or
+      // what replaced it (a reset on another device, #251): a late
+      // acknowledgement must not bring a removed anchor back.
+      final written = op.resultingTargetRevision;
+      if (written != null && written.compareTo(covered) <= 0) continue;
       final anchor = op.anchor;
       final target = anchor?.target ?? op.target;
       if (target == null) continue;
@@ -214,6 +220,36 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         generation: _state.generation,
       ),
     );
+  }
+
+  /// A reset (#251) removed every anchor of the account at [revision]: the
+  /// held projection empties, and a FULL read brings back what only pins kept
+  /// on the field. A projection already newer than the reset is kept; the
+  /// anchor hint path settles it.
+  void applyReset(ConstellationAnchorRevision revision) {
+    final field = _state.field;
+    if (field == null || revision.compareTo(_state.coveredRevision) < 0) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: field.copyWith(
+          anchorProjection: ConstellationAnchorProjection(
+            revision: revision,
+            anchors: const [],
+            pinnedPeers: const [],
+            pinnedRequests: const [],
+            supportPeers: const [],
+            supportEdges: const [],
+            serverFilteredBeaconIds: const [],
+            serverFilteredBeaconCount: 0,
+          ),
+        ),
+        coveredRevision: revision,
+        generation: _state.generation,
+      ),
+    );
+    unawaited(requestRefresh(ConstellationRefreshReason.load));
   }
 
   /// Defer the catch-up read until the writer's replay has been dispatched.

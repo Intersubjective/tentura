@@ -930,6 +930,10 @@ final gqlTypeConstellationPeer =
         field('image', gqlTypeImagePublic),
         field('pinState', graphQLString),
         field('visible', graphQLBoolean.nonNullable()),
+        // A contact node without content (#246): a direct contact outside
+        // the viewer's visible set; identity only, no handle, and no edge
+        // but the viewer's own.
+        field('contactOnly', graphQLBoolean.nonNullable()),
       ]);
 
 /// Two-tier trust edge between constellation peers (ids + tier only).
@@ -1108,6 +1112,9 @@ final gqlInputConstellationAnchorOp = GraphQLInputObjectType(
     GraphQLInputObjectField('targetId', graphQLString.nonNullable()),
     GraphQLInputObjectField('position', gqlInputConstellationAnchorPosition),
     GraphQLInputObjectField('ifRevision', graphQLString),
+    // The account anchor revision the client held when the user made the
+    // write; below the reset watermark it is rejected as `reset` (#251).
+    GraphQLInputObjectField('baseRevision', graphQLString),
   ],
 );
 
@@ -1144,6 +1151,19 @@ final gqlTypeConstellationAnchorsApplyResult =
         ),
       ]);
 
+/// Outcome of «Сбросить позиции» (#251): every anchor of the viewer removed.
+final gqlTypeConstellationAnchorsResetResult =
+    GraphQLObjectType(
+        'ConstellationAnchorsResetResult',
+        null,
+      )
+      ..fields.addAll([
+        field('beforeRevision', graphQLString.nonNullable()),
+        field('afterRevision', graphQLString.nonNullable()),
+        field('clearedCount', graphQLInt.nonNullable()),
+        field('replayed', graphQLBoolean.nonNullable()),
+      ]);
+
 /// Full constellation field snapshot for the JWT viewer.
 final gqlTypeConstellationField =
     GraphQLObjectType(
@@ -1169,6 +1189,12 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        // Everyone the viewer trusts directly (#246), each with a node in
+        // `peers`; never capped. Empty in an ANCHORS read.
+        field(
+          'directContactIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
         field(
           'posts',
           GraphQLListType(gqlTypeConstellationPost.nonNullable()).nonNullable(),

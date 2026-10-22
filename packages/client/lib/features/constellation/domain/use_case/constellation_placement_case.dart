@@ -134,6 +134,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
           clusterId: clusterId,
           target: entry.key,
           position: entry.value,
+          baseRevision: _baseRevision,
           capturedPerson: entry.key.kind == ConstellationAnchorTargetKind.person
               ? (entry.key == parent ? grabbedPerson : null) ??
                     people[entry.key.id]
@@ -153,8 +154,130 @@ final class ConstellationPlacementCase extends UseCaseBase {
         clientOpId: _uuid.v4(),
         clusterId: _uuid.v4(),
         target: target,
+        baseRevision: _baseRevision,
       ),
     ]);
+  }
+
+  /// The account anchor revision the user is looking at; a write based on
+  /// one older than a reset is refused by the server (#251).
+  ConstellationAnchorRevision? get _baseRevision =>
+      _store.current.field?.resolvedAnchorProjection.revision;
+
+  /// True while [resetAll] runs: nothing is sent until it settles.
+  bool _resetting = false;
+
+  /// «Сбросить позиции» (#251): removes every user-placed position of the
+  /// account, hidden and off-screen ones included.
+  ///
+  /// Every write made so far predates the reset and is dropped at once: the
+  /// reset removes whatever of them committed, and the server refuses any
+  /// that still arrives, since each is based on a pre-reset revision. A batch
+  /// already sent settles before the reset is sent, so its acknowledgement
+  /// cannot reach the server or the store after it. Placements made while
+  /// the reset runs are kept and sent after it, based on the reset revision.
+  /// The reset is retried under one operation id, so a retry never resets
+  /// twice; concurrent calls share one reset; a change of account abandons
+  /// it before anything more is sent.
+  Future<ConstellationAnchorResetResult> resetAll() =>
+      _resetInFlight ??= _resetAll().whenComplete(() => _resetInFlight = null);
+
+  Future<ConstellationAnchorResetResult>? _resetInFlight;
+
+  Future<ConstellationAnchorResetResult> _resetAll() async {
+    if (_disposed) {
+      throw StateError('The placement case is disposed');
+    }
+    _syncGeneration();
+    final generation = _state.generation;
+    _resetting = true;
+    // The loop stops at its next check; an apply in flight finishes first.
+    _loopToken = null;
+    _flushing = false;
+    final applying = _applyBarrier;
+    _dropAllWrites();
+    try {
+      if (applying != null) await applying.future;
+      final clientOpId = _uuid.v4();
+      for (var attempt = 1; ; attempt++) {
+        _requireAccount(generation);
+        try {
+          final result = await _repository.reset(clientOpId: clientOpId);
+          if (!_disposed && _store.current.generation == generation) {
+            _store.applyReset(result.afterRevision);
+          }
+          return result;
+        } on Object catch (error, stackTrace) {
+          if (_disposed ||
+              attempt >= _maxAttempts ||
+              _store.current.generation != generation) {
+            rethrow;
+          }
+          logger.warning('Constellation reset failed', error, stackTrace);
+        }
+      }
+    } finally {
+      _resetting = false;
+      if (!_disposed) {
+        _syncGeneration();
+        _rebaseQueuedWrites();
+        _kick();
+      }
+    }
+  }
+
+  /// A reset belongs to the account that asked for it.
+  void _requireAccount(int generation) {
+    if (_disposed || _store.current.generation != generation) {
+      throw StateError('The account changed before the reset was sent');
+    }
+  }
+
+  void _dropAllWrites() {
+    _retryHandle?.cancel();
+    _retryHandle = null;
+    _replayScheduled = false;
+    _dueIds.clear();
+    _cancelOverdue();
+    _replayBarrier?.complete();
+    _replayBarrier = null;
+    _emit(
+      PlacementOutboxState(
+        targets: const {},
+        hasUserPlacements: false,
+        generation: _state.generation,
+      ),
+    );
+  }
+
+  /// Writes the user made while the reset ran come after it.
+  void _rebaseQueuedWrites() {
+    final base = _baseRevision;
+    if (base == null || _state.targets.isEmpty) return;
+    _emit(
+      _state.copyWith(
+        targets: {
+          for (final entry in _state.targets.entries)
+            entry.key: switch (entry.value.latestPending) {
+              final PlacementSlot slot
+                  when slot.status == PlacementSlotStatus.queued =>
+                entry.value.copyWith(
+                  latestPending: slot.copyWith(
+                    op: switch (slot.op) {
+                      final PlacementUpsert op => op.copyWith(
+                        baseRevision: base,
+                      ),
+                      final PlacementDelete op => op.copyWith(
+                        baseRevision: base,
+                      ),
+                    },
+                  ),
+                ),
+              _ => entry.value,
+            },
+        },
+      ),
+    );
   }
 
   /// A rejection is resent as a new write; an unknown outcome replays its id.
@@ -165,14 +288,17 @@ final class ConstellationPlacementCase extends UseCaseBase {
     final pending = state?.latestPending;
     if (pending != null && pending.status == PlacementSlotStatus.rejected) {
       final op = pending.op;
+      // A fresh write, based on the revision the user sees now (#251).
       final fresh = switch (op) {
         PlacementUpsert() => op.copyWith(
           clientOpId: _uuid.v4(),
           clusterId: _uuid.v4(),
+          baseRevision: _baseRevision,
         ),
         PlacementDelete() => op.copyWith(
           clientOpId: _uuid.v4(),
           clusterId: _uuid.v4(),
+          baseRevision: _baseRevision,
         ),
       };
       _emit(
@@ -248,7 +374,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
   }
 
   void _kick() {
-    if (_flushing) return;
+    if (_flushing || _resetting) return;
     _flushing = true;
     final token = _loopToken = Object();
     // Coalesce synchronous inputs without a real-time timer.
@@ -524,6 +650,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
         target: op.target,
         position: op is PlacementUpsert ? op.position : null,
         ifRevision: op.ifRevision,
+        baseRevision: switch (op) {
+          PlacementUpsert(:final baseRevision) => baseRevision,
+          PlacementDelete(:final baseRevision) => baseRevision,
+        },
       );
 
   void _settleSlots(ConstellationAnchorApplyResult result) {
@@ -573,6 +703,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
         target: target,
         position: baseline.position,
         ifRevision: ifRevision,
+        baseRevision: _baseRevision,
       );
     } else if (slot.op is PlacementUpsert) {
       op = PlacementOp.delete(
@@ -580,6 +711,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
         clusterId: _uuid.v4(),
         target: target,
         ifRevision: ifRevision,
+        baseRevision: _baseRevision,
       );
     } else {
       return null;

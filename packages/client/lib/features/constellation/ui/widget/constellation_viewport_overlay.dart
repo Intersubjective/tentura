@@ -666,7 +666,8 @@ class _ConstellationViewportOverlayState
                 ];
 
                 final postChipWidgets = <Widget>[];
-                if (selectedRequestId != null) {
+                if (selectedRequestId != null &&
+                    _detail != ConstellationDetailLevel.bare) {
                   final count =
                       widget
                           .cubit

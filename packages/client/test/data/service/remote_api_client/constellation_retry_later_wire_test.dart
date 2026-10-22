@@ -26,6 +26,7 @@ Map<String, Object?> _emptyFieldPayload() => {
   'context': '',
   'peersCapped': false,
   'requestsCapped': false,
+  'directContactIds': <Object?>[],
   'peers': <Object?>[],
   'edges': <Object?>[],
   'requests': <Object?>[],

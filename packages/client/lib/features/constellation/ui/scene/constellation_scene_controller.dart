@@ -844,31 +844,42 @@ class ConstellationSceneController {
     graphController.jumpToPosition(sceneCentre);
   }
 
-  void centreOnEgo(String viewerId, EdgeInsets insets) {
+  void centreOnEgo(String viewerId, EdgeInsets insets) =>
+      _centreOnPersonNode(viewerId, insets, resetScale: true);
+
+  /// Centres the camera on [personId]'s node at the current zoom.
+  void centreOnPerson(String personId, EdgeInsets insets) =>
+      _centreOnPersonNode(personId, insets, resetScale: false);
+
+  void _centreOnPersonNode(
+    String personId,
+    EdgeInsets insets, {
+    required bool resetScale,
+  }) {
     if (!graphController.canLayout) {
       return;
     }
-    NodeDetails? egoNode;
+    NodeDetails? personNode;
     for (final candidate
         in graphController.renderSnapshot.topology.nodesById.values) {
       final payload = candidate.payload;
-      if (payload is FieldPersonNode && payload.person.id == viewerId) {
-        egoNode = payload;
+      if (payload is FieldPersonNode && payload.person.id == personId) {
+        personNode = payload;
         break;
       }
     }
-    if (egoNode == null) {
+    if (personNode == null) {
       return;
     }
     final point = graphController.renderSnapshot.resolvePosition(
-      tenturaGraphNodeId(egoNode),
+      tenturaGraphNodeId(personNode),
     );
     if (point == null) {
       return;
     }
     graphController.jumpToPosition(
       Offset(point.x, point.y),
-      resetScale: true,
+      resetScale: resetScale,
       viewportInsets: insets,
     );
   }

@@ -1071,6 +1071,7 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
             'targetKind',
             'pinState',
             'visible',
+            'contactOnly',
           };
           for (final placeholder in placeholders) {
             expect(placeholder['pinState'], 'tombstone');

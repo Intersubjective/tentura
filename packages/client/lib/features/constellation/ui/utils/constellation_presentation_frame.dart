@@ -4,22 +4,38 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
-enum ConstellationDetailLevel { normal, overview }
+/// How much text the map shows at a camera scale: every label (`normal`),
+/// the selection, the viewer and their nearest people (`overview`), or no
+/// label and no overflow chip at all (`bare`, #595).
+enum ConstellationDetailLevel { normal, overview, bare }
 
 const kConstellationNormalDetailScale = 0.85;
 const kConstellationOverviewDetailScale = 0.70;
+
+/// Below this scale the map is a clean overview of shapes and edges (#595).
+/// Fitting a modest field already lands near 0.4, so the cut-off sits below
+/// that: a fitted map keeps its labels and the «Fewer requests» chip.
+const kConstellationBareDetailScale = 0.3;
 
 ConstellationDetailLevel nextConstellationDetailLevel(
   double cameraScale,
   ConstellationDetailLevel previous,
 ) {
+  // A hard cut, with no band: the same far zoom is always bare.
+  if (cameraScale < kConstellationBareDetailScale) {
+    return ConstellationDetailLevel.bare;
+  }
   if (cameraScale >= kConstellationNormalDetailScale) {
     return ConstellationDetailLevel.normal;
   }
   if (cameraScale < kConstellationOverviewDetailScale) {
     return ConstellationDetailLevel.overview;
   }
-  return previous;
+  // The band between overview and normal keeps the level it was entered
+  // with, so a pinch does not flicker; coming up from bare it is overview.
+  return previous == ConstellationDetailLevel.normal
+      ? ConstellationDetailLevel.normal
+      : ConstellationDetailLevel.overview;
 }
 
 /// Detail policy for [ConstellationFrameNodeInput.labelCandidate] (R03b sets this
@@ -35,6 +51,8 @@ bool constellationLabelCandidateForDetail({
     case ConstellationDetailLevel.overview:
       if (priority <= 1) return true;
       if (priority == 2 && ring <= 1) return true;
+      return false;
+    case ConstellationDetailLevel.bare:
       return false;
   }
 }
@@ -207,7 +225,10 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
   final sortedChips = [...chips]
     ..sort((a, b) => a.authorId.compareTo(b.authorId));
 
-  for (final chip in sortedChips) {
+  // No overflow chip is placed, or reserved, on a bare map (#595).
+  for (final chip in [
+    if (detail != ConstellationDetailLevel.bare) ...sortedChips,
+  ]) {
     final author = nodeById[chip.authorGraphId];
     if (author == null || culled.contains(chip.authorGraphId)) {
       continue;
@@ -271,7 +292,10 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     if (placed != null) {
       labels[node.id] = placed;
       occupied.add(placed.inflate(1));
-    } else if (node.priority <= 1) {
+    } else if (node.priority <= 1 &&
+        detail == ConstellationDetailLevel.normal) {
+      // Forced only at full detail: a zoomed-out label that does not fit
+      // would sit on its neighbours (#595).
       final forced = candidates.first;
       labels[node.id] = forced;
       forcedLabels.add(node.id);

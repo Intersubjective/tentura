@@ -5,7 +5,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_people.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_anchor_controls.dart';
@@ -14,11 +16,13 @@ import 'constellation_overflow_group.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
 
-/// Accessible list alternative to the constellation map (UX6 / §11.3).
+/// The field as a list (UX6 / §11.3, #253): the map's people, direct
+/// contacts first, each with their Requests and Posts as secondary rows, and
+/// a name search that filters the list.
 ///
-/// Uses the same snapshot, filters, and request ids as the map — not a second
-/// query. When [ConstellationCubit.peersCapped] is true, connection paths are
-/// suppressed (plain list recovery mode).
+/// Uses the same snapshot, population, filters, and request ids as the map —
+/// not a second query. When [ConstellationCubit.peersCapped] is true,
+/// connection paths are suppressed (plain list recovery mode).
 class ConstellationTextView extends StatefulWidget {
   const ConstellationTextView({super.key});
 
@@ -28,6 +32,14 @@ class ConstellationTextView extends StatefulWidget {
 
 class _ConstellationTextViewState extends State<ConstellationTextView> {
   final Set<String> _announcedOverflowAuthors = {};
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +70,10 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         if (previous.viewMode != ConstellationViewMode.text) return true;
         return previous.field != current.field ||
             previous.paths != current.paths ||
+            previous.composition != current.composition ||
             previous.graphRevision != current.graphRevision ||
             previous.selectedRequestId != current.selectedRequestId ||
+            previous.selectedPersonId != current.selectedPersonId ||
             previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
             previous.filterLocation != current.filterLocation ||
             previous.filterTiming != current.filterTiming ||
@@ -94,15 +108,20 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           return const SizedBox.shrink();
         }
 
-        final authorIds = _authorIdsWithEligibleRequests(cubit, field);
-        if (authorIds.isEmpty &&
+        // The map's people (#253): the viewer only when they have something
+        // on the field, everyone else always.
+        final people = [
+          for (final person in cubit.fieldPeople)
+            if (!person.isViewer || _hasRows(cubit, person.id)) person,
+        ];
+        if (people.isEmpty &&
             !cubit.hasActiveFilters &&
             constellationFieldHasNoContacts(field, cubit.viewerId)) {
           // #252: nobody on the field yet — say what to do, not just
           // "no requests".
           return const ConstellationNoContactsEmptyState();
         }
-        if (authorIds.isEmpty) {
+        if (people.isEmpty) {
           return Semantics(
             liveRegion: true,
             label: l10n.constellationEmptyFiltered,
@@ -123,76 +142,140 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
 
         final suppressConnections = cubit.peersCapped;
         final loadedAt = state.loadedAt ?? field.loadedAt;
+        final matching = [
+          for (final person in people)
+            if (constellationPersonMatches(person, _query)) person,
+        ];
+        final direct = [
+          for (final person in matching)
+            if (!person.isViewer && person.isDirectContact) person,
+        ];
+        final others = [
+          for (final person in matching)
+            if (!person.isViewer && !person.isDirectContact) person,
+        ];
 
-        return Semantics(
-          label: l10n.constellationTextViewSemantics,
-          child: ListView(
-            key: const PageStorageKey<String>('constellation.text.list'),
-            padding: EdgeInsets.symmetric(
-              horizontal: tt.screenHPadding,
-              vertical: tt.rowGap,
-            ),
-            children: [
-              if (suppressConnections)
-                Padding(
-                  padding: EdgeInsets.only(bottom: tt.rowGap),
-                  child: Text(
-                    l10n.constellationPlainListNotice,
-                    key: const Key('constellation.text.plain_list_notice'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              for (final authorId in authorIds) ...[
-                _PersonRequestGroup(
-                  authorId: authorId,
-                  suppressConnections: suppressConnections,
-                  loadedAt: loadedAt,
-                  selectedRequestId: state.selectedRequestId,
-                  onSelectRequest: cubit.selectRequest,
-                ),
-                SizedBox(height: tt.sectionGap),
-              ],
-            ],
+        Widget personGroup(ConstellationFieldPerson person) => Padding(
+          padding: EdgeInsets.only(bottom: tt.sectionGap),
+          child: _PersonRequestGroup(
+            person: person,
+            suppressConnections: suppressConnections,
+            loadedAt: loadedAt,
+            selectedRequestId: state.selectedRequestId,
+            selectedPersonId: state.selectedPersonId,
+            onSelectRequest: cubit.selectRequest,
           ),
+        );
+
+        final items = <Widget>[
+          if (suppressConnections)
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.rowGap),
+              child: Text(
+                l10n.constellationPlainListNotice,
+                key: const Key('constellation.text.plain_list_notice'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          if (matching.isEmpty)
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                l10n.constellationSearchNoMatch,
+                key: const Key('constellation.text.search.no_match'),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          for (final person in matching)
+            if (person.isViewer) personGroup(person),
+          // Sections only when the field has both kinds of people.
+          if (direct.isNotEmpty && others.isNotEmpty)
+            TenturaSectionHeader(
+              key: const Key('constellation.text.section.direct'),
+              label: l10n.constellationListDirectContacts,
+              count: direct.length,
+            ),
+          for (final person in direct) personGroup(person),
+          if (direct.isNotEmpty && others.isNotEmpty)
+            TenturaSectionHeader(
+              key: const Key('constellation.text.section.others'),
+              label: l10n.constellationListOthers,
+              count: others.length,
+            ),
+          for (final person in others) personGroup(person),
+        ];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(
+                left: tt.screenHPadding,
+                top: tt.rowGap,
+                right: tt.screenHPadding,
+              ),
+              child: SearchBar(
+                key: const Key('constellation.text.search'),
+                controller: _search,
+                hintText: l10n.constellationSearchHint,
+                leading: const Icon(Icons.search),
+                trailing: [
+                  if (_query.isNotEmpty)
+                    IconButton(
+                      key: const Key('constellation.text.search.clear'),
+                      tooltip: l10n.constellationSearchClear,
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        _search.clear();
+                        setState(() => _query = '');
+                      },
+                    ),
+                ],
+                onChanged: (value) => setState(() => _query = value),
+              ),
+            ),
+            Expanded(
+              child: Semantics(
+                label: l10n.constellationListSemantics,
+                child: ListView.builder(
+                  key: const PageStorageKey<String>('constellation.text.list'),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: tt.screenHPadding,
+                    vertical: tt.rowGap,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) => items[index],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
-  List<String> _authorIdsWithEligibleRequests(
-    ConstellationCubit cubit,
-    ConstellationField field,
-  ) {
-    final ids = <String>{};
-    for (final request in field.requests) {
-      if (cubit
-          .discoverableRequestsForPerson(request.authorId)
-          .any(
-            (eligible) => eligible.id == request.id,
-          )) {
-        ids.add(request.authorId);
-      }
-    }
-    final sorted = ids.toList()..sort();
-    return sorted;
-  }
+  bool _hasRows(ConstellationCubit cubit, String personId) =>
+      cubit.discoverableRequestsForPerson(personId).isNotEmpty ||
+      cubit.postsForPerson(personId).isNotEmpty;
 }
 
 class _PersonRequestGroup extends StatelessWidget {
   const _PersonRequestGroup({
-    required this.authorId,
+    required this.person,
     required this.suppressConnections,
     required this.loadedAt,
     required this.selectedRequestId,
+    required this.selectedPersonId,
     required this.onSelectRequest,
   });
 
-  final String authorId;
+  final ConstellationFieldPerson person;
   final bool suppressConnections;
   final DateTime loadedAt;
   final String? selectedRequestId;
+  final String? selectedPersonId;
   final ValueChanged<String?> onSelectRequest;
 
   @override
@@ -200,9 +283,9 @@ class _PersonRequestGroup extends StatelessWidget {
     final cubit = context.read<ConstellationCubit>();
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final theme = Theme.of(context);
+    final authorId = person.id;
     final profile = cubit.profileForPersonId(authorId);
-    final displayName = profile?.shownName ?? authorId;
+    final displayName = person.name;
 
     final eligible = cubit.discoverableRequestsForPerson(authorId);
     final visibleIds = cubit.isSatelliteOverflowExpanded(authorId)
@@ -212,6 +295,7 @@ class _PersonRequestGroup extends StatelessWidget {
               if (cubit.displayedRequestIds.contains(request.id)) request.id,
           ];
     final hiddenCount = cubit.overflowHiddenCountByAuthor[authorId] ?? 0;
+    final posts = cubit.postsForPerson(authorId);
     final paths = cubit.state.paths;
 
     return Semantics(
@@ -222,11 +306,21 @@ class _PersonRequestGroup extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         key: Key('constellation.text.person.$authorId'),
         children: [
-          Text(
-            displayName,
-            style: theme.textTheme.titleSmall,
+          _PersonRow(
+            person: person,
+            profile: profile,
+            selected: selectedPersonId == authorId,
+            onTap: person.isViewer ? null : () => cubit.selectPerson(authorId),
           ),
-          SizedBox(height: tt.tightGap),
+          if (person.contactOnly)
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: TenturaMetaText(
+                l10n.constellationContactOnlyNote,
+                key: Key('constellation.text.contact_only.$authorId'),
+                maxLines: 3,
+              ),
+            ),
           for (final request in eligible)
             if (visibleIds.contains(request.id))
               _RequestTile(
@@ -241,6 +335,12 @@ class _PersonRequestGroup extends StatelessWidget {
                 loadedAt: loadedAt,
                 onSelect: () => onSelectRequest(request.id),
               ),
+          for (final post in posts)
+            _PostTile(
+              post: post,
+              selected: selectedRequestId == post.id,
+              onSelect: () => onSelectRequest(post.id),
+            ),
           if (hiddenCount > 0)
             Padding(
               padding: EdgeInsets.only(top: tt.tightGap),
@@ -275,6 +375,119 @@ class _PersonRequestGroup extends StatelessWidget {
       return null;
     }
     return cubit.profileForPersonId(throughPeerId)?.shownName;
+  }
+}
+
+/// A person's own row: avatar and name; tapping opens their person panel.
+class _PersonRow extends StatelessWidget {
+  const _PersonRow({
+    required this.person,
+    required this.profile,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ConstellationFieldPerson person;
+  final Profile? profile;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    final profile = this.profile;
+    return Semantics(
+      button: onTap != null,
+      selected: selected,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: Key('constellation.text.person_row.${person.id}'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: tt.tightGap),
+            child: Row(
+              children: [
+                if (profile != null) ...[
+                  TenturaAvatar.tiny(profile: profile, isSelf: person.isViewer),
+                  SizedBox(width: tt.avatarTextGap),
+                ],
+                Expanded(
+                  child: Text(
+                    person.name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: selected ? theme.colorScheme.primary : null,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A Post on the field, a secondary row under its author (#253).
+class _PostTile extends StatelessWidget {
+  const _PostTile({
+    required this.post,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final ConstellationPost post;
+  final bool selected;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${l10n.constellationListPostLabel}. ${post.rootExcerpt}',
+      excludeSemantics: true,
+      child: Material(
+        color: selected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(tt.cardRadius),
+        child: InkWell(
+          key: Key('constellation.text.post.${post.id}'),
+          onTap: onSelect,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: Padding(
+            padding: tt.cardPadding,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: tt.iconSize,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                SizedBox(width: tt.iconTextGap),
+                Expanded(
+                  child: Text(
+                    post.rootExcerpt,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

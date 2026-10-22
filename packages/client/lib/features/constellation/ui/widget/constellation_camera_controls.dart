@@ -45,6 +45,26 @@ class ConstellationCameraControls extends StatelessWidget {
     return EdgeInsets.only(top: top, right: right, bottom: bottom);
   }
 
+  /// «Сбросить позиции» (#251), behind a confirmation.
+  Future<void> _confirmReset(BuildContext context) async {
+    final l10n = L10n.of(context)!;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final confirmed = await TenturaConfirmDialog.show(
+      context: context,
+      title: l10n.constellationResetPositionsTitle,
+      content: l10n.constellationResetPositionsBody,
+      confirmLabel: l10n.constellationResetPositionsConfirm,
+    );
+    if (confirmed != true) {
+      return;
+    }
+    if (!await cubit.resetAllPositions()) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.constellationResetPositionsFailed)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -92,6 +112,17 @@ class ConstellationCameraControls extends StatelessWidget {
                 icon: Icon(
                   Icons.auto_fix_high,
                   semanticLabel: l10n.constellationRearrange,
+                ),
+                constraints: buttonSize,
+              ),
+              SizedBox(height: tt.tightGap * 2),
+              IconButton.filledTonal(
+                key: const Key('constellation.camera.reset_positions'),
+                tooltip: l10n.constellationResetPositions,
+                onPressed: enabled ? () => _confirmReset(context) : null,
+                icon: Icon(
+                  Icons.restart_alt,
+                  semanticLabel: l10n.constellationResetPositions,
                 ),
                 constraints: buttonSize,
               ),
