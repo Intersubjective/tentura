@@ -1694,14 +1694,21 @@ SELECT
       WHERE s.beacon_id = ids.beacon_id),
     (SELECT max(e.created_at) FROM public.beacon_activity_event e
       WHERE e.beacon_id = ids.beacon_id),
-    -- W5 (#525): a new help offer, for those who decide on offers. Served by
-    -- the help offer primary key `(beacon_id, user_id)`.
-    (SELECT max(o.created_at) FROM public.beacon_help_offer o
-      WHERE o.beacon_id = ids.beacon_id
-        AND (EXISTS (SELECT 1 FROM public.beacon b
-              WHERE b.id = ids.beacon_id AND b.user_id = $2)
+    -- W5 (#525): a new help offer, for those who decide on offers (author
+    -- or steward). A re-offer after withdrawing reuses the offer row, so the
+    -- append-only `offered` commitment fact (kind 0) carries its time; the
+    -- row's own `created_at` covers offers older than those facts. Served by
+    -- `beacon_commitment_event_beacon_idx` and the help offer primary key.
+    CASE WHEN EXISTS (SELECT 1 FROM public.beacon b
+            WHERE b.id = ids.beacon_id AND b.user_id = $2)
           OR EXISTS (SELECT 1 FROM public.beacon_steward st
-              WHERE st.beacon_id = ids.beacon_id AND st.user_id = $2)))
+            WHERE st.beacon_id = ids.beacon_id AND st.user_id = $2)
+      THEN GREATEST(
+        (SELECT max(ce.created_at) FROM public.beacon_commitment_event ce
+          WHERE ce.beacon_id = ids.beacon_id AND ce.kind = 0),
+        (SELECT max(o.created_at) FROM public.beacon_help_offer o
+          WHERE o.beacon_id = ids.beacon_id))
+    END
   ) AS last_activity_at,
   lm.created_at AS last_message_at,
   -- The Requests card shows one clipped line; don't ship whole bodies.

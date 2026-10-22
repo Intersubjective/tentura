@@ -16,7 +16,8 @@ final class RoomLatestActivity {
   /// membership events such as participantJoined and participantRemoved, so
   /// an admission or a removal moves the Request up in "Recent" too) and,
   /// for the author or a steward, the newest help offer
-  /// (`beacon_help_offer.created_at`). Null when nothing happened yet.
+  /// (its `offered` commitment fact, so a re-offer counts too). Null when
+  /// nothing happened yet.
   ///
   /// Never moved by reading (`beacon_room_seen` is not an input) nor by the
   /// Request's Questions (W5): a Questions message has a non-null

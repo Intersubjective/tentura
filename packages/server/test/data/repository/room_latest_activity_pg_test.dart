@@ -293,6 +293,30 @@ Future<void> main() async {
         expect(a.lastActivityAt, DateTime.utc(2026, 1, 4, 8));
       });
 
+      test('offering again after withdrawing counts (W5 review)', () async {
+        // The re-offer reuses the row (its created_at stays old); the
+        // append-only `offered` fact carries the new time.
+        await helpOffer(ninaId, '2026-01-01T08:00:00Z');
+        await writer.execute(
+          'INSERT INTO public.beacon_commitment_event (id, seq, beacon_id, '
+          'user_id, actor_user_id, kind, created_at) VALUES '
+          "('Clatest01', 1, '$beaconId', '$ninaId', '$ninaId', 0, "
+          "'2026-01-01T08:00:00Z'), "
+          "('Clatest02', 2, '$beaconId', '$ninaId', '$ninaId', 3, "
+          "'2026-01-01T09:00:00Z'), "
+          "('Clatest03', 3, '$beaconId', '$ninaId', '$ninaId', 0, "
+          "'2026-01-07T08:00:00Z')",
+        );
+        expect(
+          (await latestFor(authorId)).lastActivityAt,
+          DateTime.utc(2026, 1, 7, 8),
+        );
+        expect(
+          (await latestFor(ninaId)).lastActivityAt,
+          DateTime.utc(2026, 1, 2, 11),
+        );
+      });
+
       test('a new help offer counts for a steward', () async {
         const stewardId = 'Ulateststw01';
         await addUser(stewardId, 'Steward');
