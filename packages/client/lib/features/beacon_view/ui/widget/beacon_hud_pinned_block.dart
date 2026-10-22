@@ -315,7 +315,8 @@ class _HudCounters extends StatelessWidget {
     final planOverdue =
         plan?.plan.viewerOverdueCount(now: plan.now, viewerId: plan.viewerId) ??
         0;
-    final team = 1 + state.beacon.admittedHelperCount;
+    // Helpers only: the author is not counted (#611).
+    final helpers = state.beacon.admittedHelperCount;
     final facts = activePinnedFacts(state.factCards).length;
     final newFacts = pinnedFactsNewCount(
       facts: state.factCards,
@@ -332,8 +333,8 @@ class _HudCounters extends StatelessWidget {
     final counters = <Widget>[
       _HudCounter(
         icon: BeaconHudRowIcons.people,
-        label: l10n.beaconHudCounterTeamShort(team),
-        semanticsLabel: l10n.beaconHudCounterTeam(team),
+        label: l10n.beaconHudCounterHelpersShort(helpers),
+        semanticsLabel: l10n.beaconHudCounterHelpers(helpers),
         onTap: onOpenTeam,
         attention: pending > 0,
       ),
