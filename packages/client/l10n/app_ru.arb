@@ -528,7 +528,7 @@
     "context": "BeaconCreateScreen"
   },
   "buttonMakeLive": "Запустить",
-  "beaconMakeLiveWithoutSending": "Запустить без отправки",
+  "beaconMakeLiveWithoutSending": "Опубликовать без отправки",
   "@buttonMakeLive": {
     "context": "BeaconCreateScreen"
   },
@@ -1137,7 +1137,7 @@
   "@graphLegendMutual": {
     "context": "GraphScreen"
   },
-  "graphLegendEyeOpen": "Открытый глаз — вы видите друг друга и можете пересылать друг другу (через доверие или MeritRank в каждом направлении)",
+  "graphLegendEyeOpen": "Открытый глаз — вы видите друг друга и можете пересылать друг другу (каждый доверяет другому — напрямую или через тех, кому доверяет)",
   "@graphLegendEyeOpen": {
     "context": "GraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
@@ -1217,7 +1217,7 @@
   "@graphLegendDeletedInvitee": {
     "context": "InviteGenealogyScreen"
   },
-  "graphLegendForwardEligible": "Открытый глаз означает, что у вас с этим человеком двусторонняя видимость и вы можете пересылать друг другу (доверие или MeritRank в каждом направлении)",
+  "graphLegendForwardEligible": "Открытый глаз означает, что вы с этим человеком видите друг друга и можете пересылать друг другу: каждый доверяет другому — напрямую или через тех, кому доверяет",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
@@ -1987,7 +1987,7 @@
   "@rankFromYou": {
     "context": "RatingScreen"
   },
-  "rankFromYouHint": "Насколько высоко вы оцениваете их: рейтинг MeritRank, вычисленный по всей вашей сети доверия, а не только по тем, за кого вы поручились напрямую.",
+  "rankFromYouHint": "Насколько за них ручается ваша сеть доверия: ваше доверие, доверие тех, кому доверяете вы, и так далее.",
   "@rankFromYouHint": {
     "context": "RatingScreen"
   },
@@ -1995,7 +1995,7 @@
   "@rankToYou": {
     "context": "RatingScreen"
   },
-  "rankToYouHint": "Насколько высоко они оценивают вас: тот же рейтинг MeritRank, вычисленный по их сети доверия.",
+  "rankToYouHint": "Насколько за вас ручается их сеть доверия — считается так же.",
   "@rankToYouHint": {
     "context": "RatingScreen"
   },
@@ -5586,9 +5586,9 @@
   "profileEyeClosed": "Пока не видите друг друга",
   "profileEyeInfoTitle": "Кто кого видит",
   "profileEyeReasonMutualTrust": "Потому что вы доверяете друг другу.",
-  "profileEyeReasonMeritRank": "Через общих знакомых (MeritRank).",
-  "profileEyeClosedHint": "Чтобы видеть друг друга, нужно доверие или общие знакомые в обе стороны.",
-  "profileEyeTrustNote": "Доверие — ваш голос. Открытый глаз — итог: он может открыться и без доверия, через общих знакомых.",
+  "profileEyeReasonMeritRank": "Через сеть доверия: каждый из вас связан с другим — напрямую или через тех, кому доверяет.",
+  "profileEyeClosedHint": "Чтобы видеть друг друга, каждому из вас нужно доверять другому — напрямую или через тех, кому вы доверяете.",
+  "profileEyeTrustNote": "Доверие — ваш собственный выбор. Глаз показывает итог: он может открыться и без прямого доверия — через тех, кому вы доверяете.",
   "profileMyLabelsLine": "Вы связываете с этим человеком: {tags}",
   "profileMarkCapabilities": "Отметить, чем помогает {name}",
   "profileEditLabels": "Изменить метки",
@@ -6516,7 +6516,7 @@
   "postsTabQuiet": "Затихли",
   "postsTabEmpty": "Здесь будут посты, которые вы начали или в которые вас позвали",
   "postsTabSelectConversation": "Выберите пост, чтобы открыть его здесь",
-  "postsTabNewPost": "Новый пост",
+  "postsTabNewPost": "Новый чат",
   "postConversationYours": "Ваш пост",
   "postConversationAddressed": "{author} · вам",
   "postConversationMuted": "Звук выключен",
@@ -6539,7 +6539,7 @@
   "postAllowForwardingBody": "Любой участник сможет переслать пост людям из своего круга, и они смогут участвовать. Выключить это будет нельзя.",
   "postAllowForwardingAction": "Разрешить",
   "postDeleteConfirmTitle": "Удалить пост?",
-  "postDeleteConfirmBody": "Пост и весь разговор будут удалены без возможности восстановления.",
+  "postDeleteConfirmBody": "Пост и весь его чат будут удалены без возможности восстановления.",
   "postForwardedByLine": "{sender} переслал(а) вам: «{note}»",
   "@postForwardedByLine": {
     "placeholders": {
@@ -6568,7 +6568,7 @@
     }
   },
   "postParticipantAuthor": "автор",
-  "postParticipantsInConversation": "В РАЗГОВОРЕ · {count}",
+  "postParticipantsInConversation": "В ЧАТЕ · {count}",
   "@postParticipantsInConversation": {
     "placeholders": {
       "count": {
@@ -6629,8 +6629,8 @@
   "postMuteDay": "На день",
   "postMuteThreeDays": "На 3 дня",
   "postMuteForever": "Навсегда",
-  "postMenuLeave": "Выйти из разговора",
-  "postLeaveConfirmTitle": "Выйти из разговора?",
+  "postMenuLeave": "Выйти из чата",
+  "postLeaveConfirmTitle": "Выйти из чата?",
   "postLeaveConfirmBody": "Сообщения перестанут приходить, пост исчезнет из «Постов». Вернуться можно из «Не интересно».",
   "postLeaveConfirmAction": "Выйти",
   "postOriginCardTitle": "Участник из поста",
@@ -7153,5 +7153,30 @@
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",
-  "skipToContent": "Перейти к содержимому"
+  "skipToContent": "Перейти к содержимому",
+  "forwardEmptyNoContactsTitle": "Пока некому отправить",
+  "trustWidensReachHint": "Люди, которым вы доверяете и которые доверяют вам, расширяют круг тех, кого вы видите и кому можете отправлять.",
+  "emptyInviteSomeoneAction": "Пригласить знакомого",
+  "forwardSearchNoMatches": "Никого не нашлось",
+  "forwardScopeUnseenEmpty": "Все, кому вы можете отправить, уже участвуют.",
+  "forwardScopeInvolvedEmpty": "Пока никто не участвует.",
+  "constellationNoContactsTitle": "Вы ещё никого не добавили",
+  "graphLegendConstellationDirectConnectionHint": "Один из этих двоих отметил другого как того, кому доверяет.",
+  "graphLegendConstellationIndirectConnectionHint": "Эти двое связаны через доверие других людей, а не прямой отметкой.",
+  "graphLegendConstellationRequestLinkHint": "Соединяет запрос с тем, кто просит о помощи.",
+  "graphLegendConstellationWiderNetworkReachHint": "Вы и этот человек видите друг друга через сеть доверия, но путь слишком длинный, чтобы его нарисовать.",
+  "ratingColumnsInfoLabel": "Что значат эти числа",
+  "forwardSectionDirectContacts": "Ваши связи",
+  "forwardSectionOthersReachable": "Другие, кому можно отправить",
+  "forwardSectionOthersReachableHint": "Не ваши прямые связи: вы видите друг друга через сеть доверия или общий запрос.",
+  "beaconPublishWithoutSendingDiscoverableHint": "Его могут найти в «Поле» те, кто видит вас. Напрямую его никто не получит, пока вы его не отправите.",
+  "beaconPublishWithoutSendingHiddenHint": "Не виден в «Поле»: его увидят только те, кому его отправят или перешлют.",
+  "beaconRoutingBannerDiscoverable": "Выберите, кому отправить этот запрос. Те, кто видит вас, также могут найти его в «Поле».",
+  "orientationInviterTitle": "{name} поручился(ась) за вас",
+  "orientationInviterIntro": "Посмотрите, что им нужно, или попросите о помощи сами.",
+  "orientationSeeWhatInviterNeeds": "Посмотреть запросы: {name}",
+  "forwardAuthorPost": "Автор поста",
+  "forwardInviteDialogTitlePost": "Пригласите человека посмотреть этот пост",
+  "forwardInviteDialogBodyPost": "Человек присоединится к Tentura как ваш контакт и увидит этот пост. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
+  "postChatReadOnlyHint": "Этот чат доступен только для чтения"
 }
