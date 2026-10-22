@@ -965,9 +965,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       messageId: widget.messageId,
                       onCoordinationSaved: _refreshThreadsTab,
                       onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
-                      // The Now pane beside the chat shows the NOW line; the chat
-                      // keeps only an open blocker (#451).
-                      pinnedStrip: RoomPinnedStrip.requestBlocker,
+                      // While the Now pane beside the chat shows the NOW line,
+                      // the chat keeps only an open blocker (#451); with People
+                      // or Plan there the chat pins the NOW line (#609).
+                      pinnedStrip:
+                          _selectedSurface == BeaconSurface.now ||
+                              _selectedSurface == BeaconSurface.room
+                          ? RoomPinnedStrip.requestBlocker
+                          : RoomPinnedStrip.requestNow,
                     ),
                   ),
                 ),
