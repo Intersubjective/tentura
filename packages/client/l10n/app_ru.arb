@@ -7226,5 +7226,14 @@
   "constellationResetPositionsTitle": "Сбросить все позиции?",
   "constellationResetPositionsBody": "Все люди, запросы и посты, которые вы переместили на поле, вернутся на свои автоматические места — в том числе скрытые фильтрами и те, что за краем экрана, — на всех ваших устройствах. Отменить это нельзя.",
   "constellationResetPositionsConfirm": "Сбросить",
-  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз."
+  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз.",
+  "constellationTrustLegendTitle": "Доверие между вами",
+  "constellationTrustMutual": "Взаимное доверие",
+  "constellationTrustMutualHint": "Вы и этот человек отметили друг друга как тех, кому доверяете.",
+  "constellationTrustYouTrust": "Вы доверяете",
+  "constellationTrustYouTrustHint": "Вы отметили этого человека как того, кому доверяете; он вас — пока нет.",
+  "constellationTrustTheyTrust": "Вам доверяют",
+  "constellationTrustTheyTrustHint": "Этот человек отметил вас как того, кому доверяет; вы его — пока нет.",
+  "constellationTrustContactOnly": "Контакт без содержимого",
+  "constellationTrustContactOnlyHint": "Вы доверяете этому человеку, но вы пока не видите друг друга через сеть доверия, поэтому на поле — только его имя и фото."
 }

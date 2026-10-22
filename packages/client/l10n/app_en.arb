@@ -10462,5 +10462,41 @@
   "constellationResetPositionsFailed": "Couldn't reset positions. Try again.",
   "@constellationResetPositionsFailed": {
     "context": "Field map: the reset of positions failed (#251)"
+  },
+  "constellationTrustLegendTitle": "Trust between you",
+  "@constellationTrustLegendTitle": {
+    "context": "Field legend: title of the rows explaining trust rings on people (#643)"
+  },
+  "constellationTrustMutual": "Mutual trust",
+  "@constellationTrustMutual": {
+    "context": "Field legend + node semantics: the viewer and this person trust each other (#643)"
+  },
+  "constellationTrustMutualHint": "You and this person have each marked the other as someone you trust.",
+  "@constellationTrustMutualHint": {
+    "context": "Field legend: one-sentence hint (hover/tap) for the mutual trust ring (#643)"
+  },
+  "constellationTrustYouTrust": "You trust them",
+  "@constellationTrustYouTrust": {
+    "context": "Field legend + node semantics: the viewer trusts this person, not the other way round (#643)"
+  },
+  "constellationTrustYouTrustHint": "You marked this person as someone you trust; they haven't marked you.",
+  "@constellationTrustYouTrustHint": {
+    "context": "Field legend: one-sentence hint for the one-way 'you trust them' ring (#643)"
+  },
+  "constellationTrustTheyTrust": "They trust you",
+  "@constellationTrustTheyTrust": {
+    "context": "Field legend + node semantics: this person trusts the viewer, not the other way round (#643)"
+  },
+  "constellationTrustTheyTrustHint": "This person marked you as someone they trust; you haven't marked them.",
+  "@constellationTrustTheyTrustHint": {
+    "context": "Field legend: one-sentence hint for the one-way 'they trust you' ring (#643)"
+  },
+  "constellationTrustContactOnly": "Contact without content",
+  "@constellationTrustContactOnly": {
+    "context": "Field legend + node semantics: a contact node without content; the viewer trusts them but they are outside the visibility wall (#246, #643)"
+  },
+  "constellationTrustContactOnlyHint": "You trust this person, but you don't see each other through the trust network yet, so the field shows only their name and picture.",
+  "@constellationTrustContactOnlyHint": {
+    "context": "Field legend: one-sentence hint for the contact-node ring (#643)"
   }
 }

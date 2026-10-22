@@ -4,6 +4,8 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../domain/constellation_trust_badge.dart';
+import 'constellation_node_ring_layer.dart';
 import 'constellation_request_status_marker.dart';
 
 /// Combined accessibility label for a Constellation map node (body + pin/status).
@@ -15,7 +17,16 @@ String constellationNodeSemanticLabel({
 }) {
   return switch (node) {
     FieldPersonNode(:final person) => () {
-      final base = person.shownName;
+      final field = cubit.state.field;
+      final trust = field == null
+          ? null
+          : constellationTrustBadges(
+              field: field,
+              viewerId: cubit.viewerId,
+            )[person.id];
+      final base = trust == null
+          ? person.shownName
+          : '${person.shownName}, ${constellationTrustBadgeLabel(l10n, trust)}';
       if (cubit.isAnchored(ConstellationAnchorTarget.person(person.id))) {
         return '$base, ${l10n.constellationPinMarkerSemantics}';
       }

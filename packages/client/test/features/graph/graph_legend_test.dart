@@ -14,7 +14,10 @@ import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_content.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_edge_swatch.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
+import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -315,6 +318,56 @@ void main() {
     expect(find.byTooltip('Back'), findsNothing);
   });
 
+  // #643: the field's legend explains its trust rings, one row per state,
+  // instead of the avatar contact badges the field does not draw.
+  testWidgets('field legend has a trust row per state, hint on tap', (
+    tester,
+  ) async {
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    expect(find.text('Trust between you'), findsOneWidget);
+    expect(find.byType(ContactBadgeLegend), findsNothing);
+    for (final badge in ConstellationTrustBadge.values) {
+      final row = find.byKey(
+        ValueKey('constellation.legend.trust.${badge.name}'),
+      );
+      expect(row, findsOneWidget, reason: badge.name);
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.byType(ConstellationTrustBadgeSwatch),
+        ),
+        findsOneWidget,
+      );
+    }
+    for (final label in [
+      'Mutual trust',
+      'You trust them',
+      'They trust you',
+      'Contact without content',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+
+    await tester.tap(find.text('Contact without content'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.text(
+        "You trust this person, but you don't see each other through the "
+        'trust network yet, so the field shows only their name and picture.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('trust graph legend keeps the contact badges', (tester) async {
+    await _pumpLegendContent(tester, GraphLegendMode.trust);
+    expect(find.byType(ContactBadgeLegend), findsOneWidget);
+    expect(find.text('Trust between you'), findsNothing);
+  });
+
   // #261: one plain sentence per field-legend row, on tap (touch) as well as
   // hover — never long-press only.
   testWidgets('field legend rows explain themselves on tap', (tester) async {
@@ -326,6 +379,10 @@ void main() {
         .map((t) => t.message)
         .toList();
     expect(tooltips, [
+      'You and this person have each marked the other as someone you trust.',
+      "You marked this person as someone you trust; they haven't marked you.",
+      "This person marked you as someone they trust; you haven't marked them.",
+      "You trust this person, but you don't see each other through the trust network yet, so the field shows only their name and picture.",
       'One of these two people has marked the other as someone they trust.',
       "These two are linked through other people's trust, not by a direct mark.",
       'Joins a request to the person who asked for help.',
