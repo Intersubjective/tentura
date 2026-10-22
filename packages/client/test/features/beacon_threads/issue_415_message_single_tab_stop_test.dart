@@ -20,6 +20,8 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/a11y_focus.dart';
+
 const _viewer = Profile(id: 'me', displayName: 'Me');
 const _body = 'Bring the ladder on Saturday';
 const _before = 'Control before';
@@ -204,6 +206,65 @@ void main() {
             'a click into the message text focuses its SelectionArea '
             '(text stays keyboard-copyable); focus is on ${_describeFocus()}',
       );
+    },
+    variant: TargetPlatformVariant.desktop(),
+  );
+  testWidgets(
+    '#415 desktop: Tab onto a message moves the browser focus to it',
+    (tester) async {
+      // On the web the browser focuses the element of the semantics node
+      // that says it has focus. The bubble's focus node had no semantics, so
+      // a Tab onto a message left the browser on the control before it
+      // («More actions x2», «message group x2» in the QA run).
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      _buttonNode(tester, _before).requestFocus();
+      // requestFocus applies in a microtask after this pump's (absent)
+      // frame; the second pump rebuilds Focus's semantics with the focus.
+      await tester.pump();
+      await tester.pump();
+      final before = focusedSemanticsNodes().map((n) => n.id).toSet();
+      expect(before, isNotEmpty, reason: 'precondition: «before» is focused');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        _focusInsideTile() && _focusWrapsBubble(),
+        isTrue,
+        reason: 'precondition: Tab is on the bubble; on ${_describeFocus()}',
+      );
+      final nodes = focusedSemanticsNodes();
+      expect(
+        nodes,
+        isNotEmpty,
+        reason: 'a semantics node says the message has focus',
+      );
+      expect(
+        nodes.map((n) => n.id).toSet(),
+        isNot(equals(before)),
+        reason: 'the browser focus leaves «before» for the message',
+      );
+      final bubble = tester.getRect(
+        find.byKey(TestIds.key(TestIds.roomMessageBubblePressScale)),
+      );
+      final node = nodes.single;
+      final size = node.rect.size;
+      expect(
+        size.width <= bubble.width + 2 && size.height <= bubble.height + 2,
+        isTrue,
+        reason:
+            'the focused node is the message bubble (${bubble.size}), not a '
+            'wider area: ${describeSemanticsNode(node)} sized $size',
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        focusedSemanticsNodes().map((n) => n.id).toSet(),
+        isNot(equals(nodes.map((n) => n.id).toSet())),
+        reason: 'the next Tab moves the browser focus off the message',
+      );
+      handle.dispose();
     },
     variant: TargetPlatformVariant.desktop(),
   );

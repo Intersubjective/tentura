@@ -146,6 +146,64 @@ void main() {
     },
     variant: TargetPlatformVariant.desktop(),
   );
+  _webMenuViewStandInTests();
+}
+
+void _webMenuViewStandInTests() {
+  // On the web, while the browser's context menu is on, SelectableRegion
+  // lays a browser-menu view over the text, and that view has a focus node
+  // of its own: one more invisible Tab stop after every message, fact or
+  // description (QA on dev 7.41.26). Widget tests run off the web, so a
+  // plain focus node inside the layer stands in for it.
+  testWidgets(
+    '#415 desktop: a focus node inside the selectable layer is no Tab stop',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(onPressed: () {}, child: const Text(_before)),
+                const TenturaSelectionArea(
+                  child: Column(
+                    children: [
+                      Text(_body),
+                      Focus(
+                        debugLabel: 'web menu view stand-in',
+                        child: SizedBox(width: 40, height: 20),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(onPressed: () {}, child: const Text(_after)),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      _buttonNode(tester, _before).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        FocusManager.instance.primaryFocus,
+        same(_buttonNode(tester, _after)),
+        reason:
+            'one Tab goes past everything in the selectable layer; '
+            'focus is on ${_describeFocus()}',
+      );
+
+      // Mouse use is unchanged: a click into the text still focuses it.
+      await tester.tap(find.text(_body), kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+      await expectFocusInSelectionArea(tester, find.text(_body));
+    },
+    variant: TargetPlatformVariant.desktop(),
+  );
 }
 
 /// Expects the primary focus to sit in the [SelectionArea] around [text].

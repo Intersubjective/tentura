@@ -32,6 +32,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import '../../support/a11y_focus.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 import '../beacon_threads/support/room_body_harness.dart';
@@ -310,6 +311,102 @@ void main() {
       // Messages before the composer (top to bottom in the chat pane).
       final lastMessage = stops.lastIndexWhere((s) => s.tile != null);
       expect(lastMessage, lessThan(composerAt), reason: '$stops');
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
+  testWidgets(
+    '#415 room 1280x800: every Tab moves the browser focus, once',
+    (tester) async {
+      // QA residual (dev 7.41.26): on the web «More actions» took two Tab
+      // presses, every message group two, the NOW pencil five. The browser
+      // focuses the element of the semantics node that says it has focus;
+      // a stop whose focus no node carries leaves the browser where it was.
+      final handle = tester.ensureSemantics();
+      final repo = FakeBeaconThreadsRepository(
+        userId: kBeaconViewHarnessAuthorId,
+      );
+      const author = Profile(id: kBeaconViewHarnessAuthorId, displayName: 'A');
+      repo.messages = [
+        RoomMessage(
+          id: 'm-1',
+          beaconId: kBeaconViewHarnessBeaconId,
+          authorId: kBeaconViewHarnessAuthorId,
+          body: _kFirstMessage,
+          createdAt: kBeaconViewHarnessNow,
+          author: author,
+        ),
+        RoomMessage(
+          id: 'm-2',
+          beaconId: kBeaconViewHarnessBeaconId,
+          authorId: kBeaconViewHarnessAuthorId,
+          body: _kSecondMessage,
+          createdAt: kBeaconViewHarnessNow.add(const Duration(minutes: 1)),
+          author: author,
+        ),
+      ];
+      registerRoomCubitProfileCubit(kBeaconViewHarnessAuthorId);
+      await registerBeaconViewHarnessGetIt(roomRepo: repo);
+      final (host, roomCubits) = _host(repo);
+      host.syncBeaconStatus(
+        BeaconStatus.open,
+        authorId: kBeaconViewHarnessAuthorId,
+      );
+      addTearDown(() async {
+        for (final cubit in roomCubits) {
+          await cubit.close();
+        }
+      });
+
+      await pumpBeaconViewHarness(
+        tester,
+        size: const Size(1280, 800),
+        beaconState: beaconViewHarnessAuthorState(),
+        threadsState: beaconViewHarnessThreadsState(),
+        host: host,
+        viewTab: 'now',
+      );
+      await _waitForSplitRoom(tester, roomCubits);
+      await pumpUntilViewportDone(tester);
+
+      final skip = Focus.of(tester.element(find.text('Skip to content')))
+        ..requestFocus();
+      // requestFocus applies in a microtask after this pump's (absent)
+      // frame; the second pump rebuilds Focus's semantics with the focus.
+      await tester.pump();
+      await tester.pump();
+      var previous = focusedSemanticsNodes().map((n) => n.id).toSet();
+      var previousSaid = 'Skip to content';
+      final stops = <String>[];
+      var bubbles = 0;
+      for (var i = 0; i < 80; i++) {
+        await _tab(tester);
+        final focus = FocusManager.instance.primaryFocus;
+        if (identical(focus, skip)) break;
+        final label = focus?.debugLabel ?? '${focus?.context?.widget}';
+        if (label == 'RoomMessageBubble') bubbles++;
+        final nodes = focusedSemanticsNodes();
+        final ids = nodes.map((n) => n.id).toSet();
+        final said = nodes.map(describeSemanticsNode).join(' + ');
+        expect(
+          ids,
+          isNotEmpty,
+          reason:
+              'Tab ${i + 1} is on $label, but no semantics node says it has '
+              'focus: the browser stays on «$previousSaid». Stops: $stops',
+        );
+        expect(
+          ids,
+          isNot(equals(previous)),
+          reason:
+              'Tab ${i + 1} ($label) left the browser focus on the same node '
+              'as the press before ($said). Stops: $stops',
+        );
+        stops.add('$label → $said');
+        previous = ids;
+        previousSaid = said;
+      }
+      expect(bubbles, 2, reason: 'both messages were stops: $stops');
+      handle.dispose();
     },
     variant: TargetPlatformVariant.only(TargetPlatform.linux),
   );

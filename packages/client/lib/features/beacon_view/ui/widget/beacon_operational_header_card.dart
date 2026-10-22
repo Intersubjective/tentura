@@ -17,6 +17,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 import 'beacon_hud_action_button.dart';
 import 'beacon_helper_hud_actions.dart';
@@ -362,38 +363,42 @@ class _AuthorLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    return Semantics(
-      button: true,
-      label: label,
-      child: ExcludeSemantics(
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(tt.buttonRadius),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: kMinInteractiveDimension,
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: kBeaconHudRowLeadWidth,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: TenturaAvatar(
-                      profile: author,
-                      size: kBeaconHudRowIconSize + tt.tightGap * 2,
+    // #415: the line names itself, so it carries the focus state too.
+    return TenturaFocusSemantics(
+      builder: (_, focused) => Semantics(
+        button: true,
+        label: label,
+        focused: focused,
+        child: ExcludeSemantics(
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(tt.buttonRadius),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: kMinInteractiveDimension,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: kBeaconHudRowLeadWidth,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TenturaAvatar(
+                        profile: author,
+                        size: kBeaconHudRowIconSize + tt.tightGap * 2,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.text),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.bodySmall(tt.text),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
