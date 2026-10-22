@@ -570,6 +570,179 @@ void main() {
     },
   );
 
+  // #496 (option B): a forwarded person who offered help keeps one card under
+  // Willing to help; Forwards says where they went instead of "no trail".
+  group('#496 Forwards acknowledges recipients now in another section', () {
+    const helper = Profile(id: 'h1', displayName: 'Helper');
+    const author = Profile(id: 'auth', displayName: 'Author');
+
+    Future<void> pumpPeople(WidgetTester tester, L10n l10n) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: l10n,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Forwards ('));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('forwarded helper with a live offer: Forwards names Willing', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+        ],
+        viewerForwardEdges: [
+          ForwardEdge(
+            id: 'e1',
+            beaconId: 'B1',
+            createdAt: _t,
+            sender: author,
+            recipient: helper,
+            note: 'please help',
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await pumpPeople(tester, l10n);
+
+      expect(
+        find.text('1 person you forwarded to is now under Willing to help'),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.beaconForwardsEmpty), findsNothing);
+      // One category per person: still only under Willing to help.
+      expect(find.text('Willing to help (1)'), findsOneWidget);
+      expect(find.byType(UnifiedForwardRow), findsNothing);
+      expect(find.text('Helper'), findsOneWidget);
+    });
+
+    testWidgets('no forward at all keeps the old empty copy', (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await pumpPeople(tester, l10n);
+
+      expect(find.text('Forwards (0)'), findsOneWidget);
+      expect(find.text(l10n.beaconForwardsEmpty), findsOneWidget);
+      expect(find.textContaining('you forwarded to'), findsNothing);
+    });
+
+    testWidgets('inbound forward only (not yours) keeps the old empty copy', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+          ),
+        ],
+        viewerForwardEdges: [
+          ForwardEdge(
+            id: 'e1',
+            beaconId: 'B1',
+            createdAt: _t,
+            sender: helper,
+            recipient: author,
+            note: 'please help',
+          ),
+        ],
+        forwardsLoaded: true,
+      );
+      await pumpPeople(tester, l10n);
+
+      expect(find.text(l10n.beaconForwardsEmpty), findsOneWidget);
+      expect(find.textContaining('you forwarded to'), findsNothing);
+    });
+
+    testWidgets('forward-only row stays and the moved line is added below', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('en'));
+      const other = Profile(id: 'r2', displayName: 'Recipient');
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: helper,
+            message: 'I can help',
+            createdAt: _t,
+            updatedAt: _t,
+            roomAccess: RoomAccessBits.admitted,
+          ),
+        ],
+        viewerForwardEdges: [
+          for (final r in [helper, other])
+            ForwardEdge(
+              id: 'e-${r.id}',
+              beaconId: 'B1',
+              createdAt: _t,
+              sender: author,
+              recipient: r,
+              note: 'please help',
+            ),
+        ],
+        forwardsLoaded: true,
+      );
+      await pumpPeople(tester, l10n);
+
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      expect(find.byType(UnifiedForwardRow), findsOneWidget);
+      expect(
+        find.text('1 person you forwarded to is now under Active helpers'),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.beaconForwardsEmpty), findsNothing);
+    });
+
+    test('plural forms in en and ru', () {
+      final en = lookupL10n(const Locale('en'));
+      final ru = lookupL10n(const Locale('ru'));
+      expect(
+        en.beaconForwardsRecipientsMoved(2, 'Willing to help'),
+        '2 people you forwarded to are now under Willing to help',
+      );
+      expect(
+        ru.beaconForwardsRecipientsMoved(1, 'Готовы помочь'),
+        '1 человек, которому вы переслали запрос, теперь в разделе «Готовы помочь»',
+      );
+      expect(
+        ru.beaconForwardsRecipientsMoved(3, 'Готовы помочь'),
+        '3 человека, которым вы переслали запрос, теперь в разделе «Готовы помочь»',
+      );
+      expect(
+        ru.beaconForwardsRecipientsMoved(5, 'Готовы помочь'),
+        '5 человек, которым вы переслали запрос, теперь в разделе «Готовы помочь»',
+      );
+    });
+  });
+
   testWidgets('expanding Forwards does not collapse Active helpers', (
     tester,
   ) async {

@@ -287,18 +287,60 @@ class BeaconPeopleTabBody extends StatelessWidget {
               assignedUserIds.add(c.user.id),
         )
         .toList(growable: false);
+    // The section each person's card is in (one category per person), used
+    // to tell the viewer where a person they forwarded to went (#496).
+    final sectionTitleByUserId = <String, String>{};
+    void putSection(Iterable<String> userIds, String title) {
+      for (final id in userIds) {
+        sectionTitleByUserId.putIfAbsent(id, () => title);
+      }
+    }
+
+    putSection(
+      sections.activeHelpers.map((r) => r.userId),
+      l10n.beaconPeopleLensActiveHelpersHeading,
+    );
+    putSection(
+      sections.notFitting.map((r) => r.userId),
+      l10n.beaconPeopleLensNotFittingHeading,
+    );
+    putSection(
+      sections.willingToHelp.map((r) => r.userId),
+      l10n.beaconPeopleLensWillingToHelpHeading,
+    );
+    putSection(
+      backupOffers.map((c) => c.user.id),
+      l10n.helpOffersBackupGroupTitle,
+    );
     // Forward edges are claimed before the withdrawn fold: the spread of a
     // request is history, so a recipient who later withdrew keeps their
     // forward row (marked withdrawn) instead of vanishing from Forwards.
     final viewerId = state.myProfile.id;
+    // People the viewer forwarded to whose card is in another section: they
+    // get no Forwards row, but Forwards says where they are (#496).
+    final movedRecipientIds = <String>{};
     final forwardEdges = state.viewerForwardEdges
         .where((edge) {
           final personId = edge.sender.id == viewerId
               ? edge.recipient.id
               : edge.sender.id;
-          return assignedUserIds.add(personId);
+          if (assignedUserIds.add(personId)) return true;
+          if (edge.sender.id == viewerId &&
+              sectionTitleByUserId.containsKey(personId)) {
+            movedRecipientIds.add(personId);
+          }
+          return false;
         })
         .toList(growable: false);
+    // Section title -> how many of the viewer's recipients are in it, in
+    // section order.
+    final movedCountBySection = <String, int>{};
+    for (final title in sectionTitleByUserId.values.toSet()) {
+      final n = movedRecipientIds
+          .where((id) => sectionTitleByUserId[id] == title)
+          .length;
+      if (n > 0) movedCountBySection[title] = n;
+    }
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
         .toList(growable: false);
@@ -545,7 +587,21 @@ class BeaconPeopleTabBody extends StatelessWidget {
       ];
     } else if (state.forwardsLoaded) {
       final edges = forwardEdges;
-      if (edges.isEmpty) {
+      final movedLines = <Widget>[
+        for (final entry in movedCountBySection.entries)
+          Text(
+            l10n.beaconForwardsRecipientsMoved(entry.value, entry.key),
+            style: TenturaText.bodyMedium(tt.textMuted),
+          ),
+      ];
+      if (edges.isEmpty && movedLines.isNotEmpty) {
+        forwardsChildren = [
+          for (var i = 0; i < movedLines.length; i++) ...[
+            if (i > 0) SizedBox(height: context.tt.tightGap),
+            movedLines[i],
+          ],
+        ];
+      } else if (edges.isEmpty) {
         forwardsChildren = [
           Text(
             l10n.beaconForwardsEmpty,
@@ -586,6 +642,10 @@ class BeaconPeopleTabBody extends StatelessWidget {
           for (var i = 0; i < feedRows.length; i++) ...[
             if (i > 0) const SizedBox(height: kSpacingMedium),
             feedRows[i],
+          ],
+          for (final line in movedLines) ...[
+            const SizedBox(height: kSpacingMedium),
+            line,
           ],
         ];
       }
