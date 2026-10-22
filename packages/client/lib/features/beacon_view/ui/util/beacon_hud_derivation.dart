@@ -127,8 +127,11 @@ BeaconHudNowDisplay myWorkDeskNowDisplay(
   }
 
   if (beacon.status == BeaconStatus.reviewOpen) {
+    // #487 — in Final check the coordination label is the neutral "—": a
+    // placeholder, so the card hides the row as it does with no next step.
     return BeaconHudNowDisplay(
       primaryText: coordinationStatusLabel(l10n, beacon.status),
+      isPlaceholder: true,
     );
   }
 
