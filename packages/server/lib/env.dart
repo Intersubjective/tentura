@@ -87,7 +87,9 @@ Duration? _parseEnvDuration(String? raw) {
 /// Raised to 7.42.0 for the interactive Constellation protocol switch (#235,
 /// U26): clients must use batch anchor apply instead of retired upsert/delete
 /// mutations. The client version and web bootstrap cache-buster ship together.
-const kDefaultMinClientVersion = '7.42.0';
+/// Raised to 7.45.0 for next-step revisions (#517): `BeaconRoomNowLineUpdate`
+/// requires `baseRevision`, which older clients do not send.
+const kDefaultMinClientVersion = '7.45.0';
 
 class Env {
   Env({
