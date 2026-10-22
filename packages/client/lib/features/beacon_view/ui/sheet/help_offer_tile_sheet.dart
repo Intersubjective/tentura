@@ -7,6 +7,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart'
+    show TimelineHelpOffer;
 import 'package:tentura/features/beacon_view/ui/bloc/help_offer_tile_sheet_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_role_label_dialog.dart';
@@ -81,60 +83,20 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
             final cubit = context.read<HelpOfferTileSheetCubit>();
             final canManage = cubit.canManageOffer;
             return SingleChildScrollView(
-              child: HelpOfferTile(
-                helpOffer: offer,
-                beaconId: state.beaconId,
-                beaconAuthor: state.beacon.author,
-                beaconAuthorId: state.beacon.author.id,
-                isAuthorView: state.isAuthorOrSteward,
-                isMine: offer.user.id == state.myProfile.id,
-                participant: state.participant,
-                onEditRole: cubit.canEditRole
-                    ? () async {
-                        final next = await HelpOfferRoleLabelDialog.show(
-                          context,
-                          initialText: offer.roleLabel ?? '',
-                        );
-                        if (next == null || !context.mounted) return;
-                        await cubit.setRoleLabel(next);
-                      }
-                    : null,
-                onAccept: canManage
-                    ? () async {
-                        final ok = await cubit.accept();
-                        if (ok && context.mounted) Navigator.of(context).pop();
-                      }
-                    : null,
-                onDecline: canManage
-                    ? () async {
-                        final reason =
-                            await HelpOfferAdmissionReasonDialog.show(
-                              context,
-                              title: l10n.helpOfferDeclineDialogTitle,
-                              hintText: l10n.helpOfferDeclineDialogHint,
-                              submitLabel: l10n.helpOfferAdmissionDecline,
-                              destructive: true,
-                            );
-                        if (reason == null || !context.mounted) return;
-                        final ok = await cubit.decline(reason: reason);
-                        if (ok && context.mounted) Navigator.of(context).pop();
-                      }
-                    : null,
-                onReleaseCommitment:
-                    cubit.canEndParticipation &&
-                        offer.stakeState == CommitmentStakeState.acknowledged
-                    ? () async {
-                        final reason =
-                            await HelpOfferAdmissionReasonDialog.show(
-                              context,
-                              title: l10n.helpOfferReleaseDialogTitle,
-                              hintText: l10n.helpOfferReleaseDialogHint,
-                            );
-                        if (reason == null || !context.mounted) return;
-                        final ok = await cubit.release(reason: reason);
-                        if (ok && context.mounted) Navigator.of(context).pop();
-                      }
-                    : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _tile(context, l10n, state, cubit, offer, canManage),
+                  // Accepting from My Desk explains the shared discussion
+                  // too (#268), as the People tab does.
+                  if (canManage) ...[
+                    SizedBox(height: tt.tightGap),
+                    Text(
+                      l10n.helpOfferAcceptSharedChatHint,
+                      style: TenturaText.bodySmall(tt.textMuted),
+                    ),
+                  ],
+                ],
               ),
             );
           },
@@ -142,6 +104,67 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
       ),
     );
   }
+
+  Widget _tile(
+    BuildContext context,
+    L10n l10n,
+    HelpOfferTileSheetState state,
+    HelpOfferTileSheetCubit cubit,
+    TimelineHelpOffer offer,
+    bool canManage,
+  ) => HelpOfferTile(
+    helpOffer: offer,
+    beaconId: state.beaconId,
+    beaconAuthor: state.beacon.author,
+    beaconAuthorId: state.beacon.author.id,
+    isAuthorView: state.isAuthorOrSteward,
+    isMine: offer.user.id == state.myProfile.id,
+    participant: state.participant,
+    onEditRole: cubit.canEditRole
+        ? () async {
+            final next = await HelpOfferRoleLabelDialog.show(
+              context,
+              initialText: offer.roleLabel ?? '',
+            );
+            if (next == null || !context.mounted) return;
+            await cubit.setRoleLabel(next);
+          }
+        : null,
+    onAccept: canManage
+        ? () async {
+            final ok = await cubit.accept();
+            if (ok && context.mounted) Navigator.of(context).pop();
+          }
+        : null,
+    onDecline: canManage
+        ? () async {
+            final reason = await HelpOfferAdmissionReasonDialog.show(
+              context,
+              title: l10n.helpOfferDeclineDialogTitle,
+              hintText: l10n.helpOfferDeclineDialogHint,
+              submitLabel: l10n.helpOfferAdmissionDecline,
+              destructive: true,
+            );
+            if (reason == null || !context.mounted) return;
+            final ok = await cubit.decline(reason: reason);
+            if (ok && context.mounted) Navigator.of(context).pop();
+          }
+        : null,
+    onReleaseCommitment:
+        cubit.canEndParticipation &&
+            offer.stakeState == CommitmentStakeState.acknowledged
+        ? () async {
+            final reason = await HelpOfferAdmissionReasonDialog.show(
+              context,
+              title: l10n.helpOfferReleaseDialogTitle,
+              hintText: l10n.helpOfferReleaseDialogHint,
+            );
+            if (reason == null || !context.mounted) return;
+            final ok = await cubit.release(reason: reason);
+            if (ok && context.mounted) Navigator.of(context).pop();
+          }
+        : null,
+  );
 }
 
 /// Convenience for My Desk: resolves `myProfile` from `ProfileCubit` when present.

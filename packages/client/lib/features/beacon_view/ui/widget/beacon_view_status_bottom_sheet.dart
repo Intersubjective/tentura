@@ -10,6 +10,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_publish_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/decline_remaining_offers_flow.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -324,9 +325,10 @@ Future<void> beaconViewDispatchStatusMenuAction(
         BeaconStatus.needsMoreHelp,
       );
     case BeaconStatusMenuAction.setCoordinationEnoughHelp:
-      await cubit.setBeaconStatus(
-        BeaconStatus.enoughHelp,
-      );
+      if (await cubit.setBeaconStatus(BeaconStatus.enoughHelp) &&
+          context.mounted) {
+        await beaconViewOfferDeclineRemainingOffers(context, cubit);
+      }
     case BeaconStatusMenuAction.startWrappingUp:
       if (!context.mounted) return;
       await _runCloseFlow(

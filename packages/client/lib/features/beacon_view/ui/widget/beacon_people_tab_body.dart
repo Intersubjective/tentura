@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/decline_remaining_offers_flow.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_role_label_dialog.dart';
@@ -644,12 +645,37 @@ class BeaconPeopleTabBody extends StatelessWidget {
               rows: peopleSections.activeHelpers,
               initiallyExpanded: true,
             );
-            final willingFold = peopleSectionFold(
+            final willingRows = peopleSectionFold(
               sectionId: BeaconPeopleAccordionSection.willingToHelp,
               title: l10n.beaconPeopleLensWillingToHelpHeading,
               rows: peopleSections.willingToHelp,
               initiallyExpanded: true,
             );
+            // Offers waiting for the author (#268): the shared-discussion
+            // model in one line, and, after «Enough help», releasing the
+            // rest in one step.
+            final showPendingFooter =
+                state.isAuthorOrSteward &&
+                beacon.status.isOpenFamily &&
+                (peopleSections.willingToHelp.isNotEmpty ||
+                    state.canDeclineRemainingOffers);
+            final willingFold = showPendingFooter
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      willingRows,
+                      _PendingOffersFooter(
+                        canDeclineRemaining: state.canDeclineRemainingOffers,
+                        onDeclineRemaining: () => unawaited(
+                          beaconViewOfferDeclineRemainingOffers(
+                            context,
+                            beaconViewCubit,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : willingRows;
             return AccordionExpansionGroup(
               initialExpandedId: requestedSectionId,
               requestedExpandedId: requestedSectionId,
@@ -795,6 +821,44 @@ class _ObserverActiveHelperTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Under the offers waiting for the author (#268): one line on the shared
+/// discussion (accepting someone never opens a private chat) and, after
+/// «Enough help», «Decline remaining offers».
+class _PendingOffersFooter extends StatelessWidget {
+  const _PendingOffersFooter({
+    required this.canDeclineRemaining,
+    required this.onDeclineRemaining,
+  });
+
+  final bool canDeclineRemaining;
+  final VoidCallback onDeclineRemaining;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.only(top: tt.tightGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.helpOfferAcceptSharedChatHint,
+            style: TenturaText.bodySmall(tt.textMuted),
+          ),
+          if (canDeclineRemaining)
+            TenturaTextAction(
+              label: l10n.declineRemainingOffersAction,
+              tone: TenturaTone.danger,
+              flushStart: true,
+              onPressed: onDeclineRemaining,
+            ),
+        ],
       ),
     );
   }

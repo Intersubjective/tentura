@@ -7,6 +7,7 @@ import '../../data/repository/beacon_plan_repository.dart';
 import '../entity/beacon_plan.dart';
 import '../entity/plan_conflict.dart';
 import '../entity/plan_revision.dart';
+import '../exception/beacon_plan_exceptions.dart';
 
 export '../entity/beacon_plan.dart';
 export '../entity/plan_conflict.dart';
@@ -47,6 +48,38 @@ final class BeaconPlanCase extends UseCaseBase {
     steps: steps,
     comment: comment,
   );
+
+  /// Appends [step] to the plan of [beaconId] through the ordinary whole-plan
+  /// save, creating the plan when it has none (#479).
+  ///
+  /// Idempotent by step id: the caller mints [step]'s id once and reuses it
+  /// on every retry, so a retry after an uncertain answer (the first save
+  /// landed, its reply was lost) finds the step and writes nothing. Each
+  /// attempt reads the current head and saves against it; the server merges
+  /// by step with anything saved meanwhile, and a stale base (1336) is
+  /// retried on a fresh read, at most [attempts] times. Other errors
+  /// (assignee left, plan not editable, rate limit) propagate. Returns
+  /// `false` when the step was already there.
+  Future<bool> appendStep({
+    required String beaconId,
+    required PlanStepSnapshot step,
+    int attempts = 3,
+  }) async {
+    for (var attempt = 1; ; attempt++) {
+      final plan = await _repository.fetch(beaconId);
+      if (plan.stepById(step.id) != null) return false;
+      try {
+        await _repository.save(
+          beaconId: beaconId,
+          baseRevisionSeq: plan.revisionSeq,
+          steps: PlanSnapshot([...plan.snapshot.steps, step]),
+        );
+        return true;
+      } on PlanEditConflictException {
+        if (attempt >= attempts) rethrow;
+      }
+    }
+  }
 
   Future<PlanSaveOutcome> restore({
     required String beaconId,

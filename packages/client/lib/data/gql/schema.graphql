@@ -3876,6 +3876,7 @@ type mutation_root {
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
+  declineRemainingHelpOffers(id: String!, reason: String!): Int!
 
   """
   delete data from the table: "beacon_archived"

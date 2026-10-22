@@ -196,6 +196,29 @@ class RoomMessageTile extends StatelessWidget {
     return src != null && src.trim().isNotEmpty;
   }
 
+  /// One line of the baton message [sourceId] when it is loaded in the room
+  /// and has text; null otherwise (then the plain «{name} took it.» shows).
+  static String? _batonAskExcerpt(BuildContext context, String sourceId) {
+    final RoomCubit cubit;
+    try {
+      cubit = context.read<RoomCubit>();
+    } on Exception {
+      return null;
+    }
+    for (final m in cubit.state.messages) {
+      if (m.id != sourceId) continue;
+      final line = m.body.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (line.isEmpty) return null;
+      final runes = line.runes;
+      return runes.length <= _batonAskExcerptMaxChars
+          ? line
+          : '${String.fromCharCodes(runes.take(_batonAskExcerptMaxChars))}…';
+    }
+    return null;
+  }
+
+  static const _batonAskExcerptMaxChars = 80;
+
   /// Taker of a «{name} took it.» system line; null without a usable payload.
   static String? batonTakerUserId(RoomMessage m) {
     final raw = m.systemPayloadJson;
@@ -715,15 +738,24 @@ class RoomMessageTile extends StatelessWidget {
     if (message.semanticMarker == BeaconRoomSemanticMarker.batonTaken) {
       final takerId = batonTakerUserId(message);
       if (takerId == null) return const SizedBox.shrink();
+      // The baton card right above already says «{name} took it.» (#479):
+      // the line would only repeat it.
+      final sourceId = message.sourceMessageId;
+      if (sourceId != null && previousMessage?.id == sourceId) {
+        return const SizedBox.shrink();
+      }
+      final name = _participantDisplayName(
+        participants: participants,
+        userId: takerId,
+        viewer: myProfile,
+        l10n: l10n,
+      );
+      // Further down the room, say what was taken.
+      final ask = sourceId == null ? null : _batonAskExcerpt(context, sourceId);
       return _CenteredSystemNotice(
-        text: l10n.batonTookIt(
-          _participantDisplayName(
-            participants: participants,
-            userId: takerId,
-            viewer: myProfile,
-            l10n: l10n,
-          ),
-        ),
+        text: ask == null
+            ? l10n.batonTookIt(name)
+            : l10n.batonTookItAsk(name, ask),
       );
     }
 

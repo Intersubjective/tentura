@@ -11,6 +11,7 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     this.explanatoryNote,
     this.submitLabel,
     this.destructive = false,
+    this.initialText = '',
     super.key,
   });
 
@@ -21,6 +22,7 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
     String? explanatoryNote,
     String? submitLabel,
     bool destructive = false,
+    String initialText = '',
   }) => showTenturaAdaptiveSheet<String>(
     context: context,
     useRootNavigator: true,
@@ -31,6 +33,7 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
       explanatoryNote: explanatoryNote,
       submitLabel: submitLabel,
       destructive: destructive,
+      initialText: initialText,
     ),
   );
 
@@ -44,6 +47,9 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
   /// Paints the primary button in the error role.
   final bool destructive;
 
+  /// Prefilled, editable reason; leaving it as is does not count as an edit.
+  final String initialText;
+
   @override
   State<HelpOfferAdmissionReasonDialog> createState() =>
       _HelpOfferAdmissionReasonDialogState();
@@ -51,7 +57,7 @@ class HelpOfferAdmissionReasonDialog extends StatefulWidget {
 
 class _HelpOfferAdmissionReasonDialogState
     extends State<HelpOfferAdmissionReasonDialog> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(text: widget.initialText);
 
   @override
   void dispose() {
@@ -59,7 +65,8 @@ class _HelpOfferAdmissionReasonDialogState
     super.dispose();
   }
 
-  bool get _isDirty => _controller.text.trim().isNotEmpty;
+  bool get _isDirty =>
+      _controller.text.trim() != widget.initialText.trim();
   bool get _canSubmit => _controller.text.trim().isNotEmpty;
 
   Future<void> _requestClose() => TenturaSheetDismissGuard.requestClose(

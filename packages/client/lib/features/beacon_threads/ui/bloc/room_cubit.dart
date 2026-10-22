@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
+import 'package:tentura_root/domain/plan/plan.dart' as plan_model;
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -25,12 +26,15 @@ import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_edit_state.dart'
+    show PlanLimits;
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/coordination_item_room_sync.dart';
+import '../../domain/entity/baton_select_result.dart';
 import '../../domain/entity/beacon_room_invalidation.dart';
 import '../../domain/entity/room_composer_intent.dart';
 import '../../domain/entity/committed_mention.dart';
@@ -40,6 +44,7 @@ import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
 import '../../domain/room_host.dart';
 import '../../domain/exception/beacon_fact_card_exceptions.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
+import '../message/baton_plan_step_messages.dart';
 import '../message/beacon_room_fact_messages.dart';
 import '../message/discussion_read_only_message.dart';
 import '../message/now_line_changed_message.dart';
@@ -49,6 +54,7 @@ import 'room_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
+export '../../domain/entity/baton_select_result.dart';
 export 'room_state.dart';
 
 enum _RoomRefreshScope { messages, facts, roomState, full }
@@ -70,9 +76,11 @@ class RoomCubit extends Cubit<RoomState> {
     PresenceRepository? presenceRepository,
     UiEffectPort? effects,
     BeaconPlanCase? planCase,
+    String Function()? newPlanStepId,
     this.capabilities = const RoomCapabilities.request(),
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconThreadsCase>(),
        _planCaseOverride = planCase,
+       _newPlanStepId = newPlanStepId ?? plan_model.newPlanStepId,
        _itemSync =
            coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
        _presenceRepository =
@@ -112,6 +120,9 @@ class RoomCubit extends Cubit<RoomState> {
   final UiEffectPort _effects;
 
   final BeaconPlanCase? _planCaseOverride;
+
+  /// Mints the id of a plan step offered after a baton pick (#479).
+  final String Function() _newPlanStepId;
 
   /// Resolved only when a plan intent fires: most rooms never record one.
   BeaconPlanCase get _planCase =>
@@ -1568,16 +1579,111 @@ class RoomCubit extends Cubit<RoomState> {
 
   /// Author: picks who takes the baton (`null` user id = server picks), then
   /// refetches so the card shows the taker.
-  Future<void> batonSelect({
+  ///
+  /// The result carries the taker the server resolved and, on a Request
+  /// whose plan the author may edit, the plan step to offer (#479, D9). It
+  /// is returned to the one caller that picked; a realtime refresh of the
+  /// card never produces it, so the offer cannot come back by itself.
+  Future<BatonSelectResult> batonSelect({
     required String batonId,
     String? userId,
   }) async {
-    if (_rejectIfDiscussionReadOnly()) return;
+    if (_rejectIfDiscussionReadOnly()) return const BatonSelectFailed();
+    final RoomBatonData? view;
     try {
-      await _case.batonSelect(batonId: batonId, userId: userId);
+      view = await _case.batonSelect(batonId: batonId, userId: userId);
+    } on Object catch (e) {
+      _showSnackError(e);
+      return const BatonSelectFailed();
+    }
+    try {
       await _requestRefresh(scope: _RoomRefreshScope.messages);
     } on Object catch (e) {
       _showSnackError(e);
+    }
+    final taker =
+        view is RoomBatonAuthorData && view.status == RoomBatonStatus.taken
+        ? view.taker
+        : null;
+    if (taker == null) return const BatonSelected();
+    return BatonSelected(
+      taker: taker,
+      planStepOffer: await _batonPlanStepOffer(batonId: batonId, taker: taker),
+    );
+  }
+
+  /// The plan step to offer for a taken baton, or null when the room has no
+  /// plan, the plan cannot be read, or the viewer may not edit it.
+  Future<BatonPlanStepOffer?> _batonPlanStepOffer({
+    required String batonId,
+    required RoomBatonTaker taker,
+  }) async {
+    if (!capabilities.plan || isClosed) return null;
+    try {
+      final plan = await _planCase.fetch(state.beaconId);
+      if (!plan.editable) return null;
+    } on Object catch (_) {
+      // No offer is better than an offer that cannot be saved.
+      return null;
+    }
+    return BatonPlanStepOffer(
+      beaconId: state.beaconId,
+      batonId: batonId,
+      stepId: _newPlanStepId(),
+      assigneeId: taker.id,
+      assigneeName: taker.title,
+      title: _batonAskTitle(batonId),
+    );
+  }
+
+  /// The baton's ask as a step title: its message text, or, for a reply
+  /// without one, the quoted message; cut to the plan's title limit.
+  String _batonAskTitle(String batonId) {
+    for (final m in state.messages) {
+      if (m.baton?.id != batonId) continue;
+      final ask = m.body.trim().isNotEmpty
+          ? m.body
+          : (m.replyToBodyExcerpt ?? '');
+      final line = ask.trim().replaceAll(RegExp(r'\s+'), ' ');
+      // The server counts UTF-16 units; never split a surrogate pair.
+      final title = StringBuffer();
+      for (final rune in line.runes) {
+        final char = String.fromCharCode(rune);
+        if (title.length + char.length > PlanLimits.maxTitleLength) break;
+        title.write(char);
+      }
+      return title.toString();
+    }
+    return '';
+  }
+
+  /// Saves the plan step the author accepted from a [BatonPlanStepOffer]
+  /// (with their edited [title]), creating the plan when there is none.
+  /// Returns whether it is in the plan now; on `false` the error has been
+  /// shown and the caller may try again (same step id, so never twice).
+  Future<bool> createBatonPlanStep(
+    BatonPlanStepOffer offer, {
+    required String title,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return false;
+    try {
+      await _planCase.appendStep(
+        beaconId: offer.beaconId,
+        step: plan_model.PlanStepSnapshot(
+          id: offer.stepId,
+          title: trimmed,
+          assigneeId: offer.assigneeId,
+        ),
+      );
+      _showMessage(const BatonPlanStepCreatedMessage());
+      return true;
+    } on PlanAssigneeNotAdmittedException {
+      _showMessage(BatonPlanStepAssigneeLeftMessage(name: offer.assigneeName));
+      return false;
+    } on Object catch (e) {
+      _showSnackError(e);
+      return false;
     }
   }
 

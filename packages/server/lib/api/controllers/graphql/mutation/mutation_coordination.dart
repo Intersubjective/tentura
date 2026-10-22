@@ -40,6 +40,7 @@ final class MutationCoordination extends GqlNodeBase {
     setCoordinationResponse,
     acceptHelpOffer,
     declineHelpOffer,
+    declineRemainingHelpOffers,
     removeFromRoom,
     releaseCommitment,
     setBeaconStatus,
@@ -110,6 +111,26 @@ final class MutationCoordination extends GqlNodeBase {
                 reason: _reason.fromArgsNonNullable(args),
               )
               .then(beaconStatusResultToGqlMap);
+        },
+      );
+
+  /// «Decline remaining offers» after «Enough help» (#268): returns how many
+  /// pending offers were declined.
+  GraphQLObjectField<dynamic, dynamic> get declineRemainingHelpOffers =>
+      GraphQLObjectField(
+        'declineRemainingHelpOffers',
+        graphQLInt.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          _reason.field,
+        ],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _coordinationCase.declineRemainingHelpOffers(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            actorUserId: jwt.sub,
+            reason: _reason.fromArgsNonNullable(args),
+          );
         },
       );
 

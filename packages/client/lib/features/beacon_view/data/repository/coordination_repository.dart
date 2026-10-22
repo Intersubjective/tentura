@@ -14,6 +14,7 @@ import '../../domain/help_offer_row_record.dart';
 import '../gql/_g/help_offer_with_coordination_fields.data.gql.dart';
 import '../gql/_g/beacon_help_offer_accept.req.gql.dart';
 import '../gql/_g/beacon_help_offer_decline.req.gql.dart';
+import '../gql/_g/beacon_help_offer_decline_remaining.req.gql.dart';
 import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
 import '../gql/_g/beacon_help_offer_role_label_set.req.gql.dart';
 import '../gql/_g/beacon_release_commitment.req.gql.dart';
@@ -114,6 +115,22 @@ class CoordinationRepository {
               : DateTime.tryParse(res.statusChangedAt!),
         );
       });
+
+  /// Declines every offer still waiting for an answer (after «Enough
+  /// help»); returns how many were declined.
+  Future<int> declineRemainingHelpOffers({
+    required String beaconId,
+    required String reason,
+  }) => _remoteApiService
+      .request(
+        GDeclineRemainingHelpOffersReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.reason = reason,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).declineRemainingHelpOffers);
 
   Future<({BeaconStatus status, DateTime? updatedAt})> removeFromRoom({
     required String beaconId,
