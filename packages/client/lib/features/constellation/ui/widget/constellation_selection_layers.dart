@@ -84,9 +84,17 @@ class ConstellationSelectionToggle extends StatelessWidget {
 /// The map layers of the selection, above the nodes: rings around selected
 /// nodes, the Shift-drag box and, while aiming, the sector preview.
 class ConstellationSelectionLayers extends StatelessWidget {
-  const ConstellationSelectionLayers({required this.cubit, super.key});
+  const ConstellationSelectionLayers({
+    required this.cubit,
+    this.hitsNode,
+    super.key,
+  });
 
   final ConstellationCubit cubit;
+
+  /// The map's own tap hit test (labels included): a pointer it claims is
+  /// left to the map, so a label tap still toggles its node.
+  final bool Function(Offset local)? hitsNode;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +115,11 @@ class ConstellationSelectionLayers extends StatelessWidget {
               child: _SelectionRings(cubit: cubit, targets: state.targets),
             ),
           if (state.sector == null)
-            _BoxSelect(cubit: cubit, selection: selection)
+            _BoxSelect(
+              cubit: cubit,
+              selection: selection,
+              hitsNode: hitsNode,
+            )
           else
             _SectorAim(cubit: cubit, selection: selection),
         ],
@@ -229,8 +241,10 @@ final class _Camera {
       _pointers = details.pointerCount;
       return;
     }
+    // Zoom about where the fingers were, then carry that point along with
+    // them, so the map stays under the fingers.
     if (_scale > 0 && details.scale > 0 && details.scale != _scale) {
-      zoomAround(details.localFocalPoint, details.scale / _scale);
+      zoomAround(focal, details.scale / _scale);
     }
     panBy(details.localFocalPoint - focal);
     _focal = details.localFocalPoint;
@@ -322,22 +336,82 @@ bool _onNode(ConstellationCubit cubit, Offset local) {
   return false;
 }
 
+/// Pointers down anywhere in the app, so a gesture another layer already
+/// owns (a finger on a node) keeps its next finger too.
+final class _PointersDown {
+  _PointersDown() {
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_route);
+  }
+
+  final _down = <int>{};
+
+  bool get any => _down.isNotEmpty;
+
+  void _route(PointerEvent event) {
+    switch (event) {
+      case PointerDownEvent() || PointerPanZoomStartEvent():
+        _down.add(event.pointer);
+      case PointerUpEvent() || PointerCancelEvent() || PointerPanZoomEndEvent():
+        _down.remove(event.pointer);
+      default:
+    }
+  }
+
+  void dispose() =>
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(_route);
+}
+
+/// One pointer session of a selection layer: from the first pointer down to
+/// the last one up. A scale gesture ends and restarts whenever a finger
+/// joins or leaves; the session does not, so a box is never committed half
+/// way and a pinch never turns back into a box or an aim.
+final class _Session {
+  final _pointers = <int>{};
+  PointerDeviceKind? kind;
+
+  /// More than one pointer took part: a pan or pinch from here on.
+  bool multi = false;
+
+  bool get active => _pointers.isNotEmpty;
+
+  void down(PointerEvent event) {
+    if (_pointers.isEmpty) {
+      kind = event.kind;
+      multi = false;
+    }
+    _pointers.add(event.pointer);
+    // A trackpad gesture is a two-finger one.
+    if (_pointers.length > 1 || event is PointerPanZoomStartEvent) {
+      multi = true;
+    }
+  }
+
+  void up(PointerEvent event) => _pointers.remove(event.pointer);
+}
+
 /// Rubber-band (box) selection (#642), the main way to pick several nodes.
 ///
 /// It takes a pointer that goes down on empty map while the select tool is
 /// on, or anywhere off a node while Shift is held; everything else (a tap or
-/// a drag on a node, a plain drag with the tool off) reaches the map as
-/// before. One finger or the mouse draws the box; a second finger turns the
-/// gesture into a pan and pinch of the map, and the wheel zooms.
+/// a drag on a node or its label, a plain drag with the tool off) reaches the
+/// map as before. One finger or the mouse draws the box; a second finger
+/// turns the gesture into a pan and pinch of the map, and the wheel zooms.
 ///
 /// On release: with Shift the nodes in the box are added, with Ctrl/Cmd they
 /// are toggled; otherwise a mouse box replaces the selection and a touch box
 /// adds to it (a touch screen has no modifier to add with).
 class _BoxSelect extends StatefulWidget {
-  const _BoxSelect({required this.cubit, required this.selection});
+  const _BoxSelect({
+    required this.cubit,
+    required this.selection,
+    this.hitsNode,
+  });
 
   final ConstellationCubit cubit;
   final ConstellationSelectionCubit selection;
+
+  /// The map's own tap hit test (labels included), when there is one.
+  final bool Function(Offset local)? hitsNode;
 
   @override
   State<_BoxSelect> createState() => _BoxSelectState();
@@ -345,15 +419,23 @@ class _BoxSelect extends StatefulWidget {
 
 class _BoxSelectState extends State<_BoxSelect> {
   late final _camera = _Camera(widget.cubit.graphController);
-  final _pointers = <int>{};
-  PointerDeviceKind? _kind;
+  final _everywhere = _PointersDown();
+  final _session = _Session();
   Offset? _start;
   Offset? _end;
-  bool _moving = false;
+
+  @override
+  void dispose() {
+    _everywhere.dispose();
+    super.dispose();
+  }
 
   bool _accepts(Offset local) {
     // The rest of a gesture this layer started stays with it.
-    if (_pointers.isNotEmpty) return true;
+    if (_session.active) return true;
+    // A finger already down elsewhere (e.g. on a node): the map owns the
+    // gesture, so this finger joins its pan or pinch.
+    if (_everywhere.any) return false;
     final state = widget.cubit.state;
     if (state.isComposing ||
         state.placementPhase != ConstellationPlacementPhase.idle) {
@@ -364,17 +446,21 @@ class _BoxSelectState extends State<_BoxSelect> {
         !HardwareKeyboard.instance.isShiftPressed) {
       return false;
     }
-    return !_onNode(widget.cubit, local);
+    return !_onNode(widget.cubit, local) &&
+        !(widget.hitsNode?.call(local) ?? false);
   }
 
   void _down(PointerEvent event) {
-    _pointers.add(event.pointer);
-    _kind ??= event.kind;
+    _session.down(event);
+    if (_session.multi) _clearBox();
   }
 
-  void _up(PointerEvent event) {
-    _pointers.remove(event.pointer);
-    if (_pointers.isEmpty) _kind = null;
+  /// A cancelled pointer abandons the box.
+  void _cancel(PointerEvent event) {
+    _session
+      ..up(event)
+      ..multi = true;
+    _clearBox();
   }
 
   void _clearBox() {
@@ -386,8 +472,8 @@ class _BoxSelectState extends State<_BoxSelect> {
   }
 
   void _onStart(ScaleStartDetails details) {
-    _moving = details.pointerCount > 1;
-    if (_moving) {
+    if (_session.multi || details.pointerCount > 1) {
+      _clearBox();
       _camera.start(details);
       return;
     }
@@ -398,19 +484,7 @@ class _BoxSelectState extends State<_BoxSelect> {
   }
 
   void _onUpdate(ScaleUpdateDetails details) {
-    if (!_moving && details.pointerCount > 1) {
-      // A second finger: this is a pan or pinch, not a box.
-      _moving = true;
-      _clearBox();
-      _camera.start(
-        ScaleStartDetails(
-          localFocalPoint: details.localFocalPoint,
-          pointerCount: details.pointerCount,
-        ),
-      );
-      return;
-    }
-    if (_moving) {
+    if (_session.multi || details.pointerCount > 1) {
       _camera.update(details);
       return;
     }
@@ -421,15 +495,18 @@ class _BoxSelectState extends State<_BoxSelect> {
     _camera.end();
     final start = _start;
     final end = _end;
-    final kind = _kind;
-    _clearBox();
-    if (_moving || start == null || end == null) {
-      _moving = false;
+    // A finger joining or leaving ends the scale gesture, not the session:
+    // only a box drawn by one pointer from start to finish is applied.
+    if (_session.multi || _session.active) {
+      if (_session.multi) _clearBox();
       return;
     }
+    _clearBox();
+    if (start == null || end == null) return;
     final rect = Rect.fromPoints(start, end);
     if (rect.longestSide < kTouchSlop) return;
     final keyboard = HardwareKeyboard.instance;
+    final kind = _session.kind;
     final merge = keyboard.isControlPressed || keyboard.isMetaPressed
         ? ConstellationBoxMerge.toggle
         : keyboard.isShiftPressed ||
@@ -449,10 +526,10 @@ class _BoxSelectState extends State<_BoxSelect> {
       enabled: _accepts,
       child: Listener(
         onPointerDown: _down,
-        onPointerUp: _up,
-        onPointerCancel: _up,
+        onPointerUp: _session.up,
+        onPointerCancel: _cancel,
         onPointerPanZoomStart: _down,
-        onPointerPanZoomEnd: _up,
+        onPointerPanZoomEnd: _session.up,
         onPointerSignal: _camera.wheel,
         child: GestureDetector(
           key: const Key('constellation.selection.box'),
@@ -560,8 +637,8 @@ ConstellationSectorLayout? constellationSectorPreview({
     span: sector.span,
     minSpacing: minSpacing,
     minRadius: kConstellationRingUnitPixels,
-    maxAxisOffset:
-        kConstellationCoordinateMaxUnits * kConstellationRingUnitPixels,
+    // The circle inside the stored-position envelope.
+    maxRadius: kConstellationCoordinateMaxUnits * kConstellationRingUnitPixels,
   );
 }
 
@@ -614,7 +691,7 @@ class _SectorAim extends StatefulWidget {
 
 class _SectorAimState extends State<_SectorAim> {
   late final _camera = _Camera(widget.cubit.graphController);
-  bool _moving = false;
+  final _session = _Session();
 
   void _aimAt(Offset local) {
     final centre = widget.cubit.graphController.sceneToViewportLocal(
@@ -625,9 +702,10 @@ class _SectorAimState extends State<_SectorAim> {
     widget.selection.aimSector(direction: math.atan2(delta.dy, delta.dx));
   }
 
+  // Once a second finger joins, the rest of the session moves the map; a
+  // finger left behind does not swing the sector.
   void _onStart(ScaleStartDetails details) {
-    _moving = details.pointerCount > 1;
-    if (_moving) {
+    if (_session.multi || details.pointerCount > 1) {
       _camera.start(details);
     } else {
       _aimAt(details.localFocalPoint);
@@ -635,27 +713,14 @@ class _SectorAimState extends State<_SectorAim> {
   }
 
   void _onUpdate(ScaleUpdateDetails details) {
-    if (!_moving && details.pointerCount > 1) {
-      _moving = true;
-      _camera.start(
-        ScaleStartDetails(
-          localFocalPoint: details.localFocalPoint,
-          pointerCount: details.pointerCount,
-        ),
-      );
-      return;
-    }
-    if (_moving) {
+    if (_session.multi || details.pointerCount > 1) {
       _camera.update(details);
     } else {
       _aimAt(details.localFocalPoint);
     }
   }
 
-  void _onEnd(ScaleEndDetails _) {
-    _camera.end();
-    _moving = false;
-  }
+  void _onEnd(ScaleEndDetails _) => _camera.end();
 
   @override
   Widget build(BuildContext context) {
@@ -666,6 +731,11 @@ class _SectorAimState extends State<_SectorAim> {
     final tt = context.tt;
     final minSpacing = constellationSectorMinSpacing(context);
     return Listener(
+      onPointerDown: _session.down,
+      onPointerUp: _session.up,
+      onPointerCancel: _session.up,
+      onPointerPanZoomStart: _session.down,
+      onPointerPanZoomEnd: _session.up,
       onPointerSignal: _camera.wheel,
       child: GestureDetector(
         key: const Key('constellation.selection.sector_aim'),
@@ -819,44 +889,50 @@ class ConstellationSelectionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final selection = maybeConstellationSelection(context);
     if (selection == null) return const SizedBox.shrink();
-    return BlocBuilder<
-      ConstellationSelectionCubit,
-      ConstellationMultiSelection
-    >(
-      bloc: selection,
-      builder: (context, state) {
-        if (!state.isActive || cubit.state.isComposing) {
-          return const SizedBox.shrink();
-        }
-        final tt = context.tt;
-        return Padding(
-          padding: EdgeInsets.all(tt.rowGap),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: TenturaSpacing.listPaneWidth,
-              ),
-              child: Material(
-                key: const Key('constellation.selection.bar'),
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tt.cardRadius),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: tt.screenHPadding,
-                    vertical: tt.tightGap,
+    // A change of account drops the field (a reload keeps it): the new
+    // account starts with nothing selected.
+    return BlocListener<ConstellationCubit, ConstellationState>(
+      bloc: cubit,
+      listenWhen: (previous, current) =>
+          previous.field != null && current.field == null,
+      listener: (_, _) => selection.clear(),
+      child:
+          BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+            bloc: selection,
+            builder: (context, state) {
+              if (!state.isActive || cubit.state.isComposing) {
+                return const SizedBox.shrink();
+              }
+              final tt = context.tt;
+              return Padding(
+                padding: EdgeInsets.all(tt.rowGap),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: TenturaSpacing.listPaneWidth,
+                    ),
+                    child: Material(
+                      key: const Key('constellation.selection.bar'),
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tt.cardRadius),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: tt.screenHPadding,
+                          vertical: tt.tightGap,
+                        ),
+                        child: state.sector == null
+                            ? _selectionRow(context, selection, state)
+                            : _sectorControls(context, selection, state),
+                      ),
+                    ),
                   ),
-                  child: state.sector == null
-                      ? _selectionRow(context, selection, state)
-                      : _sectorControls(context, selection, state),
                 ),
-              ),
-            ),
+              );
+            },
           ),
-        );
-      },
     );
   }
 

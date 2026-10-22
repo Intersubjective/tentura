@@ -200,24 +200,32 @@ void main() {
       expect(distinct, hasLength(64));
     });
 
-    test('pulls targets back into the stored-position envelope', () {
+    test('brings a person beyond the envelope circle in to it, keeping '
+        'the spacing even', () {
+      const maxRadius = 1700.0;
       final layout = arrangeConstellationSector(
         centre: _centre,
         members: [
-          // A far corner: its distance exceeds the envelope on an axis.
+          // A far corner: valid where it is, but not in every direction.
           (id: 'corner', position: (x: _centre.x + 1600, y: _centre.y + 1600)),
           (id: 'b', position: _polar(0, 300)),
+          (id: 'c', position: _polar(0.2, 600)),
         ],
         direction: 0,
-        span: math.pi / 6,
+        span: math.pi / 3,
         minSpacing: 10,
-        maxAxisOffset: 1700,
+        maxRadius: maxRadius,
       );
 
       for (final target in layout.targets.values) {
-        expect((target.x - _centre.x).abs(), lessThanOrEqualTo(1700));
-        expect((target.y - _centre.y).abs(), lessThanOrEqualTo(1700));
+        expect((target.x - _centre.x).abs(), lessThanOrEqualTo(maxRadius));
+        expect((target.y - _centre.y).abs(), lessThanOrEqualTo(maxRadius));
       }
+      expect(_radius(layout.targets['corner']!), closeTo(maxRadius, 1e-6));
+      expect(_radius(layout.targets['b']!), closeTo(300, 1e-6));
+      final angles = layout.targets.values.map(_angle).toList()..sort();
+      expect(angles[1] - angles[0], closeTo(math.pi / 6, 1e-9));
+      expect(angles[2] - angles[1], closeTo(math.pi / 6, 1e-9));
     });
 
     test('nobody to arrange gives nothing', () {

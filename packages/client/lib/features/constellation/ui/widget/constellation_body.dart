@@ -338,6 +338,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
   }
 
+  /// Whether the map's tap hit test (labels included) claims [local].
+  bool _hitsMapNode(ConstellationCubit cubit, Offset local) {
+    final frame = _frameHolder.frame;
+    final controller = cubit.graphController;
+    if (frame == null ||
+        (frame.snapshot as GraphSceneSnapshot<NodeDetails, EdgeDetails>)
+                .sceneRevision !=
+            controller.sceneRevision ||
+        frame.cameraRevision != controller.cameraRevision.value) {
+      return false;
+    }
+    return resolveConstellationTap(frame, local) != null;
+  }
+
   Future<void> _dismissRequestPreview(ConstellationCubit cubit) async {
     cubit.selectRequest(null);
   }
@@ -1090,7 +1104,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
         Positioned.fill(
           child: ConstellationPlacementMarkerLayer(cubit: cubit),
         ),
-        Positioned.fill(child: ConstellationSelectionLayers(cubit: cubit)),
+        Positioned.fill(
+          child: ConstellationSelectionLayers(
+            cubit: cubit,
+            hitsNode: (local) => _hitsMapNode(cubit, local),
+          ),
+        ),
         // The handle paints before the sheet below, so panning the circle
         // under the sheet does not draw the handle on top of it.
         if (composer != null)

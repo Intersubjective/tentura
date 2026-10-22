@@ -55,9 +55,9 @@ double constellationSectorCentroidDirection({
 /// whole circle. When even the whole circle is too small, people are spread
 /// evenly around it and may touch.
 ///
-/// With [maxAxisOffset], a target is pulled back so neither of its
-/// coordinates is further than that from [centre] (the stored-position
-/// envelope).
+/// A person further out than [maxRadius] is brought in to it, so every
+/// target stays inside the stored-position envelope whatever the direction
+/// and the spacing stays even.
 ConstellationSectorLayout arrangeConstellationSector({
   required LPoint centre,
   required List<ConstellationSectorMember> members,
@@ -65,7 +65,7 @@ ConstellationSectorLayout arrangeConstellationSector({
   required double span,
   required double minSpacing,
   double minRadius = 0,
-  double? maxAxisOffset,
+  double maxRadius = double.infinity,
 }) {
   if (members.isEmpty) {
     return (targets: const {}, start: direction, sweep: 0);
@@ -77,9 +77,9 @@ ConstellationSectorLayout arrangeConstellationSector({
         for (final member in members)
           (
             id: member.id,
-            radius: math.max(
-              minRadius,
-              _distance(member.position, centre),
+            radius: math.min(
+              maxRadius,
+              math.max(minRadius, _distance(member.position, centre)),
             ),
             offset: _angleFrom(direction, member.position, centre),
           ),
@@ -101,13 +101,10 @@ ConstellationSectorLayout arrangeConstellationSector({
   for (var i = 0; i < count; i++) {
     final angle = start + step * i;
     final radius = placed[i].radius;
-    var dx = math.cos(angle) * radius;
-    var dy = math.sin(angle) * radius;
-    if (maxAxisOffset != null) {
-      dx = dx.clamp(-maxAxisOffset, maxAxisOffset);
-      dy = dy.clamp(-maxAxisOffset, maxAxisOffset);
-    }
-    result[placed[i].id] = (x: centre.x + dx, y: centre.y + dy);
+    result[placed[i].id] = (
+      x: centre.x + math.cos(angle) * radius,
+      y: centre.y + math.sin(angle) * radius,
+    );
   }
   return (targets: result, start: start, sweep: step * (count - 1));
 }

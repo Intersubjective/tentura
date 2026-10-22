@@ -567,6 +567,132 @@ void main() {
     expect(h.server.applies.single.first.target, _ann);
   });
 
+  group('box merge by pointer', () {
+    /// A box around Bob alone, starting on empty map up-left of him.
+    Future<void> boxBob(WidgetTester tester, PointerDeviceKind kind) async {
+      final bob = tester.getRect(_node('b'));
+      await _drag(
+        tester,
+        bob.topLeft - const Offset(30, 30),
+        bob.bottomRight + const Offset(4, 4),
+        kind: kind,
+      );
+    }
+
+    testWidgets('a touch box adds to what is selected', (tester) async {
+      final h = await _mount(tester);
+      h.selection
+        ..setSelecting(true)
+        ..toggle(_ann);
+      await _frames(tester);
+
+      await boxBob(tester, PointerDeviceKind.touch);
+
+      expect(h.selected, containsAll([_ann, _bob]));
+    });
+
+    testWidgets('a plain mouse box replaces it', (tester) async {
+      final h = await _mount(tester);
+      h.selection
+        ..setSelecting(true)
+        ..toggle(_ann);
+      await _frames(tester);
+
+      await boxBob(tester, PointerDeviceKind.mouse);
+
+      expect(h.selected, contains(_bob));
+      expect(h.selected, isNot(contains(_ann)));
+    });
+  });
+
+  testWidgets('a second finger joining a box turns it into a pan; the box '
+      'is not applied, now or when a finger lifts', (tester) async {
+    final h = await _mount(tester);
+    h.selection.setSelecting(true);
+    await _frames(tester);
+    final from = _emptyCorner(tester);
+    final to = _farCorner(tester);
+
+    final first = await tester.startGesture(from);
+    for (var i = 1; i <= 8; i++) {
+      await first.moveTo(Offset.lerp(from, to, i / 8)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final second = await tester.startGesture(to + const Offset(0, -40));
+    await tester.pump();
+    final box = find.byKey(const Key('constellation.selection.box_rect'));
+    expect(tester.widget<CustomPaint>(box).painter, isNull);
+    expect(h.selected, isEmpty);
+    await second.moveTo(to + const Offset(30, -10));
+    await first.moveTo(to + const Offset(30, 30));
+    await tester.pump(const Duration(milliseconds: 16));
+    await second.up();
+    await tester.pump();
+    // The finger left behind keeps moving: still no box.
+    await first.moveTo(to + const Offset(-80, -60));
+    await tester.pump(const Duration(milliseconds: 16));
+    await first.up();
+    await _frames(tester);
+
+    expect(h.selected, isEmpty);
+  });
+
+  testWidgets('a pinch that starts on a node stays with the map', (
+    tester,
+  ) async {
+    final h = await _mount(tester);
+    h.selection.setSelecting(true);
+    await _frames(tester);
+    final ann = tester.getCenter(_node('a'));
+    final empty = _emptyCorner(tester);
+
+    final first = await tester.startGesture(ann);
+    final second = await tester.startGesture(empty);
+    await tester.pump();
+    for (var i = 1; i <= 6; i++) {
+      await second.moveTo(empty + Offset(-10.0 * i, -10.0 * i));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final box = find.byKey(const Key('constellation.selection.box_rect'));
+    expect(tester.widget<CustomPaint>(box).painter, isNull);
+    await second.up();
+    await first.up();
+    await _frames(tester);
+
+    expect(h.selected, isEmpty);
+  });
+
+  testWidgets('with the tool on a tap on a name label toggles its person', (
+    tester,
+  ) async {
+    final h = await _mount(tester);
+    h.selection.setSelecting(true);
+    await _frames(tester);
+    final label = find.text('Ann');
+    expect(label, findsWidgets);
+    final node = tester.getRect(_node('a'));
+    final at = tester.getCenter(label.first);
+    expect(node.contains(at), isFalse, reason: 'the label is off the node');
+
+    await tester.tapAt(at);
+    await _frames(tester);
+
+    expect(h.selected, {_ann});
+  });
+
+  testWidgets('a change of account clears the selection', (tester) async {
+    final h = await _mount(tester);
+    h.selection
+      ..setSelecting(true)
+      ..toggle(_ann);
+    await _frames(tester);
+
+    await tester.runAsync(h.cubit.onAccountChanged);
+    await _frames(tester);
+
+    expect(h.selection.state.isActive, isFalse);
+  });
+
   group('«Arrange in a sector»', () {
     Future<void> arrange(WidgetTester tester, _Harness h) async {
       h.selection
