@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/constellation/domain/constellation_request_identity.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -58,12 +59,16 @@ class GraphNodeWidget extends StatelessWidget {
     };
   }
 
+  /// «Post» for a Post's node (e.g. in "How this post spread", #501).
   static String _beaconSemanticLabel(L10n l10n, Beacon beacon) {
+    final noun = beacon.kind == BeaconKind.post
+        ? l10n.postCreateMenuPost
+        : l10n.beaconViewTitle;
     final title = beacon.title.trim();
     if (title.isEmpty) {
-      return l10n.beaconViewTitle;
+      return noun;
     }
-    return '${l10n.beaconViewTitle}: $title';
+    return '$noun: $title';
   }
 
   @override

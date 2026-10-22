@@ -101,6 +101,12 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// instead of «Select recipients»; see [ForwardBottomComposer].
   final bool countWhenDisabled;
 
+  /// «Your connections» header (#440).
+  static const directSectionKey = Key('ForwardRecipientPicker.directSection');
+
+  /// «Others you can reach» header (#440).
+  static const othersSectionKey = Key('ForwardRecipientPicker.othersSection');
+
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
 }
@@ -437,15 +443,21 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
       // A request invite says what it does: who it brings in, to what, and
       // that the link is single-use with a limited life (#452).
-      final forRequest = widget.beaconId.isNotEmpty;
+      final forBeacon = widget.beaconId.isNotEmpty;
+      final isPost = _isPost(context.read<ForwardCubit>().state);
+      const days = kInvitationDefaultTTL ~/ 24;
       final used = await ShareCodeDialog.show(
         context,
-        header: forRequest
-            ? l10n.forwardInviteDialogTitle
-            : l10n.labelInvitationCode,
-        caption: forRequest
-            ? l10n.forwardInviteDialogBody(kInvitationDefaultTTL ~/ 24)
-            : null,
+        header: !forBeacon
+            ? l10n.labelInvitationCode
+            : isPost
+            ? l10n.forwardInviteDialogTitlePost
+            : l10n.forwardInviteDialogTitle,
+        caption: !forBeacon
+            ? null
+            : isPost
+            ? l10n.forwardInviteDialogBodyPost(days)
+            : l10n.forwardInviteDialogBody(days),
         link: inviteShareUri(invitation.id),
       );
       // Closed without Copy, Share, a hand selection of the link (#605) or a
@@ -466,6 +478,28 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       );
     } finally {
       _inviteFlowActive = false;
+    }
+  }
+
+  /// Whether the copy speaks of a Post (#501): the host's `copyProfile`
+  /// wins, as a new Post's draft is not a loaded beacon.
+  bool _isPost(ForwardState state) =>
+      (widget.copyProfile ?? state.profile) == ForwardTargetProfile.post;
+
+  /// Empty-state invite: a request-tied invite where the picker may mint one,
+  /// otherwise the People › Invitations tab (e.g. a new Post's draft).
+  Future<void> _inviteFromEmptyState(
+    BuildContext context,
+    ForwardState state,
+  ) async {
+    if (inviteNewPersonEnabled(
+      beaconId: widget.beaconId,
+      allowsForward: state.beacon?.viewerCanForward == true,
+      isLive: widget.isLive,
+    )) {
+      await _inviteNewPerson(context);
+    } else {
+      await GetIt.I<RootRouter>().openInvitations();
     }
   }
 
@@ -780,20 +814,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               if (listIsEmpty)
                                 SliverFillRemaining(
                                   hasScrollBody: false,
-                                  child: Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: tt.screenHPadding,
-                                      ),
-                                      child: Text(
-                                        showGenuineEmptyMessage
-                                            ? l10n.noReachableContacts
-                                            : l10n.labelNothingHere,
-                                        textAlign: TextAlign.center,
-                                        style: TenturaText.bodySmall(
-                                          tt.textMuted,
-                                        ),
-                                      ),
+                                  child: _ForwardPickerEmptyState(
+                                    kind: showGenuineEmptyMessage
+                                        ? _PickerEmptyKind.noOneToSendTo
+                                        : isFiltering
+                                        ? _PickerEmptyKind.searchNoMatches
+                                        : state.activeFilter ==
+                                              ForwardFilter.alreadyInvolved
+                                        ? _PickerEmptyKind.noOneInvolved
+                                        : _PickerEmptyKind.everyoneInvolved,
+                                    onInvite: () => unawaited(
+                                      _inviteFromEmptyState(context, state),
                                     ),
                                   ),
                                 )
@@ -880,6 +911,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         if (i > 0) const TenturaHairlineDivider(),
         ForwardRecipientRow(
           host: ForwardRecipientRowHost.pickerLineage,
+          isPost: _isPost(state),
           candidate: lineage[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(lineage[i].id),
@@ -933,28 +965,72 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     required Beacon? beacon,
   }) {
     final tt = context.tt;
+    final l10n = L10n.of(context)!;
     final children = <Widget>[];
 
-    for (var i = 0; i < visible.length; i++) {
-      if (i > 0) {
+    // #440: people the viewer trusts directly first, then everyone else the
+    // picker can reach, each under its own header. The involved scope is a
+    // history of this beacon's chain, not a choice of whom to send to, so it
+    // stays one flat list. Order inside each group is unchanged.
+    final grouped = state.activeFilter != ForwardFilter.alreadyInvolved;
+    final ordered = grouped
+        ? [
+            ...visible.where((c) => c.profile.isFriend),
+            ...visible.where((c) => !c.profile.isFriend),
+          ]
+        : visible;
+    final firstOtherIndex = grouped
+        ? ordered.indexWhere((c) => !c.profile.isFriend)
+        : -1;
+    final hasDirect =
+        grouped && ordered.isNotEmpty && ordered.first.profile.isFriend;
+
+    Widget sectionHeader(String label, {required Key key, String? helper}) =>
+        Padding(
+          key: key,
+          padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+          child: TenturaSectionHeader(label: label, helperText: helper),
+        );
+
+    if (hasDirect) {
+      children.add(
+        sectionHeader(
+          l10n.forwardSectionDirectContacts,
+          key: ForwardRecipientPicker.directSectionKey,
+        ),
+      );
+    }
+
+    for (var i = 0; i < ordered.length; i++) {
+      final startsOthers = grouped && i == firstOtherIndex;
+      if (startsOthers) {
+        children.add(
+          sectionHeader(
+            l10n.forwardSectionOthersReachable,
+            helper: l10n.forwardSectionOthersReachableHint,
+            key: ForwardRecipientPicker.othersSectionKey,
+          ),
+        );
+      } else if (i > 0) {
         children.add(const TenturaHairlineDivider());
       }
       children.add(
         ForwardRecipientRow(
           host: ForwardRecipientRowHost.pickerStandard,
-          candidate: visible[i],
+          isPost: _isPost(state),
+          candidate: ordered[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
-          isSelected: state.selectedIds.contains(visible[i].id),
-          onToggle: () => _toggle(cubit, visible[i].id),
+          isSelected: state.selectedIds.contains(ordered[i].id),
+          onToggle: () => _toggle(cubit, ordered[i].id),
           onOpenDetails: () => unawaited(
             showForwardCandidateContextSheet(
               sourceContext: context,
               forwardCubit: cubit,
-              candidate: visible[i],
+              candidate: ordered[i],
             ),
           ),
           reasonSlugs: state.profile.showsReasons
-              ? state.recipientReasons[visible[i].id] ?? const []
+              ? state.recipientReasons[ordered[i].id] ?? const []
               : const [],
           onEditReasons: !state.profile.showsReasons
               ? null
@@ -962,22 +1038,22 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                   _editReasons(
                     context,
                     cubit,
-                    visible[i].id,
-                    state.recipientReasons[visible[i].id] ?? const [],
+                    ordered[i].id,
+                    state.recipientReasons[ordered[i].id] ?? const [],
                   ),
                 ),
-          onEditForward: _forwardEdgeActionsEnabled(visible[i])
+          onEditForward: _forwardEdgeActionsEnabled(ordered[i])
               ? () {
-                  _editNoteController.text = visible[i].myForwardNote ?? '';
-                  cubit.startEditForward(visible[i].id);
+                  _editNoteController.text = ordered[i].myForwardNote ?? '';
+                  cubit.startEditForward(ordered[i].id);
                 }
               : null,
-          onCancelForward: _forwardEdgeActionsEnabled(visible[i])
-              ? () => unawaited(cubit.cancelForward(visible[i].id))
+          onCancelForward: _forwardEdgeActionsEnabled(ordered[i])
+              ? () => unawaited(cubit.cancelForward(ordered[i].id))
               : null,
         ),
       );
-      if (state.editingRecipientId == visible[i].id) {
+      if (state.editingRecipientId == ordered[i].id) {
         children.add(
           ForwardEditPanel(
             controller: _editNoteController,
@@ -987,18 +1063,18 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           ),
         );
       }
-      if (state.selectedIds.contains(visible[i].id) &&
-          !state.skippedPersonalNoteIds.contains(visible[i].id)) {
+      if (state.selectedIds.contains(ordered[i].id) &&
+          !state.skippedPersonalNoteIds.contains(ordered[i].id)) {
         children.add(
           Padding(
             padding: EdgeInsets.symmetric(
               horizontal: tt.screenHPadding,
             ),
             child: PerRecipientNoteInput(
-              profile: visible[i].profile,
-              controller: _recipientNoteControllers[visible[i].id]!,
-              onChanged: (text) => cubit.setRecipientNote(visible[i].id, text),
-              onClose: () => cubit.skipPersonalNote(visible[i].id),
+              profile: ordered[i].profile,
+              controller: _recipientNoteControllers[ordered[i].id]!,
+              onChanged: (text) => cubit.setRecipientNote(ordered[i].id, text),
+              onClose: () => cubit.skipPersonalNote(ordered[i].id),
               hintText: widget.recipientNoteHint,
             ),
           ),
@@ -1007,6 +1083,50 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     }
 
     return children;
+  }
+}
+
+/// Why the recipient list is empty (#252): nobody can be picked at all, the
+/// search matched nobody, or the active scope tab is empty.
+enum _PickerEmptyKind {
+  noOneToSendTo,
+  searchNoMatches,
+  everyoneInvolved,
+  noOneInvolved,
+}
+
+class _ForwardPickerEmptyState extends StatelessWidget {
+  const _ForwardPickerEmptyState({required this.kind, required this.onInvite});
+
+  final _PickerEmptyKind kind;
+  final VoidCallback onInvite;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    return switch (kind) {
+      // Says what to do and why trust matters; never claims the viewer has
+      // no contacts — one-way trust leaves the list empty too.
+      _PickerEmptyKind.noOneToSendTo => TenturaEmptyState(
+        icon: Icons.group_add_outlined,
+        title: l10n.forwardEmptyNoContactsTitle,
+        body: l10n.trustWidensReachHint,
+        actionLabel: l10n.emptyInviteSomeoneAction,
+        onAction: onInvite,
+      ),
+      _PickerEmptyKind.searchNoMatches => TenturaEmptyState(
+        icon: Icons.search_off,
+        title: l10n.forwardSearchNoMatches,
+      ),
+      _PickerEmptyKind.everyoneInvolved => TenturaEmptyState(
+        icon: Icons.done_all,
+        title: l10n.forwardScopeUnseenEmpty,
+      ),
+      _PickerEmptyKind.noOneInvolved => TenturaEmptyState(
+        icon: Icons.people_outline,
+        title: l10n.forwardScopeInvolvedEmpty,
+      ),
+    };
   }
 }
 

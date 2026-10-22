@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -514,7 +514,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('No reachable contacts'), findsNothing);
+      expect(find.text('No one to send to yet'), findsNothing);
     },
   );
 
@@ -558,7 +558,7 @@ void main() {
 
       expect(find.text("Couldn't load"), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
-      expect(find.text('No reachable contacts'), findsNothing);
+      expect(find.text('No one to send to yet'), findsNothing);
 
       // Tapping retry must not throw even though this harness has no
       // backing ForwardCase to actually reload from.
@@ -606,7 +606,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('No reachable contacts'), findsOneWidget);
+      // #252: what is missing, why trust matters, and a way out.
+      expect(find.text('No one to send to yet'), findsOneWidget);
+      expect(
+        find.text(
+          'People you trust, and who trust you back, widen whom you can '
+          'see and send to.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(TenturaEmptyState.actionKey), findsOneWidget);
+      expect(find.text('Invite someone you know'), findsOneWidget);
       expect(find.text("Couldn't load"), findsNothing);
     },
   );
@@ -958,4 +968,142 @@ void main() {
       expect(button.onPressed, isNotNull);
     },
   );
+
+  group('#440 recipient groups', () {
+    ForwardCubit groupedCubit({
+      ForwardFilter filter = ForwardFilter.unseen,
+      List<ForwardCandidate> candidates = const [
+        ForwardCandidate(
+          profile: Profile(
+            id: 'stranger',
+            displayName: 'Kesi',
+            score: 50,
+            rScore: 1,
+          ),
+        ),
+        ForwardCandidate(
+          profile: Profile(
+            id: 'friend',
+            displayName: 'Vadim',
+            score: 5,
+            rScore: 1,
+            myVote: 1,
+          ),
+        ),
+      ],
+    }) {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: candidates,
+          activeFilter: filter,
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+      return cubit;
+    }
+
+    testWidgets('direct contacts come first under their own header', (
+      tester,
+    ) async {
+      final cubit = groupedCubit();
+      addTearDown(cubit.close);
+      await pumpPicker(tester, cubit: cubit, embedded: true);
+
+      final direct = find.byKey(ForwardRecipientPicker.directSectionKey);
+      final others = find.byKey(ForwardRecipientPicker.othersSectionKey);
+      expect(direct, findsOneWidget);
+      expect(others, findsOneWidget);
+      expect(find.text('YOUR CONNECTIONS'), findsOneWidget);
+      expect(find.text('OTHERS YOU CAN REACH'), findsOneWidget);
+      expect(
+        find.text(
+          'Not your direct connections: you see each other through the '
+          'trust network or a shared request.',
+        ),
+        findsOneWidget,
+      );
+      // Vadim (trusted, lower score) sits above the header for others, and
+      // Kesi (higher score, not trusted) below it.
+      final directY = tester.getTopLeft(direct).dy;
+      final vadimY = tester.getTopLeft(find.text('Vadim')).dy;
+      final othersY = tester.getTopLeft(others).dy;
+      final kesiY = tester.getTopLeft(find.text('Kesi')).dy;
+      expect(directY, lessThan(vadimY));
+      expect(vadimY, lessThan(othersY));
+      expect(othersY, lessThan(kesiY));
+    });
+
+    testWidgets('no direct contacts: only the others header', (tester) async {
+      final cubit = groupedCubit(
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(id: 'stranger', displayName: 'Kesi', score: 5),
+          ),
+        ],
+      );
+      addTearDown(cubit.close);
+      await pumpPicker(tester, cubit: cubit, embedded: true);
+
+      expect(
+        find.byKey(ForwardRecipientPicker.directSectionKey),
+        findsNothing,
+      );
+      expect(
+        find.byKey(ForwardRecipientPicker.othersSectionKey),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the involved scope stays one flat list', (tester) async {
+      final cubit = groupedCubit(
+        filter: ForwardFilter.alreadyInvolved,
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(id: 'friend', displayName: 'Vadim', myVote: 1),
+            involvement: CandidateInvolvement.forwardedByMe,
+          ),
+        ],
+      );
+      addTearDown(cubit.close);
+      await pumpPicker(tester, cubit: cubit, embedded: true);
+
+      expect(find.text('Vadim'), findsOneWidget);
+      expect(
+        find.byKey(ForwardRecipientPicker.directSectionKey),
+        findsNothing,
+      );
+      expect(
+        find.byKey(ForwardRecipientPicker.othersSectionKey),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an empty «Not yet seen» tab says everyone is involved, not '
+        '"no contacts" (#252)', (tester) async {
+      final cubit = groupedCubit(
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(id: 'friend', displayName: 'Vadim', myVote: 1),
+            involvement: CandidateInvolvement.forwardedByMe,
+          ),
+        ],
+      );
+      addTearDown(cubit.close);
+      await pumpPicker(tester, cubit: cubit, embedded: true);
+
+      expect(
+        find.text('Everyone you can send to is already involved.'),
+        findsOneWidget,
+      );
+      expect(find.text('No one to send to yet'), findsNothing);
+    });
+  });
 }

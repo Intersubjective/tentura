@@ -1,7 +1,7 @@
 // A Post's ⋮ menu mutes («Заглушить» → 1 ч / 3 ч / день / 3 дня / навсегда,
 // «Включить звук» when muted), pins in conversations («Закрепить в
 // разговорах» / «Открепить», the existing favorites pin) and leaves
-// («Выйти из разговора», recipients only, behind a confirm). The «Не
+// («Выйти из чата», recipients only, behind a confirm). The «Не
 // интересно» archive brings a Post row back through `postReturn` and a
 // Request row through the plain status change.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M10).
@@ -683,10 +683,10 @@ void main() {
     testWidgets('asks first and leaves only after «Выйти»', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Выйти из разговора');
+      await _pickMenuItem(tester, 'Выйти из чата');
 
       expect(_confirmDialog(), findsOneWidget);
-      expect(_inDialog(find.text('Выйти из разговора?')), findsOneWidget);
+      expect(_inDialog(find.text('Выйти из чата?')), findsOneWidget);
       expect(h.membership.postLeaveCalls, isEmpty);
 
       await tester.tap(_inDialog(find.byType(FilledButton)));
@@ -700,7 +700,7 @@ void main() {
         'the Post', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Выйти из разговора');
+      await _pickMenuItem(tester, 'Выйти из чата');
       await tester.tap(_inDialog(find.byType(FilledButton)));
       await _settle(tester);
 
@@ -709,7 +709,7 @@ void main() {
           .map((e) => e.message)
           .whereType<PostLeftMessage>()
           .single;
-      expect(message.toRu, 'Вы вышли из разговора');
+      expect(message.toRu, 'Вы вышли из чата');
       expect(message.label.toRu, 'Вернуть');
 
       message.onPressed();
@@ -725,7 +725,7 @@ void main() {
     testWidgets('cancelling the confirm does not leave', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Выйти из разговора');
+      await _pickMenuItem(tester, 'Выйти из чата');
       await tester.tap(_inDialog(find.byType(TextButton)));
       await _settle(tester);
 
@@ -748,7 +748,7 @@ void main() {
       expect(find.textContaining('Выйти'), findsNothing);
     });
 
-    testWidgets('the author is not offered «Выйти из разговора»', (
+    testWidgets('the author is not offered «Выйти из чата»', (
       tester,
     ) async {
       await _pumpPost(tester, viewer: _author);

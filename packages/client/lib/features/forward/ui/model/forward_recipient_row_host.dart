@@ -59,7 +59,13 @@ bool forwardRecipientPauseReplacesRelation(CandidateInvolvement i) =>
     i == CandidateInvolvement.forwarded ||
     i == CandidateInvolvement.watching;
 
-String forwardRecipientRelationLabel(L10n l10n, ForwardCandidate candidate) {
+/// [isPost]: the forwarded beacon is a Post, so its author is the Post's
+/// author (#501).
+String forwardRecipientRelationLabel(
+  L10n l10n,
+  ForwardCandidate candidate, {
+  bool isPost = false,
+}) {
   if (candidate.involvement != CandidateInvolvement.declined &&
       candidate.involvement != CandidateInvolvement.author &&
       !candidate.isReachable) {
@@ -67,7 +73,8 @@ String forwardRecipientRelationLabel(L10n l10n, ForwardCandidate candidate) {
   }
   return switch (candidate.involvement) {
     CandidateInvolvement.declined => l10n.forwardDeclined,
-    CandidateInvolvement.author => l10n.forwardAuthor,
+    CandidateInvolvement.author =>
+      isPost ? l10n.forwardAuthorPost : l10n.forwardAuthor,
     CandidateInvolvement.forwardedByMe =>
       candidate.myForwardNote != null && candidate.myForwardNote!.isNotEmpty
           ? l10n.forwardedByMeWithNote(candidate.myForwardNote!)
@@ -110,6 +117,7 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
   String? tierEvidenceLabel,
   TenturaTone? tierEvidenceTone,
   bool showPresenceLine = true,
+  bool isPost = false,
 }) {
   // A paused person cannot be picked; say why even where a tier label or
   // the suppressed exploration line would otherwise take the slot.
@@ -149,7 +157,11 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
   );
   final presenceHidden = presence.isEmpty;
 
-  final relationLabel = forwardRecipientRelationLabel(l10n, candidate);
+  final relationLabel = forwardRecipientRelationLabel(
+    l10n,
+    candidate,
+    isPost: isPost,
+  );
   final relationTone = forwardRecipientRelationTone(
     candidate,
     todayUtc: todayUtc,

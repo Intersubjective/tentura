@@ -150,8 +150,10 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
               tooltip: l10n.profile,
               icon: Icons.person_outline,
             ),
-            FieldBeaconNode() => (
-              tooltip: l10n.openBeacon,
+            FieldBeaconNode(:final kind) => (
+              tooltip: kind == BeaconKind.post
+                  ? l10n.constellationOpenPost
+                  : l10n.openBeacon,
               icon: Icons.flag_outlined,
             ),
             GenealogyDeletedNode() || FieldDraftNode() => null,

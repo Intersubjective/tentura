@@ -437,6 +437,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 : null,
             composerReadOnlyHint: canWrite
                 ? null
+                // A Post's conversation is its chat (#501, D8).
+                : widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot
+                ? l10n.postChatReadOnlyHint
                 : l10n.beaconRoomMessageReadOnlyHint,
             composerSendFailedOffline: state.sendFailedOffline,
             onPickFact: canWrite

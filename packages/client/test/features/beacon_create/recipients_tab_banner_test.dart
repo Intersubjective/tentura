@@ -88,7 +88,12 @@ Future<void> _pumpRecipientsTab(
 }
 
 void main() {
+  // A new Request is discoverable by default, so the banner must not claim
+  // that nobody sees it until it is sent (#440).
   const bannerText =
+      'Choose who gets this request. People who can see you may also find '
+      'it in the Field.';
+  const hiddenBannerText =
       'Nobody will see this request until you send it to someone.';
 
   setUp(() {
@@ -244,7 +249,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(bannerText), findsOneWidget);
-    expect(find.text('No reachable contacts'), findsOneWidget);
+    expect(find.text('No one to send to yet'), findsOneWidget);
   });
 
   // #442: the banner still said nobody would see the request behind the
@@ -283,6 +288,44 @@ void main() {
     createCubit.emit(createCubit.state.copyWith(isLive: true));
     await tester.pumpAndSettle();
 
+    expect(find.text(bannerText), findsNothing);
+  });
+
+  testWidgets('a Request hidden from the Field keeps the nobody-sees-it '
+      'banner (#440)', (tester) async {
+    final createCubit = BeaconCreateCubit(
+      beaconCreateCase: fakeBeaconCreateCase(),
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(createCubit.close);
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+
+    await _pumpRecipientsTab(
+      tester,
+      forwardCubit: cubit,
+      createCubit: createCubit,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(bannerText), findsOneWidget);
+    expect(find.text(hiddenBannerText), findsNothing);
+
+    createCubit.emit(createCubit.state.copyWith(isDiscoverable: false));
+    await tester.pumpAndSettle();
+
+    expect(find.text(hiddenBannerText), findsOneWidget);
     expect(find.text(bannerText), findsNothing);
   });
 }

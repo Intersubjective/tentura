@@ -37,6 +37,11 @@ class BeaconRecipientsTab extends StatelessWidget {
             final isLive = context.select<BeaconCreateCubit, bool>(
               (cubit) => cubit.state.isLive,
             );
+            // A discoverable Request can be found in the Field without
+            // being sent, so "nobody will see it" would be false (#440).
+            final isDiscoverable = context.select<BeaconCreateCubit, bool>(
+              (cubit) => cubit.state.isDiscoverable,
+            );
             if (!candidatesShown || isLive) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,7 +62,9 @@ class BeaconRecipientsTab extends StatelessWidget {
                         SizedBox(width: tt.tightGap * 2),
                         Expanded(
                           child: Text(
-                            l10n.beaconRoutingBanner,
+                            isDiscoverable
+                                ? l10n.beaconRoutingBannerDiscoverable
+                                : l10n.beaconRoutingBanner,
                             style: TenturaText.body(scheme.onSurfaceVariant),
                           ),
                         ),

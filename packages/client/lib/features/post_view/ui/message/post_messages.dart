@@ -1,15 +1,15 @@
 import 'package:tentura/ui/message/action_message_base.dart';
 
-/// After «Выйти из разговора»: the Post is gone from the conversations, and
+/// After «Выйти из чата»: the Post is gone from the conversations, and
 /// «Вернуть» brings the viewer back into it.
 final class PostLeftMessage extends LocalizableActionMessage {
   const PostLeftMessage({required this.onPressed});
 
   @override
-  String get toEn => 'You left the conversation';
+  String get toEn => 'You left the chat';
 
   @override
-  String get toRu => 'Вы вышли из разговора';
+  String get toRu => 'Вы вышли из чата';
 
   @override
   final void Function() onPressed;
