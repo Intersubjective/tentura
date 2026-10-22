@@ -253,7 +253,7 @@ void main() {
         cubit.setFilterCapabilitySlugs({'tools'});
         final mapEligible = _eligibleRequestIds(cubit);
 
-        await tester.tap(find.text('Text'));
+        await tester.tap(find.text('List'));
         await tester.pumpAndSettle();
 
         expect(_eligibleRequestIds(cubit), mapEligible);
@@ -293,7 +293,7 @@ void main() {
         ),
       );
       await _pumpBody(tester, cubit);
-      await tester.tap(find.text('Text'));
+      await tester.tap(find.text('List'));
       await tester.pumpAndSettle();
 
       final l10n = lookupL10n(const Locale('en'));
@@ -323,7 +323,7 @@ void main() {
     testWidgets('tapping a request card opens its preview', (tester) async {
       final cubit = await _loadCubit(_multiAuthorField());
       await _pumpBody(tester, cubit);
-      await tester.tap(find.text('Text'));
+      await tester.tap(find.text('List'));
       await tester.pumpAndSettle();
 
       await tester.tap(
@@ -364,7 +364,7 @@ void main() {
 
       cubit.setFilterCapabilitySlugs({'ride'});
 
-      await tester.tap(find.text('Text'));
+      await tester.tap(find.text('List'));
       await tester.pumpAndSettle();
       expect(cubit.state.viewMode, ConstellationViewMode.text);
       expect(cubit.state.filterCapabilitySlugs, {'ride'});

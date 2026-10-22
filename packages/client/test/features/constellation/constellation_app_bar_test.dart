@@ -253,7 +253,7 @@ void main() {
       await _pumpAppBar(tester, cubit: cubit, size: const Size(280, 800));
 
       expect(find.text('Map'), findsNothing);
-      expect(find.text('Text'), findsNothing);
+      expect(find.text('List'), findsNothing);
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
       expect(find.byIcon(Icons.view_list_outlined), findsOneWidget);
       await cubit.close();
@@ -264,7 +264,7 @@ void main() {
       await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
 
       expect(find.text('Map'), findsOneWidget);
-      expect(find.text('Text'), findsOneWidget);
+      expect(find.text('List'), findsOneWidget);
       await cubit.close();
     });
 
@@ -280,7 +280,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(find.text('Map'), findsOneWidget);
-      expect(find.text('Text'), findsOneWidget);
+      expect(find.text('List'), findsOneWidget);
       await cubit.close();
     });
 

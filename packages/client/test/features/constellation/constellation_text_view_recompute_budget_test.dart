@@ -56,7 +56,14 @@ Future<({ConstellationCubit cubit, dynamic composer})> _pumpScreen(
     ComposerHarnessRepository(_wideField),
   );
   final composer = buildComposerHarnessComposer();
-  await pumpComposerHarnessScreen(tester, cubit: cubit, composer: composer);
+  // Tall enough for every person's tile below the list's search field
+  // (#253): the assertions cover all of them.
+  await pumpComposerHarnessScreen(
+    tester,
+    cubit: cubit,
+    composer: composer,
+    size: const Size(1280, 1100),
+  );
   return (cubit: cubit, composer: composer);
 }
 

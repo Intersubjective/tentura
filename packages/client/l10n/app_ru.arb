@@ -7153,5 +7153,15 @@
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",
-  "skipToContent": "Перейти к содержимому"
+  "skipToContent": "Перейти к содержимому",
+  "constellationViewModeList": "Список",
+  "constellationSearchHint": "Поиск по имени",
+  "constellationSearchPeople": "Найти человека на поле",
+  "constellationSearchClear": "Очистить поиск",
+  "constellationSearchNoMatch": "На поле нет никого с таким именем.",
+  "constellationListDirectContacts": "Кому вы доверяете",
+  "constellationListOthers": "Остальные на поле",
+  "constellationListSemantics": "Люди на поле, их запросы и посты",
+  "constellationListPostLabel": "Пост",
+  "constellationContactOnlyNote": "Вы им доверяете. Их запросы и посты появятся здесь, когда вы сможете видеть друг друга."
 }

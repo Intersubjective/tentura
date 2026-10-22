@@ -18,6 +18,8 @@
 // Pin action sends equals the one the unmemoised computation produced, both
 // before and after a drop changes the composition.
 
+import 'dart:ui' show Size;
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -168,10 +170,13 @@ Future<_Screen> _pumpScreen(WidgetTester tester) async {
   );
   addTearDown(cubit.close);
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
+  // Tall enough for every person's tile below the list's search field
+  // (#253): the assertions cover all of them.
   await pumpComposerHarnessScreen(
     tester,
     cubit: cubit,
     composer: buildComposerHarnessComposer(),
+    size: const Size(1280, 1100),
   );
   return (cubit: cubit, server: server);
 }

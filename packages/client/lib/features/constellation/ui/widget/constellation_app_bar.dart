@@ -10,6 +10,7 @@ import 'package:tentura/ui/test_ids.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
+import 'constellation_person_search.dart';
 
 /// App-bar row for the constellation field: title, optional legend, filters,
 /// and map/text mode switch.
@@ -100,6 +101,15 @@ class ConstellationAppBarRow extends StatelessWidget {
                 ),
               ),
             ),
+            // The list has its own search field; the map's sits in the same
+            // fixed-slot pattern as the legend.
+            Visibility(
+              visible: showLegend,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: const ConstellationPersonSearchButton(),
+            ),
             if (composer != null)
               PopupMenuButton<BeaconKind>(
                 key: const Key('constellation.app_bar.create_here'),
@@ -163,7 +173,7 @@ class _ConstellationViewModeToggle extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final mapLabel = l10n.constellationViewModeMap;
-    final textLabel = l10n.constellationViewModeText;
+    final textLabel = l10n.constellationViewModeList;
 
     return LayoutBuilder(
       builder: (context, constraints) {

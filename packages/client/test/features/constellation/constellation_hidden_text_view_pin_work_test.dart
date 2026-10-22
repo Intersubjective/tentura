@@ -130,6 +130,13 @@ Future<void> _recomposeMap(
   await tester.pumpAndSettle();
 }
 
+/// A viewport tall enough for every person's tile below the list's search
+/// field (#253), so the visible tiles are all of them.
+Future<void> _fitAllTiles(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(1280, 1100));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('Text view hidden behind the map', () {
     testWidgets('restores scroll offset after Text view is unmounted', (
@@ -233,6 +240,7 @@ void main() {
           tester,
           repository: repository,
         );
+        await _fitAllTiles(tester);
         await _recomposeMap(tester, cubit, composer);
         await composer.cancel();
         await composer.finish();
@@ -290,6 +298,7 @@ void main() {
       'tile',
       (tester) async {
         final (:cubit, composer: _) = await _pumpScreen(tester);
+        await _fitAllTiles(tester);
         final layoutRuns = constellationPinLayoutRunCount;
 
         cubit.setViewMode(ConstellationViewMode.text);

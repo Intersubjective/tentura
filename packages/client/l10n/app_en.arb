@@ -10092,5 +10092,45 @@
   "skipToContent": "Skip to content",
   "@skipToContent": {
     "context": "Keyboard skip link before Home's navigation rail; moves focus to the page (#500)"
+  },
+  "constellationViewModeList": "List",
+  "@constellationViewModeList": {
+    "context": "Field view switch: the list of people on the field (#253)"
+  },
+  "constellationSearchHint": "Search by name",
+  "@constellationSearchHint": {
+    "context": "Field: hint of the name search over the people on the field (#253)"
+  },
+  "constellationSearchPeople": "Find a person on the field",
+  "@constellationSearchPeople": {
+    "context": "Field map: tooltip of the search button that finds and centres a person (#253)"
+  },
+  "constellationSearchClear": "Clear search",
+  "@constellationSearchClear": {
+    "context": "Field list: tooltip of the button that clears the name search (#253)"
+  },
+  "constellationSearchNoMatch": "No one on the field has this name.",
+  "@constellationSearchNoMatch": {
+    "context": "Field: the name search found nobody (#253)"
+  },
+  "constellationListDirectContacts": "People you trust",
+  "@constellationListDirectContacts": {
+    "context": "Field list: section of the people the viewer trusts directly (#253)"
+  },
+  "constellationListOthers": "Others on the field",
+  "@constellationListOthers": {
+    "context": "Field list: section of everyone else on the field (#253)"
+  },
+  "constellationListSemantics": "People on the field with their Requests and Posts",
+  "@constellationListSemantics": {
+    "context": "Field list: screen-reader name of the list (#253)"
+  },
+  "constellationListPostLabel": "Post",
+  "@constellationListPostLabel": {
+    "context": "Field list: screen-reader prefix of a Post row (#253)"
+  },
+  "constellationContactOnlyNote": "You trust them. Their Requests and Posts show up here once you can see each other.",
+  "@constellationContactOnlyNote": {
+    "context": "Field list: under a person the viewer trusts who is outside the viewer's visible set, so the field shows nothing of theirs (#246)"
   }
 }
