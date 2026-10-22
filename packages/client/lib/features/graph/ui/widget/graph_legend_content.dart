@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_status_marker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
@@ -33,7 +35,11 @@ class GraphLegendContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const ContactBadgeLegend(),
+        // Field avatars carry no contact badge; they show trust rings (#643).
+        if (mode == GraphLegendMode.constellation)
+          const _ConstellationTrustLegend()
+        else
+          const ContactBadgeLegend(),
         if (mode == GraphLegendMode.forwards) ...[
           SizedBox(height: tt.sectionGap),
           Text(
@@ -319,6 +325,39 @@ class GraphLegendContent extends StatelessWidget {
   }
 }
 
+/// The field's trust rings on people (#643): one row per state, each with a
+/// one-sentence hint on hover and on tap.
+class _ConstellationTrustLegend extends StatelessWidget {
+  const _ConstellationTrustLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.constellationTrustLegendTitle,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        SizedBox(height: tt.rowGap),
+        for (final badge in ConstellationTrustBadge.values)
+          Padding(
+            padding: EdgeInsets.only(bottom: tt.tightGap),
+            child: _LegendRow(
+              key: ValueKey('constellation.legend.trust.${badge.name}'),
+              swatch: ConstellationTrustBadgeSwatch(badge: badge),
+              label: constellationTrustBadgeLabel(l10n, badge),
+              hint: constellationTrustBadgeHint(l10n, badge),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _NegativeEdgeToggleRow extends StatelessWidget {
   const _NegativeEdgeToggleRow({required this.label, required this.style});
 
@@ -393,6 +432,7 @@ class _LegendRow extends StatelessWidget {
     required this.swatch,
     required this.label,
     this.hint,
+    super.key,
   });
 
   final Widget swatch;

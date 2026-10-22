@@ -9,9 +9,11 @@ import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_trust_badge.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
+import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_status_marker.dart';
 
@@ -301,6 +303,15 @@ class _ConstellationViewportOverlayState
             final selectedPersonId = state.selectedPersonId;
             final selectedRequestId = state.selectedRequestId;
             final rtl = Directionality.of(context) == TextDirection.rtl;
+            final field = state.field;
+            final rings = constellationNodeRingInputs(
+              nodeByGraphId: nodeByGraphId,
+              trustByPersonId: field == null
+                  ? const {}
+                  : constellationTrustBadges(field: field, viewerId: viewerId),
+              selectedPersonId: selectedPersonId,
+              selectedRequestId: selectedRequestId,
+            );
 
             final inputs = <ConstellationFrameNodeInput>[];
             final labelTexts = <String>[];
@@ -367,15 +378,20 @@ class _ConstellationViewportOverlayState
                       style: labelStyle,
                     );
 
-              final badgeOverhang =
-                  _nodeShowsBadge(
-                    node: node,
-                    cubit: widget.cubit,
-                    l10n: l10n,
-                    tt: tt,
-                  )
-                  ? badgeOverhangViewport
-                  : 0.0;
+              final badgeOverhang = constellationNodeBadgeOverhang(
+                base:
+                    _nodeShowsBadge(
+                      node: node,
+                      cubit: widget.cubit,
+                      l10n: l10n,
+                      tt: tt,
+                    )
+                    ? badgeOverhangViewport
+                    : 0.0,
+                bodyDiameter: bodyDiameter,
+                hasTrustBadge: rings.trust.containsKey(graphId),
+                tt: tt,
+              );
 
               labelTexts.add(labelText);
               inputs.add(
@@ -705,6 +721,13 @@ class _ConstellationViewportOverlayState
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
+                    Positioned.fill(
+                      child: ConstellationNodeRingLayer(
+                        frame: frame,
+                        trustByGraphId: rings.trust,
+                        selectedGraphId: rings.selected,
+                      ),
+                    ),
                     Transform.translate(
                       offset: origin - _placementOrigin,
                       child: RepaintBoundary(child: _labelLayer),
