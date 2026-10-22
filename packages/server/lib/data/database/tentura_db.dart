@@ -163,8 +163,12 @@ class TenturaDb extends _$TenturaDb {
 
   TenturaDb.auth(Env env) : this._(MainDbPool.auth(env), ownsPool: true);
 
+  /// [scopeInterceptor] is the same test hook as on the default constructor.
   @factoryMethod
-  TenturaDb.scoped(MainDbPool pool) : this._(pool);
+  TenturaDb.scoped(
+    MainDbPool pool, {
+    @ignoreParam QueryInterceptor Function()? scopeInterceptor,
+  }) : this._(pool, scopeInterceptor: scopeInterceptor);
 
   TenturaDb._(
     MainDbPool pool, {
@@ -417,7 +421,9 @@ class TenturaDb extends _$TenturaDb {
   /// [deadline]). Each attempt's statements are bounded by the request budget
   /// through a transaction-local `statement_timeout`: [deadline] on the first
   /// attempt, what is left of it on a retry.
-  /// Must start outside any transaction so retries release it before sleeping.
+  /// Must start outside any transaction (whose isolation level is already
+  /// fixed) and outside a leased connection scope, so that every retry
+  /// releases its connection before sleeping. Both are refused before any SQL.
   Future<T> withMutatingRepeatableRead<T>(
     String userId,
     Future<T> Function() action, {
@@ -425,9 +431,18 @@ class TenturaDb extends _$TenturaDb {
     int maxAttempts = 3,
     Future<void> Function(Duration)? sleep,
   }) {
-    if (resolvedEngine.executor is TransactionExecutor) {
+    final engine = resolvedEngine;
+    if (engine.executor is TransactionExecutor) {
       return Future.error(
         StateError('Cannot enter repeatable read inside an open transaction'),
+      );
+    }
+    if (engine is _ScopedDatabaseUser) {
+      return Future.error(
+        StateError(
+          'Cannot enter repeatable read inside a leased connection scope: '
+          'a retry backoff would sleep while holding the connection',
+        ),
       );
     }
     final clock = Stopwatch()..start();

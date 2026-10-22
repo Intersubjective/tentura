@@ -195,6 +195,9 @@ The `_HasuraSetofScalarFixLink` workaround remains relevant for any **other** co
 
 ## 4. Drift + `postgres` Pool: statement transactions must pin one connection
 
+**Status:** resolved by scoped connection leases (epic tentura-ev3z, #278–#280).
+Kept for the history and for the guards that still enforce it.
+
 **Library:** Drift `NoTransactionDelegate` + `package:postgres` `Pool`  
 **Symptom:** `CouldNotRollBackException` / Postgres `25P01` — `RELEASE SAVEPOINT` /
 `ROLLBACK TO SAVEPOINT can only be used in transaction blocks`  
@@ -207,26 +210,26 @@ The `_HasuraSetofScalarFixLink` workaround remains relevant for any **other** co
 wraps each call in `withConnection` and **returns the connection to the pool
 after every statement**. If `maxConnectionCount > 1` or `maxConnectionAge` /
 `maxSessionUse` replaces the connection between those statements, the next
-command runs on a session that is not in a transaction → `25P01`. Nested
-manager prefetches (`withReferences` → `PrefetchHooks` → nested `transaction`)
-make this especially visible.
+command runs on a session that is not in a transaction → `25P01`.
 
-`PgDatabase` is already `isSequential: true`, so a multi-connection pool does
-not buy Drift concurrency.
+### Current design
 
-### Workaround
+`TenturaDb.withConnectionScope` leases one pool connection per scope (through
+`MainDbPool.admission`) and gives it a private Drift executor; a transaction,
+its savepoints and its COMMIT/ROLLBACK all run on that lease, and the
+connection returns to the pool only when the scope ends. So
+`POSTGRES_MAXCONN` is honoured, and `maxConnectionAge` / `maxSessionUse` and
+dead-backend replacement apply on every lease return, however many
+transactions overlap (`overlapping_transaction_connection_lifecycle_pg_test`).
+The former shared pin (`_PinnedPoolSession`) is gone.
 
-- `Env.pgPoolSettings` **forces** `maxConnectionCount: 1` (ignores `POSTGRES_MAXCONN`
-  for the Drift pool) and defaults `maxConnectionAge` to **12h** (not 600s).
-- Prefer plain manager reads over `withReferences(...).getSingle()` when the
-  author (or other refs) are fetched with a follow-up query anyway
-  (`BeaconRepository.getBeaconById`).
+Guards that remain (`tentura_db_transaction_guards_pg_test`, pool size 1 and 2):
 
-### Removal condition
-
-Replace with a Drift/postgres integration that pins one `Connection` for the
-whole statement-based transaction (or uses `Pool.runTx` / a custom
-`TransactionDelegate`), then re-evaluate pooling.
+- `TenturaDb.batch()` throws: Drift batches open their own transaction and
+  prepared statements; production code must not call `batch` / `runBatched`.
+- `withMutatingRepeatableRead` refuses to start inside any open transaction or
+  leased connection scope, before any SQL, so its retry backoff never sleeps
+  while holding a connection.
 
 ---
 

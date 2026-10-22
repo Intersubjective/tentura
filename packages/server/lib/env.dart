@@ -413,10 +413,8 @@ class Env {
        pgDatabase = pgDatabase ?? _env['POSTGRES_DBNAME'] ?? 'postgres',
        pgUsername = pgUsername ?? _env['POSTGRES_USERNAME'] ?? 'postgres',
        pgPassword = pgPassword ?? _env['POSTGRES_PASSWORD'] ?? 'password',
-       // Keep age long: Drift's NoTransactionDelegate sends BEGIN/SAVEPOINT/
-       // RELEASE as discrete Pool.execute calls; each returns the connection
-       // to the pool. Expiring/replacing it between those statements yields
-       // Postgres 25P01 (TENTURA-SERVER-H). Package default is 12h.
+       // Applied when a scope returns its lease (also maxSessionUse); a
+       // transaction never changes connection mid-way. Package default 12h.
        pgMaxConnectionAge =
            maxConnectionAge ??
            int.tryParse(_env['POSTGRES_MAXCONNAGE'] ?? '') ??
