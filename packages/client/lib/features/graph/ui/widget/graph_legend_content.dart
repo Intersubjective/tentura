@@ -151,18 +151,22 @@ class GraphLegendContent extends StatelessWidget {
         return [
           _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationDirectConnection,
+            hint: l10n.graphLegendConstellationDirectConnectionHint,
             style: tier1Style,
           ),
           _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationIndirectConnection,
+            hint: l10n.graphLegendConstellationIndirectConnectionHint,
             style: tier2Style,
           ),
           _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationRequestLink,
+            hint: l10n.graphLegendConstellationRequestLinkHint,
             style: attachmentStyle,
           ),
           _ConstellationEdgeRow(
             label: l10n.graphLegendConstellationWiderNetworkReach,
+            hint: l10n.graphLegendConstellationWiderNetworkReachHint,
             style: ringStubStyle,
           ),
           _ConstellationEdgeRow(
@@ -388,35 +392,65 @@ class _LegendRow extends StatelessWidget {
   const _LegendRow({
     required this.swatch,
     required this.label,
+    this.hint,
   });
 
   final Widget swatch;
   final String label;
 
+  /// One plain sentence on what the row means (#261). Shown on hover and on
+  /// tap — never on long-press only — and read out as the row's hint.
+  final String? hint;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    return Semantics(
-      label: label,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: tt.avatarSize,
-            child: Center(child: swatch),
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: tt.avatarSize,
+          child: Center(child: swatch),
+        ),
+        SizedBox(width: tt.avatarTextGap),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
-          SizedBox(width: tt.avatarTextGap),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        if (hint != null) ...[
+          SizedBox(width: tt.iconTextGap),
+          ExcludeSemantics(
+            child: Icon(
+              Icons.info_outline,
+              size: tt.iconSize * 0.85,
+              color: tt.textMuted,
             ),
           ),
         ],
+      ],
+    );
+    final hintText = hint;
+    if (hintText == null) {
+      return Semantics(label: label, child: row);
+    }
+    return Tooltip(
+      message: hintText,
+      triggerMode: TooltipTriggerMode.tap,
+      showDuration: _legendHintShowDuration,
+      excludeFromSemantics: true,
+      child: Semantics(
+        label: label,
+        hint: hintText,
+        child: row,
       ),
     );
   }
 }
+
+/// Long enough to read one sentence after a tap.
+const _legendHintShowDuration = Duration(seconds: 6);
 
 class _SelfHaloSwatch extends StatelessWidget {
   const _SelfHaloSwatch({required this.color});
@@ -535,10 +569,15 @@ class _RatingArcSwatchPainter extends CustomPainter {
 }
 
 class _ConstellationEdgeRow extends StatelessWidget {
-  const _ConstellationEdgeRow({required this.label, required this.style});
+  const _ConstellationEdgeRow({
+    required this.label,
+    required this.style,
+    this.hint,
+  });
 
   final String label;
   final ConstellationEdgeStyle style;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -548,6 +587,7 @@ class _ConstellationEdgeRow extends StatelessWidget {
       child: _LegendRow(
         swatch: GraphLegendConstellationEdgeSwatch(style: style),
         label: label,
+        hint: hint,
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 import 'package:tentura/consts.dart';
 
@@ -19,6 +20,9 @@ import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 @RoutePage()
 class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
   const RatingScreen({super.key});
+
+  /// Plain-tap explanation of the two rank columns (#261).
+  static const columnsInfoKey = Key('RatingScreen.columnsInfo');
 
   @override
   State<RatingScreen> createState() => _RatingScreenState();
@@ -140,6 +144,15 @@ class _RatingScreenState extends State<RatingScreen> {
               alignment: TenturaTopBarAlignment.fullWidth,
               leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
               actions: [
+                // The column headers' tooltips need a long-press on touch;
+                // this explains both numbers with a plain tap (#261).
+                TenturaInfoHintButton(
+                  key: RatingScreen.columnsInfoKey,
+                  fullText:
+                      '${l10n.rankFromYou}: ${l10n.rankFromYouHint}\n\n'
+                      '${l10n.rankToYou}: ${l10n.rankToYouHint}',
+                  semanticsLabel: l10n.ratingColumnsInfoLabel,
+                ),
                 // Toggle list / scatter view
                 IconButton(
                   tooltip: _isScatterView ? l10n.rating : l10n.scatterView,

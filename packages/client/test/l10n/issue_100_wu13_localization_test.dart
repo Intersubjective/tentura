@@ -97,8 +97,11 @@ void main() {
     expect(ru.graphShowMoreConnections(5), 'Показать ещё связей: 5');
   });
 
+  // #100 + #261: per direction (each of you trusts the other), trust either
+  // direct or through people you trust — in plain words, without the
+  // "MeritRank" name a newcomer cannot read.
   test(
-    'legend eye copy describes Trust or MeritRank per direction, not MR both ways',
+    'legend eye copy describes trust per direction, direct or through others',
     () {
       final en = L10nEn();
       final ru = L10nRu();
@@ -107,17 +110,19 @@ void main() {
         en.graphLegendEyeOpen,
         en.graphLegendForwardEligible,
       ]) {
-        expect(text.toLowerCase(), contains('trust'));
-        expect(text.toLowerCase(), contains('meritrank'));
+        expect(text.toLowerCase(), contains('each of you trusts the other'));
+        expect(text.toLowerCase(), contains('directly or through'));
+        expect(text.toLowerCase(), isNot(contains('meritrank')));
         expect(text.toLowerCase(), isNot(contains('both ways')));
       }
       for (final text in [
         ru.graphLegendEyeOpen,
         ru.graphLegendForwardEligible,
       ]) {
-        expect(text.toLowerCase(), contains('meritrank'));
+        expect(text, contains('каждый доверяет другому'));
+        expect(text, contains('напрямую или через'));
+        expect(text.toLowerCase(), isNot(contains('meritrank')));
         expect(text, isNot(contains('в обе стороны')));
-        expect(text, isNot(contains('положительный meritrank')));
       }
     },
   );

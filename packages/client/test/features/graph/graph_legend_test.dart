@@ -314,4 +314,36 @@ void main() {
     expect(find.byTooltip('Show legend'), findsOneWidget);
     expect(find.byTooltip('Back'), findsNothing);
   });
+
+  // #261: one plain sentence per field-legend row, on tap (touch) as well as
+  // hover — never long-press only.
+  testWidgets('field legend rows explain themselves on tap', (tester) async {
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    final tooltips = tester
+        .widgetList<Tooltip>(find.byType(Tooltip))
+        .where((t) => t.triggerMode == TooltipTriggerMode.tap)
+        .map((t) => t.message)
+        .toList();
+    expect(tooltips, [
+      'One of these two people has marked the other as someone they trust.',
+      "These two are linked through other people's trust, not by a direct mark.",
+      'Joins a request to the person who asked for help.',
+      'You and this person see each other through the trust network, but the path is too long to draw.',
+    ]);
+
+    await tester.ensureVisible(find.text('Wider network reach'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wider network reach'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.text(
+        'You and this person see each other through the trust network, but '
+        'the path is too long to draw.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+  });
 }
