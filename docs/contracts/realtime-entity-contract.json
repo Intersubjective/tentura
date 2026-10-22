@@ -206,8 +206,11 @@
       "clientKind": "relationship",
       "genericTriggerArgs": [],
       "specializedPublishers": ["notify_relationship_change"],
-      "impacts": ["friends", "profile_controls", "people_visibility", "forward_candidates"],
-      "tests": ["packages/client/test/features/friends/friends_cubit_test.dart"]
+      "impacts": ["friends", "profile_controls", "people_visibility", "forward_candidates", "trust_graph"],
+      "tests": [
+        "packages/client/test/features/friends/friends_cubit_test.dart",
+        "packages/client/test/features/graph/graph_relationship_realtime_test.dart"
+      ]
     },
     {
       "wireKind": "profile",

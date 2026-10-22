@@ -9,7 +9,9 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -67,6 +69,7 @@ class GraphCubit extends Cubit<GraphState> {
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
     BlockCase? blockCase,
+    RealtimeSyncCase? realtimeSyncCase,
     UiEffectPort? effects,
   }) : assert(
          !genealogyMode || forwardsGraphBeaconId == null,
@@ -112,6 +115,25 @@ class GraphCubit extends Cubit<GraphState> {
         cancelOnError: false,
       );
     }
+    if (mode == GraphMode.trust) {
+      final realtime =
+          realtimeSyncCase ??
+          (GetIt.I.isRegistered<RealtimeSyncCase>()
+              ? GetIt.I<RealtimeSyncCase>()
+              : null);
+      if (realtime != null) {
+        _relationshipChanges = realtime
+            .changesFor(const {RealtimeEntityKind.relationship})
+            .listen(
+              (change) => _scheduleRelationshipRefresh(change.aggregateId),
+              cancelOnError: false,
+            );
+        _catchUps = realtime.catchUps.listen(
+          (_) => _scheduleRelationshipRefresh(null),
+          cancelOnError: false,
+        );
+      }
+    }
     unawaited(_fetch());
   }
 
@@ -144,6 +166,25 @@ class GraphCubit extends Cubit<GraphState> {
   final GraphEdgeColors _edgeColors;
 
   StreamSubscription<RepositoryEvent<BlockIntent>>? _blockChanges;
+
+  StreamSubscription<RealtimeEntityChange>? _relationshipChanges;
+
+  StreamSubscription<void>? _catchUps;
+
+  /// Coalesces a burst of `relationship` hints (a vote change, then the
+  /// trust-edge rewrite a moment later) into one edge re-read.
+  Timer? _relationshipRefreshTimer;
+
+  /// Users named by the hints in the pending burst; their profiles are
+  /// re-read so per-person state (mutual badge, rating) follows the edges.
+  final _relationshipHintedIds = <String>{};
+
+  bool _relationshipRefreshInFlight = false;
+
+  bool _relationshipRefreshQueued = false;
+
+  @visibleForTesting
+  static const relationshipRefreshDebounce = Duration(milliseconds: 250);
 
   /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
@@ -247,6 +288,9 @@ class GraphCubit extends Cubit<GraphState> {
 
   @override
   Future<void> close() async {
+    _relationshipRefreshTimer?.cancel();
+    await _relationshipChanges?.cancel();
+    await _catchUps?.cancel();
     await _blockChanges?.cancel();
     graphController.dispose();
     return super.close();
@@ -475,6 +519,25 @@ class GraphCubit extends Cubit<GraphState> {
       final UserNode node when _isTrustGraph => node.user.myVote,
       _ => null,
     };
+    _replaceUserNodePayload(updated);
+    if (previousVote != null) {
+      if (previousVote > 0 &&
+          updated.myVote > 0 &&
+          _provisionalViewerEdges.contains(updated.id)) {
+        unawaited(_replaceProvisionalViewerEdge(updated.id));
+        return;
+      }
+      _patchViewerEdge(
+        updated.id,
+        wasTrusted: previousVote > 0,
+        trusts: updated.myVote > 0,
+      );
+    }
+  }
+
+  /// Swaps every loaded live-user node for [updated.id] to [updated], keeping
+  /// its size, pin and highlight. No edge changes.
+  void _replaceUserNodePayload(Profile updated) {
     for (final entry in _nodes.entries) {
       final node = entry.value;
       final NodeDetails? replacement = switch (node) {
@@ -503,19 +566,6 @@ class GraphCubit extends Cubit<GraphState> {
           graphController.nodes.contains(controllerNode)) {
         _refreshControllerNodePayload(controllerNode.id, replacement);
       }
-    }
-    if (previousVote != null) {
-      if (previousVote > 0 &&
-          updated.myVote > 0 &&
-          _provisionalViewerEdges.contains(updated.id)) {
-        unawaited(_replaceProvisionalViewerEdge(updated.id));
-        return;
-      }
-      _patchViewerEdge(
-        updated.id,
-        wasTrusted: previousVote > 0,
-        trusts: updated.myVote > 0,
-      );
     }
   }
 
@@ -594,6 +644,124 @@ class GraphCubit extends Cubit<GraphState> {
       return;
     }
     _recomputeVisibility();
+  }
+
+  void _scheduleRelationshipRefresh(String? hintedId) {
+    if (isClosed || !_isTrustGraph) return;
+    if (hintedId != null && hintedId.isNotEmpty) {
+      _relationshipHintedIds.add(hintedId);
+    }
+    _relationshipRefreshTimer?.cancel();
+    _relationshipRefreshTimer = Timer(
+      relationshipRefreshDebounce,
+      () => unawaited(_refreshLoadedRelationships()),
+    );
+  }
+
+  /// Re-reads the trust edges among every loaded person and replaces the
+  /// cached ones (#359, #402): a trust given or withdrawn by someone else, in
+  /// another session or on another screen reaches the open graph without a
+  /// reload. Unlike [_fetch], which only ever adds, this also drops edges the
+  /// server no longer has. The viewer's own pending local change wins over a
+  /// server that has not caught up yet (see [_mergeEdgesIntoCache]).
+  Future<void> _refreshLoadedRelationships() async {
+    if (isClosed || !_isTrustGraph) return;
+    if (_relationshipRefreshInFlight) {
+      _relationshipRefreshQueued = true;
+      return;
+    }
+    _relationshipRefreshInFlight = true;
+    try {
+      final hinted = {..._relationshipHintedIds};
+      _relationshipHintedIds.clear();
+      final cacheEpoch = _cacheEpoch;
+      final egoId = _egoNode.id;
+      final ids = {
+        for (final entry in _nodes.entries)
+          if (entry.value is UserNode) entry.key,
+        egoId,
+      };
+      if (ids.length < 2) return;
+      // Same filter as the reads that filled the cache, so neighbour counts
+      // keep their meaning; negative edges then stay as they were.
+      final positiveOnly = state.positiveOnly;
+      final Set<EdgeDirected> fresh;
+      try {
+        fresh = await _graphSource.fetchEdgesBetween(
+          nodeIds: ids,
+          positiveOnly: positiveOnly,
+        );
+      } catch (e, st) {
+        developer.log(
+          'graph_edges_between (relationship refresh) failed',
+          name: 'GraphCubit',
+          error: e,
+          stackTrace: st,
+        );
+        return;
+      }
+      if (isClosed || cacheEpoch != _cacheEpoch) return;
+
+      final freshKeys = {for (final e in fresh) (e.src, e.dst)};
+      final changedPeers = <String>{};
+      for (final key in _allEdges.keys.toList()) {
+        if (!ids.contains(key.$1) || !ids.contains(key.$2)) continue;
+        if (freshKeys.contains(key)) continue;
+        if (positiveOnly && (_allEdges[key]?.weight ?? 0) < 0) continue;
+        // A local re-trust the server has not stored yet keeps its stand-in.
+        if (key.$1 == egoId && _provisionalViewerEdges.contains(key.$2)) {
+          continue;
+        }
+        _allEdges.remove(key);
+        if (key.$1 == egoId) changedPeers.add(key.$2);
+        if (key.$2 == egoId) changedPeers.add(key.$1);
+      }
+      // The server caught up with a local withdrawal: nothing left to guard.
+      _withdrawnViewerEdges.removeWhere(
+        (peerId, _) => !freshKeys.contains((egoId, peerId)),
+      );
+      for (final e in fresh) {
+        final isNew = !_allEdges.containsKey((e.src, e.dst));
+        if (isNew && e.src == egoId) changedPeers.add(e.dst);
+        if (isNew && e.dst == egoId) changedPeers.add(e.src);
+      }
+      _mergeEdgesIntoCache(fresh);
+      _recomputeVisibility();
+
+      final profileIds = {...changedPeers, ...hinted}
+        ..remove(egoId)
+        ..removeWhere((id) => _nodes[id] is! UserNode);
+      for (final id in profileIds) {
+        final Profile fetched;
+        try {
+          fetched = await _profileRepository.fetchById(id);
+        } catch (_) {
+          continue;
+        }
+        if (isClosed || cacheEpoch != _cacheEpoch) return;
+        final current = _nodes[id];
+        if (current is! UserNode) continue;
+        // My own vote is the local truth while a write of it is in flight.
+        final pendingLocal =
+            _withdrawnViewerEdges.containsKey(id) ||
+            _provisionalViewerEdges.contains(id);
+        final myVote = pendingLocal ? current.user.myVote : fetched.myVote;
+        _replaceUserNodePayload(
+          fetched.copyWith(
+            myVote: myVote,
+            isMutualFriend: pendingLocal
+                ? myVote > 0 && fetched.subjectExplicitlyTrustsViewer
+                : fetched.isMutualFriend,
+          ),
+        );
+      }
+    } finally {
+      _relationshipRefreshInFlight = false;
+      if (_relationshipRefreshQueued && !isClosed) {
+        _relationshipRefreshQueued = false;
+        unawaited(_refreshLoadedRelationships());
+      }
+    }
   }
 
   void fitCurrentPath() {
@@ -1496,6 +1664,11 @@ class GraphCubit extends Cubit<GraphState> {
       if (e.src == e.dst ||
           !_nodes.containsKey(e.src) ||
           !_nodes.containsKey(e.dst)) {
+        continue;
+      }
+      // A trust I just withdrew stays withdrawn even if a read raced the
+      // (lazy) write and still carries the old edge (#359).
+      if (e.src == _egoNode.id && _withdrawnViewerEdges.containsKey(e.dst)) {
         continue;
       }
       final key = (e.src, e.dst);
