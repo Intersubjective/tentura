@@ -10462,5 +10462,67 @@
   "constellationResetPositionsFailed": "Couldn't reset positions. Try again.",
   "@constellationResetPositionsFailed": {
     "context": "Field map: the reset of positions failed (#251)"
+  },
+  "constellationTrustChainThrough": "Through {chain}",
+  "@constellationTrustChainThrough": {
+    "context": "Field map: person panel line naming the people on the shortest chain of trust from the viewer to the selected person, joined with arrows, e.g. 'Through Dima → Raf' (#641)",
+    "placeholders": {
+      "chain": {
+        "type": "String",
+        "example": "Dima → Raf"
+      }
+    }
+  },
+  "constellationTrustChainNone": "No chain of trust you can see leads to this person.",
+  "@constellationTrustChainNone": {
+    "context": "Field map: person panel line when no chain of trust visible to the viewer reaches the selected person (#641)"
+  },
+  "constellationTrustChainHidden": "No chain of trust among the people shown leads to this person. Some people are hidden.",
+  "@constellationTrustChainHidden": {
+    "context": "Field map: person panel line when no chain reaches the selected person while the show/hide switches hide some people (#641, #645)"
+  },
+  "constellationShowSection": "Show on the field",
+  "@constellationShowSection": {
+    "context": "Field: label of the row of show/hide switches for Requests, Posts and people by trust degree (#645)"
+  },
+  "constellationShowRequests": "Requests",
+  "@constellationShowRequests": {
+    "context": "Field: switch that shows or hides all Requests on the map and in the list (#645)"
+  },
+  "constellationShowRequestsHint": "Show or hide all Requests, pinned ones too",
+  "@constellationShowRequestsHint": {
+    "context": "Field: tooltip of the Requests show/hide switch (#645)"
+  },
+  "constellationShowPosts": "Posts",
+  "@constellationShowPosts": {
+    "context": "Field: switch that shows or hides all Posts on the map and in the list (#645)"
+  },
+  "constellationShowPostsHint": "Show or hide all Posts, pinned ones too",
+  "@constellationShowPostsHint": {
+    "context": "Field: tooltip of the Posts show/hide switch (#645)"
+  },
+  "constellationShowDegreeFirst": "1st degree",
+  "@constellationShowDegreeFirst": {
+    "context": "Field: switch for people the viewer trusts directly (#645)"
+  },
+  "constellationShowDegreeFirstHint": "People you trust directly, with their Requests and Posts",
+  "@constellationShowDegreeFirstHint": {
+    "context": "Field: tooltip of the 1st-degree switch (#645)"
+  },
+  "constellationShowDegreeSecond": "2nd degree",
+  "@constellationShowDegreeSecond": {
+    "context": "Field: switch for people two trust steps away from the viewer (#645)"
+  },
+  "constellationShowDegreeSecondHint": "People two trust steps away from you, with their Requests and Posts",
+  "@constellationShowDegreeSecondHint": {
+    "context": "Field: tooltip of the 2nd-degree switch (#645)"
+  },
+  "constellationShowDegreeFurther": "3rd+ degree",
+  "@constellationShowDegreeFurther": {
+    "context": "Field: switch for people three or more trust steps away, or with no chain of trust the viewer can see (#645)"
+  },
+  "constellationShowDegreeFurtherHint": "People three or more trust steps away, or with no chain of trust you can see, with their Requests and Posts",
+  "@constellationShowDegreeFurtherHint": {
+    "context": "Field: tooltip of the 3rd+ degree switch (#645)"
   }
 }

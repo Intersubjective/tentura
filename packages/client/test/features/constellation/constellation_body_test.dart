@@ -1024,6 +1024,10 @@ void main() {
       addTearDown(cubit.close);
 
       await pumpConstellationBody(tester, cubit, locale: const Locale('en'));
+      // The show/hide row (#645) shortens the phone-sized map; bring the
+      // node into it first.
+      cubit.focusBeacon('req-ego-1', insets: EdgeInsets.zero);
+      await tester.pump();
 
       await tester.tap(find.byKey(TestIds.key(TestIds.graphNode('req-ego-1'))));
       await tester.pump();

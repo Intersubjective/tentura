@@ -22,6 +22,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
@@ -44,6 +45,8 @@ import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
 import 'constellation_post_preview_sheet.dart';
 import 'constellation_text_view.dart';
+import 'constellation_trust_chain_line.dart';
+import 'constellation_visibility_bar.dart';
 import 'constellation_placement_marker_layer.dart';
 import 'constellation_viewport_overlay.dart';
 
@@ -528,6 +531,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         child: GraphPersonContextPanel(
           profile: profile,
           focusedNode: UserNode(user: profile),
+          subtitle: ConstellationTrustChainLine(personId: personId),
           discoverableRequests: cubit.discoverableRequestsForPerson(personId),
           requestsExpanded: state.expandedPersonIds.contains(personId),
           onToggleRequestsExpanded: () =>
@@ -725,6 +729,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                           const ConstellationFieldNotices(),
                           const ConstellationEmptyFilterBanner(),
                           const ConstellationNoContactsBanner(),
+                          const ConstellationVisibilityBar(),
                         ],
                         if (_selectionUnavailableMessage != null)
                           Material(
@@ -1190,11 +1195,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
       cubit: cubit,
       node: node,
     );
+    // Off the selected person's trust chain (#641): the marker fades.
+    final marker = cubit.isDimmedByTrustChain(node)
+        ? Opacity(opacity: kConstellationTrustChainDimOpacity, child: mapNode)
+        : mapNode;
     if (isEgo) {
       return Semantics(
         selected: selected,
         label: label,
-        child: ExcludeSemantics(child: mapNode),
+        child: ExcludeSemantics(child: marker),
       );
     }
     // One node per marker (#391): the marker's focus semantics (focusable /
@@ -1211,7 +1220,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         circle: node is FieldPersonNode,
         onActivate: () => _onNodeTap(context, cubit, node),
         onKeyboardFocus: () => _revealFocusedNode(cubit, node),
-        child: ExcludeSemantics(child: mapNode),
+        child: ExcludeSemantics(child: marker),
       ),
     );
   }

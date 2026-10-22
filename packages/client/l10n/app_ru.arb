@@ -7226,5 +7226,19 @@
   "constellationResetPositionsTitle": "Сбросить все позиции?",
   "constellationResetPositionsBody": "Все люди, запросы и посты, которые вы переместили на поле, вернутся на свои автоматические места — в том числе скрытые фильтрами и те, что за краем экрана, — на всех ваших устройствах. Отменить это нельзя.",
   "constellationResetPositionsConfirm": "Сбросить",
-  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз."
+  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз.",
+  "constellationTrustChainThrough": "Через: {chain}",
+  "constellationTrustChainNone": "Ни одна видимая вам цепочка доверия не ведёт к этому человеку.",
+  "constellationTrustChainHidden": "Среди показанных людей нет цепочки доверия к этому человеку. Часть людей скрыта.",
+  "constellationShowSection": "Показывать на поле",
+  "constellationShowRequests": "Запросы",
+  "constellationShowRequestsHint": "Показать или скрыть все запросы, в том числе закреплённые",
+  "constellationShowPosts": "Посты",
+  "constellationShowPostsHint": "Показать или скрыть все посты, в том числе закреплённые",
+  "constellationShowDegreeFirst": "1-й круг",
+  "constellationShowDegreeFirstHint": "Те, кому вы доверяете напрямую, с их запросами и постами",
+  "constellationShowDegreeSecond": "2-й круг",
+  "constellationShowDegreeSecondHint": "Люди в двух шагах доверия от вас, с их запросами и постами",
+  "constellationShowDegreeFurther": "3-й круг и дальше",
+  "constellationShowDegreeFurtherHint": "Люди в трёх и более шагах доверия или без видимой вам цепочки доверия, с их запросами и постами"
 }
