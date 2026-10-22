@@ -272,8 +272,10 @@ if [[ $# -gt 0 ]]; then
   TARGETS=("$@")
 else
   TARGETS=()
+  # Profile-only benchmark runs via run_client_profile_web_bench_local.sh.
   while IFS= read -r f; do TARGETS+=("${f#"$CLIENT_DIR"/}"); done \
-    < <(find "$CLIENT_DIR/integration_test" -maxdepth 1 -name '*_test.dart' | sort)
+    < <(find "$CLIENT_DIR/integration_test" -maxdepth 1 -name '*_test.dart' \
+      ! -name 'constellation_profile_web_bench_test.dart' | sort)
 fi
 
 DRIVE_BROWSER_FLAGS=()
