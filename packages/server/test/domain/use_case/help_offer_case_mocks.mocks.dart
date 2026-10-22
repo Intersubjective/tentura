@@ -1999,10 +1999,15 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
 
   @override
   _i3.Future<Map<String, _i25.RoomLatestActivity>> latestRoomActivities(
-    Iterable<String>? beaconIds,
-  ) =>
+    Iterable<String>? beaconIds, {
+    required String? viewerUserId,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#latestRoomActivities, [beaconIds]),
+            Invocation.method(
+              #latestRoomActivities,
+              [beaconIds],
+              {#viewerUserId: viewerUserId},
+            ),
             returnValue: _i3.Future<Map<String, _i25.RoomLatestActivity>>.value(
               <String, _i25.RoomLatestActivity>{},
             ),

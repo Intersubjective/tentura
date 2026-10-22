@@ -1672,8 +1672,9 @@ SELECT public.emit_realtime_entity_change(
 
   @override
   Future<Map<String, RoomLatestActivity>> latestRoomActivities(
-    Iterable<String> beaconIds,
-  ) async {
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
     final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) {
       return {};
@@ -1692,7 +1693,15 @@ SELECT
     (SELECT s.updated_at FROM public.beacon_room_state s
       WHERE s.beacon_id = ids.beacon_id),
     (SELECT max(e.created_at) FROM public.beacon_activity_event e
-      WHERE e.beacon_id = ids.beacon_id)
+      WHERE e.beacon_id = ids.beacon_id),
+    -- W5 (#525): a new help offer, for those who decide on offers. Served by
+    -- the help offer primary key `(beacon_id, user_id)`.
+    (SELECT max(o.created_at) FROM public.beacon_help_offer o
+      WHERE o.beacon_id = ids.beacon_id
+        AND (EXISTS (SELECT 1 FROM public.beacon b
+              WHERE b.id = ids.beacon_id AND b.user_id = $2)
+          OR EXISTS (SELECT 1 FROM public.beacon_steward st
+              WHERE st.beacon_id = ids.beacon_id AND st.user_id = $2)))
   ) AS last_activity_at,
   lm.created_at AS last_message_at,
   -- The Requests card shows one clipped line; don't ship whole bodies.
@@ -1734,7 +1743,10 @@ LEFT JOIN LATERAL (
 ) lm ON true
 LEFT JOIN public."user" u ON u.id = lm.author_id
 ''',
-          variables: [Variable(TypedValue(Type.textArray, ids))],
+          variables: [
+            Variable(TypedValue(Type.textArray, ids)),
+            Variable<String>(viewerUserId),
+          ],
         )
         .get();
     DateTime? at(Map<String, Object?> data, String column) =>

@@ -198,8 +198,9 @@ class _InboxStubRoom extends Fake implements BeaconRoomRepositoryPort {
 
   @override
   Future<Map<String, RoomLatestActivity>> latestRoomActivities(
-    Iterable<String> beaconIds,
-  ) async => const {};
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => const {};
 
   @override
   Future<DateTime?> getMainRoomLastSeen({

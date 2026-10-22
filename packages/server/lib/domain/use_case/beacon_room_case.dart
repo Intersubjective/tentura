@@ -1183,7 +1183,7 @@ class BeaconRoomCase extends UseCaseBase {
         ...parentFields,
       });
     }
-    await _attachLatestActivity(out);
+    await _attachLatestActivity(out, viewerUserId: userId);
     return _attachPlanSlices(userId: userId, rows: out);
   }
 
@@ -1209,7 +1209,10 @@ class BeaconRoomCase extends UseCaseBase {
   /// (#541 review: no per-Request round trip). The message text is clipped
   /// here with [roomReplyExcerpt] (one line, 160 runes), so long bodies and
   /// newlines never reach the client.
-  Future<void> _attachLatestActivity(List<Map<String, Object?>> rows) async {
+  Future<void> _attachLatestActivity(
+    List<Map<String, Object?>> rows, {
+    required String viewerUserId,
+  }) async {
     final readable = [
       for (final row in rows)
         if (row['isRoomMember'] == true) row['beaconId']! as String,
@@ -1217,7 +1220,10 @@ class BeaconRoomCase extends UseCaseBase {
     if (readable.isEmpty) {
       return;
     }
-    final byId = await _room.latestRoomActivities(readable);
+    final byId = await _room.latestRoomActivities(
+      readable,
+      viewerUserId: viewerUserId,
+    );
     for (final row in rows) {
       if (row['isRoomMember'] != true) {
         continue;
