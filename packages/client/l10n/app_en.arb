@@ -8085,8 +8085,8 @@
       }
     }
   },
-  "beaconHudCounterTeam": "{count, plural, =1{1 person in the team} other{{count} people in the team}}",
-  "@beaconHudCounterTeam": {
+  "beaconHudCounterHelpers": "{count, plural, =0{No helpers yet} =1{1 helper} other{{count} helpers}}",
+  "@beaconHudCounterHelpers": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -8111,8 +8111,8 @@
   },
   "beaconHudEssenceLabel": "About",
   "beaconHudEssenceMore": "Details",
-  "beaconHudCounterTeamShort": "{count, plural, =1{1 person} other{{count} people}}",
-  "@beaconHudCounterTeamShort": {
+  "beaconHudCounterHelpersShort": "{count, plural, =0{No helpers yet} =1{1 helper} other{{count} helpers}}",
+  "@beaconHudCounterHelpersShort": {
     "placeholders": {
       "count": {
         "type": "int"

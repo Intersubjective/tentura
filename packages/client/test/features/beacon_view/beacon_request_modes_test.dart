@@ -232,8 +232,45 @@ void main() {
       expect(find.textContaining('No gate key'), findsNothing);
       expect(find.textContaining('Frame on Saturday'), findsOneWidget);
       expect(find.textContaining('Olga · '), findsOneWidget);
-      expect(find.bySemanticsLabel('2 people in the team'), findsOneWidget);
-      expect(find.text('2 people'), findsOneWidget);
+      // #611: the counter counts helpers only, not the author.
+      expect(find.bySemanticsLabel('1 helper'), findsOneWidget);
+      expect(find.text('1 helper'), findsOneWidget);
+      expect(find.textContaining('in the team'), findsNothing);
+    });
+
+    testWidgets('the HUD counter does not count the author alone (#611)', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        BeaconHudPinnedBlock(
+          state: _state(access: BeaconAccessLevel.author, author: _me),
+          now: DateTime(2026, 1, 1, 12),
+        ),
+      );
+      expect(find.text('No helpers yet'), findsOneWidget);
+      expect(find.bySemanticsLabel('No helpers yet'), findsOneWidget);
+      expect(find.text('1 person'), findsNothing);
+      expect(find.textContaining('in the team'), findsNothing);
+    });
+
+    testWidgets('the HUD counter counts each admitted helper (#611)', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        BeaconHudPinnedBlock(
+          state: _state(
+            access: BeaconAccessLevel.author,
+            author: _me,
+            roster: const [_olga, _ivan],
+            helperCount: 2,
+          ),
+          now: DateTime(2026, 1, 1, 12),
+        ),
+      );
+      expect(find.text('2 helpers'), findsOneWidget);
+      expect(find.bySemanticsLabel('2 helpers'), findsOneWidget);
     });
 
     testWidgets('a long description folds behind Read more', (tester) async {
