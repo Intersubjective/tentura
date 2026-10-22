@@ -168,11 +168,11 @@ void main() {
       expect(big.trustRadius, lessThan(big.actionRadius));
     });
 
-    test('the badge sits on the ring at the bottom end', () {
+    test('the badge sits on the ring at the top start', () {
       final g = geometry(40, hasTrustRing: true);
       expect((g.badgeCentre - g.centre).distance, closeTo(g.trustRadius, 1e-9));
-      expect(g.badgeCentre.dx, greaterThan(g.centre.dx));
-      expect(g.badgeCentre.dy, greaterThan(g.centre.dy));
+      expect(g.badgeCentre.dx, lessThan(g.centre.dx));
+      expect(g.badgeCentre.dy, lessThan(g.centre.dy));
       final rtl = constellationNodeRingGeometry(
         body: Rect.fromCircle(center: const Offset(100, 100), radius: 20),
         minTarget: minTarget,
@@ -182,7 +182,126 @@ void main() {
         hasTrustRing: true,
         rtl: true,
       );
-      expect(rtl.badgeCentre.dx, lessThan(rtl.centre.dx));
+      expect(rtl.badgeCentre.dx, greaterThan(rtl.centre.dx));
+    });
+
+    test('the reserved overhang covers the glyph disc at every zoom', () {
+      final tt = TenturaTokens.light;
+      for (final diameter in [6.0, 8.0, 16.0, 24.0, 40.0, 60.0]) {
+        final overhang = constellationNodeBadgeOverhang(
+          base: 0,
+          bodyDiameter: diameter,
+          hasTrustBadge: true,
+          tt: tt,
+        );
+        final body = Rect.fromCircle(center: Offset.zero, radius: diameter / 2);
+        final reserved = Rect.fromLTRB(
+          body.left - overhang,
+          body.top - overhang,
+          body.right + overhang,
+          body.bottom,
+        );
+        for (final rtl in [false, true]) {
+          final g = constellationNodeRingGeometry(
+            body: body,
+            minTarget: minTarget,
+            gap: tt.tightGap,
+            minTrustRadius: constellationTrustMinRadius(tt),
+            badgeDiameter: constellationTrustBadgeDiameter(tt),
+            hasTrustRing: true,
+            rtl: rtl,
+          );
+          final disc = Rect.fromCircle(
+            center: g.badgeCentre,
+            radius: g.badgeDiameter / 2,
+          );
+          expect(
+            reserved.inflate(1e-9).contains(disc.topLeft) &&
+                reserved.inflate(1e-9).contains(disc.bottomRight),
+            isTrue,
+            reason: 'diameter $diameter rtl $rtl',
+          );
+        }
+      }
+      expect(
+        constellationNodeBadgeOverhang(
+          base: 5,
+          bodyDiameter: 40,
+          hasTrustBadge: false,
+          tt: tt,
+        ),
+        5,
+      );
+    });
+
+    test("a neighbour's label is not placed over a trusted person's disc", () {
+      final tt = TenturaTokens.light;
+      // Overview zoom (0.4): 16 px people. The neighbour sits just above and
+      // to the start of the trusted person, so its label below would land
+      // on the trusted person's disc.
+      const diameter = 16.0;
+      const trusted = Offset(200, 200);
+      const neighbour = Offset(190, 160);
+      ConstellationPresentationFrame place({required bool reserve}) =>
+          computeConstellationPresentationFrame(
+            snapshot: const Object(),
+            cameraRevision: 1,
+            detail: ConstellationDetailLevel.overview,
+            viewport: const Size(400, 400),
+            nodesInPaintOrder: [
+              ConstellationFrameNodeInput(
+                id: 'trusted',
+                centre: trusted,
+                bodyDiameter: diameter,
+                badgeOverhang: constellationNodeBadgeOverhang(
+                  base: 0,
+                  bodyDiameter: diameter,
+                  hasTrustBadge: reserve,
+                  tt: tt,
+                ),
+                labelSize: const Size(80, 20),
+                priority: 2,
+                ring: 1,
+                labelCandidate: true,
+              ),
+              const ConstellationFrameNodeInput(
+                id: 'neighbour',
+                centre: neighbour,
+                bodyDiameter: diameter,
+                badgeOverhang: 0,
+                labelSize: Size(80, 20),
+                priority: 2,
+                ring: 1,
+                labelCandidate: true,
+              ),
+            ],
+            chips: const [],
+            gap: 2,
+            minTarget: minTarget,
+            rtl: false,
+          );
+      final g = constellationNodeRingGeometry(
+        body: Rect.fromCircle(center: trusted, radius: diameter / 2),
+        minTarget: minTarget,
+        gap: tt.tightGap,
+        minTrustRadius: constellationTrustMinRadius(tt),
+        badgeDiameter: constellationTrustBadgeDiameter(tt),
+        hasTrustRing: true,
+        rtl: false,
+      );
+      final disc = Rect.fromCircle(
+        center: g.badgeCentre,
+        radius: g.badgeDiameter / 2,
+      );
+      // Without the reservation the neighbour's label would cover the disc.
+      expect(place(reserve: false).labels['neighbour']!.overlaps(disc), isTrue);
+
+      final frame = place(reserve: true);
+      for (final label in frame.labels.values) {
+        expect(label.overlaps(disc), isFalse);
+      }
+      expect(frame.labels['neighbour'], isNotNull);
+      expect(frame.labels['trusted'], isNotNull);
     });
   });
 
@@ -261,6 +380,65 @@ void main() {
         ),
       );
     });
+
+    for (final (badge, dashed) in const [
+      (ConstellationTrustBadge.mutual, false),
+      (ConstellationTrustBadge.youTrust, true),
+      (ConstellationTrustBadge.theyTrust, true),
+      (ConstellationTrustBadge.contactOnly, true),
+    ]) {
+      testWidgets('paints the ${badge.name} ring and glyph disc', (
+        tester,
+      ) async {
+        final frame = frameOf([
+          ('p', const Offset(200, 200), 40),
+        ], detail: ConstellationDetailLevel.normal);
+        await pumpLayer(tester, frame: frame, trust: {'p': badge});
+        final context = tester.element(rings());
+        final tt = context.tt;
+        final scheme = Theme.of(context).colorScheme;
+        final style = constellationTrustBadgeStyle(badge, scheme, rtl: false);
+        final g = constellationNodeRingGeometry(
+          body: frame.bodies['p']!,
+          minTarget: minTarget,
+          gap: tt.tightGap,
+          minTrustRadius: constellationTrustMinRadius(tt),
+          badgeDiameter: constellationTrustBadgeDiameter(tt),
+          hasTrustRing: true,
+          rtl: false,
+        );
+        final ring = dashed
+            ? (paints..path(color: style.color, style: PaintingStyle.stroke))
+            : (paints..circle(
+                x: 200,
+                y: 200,
+                radius: g.trustRadius,
+                color: style.color,
+                style: PaintingStyle.stroke,
+              ));
+        expect(
+          rings(),
+          ring
+            ..circle(
+              x: g.badgeCentre.dx,
+              y: g.badgeCentre.dy,
+              radius: g.badgeDiameter / 2,
+              color: scheme.surface,
+            )
+            ..circle(
+              x: g.badgeCentre.dx,
+              y: g.badgeCentre.dy,
+              radius: g.badgeDiameter / 2,
+              color: style.color,
+              style: PaintingStyle.stroke,
+            )
+            ..paragraph(),
+        );
+        // A person without a relation gets nothing.
+        await pumpLayer(tester, frame: frame);
+        expect(rings(), paintsNothing);
+      });
+    }
 
     testWidgets('a node larger than a target gets no action ring', (
       tester,

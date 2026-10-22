@@ -163,15 +163,58 @@ ConstellationNodeRingGeometry constellationNodeRingGeometry({
   final trustRadius = math.max(bodyRadius + gap + stroke / 2, minTrustRadius);
   final innerEdge = hasTrustRing ? trustRadius : bodyRadius;
   final actionRadius = math.max(minTarget / 2, innerEdge + gap + stroke);
-  // Bottom end of the trust ring, at 45 degrees.
+  // Top start of the trust ring, at 45 degrees: a person's label sits
+  // below it and the pin badge at the top end.
   final offset = trustRadius * math.sqrt1_2;
   return ConstellationNodeRingGeometry(
     centre: body.center,
     trustRadius: trustRadius,
     actionRadius: actionRadius,
-    badgeCentre: body.center + Offset(rtl ? -offset : offset, offset),
+    badgeCentre: body.center + Offset(rtl ? offset : -offset, -offset),
     badgeDiameter: badgeDiameter,
     showsActionRing: body.shortestSide < minTarget,
+  );
+}
+
+/// On-screen diameter of a trust glyph disc; fixed, so it stays readable at
+/// any zoom.
+double constellationTrustBadgeDiameter(TenturaTokens tt) => tt.iconSize * 0.75;
+
+/// The smallest trust ring, around a node zoomed far out.
+double constellationTrustMinRadius(TenturaTokens tt) => tt.avatarTinySize / 2;
+
+/// How far a node's decorations reach past its body at the top and sides,
+/// for label and chip placement: [base] (pin / status badges) or, for a
+/// person with a trust badge, its glyph disc if that reaches further, so no
+/// label or chip is placed over it.
+double constellationNodeBadgeOverhang({
+  required double base,
+  required double bodyDiameter,
+  required bool hasTrustBadge,
+  required TenturaTokens tt,
+}) {
+  if (!hasTrustBadge) {
+    return base;
+  }
+  final body = Rect.fromCircle(center: Offset.zero, radius: bodyDiameter / 2);
+  final g = constellationNodeRingGeometry(
+    body: body,
+    minTarget: kMinInteractiveDimension,
+    gap: tt.tightGap,
+    minTrustRadius: constellationTrustMinRadius(tt),
+    badgeDiameter: constellationTrustBadgeDiameter(tt),
+    hasTrustRing: true,
+    rtl: false,
+  );
+  final disc = Rect.fromCircle(
+    center: g.badgeCentre,
+    radius: g.badgeDiameter / 2,
+  );
+  // The disc sits at the top start; the decorated rect grows symmetrically,
+  // so the reach to the start covers either text direction.
+  return math.max(
+    base,
+    math.max(body.top - disc.top, body.left - disc.left),
   );
 }
 
@@ -205,10 +248,12 @@ class ConstellationNodeRingLayer extends StatefulWidget {
 class _ConstellationNodeRingLayerState
     extends State<ConstellationNodeRingLayer> {
   final _hover = ValueNotifier<Offset?>(null);
+  final _glyphs = ConstellationTrustGlyphCache();
 
   @override
   void dispose() {
     _hover.dispose();
+    _glyphs.dispose();
     super.dispose();
   }
 
@@ -232,11 +277,12 @@ class _ConstellationNodeRingLayerState
             hover: _hover,
             minTarget: kMinInteractiveDimension,
             gap: tt.tightGap,
-            minTrustRadius: tt.avatarTinySize / 2,
-            badgeDiameter: tt.iconSize * 0.75,
+            minTrustRadius: constellationTrustMinRadius(tt),
+            badgeDiameter: constellationTrustBadgeDiameter(tt),
             scheme: scheme,
             textDirection: Directionality.of(context),
             rtl: rtl,
+            glyphs: _glyphs,
           ),
         ),
       ),
@@ -257,6 +303,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
     required this.scheme,
     required this.textDirection,
     required this.rtl,
+    this.glyphs,
   }) : super(repaint: hover);
 
   final ConstellationPresentationFrame frame;
@@ -270,6 +317,10 @@ class ConstellationNodeRingPainter extends CustomPainter {
   final ColorScheme scheme;
   final TextDirection textDirection;
   final bool rtl;
+
+  /// Glyph painters kept across paints; without one, each paint lays out
+  /// its own and disposes them.
+  final ConstellationTrustGlyphCache? glyphs;
 
   /// The node the mouse is over, resolved as a tap there would be.
   @visibleForTesting
@@ -297,7 +348,8 @@ class ConstellationNodeRingPainter extends CustomPainter {
       ..strokeWidth = TenturaSpacing.focusRing
       ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
-    final glyphs = <ConstellationTrustBadge, TextPainter>{};
+    final ownGlyphs = glyphs == null ? ConstellationTrustGlyphCache() : null;
+    final glyphCache = glyphs ?? ownGlyphs!;
 
     for (final id in frame.paintOrder) {
       final badge = trustByGraphId[id];
@@ -320,12 +372,14 @@ class ConstellationNodeRingPainter extends CustomPainter {
         canvas,
         g,
         style,
-        glyphs.putIfAbsent(badge, () => _glyph(style)),
+        glyphCache.painterFor(
+          style,
+          size: badgeDiameter * 0.7,
+          textDirection: textDirection,
+        ),
       );
     }
-    for (final glyph in glyphs.values) {
-      glyph.dispose();
-    }
+    ownGlyphs?.dispose();
 
     final selected = selectedGraphId;
     final hovered = hoveredGraphId;
@@ -354,20 +408,6 @@ class ConstellationNodeRingPainter extends CustomPainter {
       );
     }
   }
-
-  TextPainter _glyph(ConstellationTrustBadgeStyle style) => TextPainter(
-    text: TextSpan(
-      text: String.fromCharCode(style.icon.codePoint),
-      style: TextStyle(
-        fontFamily: style.icon.fontFamily,
-        package: style.icon.fontPackage,
-        fontSize: badgeDiameter * 0.7,
-        height: 1,
-        color: style.color,
-      ),
-    ),
-    textDirection: textDirection,
-  )..layout();
 
   void _paintBadge(
     Canvas canvas,
@@ -423,6 +463,40 @@ class ConstellationNodeRingPainter extends CustomPainter {
       old.rtl != rtl;
 }
 
+/// Laid-out glyph painters by icon, colour, size and direction; rebuilt only
+/// when one of them changes, so a pan or a hover lays out no text.
+final class ConstellationTrustGlyphCache {
+  final _painters = <(IconData, Color, double, TextDirection), TextPainter>{};
+
+  TextPainter painterFor(
+    ConstellationTrustBadgeStyle style, {
+    required double size,
+    required TextDirection textDirection,
+  }) => _painters.putIfAbsent(
+    (style.icon, style.color, size, textDirection),
+    () => TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(style.icon.codePoint),
+        style: TextStyle(
+          fontFamily: style.icon.fontFamily,
+          package: style.icon.fontPackage,
+          fontSize: size,
+          height: 1,
+          color: style.color,
+        ),
+      ),
+      textDirection: textDirection,
+    )..layout(),
+  );
+
+  void dispose() {
+    for (final painter in _painters.values) {
+      painter.dispose();
+    }
+    _painters.clear();
+  }
+}
+
 /// Legend sample of a trust badge: a person disc with its ring and glyph.
 class ConstellationTrustBadgeSwatch extends StatelessWidget {
   const ConstellationTrustBadgeSwatch({required this.badge, super.key});
@@ -473,8 +547,8 @@ class ConstellationTrustBadgeSwatch extends StatelessWidget {
                 hover: _noHover,
                 minTarget: kMinInteractiveDimension,
                 gap: tt.tightGap,
-                minTrustRadius: tt.avatarTinySize / 2,
-                badgeDiameter: tt.iconSize * 0.75,
+                minTrustRadius: constellationTrustMinRadius(tt),
+                badgeDiameter: constellationTrustBadgeDiameter(tt),
                 scheme: scheme,
                 textDirection: Directionality.of(context),
                 rtl: Directionality.of(context) == TextDirection.rtl,

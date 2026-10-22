@@ -378,15 +378,20 @@ class _ConstellationViewportOverlayState
                       style: labelStyle,
                     );
 
-              final badgeOverhang =
-                  _nodeShowsBadge(
-                    node: node,
-                    cubit: widget.cubit,
-                    l10n: l10n,
-                    tt: tt,
-                  )
-                  ? badgeOverhangViewport
-                  : 0.0;
+              final badgeOverhang = constellationNodeBadgeOverhang(
+                base:
+                    _nodeShowsBadge(
+                      node: node,
+                      cubit: widget.cubit,
+                      l10n: l10n,
+                      tt: tt,
+                    )
+                    ? badgeOverhangViewport
+                    : 0.0,
+                bodyDiameter: bodyDiameter,
+                hasTrustBadge: rings.trust.containsKey(graphId),
+                tt: tt,
+              );
 
               labelTexts.add(labelText);
               inputs.add(
