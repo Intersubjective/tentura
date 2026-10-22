@@ -105,13 +105,13 @@ MyWorkCardViewModel _deriveAuthored({
 }) {
   final lc = beacon.status;
   if (!archived && lc == BeaconStatus.draft) {
-  return MyWorkCardViewModel(
-    beaconId: beacon.id,
-    role: MyWorkCardRole.authored,
-    kind: MyWorkCardKind.authoredDraft,
-    beacon: beacon,
-    sources: {MyWorkMembershipSource.authored},
-  );
+    return MyWorkCardViewModel(
+      beaconId: beacon.id,
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredDraft,
+      beacon: beacon,
+      sources: {MyWorkMembershipSource.authored},
+    );
   }
   if (archived) {
     return MyWorkCardViewModel(
@@ -191,6 +191,7 @@ MyWorkCardViewModel _deriveHelpOffered({
       showArchiveAffordance: true,
       helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
       authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+      coordinationAuthor: row.coordinationAuthor,
       sources: {MyWorkMembershipSource.helpOffered},
       viewerArchived: true,
     );
@@ -209,6 +210,7 @@ MyWorkCardViewModel _deriveHelpOffered({
       showArchiveAffordance: true,
       helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
       authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+      coordinationAuthor: row.coordinationAuthor,
       sources: {MyWorkMembershipSource.helpOffered},
     );
   }
@@ -225,6 +227,7 @@ MyWorkCardViewModel _deriveHelpOffered({
     showArchiveAffordance: true,
     helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
     authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+    coordinationAuthor: row.coordinationAuthor,
     sources: {MyWorkMembershipSource.helpOffered},
   );
 }
@@ -467,6 +470,7 @@ MyWorkCardViewModel myWorkCardViewModelForBeaconView({
       forwarderSenders: <Profile>[],
       helpOfferRowUpdatedAt: myHelpOfferUpdatedAt ?? beacon.updatedAt,
       authorCoordinationUpdatedAt: null,
+      coordinationAuthor: null,
     );
     return _deriveHelpOffered(row: row);
   }

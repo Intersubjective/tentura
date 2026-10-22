@@ -84,6 +84,7 @@ void main() {
       forwarderSenders: const <Profile>[],
       helpOfferRowUpdatedAt: DateTime(2025, 1, 3),
       authorCoordinationUpdatedAt: null,
+      coordinationAuthor: null,
     );
     final vms = buildNonArchivedViewModels(
       authoredNonArchived: [beacon],
@@ -114,6 +115,7 @@ void main() {
       forwarderSenders: const <Profile>[],
       helpOfferRowUpdatedAt: DateTime(2025, 1, 2),
       authorCoordinationUpdatedAt: null,
+      coordinationAuthor: null,
     );
     final vms = buildArchivedViewModels(
       authoredArchived: closed,
@@ -157,6 +159,7 @@ void main() {
         forwarderSenders: const <Profile>[],
         helpOfferRowUpdatedAt: DateTime(2025, 3),
         authorCoordinationUpdatedAt: null,
+        coordinationAuthor: null,
       );
       final fromList = buildNonArchivedViewModels(
         authoredNonArchived: const [],
