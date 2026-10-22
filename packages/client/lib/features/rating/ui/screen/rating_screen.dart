@@ -53,10 +53,34 @@ class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
 class _RatingScreenState extends State<RatingScreen> {
   bool _isScatterView = false;
 
+  /// Controlled by the cubit's search filter, so a clear empties the field
+  /// (an `initialValue` kept the stale text, #603).
+  late final _searchController = TextEditingController(
+    text: context.read<RatingCubit>().state.searchFilter,
+  );
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final cubit = context.read<RatingCubit>();
+    return BlocListener<RatingCubit, RatingState>(
+      listenWhen: (p, c) => p.searchFilter != c.searchFilter,
+      listener: (_, state) {
+        if (_searchController.text != state.searchFilter) {
+          _searchController.text = state.searchFilter;
+        }
+      },
+      child: _buildBody(l10n, cubit),
+    );
+  }
+
+  Widget _buildBody(L10n l10n, RatingCubit cubit) {
     return BlocBuilder<RatingCubit, RatingState>(
       buildWhen: (p, c) =>
           c.isSuccess ||
@@ -189,7 +213,7 @@ class _RatingScreenState extends State<RatingScreen> {
                                 isCollapsed: true,
                                 isDense: true,
                               ),
-                              initialValue: state.searchFilter,
+                              controller: _searchController,
                               onChanged: cubit.setSearchFilter,
                               textInputAction: TextInputAction.go,
                             ),
