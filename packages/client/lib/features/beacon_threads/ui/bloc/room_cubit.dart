@@ -1645,10 +1645,14 @@ class RoomCubit extends Cubit<RoomState> {
           ? m.body
           : (m.replyToBodyExcerpt ?? '');
       final line = ask.trim().replaceAll(RegExp(r'\s+'), ' ');
-      final runes = line.runes;
-      return runes.length <= PlanLimits.maxTitleLength
-          ? line
-          : String.fromCharCodes(runes.take(PlanLimits.maxTitleLength));
+      // The server counts UTF-16 units; never split a surrogate pair.
+      final title = StringBuffer();
+      for (final rune in line.runes) {
+        final char = String.fromCharCode(rune);
+        if (title.length + char.length > PlanLimits.maxTitleLength) break;
+        title.write(char);
+      }
+      return title.toString();
     }
     return '';
   }

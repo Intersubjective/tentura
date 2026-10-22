@@ -50,7 +50,14 @@ class _RoomBatonPlanStepSheetState extends State<RoomBatonPlanStepSheet> {
     super.dispose();
   }
 
-  bool get _canCreate => !_saving && _controller.text.trim().isNotEmpty;
+  /// The server counts the title in UTF-16 units, which the field's
+  /// character counter does not (an emoji is one character, two units).
+  bool get _canCreate {
+    final title = _controller.text.trim();
+    return !_saving &&
+        title.isNotEmpty &&
+        title.length <= PlanLimits.maxTitleLength;
+  }
 
   Future<void> _create() async {
     if (!_canCreate) return;

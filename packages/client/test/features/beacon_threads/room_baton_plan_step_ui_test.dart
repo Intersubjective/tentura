@@ -16,7 +16,6 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/baton_select_result.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_baton_plan_step_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
@@ -232,6 +231,23 @@ void main() {
 
       expect(calls, ['Bring 4 straps', 'Bring 4 straps']);
       expect(find.byType(RoomBatonPlanStepSheet), findsNothing);
+    });
+
+    testWidgets('a title over 120 UTF-16 units cannot be saved', (
+      tester,
+    ) async {
+      final calls = await open(tester, answers: [true]);
+      // 110 characters, but 130 UTF-16 units (each emoji counts twice).
+      await tester.enterText(
+        find.byType(TextField),
+        '${'a' * 90}${'\u{1F4E6}' * 20}',
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Create step'));
+      await tester.pumpAndSettle();
+
+      expect(calls, isEmpty);
     });
 
     testWidgets('an empty title cannot be saved', (tester) async {

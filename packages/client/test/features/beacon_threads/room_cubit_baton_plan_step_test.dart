@@ -207,6 +207,22 @@ void main() {
       expect((result as BatonSelected).planStepOffer!.title, 'x' * 120);
     });
 
+    test(
+      'an ask with emoji is cut to 120 UTF-16 units, never mid-pair',
+      () async {
+        await openRoom(body: '${'a' * 90}${'\u{1F4E6}' * 20}');
+
+        final result = await cubit.batonSelect(
+          batonId: _batonId,
+          userId: 'u-boris',
+        );
+
+        final title = (result as BatonSelected).planStepOffer!.title;
+        expect(title.length, lessThanOrEqualTo(120));
+        expect(title, '${'a' * 90}${'\u{1F4E6}' * 15}');
+      },
+    );
+
     test('a realtime refresh of the taken card makes no new offer', () async {
       await openRoom();
       await cubit.batonSelect(batonId: _batonId, userId: 'u-boris');
