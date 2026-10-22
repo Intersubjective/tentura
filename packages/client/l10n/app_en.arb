@@ -10132,5 +10132,25 @@
   "constellationContactOnlyNote": "You trust them. Their Requests and Posts show up here once you can see each other.",
   "@constellationContactOnlyNote": {
     "context": "Field list: under a person the viewer trusts who is outside the viewer's visible set, so the field shows nothing of theirs (#246)"
+  },
+  "constellationResetPositions": "Reset positions",
+  "@constellationResetPositions": {
+    "context": "Field map: button that removes every position the user placed by hand (#251)"
+  },
+  "constellationResetPositionsTitle": "Reset all positions?",
+  "@constellationResetPositionsTitle": {
+    "context": "Field map: title of the confirmation before resetting positions (#251)"
+  },
+  "constellationResetPositionsBody": "Everyone and everything you moved on the field goes back to its automatic place, including items hidden by filters or off-screen, on all your devices. This can't be undone.",
+  "@constellationResetPositionsBody": {
+    "context": "Field map: body of the confirmation before resetting positions (#251)"
+  },
+  "constellationResetPositionsConfirm": "Reset",
+  "@constellationResetPositionsConfirm": {
+    "context": "Field map: confirm button of the reset-positions dialog (#251)"
+  },
+  "constellationResetPositionsFailed": "Couldn't reset positions. Try again.",
+  "@constellationResetPositionsFailed": {
+    "context": "Field map: the reset of positions failed (#251)"
   }
 }

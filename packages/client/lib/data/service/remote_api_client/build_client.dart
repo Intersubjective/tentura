@@ -359,6 +359,7 @@ class _V2RoutingLink extends Link {
     'ConstellationFieldFetch',
     'ConstellationAnchorsFetch',
     'ConstellationAnchorsApply',
+    'ConstellationAnchorsReset',
     'UserBlock',
     'UserUnblock',
     'UserBlockPromote',

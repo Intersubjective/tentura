@@ -72,6 +72,10 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 
 /// Holds every apply until the test rejects it or fails the transport.
 final class _AnchorRepository implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   _AnchorRepository(this._confirmed);
 
   final ConstellationAnchorProjection _confirmed;

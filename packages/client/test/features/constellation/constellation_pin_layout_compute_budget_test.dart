@@ -83,6 +83,10 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 
 /// Holds every apply until the test acknowledges it, like a slow server.
 final class _Server implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   final calls =
       <
         ({

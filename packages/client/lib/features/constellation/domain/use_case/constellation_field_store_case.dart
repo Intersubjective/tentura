@@ -216,6 +216,36 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     );
   }
 
+  /// A reset (#251) removed every anchor of the account at [revision]: the
+  /// held projection empties, and a FULL read brings back what only pins kept
+  /// on the field. A projection already newer than the reset is kept; the
+  /// anchor hint path settles it.
+  void applyReset(ConstellationAnchorRevision revision) {
+    final field = _state.field;
+    if (field == null || revision.compareTo(_state.coveredRevision) < 0) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: field.copyWith(
+          anchorProjection: ConstellationAnchorProjection(
+            revision: revision,
+            anchors: const [],
+            pinnedPeers: const [],
+            pinnedRequests: const [],
+            supportPeers: const [],
+            supportEdges: const [],
+            serverFilteredBeaconIds: const [],
+            serverFilteredBeaconCount: 0,
+          ),
+        ),
+        coveredRevision: revision,
+        generation: _state.generation,
+      ),
+    );
+    unawaited(requestRefresh(ConstellationRefreshReason.load));
+  }
+
   /// Defer the catch-up read until the writer's replay has been dispatched.
   // ignore: use_setters_to_change_properties -- a hook, not a property
   void holdCatchUpReads(Future<void>? Function()? hold) => _catchUpHold = hold;

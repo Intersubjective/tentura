@@ -13,6 +13,8 @@ sealed class PlacementOp with _$PlacementOp {
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     ConstellationAnchorRevision? ifRevision,
+    // The account anchor revision the user saw when making the write (#251).
+    ConstellationAnchorRevision? baseRevision,
     // Record of the grabbed node, kept for the confirmed view; never sent.
     ConstellationPerson? capturedPerson,
     ConstellationRequest? capturedRequest,
@@ -23,6 +25,7 @@ sealed class PlacementOp with _$PlacementOp {
     required String clusterId,
     required ConstellationAnchorTarget target,
     ConstellationAnchorRevision? ifRevision,
+    ConstellationAnchorRevision? baseRevision,
   }) = PlacementDelete;
 }
 

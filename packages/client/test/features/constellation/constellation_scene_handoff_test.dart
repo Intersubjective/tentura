@@ -92,6 +92,10 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 final class _HarnessAnchorRepository
     implements ConstellationWriteFake {
   @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
+  @override
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,
     required ConstellationFieldMembershipFilters params,

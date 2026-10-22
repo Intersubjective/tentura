@@ -7163,5 +7163,10 @@
   "constellationListOthers": "Остальные на поле",
   "constellationListSemantics": "Люди на поле, их запросы и посты",
   "constellationListPostLabel": "Пост",
-  "constellationContactOnlyNote": "Вы им доверяете. Их запросы и посты появятся здесь, когда вы сможете видеть друг друга."
+  "constellationContactOnlyNote": "Вы им доверяете. Их запросы и посты появятся здесь, когда вы сможете видеть друг друга.",
+  "constellationResetPositions": "Сбросить позиции",
+  "constellationResetPositionsTitle": "Сбросить все позиции?",
+  "constellationResetPositionsBody": "Все люди, запросы и посты, которые вы переместили на поле, вернутся на свои автоматические места — в том числе скрытые фильтрами и те, что за краем экрана, — на всех ваших устройствах. Отменить это нельзя.",
+  "constellationResetPositionsConfirm": "Сбросить",
+  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз."
 }

@@ -1829,6 +1829,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileLayout(immediateHandoff: true);
   }
 
+  /// «Сбросить позиции» (#251): removes every user-placed position of the
+  /// account, hidden and off-screen ones included; the moved nodes return to
+  /// the automatic layout here and, through the anchor hint, on the account's
+  /// other devices. False when the reset could not be confirmed.
+  Future<bool> resetAllPositions() async {
+    final placement = _placementCase;
+    if (isClosed || placement == null) {
+      return false;
+    }
+    _writeCount++;
+    try {
+      await placement.resetAll();
+      return true;
+    } on Object catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+      return false;
+    }
+  }
+
   bool canPinTarget(ConstellationAnchorTarget target) {
     if (isAnchored(target)) {
       return true;

@@ -76,6 +76,10 @@ final class _ApplyCall {
 
 /// Holds every response until the test settles or fails the call.
 final class _AnchorRepository implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   final calls = <_ApplyCall>[];
   final confirmed = <ConstellationAnchorTarget, ConstellationAnchor>{};
   int revision = 0;

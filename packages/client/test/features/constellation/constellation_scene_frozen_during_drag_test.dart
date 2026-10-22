@@ -55,6 +55,10 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 /// A server that answers only when told to: every write stays in flight until
 /// [acknowledgeAll].
 final class _HeldAnchorRepository implements ConstellationWriteFake {
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      throw UnimplementedError('reset is not used by this test');
+
   final applyCalls = <List<ConstellationAnchorApplyOp>>[];
   final _replies = <Completer<ConstellationAnchorApplyResult>>[];
 

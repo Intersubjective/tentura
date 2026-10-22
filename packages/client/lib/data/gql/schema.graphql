@@ -3871,6 +3871,7 @@ type mutation_root {
   closureToggleSupport(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): v2_ClosureToggleResult!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
+  constellationAnchorsReset(clientOpId: String!): v2_ConstellationAnchorsResetResult!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
@@ -8105,6 +8106,7 @@ type v2_ConstellationAnchor {
 }
 
 input v2_ConstellationAnchorOpInput {
+  baseRevision: String
   clientOpId: String!
   ifRevision: String
   kind: v2_ConstellationAnchorOpKind!
@@ -8152,6 +8154,13 @@ type v2_ConstellationAnchorProjection {
 enum v2_ConstellationAnchorTargetKind {
   BEACON
   PERSON
+}
+
+type v2_ConstellationAnchorsResetResult {
+  afterRevision: String!
+  beforeRevision: String!
+  clearedCount: Int!
+  replayed: Boolean!
 }
 
 type v2_ConstellationAnchorsApplyResult {

@@ -8,6 +8,7 @@ import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/port/constellation_anchor_repository_port.dart';
 import '../gql/_g/constellation_anchors_apply.data.gql.dart';
 import '../gql/_g/constellation_anchors_apply.req.gql.dart';
+import '../gql/_g/constellation_anchors_reset.req.gql.dart';
 import '../model/constellation_field_mapper.dart';
 
 @LazySingleton(
@@ -44,6 +45,27 @@ final class ConstellationAnchorRepository
         return mapApplyResult(payload, ops);
       });
 
+  @override
+  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
+      _remoteApiService
+          .request(
+            GConstellationAnchorsResetReq(
+              (b) => b.vars.clientOpId = clientOpId,
+            ),
+          )
+          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .then((response) {
+            final payload = response
+                .dataOrThrow(label: 'ConstellationAnchorsReset')
+                .constellationAnchorsReset;
+            return ConstellationAnchorResetResult(
+              beforeRevision: _parseRevision(payload.beforeRevision),
+              afterRevision: _parseRevision(payload.afterRevision),
+              clearedCount: payload.clearedCount,
+              replayed: payload.replayed,
+            );
+          });
+
   static Gv2_ConstellationAnchorOpInput _opToWire(
     ConstellationAnchorApplyOp op,
   ) => Gv2_ConstellationAnchorOpInput((b) {
@@ -57,7 +79,8 @@ final class ConstellationAnchorRepository
       }
       ..targetKind = targetKindToWire(op.target.kind)
       ..targetId = op.target.id
-      ..ifRevision = op.ifRevision?.toDecimalString();
+      ..ifRevision = op.ifRevision?.toDecimalString()
+      ..baseRevision = op.baseRevision?.toDecimalString();
     final position = op.position;
     if (position != null) {
       b.position
