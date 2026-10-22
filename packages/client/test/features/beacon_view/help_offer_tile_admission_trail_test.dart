@@ -260,6 +260,32 @@ void main() {
   });
 
   group('steward view, admitted helper', () {
+    testWidgets("a steward's own offer reads as their own card", (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          HelpOfferTile(
+            helpOffer: _admittedOffer(
+              userId: 'me',
+              isDirectAuthorForward: true,
+              admissionAction: HelpOfferAdmissionAction.autoAdmit,
+            ),
+            beaconId: 'B1',
+            beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+            beaconAuthorId: 'auth',
+            isAuthorView: true,
+            isMine: true,
+            showBackupHint: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(_stewardDirectHintEn), findsNothing);
+      expect(find.text(_ownDirectHintEn), findsOneWidget);
+    });
+
     testWidgets('a direct author forward names the author, not "you"', (
       tester,
     ) async {

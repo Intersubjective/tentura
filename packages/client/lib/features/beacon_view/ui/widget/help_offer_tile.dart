@@ -549,7 +549,9 @@ class _AdmissionFooter extends StatelessWidget {
       _ => null,
     };
 
-    if (isAuthorView) {
+    // A steward's own offer is their own card first (#496): the management
+    // footer would describe the author's forward to "them".
+    if (isAuthorView && !isMine) {
       return _AuthorAdmissionFooter(
         l10n: l10n,
         tt: tt,

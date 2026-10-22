@@ -1619,7 +1619,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           involvementWatchingIds: involvement.watchingIds,
           involvementOnwardForwarderIds: involvement.onwardForwarderIds,
           involvementRejectedIds: involvement.rejectedIds,
-          hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
+          // History, not live state: a cancelled forward still counts.
+          hasForwardedThisBeaconOnce: allEdges.any(
+            (e) => e.sender.id == myUserId,
+          ),
         ),
       );
     }
