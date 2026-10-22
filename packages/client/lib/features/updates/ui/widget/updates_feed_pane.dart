@@ -238,7 +238,10 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
                 );
               }
               if (!hasScrollBody) {
-                return _EmptyUpdates(view: state.view);
+                return _EmptyUpdates(
+                  view: state.view,
+                  searchText: state.searchText,
+                );
               }
               final chronologicalItems = state.items
                   .where((r) => !placement.liftedReceiptIds.contains(r.id))
@@ -468,15 +471,22 @@ String _tabIdForView(AttentionView view) => switch (view) {
 };
 
 class _EmptyUpdates extends StatelessWidget {
-  const _EmptyUpdates({required this.view});
+  const _EmptyUpdates({required this.view, this.searchText = ''});
 
   final AttentionView view;
+
+  /// #425 — a non-empty search that matched nothing gets a no-results
+  /// message, not the empty-inbox copy.
+  final String searchText;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final text = view == AttentionView.needsYou
+    final query = searchText.trim();
+    final text = query.isNotEmpty
+        ? l10n.updatesSearchNoResults(query)
+        : view == AttentionView.needsYou
         ? l10n.updatesEmptyNeedsYouHint
         : view == AttentionView.unread
         ? l10n.updatesEmptyUnreadHint
