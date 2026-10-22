@@ -137,6 +137,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // The recipient section header (#440) sits above the first row, so a
+      // tall keyboard leaves the note field below the lazily built range:
+      // scroll it in under the pinned headers, as a user would.
+      await tester.scrollUntilVisible(
+        find.byType(PerRecipientNoteInput),
+        100,
+        scrollable: find
+            .descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byType(PerRecipientNoteInput));
       await tester.pumpAndSettle();
 
