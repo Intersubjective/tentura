@@ -4208,6 +4208,19 @@
     "context": "BeaconViewScreen",
     "description": "Empty state when the viewer has no inbox forward provenance"
   },
+  "beaconForwardsRecipientsMoved": "{count, plural, one{{count} человек, которому вы переслали запрос, теперь в разделе «{section}»} few{{count} человека, которым вы переслали запрос, теперь в разделе «{section}»} many{{count} человек, которым вы переслали запрос, теперь в разделе «{section}»} other{{count} человека, которым вы переслали запрос, теперь в разделе «{section}»}}",
+  "@beaconForwardsRecipientsMoved": {
+    "context": "BeaconViewScreen",
+    "description": "People > Forwards: people the viewer forwarded to who now have a card in another People section (named by section), so they get no Forwards row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "section": {
+        "type": "String"
+      }
+    }
+  },
   "beaconForwardsCount": "{count} пересылок",
   "@beaconForwardsCount": {
     "context": "BeaconViewScreen",
