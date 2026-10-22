@@ -29,22 +29,29 @@ void main() {
       expect(cubit.state.sendFailedOffline, isTrue);
     });
 
-    test('a request timeout also marks the send as not sent offline', () async {
-      registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
-      final fakeRoom =
-          FakeBeaconThreadsRepository(userId: kRoomCubitFakeMyUserId)
-            ..createMessageError = TimeoutException(
-              'GraphQL request timed out',
-              const Duration(seconds: 1),
-            );
-      final cubit = roomCubitForTest(fakeRoom, effects: FakeUiEffectPort());
-      addTearDown(cubit.close);
-      await awaitRoomCubitLoad(cubit);
+    test(
+      'a request timeout is not reported as offline: the message may have '
+      'posted, so no Retry that could post it twice',
+      () async {
+        registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+        final fakeRoom =
+            FakeBeaconThreadsRepository(userId: kRoomCubitFakeMyUserId)
+              ..createMessageError = TimeoutException(
+                'GraphQL request timed out',
+                const Duration(seconds: 1),
+              );
+        final effects = FakeUiEffectPort();
+        final cubit = roomCubitForTest(fakeRoom, effects: effects);
+        addTearDown(cubit.close);
+        await awaitRoomCubitLoad(cubit);
 
-      expect(await cubit.sendMessage(body: 'see you at 6'), isFalse);
+        expect(await cubit.sendMessage(body: 'see you at 6'), isFalse);
 
-      expect(cubit.state.sendFailedOffline, isTrue);
-    });
+        expect(fakeRoom.createMessageCalls, 1);
+        expect(cubit.state.sendFailedOffline, isFalse);
+        expect(effects.emitted, isNotEmpty);
+      },
+    );
 
     test('a server refusal is not reported as offline', () async {
       registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
