@@ -27,6 +27,20 @@ abstract final class BeaconActivityEventTypeBits {
   /// A helper withdrew and left the room (B084); pairs with the
   /// `participantLeft` chat line via `source_message_id`.
   static const participantLeft = 25;
+
+  /// #528: the next step or the title changed. `diff` is
+  /// `{field, from, to}` ([RequestEditField]); pairs with the
+  /// `requestEdited` chat line via `source_message_id`.
+  static const requestEdited = 26;
+}
+
+/// [`beacon_activity_event.diff.field`] / `requestEdited` line payload
+/// `field` (#528): which Request text changed.
+abstract final class RequestEditField {
+  static const nextStep = 'nextStep';
+  static const title = 'title';
+
+  static const all = {nextStep, title};
 }
 
 /// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].
@@ -66,6 +80,7 @@ bool isCoordinationLogEventType(int type) {
     BeaconActivityEventTypeBits.planStepDone => true,
     BeaconActivityEventTypeBits.planCantMake => true,
     BeaconActivityEventTypeBits.planCopied => true,
+    BeaconActivityEventTypeBits.requestEdited => true,
     _ => false,
   };
 }

@@ -24,6 +24,13 @@ abstract class InboxRepositoryPort {
     bool touchForwardOrdering = true,
   });
 
+  /// The viewer's `inbox_item.status` for [beaconId] (any context), or null
+  /// when the Request never reached them.
+  Future<int?> findStatus({
+    required String userId,
+    required String beaconId,
+  });
+
   Future<void> setStatus({
     required String userId,
     required String beaconId,

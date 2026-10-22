@@ -77,6 +77,32 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.helpWithdrawn,
+          legacyKind: 'commitmentEvent',
+          recipient: author,
+          build: (intents) => intents.helpWithdrawn(
+            beaconId: beacon,
+            withdrawerUserId: actor,
+            sourceEventKey: eventKey,
+            withdrawReason: 'timing',
+            note: 'Saturday fell through',
+            leftDiscussion: true,
+            nextStep: 'actor: dolly',
+          ),
+        ),
+        (
+          eventType: AttentionEventType.forwardDeclined,
+          legacyKind: 'commitmentEvent',
+          recipient: author,
+          build: (intents) => intents.forwardDeclined(
+            beaconId: beacon,
+            declinerUserId: actor,
+            authorId: author,
+            sourceEventKey: eventKey,
+            note: 'Away that weekend',
+          ),
+        ),
+        (
           eventType: AttentionEventType.offerAccepted,
           legacyKind: 'roomAccess',
           recipient: target,

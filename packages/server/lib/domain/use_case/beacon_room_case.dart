@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
+import 'package:tentura_server/domain/port/request_change_log_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
@@ -90,6 +91,7 @@ class BeaconRoomCase extends UseCaseBase {
     TransactionalAttentionCase? attention,
     this._beaconPlan,
     this._lobby,
+    this._changeLog,
     required super.env,
     required super.logger,
   }) : _beaconRepository = beaconRepository,
@@ -100,6 +102,9 @@ class BeaconRoomCase extends UseCaseBase {
 
   final BeaconRepositoryPort? _beaconRepository;
   final BeaconCase? _beaconCase;
+
+  /// #528 — the next-step line in General; nullable for test construction.
+  final RequestChangeLogPort? _changeLog;
   final PostLockPort? _postLock;
 
   /// Request plan slices on the inbox batch (#220 §4.9); nullable for test
@@ -1077,10 +1082,21 @@ class BeaconRoomCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: userId,
       action: (transaction) async {
+        final previousLine =
+            (await _room.getBeaconRoomState(beaconId))?.currentLine ?? '';
         await _room.setBeaconRoomCurrentLine(
           beaconId: beaconId,
           text: trimmed,
           updatedBy: userId,
+        );
+        // #528: the room is told who set the next step, in the same unit of
+        // work; a run of one person's edits stays one line.
+        await _changeLog?.recordEdit(
+          beaconId: beaconId,
+          actorId: userId,
+          field: RequestEditField.nextStep,
+          from: previousLine.trim(),
+          to: trimmed,
         );
         final row = await _room.getBeaconRoomState(beaconId);
         final updatedAt = row!.updatedAt;

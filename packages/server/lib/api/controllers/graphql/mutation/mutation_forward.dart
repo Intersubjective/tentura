@@ -17,6 +17,7 @@ final class MutationForward extends GqlNodeBase {
   final _context = InputFieldString(fieldName: 'context');
   final _parentEdgeId = InputFieldString(fieldName: 'parentEdgeId');
   final _perRecipientNotes = InputFieldString(fieldName: 'perRecipientNotes');
+  final _message = InputFieldString(fieldName: 'message');
 
   static final _reasons = GraphQLFieldInput(
     'reasons',
@@ -34,7 +35,20 @@ final class MutationForward extends GqlNodeBase {
     forward,
     forwardCancel,
     forwardUpdate,
+    cantHelp,
   ];
+
+  /// #486 — «Can't help» on a forwarded Request; the author is told.
+  GraphQLObjectField<dynamic, dynamic> get cantHelp => GraphQLObjectField(
+    'beaconCantHelp',
+    graphQLBoolean.nonNullable(),
+    arguments: [InputFieldId.field, _message.fieldNullable],
+    resolve: (_, args) => _forwardCase.cantHelp(
+      beaconId: InputFieldId.fromArgsNonNullable(args),
+      userId: getCredentials(args).sub,
+      message: _message.fromArgs(args) ?? '',
+    ),
+  );
 
   GraphQLObjectField<dynamic, dynamic> get forwardCancel =>
       GraphQLObjectField(

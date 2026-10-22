@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/consts.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/next_step_mention.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
@@ -106,21 +107,106 @@ class AttentionIntentCase {
     targetEntityId: helpOffererId,
   );
 
+  /// #516 — the author (and stewards) hear that a helper withdrew: who, why
+  /// ([withdrawReason] key and the helper's [note]), whether they were in the
+  /// discussion ([leftDiscussion]) and whether the Request's next step
+  /// ([nextStep]) still names them, so a plan that relied on them can be
+  /// fixed. The note is the one the room line already shows; nothing here
+  /// is more private than that line.
   Future<AttentionDispatchIntent> helpWithdrawn({
     required String beaconId,
     required String withdrawerUserId,
     required String sourceEventKey,
-  }) => fromBeaconNotification(
-    notification: BeaconNotificationIntent(
-      kind: NotificationKind.commitmentEvent,
+    String withdrawReason = '',
+    String note = '',
+    bool leftDiscussion = false,
+    String nextStep = '',
+  }) async {
+    final intent = await fromBeaconNotification(
+      notification: BeaconNotificationIntent(
+        kind: NotificationKind.commitmentEvent,
+        priority: NotificationPriority.normal,
+        beaconId: beaconId,
+        actorUserId: withdrawerUserId,
+        promiseWithdrawn: true,
+        bodyExcerpt: notificationExcerpt(note),
+      ),
+      eventType: AttentionEventType.helpWithdrawn,
+      sourceEventKey: sourceEventKey,
+      targetEntityId: withdrawerUserId,
+    );
+    final withdrawer = await _users.getById(withdrawerUserId);
+    final mentioned = nextStepMentionsPerson(
+      nextStep,
+      displayName: withdrawer.displayName,
+      handle: withdrawer.handle,
+    );
+    return intent.copyWith(
+      recipients: [
+        for (final recipient in intent.recipients)
+          recipient.copyWith(
+            role: recipient.role.copyWith(
+              reasonKey: withdrawReason.isEmpty ? null : withdrawReason,
+              leftDiscussion: leftDiscussion,
+              nextStepMentionsActor: mentioned,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// #486 — a recipient answered a forwarded Request with «Can't help». Only
+  /// the author hears it, with the recipient's [note]: the reason is said to
+  /// the person who has to find someone else, never to the room or to other
+  /// helpers.
+  Future<AttentionDispatchIntent> forwardDeclined({
+    required String beaconId,
+    required String declinerUserId,
+    required String authorId,
+    required String sourceEventKey,
+    String note = '',
+  }) async {
+    final blocked =
+        authorId.isEmpty ||
+        authorId == declinerUserId ||
+        await _userBlocks.isBlockedPair(a: declinerUserId, b: authorId);
+    final decliner = await _users.getById(declinerUserId);
+    final name = decliner.displayName.trim();
+    final excerpt = notificationExcerpt(note);
+    final sentence = name.isEmpty ? "Can't help" : "$name can't help";
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.forwardDeclined,
+      sourceEventKey: sourceEventKey,
+      actorUserId: declinerUserId,
       priority: NotificationPriority.normal,
+      kind: NotificationKind.commitmentEvent,
+      title: name.isEmpty ? "Can't help" : name,
+      body: excerpt.isEmpty ? sentence : '$sentence: $excerpt',
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '?is_deep_link=true',
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+      recipients: [
+        if (!blocked)
+          AttentionRecipientSnapshot(
+            recipientId: authorId,
+            reasons: const {AttentionRecipientReason.authorOfBeacon},
+            role: AttentionRecipientRoleFacts(
+              canReadBeaconContent: await _accessGuard.canReadContent(
+                beaconId: beaconId,
+                viewerId: authorId,
+              ),
+              beaconId: beaconId,
+              targetEntityId: declinerUserId,
+              actorUserId: declinerUserId,
+              excerpt: excerpt,
+            ),
+          ),
+      ],
       beaconId: beaconId,
-      actorUserId: withdrawerUserId,
-      promiseWithdrawn: true,
-    ),
-    eventType: AttentionEventType.promiseWithdrawn,
-    sourceEventKey: sourceEventKey,
-  );
+      targetEntityId: declinerUserId,
+    );
+  }
 
   Future<AttentionDispatchIntent> offerAccepted({
     required String receiverId,

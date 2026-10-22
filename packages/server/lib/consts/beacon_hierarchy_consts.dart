@@ -37,7 +37,18 @@ abstract final class BeaconRoomSystemMessageKind {
   /// automatic change; payload `{version: 1, fromStatus, toStatus, reason}`
   /// (smallint statuses, `BeaconLifecycleChangeReason`).
   static const statusChanged = 7;
+
+  /// #528: someone changed the Request's next step or title. Author is the
+  /// actor; payload `{version: 1, field, from, to}` (`RequestEditField`).
+  /// A run of edits of one field by one person coalesces into one line
+  /// ([kRequestEditLineCoalesceWindow]).
+  static const requestEdited = 8;
 }
+
+/// #528: an edit joins the previous `requestEdited` line when that line is
+/// still the newest one in General, is the same person's edit of the same
+/// field, and is younger than this.
+const kRequestEditLineCoalesceWindow = Duration(minutes: 10);
 
 /// Opaque hierarchy list cursor version.
 const kBeaconHierarchyCursorVersion = 1;

@@ -116,6 +116,15 @@ class InboxRepository implements InboxRepositoryPort {
   }
 
   @override
+  Future<int?> findStatus({
+    required String userId,
+    required String beaconId,
+  }) => _database.managers.inboxItems
+      .filter((e) => e.userId.id(userId) & e.beaconId.id(beaconId))
+      .get(limit: 1)
+      .then((rows) => rows.isEmpty ? null : rows.first.status);
+
+  @override
   Future<void> setStatus({
     required String userId,
     required String beaconId,

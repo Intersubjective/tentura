@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/request_change_log_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/env.dart';
@@ -156,11 +157,30 @@ class _FakeImageObjectGc extends Fake implements ImageObjectGcPort {}
 
 class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
 
+class _RecordingChangeLog implements RequestChangeLogPort {
+  final edits = <Map<String, String>>[];
+
+  @override
+  Future<void> recordEdit({
+    required String beaconId,
+    required String actorId,
+    required String field,
+    required String from,
+    required String to,
+  }) async => edits.add({
+    'beaconId': beaconId,
+    'actorId': actorId,
+    'field': field,
+    'from': from,
+    'to': to,
+  });
+}
+
 void main() {
   late _StubBeaconRepo beaconRepo;
   late BeaconCase case_;
 
-  BeaconCase build(Env env) {
+  BeaconCase build(Env env, {RequestChangeLogPort? changeLog}) {
     final attention = TestAttentionHarness();
     return BeaconCase(
       beaconRepo,
@@ -174,6 +194,7 @@ void main() {
       buildLifecycleEffectsCase(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
+      changeLog: changeLog,
       env: env,
       logger: Logger('BeaconCreateRateLimitTest'),
     );
@@ -259,6 +280,32 @@ void main() {
     expect(beacon.addressLabel, 'Museumplein 6, Amsterdam');
     expect(beaconRepo.lastAddressLabel, 'Museumplein 6, Amsterdam');
     expect(beaconRepo.updateBeaconCalls, 1);
+  });
+
+  // #528: a renamed Request says so in its discussion.
+  test('update records a title change for the room', () async {
+    final changeLog = _RecordingChangeLog();
+    case_ = build(
+      Env(environment: Environment.test, beaconCreateMaxPerUser: 3),
+      changeLog: changeLog,
+    );
+
+    await case_.update(
+      userId: 'Uauth',
+      beaconId: 'B1',
+      title: 'Moving day, Saturday',
+      description: 'A description that is long enough.',
+    );
+
+    expect(changeLog.edits, [
+      {
+        'beaconId': 'B1',
+        'actorId': 'Uauth',
+        'field': 'title',
+        'from': 'Existing',
+        'to': 'Moving day, Saturday',
+      },
+    ]);
   });
 
   test('updateDraft passes the address label to persistence', () async {

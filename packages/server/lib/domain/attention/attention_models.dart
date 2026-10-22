@@ -70,6 +70,8 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.planStepUnassigned:
       case AttentionEventType.planEdited:
       case AttentionEventType.planStepDone:
+      case AttentionEventType.helpWithdrawn:
+      case AttentionEventType.forwardDeclined:
         return;
     }
   }
@@ -155,6 +157,19 @@ enum AttentionEventType {
   /// Ambient plan hum for the rest of the room (never pushed).
   planEdited,
   planStepDone,
+
+  /// Who-did-what (#516, `docs/features/request-change-events.md`): a helper
+  /// withdrew their offer or left the discussion. An optional update for the
+  /// author and stewards, carrying the reason key, the helper's note and
+  /// whether the next step names them. Replaces the legacy
+  /// [promiseWithdrawn] use for help offers; it is what explains the
+  /// author's superseded `helpOfferSubmitted` obligation (§5).
+  helpWithdrawn,
+
+  /// Who-did-what (#486): a recipient answered a forwarded Request with
+  /// «Can't help». An optional update for the author only; the recipient's
+  /// note rides on that receipt and nowhere public (never the room).
+  forwardDeclined,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -382,6 +397,13 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
 
     /// [BeaconStatus] name the Request moved to, on status-change events.
     String? toStatus,
+
+    /// Who-did-what facts (#516): the withdraw reason key, whether the helper
+    /// was in the discussion (left) or only offered (withdrew the offer),
+    /// and whether the next step named them when they left.
+    String? reasonKey,
+    bool? leftDiscussion,
+    bool? nextStepMentionsActor,
   }) = _AttentionRecipientRoleFacts;
 }
 
