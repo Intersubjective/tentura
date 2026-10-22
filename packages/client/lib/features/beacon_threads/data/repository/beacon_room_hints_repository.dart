@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/repository/fetch_by_id_batches.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
@@ -22,11 +23,9 @@ class BeaconRoomHintsRepository {
 
   Future<Map<String, InboxRoomCardHints>> fetchByBeaconIds(
     Iterable<String> beaconIds,
-  ) async {
-    final ids = beaconIds.toSet().toList();
-    if (ids.isEmpty) {
-      return {};
-    }
+  ) => fetchByIdBatches(beaconIds, _fetchBatch);
+
+  Future<Map<String, InboxRoomCardHints>> _fetchBatch(List<String> ids) async {
     final r = await _remoteApiService
         .request(
           GInboxRoomContextBatchReq((b) => b..vars.beaconIds.addAll(ids)),

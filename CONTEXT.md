@@ -230,6 +230,10 @@ _Avoid_: showing a receipt about an in-scope beacon on Activity; rendering recei
 **Needs you** / «Требует вас» (My desk section):
 Cards with at least one **live obligation** (`requires_action` and unsettled), shown first. The section count and the My desk nav badge count individual obligation **receipts**, not beacons.
 
+**Recent** (My desk sort, internal `MyWorkSort.recent`; "Newest first" / «Сначала новые»):
+Inside each section (after the Needs-you zone and the attention tiers), cards are ordered by the Request's **last activity for the viewer**, newest first: the later of when it entered the desk and the latest General message or system line, next-step edit, logged event (status change, plan, fact, admission, removal) and — for the author or a steward only — new help offer. Room members get the room-side part; everybody gets the public logged events. Reading never moves it, and nothing in **Questions** does (a Questions message has `thread_item_id`, and Questions writes no event). A **child request** whose parent is listed in the same section sits indented right under it; the family takes the place of its most active member (#487, #525).
+_Avoid_: ordering by `Beacon.updatedAt` or by attention receipts (a dot moves nothing); letting Questions activity reorder the desk.
+
 **For you** / «Для вас» (Activity section):
 The pinned zone at the top of Activity: every **unanswered forward** (Inbox `needsMe`, beacon not in scope) plus fresh pending invite prompts. An unanswered forward stays pinned regardless of age. Once acted on (offer help, forward, watch, dismiss), it drops to its **chronological place** (`effectiveActivityAt`) in the stream as a row showing the outcome. A request closed or deleted before the viewer answered is one such outcome, not a separate tombstone section.
 _Avoid_: «Предложения» / "Offers" as an Activity label — it collides with **help offer** («предложение помощи»); obligation wording such as «ждут вашего ответа» / "need your response" — reacting to an offer is optional.
