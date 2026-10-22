@@ -5,6 +5,7 @@ import 'package:sentry_drift/sentry_drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura/data/service/network_reachability.dart';
 import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
@@ -13,6 +14,7 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/port/attention_reconcile_port.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/port/network_reachability_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/like/domain/port/like_write_port.dart';
@@ -43,6 +45,11 @@ abstract class RegisterModule {
 
   @singleton
   RemoteApiClient remoteApiClient(RemoteApiService service) => service;
+
+  @singleton
+  NetworkReachabilityPort networkReachabilityPort(
+    NetworkReachability reachability,
+  ) => reachability;
 
   @singleton
   Logger get logger => Logger.root;

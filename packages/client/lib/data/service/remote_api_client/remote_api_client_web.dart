@@ -4,6 +4,7 @@ import 'package:ferry/ferry.dart'
     show Client, OperationRequest, OperationResponse;
 import 'package:rxdart/rxdart.dart';
 
+import '../network_reachability.dart';
 import 'auth_box.dart';
 import 'auth_loss_classifier.dart';
 import 'build_client.dart';
@@ -18,7 +19,11 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     required super.authJwtExpiresIn,
     required super.requestTimeout,
     required super.userAgent,
+    this.reachability,
   });
+
+  /// Told about transport failures and answers of every request (#513).
+  final NetworkReachability? reachability;
 
   Client? _gqlClient;
   final _clientDisposals = StreamController<void>.broadcast(sync: true);
@@ -45,6 +50,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
         requestTimeout: requestTimeout,
       ),
       getToken: () async => (await getAuthToken()).accessToken,
+      reachability: reachability,
     );
   }
 
@@ -64,6 +70,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
         requestTimeout: requestTimeout,
       ),
       getToken: () async => (await getAuthToken()).accessToken,
+      reachability: reachability,
     );
     return super.setAuth(
       seed: seed,

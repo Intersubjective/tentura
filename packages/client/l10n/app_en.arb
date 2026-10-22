@@ -2471,6 +2471,18 @@
   "@realtimeUpdatesPausedBanner": {
     "context": "RealtimeStatus"
   },
+  "connectivityOfflineBanner": "You're offline. Check your connection.",
+  "@connectivityOfflineBanner": {
+    "context": "RealtimeStatus: app-wide banner when the network is unreachable (#513)"
+  },
+  "beaconRoomSendFailedOffline": "Not sent — you're offline",
+  "@beaconRoomSendFailedOffline": {
+    "context": "Room composer: inline notice when a message failed to send because there is no connection; the text stays in the field (#513)"
+  },
+  "beaconRoomSendRetry": "Retry",
+  "@beaconRoomSendRetry": {
+    "context": "Room composer: button next to the not-sent notice that sends the kept text again (#513)"
+  },
   "routingMuteScreenTitle": "Tags others can give me",
   "@routingMuteScreenTitle": {
     "description": "Title for the routing-mute settings screen: private tags other people can give the user; each switch below controls whether third parties may see tags of that type."

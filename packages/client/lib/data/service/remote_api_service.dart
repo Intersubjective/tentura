@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
 
+import 'network_reachability.dart';
 import 'remote_api_client/auth_loss_classifier.dart';
 import 'remote_api_client/auth_remote_client.dart';
 import 'remote_api_client/exception.dart';
@@ -25,16 +26,27 @@ export 'package:tentura_root/domain/enums.dart' show WebSocketState;
 final class RemoteApiService extends RemoteApiClient
     with RemoteApiClientWs
     implements AuthRemoteClient {
-  RemoteApiService(Env env, this.realtimeSocketFactory)
-    : wsPingInterval = env.wsPingInterval,
-      wsEndpointUrl = kWsServerName + kPathWebSocketEndpoint,
-      super(
-        userAgent: kUserAgent,
-        apiEndpointUrl: kServerName + kPathGraphQLEndpoint,
-        apiEndpointUrlV2: kServerName + kPathGraphQLEndpointV2,
-        requestTimeout: const Duration(seconds: kRequestTimeout),
-        authJwtExpiresIn: const Duration(seconds: kAuthJwtExpiresIn),
-      );
+  RemoteApiService(
+    Env env,
+    this.realtimeSocketFactory, {
+    super.reachability,
+  }) : wsPingInterval = env.wsPingInterval,
+       wsEndpointUrl = kWsServerName + kPathWebSocketEndpoint,
+       super(
+         userAgent: kUserAgent,
+         apiEndpointUrl: kServerName + kPathGraphQLEndpoint,
+         apiEndpointUrlV2: kServerName + kPathGraphQLEndpointV2,
+         requestTimeout: const Duration(seconds: kRequestTimeout),
+         authJwtExpiresIn: const Duration(seconds: kAuthJwtExpiresIn),
+       );
+
+  /// The app's instance, reporting reachability to the offline banner (#513).
+  @factoryMethod
+  RemoteApiService.withReachability(
+    Env env,
+    RealtimeSocketFactory realtimeSocketFactory,
+    NetworkReachability reachability,
+  ) : this(env, realtimeSocketFactory, reachability: reachability);
 
   @override
   final String wsEndpointUrl;
