@@ -935,6 +935,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   void _onRoomInvalidation(BeaconRoomInvalidation inv) {
     if (isClosed || inv.beaconId != state.beacon.id) return;
+    // `beacon` updates already full-refresh through beaconChanges (#509).
+    if (inv.entityType == BeaconRoomEntityType.roomState) return;
     // Room kinds with request_detail impact must also converge the beacon
     // lifecycle and its derived header context, not just the room slices.
     if (inv.entityType == BeaconRoomEntityType.coordinationItem ||

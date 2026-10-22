@@ -50,7 +50,7 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'room_state.dart';
 
-enum _RoomRefreshScope { messages, facts, full }
+enum _RoomRefreshScope { messages, facts, roomState, full }
 
 /// Observations that arrived after the active refresh began (and delete
 /// tombstones for that same refresh). Discarded when the refresh ends.
@@ -253,6 +253,7 @@ class RoomCubit extends Cubit<RoomState> {
       BeaconRoomEntityType.roomPoll ||
       BeaconRoomEntityType.roomBaton => _RoomRefreshScope.messages,
       BeaconRoomEntityType.factCard => _RoomRefreshScope.facts,
+      BeaconRoomEntityType.roomState => _RoomRefreshScope.roomState,
       _ => _RoomRefreshScope.full,
     };
     unawaited(_requestRefresh(scope: scope));
@@ -348,6 +349,8 @@ class RoomCubit extends Cubit<RoomState> {
           await _fetchMessagesSnapshot(silent: silent, overlay: overlay);
         case _RoomRefreshScope.facts:
           await _fetchFactCardsSnapshot(silent: silent);
+        case _RoomRefreshScope.roomState:
+          await _fetchRoomStateSnapshot();
       }
     } finally {
       if (identical(_activeMessageRefreshOverlay, overlay)) {
@@ -373,6 +376,19 @@ class RoomCubit extends Cubit<RoomState> {
       if (!isClosed) emit(state.copyWith(factCards: factCards));
     } on Object catch (e) {
       if (!isClosed && !silent) _showSnackError(e);
+    }
+  }
+
+  /// Room-state-only refresh (a `beacon` update: the NOW line moved, #509).
+  /// A failure keeps the shown line and stays quiet; the next push or
+  /// catch-up converges it.
+  Future<void> _fetchRoomStateSnapshot() async {
+    if (state.threadItemId != null || !capabilities.plan) return;
+    try {
+      final roomState = await _case.fetchBeaconRoomState(state.beaconId);
+      if (!isClosed) emit(state.copyWith(roomState: roomState));
+    } on Object catch (_) {
+      // Keep the shown NOW line.
     }
   }
 

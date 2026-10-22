@@ -18,6 +18,10 @@ enum BeaconRoomEntityType {
   roomSeen,
   roomSeenPeer,
   helpOffer,
+
+  /// The request row itself changed (`beacon` entity: next step / NOW line,
+  /// lifecycle). Room screens refetch their room state only (#509).
+  roomState,
 }
 
 /// One debounced invalidation for the current user's beacon room slice.
@@ -61,6 +65,7 @@ final class BeaconRoomInvalidation {
       RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,
       RealtimeEntityKind.roomSeenPeer => BeaconRoomEntityType.roomSeenPeer,
       RealtimeEntityKind.helpOffer => BeaconRoomEntityType.helpOffer,
+      RealtimeEntityKind.beacon => BeaconRoomEntityType.roomState,
       _ => null,
     };
     return entityType == null
