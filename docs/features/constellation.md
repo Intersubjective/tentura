@@ -6,7 +6,7 @@ User-facing behavior of **Constellation**: an ego-centred map (and accessible te
 
 Constellation answers: *"What is happening among my trusted connections, and how can I help?"* without requiring someone to forward a request to me first.
 
-It is **not** a feed, ranking surface, or recommendation engine. It is a **snapshot map** of current opportunities, refreshed when opened.
+It is **not** a feed, ranking surface, or recommendation engine. It is an interactive map of current opportunities, loaded when opened and refreshed lazily while visible.
 
 | Surface | Meaning | Push/pull |
 |---------|---------|-----------|
@@ -85,6 +85,10 @@ Tier-2 edges are visually distinct and carry **no label** about what evidence pr
 - **Snapshot bar:** load timestamp, Map/Text switch, refresh control.
 - **Camera recovery:** "Show whole field" fits every currently placed node into view (never above scale 1.0); "Center view" recentres on the viewer at scale 1.0. Neither moves pins, filters, selection, or expansion state. Opening the Field, changing filters, expanding/collapsing an author, and switching Map/Text never move the camera on their own.
 - **Pin controls:** dropping an unpinned person or request pins it immediately at the drop coordinate. Moving an already pinned target saves its final position on drop; unpin removes only that account's placement and re-layouts that node into the automatic layer.
+- **Continuous interaction:** dragging, panning, selecting, and opening previews remain available while placement writes and field refreshes run. An active drag keeps its grabbed geometry until release; arriving data is reconciled without taking over the gesture.
+- **Re-arrange:** re-lays out free nodes while preserving user-placed pins. It appears after the viewer has moved something in the field.
+- **Placement recovery:** a dropped placement appears immediately and is sent in the background. A failed write leaves the node where it was dropped with a **not saved** marker and **Retry** / **Discard my move** actions. Transport retries reuse the operation identity; refresh does not erase local intent. Discarding a write with an unknown outcome reconciles that outcome before restoring the prior placement, without overwriting a newer placement from another session.
+- **Slow acknowledgement:** after 15 seconds without acknowledgement, a non-blocking notice explains that the displayed change is still unconfirmed and retries continue. The map remains interactive. Acknowledgement confirms the write without waiting for a fresh field read.
 - Actions revalidate current permissions and request state before offer/forward submission (UX8); stale snapshot shows recovery copy and refresh.
 
 ### Pinned placement and request state
@@ -126,8 +130,8 @@ Keyboard and screen-reader users can complete the same filter, selection, previe
 
 ## Freshness (D15, UX8)
 
-- Field loads **once on open**; no realtime invalidation for discovery-only viewers.
-- Private anchor changes are the narrow exception: a pin, move, unpin, or target cascade refreshes the viewer's anchor projection so their own open Constellation sessions converge. It carries no newly authorized request or person data.
+- Field loads on open. Discovery and trust-change hints mark it for a lazy refresh on a five-minute cadence while visible; bursts are coalesced. Relevant request, forwarding, participation and discussion hints can refresh sooner. Hidden screens do not fetch in response to hints. Reconnect catch-up reconciles the account’s state.
+- Private anchor changes refresh the viewer's anchor projection so their own open Constellation sessions converge. Acknowledged local writes suppress already-covered echoes; pending local placement survives refresh. Anchor notifications carry no newly authorized request or person data.
 - Snapshot timestamp is shown; user may refresh manually.
 - Before offer/forward, client preflights involvement and server validates `expectedOfferKind` inside the mutation transaction.
 - Coverage changes after snapshot (e.g. enoughHelp) prompt backup choice — never silent conversion.
@@ -178,3 +182,6 @@ Shipped behavior deliberately excludes or narrows the following. Do not "fix" th
 - Architecture: [`../plans/constellation-edge-semantics.md`](../plans/constellation-edge-semantics.md)
 - Implementation evidence: [`../plans/constellation-implementation-journal.md`](../plans/constellation-implementation-journal.md)
 - Visibility matrix: [`../beacon-visibility-matrix.md`](../beacon-visibility-matrix.md)
+
+- Interactive architecture (#235): [`../plans/issue-235-constellation-interactive-architecture.md`](../plans/issue-235-constellation-interactive-architecture.md)
+- Interactive acceptance evidence and remaining device checks: [`../plans/issue-235-constellation-interactive-journal.md`](../plans/issue-235-constellation-interactive-journal.md)

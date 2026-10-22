@@ -2192,3 +2192,47 @@ Both runs reported what was requested (`renderer=skwasm crossOriginIsolated=true
 No task > 50 ms in any phase, any N, before or after. Grab → first moved frame (mouse/touch) at N = 300: 34.4/46.7 before, 35.7/45.1 and 34.5/52.8 after. Drop → settled fw Frame max at N = 600 varies run to run (22.7 before; 31.4 and 16.0 after; the reflow does not read the viewport size).
 
 **Checks.** Client `test/features/constellation/` + `test/features/graph/`: 1287 pass, 1 skipped. `force_directed_graphview`: 214 pass. Custom lints 23 (baseline 23); analyzer baseline 1945 ≤ 2040. Web e2e `constellation_protocol_release_test`, `constellation_pinning_test`, `constellation_interactive_flows_test`: pass. Client 7.42.12.
+
+
+## UNIT U40 — complete (part 3/3: full suites, lints and docs) — 2026-10-22 (tentura-s7gl.72)
+
+**Changes.** Updated `docs/features/constellation.md` for continuous interaction,
+Re-arrange, speculative placement, Retry / Discard, acknowledgement timeout,
+lazy field refresh, account-owned anchor convergence and architecture/evidence
+links. Marked the architecture implemented for this unit's rev 9 scope, while
+keeping rev 10 §5.10's unimplemented directional-block / placeholder amendment
+explicit. No application code, generated files, versions or lint baselines changed.
+
+**Verification (operator, host, 2026-10-22, docs-only tree on top of `100d2232f`).** All wrapped, serial, from the repo root:
+- custom lints client + server: OK; analyzer baselines client + server: OK;
+- root package `dart test`: 36 pass; `packages/force_directed_graphview` `flutter test`: 214 pass;
+- client `flutter test` (full): 6906 pass, 2 skipped;
+- server `--exclude-tags pg`: 2943; `TENTURA_TEST_PG_POOL_SIZE=1 --tags pg --exclude-tags mr,multi-connection`: 2141 (2 skipped); `--tags multi-connection --exclude-tags mr -j 1`: 96; `--tags mr --exclude-tags load -j 1`: 706 — all pass.
+- The D8 load suite (`--tags load`) is deliberately not part of this gate (run on its own only; U40 part 1 holds its numbers). Web e2e for the five flows last passed on `1bafcd5bc` (dart2js and wasm modes); only docs changed since.
+
+**Prior acceptance evidence.** U40 part 1 records the U41/D8 rerun and the
+owner-accepted performance gaps in #553. U40 part 2 and s7gl.99 record production
+skwasm profile results and browser e2e; the real-device checklist remains pending.
+Those measurements are historical evidence, not checks rerun by part 3.
+
+**Scope discrepancy.** Rev 10 §5.10 calls for directional blocks and inaccessible
+pin placeholders. The current `ConstellationAnchorProjectionReader` filters
+person anchors using blocks in both directions and request anchors using readable
+ids (`packages/server/lib/data/repository/constellation_anchor_projection_reader.dart`,
+`readPrepared`, lines 130–140; `_blockedPeerIds`, lines 338–345). This unit requests
+rev 9 acceptance; it does not implement the later amendment or claim it complete.
+
+**Draft #235 summary — do not post or close without owner approval.**
+
+> Constellation's always-interactive implementation is in place: placement writes
+> acknowledge without a field read, local intent survives refresh, failed moves
+> expose Retry / Discard, Re-arrange preserves pins, and scene/layout work keeps
+> gestures available during background updates. Product documentation and the
+> architecture status now link to the execution journal. U40 parts 1–2 contain
+> server performance and production-renderer browser/profile evidence; accepted
+> server performance gaps remain in #553. U40 part 3 full suites and lints pass
+> (client 6906, server 2943 + 2141 + 96 + 706). The rev 10 §5.10 amendment and
+> the part 2 real-device checklist remain explicit follow-ups.
+
+**Owner gate.** Check results are recorded above; the owner approves the final
+summary and closure of #235. No GitHub comment or closure was performed.
