@@ -62,7 +62,6 @@ class _Beacons extends Fake implements BeaconRepositoryPort {
     author: const UserEntity(id: _author),
     createdAt: DateTime.utc(2026),
     updatedAt: DateTime.utc(2026),
-    status: BeaconStatus.open,
   );
 
   @override
