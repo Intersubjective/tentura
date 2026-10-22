@@ -604,6 +604,94 @@ WHERE user_id = @u AND beacon_id = @b
       });
     });
 
+    // #507 / #601: an offer can be accepted by a steward, not only by the
+    // author, and the row read "<author> accepted your offer" either way.
+    // Contract: the accepted forward row names the acceptor in its payload
+    // as `actorUserId` (already on the GraphQL allow-list) — the actor of
+    // the helper's latest `acknowledged` commitment event (kind 1), which
+    // AdmissionOperation records with the confirming author or steward.
+    group('#507: the accepted row names who accepted', () {
+      Future<void> seedAccepted({required String? acceptorId}) async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-04T09:00:00Z',
+        );
+        await _insertRoleHelpOffer(
+          writer,
+          beaconId: _foreignBeaconId,
+          roleLabel: 'Driver',
+        );
+        await _admitViewer(writer, beaconId: _foreignBeaconId);
+        if (acceptorId != null) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+ON CONFLICT (id) DO NOTHING
+'''),
+            parameters: {'id': acceptorId, 'key': '$acceptorId-key'},
+          );
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_commitment_event (
+  id, beacon_id, user_id, actor_user_id, kind, created_at
+) VALUES (@id, @b, @u, @actor, 1, now())
+'''),
+            parameters: {
+              'id': 'E507ack$acceptorId',
+              'b': _foreignBeaconId,
+              'u': _viewerId,
+              'actor': acceptorId,
+            },
+          );
+        }
+        // Precondition: the raw acknowledgement, so the assertions below are
+        // the projection's decision and not a fixture gap.
+        final acks = await writer.execute(
+          Sql.named('''
+SELECT actor_user_id FROM public.beacon_commitment_event
+WHERE beacon_id = @b AND user_id = @u AND kind = 1
+'''),
+          parameters: {'u': _viewerId, 'b': _foreignBeaconId},
+        );
+        expect(
+          acks.map((row) => row[0]).toList(),
+          acceptorId == null ? isEmpty : [acceptorId],
+        );
+      }
+
+      test('a steward accept names the steward, not the author', () async {
+        await seedAccepted(acceptorId: _stewardId);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'helping');
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(forward.presentationPayload['actorUserId'], _stewardId);
+      });
+
+      test('an author accept names the author', () async {
+        await seedAccepted(acceptorId: _authorId);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(forward.presentationPayload['actorUserId'], _authorId);
+      });
+
+      test('no acknowledgement on record: no actorUserId', () async {
+        await seedAccepted(acceptorId: null);
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(
+          forward.presentationPayload.containsKey('actorUserId'),
+          isFalse,
+          reason: 'an unknown acceptor falls back to the author on the client',
+        );
+      });
+    });
+
     test('tombstone_dismissed_at hides the forward row', () async {
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
       await _upsertInbox(
@@ -1417,6 +1505,8 @@ Future<AttentionReceipt> _singleActivityItem(AttentionRepository query) async {
 
 const _viewerId = 'Uactstream01';
 const _authorId = 'Uactstream02';
+// #507: a steward who accepts an offer on the author's behalf.
+const _stewardId = 'Uactstream03';
 const _ownedBeaconId = 'Bactstreamown';
 const _foreignBeaconId = 'Bactstreamfor';
 const _foreignBeacon2Id = 'Bactstreamfo2';

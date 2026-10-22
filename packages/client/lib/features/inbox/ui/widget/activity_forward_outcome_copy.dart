@@ -11,12 +11,14 @@ String? activityForwardOutcomeLabel(
   AttentionForwardOutcome? outcome, {
   String presentationPayloadJson = '',
   String? authorName,
+  String? authorId,
 }) {
   return switch (outcome) {
     AttentionForwardOutcome.helping => _helpingLabel(
       l10n,
       presentationPayloadJson,
       authorName,
+      authorId,
     ),
     AttentionForwardOutcome.watching => l10n.activityForwardOutcomeWatching,
     AttentionForwardOutcome.notInterested =>
@@ -33,6 +35,7 @@ String _helpingLabel(
   L10n l10n,
   String presentationPayloadJson,
   String? authorName,
+  String? authorId,
 ) {
   final payload = _decodePayload(presentationPayloadJson);
   final stage = _string(payload, 'helperStage');
@@ -40,7 +43,12 @@ String _helpingLabel(
     case 'wrappingUp':
       return l10n.activityForwardOutcomeWrappingUp;
     case 'accepted':
-      final name = authorName?.trim() ?? '';
+      // #507: a steward may accept; then the author is not the one to
+      // credit, and the sentence names no one.
+      final actorId = _string(payload, 'actorUserId') ?? '';
+      final acceptedBySomeoneElse =
+          actorId.isNotEmpty && actorId != (authorId?.trim() ?? '');
+      final name = acceptedBySomeoneElse ? '' : authorName?.trim() ?? '';
       final role = _string(payload, 'roleLabel') ?? '';
       if (name.isEmpty) {
         return role.isEmpty

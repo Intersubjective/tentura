@@ -501,6 +501,10 @@ page_stream AS (
       'helperStage', hs.helper_stage,
       'roleLabel', CASE
         WHEN hs.helper_stage IS NOT NULL THEN NULLIF(btrim(hs.role_label), '')
+      END,
+      -- #507: who accepted the offer (the author or a steward).
+      'actorUserId', CASE
+        WHEN hs.helper_stage = 'accepted' THEN hs.acceptor_id
       END
     )) AS presentation_payload,
     NULL::text AS in_app_preference_class,
@@ -552,7 +556,17 @@ page_stream AS (
         WHEN ef.beacon_status = 5 THEN 'wrappingUp'
         WHEN ef.beacon_status NOT IN (1, 6) THEN 'accepted'
       END AS helper_stage,
-      ho.role_label
+      ho.role_label,
+      -- #507: the actor of the helper's latest acknowledgement (kind 1).
+      (
+        SELECT ce.actor_user_id
+        FROM public.beacon_commitment_event ce
+        WHERE ce.beacon_id = ef.beacon_id
+          AND ce.user_id = \$1
+          AND ce.kind = 1
+        ORDER BY ce.seq DESC
+        LIMIT 1
+      ) AS acceptor_id
     FROM public.beacon_help_offer ho
     WHERE ho.beacon_id = ef.beacon_id
       AND ho.user_id = \$1
