@@ -69,6 +69,8 @@ Owner answers (2026-10-22):
   forwarded to them) are **not** in the Questions audience.
 - **Q4** Recipients who answered "Can't help" and helpers who withdrew keep **read-only** access.
 - **Q5** One-way trust → contact node without content.
+- **Q7** (after lane 4) A helper who **withdrew** their offer is **read-only** in Questions even if the
+  Request was forwarded to them; offering again restores writing. Confirmed as implemented.
 - **Q6** Direct contacts are **not capped**: they are exempt from both the server candidate cap
   (200) and the client peer budget (120); caps apply to indirect peers only. Perf impact must be
   measured on a perf fixture with many direct contacts and reported (no tuning in this sprint).
