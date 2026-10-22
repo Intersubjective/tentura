@@ -99,6 +99,43 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
   }
 
   @override
+  Future<QuestionsStandingFacts> standingFacts({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final row = await _db
+        .customSelect(
+          'SELECT b.status IN (1, 2, 6) AS closed, '
+          'EXISTS (SELECT 1 FROM public.beacon_lobby_ban ban '
+          r'WHERE ban.beacon_id = b.id AND ban.user_id = $2) AS banned, '
+          'EXISTS (SELECT 1 FROM public.beacon_forward_edge fe '
+          r'WHERE fe.beacon_id = b.id AND fe.recipient_id = $2 '
+          'AND fe.cancelled_at IS NULL AND fe.recipient_rejected) '
+          'AS cant_help, '
+          'COALESCE(ho.status <> 0, false) AS past_offer, '
+          'COALESCE(ho.status <> 0 AND ho.withdraw_reason IS NOT NULL, false) '
+          'AS withdrew '
+          'FROM public.beacon b '
+          'LEFT JOIN public.beacon_help_offer ho '
+          r'ON ho.beacon_id = b.id AND ho.user_id = $2 '
+          r'WHERE b.id = $1 AND b.kind = 0',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(userId),
+          ],
+        )
+        .getSingleOrNull();
+    if (row == null) return const QuestionsStandingFacts();
+    return QuestionsStandingFacts(
+      closed: row.read<bool>('closed'),
+      banned: row.read<bool>('banned'),
+      answeredCantHelp: row.read<bool>('cant_help'),
+      pastOffer: row.read<bool>('past_offer'),
+      offerWithdrawnByHelper: row.read<bool>('withdrew'),
+    );
+  }
+
+  @override
   Future<List<QuestionsAudienceMember>> audience(String beaconId) async {
     final rows = await _db
         .customSelect(

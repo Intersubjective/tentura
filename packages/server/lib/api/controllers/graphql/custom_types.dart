@@ -233,12 +233,19 @@ final gqlTypeBeaconLobby = GraphQLObjectType('BeaconLobby', null)
     field('beaconId', graphQLString.nonNullable()),
     field('lobbyId', graphQLString.nonNullable()),
     field('isAuthor', graphQLBoolean.nonNullable()),
+    // The Request author, so the author's answers are marked (#657).
+    field('authorId', graphQLString.nonNullable()),
     field('canPost', graphQLBoolean.nonNullable()),
+    // Why the caller reads only (`QuestionsLimitReason.wire`), or null.
+    field('readOnlyReason', graphQLString),
     // Never `.nonNullable()` on a list type (project GraphQL rule).
     field('bannedUserIds', GraphQLListType(graphQLString.nonNullable())),
     // Author only: the removed people with their names, so the screen never
     // depends on route arguments for them.
-    field('banned', GraphQLListType(gqlTypeBeaconLobbyBannedUser.nonNullable())),
+    field(
+      'banned',
+      GraphQLListType(gqlTypeBeaconLobbyBannedUser.nonNullable()),
+    ),
   ]);
 
 final gqlTypeBeaconLobbyBannedUser =
@@ -256,6 +263,10 @@ final gqlTypeBeaconLobbyAccess = GraphQLObjectType('BeaconLobbyAccess', null)
     field('canRead', graphQLBoolean.nonNullable()),
     field('canPost', graphQLBoolean.nonNullable()),
     field('messageCount', graphQLInt.nonNullable()),
+    // Why the caller reads only or cannot open Questions
+    // (`QuestionsLimitReason.wire`: closed, cant_help, withdrew, declined,
+    // removed), or null. Only ever about the caller.
+    field('readOnlyReason', graphQLString),
   ]);
 
 final gqlTypeAttentionReconcileResult =

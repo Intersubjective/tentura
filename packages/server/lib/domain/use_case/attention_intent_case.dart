@@ -362,7 +362,11 @@ class AttentionIntentCase {
     threadItemId: threadItemId,
     questionsScope: questionsScope,
     kind: NotificationKind.roomActivityLowPriority,
-    emptyTitle: 'New thread message',
+    // "thread" is an internal word: a Questions message says Questions
+    // (#656); General keeps its existing copy.
+    emptyTitle: questionsScope
+        ? 'New message in Questions'
+        : 'New thread message',
     emptyBody: questionsScope
         ? 'New message in Questions'
         : 'New thread message',

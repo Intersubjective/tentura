@@ -265,15 +265,24 @@ class BeaconRoomCase extends UseCaseBase {
     final banned = isAuthor
         ? await lobby.bannedUsers(beaconId)
         : const <QuestionsBannedUser>[];
+    final lifecycleBlocks = await _lifecycleBlocksOrdinaryWrites(beaconId);
     return {
       'beaconId': beaconId,
       'lobbyId': lobbyId,
       'isAuthor': isAuthor,
+      // The Request author, so every reader can tell the author's answers
+      // from the questions (#657). Not secret: the Request names its author.
+      'authorId': authorId,
       // Read-only standing, or a closed / cancelled Request (the policy
       // already folds the lifecycle in; the lifecycle check stays as the
       // same rule the post path enforces).
-      'canPost':
-          access.canWrite && !await _lifecycleBlocksOrdinaryWrites(beaconId),
+      'canPost': access.canWrite && !lifecycleBlocks,
+      'readOnlyReason': await _questionsLimitReason(
+        beaconId: beaconId,
+        userId: userId,
+        access: access,
+        lifecycleBlocks: lifecycleBlocks,
+      ),
       'bannedUserIds': [for (final b in banned) b.userId],
       'banned': [
         for (final b in banned) {'userId': b.userId, 'title': b.displayName},
@@ -300,13 +309,41 @@ class BeaconRoomCase extends UseCaseBase {
         );
       }
     }
+    final lifecycleBlocks = await _lifecycleBlocksOrdinaryWrites(beaconId);
     return {
       'beaconId': beaconId,
       'canRead': access.canRead,
-      'canPost':
-          access.canWrite && !await _lifecycleBlocksOrdinaryWrites(beaconId),
+      'canPost': access.canWrite && !lifecycleBlocks,
       'messageCount': messageCount,
+      'readOnlyReason': await _questionsLimitReason(
+        beaconId: beaconId,
+        userId: userId,
+        access: access,
+        lifecycleBlocks: lifecycleBlocks,
+      ),
     };
+  }
+
+  /// Request Questions — why [userId] reads only, or cannot open it (#657):
+  /// their own "Can't help", a withdrawn or declined offer, a closed Request,
+  /// or the author's removal. Null when they write or no reason applies.
+  /// Only ever about the caller themselves.
+  Future<String?> _questionsLimitReason({
+    required String beaconId,
+    required String userId,
+    required QuestionsAccess access,
+    required bool lifecycleBlocks,
+  }) async {
+    final lobby = _lobby;
+    if (lobby == null) return null;
+    if (access.canWrite && !lifecycleBlocks) return null;
+    final facts = await lobby.standingFacts(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    return facts
+        .reasonFor(access, lifecycleBlocksWrites: lifecycleBlocks)
+        ?.wire;
   }
 
   /// Request Questions — the author removes [bannedUserId]: they can no
@@ -713,7 +750,10 @@ class BeaconRoomCase extends UseCaseBase {
       if (inThread &&
           repliedAuthor != null &&
           repliedAuthor != userId &&
-          await _userBlockRepository.isBlockedPair(a: userId, b: repliedAuthor)) {
+          await _userBlockRepository.isBlockedPair(
+            a: userId,
+            b: repliedAuthor,
+          )) {
         throw const IdWrongException(
           description:
               'Reply must reference a message in the same thread scope',

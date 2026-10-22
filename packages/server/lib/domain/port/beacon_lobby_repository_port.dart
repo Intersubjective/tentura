@@ -24,6 +24,14 @@ abstract class BeaconLobbyRepositoryPort {
     required Iterable<String> userIds,
   });
 
+  /// What [userId]'s own standing on [beaconId] looks like, to name the
+  /// reason behind a read-only or no-access level (#657). Never grants
+  /// access.
+  Future<QuestionsStandingFacts> standingFacts({
+    required String beaconId,
+    required String userId,
+  });
+
   /// Everyone who may read [beaconId]'s Questions, with names for mentions.
   Future<List<QuestionsAudienceMember>> audience(String beaconId);
 
