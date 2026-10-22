@@ -41,6 +41,7 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     required this.eventsPreview,
     this.onClearEvent,
     this.onEventTap,
+    this.canTapEvent,
     this.onOpenTimeline,
     this.actors = const {},
     this.beaconId,
@@ -73,6 +74,11 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   final ValueChanged<String>? onClearEvent;
 
   final ValueChanged<AttentionReceipt>? onEventTap;
+
+  /// Which rows [onEventTap] applies to; all of them when null. A row it
+  /// does not apply to is not tappable at all (no ripple that leads
+  /// nowhere).
+  final bool Function(AttentionReceipt receipt)? canTapEvent;
 
   /// Opens the Request's Timeline. Under the `timeline` policy this is what
   /// «ещё N» does (D-171-5b).
@@ -245,7 +251,9 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
       trailing: widget.trailingBuilder?.call(receipt),
       requestTitle: widget.requestTitle,
       nameOnly: widget.nameOnlyOf?.call(receipt) ?? false,
-      onTap: widget.onEventTap == null
+      onTap:
+          widget.onEventTap == null ||
+              !(widget.canTapEvent?.call(receipt) ?? true)
           ? null
           : () => widget.onEventTap!(receipt),
       onDismiss: widget.onClearEvent == null || !widget.canDismiss(receipt)

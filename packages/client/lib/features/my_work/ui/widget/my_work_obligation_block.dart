@@ -49,6 +49,7 @@ class MyWorkObligationBlock extends StatelessWidget {
     this.onOpenTimeline,
     this.onReviewHelpOffers,
     this.onRespondHelpOffer,
+    this.onOpenQuestions,
     this.suppressReviewHelpOffersFallback = false,
     this.planRows,
     super.key,
@@ -74,6 +75,10 @@ class MyWorkObligationBlock extends StatelessWidget {
 
   /// Opens the People help-offer sheet for [offererId].
   final void Function(String offererId)? onRespondHelpOffer;
+
+  /// Opens the Request's Questions: what a Questions message row does when
+  /// tapped (#656). Other rows stay as they were.
+  final VoidCallback? onOpenQuestions;
 
   /// When true, do not show the aggregate Review-offers tonal CTA (footer
   /// already provides that destination).
@@ -161,6 +166,10 @@ class MyWorkObligationBlock extends StatelessWidget {
             canDismiss: attentionRowIsDismissible,
             onClearEvent: onClearEvent,
             onOpenTimeline: onOpenTimeline,
+            onEventTap: onOpenQuestions == null
+                ? null
+                : (_) => onOpenQuestions!(),
+            canTapEvent: isQuestionsAttentionReceipt,
             quotedBodyOf: (receipt) => _quotedBody(l10n, receipt),
             // The header names the event; each offer row is the person, the
             // age and «Ответить» on one line.

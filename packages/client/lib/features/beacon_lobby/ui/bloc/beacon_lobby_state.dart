@@ -26,6 +26,9 @@ abstract class BeaconLobbyState extends StateBase with _$BeaconLobbyState {
     /// The server said this viewer may not use Questions.
     @Default(false) bool unavailable,
 
+    /// Why, when the server can say (the author removed the viewer).
+    BeaconLobbyLimitReason? unavailableReason,
+
     /// The first load failed for another reason (offline, server error):
     /// the screen offers a retry, not the access message.
     Object? loadError,
@@ -36,6 +39,11 @@ abstract class BeaconLobbyState extends StateBase with _$BeaconLobbyState {
   bool get isAuthor => info?.isAuthor ?? false;
 
   bool get canPost => info?.canPost ?? false;
+
+  /// The Request author (their answers are marked); '' until opened.
+  String get authorId => info?.authorId ?? '';
+
+  BeaconLobbyLimitReason? get readOnlyReason => info?.readOnlyReason;
 
   List<BeaconLobbyBannedPerson> get banned => info?.banned ?? const [];
 

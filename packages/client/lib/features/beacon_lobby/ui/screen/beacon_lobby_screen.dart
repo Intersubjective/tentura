@@ -51,8 +51,11 @@ class BeaconLobbyScreen extends StatelessWidget implements AutoRouteWrapper {
       title: Text(L10n.of(context)!.beaconLobbyTitle),
     ),
     body: SafeArea(
-      child: BeaconLobbyBody(
-        myUserId: context.read<ProfileCubit>().state.profile.id,
+      // The same centred content column as the top bar (#658).
+      child: TenturaContentColumn(
+        child: BeaconLobbyBody(
+          myUserId: context.read<ProfileCubit>().state.profile.id,
+        ),
       ),
     ),
   );

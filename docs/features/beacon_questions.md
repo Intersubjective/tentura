@@ -96,8 +96,32 @@ mention candidates and realtime hints.
 
 ## Client
 
-- Request Overview: a **Questions** row, shown only when `BeaconLobbyAccess`
-  says the viewer may read; it shows the number of messages they can see.
+- The way in, shown only when `BeaconLobbyAccess` says the viewer may read
+  (with the number of messages they can see):
+  - people not inside the Request yet (the showcase page: recipients before
+    offering help, "Can't help", withdrawn) get a **Questions card** under
+    the description and facts, at every width (#526 — asking before offering
+    is the point);
+  - insiders (author, admitted helpers) get the **Questions row** on Overview.
+  Discovery-only readers never see either (the probe says no). The probe is
+  re-read on message / offer / forward / participant / Request / inbox
+  hints, whenever the Request page's own view of the viewer's standing
+  changes (created, offered, admitted, "Can't help", status), and up to three
+  times with backoff after a failed read (#655).
+- Copy follows the reader (#657): the author is told who can ask them and
+  answers ("Write an answer"); everyone else is asked to "Ask the author".
+  The author's messages carry an **Author** mark (`BeaconLobby.authorId`).
+  A read-only reader is told their own reason from
+  `readOnlyReason` (`closed`, `cant_help`, `withdrew`, `declined`); someone
+  the author removed is told so (`removed`, from the probe). The reason is
+  computed on the server from the caller's own standing only
+  (`QuestionsStandingFacts`), never someone else's.
+- Notifications (#656): a Questions message receipt (`room_message_posted`
+  with a `coordinationItemId`) reads "New message in Questions" on cards,
+  the Timeline and Updates (never "thread"), and tapping it on a My Work card
+  opens Questions; the push deep link already did.
+- Desktop (#658): Enter sends (the Chat composer's `TextInputAction.send`),
+  and the screen sits in the same content column as its top bar.
 - Questions screen: newest page first with "Show earlier messages" (pages
   back with `beforeIso`), pull-to-refresh, a composer for write access and a
   one-line read-only note otherwise, `TenturaEmptyState` when empty, the
@@ -108,7 +132,9 @@ mention candidates and realtime hints.
 
 ## Known limits
 
-- No unread badge for Questions beyond the author's attention items.
+- No unread badge for Questions beyond the author's attention items (the
+  entry shows a total, not "new"); the Timeline sheet names the sender but
+  never the question's text (notices carry none, by design).
 - No attachments in Questions: room images are served from the shared image
   store, which the Questions policy does not gate. Reactions work through the
   API with write access but the screen does not show them yet.

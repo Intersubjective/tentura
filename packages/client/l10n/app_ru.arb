@@ -7194,7 +7194,7 @@
   "beaconLobbyUnbanAction": "Вернуть доступ",
   "beaconLobbySomeone": "Кто-то",
   "beaconLobbyEmptyBody": "Спросите то, что нужно знать до предложения помощи: когда, где, что взять с собой. Ответ увидят все, кому отправлен этот запрос.",
-  "beaconLobbyReadOnly": "Только чтение: запрос закрыт или вы больше в нём не участвуете. Чтобы снова задавать вопросы, предложите помощь.",
+  "beaconLobbyReadOnly": "Вы можете читать вопросы и ответы, но не писать здесь.",
   "beaconLobbyEntryCount": "{count, plural, =0{Вопросов пока нет} one{{count} сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
   "beaconLobbyLoadOlder": "Показать более ранние сообщения",
   "beaconLobbyBannedCountSemantics": "{count, plural, one{Без доступа к вопросам: {count} человек} few{Без доступа к вопросам: {count} человека} many{Без доступа к вопросам: {count} человек} other{Без доступа к вопросам: {count} человека}}",
@@ -7262,5 +7262,15 @@
   "constellationArrangeRotateLeft": "Повернуть против часовой стрелки",
   "constellationArrangeRotateRight": "Повернуть по часовой стрелке",
   "constellationArrangeWidth": "Ширина сектора",
-  "constellationArrangeApply": "Расставить"
+  "constellationArrangeApply": "Расставить",
+  "beaconLobbyEntrySubtitleAuthor": "Те, кому вы отправили запрос, могут задать вам вопросы до того, как предложить помощь. Ваши ответы видят все, кому он отправлен.",
+  "beaconLobbyComposerHintAuthor": "Написать ответ",
+  "beaconLobbyEmptyBodyAuthor": "Когда кто-то задаст вопрос, он появится здесь. Ваши ответы видят все, кому отправлен этот запрос.",
+  "beaconLobbyReadOnlyClosed": "Этот запрос закрыт. Вы можете читать вопросы и ответы, но не писать.",
+  "beaconLobbyReadOnlyCantHelp": "Вы ответили, что не можете помочь, поэтому можете только читать. Чтобы снова задавать вопросы, предложите помощь.",
+  "beaconLobbyReadOnlyWithdrew": "Вы отозвали предложение помощи, поэтому можете только читать. Чтобы снова задавать вопросы, предложите помощь ещё раз.",
+  "beaconLobbyReadOnlyDeclined": "Автор отклонил ваше предложение помощи, поэтому вы можете только читать.",
+  "beaconLobbyUnavailableRemoved": "Автор закрыл вам доступ к вопросам по этому запросу.",
+  "beaconLobbyAuthorBadge": "Автор",
+  "updatesQuestionsMessage": "Новое сообщение в вопросах"
 }

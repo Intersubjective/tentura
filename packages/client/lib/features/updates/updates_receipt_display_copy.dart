@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -110,6 +111,39 @@ String? _payloadString(String presentationPayloadJson, String key) {
     return null;
   }
 }
+
+/// A message (or mention) in a Request's **Questions** — the only live
+/// thread scope, so a room-message receipt that names a coordination item is
+/// one (#656). It opens the Questions screen and says Questions, not
+/// "thread".
+bool isQuestionsMessageReceipt({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+}) =>
+    presentationKey == 'room_message_posted' &&
+    (_payloadString(
+          presentationPayloadJson,
+          'coordinationItemId',
+        )?.isNotEmpty ??
+        false);
+
+/// [isQuestionsMessageReceipt] for a whole receipt (the typed
+/// `coordinationItemId` column counts as well as the payload).
+bool isQuestionsAttentionReceipt(AttentionReceipt receipt) =>
+    isQuestionsMessageReceipt(
+      presentationKey: receipt.presentationKey,
+      presentationPayloadJson: receipt.presentationPayloadJson,
+    ) ||
+    (receipt.presentationKey == 'room_message_posted' &&
+        (receipt.coordinationItemId?.trim().isNotEmpty ?? false));
+
+/// English titles the server writes on a Questions notice with no actor
+/// name.
+const _serverQuestionsTitles = {
+  'New message in Questions',
+  'New thread message',
+  'New mention',
+};
 
 /// Invite-accepted origin carried in server [presentationPayloadJson].
 String? inviteOriginFromPresentationPayload(String presentationPayloadJson) {
@@ -367,6 +401,24 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
       body: plan.body,
     );
   }
+  if (isQuestionsMessageReceipt(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+  )) {
+    // The server title is the asker's name (never the text: Questions
+    // notices carry none); the event names Questions, not a "thread".
+    final override = headlineOverride?.trim();
+    final t = title.trim();
+    final name = override != null && override.isNotEmpty
+        ? override
+        : (t.isEmpty || _serverQuestionsTitles.contains(t) ? '' : t);
+    return name.isEmpty
+        ? UpdatesFeedRowCopy(headline: l10n.updatesQuestionsMessage, body: '')
+        : UpdatesFeedRowCopy(
+            headline: name,
+            body: l10n.updatesQuestionsMessage,
+          );
+  }
   final fallback = resolveUpdatesReceiptDisplayCopy(
     title: title,
     body: body,
@@ -560,6 +612,16 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   if (plan != null) {
     return RequestScopedEventCopy(event: plan.headline, excerpt: plan.body);
+  }
+  if (isQuestionsMessageReceipt(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+  )) {
+    // No excerpt: Questions notices never carry the message text.
+    return RequestScopedEventCopy(
+      event: l10n.updatesQuestionsMessage,
+      excerpt: '',
+    );
   }
   final requestTitles = {
     ?_nonBlank(requestTitle),

@@ -220,6 +220,7 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
         messages: _merge(kept, newest),
         hasOlder: keepOlder ? state.hasOlder : newest.length >= pageSize,
         unavailable: false,
+        unavailableReason: null,
         loadError: null,
       ),
     );
@@ -265,6 +266,18 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
         loadError: null,
       ),
     );
+    unawaited(_loadUnavailableReason());
+  }
+
+  /// Asks the probe why (#657: "the author removed you" reads differently
+  /// from "this is for the people it was sent to"). A failure keeps the
+  /// generic message.
+  Future<void> _loadUnavailableReason() async {
+    try {
+      final access = await _case.access(beaconId);
+      if (isClosed || !state.unavailable) return;
+      emit(state.copyWith(unavailableReason: access.limitReason));
+    } catch (_) {}
   }
 
   @override

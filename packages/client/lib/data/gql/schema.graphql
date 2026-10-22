@@ -8478,12 +8478,14 @@ type v2_image {
 }
 
 type v2_BeaconLobby {
+  authorId: String!
   banned: [v2_BeaconLobbyBannedUser!]
   bannedUserIds: [String!]
   beaconId: String!
   canPost: Boolean!
   isAuthor: Boolean!
   lobbyId: String!
+  readOnlyReason: String
 }
 
 type v2_BeaconLobbyAccess {
@@ -8491,6 +8493,7 @@ type v2_BeaconLobbyAccess {
   canPost: Boolean!
   canRead: Boolean!
   messageCount: Int!
+  readOnlyReason: String
 }
 
 type v2_BeaconLobbyBannedUser {

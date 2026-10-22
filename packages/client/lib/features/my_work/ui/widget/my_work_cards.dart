@@ -366,6 +366,10 @@ Widget? _composeMyWorkFooter(
           onOpenTimeline: () => unawaited(
             showRequestAttentionTimelineSheet(context, beaconId: vm.beaconId),
           ),
+          // #656: a Questions message opens Questions, not the Chat.
+          onOpenQuestions: () => unawaited(
+            context.router.push(BeaconLobbyRoute(beaconId: vm.beaconId)),
+          ),
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
           onRespondHelpOffer: (offererId) => unawaited(

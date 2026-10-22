@@ -212,4 +212,165 @@ void main() {
       expect(find.byKey(const Key('beaconLobbyLoadOlder')), findsNothing);
     });
   });
+
+  group('#655 the entry row re-reads its access', () {
+    tearDown(() => GetIt.I.reset());
+
+    testWidgets('when the Request page reports a new standing (joined)', (
+      tester,
+    ) async {
+      await GetIt.I.reset();
+      // Not in the audience yet: the row is hidden.
+      final port = FakeLobbyPort(viewerId: 'Uilya', offerers: {});
+      GetIt.I.registerSingleton<BeaconLobbyCase>(
+        lobbyCaseFor(port, FakeRealtimeSyncPort()),
+      );
+      final standing = ValueNotifier<Object>(('B1', false));
+      addTearDown(standing.dispose);
+      await tester.pumpWidget(
+        _app(
+          Scaffold(
+            body: ValueListenableBuilder<Object>(
+              valueListenable: standing,
+              builder: (_, value, _) =>
+                  BeaconLobbyEntryRow(beaconId: 'B1', standing: value),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(BeaconLobbyEntryRow.entryKey), findsNothing);
+      final reads = port.calls.where((c) => c == 'access').length;
+
+      // Offered help and was let in; no realtime hint reached this viewer.
+      port.offerers.add('Uilya');
+      standing.value = ('B1', true);
+      await tester.pumpAndSettle();
+      expect(port.calls.where((c) => c == 'access').length, reads + 1);
+      expect(find.byKey(BeaconLobbyEntryRow.entryKey), findsOneWidget);
+    });
+
+    testWidgets('after a failed read, retries instead of hiding the row for '
+        'good', (tester) async {
+      await GetIt.I.reset();
+      final port = FakeLobbyPort(viewerId: 'Uauthor')..failNext = true;
+      GetIt.I.registerSingleton<BeaconLobbyCase>(
+        lobbyCaseFor(port, FakeRealtimeSyncPort()),
+      );
+      await tester.pumpWidget(
+        _app(
+          const Scaffold(
+            body: BeaconLobbyEntryRow(beaconId: 'B1', isAuthor: true),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(BeaconLobbyEntryRow.entryKey), findsNothing);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(find.byKey(BeaconLobbyEntryRow.entryKey), findsOneWidget);
+      // The author is addressed as the one who answers.
+      expect(
+        find.textContaining('People you sent this request to'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('#657 copy follows who is reading', () {
+    const ninaMsg = BeaconLobbyMessage(
+      id: 'M1',
+      authorId: 'Unina',
+      authorName: 'Nina',
+      body: 'Which Saturday?',
+    );
+    const annaMsg = BeaconLobbyMessage(
+      id: 'M2',
+      authorId: 'Uauthor',
+      authorName: 'Anna',
+      body: 'The 18th',
+    );
+
+    testWidgets("the author: answer copy, and the author's messages are "
+        'marked', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Uauthor')
+        ..messagesList.addAll([ninaMsg, annaMsg]);
+      await tester.pumpWidget(_lobby(port, 'Uauthor'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Ask the author'), findsNothing);
+      expect(
+        find.textContaining('People you sent this request to'),
+        findsOneWidget,
+      );
+      expect(find.text('Write an answer'), findsOneWidget);
+      expect(find.byKey(const Key('beaconLobbyAuthorBadge')), findsOneWidget);
+    });
+
+    testWidgets('a recipient: ask copy; the author badge marks the answer', (
+      tester,
+    ) async {
+      final port = FakeLobbyPort(viewerId: 'Unina')
+        ..messagesList.addAll([ninaMsg, annaMsg]);
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Ask the author'), findsOneWidget);
+      expect(find.text('Ask a question'), findsOneWidget);
+      expect(find.byKey(const Key('beaconLobbyAuthorBadge')), findsOneWidget);
+    });
+
+    for (final (reason, text) in [
+      (BeaconLobbyLimitReason.cantHelp, "You said you can't help"),
+      (BeaconLobbyLimitReason.withdrew, 'You withdrew your help offer'),
+      (BeaconLobbyLimitReason.declined, 'The author declined your help offer'),
+      (BeaconLobbyLimitReason.closed, 'This request is closed'),
+    ]) {
+      testWidgets('read-only names the reason: ${reason.name}', (
+        tester,
+      ) async {
+        final port = FakeLobbyPort(viewerId: 'Unina')
+          ..messagesList.add(annaMsg)
+          ..canPost = false
+          ..limitReason = reason;
+        await tester.pumpWidget(_lobby(port, 'Unina'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('beaconLobbyComposer')), findsNothing);
+        expect(find.textContaining(text), findsOneWidget);
+        expect(find.textContaining('the request is closed, or'), findsNothing);
+      });
+    }
+
+    testWidgets('removed by the author: says so', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Unina')
+        ..banned.add('Unina')
+        ..limitReason = BeaconLobbyLimitReason.removed;
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('The author removed you from Questions on this request.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('#658 desktop composer', () {
+    testWidgets('Enter (the send action) sends, like the Chat composer', (
+      tester,
+    ) async {
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      expect(
+        tester.widget<TextField>(composer).textInputAction,
+        TextInputAction.send,
+      );
+      await tester.enterText(composer, 'Which Saturday?');
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pumpAndSettle();
+      expect(port.calls, contains('post Which Saturday?'));
+      expect(find.text('Which Saturday?'), findsOneWidget);
+      // Cleared for the next question.
+      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
+    });
+  });
 }
