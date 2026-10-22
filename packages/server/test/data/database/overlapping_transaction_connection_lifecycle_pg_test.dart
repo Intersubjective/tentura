@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 @Timeout(Duration(minutes: 2))
 library;
 
@@ -86,47 +86,53 @@ WHERE datname = current_database() AND pid = @pid
     return terminated.single.single == true;
   }
 
-  Future<void> awaitBackendGone(int pid) async {
-    final clock = Stopwatch()..start();
-    while (clock.elapsed < kStableStateWait) {
-      final rows = await session.writer.execute(
-        Sql.named('''
-SELECT 1 FROM pg_stat_activity
-WHERE datname = current_database() AND pid = @pid
-'''),
-        parameters: {'pid': pid},
-      );
-      if (rows.isEmpty) return;
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-    fail('Backend $pid was not terminated within $kStableStateWait');
-  }
-
   for (final connections in [1, 2]) {
     test(
       'an idle pooled backend terminated between transactions is replaced '
       'for the next transaction ($connections connection(s))',
-      tags: connections > 1 ? ['multi-connection'] : null,
-      () => withPool(connections: connections, (database) async {
-        final killed = await database.transaction(() => _backend(database));
-        expect(await terminate(killed.pid), isTrue);
-        await awaitBackendGone(killed.pid);
+      () async {
+        final pool = MainDbPool(
+          _LifecycleEnv(
+            target.databaseEnv,
+            maxConnectionAge: _longLifetime,
+            maxSessionUse: _longLifetime,
+            connections: connections,
+          ),
+        );
+        final database = TenturaDb.scoped(pool);
+        try {
+          final killed = await database.transaction(() => _backend(database));
+          // Take the pool's own handle on that idle connection, so the test
+          // can wait until the client has seen the server close it.
+          late Connection idle;
+          final idlePid = await pool.pool.withConnection((connection) async {
+            idle = connection;
+            final rows = await connection.execute('SELECT pg_backend_pid()');
+            return rows.single.single! as int;
+          });
+          expect(idlePid, killed.pid, reason: 'The idle connection is reused.');
 
-        final recovered = await database.transaction(
-          () => _backend(database),
-        );
-        expect(
-          recovered.pid,
-          isNot(killed.pid),
-          reason: 'A dead idle connection must not be handed out again.',
-        );
-      }),
+          expect(await terminate(killed.pid), isTrue);
+          await idle.closed.timeout(kStableStateWait);
+
+          final recovered = await database.transaction(
+            () => _backend(database),
+          );
+          expect(
+            recovered.pid,
+            isNot(killed.pid),
+            reason: 'A dead idle connection must not be handed out again.',
+          );
+        } finally {
+          await database.close();
+          await pool.close();
+        }
+      },
     );
   }
 
   group(
     'Connection recycling while transactions overlap on two connections',
-    tags: ['multi-connection'],
     () {
       test(
         'connection age rotates every connection although a transaction is '

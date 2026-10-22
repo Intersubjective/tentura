@@ -413,8 +413,9 @@ class Env {
        pgDatabase = pgDatabase ?? _env['POSTGRES_DBNAME'] ?? 'postgres',
        pgUsername = pgUsername ?? _env['POSTGRES_USERNAME'] ?? 'postgres',
        pgPassword = pgPassword ?? _env['POSTGRES_PASSWORD'] ?? 'password',
-       // Applied when a scope returns its lease (also maxSessionUse); a
-       // transaction never changes connection mid-way. Package default 12h.
+       // The pool will not hand out a connection past this age (or
+       // maxSessionUse) to a new lease; a lease, and so a transaction, never
+       // changes connection mid-way. Package default 12h.
        pgMaxConnectionAge =
            maxConnectionAge ??
            int.tryParse(_env['POSTGRES_MAXCONNAGE'] ?? '') ??

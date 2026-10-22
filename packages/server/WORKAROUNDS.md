@@ -218,15 +218,22 @@ command runs on a session that is not in a transaction → `25P01`.
 `MainDbPool.admission`) and gives it a private Drift executor; a transaction,
 its savepoints and its COMMIT/ROLLBACK all run on that lease, and the
 connection returns to the pool only when the scope ends. So
-`POSTGRES_MAXCONN` is honoured, and `maxConnectionAge` / `maxSessionUse` and
-dead-backend replacement apply on every lease return, however many
+`POSTGRES_MAXCONN` is honoured, and every new lease skips a connection that is
+closed or past `maxConnectionAge` / `maxSessionUse` (the pool checks both at
+checkout and drops a connection that failed fatally on return), however many
 transactions overlap (`overlapping_transaction_connection_lifecycle_pg_test`).
 The former shared pin (`_PinnedPoolSession`) is gone.
+
+The unscoped pool-backed root executor refuses transactions and batches, so
+nothing can run on the pool without a lease.
 
 Guards that remain (`tentura_db_transaction_guards_pg_test`, pool size 1 and 2):
 
 - `TenturaDb.batch()` throws: Drift batches open their own transaction and
-  prepared statements; production code must not call `batch` / `runBatched`.
+  prepared statements; production code must not call or tear off `batch` /
+  `runBatched` (`tentura_db_batch_test`).
+- `withMutatingRepeatableRead` checks the zone, so it also refuses Drift
+  `exclusively` / `runWithInterceptor` blocks and a lease of another pool.
 - `withMutatingRepeatableRead` refuses to start inside any open transaction or
   leased connection scope, before any SQL, so its retry backoff never sleeps
   while holding a connection.

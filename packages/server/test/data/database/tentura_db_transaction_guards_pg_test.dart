@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 @Timeout(Duration(minutes: 2))
 library;
 
@@ -44,7 +44,6 @@ Future<void> main() async {
   for (final connections in [1, 2]) {
     group(
       'with $connections pooled connection(s)',
-      tags: connections > 1 ? ['multi-connection'] : null,
       () => _guards(target, () => session, connections),
     );
   }
@@ -106,6 +105,54 @@ void _guards(
         });
         expect(harness.leases, 1);
         expect(await labels(), ['after', 'before']);
+      },
+    );
+
+    // Drift's Batch commits on the executor of the user it started on, so a
+    // batch reaching past the TenturaDb override must still not run unleased.
+    test(
+      'a batch on the unscoped engine is refused before any SQL',
+      () async {
+        final engine = harness.db.resolvedEngine;
+        await expectLater(
+          engine.batch(
+            (batch) => batch.customStatement(
+              r'INSERT INTO public.tx_guard_probe (label) VALUES ($1)',
+              ['unscoped'],
+            ),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('unscoped pool executor'),
+            ),
+          ),
+        );
+        expect(harness.leases, 0);
+        expect(await labels(), isEmpty);
+      },
+    );
+
+    test(
+      'a batch on the engine of an open transaction runs pinned to its lease',
+      () async {
+        late int before;
+        late int after;
+        await harness.db.withTransaction(() async {
+          before = await harness.backendPid();
+          await harness.db.resolvedEngine.batch(
+            (batch) => batch.customStatement(
+              r'INSERT INTO public.tx_guard_probe (label) VALUES ($1)',
+              ['pinned'],
+            ),
+          );
+          after = await harness.backendPid();
+        });
+        expect(after, before);
+        expect(harness.leases, 1);
+        expect(harness.events, contains('batch'));
+        expect(await labels(), ['pinned']);
       },
     );
   });
@@ -186,6 +233,32 @@ void _guards(
       },
     );
 
+    test(
+      'is refused inside Drift exclusive and intercepted executors of a scope',
+      () async {
+        await harness.db.exclusively(() async {
+          await expectRejected(contains('connection scope'));
+        });
+        await harness.db.runWithInterceptor(
+          () => expectRejected(contains('connection scope')),
+          interceptor: _EventRecorder([]),
+        );
+      },
+    );
+
+    test(
+      'is refused inside a transaction on another pool, whose lease a '
+      'backoff would hold',
+      () async {
+        await harness.outsider.withTransaction(
+          () => expectRejected(insideTransaction),
+        );
+        await harness.outsider.withConnectionScope(
+          () => expectRejected(contains('connection scope')),
+        );
+      },
+    );
+
     test('runs outside any scope or transaction', () async {
       final seen = await harness.db.withMutatingRepeatableRead(
         _actor,
@@ -228,7 +301,14 @@ final class _Harness {
     );
     db = TenturaDb.scoped(pool, scopeInterceptor: _recorder);
     sibling = TenturaDb.scoped(pool, scopeInterceptor: _recorder);
+    outsiderPool = MainDbPool(postgres);
+    outsider = TenturaDb.scoped(outsiderPool, scopeInterceptor: _recorder);
   }
+
+  late final MainDbPool outsiderPool;
+
+  /// A handle over a different pool (as the auth database has).
+  late final TenturaDb outsider;
 
   late final MainDbPool pool;
 
@@ -256,10 +336,16 @@ final class _Harness {
     );
   }
 
+  Future<int> backendPid() async =>
+      (await db.customSelect('SELECT pg_backend_pid() AS pid').getSingle())
+          .read<int>('pid');
+
   Future<void> close() async {
     await db.close();
     await sibling.close();
+    await outsider.close();
     await pool.close();
+    await outsiderPool.close();
   }
 }
 

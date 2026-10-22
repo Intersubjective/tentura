@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/data/database/tentura_db.dart' hide Expression;
 import 'package:test/test.dart';
 
 void main() {
@@ -71,6 +71,8 @@ void main() {
             accessor.batch((b) {});
             executor.runBatched(statements);
             super.runBatched(statements);
+            final commit = db.resolvedEngine.batch;
+            final run = executor.runBatched;
             print('TenturaDb.batch() is forbidden');
             final batch = 1;
           }
@@ -79,6 +81,8 @@ void main() {
       [
         'probe.dart: _db.batch',
         'probe.dart: accessor.batch',
+        'probe.dart: executor.runBatched',
+        'probe.dart: db.resolvedEngine.batch',
         'probe.dart: executor.runBatched',
       ],
     );
@@ -110,6 +114,26 @@ class _BatchCallVisitor extends RecursiveAstVisitor<void> {
       calls.add('$_path: ${node.target?.toSource() ?? ''}.$name');
     }
     super.visitMethodInvocation(node);
+  }
+
+  // A torn-off `x.batch` or `x.runBatched` is a call waiting to happen.
+  @override
+  void visitPropertyAccess(PropertyAccess node) {
+    _tearOff(node.target, node.propertyName.name);
+    super.visitPropertyAccess(node);
+  }
+
+  @override
+  void visitPrefixedIdentifier(PrefixedIdentifier node) {
+    _tearOff(node.prefix, node.identifier.name);
+    super.visitPrefixedIdentifier(node);
+  }
+
+  void _tearOff(Expression? target, String name) {
+    if ((name == 'batch' || name == 'runBatched') &&
+        target is! SuperExpression) {
+      calls.add('$_path: ${target?.toSource() ?? ''}.$name');
+    }
   }
 }
 
