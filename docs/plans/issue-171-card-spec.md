@@ -233,7 +233,10 @@ shows (already the behaviour in `activity_event_subcard_block.dart`).
   type** (K5);
 - **first slot is pinned to the latest forward carrying a note** (D-171-5a); the remaining slots sort by time,
   newest first (K7). Genealogical chain order lives in the Timeline and the forwards graph, not on the card;
-- same-kind coalescing (E11): «3 новых сообщения» = one line, one ×;
+- same-kind coalescing (E11): «3 новых сообщения» = one line, one ×. **Amended 2026-10-22 (owner, #189 option 3):**
+  only the forward half is in scope (below). Coalescing of non-forward event kinds is out of scope: each
+  needs per-kind plural copy, and a generic «N событий» line would hide what happened. The compact age ("2 ч")
+  is a separate copy item, not part of this spec;
 - **notes are never coalesced** (K6, `coalescible: false`). Note-less forwards coalesce into one line —
   «ещё N переслали» + `CompactForwarderAvatars` — but every forward *with* a note keeps its own mini-card.
   Rationale is E28: the note exists nowhere else on the card, so coalescing destroys information.
