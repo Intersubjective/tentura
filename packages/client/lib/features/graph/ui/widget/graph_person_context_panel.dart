@@ -33,6 +33,7 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.onToggleRequestsExpanded,
     this.onDiscoverableRequestTap,
     this.footer,
+    this.subtitle,
     super.key,
   });
 
@@ -49,6 +50,9 @@ class GraphPersonContextPanel extends StatelessWidget {
 
   /// Extra action drawn on the same card surface, below the scrollable body.
   final Widget? footer;
+
+  /// A line under the name, e.g. the field's chain of trust (#641).
+  final Widget? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +108,7 @@ class GraphPersonContextPanel extends StatelessWidget {
             ),
           ],
         ),
+        ?subtitle,
         SizedBox(height: tt.rowGap),
         _OtherProfileAvailabilityLine(
           profile: profile,

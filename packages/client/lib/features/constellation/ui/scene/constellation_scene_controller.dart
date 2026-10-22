@@ -10,6 +10,7 @@ import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_post_fade.dart';
+import '../../domain/constellation_trust_chain.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -80,8 +81,9 @@ class ConstellationSceneController {
   /// Opacity per drawn Post id (1 until 48 h, 0.25 at 72 h).
   Map<String, double> postFadeById = const {};
 
-  /// Opacity per Post web, keyed by [EdgeDetails.semanticId].
-  final Map<String, double> edgeFadeBySemanticId = {};
+  /// Opacity per Post web, keyed by [EdgeDetails.semanticId]. A new map per
+  /// build, so a painter holding the previous one sees the change.
+  Map<String, double> edgeFadeBySemanticId = {};
 
   /// «+N» chip count per drawn Post: hidden reach plus capped members.
   Map<String, int> postOverflowCountByPostId = const {};
@@ -293,7 +295,7 @@ class ConstellationSceneController {
     graphController.clear();
     edgeKinds.clear();
     edgeKindByPair.clear();
-    edgeFadeBySemanticId.clear();
+    edgeFadeBySemanticId = {};
     postFadeById = const {};
     postOverflowCountByPostId = const {};
     overflowHiddenCountByAuthor = const {};
@@ -329,6 +331,62 @@ class ConstellationSceneController {
       );
     }
     return footprints;
+  }
+
+  /// Draws the hops of the selected person's trust chain the tree does not
+  /// draw, and fades every other edge (#641). Hops keep the tree's edge kinds:
+  /// a chain step is a trust edge like any other, only brighter than the rest.
+  void _highlightTrustChain({
+    required ConstellationTrustChainFound chain,
+    required Set<EdgeDetails> edges,
+    required Map<String, NodeDetails> nodeById,
+    required void Function({
+      required String srcId,
+      required String dstId,
+      required ConstellationEdgeKind kind,
+      double? fade,
+    })
+    addEdge,
+  }) {
+    final hopKeys = <String>{};
+    for (final (src, dst) in chain.hops) {
+      hopKeys.add('$src->$dst');
+      final drawn = edges.any(
+        (edge) =>
+            edge.source.id == src &&
+            edge.destination.id == dst &&
+            switch (edgeKindByPair[edge.semanticId]) {
+              ConstellationEdgeKind.tier1Path ||
+              ConstellationEdgeKind.tier2Path => true,
+              _ => false,
+            },
+      );
+      if (!drawn && nodeById.containsKey(src) && nodeById.containsKey(dst)) {
+        addEdge(
+          srcId: src,
+          dstId: dst,
+          kind: chain.derivedHops.contains((src, dst))
+              ? ConstellationEdgeKind.tier2Path
+              : ConstellationEdgeKind.tier1Path,
+        );
+      }
+    }
+    final personId = chain.path.last;
+    for (final edge in edges) {
+      final kind = edgeKindByPair[edge.semanticId];
+      final onChain =
+          (kind == ConstellationEdgeKind.tier1Path ||
+              kind == ConstellationEdgeKind.tier2Path) &&
+          hopKeys.contains('${edge.source.id}->${edge.destination.id}');
+      final ownItem =
+          kind == ConstellationEdgeKind.attachment &&
+          edge.source.id == personId;
+      if (!onChain && !ownItem) {
+        edgeFadeBySemanticId[edge.semanticId] =
+            (edgeFadeBySemanticId[edge.semanticId] ?? 1) *
+            kConstellationTrustChainEdgeFade;
+      }
+    }
   }
 
   /// The peer an ego edge may lead to: the first hop on the path to
@@ -378,6 +436,7 @@ class ConstellationSceneController {
     required Map<String, List<ConstellationMemberWeb>> requestWebsById,
     required ConstellationFootprintMetrics? footprintMetrics,
     required Profile Function(ConstellationPerson peer) profileFromPeer,
+    ConstellationTrustChain? trustChain,
   }) {
     final peersById = {
       for (final peer in field.peers) peer.id: peer,
@@ -461,7 +520,7 @@ class ConstellationSceneController {
     final edges = <EdgeDetails>{};
     edgeKinds.clear();
     edgeKindByPair.clear();
-    edgeFadeBySemanticId.clear();
+    edgeFadeBySemanticId = {};
 
     nodes.add(
       FieldPersonNode(
@@ -686,6 +745,15 @@ class ConstellationSceneController {
           kind: ConstellationEdgeKind.draftRecipient,
         );
       }
+    }
+
+    if (trustChain is ConstellationTrustChainFound) {
+      _highlightTrustChain(
+        chain: trustChain,
+        edges: edges,
+        nodeById: nodeById,
+        addEdge: addEdge,
+      );
     }
 
     final previousNodeIds = graphController

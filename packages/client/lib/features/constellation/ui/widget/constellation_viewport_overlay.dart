@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/constellation_trust_badge.dart';
+import '../../domain/constellation_trust_chain.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
@@ -585,7 +586,13 @@ class _ConstellationViewportOverlayState
                     rect: labelRect,
                     child: ValueListenableBuilder<int>(
                       valueListenable: _transitionTick,
-                      child: plate,
+                      // Off the selected person's trust chain (#641).
+                      child: widget.cubit.isDimmedByTrustChain(node)
+                          ? Opacity(
+                              opacity: kConstellationTrustChainDimOpacity,
+                              child: plate,
+                            )
+                          : plate,
                       builder: (_, _, child) {
                         final now = start == null
                             ? null

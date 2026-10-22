@@ -79,6 +79,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
             previous.filterTiming != current.filterTiming ||
             previous.filterIncludeUnspecified !=
                 current.filterIncludeUnspecified ||
+            previous.visibility != current.visibility ||
             previous.loadError != current.loadError;
       },
       builder: (context, state) {
@@ -116,6 +117,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         ];
         if (people.isEmpty &&
             !cubit.hasActiveFilters &&
+            !cubit.hasHiddenLayers &&
             constellationFieldHasNoContacts(field, cubit.viewerId)) {
           // #252: nobody on the field yet — say what to do, not just
           // "no requests".
@@ -129,7 +131,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
               child: Padding(
                 padding: EdgeInsets.all(tt.screenHPadding),
                 child: Text(
-                  cubit.hasActiveFilters
+                  cubit.hasActiveFilters || cubit.hasHiddenLayers
                       ? l10n.constellationEmptyFiltered
                       : l10n.constellationTextEmptyField,
                   key: const Key('constellation.text.empty'),

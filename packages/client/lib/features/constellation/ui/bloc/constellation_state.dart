@@ -2,6 +2,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_filters.dart';
+import '../../domain/constellation_visibility.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
@@ -53,6 +54,9 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     String? placementFailureMessage,
     String? graphLayoutFailureMessage,
     @Default(false) bool syncPending,
+
+    /// What the field shows (#645); kept per viewer on this device.
+    @Default(ConstellationVisibility.all) ConstellationVisibility visibility,
   }) = _ConstellationState;
 
   const ConstellationState._();

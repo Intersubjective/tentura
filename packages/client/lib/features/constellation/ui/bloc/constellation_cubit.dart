@@ -16,6 +16,7 @@ import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/constellation_people.dart';
+import '../../domain/constellation_shown_field.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -26,6 +27,7 @@ import '../../domain/placement_overlay.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
+import '../../domain/use_case/constellation_visibility_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
@@ -116,6 +118,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._anchorCase,
     this._placementCase,
     this._memberWebsCase,
+    this._visibilityCase,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this._composePresentation = composeConstellationPresentation,
@@ -134,12 +137,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (loadOnCreate) {
       unawaited(load());
     }
+    unawaited(_restoreVisibility());
   }
 
   final ConstellationFieldStoreCase _case;
   final ConstellationAnchorCase? _anchorCase;
   final ConstellationPlacementCase? _placementCase;
   final ConstellationMemberWebsCase? _memberWebsCase;
+  final ConstellationVisibilityCase? _visibilityCase;
   final Profile _viewer;
 
   /// Lazily fetched member webs per selected Request id (kept for the
@@ -533,7 +538,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             asOfUtc: loadedField.loadedAt,
             labelBudget: labelBudget,
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-            selectedRequestWebs: _selectedRequestWebs,
+            selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
           )
         : ConstellationPerf.timeSync(
@@ -545,7 +550,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               asOfUtc: loadedField.loadedAt,
               labelBudget: labelBudget,
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-              selectedRequestWebs: _selectedRequestWebs,
+              selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
             ),
           );
@@ -649,7 +654,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-      selectedRequestWebs: _selectedRequestWebs,
+      selectedRequestWebs: _holderWebs,
       extraKeptPeerIds: _extraKeptPeerIds,
     );
     emit(
@@ -1487,7 +1492,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             asOfUtc: state.loadedAt ?? field.loadedAt,
             labelBudget: _currentLabelBudget(),
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-            selectedRequestWebs: _selectedRequestWebs,
+            selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
           )
         : ConstellationPerf.timeSync(
@@ -1499,7 +1504,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               asOfUtc: state.loadedAt ?? field.loadedAt,
               labelBudget: _currentLabelBudget(),
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-              selectedRequestWebs: _selectedRequestWebs,
+              selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
             ),
           );
@@ -1643,6 +1648,29 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ];
     }
     return _requestWebsById[selectedId] ?? const [];
+  }
+
+  /// [_selectedRequestWebs] plus the people whose Requests or Posts a
+  /// show/hide switch hides while their degree stays shown (#645): composed
+  /// as holders, so hiding content never takes a shown person off the field.
+  /// Composition reads only `personId` from these.
+  List<ConstellationMemberWeb> get _holderWebs {
+    final field = state.field;
+    if (field == null || state.isComposing || !hasHiddenLayers) {
+      return _selectedRequestWebs;
+    }
+    _shownField(field);
+    final hiddenHolders = _shownMemo.hiddenItemHolderIds;
+    if (hiddenHolders.isEmpty) return _selectedRequestWebs;
+    return [
+      ..._selectedRequestWebs,
+      for (final id in hiddenHolders)
+        ConstellationMemberWeb(
+          beaconId: '',
+          personId: id,
+          state: ConstellationMemberWebState.inside,
+        ),
+    ];
   }
 
   Future<void> _fetchRequestWebs(String requestId) async {
@@ -2023,6 +2051,145 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
+  // What the field shows (#645) and the selected person's chain (#641).
+
+  final _shownMemo = ConstellationShownFieldMemo();
+
+  ConstellationField _shownField(ConstellationField field) => _shownMemo.shown(
+    field,
+    viewerId: _viewer.id,
+    visibility: state.visibility,
+  );
+
+  /// The loaded field as the show/hide toggles leave it (#645): what the map
+  /// and the list are composed from.
+  ConstellationField? get shownField {
+    final field = state.field;
+    return field == null ? null : _shownField(field);
+  }
+
+  /// Whether a show/hide toggle hides anything (#645).
+  bool get hasHiddenLayers => !state.visibility.showsEverything;
+
+  /// Shows or hides Requests, Posts, or people of a trust degree (#645), and
+  /// keeps the choice for this viewer on this device.
+  void setVisibility(ConstellationVisibility visibility) {
+    if (isClosed || state.visibility == visibility) {
+      return;
+    }
+    _cancelUnsentPlacement(write: false);
+    emit(state.copyWith(visibility: visibility));
+    _keepVisibility();
+    _recomposeAndLayout();
+  }
+
+  Future<void> _restoreVisibility() async {
+    final visibilityCase = _visibilityCase;
+    if (visibilityCase == null) return;
+    final stored = await visibilityCase.read(viewerId: _viewer.id);
+    // A choice made while the store was read wins over the stored one.
+    if (isClosed || _visibilityTouched || stored == state.visibility) return;
+    emit(state.copyWith(visibility: stored));
+    if (state.field != null) _recomposeAndLayout();
+  }
+
+  bool _visibilityTouched = false;
+
+  void _keepVisibility() {
+    _visibilityTouched = true;
+    unawaited(
+      _visibilityCase?.write(
+        viewerId: _viewer.id,
+        visibility: state.visibility,
+      ),
+    );
+  }
+
+  Object? _countsFor;
+  ConstellationVisibilityCounts? _counts;
+
+  /// How many Requests, Posts and people of each degree the field holds with
+  /// everything shown (#645): the counts on the show/hide chips, so a hidden
+  /// type still says how much it hides.
+  ConstellationVisibilityCounts? get visibilityCounts {
+    final field = _lastPresentationField ?? state.field;
+    final composition = state.composition;
+    if (field == null || composition == null) {
+      return null;
+    }
+    // With something hidden, the counts depend on the field and the Request
+    // filters (a filtered-out pinned Request drops its support path).
+    final source = hasHiddenLayers ? (field, state.filters) : composition;
+    if (_counts != null && _sameCountsSource(source)) {
+      return _counts;
+    }
+    // With something hidden, the population is that of the field composed
+    // with everything shown (once per field).
+    final people = hasHiddenLayers
+        ? _composePresentation(
+            viewerId: _viewer.id,
+            field: field,
+            localFilters: state.filters,
+            asOfUtc: state.loadedAt ?? field.loadedAt,
+            labelBudget: _currentLabelBudget(),
+          ).eligiblePersonIds
+        : composition.eligiblePersonIds;
+    _countsFor = source;
+    return _counts = constellationVisibilityCounts(
+      field: field,
+      viewerId: _viewer.id,
+      peopleOnField: people,
+      asOfUtc: (state.loadedAt ?? field.loadedAt).toUtc(),
+    );
+  }
+
+  bool _sameCountsSource(Object source) {
+    final previous = _countsFor;
+    return switch ((previous, source)) {
+      (
+        (final ConstellationField f0, final ConstellationFilters c0),
+        (final ConstellationField f1, final ConstellationFilters c1),
+      ) =>
+        identical(f0, f1) && c0 == c1,
+      _ => identical(previous, source),
+    };
+  }
+
+  /// How the selected person is reached from the viewer (#641), or null when
+  /// no person is selected (or the field is not composed yet).
+  ConstellationTrustChain? get selectedTrustChain {
+    final personId = state.selectedPersonId;
+    final field = shownField;
+    final composition = state.composition;
+    if (personId == null ||
+        field == null ||
+        composition == null ||
+        state.isComposing) {
+      return null;
+    }
+    return _shownMemo.chain(
+      viewerId: _viewer.id,
+      personId: personId,
+      field: field,
+      composition: composition,
+    );
+  }
+
+  /// Whether [node] is off the selected person's highlighted trust chain
+  /// (#641): everything is, except the chain's people and the selected
+  /// person's own Requests and Posts.
+  bool isDimmedByTrustChain(NodeDetails node) {
+    final chain = selectedTrustChain;
+    if (chain is! ConstellationTrustChainFound) {
+      return false;
+    }
+    return switch (node) {
+      FieldPersonNode(:final person) => !chain.path.contains(person.id),
+      FieldBeaconNode(:final userId) => userId != chain.path.last,
+      _ => true,
+    };
+  }
+
   /// Expands or collapses [authorId]'s hidden request satellites. Expanding
   /// with [refitInsets] refits the camera once, after the new layout lands, to
   /// the author and the satellites it revealed (#459); collapsing leaves the
@@ -2281,7 +2448,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Addressable people are a session-only overlay, never persisted in the field.
   ConstellationField _composerField(ConstellationField field) {
-    if (!state.isComposing) return field;
+    if (!state.isComposing) return _shownField(field);
     final projection = field.resolvedAnchorProjection;
     final peers = {
       for (final peer in field.peers)
@@ -2473,7 +2640,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   List<ConstellationRequest> discoverableRequestsForPerson(String personId) {
-    final field = state.field;
+    final field = shownField;
     if (field == null) {
       return const [];
     }
@@ -2586,7 +2753,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             asOfUtc: state.loadedAt ?? field.loadedAt,
             labelBudget: _currentLabelBudget(),
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-            selectedRequestWebs: _selectedRequestWebs,
+            selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
           )
         : ConstellationPerf.timeSync(
@@ -2598,7 +2765,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               asOfUtc: state.loadedAt ?? field.loadedAt,
               labelBudget: _currentLabelBudget(),
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-              selectedRequestWebs: _selectedRequestWebs,
+              selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
             ),
           );
@@ -2667,6 +2834,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       keptPeerIds: state.keptPeerIds,
       selectedPersonId: state.selectedPersonId,
       selectedRequestId: state.selectedRequestId,
+      trustChain: selectedTrustChain,
       loadedAt: state.loadedAt,
       isComposing: state.isComposing,
       composingSelectedIds: _composingSelectedIds,
