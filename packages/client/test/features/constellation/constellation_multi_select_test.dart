@@ -637,6 +637,37 @@ void main() {
     expect(h.selected, isEmpty);
   });
 
+  testWidgets('lifting one finger of a two-finger pan keeps moving the map '
+      'with the other, without a jump', (tester) async {
+    final h = await _mount(tester);
+    h.selection.setSelecting(true);
+    await _frames(tester);
+    final from = _emptyCorner(tester);
+
+    final first = await tester.startGesture(from);
+    final second = await tester.startGesture(from + const Offset(0, 80));
+    await tester.pump();
+    for (var i = 1; i <= 6; i++) {
+      await first.moveTo(from + Offset(10.0 * i, 0));
+      await second.moveTo(from + Offset(10.0 * i, 80));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await second.up();
+    await tester.pump();
+    final annBefore = tester.getCenter(_node('a'));
+    for (var i = 1; i <= 5; i++) {
+      await first.moveTo(from + Offset(60 + 20.0 * i, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await first.up();
+    await _frames(tester);
+
+    expect(h.selected, isEmpty);
+    final moved = tester.getCenter(_node('a')) - annBefore;
+    expect(moved.dx, closeTo(100, 1));
+    expect(moved.dy, closeTo(0, 1));
+  });
+
   testWidgets('a pinch that starts on a node stays with the map', (
     tester,
   ) async {

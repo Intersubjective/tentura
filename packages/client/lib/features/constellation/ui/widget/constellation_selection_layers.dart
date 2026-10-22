@@ -219,39 +219,32 @@ final class _Camera {
 
   final GraphController<NodeDetails, EdgeDetails> controller;
 
-  Offset? _focal;
-  double _scale = 1;
-  int _pointers = 0;
+  /// The scale of the running gesture at the last update; null between
+  /// gestures.
+  double? _scale;
 
   /// The InteractiveViewer wheel rate.
   static const _wheelRate = 200.0;
 
-  void start(ScaleStartDetails details) {
-    _focal = details.localFocalPoint;
-    _scale = 1;
-    _pointers = details.pointerCount;
-  }
+  // The recognizer ends and restarts its gesture when a finger joins or
+  // leaves, and reports scale relative to that restart and focal movement
+  // as a delta that leaves out the jump of the average; both are used as
+  // given, so nothing is lost or doubled across a restart.
+  void start(ScaleStartDetails _) => _scale = 1;
 
   void update(ScaleUpdateDetails details) {
-    final focal = _focal;
-    // A finger joining or leaving re-bases the gesture instead of jumping.
-    if (focal == null || details.pointerCount != _pointers) {
-      _focal = details.localFocalPoint;
-      _scale = details.scale;
-      _pointers = details.pointerCount;
-      return;
-    }
+    final scale = _scale ?? details.scale;
+    final previous = details.localFocalPoint - details.focalPointDelta;
     // Zoom about where the fingers were, then carry that point along with
     // them, so the map stays under the fingers.
-    if (_scale > 0 && details.scale > 0 && details.scale != _scale) {
-      zoomAround(focal, details.scale / _scale);
+    if (scale > 0 && details.scale > 0 && details.scale != scale) {
+      zoomAround(previous, details.scale / scale);
     }
-    panBy(details.localFocalPoint - focal);
-    _focal = details.localFocalPoint;
+    panBy(details.focalPointDelta);
     _scale = details.scale;
   }
 
-  void end() => _focal = null;
+  void end() => _scale = null;
 
   void wheel(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
@@ -740,7 +733,10 @@ class _SectorAimState extends State<_SectorAim> {
       child: GestureDetector(
         key: const Key('constellation.selection.sector_aim'),
         behavior: HitTestBehavior.opaque,
-        onTapDown: (details) => _aimAt(details.localPosition),
+        // On release, so a second finger can still turn this into a pinch.
+        onTapUp: (details) {
+          if (!_session.multi) _aimAt(details.localPosition);
+        },
         onScaleStart: _onStart,
         onScaleUpdate: _onUpdate,
         onScaleEnd: _onEnd,
