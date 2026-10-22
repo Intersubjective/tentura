@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -13,15 +14,22 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 /// Sets the beacon room [current line] via [BeaconThreadsCase.updateRoomNowLine].
+///
+/// [baseRevision] is the `currentLineRevision` of [initialText]. When someone
+/// changed the line meanwhile, the sheet stays open with the person's text,
+/// shows the newer line and calls [onStale] with it (so the screen behind
+/// shows it too); saving again re-applies the person's text on top (#517).
 Future<void> showBeaconCurrentLineSheet(
   BuildContext context, {
   required String beaconId,
   required String initialText,
-  void Function(String savedLine)? onSaved,
+  required int baseRevision,
+  void Function(BeaconRoomState saved)? onSaved,
+  void Function(NowLineChangedException newer)? onStale,
 }) async {
   final l10n = L10n.of(context)!;
   final threadsCase = GetIt.I<BeaconThreadsCase>();
-  final savedLine = await showTenturaAdaptiveSheet<String>(
+  final saved = await showTenturaAdaptiveSheet<BeaconRoomState>(
     context: context,
     useRootNavigator: true,
     enableDrag: false,
@@ -29,11 +37,13 @@ Future<void> showBeaconCurrentLineSheet(
       l10n: l10n,
       beaconId: beaconId,
       initialText: initialText,
+      baseRevision: baseRevision,
       threadsCase: threadsCase,
+      onStale: onStale,
     ),
   );
-  if (savedLine != null && savedLine.isNotEmpty && context.mounted) {
-    onSaved?.call(savedLine);
+  if (saved != null && context.mounted) {
+    onSaved?.call(saved);
   }
 }
 
@@ -42,13 +52,17 @@ class _BeaconCurrentLineSheetBody extends StatefulWidget {
     required this.l10n,
     required this.beaconId,
     required this.initialText,
+    required this.baseRevision,
     required this.threadsCase,
+    this.onStale,
   });
 
   final L10n l10n;
   final String beaconId;
   final String initialText;
+  final int baseRevision;
   final BeaconThreadsCase threadsCase;
+  final void Function(NowLineChangedException newer)? onStale;
 
   @override
   State<_BeaconCurrentLineSheetBody> createState() =>
@@ -60,19 +74,23 @@ class _BeaconCurrentLineSheetBodyState
   late final TextEditingController _controller;
   var _submitting = false;
 
-  /// The line this save expects on the server: what the editor opened with,
-  /// or, after a conflict, the other person's line the author has now seen
-  /// (so the next Save replaces it on purpose).
-  late String _baseLine;
+  /// The revision this save is based on: the one the editor opened with,
+  /// or, after a conflict, that of the other person's line, which is now
+  /// shown (so the next Save replaces it on purpose).
+  late int _baseRevision;
 
   /// Set when someone else changed the line while this editor was open.
   String? _conflict;
+
+  /// Whether a newer line was seen while this editor was open; then "Keep
+  /// theirs" closes without saving.
+  var _sawNewer = false;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialText);
-    _baseLine = widget.initialText;
+    _baseRevision = widget.baseRevision;
   }
 
   @override
@@ -90,21 +108,24 @@ class _BeaconCurrentLineSheetBodyState
     setState(() => _submitting = true);
     try {
       final line = _controller.text.trim();
-      await widget.threadsCase.updateRoomNowLine(
+      final saved = await widget.threadsCase.updateRoomNowLine(
         beaconId: widget.beaconId,
         currentLine: line,
-        expectedLine: _baseLine,
+        baseRevision: _baseRevision,
       );
       if (mounted) {
-        Navigator.of(context).pop(line);
+        Navigator.of(context).pop(saved);
       }
     } on NowLineChangedException catch (e) {
       // Shown inside the sheet (a snackbar would sit under it): the other
-      // person's line, and that the next Save replaces it (B085).
-      _baseLine = e.currentLine;
+      // person's line, and that the next Save replaces it (B085). Their text
+      // stays in the field.
+      _baseRevision = e.currentRevision;
+      widget.onStale?.call(e);
       if (mounted) {
         setState(() {
           _submitting = false;
+          _sawNewer = true;
           _conflict = e.toL10n(L10n.of(context)?.localeName);
         });
       }
@@ -207,6 +228,17 @@ class _BeaconCurrentLineSheetBodyState
               autofocus: true,
             ),
             SizedBox(height: tt.sectionGap),
+            if (_sawNewer) ...[
+              // The newer line is already shown behind the sheet; closing
+              // keeps it (#517).
+              TextButton(
+                onPressed: _submitting
+                    ? null
+                    : () => Navigator.of(context).pop(),
+                child: Text(l10n.beaconCurrentLineKeepTheirs),
+              ),
+              SizedBox(height: tt.rowGap),
+            ],
             FilledButton(
               onPressed: !_canSubmit ? null : _save,
               child: _submitting

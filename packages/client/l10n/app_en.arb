@@ -10638,5 +10638,9 @@
   "helpOfferYouJoinedViaNetworkHint": "You joined via the network",
   "@helpOfferYouJoinedViaNetworkHint": {
     "description": "Hint under an automatic admission on the helper's own card when the author did not forward to them directly (#496)"
+  },
+  "beaconCurrentLineKeepTheirs": "Keep their version",
+  "@beaconCurrentLineKeepTheirs": {
+    "context": "Next-step editor after someone else changed the next step meanwhile (#517): closes the editor and keeps their line instead of saving yours"
   }
 }

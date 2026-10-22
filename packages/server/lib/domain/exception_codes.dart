@@ -120,6 +120,7 @@ enum BeaconExceptionCode {
   planInvalid, // 1345
   pollDuplicateVariant, // 1346
   beaconLobbyAccessDenied, // 1347
+  beaconRoomNowLineConflict, // 1348
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

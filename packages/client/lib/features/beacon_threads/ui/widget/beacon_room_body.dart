@@ -1450,21 +1450,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       body,
       kBeaconRoomCurrentLineMaxLength,
     );
-    final openedWith = cubit.state.roomState?.currentLine;
-    final plan = await showTenturaAdaptiveSheet<String>(
-      context: context,
-      useRootNavigator: true,
-      enableDrag: false,
-      builder: (ctx) => _BeaconRoomTextBottomSheet(
-        title: l10n.beaconRoomActionUpdatePlan,
-        hintText: l10n.beaconRoomStripCurrentLineLabel,
-        initialText: initialText,
-        maxLength: kBeaconRoomCurrentLineMaxLength,
-      ),
+    final saved = await _editPlanLine(
+      context,
+      cubit,
+      l10n,
+      initialText: initialText,
+      allowEmpty: false,
     );
-    if (plan == null || plan.isEmpty || !context.mounted) return;
-    await cubit.updatePlan(plan, expectedLine: openedWith);
-    widget.onCoordinationSaved?.call();
+    if (saved) widget.onCoordinationSaved?.call();
   }
 }
 
@@ -1474,21 +1467,52 @@ Future<void> showBeaconRoomUpdatePlanSheet(
   BuildContext context,
   RoomCubit cubit,
   L10n l10n,
-) async {
-  final openedWith = cubit.state.roomState?.currentLine;
-  final plan = await showTenturaAdaptiveSheet<String>(
-    context: context,
-    useRootNavigator: true,
-    enableDrag: false,
-    builder: (ctx) => _BeaconRoomTextBottomSheet(
-      title: l10n.beaconRoomActionUpdatePlan,
-      hintText: l10n.beaconRoomStripCurrentLineLabel,
-      initialText: openedWith ?? '',
-      maxLength: kBeaconRoomCurrentLineMaxLength,
-    ),
-  );
-  if (plan == null || !context.mounted) return;
-  await cubit.updatePlan(plan, expectedLine: openedWith);
+) => _editPlanLine(
+  context,
+  cubit,
+  l10n,
+  initialText: cubit.state.roomState?.currentLine ?? '',
+);
+
+/// Opens the "Update plan" sheet and saves the line on top of the revision
+/// it opened with. When someone changed the line meanwhile, the room already
+/// shows theirs; the sheet opens again with the person's text and the newer
+/// line in a note, and saving re-applies it on top of the newer revision
+/// (#517). Returns whether a save went through (false when closed or
+/// refused and not re-applied).
+Future<bool> _editPlanLine(
+  BuildContext context,
+  RoomCubit cubit,
+  L10n l10n, {
+  required String initialText,
+  bool allowEmpty = true,
+}) async {
+  var text = initialText;
+  var baseRevision = cubit.state.roomState?.currentLineRevision ?? 0;
+  String? notice;
+  while (true) {
+    final plan = await showTenturaAdaptiveSheet<String>(
+      context: context,
+      useRootNavigator: true,
+      enableDrag: false,
+      builder: (ctx) => _BeaconRoomTextBottomSheet(
+        title: l10n.beaconRoomActionUpdatePlan,
+        hintText: l10n.beaconRoomStripCurrentLineLabel,
+        initialText: text,
+        maxLength: kBeaconRoomCurrentLineMaxLength,
+        notice: notice,
+      ),
+    );
+    if (plan == null || (!allowEmpty && plan.isEmpty) || !context.mounted) {
+      return false;
+    }
+    final refused = await cubit.updatePlan(plan, baseRevision: baseRevision);
+    if (refused == null) return true;
+    if (!context.mounted) return false;
+    text = plan;
+    baseRevision = refused.currentRevision;
+    notice = refused.toL10n(l10n.localeName);
+  }
 }
 
 class _BeaconRoomTextBottomSheet extends StatefulWidget {
@@ -1499,12 +1523,17 @@ class _BeaconRoomTextBottomSheet extends StatefulWidget {
     this.maxLength,
     this.requireChange = false,
     this.allowEmpty = true,
+    this.notice,
   });
 
   final String title;
   final String hintText;
   final String initialText;
   final int? maxLength;
+
+  /// Shown under the field until the person edits, e.g. that someone changed
+  /// the next step meanwhile (#517).
+  final String? notice;
 
   /// Save stays off until the text differs from [initialText] (#483).
   final bool requireChange;
@@ -1520,6 +1549,8 @@ class _BeaconRoomTextBottomSheet extends StatefulWidget {
 class _BeaconRoomTextBottomSheetState
     extends State<_BeaconRoomTextBottomSheet> {
   late final TextEditingController _controller;
+
+  late String? _notice = widget.notice;
 
   @override
   void initState() {
@@ -1593,8 +1624,10 @@ class _BeaconRoomTextBottomSheetState
                       ),
                 decoration: InputDecoration(
                   hintText: widget.hintText,
+                  errorText: _notice,
+                  errorMaxLines: 4,
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() => _notice = null),
               ),
               SizedBox(height: tt.sectionGap),
               TenturaSheetActions(

@@ -220,6 +220,7 @@ void main() {
           withdrawReason: null,
           createdAt: _t,
           updatedAt: DateTime.utc(2025, 1, 4),
+          editedAt: null,
           responseType: CoordinationResponseType.useful.index,
           responseUpdatedAt: acceptedAt,
           responseAuthorUserId: _author.id,

@@ -3804,7 +3804,7 @@ type mutation_root {
   BeaconFactCardRestore(baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, fromSeq: Int!): Int!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
-  BeaconRoomNowLineUpdate(beaconId: String!, text: String!): v2_BeaconRoomStateRow!
+  BeaconRoomNowLineUpdate(baseRevision: Int!, beaconId: String!, text: String!): v2_BeaconRoomStateRow!
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
   DismissOfferAccepted(beaconId: String!): v2_OfferAcceptedDismissals!
   MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): v2_BeaconPeopleSeenResult!
@@ -7981,6 +7981,7 @@ type v2_BeaconRoomSeenResult {
 type v2_BeaconRoomStateRow {
   beaconId: String!
   currentLine: String!
+  currentLineRevision: Int!
   lastRoomMeaningfulChange: String
   openBlockerId: String
   openBlockerTitle: String
@@ -8406,6 +8407,7 @@ type v2_HelpOfferWithCoordinationRow {
   authorSeenAt: String
   beaconId: String!
   createdAt: String!
+  editedAt: String
   helpType: String
   isDirectAuthorForward: Boolean!
   lastDeclineReason: String

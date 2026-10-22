@@ -26,6 +26,7 @@ Future<void> _pumpSheet(
               context,
               beaconId: 'beacon-1',
               initialText: initialText,
+              baseRevision: 0,
             ),
             child: const Text('open'),
           ),

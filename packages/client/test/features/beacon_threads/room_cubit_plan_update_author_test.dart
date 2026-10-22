@@ -28,6 +28,7 @@ class _NowLineRoomRepository extends FakeBeaconThreadsRepository {
   Future<BeaconRoomState> updateRoomNowLine({
     required String beaconId,
     required String text,
+    required int baseRevision,
   }) async {
     nowLineWrites.add(text);
     return BeaconRoomState(
@@ -92,7 +93,7 @@ void main() {
         final (cubit, repo, effects) = await loaded();
         cubit.syncBeaconStatus(status, authorId: kRoomCubitFakeMyUserId);
 
-        await cubit.updatePlan('Bring the ladder', expectedLine: null);
+        await cubit.updatePlan('Bring the ladder', baseRevision: 0);
 
         expect(repo.nowLineWrites, ['Bring the ladder']);
         expect(_blockedMessageShown(effects), isFalse);
@@ -109,7 +110,7 @@ void main() {
         cubit.syncBeaconStatus(status, authorId: kRoomCubitFakeMyUserId);
         expect(cubit.state.canUpdatePlan, isFalse);
 
-        await cubit.updatePlan('Bring the ladder', expectedLine: null);
+        await cubit.updatePlan('Bring the ladder', baseRevision: 0);
 
         expect(repo.nowLineWrites, isEmpty);
         expect(_blockedMessageShown(effects), isTrue);
@@ -128,7 +129,7 @@ void main() {
       );
       cubit.syncBeaconStatus(BeaconStatus.reviewOpen, authorId: 'someone-else');
 
-      await cubit.updatePlan('Bring the ladder', expectedLine: null);
+      await cubit.updatePlan('Bring the ladder', baseRevision: 0);
 
       expect(repo.nowLineWrites, isEmpty);
       expect(_blockedMessageShown(effects), isTrue);
@@ -143,7 +144,7 @@ void main() {
       );
       cubit.syncBeaconStatus(BeaconStatus.reviewOpen, authorId: 'someone-else');
 
-      await cubit.updatePlan('Bring the ladder', expectedLine: null);
+      await cubit.updatePlan('Bring the ladder', baseRevision: 0);
 
       expect(repo.nowLineWrites, ['Bring the ladder']);
       expect(_blockedMessageShown(effects), isFalse);

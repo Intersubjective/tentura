@@ -344,6 +344,7 @@ GROUP BY beacon_id
             beaconId: _draftPost,
             userId: _author,
             text: 'Today we sort the boxes',
+            baseRevision: 0,
           ),
           throwsBeaconNotRequest,
         );

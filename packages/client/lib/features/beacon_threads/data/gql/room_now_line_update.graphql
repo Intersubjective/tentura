@@ -1,7 +1,16 @@
-mutation RoomNowLineUpdate($beaconId: String!, $text: String!) {
-  BeaconRoomNowLineUpdate(beaconId: $beaconId, text: $text) {
+mutation RoomNowLineUpdate(
+  $beaconId: String!
+  $text: String!
+  $baseRevision: Int!
+) {
+  BeaconRoomNowLineUpdate(
+    beaconId: $beaconId
+    text: $text
+    baseRevision: $baseRevision
+  ) {
     beaconId
     currentLine
+    currentLineRevision
     openBlockerId
     openBlockerTitle
     lastRoomMeaningfulChange

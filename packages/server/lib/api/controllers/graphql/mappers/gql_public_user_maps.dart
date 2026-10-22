@@ -97,5 +97,6 @@ Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
   'offerKind': row.offerKind,
   'isDirectAuthorForward': row.isDirectAuthorForward,
   'authorSeenAt': row.authorSeenAt?.toUtc().toIso8601String(),
+  'editedAt': row.editedAt?.toUtc().toIso8601String(),
   'user': userPublicToGqlMap(row.user),
 };

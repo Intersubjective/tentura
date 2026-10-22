@@ -21,6 +21,7 @@ const _beaconId = 'Bauthorseen01';
 Map<String, dynamic> _offerJson({
   required String userId,
   String? authorSeenAt,
+  String? editedAt,
 }) => {
   '__typename': 'HelpOfferWithCoordinationRow',
   'beaconId': _beaconId,
@@ -32,6 +33,7 @@ Map<String, dynamic> _offerJson({
   'withdrawReason': null,
   'createdAt': '2026-06-15T12:00:00.000Z',
   'updatedAt': '2026-06-15T12:00:00.000Z',
+  'editedAt': editedAt,
   'responseType': null,
   'responseUpdatedAt': null,
   'responseAuthorUserId': null,
@@ -151,6 +153,38 @@ void main() {
 
     expect(sent.single.operationName, 'HelpOffersWithCoordination');
     expect(sent.single.query, contains(RegExp(r'\bauthorSeenAt\b')));
+  });
+
+  test('fetchHelpOffersWithCoordination requests and maps editedAt (#361)',
+      () async {
+    final sent = <_SentOperation>[];
+    await _withRemote(
+      {
+        'HelpOffersWithCoordination': {
+          '__typename': 'query_root',
+          'helpOffersWithCoordination': [
+            _offerJson(
+              userId: 'Uofferer00001',
+              editedAt: '2026-06-15T12:07:00.000Z',
+            ),
+            _offerJson(userId: 'Uofferer00002'),
+          ],
+        },
+      },
+      sent,
+      (remote) async {
+        final rows = await CoordinationRepository(
+          remote,
+        ).fetchHelpOffersWithCoordination(beaconId: _beaconId);
+
+        final edited = rows.firstWhere((r) => r.userId == 'Uofferer00001');
+        final untouched = rows.firstWhere((r) => r.userId == 'Uofferer00002');
+        expect(edited.editedAt, DateTime.utc(2026, 6, 15, 12, 7));
+        expect(untouched.editedAt, isNull);
+      },
+    );
+
+    expect(sent.single.query, contains(RegExp(r'\beditedAt\b')));
   });
 
   test('fetchHelpOffersWithCoordination passes an unparsable authorSeenAt '

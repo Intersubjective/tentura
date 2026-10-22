@@ -25,6 +25,7 @@ HelpOfferWithCoordinationRow _row({
   withdrawReason: null,
   createdAt: _createdAt,
   updatedAt: _createdAt,
+  editedAt: null,
   responseType: null,
   responseUpdatedAt: null,
   responseAuthorUserId: null,

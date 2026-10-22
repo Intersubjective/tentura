@@ -129,6 +129,7 @@ FakeHelpOfferCoordinationRow offerRow({
   withdrawReason: null,
   createdAt: createdAt ?? kOfferCreatedAt,
   updatedAt: createdAt ?? kOfferCreatedAt,
+  editedAt: null,
   responseType: null,
   responseUpdatedAt: null,
   responseAuthorUserId: null,

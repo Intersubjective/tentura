@@ -162,6 +162,7 @@ void main() {
               withdrawReason: null,
               createdAt: DateTime.utc(2026),
               updatedAt: DateTime.utc(2026),
+              editedAt: null,
               responseType: null,
               responseUpdatedAt: null,
               responseAuthorUserId: null,

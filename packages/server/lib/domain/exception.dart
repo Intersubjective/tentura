@@ -786,6 +786,49 @@ final class PlanEditConflictException extends ExceptionBase {
   };
 }
 
+/// Next step (#517): the save was based on an older revision of the
+/// Request's next step; someone changed it meanwhile. Carries the line that
+/// is saved now, so the editor can show it and let the person re-apply
+/// theirs on top of [currentRevision].
+final class BeaconRoomNowLineConflictException extends ExceptionBase {
+  const BeaconRoomNowLineConflictException({
+    required this.currentLine,
+    required this.currentRevision,
+    this.updatedBy,
+    this.updatedAt,
+    String? description,
+  }) : super(
+         code: const BeaconExceptionCodes(
+           BeaconExceptionCode.beaconRoomNowLineConflict,
+         ),
+         description: description ?? 'Next step was changed concurrently',
+       );
+
+  final String currentLine;
+
+  final int currentRevision;
+
+  final String? updatedBy;
+
+  final DateTime? updatedAt;
+
+  Map<String, Object> get extensions => {
+    'code': '${code.codeNumber}',
+    'path': path,
+    'currentLine': currentLine,
+    'currentRevision': currentRevision,
+    if (updatedBy case final String id) 'updatedBy': id,
+    if (updatedAt case final DateTime at)
+      'updatedAt': at.toUtc().toIso8601String(),
+  };
+
+  @override
+  Map<String, Object> get toMap => {
+    'message': description,
+    'extensions': extensions,
+  };
+}
+
 final class PlanStepNotFoundException extends ExceptionBase {
   const PlanStepNotFoundException({String? description})
     : super(

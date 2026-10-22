@@ -7278,5 +7278,6 @@
   "helpOfferYouJoinedViaNetworkHint": "Вы присоединились через сеть",
   "@helpOfferYouJoinedViaNetworkHint": {
     "description": "Подсказка под автоматическим допуском на собственной карточке помощника, когда автор не пересылал ему запрос напрямую (#496)"
-  }
+  },
+  "beaconCurrentLineKeepTheirs": "Оставить их вариант"
 }

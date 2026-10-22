@@ -50,6 +50,7 @@ class TimelineHelpOffer {
     this.offerKind = 0,
     this.isDirectAuthorForward = false,
     this.authorSeenAt,
+    this.editedAt,
   });
   final Profile user;
   final String message;
@@ -75,8 +76,12 @@ class TimelineHelpOffer {
   final bool isDirectAuthorForward;
   final DateTime? authorSeenAt;
 
-  bool get isEdited =>
-      !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
+  /// When the helper last edited the offer's text or help types; null when
+  /// never. Unlike [updatedAt], accepting or admitting the offer leaves it
+  /// (#361).
+  final DateTime? editedAt;
+
+  bool get isEdited => !isWithdrawn && editedAt != null;
 
   TimelineHelpOffer copyWith({
     Profile? user,
@@ -97,6 +102,7 @@ class TimelineHelpOffer {
     int? offerKind,
     bool? isDirectAuthorForward,
     DateTime? authorSeenAt,
+    DateTime? editedAt,
   }) => TimelineHelpOffer(
     user: user ?? this.user,
     message: message ?? this.message,
@@ -117,6 +123,7 @@ class TimelineHelpOffer {
     offerKind: offerKind ?? this.offerKind,
     isDirectAuthorForward: isDirectAuthorForward ?? this.isDirectAuthorForward,
     authorSeenAt: authorSeenAt ?? this.authorSeenAt,
+    editedAt: editedAt ?? this.editedAt,
   );
 }
 

@@ -63,6 +63,7 @@ final class BeaconRoomStateRecord {
     this.lastRoomMeaningfulChange,
     required this.updatedAt,
     this.updatedBy,
+    this.currentLineRevision = 0,
   });
 
   final String beaconId;
@@ -71,6 +72,10 @@ final class BeaconRoomStateRecord {
   final String? lastRoomMeaningfulChange;
   final DateTime updatedAt;
   final String? updatedBy;
+
+  /// Counts changes of [currentLine]; the base a next-step save sends back
+  /// (#517). 0 when the Request has no row yet.
+  final int currentLineRevision;
 }
 
 /// Domain projection of [`beacon_participant`].

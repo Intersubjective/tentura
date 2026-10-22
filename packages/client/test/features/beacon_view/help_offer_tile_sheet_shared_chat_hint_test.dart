@@ -61,6 +61,7 @@ FakeHelpOfferCoordinationRow _row() {
     withdrawReason: null,
     createdAt: now,
     updatedAt: now,
+    editedAt: null,
     responseType: null,
     responseUpdatedAt: null,
     responseAuthorUserId: null,

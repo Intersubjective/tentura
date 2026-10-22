@@ -6,6 +6,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -42,11 +43,12 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   Future<void> markReadToBottom() async {}
 
   @override
-  Future<void> updatePlan(
+  Future<NowLineChangedException?> updatePlan(
     String currentLine, {
-    required String? expectedLine,
+    required int baseRevision,
   }) async {
     lastUpdatePlanLine = currentLine;
+    return null;
   }
 }
 

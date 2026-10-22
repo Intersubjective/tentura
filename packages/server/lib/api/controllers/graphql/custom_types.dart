@@ -580,6 +580,8 @@ final gqlTypeBeaconRoomStateRow = GraphQLObjectType('BeaconRoomStateRow', null)
     field('lastRoomMeaningfulChange', graphQLString),
     field('updatedAt', graphQLString.nonNullable()),
     field('updatedBy', graphQLString),
+    // Base revision a next-step save sends back (#517).
+    field('currentLineRevision', graphQLInt.nonNullable()),
   ]);
 
 /// Participant row for BeaconParticipantList (selection via V2 only).
@@ -1441,6 +1443,8 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('lastDeclineReason', graphQLString),
         field('lastRemoveReason', graphQLString),
         field('authorSeenAt', graphQLString),
+        // Helper's own last edit (#361); null when never edited.
+        field('editedAt', graphQLString),
         field('stakeState', graphQLInt.nonNullable()),
         field('offerKind', graphQLInt.nonNullable()),
         field('isDirectAuthorForward', graphQLBoolean.nonNullable()),

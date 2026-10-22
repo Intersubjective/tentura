@@ -2,6 +2,7 @@ query BeaconRoomStateGet($beaconId: String!) {
   BeaconRoomStateGet(beaconId: $beaconId) {
     beaconId
     currentLine
+    currentLineRevision
     openBlockerId
     openBlockerTitle
     lastRoomMeaningfulChange

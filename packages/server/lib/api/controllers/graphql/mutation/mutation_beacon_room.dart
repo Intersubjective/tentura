@@ -65,6 +65,9 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _nowLineText = InputFieldString(fieldName: 'text');
 
+  /// `currentLineRevision` the next-step editor opened with (#517).
+  final _nowLineBaseRevision = InputFieldInt(fieldName: 'baseRevision');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     roomMessageCreate,
     roomMessageAttachmentAdd,
@@ -305,11 +308,13 @@ final class MutationBeaconRoom extends GqlNodeBase {
         arguments: [
           _beaconIdStr.field,
           _nowLineText.field,
+          _nowLineBaseRevision.fieldNonNullable,
         ],
         resolve: (_, args) => _case.updateRoomNowLine(
           beaconId: _beaconIdStr.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           text: _nowLineText.fromArgsNonNullable(args),
+          baseRevision: _nowLineBaseRevision.fromArgsNonNullable(args),
         ),
       );
 

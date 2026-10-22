@@ -12,6 +12,7 @@ fragment HelpOfferWithCoordinationFields on v2_HelpOfferWithCoordinationRow {
   withdrawReason
   createdAt
   updatedAt
+  editedAt
   responseType
   responseUpdatedAt
   responseAuthorUserId

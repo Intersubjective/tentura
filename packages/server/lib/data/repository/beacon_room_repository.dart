@@ -1538,34 +1538,50 @@ RETURNING *
   }
 
   @override
-  Future<void> setBeaconRoomCurrentLine({
+  Future<BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,
     required String updatedBy,
-  }) async {
-    await _db.withMutatingUser(updatedBy, () async {
-      await _db
-          .into(_db.beaconRoomStates)
-          .insertOnConflictUpdate(
-            BeaconRoomStatesCompanion.insert(
-              beaconId: beaconId,
-              currentLine: Value(text),
-              updatedBy: Value(updatedBy),
-              updatedAt: Value(PgDateTime(DateTime.timestamp())),
-            ),
-          );
-      // Plan-only edits have no coordination item change to invalidate NOW.
-      // Publish the existing request refresh hint atomically with the write.
-      await _db.customStatement(
-        r'''
+    required int baseRevision,
+  }) => _db.withMutatingUser(updatedBy, () async {
+    // Compare-and-set on the revision the editor opened with (#517). The
+    // row lock of ON CONFLICT serializes two saves from the same base: the
+    // second re-checks the WHERE against the committed first one and writes
+    // nothing. The m0259 trigger bumps the revision.
+    final written = await _db
+        .customSelect(
+          r'''
+INSERT INTO public.beacon_room_state AS s (
+  beacon_id, current_line, updated_by, updated_at
+) VALUES ($1, $2, $3, now())
+ON CONFLICT (beacon_id) DO UPDATE
+SET current_line = EXCLUDED.current_line,
+    updated_by = EXCLUDED.updated_by,
+    updated_at = EXCLUDED.updated_at
+WHERE s.current_line_revision = $4
+RETURNING s.beacon_id
+''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(text),
+            Variable<String>(updatedBy),
+            Variable<int>(baseRevision),
+          ],
+        )
+        .get();
+    if (written.isEmpty) return null;
+    // Plan-only edits have no coordination item change to invalidate NOW.
+    // Publish the existing request refresh hint atomically with the write.
+    await _db.customStatement(
+      r'''
 SELECT public.emit_realtime_entity_change(
   'beacon', $1, 'update', public.realtime_beacon_recipients($1)
 )
 ''',
-        [beaconId],
-      );
-    });
-  }
+      [beaconId],
+    );
+    return getBeaconRoomState(beaconId);
+  });
 
   Future<void> setBeaconSteward({
     required String beaconId,

@@ -243,10 +243,14 @@ abstract class BeaconRoomRepositoryPort {
     required String userId,
   });
 
-  Future<void> setBeaconRoomCurrentLine({
+  /// Writes the next step if its revision is still [baseRevision] (#517).
+  /// Returns the saved row, or null when someone changed the line meanwhile
+  /// (nothing is written then).
+  Future<BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,
     required String updatedBy,
+    required int baseRevision,
   });
 
   Future<void> setBeaconSteward({

@@ -784,21 +784,22 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> setBeaconRoomCurrentLine({
+  _i3.Future<_i5.BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
     required String? beaconId,
     required String? text,
     required String? updatedBy,
+    required int? baseRevision,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#setBeaconRoomCurrentLine, [], {
               #beaconId: beaconId,
               #text: text,
               #updatedBy: updatedBy,
+              #baseRevision: baseRevision,
             }),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i3.Future<_i5.BeaconRoomStateRecord?>.value(),
           )
-          as _i3.Future<void>);
+          as _i3.Future<_i5.BeaconRoomStateRecord?>);
 
   @override
   _i3.Future<void> setBeaconSteward({

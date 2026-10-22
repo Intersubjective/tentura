@@ -27,6 +27,7 @@ class HelpOfferWithCoordinationRow {
     this.offerKind = 0,
     this.isDirectAuthorForward = false,
     this.authorSeenAt,
+    this.editedAt,
   });
 
   final String beaconId;
@@ -54,6 +55,10 @@ class HelpOfferWithCoordinationRow {
   /// Latest author/steward People-surface watermark at or after [createdAt]
   /// (issue #178 D2/D5); null when not seen yet or hidden from the viewer (D6).
   final DateTime? authorSeenAt;
+
+  /// When the helper last edited the offer's text or help types (#361);
+  /// null when never. Unlike [updatedAt], accept/admission writes leave it.
+  final DateTime? editedAt;
   final UserPublicRecord user;
 
   HelpOfferWithCoordinationRow copyWith({
@@ -93,5 +98,6 @@ class HelpOfferWithCoordinationRow {
     isDirectAuthorForward:
         isDirectAuthorForward ?? this.isDirectAuthorForward,
     authorSeenAt: clearAdmissionFields ? null : authorSeenAt,
+    editedAt: editedAt,
   );
 }
