@@ -167,8 +167,14 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     final requests = {for (final r in held.pinnedRequests) r.id: r};
     final peerRecords = {for (final p in capturedPeers) p.id: p};
     final requestRecords = {for (final r in capturedRequests) r.id: r};
+    final covered = _state.coveredRevision;
     for (final op in result.results) {
       if (op.status != ConstellationAnchorOpStatus.ok || op.replayed) continue;
+      // A projection already newer than this write holds its outcome, or
+      // what replaced it (a reset on another device, #251): a late
+      // acknowledgement must not bring a removed anchor back.
+      final written = op.resultingTargetRevision;
+      if (written != null && written.compareTo(covered) <= 0) continue;
       final anchor = op.anchor;
       final target = anchor?.target ?? op.target;
       if (target == null) continue;

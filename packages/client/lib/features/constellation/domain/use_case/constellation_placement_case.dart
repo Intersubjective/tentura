@@ -170,12 +170,21 @@ final class ConstellationPlacementCase extends UseCaseBase {
   /// «Сбросить позиции» (#251): removes every user-placed position of the
   /// account, hidden and off-screen ones included.
   ///
-  /// A batch already sent settles first, so its acknowledgement cannot reach
-  /// the store after the reset. Writes not acknowledged yet are dropped: the
+  /// Every write made so far predates the reset and is dropped at once: the
   /// reset removes whatever of them committed, and the server refuses any
-  /// that still arrives, since each is based on a pre-reset revision. The
-  /// reset is retried with one operation id, so a retry never resets twice.
-  Future<ConstellationAnchorResetResult> resetAll() async {
+  /// that still arrives, since each is based on a pre-reset revision. A batch
+  /// already sent settles before the reset is sent, so its acknowledgement
+  /// cannot reach the server or the store after it. Placements made while
+  /// the reset runs are kept and sent after it, based on the reset revision.
+  /// The reset is retried under one operation id, so a retry never resets
+  /// twice; concurrent calls share one reset; a change of account abandons
+  /// it before anything more is sent.
+  Future<ConstellationAnchorResetResult> resetAll() =>
+      _resetInFlight ??= _resetAll().whenComplete(() => _resetInFlight = null);
+
+  Future<ConstellationAnchorResetResult>? _resetInFlight;
+
+  Future<ConstellationAnchorResetResult> _resetAll() async {
     if (_disposed) {
       throw StateError('The placement case is disposed');
     }
@@ -185,12 +194,13 @@ final class ConstellationPlacementCase extends UseCaseBase {
     // The loop stops at its next check; an apply in flight finishes first.
     _loopToken = null;
     _flushing = false;
+    final applying = _applyBarrier;
+    _dropAllWrites();
     try {
-      final applying = _applyBarrier;
       if (applying != null) await applying.future;
-      _dropAllWrites();
       final clientOpId = _uuid.v4();
       for (var attempt = 1; ; attempt++) {
+        _requireAccount(generation);
         try {
           final result = await _repository.reset(clientOpId: clientOpId);
           if (!_disposed && _store.current.generation == generation) {
@@ -198,16 +208,28 @@ final class ConstellationPlacementCase extends UseCaseBase {
           }
           return result;
         } on Object catch (error, stackTrace) {
-          if (_disposed || attempt >= _maxAttempts) rethrow;
+          if (_disposed ||
+              attempt >= _maxAttempts ||
+              _store.current.generation != generation) {
+            rethrow;
+          }
           logger.warning('Constellation reset failed', error, stackTrace);
         }
       }
     } finally {
       _resetting = false;
       if (!_disposed) {
+        _syncGeneration();
         _rebaseQueuedWrites();
         _kick();
       }
+    }
+  }
+
+  /// A reset belongs to the account that asked for it.
+  void _requireAccount(int generation) {
+    if (_disposed || _store.current.generation != generation) {
+      throw StateError('The account changed before the reset was sent');
     }
   }
 

@@ -251,4 +251,64 @@ void main() {
 
     expect(anchors.applies.single.single.baseRevision, _revision(10));
   });
+
+  test('a placement made while the batch in flight settles is kept and '
+      'sent after the reset, based on the reset revision', () async {
+    place(ConstellationAnchorTarget.person('U_in_flight'));
+    await _drain();
+    final reset = placement.resetAll();
+    await _drain();
+
+    place(ConstellationAnchorTarget.person('U_during'));
+    await _drain();
+    expect(anchors.applies, hasLength(1), reason: 'nothing sent mid-reset');
+
+    anchors.acknowledge(0, before: 7, after: 8);
+    await reset;
+    await _drain();
+
+    expect(anchors.applies, hasLength(2));
+    final sent = anchors.applies.last.single;
+    expect(sent.target, ConstellationAnchorTarget.person('U_during'));
+    expect(sent.baseRevision, _revision(10));
+  });
+
+  test('concurrent resets share one request', () async {
+    final first = placement.resetAll();
+    final second = placement.resetAll();
+
+    expect(await first, await second);
+    expect(anchors.resetIds, hasLength(1));
+  });
+
+  test('a change of account abandons the reset before it is sent', () async {
+    place(ConstellationAnchorTarget.person('U_in_flight'));
+    await _drain();
+    final reset = placement.resetAll();
+    await _drain();
+
+    fixture.account.add('another-account');
+    await _drain();
+    anchors.acknowledge(0, before: 7, after: 8);
+
+    await expectLater(reset, throwsStateError);
+    expect(anchors.resetIds, isEmpty);
+  });
+
+  test('a late acknowledgement does not bring a reset anchor back', () async {
+    place(ConstellationAnchorTarget.person('U_late'));
+    await _drain();
+    // The reset reaches this device (e.g. made on another one) before the
+    // acknowledgement of the write it removed.
+    fixture.store.applyReset(_revision(10));
+
+    anchors.acknowledge(0, before: 7, after: 8);
+    await _drain();
+
+    expect(
+      fixture.store.current.field!.resolvedAnchorProjection.anchors,
+      isEmpty,
+    );
+    expect(fixture.store.current.coveredRevision, _revision(10));
+  });
 }
