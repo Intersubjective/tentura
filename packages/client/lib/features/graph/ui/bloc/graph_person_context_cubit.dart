@@ -33,6 +33,13 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
   late final StreamSubscription<Profile> _resetSubscription;
   late final StreamSubscription<Profile> _ackSubscription;
 
+  /// Server changes that can move the selected person's card (their trust in
+  /// me, a block, a profile edit, a reconnect); re-reads it in place.
+  StreamSubscription<void>? _projectionSubscription;
+  Timer? _projectionRefresh;
+
+  static const _projectionRefreshDebounce = Duration(milliseconds: 250);
+
   Stream<LazyWriteNotice> get lazyWriteNotices => _trustWrites.lazyWriteNotices;
   final String _viewerId;
   final void Function(Profile profile)? onProfilePatched;
@@ -62,6 +69,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
         ),
       );
       unawaited(_loadAuthoritative(id, state.selectionSequence));
+      _watchProjection(id);
       return;
     }
     if (_authoritative case final known? when known.id == id) {
@@ -86,7 +94,11 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     emit(state.copyWith(selectedProfile: profile));
   }
 
+  /// Latest selected-person read; an older read finishing later is dropped.
+  int _loadGeneration = 0;
+
   Future<void> _loadAuthoritative(String id, int sequence) async {
+    final generation = ++_loadGeneration;
     final Profile fetched;
     try {
       fetched = await _case.fetchProfile(id);
@@ -95,6 +107,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
       return;
     }
     if (isClosed ||
+        generation != _loadGeneration ||
         fetched.id != id ||
         state.selectedProfile?.id != id ||
         state.selectionSequence != sequence) {
@@ -102,6 +115,26 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     }
     _authoritative = _trustWrites.overlay(fetched, authoritative: true);
     emit(state.copyWith(selectedProfile: _authoritative));
+  }
+
+  void _watchProjection(String id) {
+    _unwatchProjection();
+    _projectionSubscription = _case.projectionChanges(id).listen((_) {
+      // A window from the first change, so a steady stream of hints cannot
+      // postpone the re-read indefinitely.
+      _projectionRefresh ??= Timer(_projectionRefreshDebounce, () {
+        _projectionRefresh = null;
+        if (isClosed || state.selectedProfile?.id != id) return;
+        unawaited(_loadAuthoritative(id, state.selectionSequence));
+      });
+    });
+  }
+
+  void _unwatchProjection() {
+    _projectionRefresh?.cancel();
+    _projectionRefresh = null;
+    unawaited(_projectionSubscription?.cancel());
+    _projectionSubscription = null;
   }
 
   void dismiss() {
@@ -192,6 +225,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
 
   @override
   Future<void> close() async {
+    _unwatchProjection();
     await _revertSubscription.cancel();
     await _resetSubscription.cancel();
     await _ackSubscription.cancel();
@@ -200,6 +234,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
 
   void clearSelection() {
     if (isClosed) return;
+    _unwatchProjection();
     _authoritative = null;
     emit(
       state.copyWith(

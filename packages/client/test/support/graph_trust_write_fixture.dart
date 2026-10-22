@@ -180,6 +180,7 @@ final class GraphTrustWriteFixture {
     this.profileRepository = profileRepository ?? profiles;
     writeRepository = likeRepository ?? likes;
     final realtime = buildTestRealtimeSync();
+    realtimePort = realtime.port;
     final authLocal = StreamingAuthLocal();
     final authCase = buildTestAuthCase(authLocal, EmptyAuthRemote());
     final contactStore = ContactNameStore();
@@ -223,6 +224,7 @@ final class GraphTrustWriteFixture {
   late final ProfileRepositoryPort profileRepository;
   late final LikeRemoteRepository writeRepository;
   late final ProfileViewCase profileViewCase;
+  late final TestRealtimeSyncPort realtimePort;
   late final GraphTrustWriteCase trustWriteCase;
   final _disposeCollaborators = <Future<void> Function()>[];
   final _cubits = <GraphPersonContextCubit>[];

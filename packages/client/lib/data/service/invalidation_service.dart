@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'package:tentura/consts.dart' show kQaIntegrationTestMode;
 import 'package:tentura/data/service/remote_api_client/realtime_transport_status.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
@@ -109,6 +112,32 @@ class InvalidationService implements RealtimeSyncPort {
         ),
       );
 
+  /// Freshness tracing (#530): logs when each hint arrives and when its
+  /// coalesced batch is handed to the projections, in debug builds and QA
+  /// integration runs only. Pair with the server's `hint_sent` fine log.
+  static const _traceTiming = kDebugMode || kQaIntegrationTestMode;
+
+  static void _trace(String message) {
+    if (!_traceTiming) return;
+    developer.log(
+      '$message at=${DateTime.now().toUtc().toIso8601String()}',
+      name: 'RealtimeTiming',
+    );
+  }
+
+  static Iterable<RealtimeEntityChange> _traceBatch(
+    Iterable<RealtimeEntityChange> batch,
+  ) {
+    if (_traceTiming) {
+      final changes = batch.toList(growable: false);
+      _trace(
+        'emit ${changes.map((c) => '${c.kind.name}:${c.aggregateId}').join(',')}',
+      );
+      return changes;
+    }
+    return batch;
+  }
+
   @override
   late final Stream<RealtimeEntityChange> entityChanges = Rx.merge([
     _bufferAfterFirstEvent(
@@ -116,13 +145,13 @@ class InvalidationService implements RealtimeSyncPort {
         (change) => change.kind == RealtimeEntityKind.roomMessage,
       ),
       _roomMessageBatchWindow,
-    ).expand(_deduplicateEntityChanges),
+    ).map(_deduplicateEntityChanges).expand(_traceBatch),
     _bufferAfterFirstEvent(
       _entityChangeController.stream.where(
         (change) => change.kind != RealtimeEntityKind.roomMessage,
       ),
       _batchWindow,
-    ).expand(_deduplicateEntityChanges),
+    ).map(_deduplicateEntityChanges).expand(_traceBatch),
   ]).asBroadcastStream();
 
   @override
@@ -187,6 +216,7 @@ class InvalidationService implements RealtimeSyncPort {
       return;
     }
 
+    _trace('recv ${kind.name}:$id ${operation.name}');
     _entityChangeController.add(
       RealtimeEntityChange(
         kind: kind,
@@ -221,7 +251,10 @@ class InvalidationService implements RealtimeSyncPort {
       'protocol_change' => RealtimeCatchUpReason.serverRequested,
       _ => null,
     };
-    if (reason != null) requestCatchUp(reason);
+    if (reason != null) {
+      _trace('catch_up ${reason.name}');
+      requestCatchUp(reason);
+    }
   }
 
   void _onTransportStatus(RealtimeTransportStatus transportStatus) {
@@ -255,6 +288,7 @@ class InvalidationService implements RealtimeSyncPort {
       return;
     }
     if (_hasAuthenticatedCurrentAccount) {
+      _trace('catch_up reconnect epoch=${transportStatus.connectionEpoch}');
       _catchUpController.add(
         RealtimeCatchUp(
           accountId: transportStatus.accountId!,

@@ -58,6 +58,9 @@ const impactSubscribers = <String, List<String>>{
   'friends': [
     'packages/client/lib/features/friends/domain/use_case/friends_case.dart',
   ],
+  'trust_graph': [
+    'packages/client/lib/features/graph/ui/bloc/graph_cubit.dart',
+  ],
   'inbox': [
     'packages/client/lib/features/inbox/ui/bloc/inbox_cubit.dart',
   ],

@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:logging/logging.dart';
 
+import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/block/ui/sheet/block_user_sheet.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../../../ui/effect/fake_ui_effect_port.dart';
 
@@ -227,6 +232,76 @@ void main() {
 
       expect(effects.emitted.whereType<NavigateBlockedUsers>(), hasLength(1));
     });
+
+    // #394 remainder: on the wide profile route (people list beside the
+    // profile) the confirmation used to be painted twice and never left.
+    testWidgets(
+      'two-pane profile: one Person blocked bar that auto-dismisses',
+      (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(1280, 1100);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        GetIt.I.registerSingleton<Logger>(Logger('block-two-pane'));
+        addTearDown(GetIt.I.reset);
+        final fakeCase = FakeBlockCase()
+          ..previewResults = [const BlockPreview()];
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            scaffoldMessengerKey: snackbarKey,
+            home: TenturaResponsiveScope(
+              child: HomeRailFrame(
+                selectedTab: HomeTab.network,
+                child: TenturaListDetailLayout(
+                  list: const Scaffold(body: Text('people list')),
+                  detail: Scaffold(
+                    body: Builder(
+                      builder: (context) => ElevatedButton(
+                        onPressed: () => showBlockUserSheet(
+                          context,
+                          const Profile(id: 'user-blocked', displayName: 'Bob'),
+                          blockCase: fakeCase,
+                        ),
+                        child: const Text('block'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.byKey(TenturaListDetailLayout.listPaneKey), findsOneWidget);
+
+        await tester.tap(find.text('block'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('block_confirm_button')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 750));
+
+        expect(fakeCase.blockCalls, [0]);
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(
+          find.text(l10n.blockConfirmedMessage, findRichText: true),
+          findsOneWidget,
+        );
+
+        await tester.pump(const Duration(seconds: kSnackBarDuration));
+        await tester.pumpAndSettle();
+        expect(find.byType(SnackBar), findsNothing);
+        expect(
+          find.text(l10n.blockConfirmedMessage, findRichText: true),
+          findsNothing,
+        );
+      },
+    );
   });
 }
 

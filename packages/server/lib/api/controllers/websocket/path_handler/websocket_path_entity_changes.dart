@@ -66,6 +66,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
   }
 
   Future<void> fanOutEntityChange(Map<String, dynamic> data) async {
+    final receivedAt = DateTime.now().toUtc();
     final userIds = data['user_ids'];
     final entity = data['entity'];
     final aggregateId = data['id'];
@@ -180,6 +181,16 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
       session.send(message);
       frameCount++;
     }
+    // Freshness tracing (#530): when this isolate took the NOTIFY and when
+    // the frames left, to line up with the client's receive log.
+    logger.fine(
+      () =>
+          '[RealtimeFanout] realtime_event=hint_sent kind=$entity '
+          'id=$aggregateId event=$event '
+          'received_at=${receivedAt.toIso8601String()} '
+          'sent_at=${DateTime.now().toUtc().toIso8601String()} '
+          'frames=$frameCount',
+    );
     logger.info(
       '[RealtimeFanout] realtime_event=fanout kind=$entity '
       'recipients=${seen.length} direct_sessions=${sentSessions.length} '
