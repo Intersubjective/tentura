@@ -94,7 +94,11 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
     emit(state.copyWith(selectedProfile: profile));
   }
 
+  /// Latest selected-person read; an older read finishing later is dropped.
+  int _loadGeneration = 0;
+
   Future<void> _loadAuthoritative(String id, int sequence) async {
+    final generation = ++_loadGeneration;
     final Profile fetched;
     try {
       fetched = await _case.fetchProfile(id);
@@ -103,6 +107,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
       return;
     }
     if (isClosed ||
+        generation != _loadGeneration ||
         fetched.id != id ||
         state.selectedProfile?.id != id ||
         state.selectionSequence != sequence) {
@@ -115,8 +120,10 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
   void _watchProjection(String id) {
     _unwatchProjection();
     _projectionSubscription = _case.projectionChanges(id).listen((_) {
-      _projectionRefresh?.cancel();
-      _projectionRefresh = Timer(_projectionRefreshDebounce, () {
+      // A window from the first change, so a steady stream of hints cannot
+      // postpone the re-read indefinitely.
+      _projectionRefresh ??= Timer(_projectionRefreshDebounce, () {
+        _projectionRefresh = null;
         if (isClosed || state.selectedProfile?.id != id) return;
         unawaited(_loadAuthoritative(id, state.selectionSequence));
       });

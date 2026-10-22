@@ -112,13 +112,17 @@ Legend: ✓ delivered / subscribed / refetches; ✗ gap; — not affected.
   was drawn. In addition a closure read that raced the lazy trust write could
   merge the withdrawn Me→peer edge back.
 - **Fix:** `GraphCubit` (trust mode) subscribes to `relationship` hints and
-  catch-ups through `RealtimeSyncCase`, coalesces 250 ms, re-reads the edges
-  among all loaded people (`graph_edges_between`, same `positiveOnly` filter)
-  and *replaces* them: edges the server no longer has are dropped; people
-  whose link to the viewer changed (or who the hint names) get their profile
-  re-read so the mutual badge follows. A locally withdrawn Me→peer edge is
-  never merged back from any read until the server agrees; a provisional
-  re-trust edge stays until the server has it.
+  catch-ups through `RealtimeSyncCase`, batches a 250 ms window from the
+  first hint (a steady stream cannot postpone it), re-reads the edges among
+  all loaded people (`graph_edges_between`, same `positiveOnly` filter) and
+  *replaces* them: edges the server no longer has are dropped; people whose
+  link to the viewer changed (or who the hint names) are re-read in one
+  `fetchProfilesByIds` so the mutual badge follows. A locally withdrawn
+  Me→peer edge is not merged back from any read until the server agrees or
+  20 s pass (so a re-trust from another session is not hidden for good); a
+  provisional re-trust edge stays until the server has it. A neighbourhood or
+  closure read that started before a re-read and lands after it schedules one
+  more re-read, so an older read cannot keep a dropped edge.
 - **#402 ("other connections vanish"):** the screenshot shows the focus on
   Helper Two (undo enabled, Me carries a "1 hidden" badge): tapping a person
   moves the focus-path spotlight to that person, which hides Me's other
@@ -129,7 +133,8 @@ Legend: ✓ delivered / subscribed / refetches; ✗ gap; — not affected.
   bug, and is left unchanged.
 - The open person card (`GraphPersonContextCubit`) re-reads the selected
   person on `ProfileViewCase.projectionChanges` (relationship, profile, block
-  marker, catch-up), so its trust/visibility lines follow too.
+  marker, catch-up), so its trust/visibility lines follow too; only the latest
+  read is applied.
 - Tests: `test/features/graph/graph_relationship_realtime_test.dart`
   (remote untrust drops the edge and badge and keeps everyone else; remote
   trust appears; burst read once; catch-up refetches; local withdrawal holds

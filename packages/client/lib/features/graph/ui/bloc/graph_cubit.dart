@@ -181,6 +181,27 @@ class GraphCubit extends Cubit<GraphState> {
 
   bool _relationshipRefreshInFlight = false;
 
+  /// Bumped when a relationship re-read starts. A neighbourhood or closure
+  /// read that began before it may carry an edge that re-read dropped, so
+  /// such a read schedules one more re-read after it merges.
+  int _relationshipRevision = 0;
+
+  /// When each [_withdrawnViewerEdges] withdrawal happened. The guard against
+  /// reads that still carry the withdrawn edge lasts [withdrawalGuardWindow]:
+  /// long enough for the lazy write and the trust-edge rewrite, short enough
+  /// that a re-trust from another session is not hidden for good.
+  final _withdrawnAt = <String, DateTime>{};
+
+  @visibleForTesting
+  static Duration withdrawalGuardWindow = const Duration(seconds: 20);
+
+  bool _withdrawalGuarded(String peerId) {
+    final at = _withdrawnAt[peerId];
+    return at != null &&
+        _withdrawnViewerEdges.containsKey(peerId) &&
+        DateTime.now().difference(at) < withdrawalGuardWindow;
+  }
+
   bool _relationshipRefreshQueued = false;
 
   @visibleForTesting
@@ -313,6 +334,7 @@ class GraphCubit extends Cubit<GraphState> {
     _addedEdgeEndpoints.clear();
     _allEdges.clear();
     _withdrawnViewerEdges.clear();
+    _withdrawnAt.clear();
     _keptViewerPeers.clear();
     _provisionalViewerEdges.clear();
     if (mode == GraphMode.genealogy) {
@@ -573,6 +595,7 @@ class GraphCubit extends Cubit<GraphState> {
   /// what the server now holds. Keeps the stand-in if nothing comes back.
   Future<void> _replaceProvisionalViewerEdge(String peerId) async {
     final cacheEpoch = _cacheEpoch;
+    final relationshipRevision = _relationshipRevision;
     final egoId = _egoNode.id;
     final Set<EdgeDirected> edges;
     try {
@@ -605,6 +628,7 @@ class GraphCubit extends Cubit<GraphState> {
             (e.src == peerId && e.dst == egoId))
           e,
     });
+    _rereadIfRelationshipsMoved(relationshipRevision);
     _recomputeVisibility();
   }
 
@@ -623,9 +647,11 @@ class GraphCubit extends Cubit<GraphState> {
       final edge = _allEdges.remove(key);
       if (edge == null) return;
       _withdrawnViewerEdges[peerId] = edge;
+      _withdrawnAt[peerId] = DateTime.now();
       _keptViewerPeers.add(peerId);
     } else if (!wasTrusted && trusts) {
       final stashed = _withdrawnViewerEdges.remove(peerId);
+      _withdrawnAt.remove(peerId);
       _keptViewerPeers.remove(peerId);
       if (_allEdges.containsKey(key)) return;
       if (stashed == null) _provisionalViewerEdges.add(peerId);
@@ -651,11 +677,12 @@ class GraphCubit extends Cubit<GraphState> {
     if (hintedId != null && hintedId.isNotEmpty) {
       _relationshipHintedIds.add(hintedId);
     }
-    _relationshipRefreshTimer?.cancel();
-    _relationshipRefreshTimer = Timer(
-      relationshipRefreshDebounce,
-      () => unawaited(_refreshLoadedRelationships()),
-    );
+    // A window from the first hint, not a trailing debounce: a steady
+    // stream of hints must not postpone the re-read indefinitely.
+    _relationshipRefreshTimer ??= Timer(relationshipRefreshDebounce, () {
+      _relationshipRefreshTimer = null;
+      unawaited(_refreshLoadedRelationships());
+    });
   }
 
   /// Re-reads the trust edges among every loaded person and replaces the
@@ -685,6 +712,7 @@ class GraphCubit extends Cubit<GraphState> {
       // Same filter as the reads that filled the cache, so neighbour counts
       // keep their meaning; negative edges then stay as they were.
       final positiveOnly = state.positiveOnly;
+      _relationshipRevision++;
       final Set<EdgeDirected> fresh;
       try {
         fresh = await _graphSource.fetchEdgesBetween(
@@ -720,7 +748,14 @@ class GraphCubit extends Cubit<GraphState> {
       _withdrawnViewerEdges.removeWhere(
         (peerId, _) => !freshKeys.contains((egoId, peerId)),
       );
+      _withdrawnAt.removeWhere(
+        (peerId, _) => !_withdrawnViewerEdges.containsKey(peerId),
+      );
       for (final e in fresh) {
+        // The server has stored a local re-trust: the stand-in is done.
+        if (e.src == egoId && e.weight > 0) {
+          _provisionalViewerEdges.remove(e.dst);
+        }
         final isNew = !_allEdges.containsKey((e.src, e.dst));
         if (isNew && e.src == egoId) changedPeers.add(e.dst);
         if (isNew && e.dst == egoId) changedPeers.add(e.src);
@@ -731,27 +766,28 @@ class GraphCubit extends Cubit<GraphState> {
       final profileIds = {...changedPeers, ...hinted}
         ..remove(egoId)
         ..removeWhere((id) => _nodes[id] is! UserNode);
-      for (final id in profileIds) {
-        final Profile fetched;
-        try {
-          fetched = await _profileRepository.fetchById(id);
-        } catch (_) {
-          continue;
-        }
-        if (isClosed || cacheEpoch != _cacheEpoch) return;
-        final current = _nodes[id];
+      if (profileIds.isEmpty) return;
+      final List<Profile> fetched;
+      try {
+        fetched = await _profileRepository.fetchProfilesByIds(profileIds);
+      } catch (_) {
+        return;
+      }
+      if (isClosed || cacheEpoch != _cacheEpoch) return;
+      for (final profile in fetched) {
+        final current = _nodes[profile.id];
         if (current is! UserNode) continue;
         // My own vote is the local truth while a write of it is in flight.
         final pendingLocal =
-            _withdrawnViewerEdges.containsKey(id) ||
-            _provisionalViewerEdges.contains(id);
-        final myVote = pendingLocal ? current.user.myVote : fetched.myVote;
+            _withdrawalGuarded(profile.id) ||
+            _provisionalViewerEdges.contains(profile.id);
+        final myVote = pendingLocal ? current.user.myVote : profile.myVote;
         _replaceUserNodePayload(
-          fetched.copyWith(
+          profile.copyWith(
             myVote: myVote,
             isMutualFriend: pendingLocal
-                ? myVote > 0 && fetched.subjectExplicitlyTrustsViewer
-                : fetched.isMutualFriend,
+                ? myVote > 0 && profile.subjectExplicitlyTrustsViewer
+                : profile.isMutualFriend,
           ),
         );
       }
@@ -1058,6 +1094,7 @@ class GraphCubit extends Cubit<GraphState> {
     _addedEdgeEndpoints.clear();
     _allEdges.clear();
     _withdrawnViewerEdges.clear();
+    _withdrawnAt.clear();
     _keptViewerPeers.clear();
     _provisionalViewerEdges.clear();
     _everFocusedIds
@@ -1081,6 +1118,7 @@ class GraphCubit extends Cubit<GraphState> {
   Future<void> _fetch() async {
     final cacheEpoch = _cacheEpoch;
     final fetchEpoch = ++_fetchEpoch;
+    final relationshipRevision = _relationshipRevision;
     var loadingOwned = false;
     try {
       emit(state.copyWith(status: StateStatus.isLoading));
@@ -1279,6 +1317,7 @@ class GraphCubit extends Cubit<GraphState> {
         }
         _mergeEdgesIntoCache(star);
         _mergeEdgesIntoCache(closure);
+        _rereadIfRelationshipsMoved(relationshipRevision);
         if (limitKey.isNotEmpty) {
           _fetchLimits[limitKey] = 1;
         }
@@ -1668,7 +1707,7 @@ class GraphCubit extends Cubit<GraphState> {
       }
       // A trust I just withdrew stays withdrawn even if a read raced the
       // (lazy) write and still carries the old edge (#359).
-      if (e.src == _egoNode.id && _withdrawnViewerEdges.containsKey(e.dst)) {
+      if (e.src == _egoNode.id && _withdrawalGuarded(e.dst)) {
         continue;
       }
       final key = (e.src, e.dst);
@@ -1726,6 +1765,7 @@ class GraphCubit extends Cubit<GraphState> {
       return;
     }
     final cacheEpoch = _cacheEpoch;
+    final relationshipRevision = _relationshipRevision;
     // Prefer nodes actually on the canvas — that is the product invariant.
     final ids = {
       for (final node in graphController.nodes) node.id,
@@ -1758,10 +1798,20 @@ class GraphCubit extends Cubit<GraphState> {
     if (isClosed || cacheEpoch != _cacheEpoch) {
       return;
     }
-    if (!_mergeEdgesIntoCache(closure)) {
+    final added = _mergeEdgesIntoCache(closure);
+    _rereadIfRelationshipsMoved(relationshipRevision);
+    if (!added) {
       return;
     }
     _recomputeVisibility();
+  }
+
+  /// A read that started before the latest relationship re-read may have
+  /// merged an edge that re-read had dropped: read the relationships again.
+  void _rereadIfRelationshipsMoved(int revisionAtReadStart) {
+    if (revisionAtReadStart != _relationshipRevision) {
+      _scheduleRelationshipRefresh(null);
+    }
   }
 
   EdgeDetails _buildEdgeDetails(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,19 +41,29 @@ class _FakeGraphSource implements GraphSourceRepository {
     Set<String> excludeNeighborIds = const {},
   }) async => pages[focus] ?? const {};
 
+  /// When set, the next edge read snapshots the server now and answers
+  /// only once this completes (a slow, older read).
+  Completer<void>? holdNext;
+
   @override
   Future<Set<EdgeDirected>> fetchEdgesBetween({
     required Set<String> nodeIds,
     bool positiveOnly = true,
   }) async {
     betweenCalls.add({...nodeIds});
-    return {
+    final result = {
       for (final e in between)
         if (nodeIds.contains(e.src) &&
             nodeIds.contains(e.dst) &&
             (!positiveOnly || e.weight > 0))
           e,
     };
+    final hold = holdNext;
+    if (hold != null) {
+      holdNext = null;
+      await hold.future;
+    }
+    return result;
   }
 }
 
@@ -64,6 +76,11 @@ class _FakeProfileRepository implements ProfileRepositoryPort {
     fetchedIds.add(id);
     return byId[id] ?? Profile(id: id, displayName: id);
   }
+
+  @override
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async => [
+    for (final id in ids) await fetchById(id),
+  ];
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -271,8 +288,8 @@ void main() {
       final fixture = GraphTrustWriteFixture();
       addTearDown(fixture.dispose);
       fixture.profiles.byId['Ualice'] = _aliceMutual;
-      final card = fixture.createCubit();
-      card.selectProfile(_aliceMutual, intentional: true);
+      final card = fixture.createCubit()
+        ..selectProfile(_aliceMutual, intentional: true);
       await _settle();
       expect(card.state.selectedProfile!.subjectExplicitlyTrustsViewer, isTrue);
 
@@ -298,4 +315,86 @@ void main() {
       expect(fixture.profiles.fetchCalls, reads);
     },
   );
+
+  test('a re-trust stand-in ends once the server has the edge, so a later '
+      'remote withdrawal still removes it', () async {
+    cubit.patchLoadedProfile(_aliceMutual.copyWith(myVote: 0));
+    await _settle();
+    // Re-trust with no stashed edge left: a provisional stand-in.
+    source.between.removeWhere((e) => e.src == 'Ume' && e.dst == 'Ualice');
+    port.emitChange(_relationshipHint('Ualice'));
+    await _afterRefresh();
+    cubit
+      ..patchLoadedProfile(_aliceMutual.copyWith(myVote: 0))
+      ..patchLoadedProfile(_aliceMutual);
+    await _settle();
+    expect(cubit.viewerLink('Ualice')?.fromViewer, isNotNull);
+
+    // The trust-edge rewrite lands: the server has my edge.
+    source.between.add(_e('Ume', 'Ualice', weight: 0.7));
+    port.emitChange(_relationshipHint('Ualice'));
+    await _afterRefresh();
+    expect(cubit.viewerLink('Ualice')?.fromViewer, 0.7);
+
+    // Withdrawn from another session: the edge goes.
+    source.between.removeWhere((e) => e.src == 'Ume' && e.dst == 'Ualice');
+    port.emitChange(_relationshipHint('Ualice'));
+    await _afterRefresh();
+    expect(cubit.viewerLink('Ualice')?.fromViewer, isNull);
+  });
+
+  test('the withdrawal guard is time-bounded: a re-trust from another '
+      'session shows once it has passed', () async {
+    final window = GraphCubit.withdrawalGuardWindow;
+    addTearDown(() => GraphCubit.withdrawalGuardWindow = window);
+    GraphCubit.withdrawalGuardWindow = const Duration(milliseconds: 100);
+
+    cubit.patchLoadedProfile(_aliceMutual.copyWith(myVote: 0));
+    await _settle();
+    // The server never shows the edge absent: re-trusted elsewhere first.
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    profiles.byId['Ualice'] = _aliceMutual;
+    port.emitChange(_relationshipHint('Ualice'));
+    await _afterRefresh();
+
+    expect(cubit.viewerLink('Ualice'), (fromViewer: 1.0, toViewer: 1.0));
+  });
+
+  test(
+    'an older read finishing after a re-read cannot keep a dropped edge',
+    () async {
+      // A structural closure read (started by a tap) is slow and still sees
+      // Alice -> Me.
+      final slow = Completer<void>();
+      source.holdNext = slow;
+      final carol = cubit.graphController.nodes.singleWhere(
+        (n) => n.id == 'Ucarol',
+      );
+      cubit.selectNode(carol);
+      await _settle();
+
+      // Meanwhile Alice stops trusting me and the re-read drops the edge.
+      source.between.removeWhere((e) => e.src == 'Ualice' && e.dst == 'Ume');
+      port.emitChange(_relationshipHint('Ualice'));
+      await _afterRefresh();
+      expect(cubit.viewerLink('Ualice')?.toViewer, isNull);
+
+      // The old read lands and merges the stale edge back ...
+      slow.complete();
+      await _settle();
+      // ... which schedules one more re-read that drops it again.
+      await _afterRefresh();
+      expect(cubit.viewerLink('Ualice')?.toViewer, isNull);
+    },
+  );
+
+  test('a steady stream of hints does not postpone the re-read', () async {
+    final callsBefore = source.betweenCalls.length;
+    for (var i = 0; i < 6; i++) {
+      port.emitChange(_relationshipHint('Ubob'));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    await _settle();
+    expect(source.betweenCalls.length, greaterThan(callsBefore));
+  });
 }
