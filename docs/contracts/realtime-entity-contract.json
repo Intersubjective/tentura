@@ -74,7 +74,11 @@
       "acceptedWireKinds": ["room_message"],
       "clientKind": "roomMessage",
       "genericTriggerArgs": ["room_message"],
-      "specializedPublishers": ["notify_room_message_attachment_change"],
+      "specializedPublishers": [
+        "notify_room_message_attachment_change",
+        "notify_questions_message_change",
+        "notify_questions_attachment_change"
+      ],
       "payloadContract": {
         "childIdField": "message_id",
         "optionalPaintField": "message",
@@ -88,7 +92,7 @@
       "acceptedWireKinds": ["room_reaction"],
       "clientKind": "roomReaction",
       "genericTriggerArgs": ["room_reaction"],
-      "specializedPublishers": [],
+      "specializedPublishers": ["notify_questions_reaction_change"],
       "impacts": ["chat_reactions"],
       "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
