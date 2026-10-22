@@ -141,13 +141,18 @@ Future<void> main() async {
       notifications.clear();
     });
 
+    const roomKinds = {'room_message', 'room_reaction', 'room_poll'};
+
     /// Every recipient of a hint of [entity] about [beaconId] (optionally
-    /// [messageId]) after [action], once the stream has gone quiet.
+    /// [messageId]) after [action], once the stream has gone quiet. With
+    /// [forbidden], also fails when ANY room hint (any kind, any message)
+    /// reached one of them.
     Future<Set<String>> recipientsAfter(
       Future<void> Function() action, {
       required String entity,
       String? messageId,
       Set<String> waitFor = const {},
+      Set<String> forbidden = const {},
     }) async {
       notifications.clear();
       await action();
@@ -165,6 +170,12 @@ Future<void> main() async {
       }
       // A late leak would arrive in the same NOTIFY batch; give it a beat.
       await Future<void>.delayed(const Duration(milliseconds: 200));
+      for (final n in notifications) {
+        if (!roomKinds.contains(n['entity'])) continue;
+        final leaked = (n['user_ids'] as List).cast<String>().toSet()
+          ..retainAll(forbidden);
+        expect(leaked, isEmpty, reason: 'room hint leaked: $n');
+      }
       return current();
     }
 
@@ -186,6 +197,7 @@ Future<void> main() async {
         entity: 'room_message',
         messageId: messageId,
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(inserted, audience);
 
@@ -197,6 +209,7 @@ Future<void> main() async {
         entity: 'room_message',
         messageId: messageId,
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(edited, audience);
 
@@ -207,6 +220,7 @@ Future<void> main() async {
         entity: 'room_message',
         messageId: messageId,
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(deleted, audience);
       expect(deleted.intersection(outsideAudience), isEmpty);
@@ -223,6 +237,7 @@ Future<void> main() async {
         ),
         entity: 'room_reaction',
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(added, audience);
 
@@ -233,6 +248,7 @@ Future<void> main() async {
         ),
         entity: 'room_reaction',
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(removed, audience);
     });
@@ -249,6 +265,7 @@ Future<void> main() async {
         entity: 'room_message',
         messageId: messageId,
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(added, audience);
 
@@ -260,6 +277,7 @@ Future<void> main() async {
         entity: 'room_message',
         messageId: messageId,
         waitFor: audience,
+        forbidden: outsideAudience,
       );
       expect(removed, audience);
     });
@@ -308,6 +326,101 @@ Future<void> main() async {
         waitFor: general,
       );
       expect(deleted, general);
+    });
+
+    test('deleting the Questions item cascades its messages with '
+        'audience-only hints', () async {
+      const messageId = 'Mqhint000005';
+      await insertMessage(messageId, questioner, thread: lobbyId);
+      await sql(
+        'INSERT INTO public.beacon_room_message_reaction (id, message_id, '
+        "user_id, emoji) VALUES ('Eqhint000005', '$messageId', '$helper', "
+        "'+1')",
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      final deleted = await recipientsAfter(
+        () => sql(
+          "DELETE FROM public.coordination_item WHERE id = '$lobbyId'",
+        ),
+        entity: 'room_message',
+        messageId: messageId,
+        waitFor: audience,
+        forbidden: outsideAudience,
+      );
+      expect(deleted, audience);
+    });
+
+    test('moving rows into or out of Questions never reaches people '
+        'outside the audience', () async {
+      const generalId = 'Mqhint000006';
+      const questionId = 'Mqhint000007';
+      await insertMessage(generalId, helper);
+      await insertMessage(questionId, questioner, thread: lobbyId);
+      await sql(
+        'INSERT INTO public.beacon_room_message_reaction (id, message_id, '
+        "user_id, emoji) VALUES ('Eqhint000006', '$generalId', '$helper', "
+        "'+1')",
+      );
+      await sql(
+        'INSERT INTO public.beacon_room_message_attachment (id, message_id, '
+        "kind, file_url, file_name) VALUES ('Aqhint000006', '$generalId', "
+        "1, 'room/z', 'z.pdf')",
+      );
+      // Let the General setup hints land before watching for leaks.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      final reactionMoved = await recipientsAfter(
+        () => sql(
+          'UPDATE public.beacon_room_message_reaction '
+          "SET message_id = '$questionId' WHERE id = 'Eqhint000006'",
+        ),
+        entity: 'room_reaction',
+        waitFor: audience,
+        forbidden: outsideAudience,
+      );
+      expect(reactionMoved, audience);
+
+      final attachmentMoved = await recipientsAfter(
+        () => sql(
+          'UPDATE public.beacon_room_message_attachment '
+          "SET message_id = '$questionId' WHERE id = 'Aqhint000006'",
+        ),
+        entity: 'room_message',
+        messageId: questionId,
+        waitFor: audience,
+        forbidden: outsideAudience,
+      );
+      expect(attachmentMoved, audience);
+
+      final messageMovedOut = await recipientsAfter(
+        () => sql(
+          'UPDATE public.beacon_room_message SET thread_item_id = NULL '
+          "WHERE id = '$questionId'",
+        ),
+        entity: 'room_message',
+        messageId: questionId,
+        waitFor: audience,
+        forbidden: outsideAudience,
+      );
+      expect(messageMovedOut, audience);
+    });
+
+    test('a Questions message can never link a poll', () async {
+      await expectLater(
+        sql(
+          'INSERT INTO public.beacon_room_message (id, beacon_id, author_id, '
+          'body, thread_item_id, linked_polling_id) VALUES '
+          "('Mqhint000008', '$beaconId', '$questioner', '', '$lobbyId', "
+          "'Pqhint000001')",
+        ),
+        throwsA(
+          isA<ServerException>().having(
+            (e) => e.message,
+            'message',
+            contains('discussion_scope_disabled'),
+          ),
+        ),
+      );
     });
   }, skip: skipReason);
 }

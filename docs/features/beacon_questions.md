@@ -81,8 +81,12 @@ mention candidates and realtime hints.
   `notify_room_message_attachment_change`) skip Questions rows through a
   trigger `WHEN` clause, so General room recipients outside the audience
   (removed from Questions, blocked with the author) get nothing; General rows
-  are published exactly as before. No Questions text is painted over the
-  socket; clients refetch through the gated API.
+  are published exactly as before. Moving a row into or out of Questions
+  (never done by the API) publishes to the audience only; deleting the
+  Questions item deletes its messages first so their hints stay scoped; a
+  Questions message can never link a poll (`room_poll` goes to General). No
+  Questions text is painted over the socket; clients refetch through the
+  gated API.
 - Questions do not move `beacon.last_activity_at`.
 
 ## Client
