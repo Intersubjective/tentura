@@ -3822,6 +3822,7 @@ type mutation_root {
   attentionMarkAllSeen(surface: String): Int!
   attentionMarkSeen(ids: [String!]): Int!
   attentionMarkSeenForBeacon(beaconId: String!): Int!
+  attentionMarkUnread(ids: [String!]): Int!
   attentionMarkUnseen(ids: [String!]): Int!
   attentionReconcile: v2_AttentionReconcileResult!
   attentionSettle(kind: String!, receiptId: String!): Int!

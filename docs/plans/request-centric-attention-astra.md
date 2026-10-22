@@ -103,7 +103,14 @@ obligation:  live → resolved/superseded/expired
 - Reading never settles or clears.
 - Clearing never settles.
 - Settlement removes an obligation even when it remains unread in History.
-- “Mark unread” in History never resurrects primary-surface attention.
+- “Mark unread” on a cleared optional Updates item is an explicit **un-clear**
+  (#601, `attentionMarkUnread`): it resets `cleared_at` (with `clear_reason`
+  and `cleared_by_operation_id`) and `seen_at` for the caller's own visible
+  optional receipts, so the item is active again and returns under Unread.
+  It never touches obligations (`requires_action`), never revives a settled
+  obligation, and never un-clears a row the caller did not name or may no
+  longer read. On an item that was only read it is the read-axis
+  `attentionMarkUnseen`.
 
 Opening a Request is an explicit clear boundary, not merely a read operation.
 
@@ -577,7 +584,7 @@ No unit should combine retention changes, obligation lifecycle changes, and widg
 | Decisions | Required evidence |
 |---|---|
 | **D01** | Author/helper/obligation-only/neither matrix; archived and draft cases; offering and withdrawing help; answered forward never leaves a second primary card |
-| **D02** | Seen optional still active until cleared; cleared optional retained in History; seen obligation still counted; settled unread obligation absent from primary attention; mark-unread does not resurrect |
+| **D02** | Seen optional still active until cleared; cleared optional retained in History; seen obligation still counted; settled unread obligation absent from primary attention; mark-unread un-clears only the named optional receipt (#601) and never revives an obligation |
 | **D03** | Same source-event replay inserts once; distinct occurrences retain distinct immutable receipts; new event survives old clear; same person offering on two Requests has distinct task keys; new lifecycle generation does not revive old settlement |
 | **D04** | Accept/decline/withdraw/terminal invalidation; review draft versus send; reopen/expire; cancelled CTA; mutation rollback also rolls back settlement; public generic settlement rejected |
 | **D05** | My Desk, For You, graph, profile, History, push, and direct-link opening; failed authorization/navigation clears nothing; later arrival survives; rebuild/scroll/room read does not clear |

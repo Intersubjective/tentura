@@ -10,37 +10,37 @@ import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() async =>
-      const AttentionSurfaceSummary(
-      );
+      const AttentionSurfaceSummary();
 
   @override
   Future<int> markSeenForBeacon(String beaconId) async => 0;
 
+  /// #601 — the un-clear command. Nothing changed, so a caller rolls back.
+  @override
+  Future<int> markUnread(List<String> ids) async => 0;
+
   @override
   Future<List<MyWorkBeaconAttention>> myWorkAttention(
     Set<String> beaconIds,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
     int limit = 20,
-  }) async =>
-      const ActivityOfferPage();
+  }) async => const ActivityOfferPage();
 
   @override
   Future<ActivityBeaconAttention> activityAttention({
     required String beaconId,
     String? cursor,
     int limit = 20,
-  }) async =>
-      ActivityBeaconAttention(
-        beaconId: beaconId,
-        eventTotal: 0,
-        unseenCount: 0,
-        latestAt: DateTime.utc(1970),
-      );
+  }) async => ActivityBeaconAttention(
+    beaconId: beaconId,
+    eventTotal: 0,
+    unseenCount: 0,
+    latestAt: DateTime.utc(1970),
+  );
 
   // The clear axis has no safe default: a fake that silently answered
   // "complete" would let a test sweep attention without saying so. Override
@@ -50,29 +50,25 @@ abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
     required AttentionClearCaptureKind kind,
     String? beaconId,
     String? receiptId,
-  }) async =>
-      throw UnimplementedError('clearSnapshot');
+  }) async => throw UnimplementedError('clearSnapshot');
 
   @override
   Future<AttentionClearResult> clear({
     required String snapshotToken,
     required String operationId,
-  }) async =>
-      throw UnimplementedError('clear');
+  }) async => throw UnimplementedError('clear');
 
   @override
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
-  }) async =>
-      throw UnimplementedError('dismissAll');
+  }) async => throw UnimplementedError('dismissAll');
 
   @override
   Future<AttentionUndoResult> undo({
     required String operationId,
     required String undoToken,
-  }) async =>
-      throw UnimplementedError('undo');
+  }) async => throw UnimplementedError('undo');
 
   @override
   Future<AttentionReconcileResult> reconcile() async =>
@@ -83,6 +79,5 @@ abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
     required String beaconId,
     String? cursor,
     int limit = 20,
-  }) async =>
-      throw UnimplementedError('requestHistory');
+  }) async => throw UnimplementedError('requestHistory');
 }

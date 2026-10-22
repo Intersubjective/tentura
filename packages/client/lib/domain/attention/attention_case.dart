@@ -61,7 +61,8 @@ final class AttentionCase implements AttentionReconcilePort {
   }) : _qaLatencyMeasurementEnabled =
            qaLatencyMeasurementEnabled ?? kQaIntegrationTestMode {
     if (_qaLatencyMeasurementEnabled) {
-      _qaLatencySamples = StreamController<AttentionHeadRefreshLatency>.broadcast();
+      _qaLatencySamples =
+          StreamController<AttentionHeadRefreshLatency>.broadcast();
     }
     _start();
   }
@@ -75,6 +76,12 @@ final class AttentionCase implements AttentionReconcilePort {
   final bool _qaLatencyMeasurementEnabled;
   final AttentionAckStore _acks = AttentionAckStore();
   final AttentionClearStore _clears = AttentionClearStore();
+
+  /// #601 — local un-clear intent of *Mark unread*, per receipt id, until the
+  /// server's own `clearedAt` reads NULL. The token lets a rollback undo only
+  /// the gesture that set it.
+  final Map<String, ({int token, bool committed})> _unclears = {};
+  int _unclearClock = 0;
   static const _uuid = Uuid();
   static const _maxIdsPerQuery = 500;
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
@@ -84,6 +91,7 @@ final class AttentionCase implements AttentionReconcilePort {
       BehaviorSubject<AttentionSurfaceSummary>.seeded(
         const AttentionSurfaceSummary(),
       );
+
   /// D18 — the last explicit sweep of this session, or `null` when there is
   /// nothing to reward.
   ///
@@ -334,7 +342,11 @@ final class AttentionCase implements AttentionReconcilePort {
       summary = await summaryFuture;
       feeds = await Future.wait(pageFutures);
     } catch (error, stackTrace) {
-      _logger.warning('Attention surface move refresh failed', error, stackTrace);
+      _logger.warning(
+        'Attention surface move refresh failed',
+        error,
+        stackTrace,
+      );
       return;
     }
     if (accountGeneration != _accountGeneration) return;
@@ -379,6 +391,7 @@ final class AttentionCase implements AttentionReconcilePort {
     _markAllSeenChain = Future.value();
     _acks.resetForAccount(accountId);
     _clears.resetForAccount(accountId);
+    _unclears.clear();
     _feedSessions.resetForAccount();
     _emit(const AttentionFeedSnapshot());
     _surfaceSummarySubject.add(const AttentionSurfaceSummary());
@@ -423,8 +436,7 @@ final class AttentionCase implements AttentionReconcilePort {
 
   Future<void> refresh({
     String destinationId = AttentionFeedDestinationId.activityStream,
-  }) async =>
-      _requestHeadRefresh(destinationId);
+  }) async => _requestHeadRefresh(destinationId);
 
   /// Returns unread attention for candidate Beacons without assigning them to
   /// any presentation surface. Surface projection belongs to the client
@@ -487,7 +499,9 @@ final class AttentionCase implements AttentionReconcilePort {
       final next = offset + _maxIdsPerQuery;
       final end = next < unknown.length ? next : unknown.length;
       unseen.addAll(
-        await _repository.unreadForBeacons(unknown.sublist(offset, end).toSet()),
+        await _repository.unreadForBeacons(
+          unknown.sublist(offset, end).toSet(),
+        ),
       );
     }
     return unseen;
@@ -521,12 +535,11 @@ final class AttentionCase implements AttentionReconcilePort {
     required String beaconId,
     String? cursor,
     int limit = 20,
-  }) =>
-      _repository.activityAttention(
-        beaconId: beaconId,
-        cursor: cursor,
-        limit: limit,
-      );
+  }) => _repository.activityAttention(
+    beaconId: beaconId,
+    cursor: cursor,
+    limit: limit,
+  );
 
   Future<void> fetchNextPage({
     String destinationId = AttentionFeedDestinationId.activityStream,
@@ -668,6 +681,74 @@ final class AttentionCase implements AttentionReconcilePort {
     }
   }
 
+  /// *Mark unread* on a cleared Updates item (#601).
+  ///
+  /// The Unread view and `unreadTotal` are the **clear** axis (D02), so the
+  /// read-axis [markUnseen] cannot bring a cleared item back. This un-clears
+  /// and un-reads the optional receipts among [ids] — optimistically, rolled
+  /// back when the server refuses or changes nothing; changing nothing throws
+  /// [AttentionMarkUnreadRefusedException] so the caller can say so.
+  Future<void> markUnread(Iterable<String> ids) async {
+    final pending = ids.toSet();
+    if (pending.isEmpty) return;
+    final generation = _accountGeneration;
+    final adoption = _adoptionSerial;
+    final returning = pending.where(_displaysClearedOptional).length;
+    final ackToken = _acks.markUnseen(pending);
+    final token = ++_unclearClock;
+    for (final id in pending) {
+      _unclears[id] = (token: token, committed: false);
+    }
+    _applyOptimisticAcks(unreadDelta: returning);
+
+    void rollback(Iterable<String> rolled) {
+      _acks.discard(rolled, token: ackToken);
+      for (final id in rolled) {
+        if (_unclears[id]?.token == token) _unclears.remove(id);
+      }
+      _applyOptimisticAcks(unreadDelta: -returning);
+    }
+
+    try {
+      await _runAfterAckBarriers(pending, generation, () async {
+        final updated = await _repository.markUnread(
+          pending.toList(growable: false),
+        );
+        if (generation != _accountGeneration) return;
+        if (adoption != _adoptionSerial) return;
+        if (updated == 0) {
+          rollback(pending);
+          throw const AttentionMarkUnreadRefusedException();
+        }
+        _acks.markCommitted(pending, ackToken);
+        for (final id in pending) {
+          if (_unclears[id]?.token == token) {
+            _unclears[id] = (token: token, committed: true);
+          }
+        }
+      });
+    } catch (error, stackTrace) {
+      if (error is! AttentionMarkUnreadRefusedException &&
+          generation == _accountGeneration &&
+          adoption == _adoptionSerial) {
+        rollback(pending);
+      }
+      _logger.warning('Attention mark-unread failed', error, stackTrace);
+      rethrow;
+    }
+    if (generation == _accountGeneration) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    }
+  }
+
+  bool _displaysClearedOptional(String id) {
+    final receipt = _knownReceipt(id);
+    if (receipt == null) return false;
+    final shown = _overlay(receipt);
+    return shown.isCleared && !shown.requiresAction;
+  }
+
   Future<void> markSeenForBeacon(String beaconId) async {
     if (beaconId.isEmpty) return;
     final pending = _receiptsById.values
@@ -679,9 +760,7 @@ final class AttentionCase implements AttentionReconcilePort {
         .toSet();
     final generation = _accountGeneration;
     // Reaching the bottom of a discussion is reading, not clearing (§4).
-    final token = pending.isEmpty
-        ? null
-        : _acks.markSeen(pending);
+    final token = pending.isEmpty ? null : _acks.markSeen(pending);
     if (token != null) {
       _applyOptimisticAcks();
     }
@@ -829,7 +908,8 @@ final class AttentionCase implements AttentionReconcilePort {
       _mutationSerial++;
       if (generation == _accountGeneration) {
         _invalidateRequest(
-          beaconId ?? (receiptId == null ? null : _knownReceipt(receiptId)?.beaconId),
+          beaconId ??
+              (receiptId == null ? null : _knownReceipt(receiptId)?.beaconId),
         );
         _requestHeadRefreshForAllAttached();
         unawaited(_requestSurfaceSummaryRefresh());
@@ -947,6 +1027,7 @@ final class AttentionCase implements AttentionReconcilePort {
       // server and come back in the summary and the refetched heads.
       _acks.discardAllPending();
       _clears.discardAllPending();
+      _unclears.clear();
       _adoptionSerial++;
       // Re-projects every attached page from the server-truth mirror with no
       // overlay left to stamp on it. The zero delta is the point: no total is
@@ -991,6 +1072,8 @@ final class AttentionCase implements AttentionReconcilePort {
     // exactly the moment those totals move.
     final unreadDelta = _activeOptionalCount(members);
     if (members.isNotEmpty) {
+      // A clear supersedes an earlier Mark unread on the same rows (#601).
+      members.forEach(_unclears.remove);
       _clears.begin(operationId, members);
       _applyOptimisticAcks(unreadDelta: -unreadDelta);
     }
@@ -1023,7 +1106,6 @@ final class AttentionCase implements AttentionReconcilePort {
       rethrow;
     }
   }
-
 
   Future<void> _requestSurfaceSummaryRefresh() async {
     if (_accountId.isEmpty) return;
@@ -1188,7 +1270,8 @@ final class AttentionCase implements AttentionReconcilePort {
   ) async {
     await Future.wait([
       _markAllSeenChain.catchError((_) {}),
-      for (final id in ids) (_ackChains[id] ?? Future.value()).catchError((_) {}),
+      for (final id in ids)
+        (_ackChains[id] ?? Future.value()).catchError((_) {}),
     ]);
     if (accountGeneration != _accountGeneration) return;
     final op = run();
@@ -1209,7 +1292,18 @@ final class AttentionCase implements AttentionReconcilePort {
 
   /// The local view of one receipt: the clear axis, then the read axis.
   AttentionReceipt _overlay(AttentionReceipt receipt) =>
-      _clears.apply(_acks.apply(receipt));
+      _clears.apply(_applyUnclear(_acks.apply(receipt)));
+
+  /// The #601 un-clear overlay; a committed one is dropped once the server's
+  /// own row reads uncleared.
+  AttentionReceipt _applyUnclear(AttentionReceipt receipt) {
+    final pending = _unclears[receipt.id];
+    if (pending == null || !receipt.isCleared) {
+      if (pending != null && pending.committed) _unclears.remove(receipt.id);
+      return receipt;
+    }
+    return receipt.copyWith(clearedAt: null, clearReason: null);
+  }
 
   /// [_overlay], plus the grouped row's own preview and counts re-derived
   /// from its children.
@@ -1247,8 +1341,6 @@ final class AttentionCase implements AttentionReconcilePort {
     return _knownReceipt(id)?.isSeen ?? false;
   }
 
-
-
   /// Active optional attention among [ids] — the clear axis (`activeOptional`
   /// in the server's SQL), deliberately blind to `seenAt`.
   int _activeOptionalCount(Iterable<String> ids) {
@@ -1280,19 +1372,22 @@ final class AttentionCase implements AttentionReconcilePort {
       final pages = <AttentionView, AttentionFeedPage>{
         for (final entry in session.pages.entries)
           entry.key: entry.value.copyWith(
-            items: [
-              for (final receipt in entry.value.items)
-                _project(_receiptsById[receipt.id] ?? receipt),
-            ].where((receipt) {
-              // R2 — the `unread` view is the server's *active attention*
-              // view (`$2 = 'unread' AND is_active_attention`), not a read
-              // list. Reading a row must not take it off the list the server
-              // still returns; clearing it is what does. R10 — and
-              // `is_active_attention` is not one expression: each item kind
-              // has its own, so the mirror is keyed on the kind.
-              if (entry.key != AttentionView.unread) return true;
-              return isInUnreadView(receipt);
-            }).toList(growable: false),
+            items:
+                [
+                      for (final receipt in entry.value.items)
+                        _project(_receiptsById[receipt.id] ?? receipt),
+                    ]
+                    .where((receipt) {
+                      // R2 — the `unread` view is the server's *active attention*
+                      // view (`$2 = 'unread' AND is_active_attention`), not a read
+                      // list. Reading a row must not take it off the list the server
+                      // still returns; clearing it is what does. R10 — and
+                      // `is_active_attention` is not one expression: each item kind
+                      // has its own, so the mirror is keyed on the kind.
+                      if (entry.key != AttentionView.unread) return true;
+                      return isInUnreadView(receipt);
+                    })
+                    .toList(growable: false),
           ),
       };
       _feedSessions.update(destinationId, session.copyWith(pages: pages));
@@ -1321,8 +1416,9 @@ final class AttentionCase implements AttentionReconcilePort {
     return switch (receipt.itemKind) {
       AttentionItemKind.forward ||
       AttentionItemKind.watchingDigest ||
-      AttentionItemKind.requestActivity => 'request:'
-          '${receipt.itemKind.wireName}:$beaconId',
+      AttentionItemKind.requestActivity =>
+        'request:'
+            '${receipt.itemKind.wireName}:$beaconId',
       AttentionItemKind.receipt => 'receipt:${receipt.id}',
     };
   }
@@ -1336,15 +1432,14 @@ final class AttentionCase implements AttentionReconcilePort {
   /// not already present under the same identity.
   List<AttentionReceipt> _uniqueByRequestIdentity(
     Iterable<AttentionReceipt> items,
-  ) =>
-      items
-          .fold<Map<String, AttentionReceipt>>(
-            {},
-            (byIdentity, receipt) =>
-                byIdentity..[_requestIdentity(receipt)] = receipt,
-          )
-          .values
-          .toList(growable: false);
+  ) => items
+      .fold<Map<String, AttentionReceipt>>(
+        {},
+        (byIdentity, receipt) =>
+            byIdentity..[_requestIdentity(receipt)] = receipt,
+      )
+      .values
+      .toList(growable: false);
 
   void _emit(AttentionFeedSnapshot next) {
     if (!_snapshot.isClosed) _snapshot.add(next);
@@ -1356,8 +1451,7 @@ final class AttentionCase implements AttentionReconcilePort {
   ) {
     if (!_qaLatencyMeasurementEnabled || items.isEmpty) return;
     final newest = items.reduce(
-      (left, right) =>
-          right.createdAt.isAfter(left.createdAt) ? right : left,
+      (left, right) => right.createdAt.isAfter(left.createdAt) ? right : left,
     );
     final sample = AttentionHeadRefreshLatency(
       latency: measuredAt.difference(newest.createdAt),
@@ -1393,4 +1487,10 @@ final class AttentionCase implements AttentionReconcilePort {
     await _surfaceSummarySubject.close();
     await _lastSweep.close();
   }
+}
+
+/// The server un-cleared none of the asked receipts (#601): the optimistic
+/// *Mark unread* was rolled back, and the caller shows its action error.
+final class AttentionMarkUnreadRefusedException implements Exception {
+  const AttentionMarkUnreadRefusedException();
 }
