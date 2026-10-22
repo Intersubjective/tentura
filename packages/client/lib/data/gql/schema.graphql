@@ -8169,6 +8169,7 @@ type v2_ConstellationEdge {
 type v2_ConstellationField {
   anchorProjection: v2_ConstellationAnchorProjection!
   context: String!
+  directContactIds: [String!]!
   edges: [v2_ConstellationEdge!]!
   loadedAt: String!
   memberWebs: [v2_ConstellationMemberWeb!]!
@@ -8191,6 +8192,7 @@ enum v2_ConstellationMemberWebState {
 }
 
 type v2_ConstellationPeer {
+  contactOnly: Boolean!
   displayName: String
   handle: String
   id: String!

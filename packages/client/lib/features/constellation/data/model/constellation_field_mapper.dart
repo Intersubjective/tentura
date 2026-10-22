@@ -41,6 +41,7 @@ ConstellationField mapConstellationFieldFromFieldFetch(
   ],
   peersCapped: payload.peersCapped,
   requestsCapped: payload.requestsCapped,
+  directContactIds: payload.directContactIds.toList(growable: false),
   anchorProjection: _mapFieldFetchAnchorProjection(payload.anchorProjection),
 );
 
@@ -90,9 +91,11 @@ ConstellationPerson _mapPersonFields({
   String? handle,
   ImageModelV2? image,
   bool visible = true,
+  bool contactOnly = false,
 }) => ConstellationPerson(
   id: id,
   visible: visible,
+  contactOnly: contactOnly,
   displayName: displayName,
   handle: handle,
   image: image?.asEntity,
@@ -102,6 +105,8 @@ ConstellationPerson _mapFieldFetchPerson(
   GConstellationFieldFetchData_constellationField_peers peer,
 ) => _mapPersonFields(
   id: peer.id,
+  contactOnly: peer.contactOnly,
+  visible: !peer.contactOnly,
   displayName: peer.displayName,
   handle: peer.handle,
   image: peer.image as ImageModelV2?,

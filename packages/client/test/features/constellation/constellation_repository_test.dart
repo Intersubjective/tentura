@@ -61,10 +61,12 @@ Map<String, Object?> _fieldPayload({
   'context': '',
   'peersCapped': true,
   'requestsCapped': false,
+  'directContactIds': ['peer-a'],
   'peers': [
     {
       '__typename': 'v2_ConstellationPeer',
       'id': 'peer-a',
+      'contactOnly': false,
       'displayName': 'Alice',
       'handle': '@alice',
       'image': {
@@ -185,6 +187,8 @@ void main() {
       expect(field.peers.single.displayName, 'Alice');
       expect(field.peers.single.handle, '@alice');
       expect(field.peers.single.image?.id, 'img-1');
+      expect(field.peers.single.contactOnly, isFalse);
+      expect(field.directContactIds, ['peer-a']);
       expect(field.edges.single.tier, 1);
       expect(field.requests.single.title, 'Need a drill');
       expect(field.requests.single.needs, ['tools']);

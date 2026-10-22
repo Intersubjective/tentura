@@ -162,6 +162,7 @@ void main() {
                 'context': '',
                 'peersCapped': true,
                 'requestsCapped': true,
+                'directContactIds': [],
                 'peers': [],
                 'edges': [],
                 'requests': [],

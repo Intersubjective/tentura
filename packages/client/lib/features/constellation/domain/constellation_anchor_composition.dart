@@ -235,9 +235,17 @@ ConstellationComposedPresentation composeConstellationPresentation({
     automatic: automatic,
   );
 
+  // Everyone the viewer trusts directly is always on the field and outside
+  // the render budget (#246, Q6); the budget applies to indirect peers only.
+  final directContactIds = constellationDirectContactIds(
+    field: field,
+    viewerId: viewerId,
+  );
+
   final budgetExemptPeerIds = {
     ...pinnedPeerIds,
     for (final peer in anchorOverlay.supportPeers) peer.id,
+    ...directContactIds,
   };
 
   final anchoredBeaconIds = {
@@ -275,6 +283,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...automatic.requests.map((request) => request.authorId),
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
     ...pathPinnedPeerIds,
+    ...directContactIds,
   };
 
   final mergedEdges = [
@@ -305,6 +314,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...resolved.keptPeerIds,
     ...pinnedPeerIds,
     for (final peer in anchorOverlay.supportPeers) peer.id,
+    ...directContactIds,
     ...extraKeptPeerIds.intersection(visiblePeerIds),
   };
 
@@ -365,6 +375,24 @@ ConstellationComposedPresentation composeConstellationPresentation({
     dormantBeaconIds: dormantBeaconIds,
     pinnedPostIds: pinnedPostIds,
   );
+}
+
+/// The viewer's direct contacts that have a node in [field] (#246).
+Set<String> constellationDirectContactIds({
+  required ConstellationField field,
+  required String viewerId,
+}) {
+  if (field.directContactIds.isEmpty) {
+    return const {};
+  }
+  final nodeIds = {
+    for (final peer in field.peers) peer.id,
+    for (final peer in field.resolvedAnchorProjection.pinnedPeers) peer.id,
+  };
+  return {
+    for (final id in field.directContactIds)
+      if (id != viewerId && nodeIds.contains(id)) id,
+  };
 }
 
 ConstellationAnchorOverlay _overlayForVisiblePins({
