@@ -11,6 +11,7 @@ import '../bloc/constellation_cubit.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_person_search.dart';
+import 'constellation_selection_layers.dart';
 
 /// App-bar row for the constellation field: title, optional legend, filters,
 /// and map/text mode switch.
@@ -109,6 +110,14 @@ class ConstellationAppBarRow extends StatelessWidget {
               maintainAnimation: true,
               maintainState: true,
               child: const ConstellationPersonSearchButton(),
+            ),
+            // Multi-select (#642) works on the map only.
+            Visibility(
+              visible: showLegend,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: const ConstellationSelectionToggle(),
             ),
             if (composer != null)
               PopupMenuButton<BeaconKind>(

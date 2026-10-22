@@ -7226,5 +7226,18 @@
   "constellationResetPositionsTitle": "Сбросить все позиции?",
   "constellationResetPositionsBody": "Все люди, запросы и посты, которые вы переместили на поле, вернутся на свои автоматические места — в том числе скрытые фильтрами и те, что за краем экрана, — на всех ваших устройствах. Отменить это нельзя.",
   "constellationResetPositionsConfirm": "Сбросить",
-  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз."
+  "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз.",
+  "constellationSelectMany": "Выбрать несколько",
+  "constellationSelectionCount": "Выбрано: {count}",
+  "constellationSelectionHint": "Обведите рамкой или нажмите на людей, запросы и посты. Поле двигается двумя пальцами.",
+  "constellationSelectionClear": "Снять выделение",
+  "constellationSelectionDone": "Готово",
+  "constellationArrangeSector": "Расставить сектором",
+  "constellationArrangeNeedsPeople": "Выберите хотя бы двух человек",
+  "constellationArrangeTooMany": "За один раз можно расставить не больше {max} человек",
+  "constellationArrangeAimHint": "Проведите вокруг себя, чтобы направить сектор",
+  "constellationArrangeRotateLeft": "Повернуть против часовой стрелки",
+  "constellationArrangeRotateRight": "Повернуть по часовой стрелке",
+  "constellationArrangeWidth": "Ширина сектора",
+  "constellationArrangeApply": "Расставить"
 }

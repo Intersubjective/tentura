@@ -45,6 +45,7 @@ import 'constellation_request_preview_sheet.dart';
 import 'constellation_post_preview_sheet.dart';
 import 'constellation_text_view.dart';
 import 'constellation_placement_marker_layer.dart';
+import 'constellation_selection_layers.dart';
 import 'constellation_viewport_overlay.dart';
 
 class _CancelPlacementIntent extends Intent {
@@ -311,6 +312,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ConstellationCubit cubit,
     NodeDetails node,
   ) {
+    if (constellationSelectionTap(context, cubit, node)) return;
     cubit.selectMapNode(node);
     if (cubit.state.isComposing) {
       return;
@@ -701,6 +703,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     _CancelPlacementIntent:
                         CallbackAction<_CancelPlacementIntent>(
                           onInvoke: (_) {
+                            if (!cubit.state.isComposing &&
+                                cubit.state.placementPhase ==
+                                    ConstellationPlacementPhase.idle &&
+                                (maybeConstellationSelection(
+                                      context,
+                                    )?.escape() ??
+                                    false)) {
+                              return null;
+                            }
                             final composer = maybeConstellationComposer(
                               context,
                             );
@@ -1079,6 +1090,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         Positioned.fill(
           child: ConstellationPlacementMarkerLayer(cubit: cubit),
         ),
+        Positioned.fill(child: ConstellationSelectionLayers(cubit: cubit)),
         // The handle paints before the sheet below, so panning the circle
         // under the sheet does not draw the handle on top of it.
         if (composer != null)
@@ -1156,6 +1168,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
               ),
             ),
           ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: panelVisible && context.windowClass == WindowClass.compact
+              ? 0
+              : null,
+          bottom: panelVisible && context.windowClass == WindowClass.compact
+              ? null
+              : 0,
+          child: SafeArea(child: ConstellationSelectionBar(cubit: cubit)),
+        ),
         // Text mode draws its own copy over the text view (#354).
         if (panelVisible && state.viewMode == ConstellationViewMode.map)
           _buildContextOverlay(context, cubit, state),
