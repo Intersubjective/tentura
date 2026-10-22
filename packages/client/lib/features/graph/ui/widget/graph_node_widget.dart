@@ -122,7 +122,8 @@ class GraphNodeWidget extends StatelessWidget {
       // Read from GetIt like ConstellationScreen does (the field is not
       // always under a ProfileCubit provider); fall back to the node's own
       // profile when none is registered (isolated widget tests).
-      FieldPersonNode(:final person) when !GetIt.I.isRegistered<ProfileCubit>() =>
+      FieldPersonNode(:final person)
+          when !GetIt.I.isRegistered<ProfileCubit>() =>
         TenturaAvatar(
           profile: person,
           size: nodeDetails.size,
@@ -192,15 +193,37 @@ class GraphNodeWidget extends StatelessWidget {
     if (onTap == null) {
       return widget;
     }
-    return GestureDetector(
+    // One focusable button node per marker (#391): Tab lands on it (the
+    // app-level focus ring outlines it), and Space / Enter / numpad Enter do
+    // what a tap does. On web Enter maps to ButtonActivateIntent, elsewhere to
+    // ActivateIntent, so both are handled.
+    void activate() => onTap!();
+    return Semantics(
+      container: true,
+      button: true,
+      selected: isFocused,
+      label: semanticLabel(l10n, nodeDetails),
+      value: connectionSemantics,
       onTap: onTap,
-      child: Semantics(
-        button: true,
-        selected: isFocused,
-        label: semanticLabel(l10n, nodeDetails),
-        value: connectionSemantics,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
+      child: FocusableActionDetector(
+        mouseCursor: SystemMouseCursors.click,
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              activate();
+              return null;
+            },
+          ),
+          ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
+            onInvoke: (_) {
+              activate();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          onTap: onTap,
+          excludeFromSemantics: true,
           child: ExcludeSemantics(
             child: widget,
           ),
