@@ -82,7 +82,10 @@ void main() {
       );
       expect(
         mutation.all.map((field) => field.name),
-        orderedEquals(['constellationAnchorsApply']),
+        orderedEquals([
+          'constellationAnchorsApply',
+          'constellationAnchorsReset',
+        ]),
       );
     });
   });

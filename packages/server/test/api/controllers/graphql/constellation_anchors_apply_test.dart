@@ -90,10 +90,13 @@ void main() {
       );
     });
 
-    test('exposes only the batch mutation', () {
+    test('exposes the batch mutation and the reset, no legacy ones', () {
       expect(
         mutation.all.map((f) => f.name),
-        orderedEquals(['constellationAnchorsApply']),
+        orderedEquals([
+          'constellationAnchorsApply',
+          'constellationAnchorsReset',
+        ]),
       );
     });
   });
@@ -169,6 +172,20 @@ void main() {
         'replayed': false,
         'anchor': null,
       });
+    });
+
+    test('passes each base revision on to the repository (#251)', () async {
+      await run(
+        ops: [
+          {..._upsertOp('op-1', peerA), 'baseRevision': '9007199254740993'},
+          _deleteOp('op-2', peerB),
+        ],
+      );
+
+      expect(
+        repository.lastOps!.map((op) => op.baseRevision?.toDecimalString()),
+        ['9007199254740993', null],
+      );
     });
 
     test('returns the stored anchor without a projection', () async {
@@ -395,6 +412,37 @@ void main() {
       expect(repository.lastViewerId, viewer);
     });
   });
+
+  test(
+    'the reset runs for the JWT viewer and maps its outcome (#251)',
+    () async {
+      final data =
+          await graphQL.parseAndExecute(
+                r'''
+              mutation Reset($clientOpId: String!) {
+                constellationAnchorsReset(clientOpId: $clientOpId) {
+                  beforeRevision afterRevision clearedCount replayed
+                }
+              }
+              ''',
+                operationName: 'Reset',
+                variableValues: {'clientOpId': 'reset-op-1'},
+                globalVariables: const {
+                  kGlobalInputQueryJwt: JwtEntity(sub: viewer),
+                },
+              )
+              as Map<String, dynamic>;
+
+      expect(data['constellationAnchorsReset'], {
+        'beforeRevision': '5',
+        'afterRevision': '9007199254740993',
+        'clearedCount': 3,
+        'replayed': false,
+      });
+      expect(repository.lastViewerId, viewer);
+      expect(repository.lastResetOpId, 'reset-op-1');
+    },
+  );
 }
 
 final class _RecordingBatchRepository
@@ -446,4 +494,22 @@ final class _RecordingBatchRepository
   @override
   Future<ConstellationAnchorRevision> readWatermark(String viewerId) async =>
       ConstellationAnchorRevision.zero;
+
+  String? lastResetOpId;
+
+  @override
+  Future<AnchorResetResult> resetAll({
+    required String viewerId,
+    required String clientOpId,
+  }) async {
+    lastViewerId = viewerId;
+    lastResetOpId = clientOpId;
+    return AnchorResetResult(
+      beforeRevision: ConstellationAnchorRevision(BigInt.from(5)),
+      afterRevision: ConstellationAnchorRevision(
+        BigInt.parse('9007199254740993'),
+      ),
+      clearedCount: 3,
+    );
+  }
 }

@@ -56,6 +56,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
     double? yUnits,
     int? coordinateSpaceVersion,
     String? ifRevisionWire,
+    String? baseRevisionWire,
   }) {
     final kind = AnchorOpKind.values.where((k) => k.wireValue == kindWire);
     if (kind.isEmpty) {
@@ -95,7 +96,35 @@ final class ConstellationAnchorCase extends UseCaseBase {
               coordinateSpaceVersion: coordinateSpaceVersion,
             ),
       ifRevision: ifRevision,
+      baseRevision: baseRevisionWire == null
+          ? null
+          : _parseRevision(baseRevisionWire),
     );
+  }
+
+  /// Resets every anchor of [viewerId] (#251); a retry with the same
+  /// [clientOpId] returns the recorded outcome without writing again.
+  Future<AnchorResetResult> reset({
+    required String viewerId,
+    required String clientOpId,
+  }) {
+    if (clientOpId.isEmpty || clientOpId.length > 64) {
+      throw ConstellationException(
+        constellationCode: ConstellationExceptionCode.invalidTarget,
+        description: 'A reset needs an operation id of 1 to 64 characters',
+      );
+    }
+    return _repository.resetAll(viewerId: viewerId, clientOpId: clientOpId);
+  }
+
+  ConstellationAnchorRevision _parseRevision(String wire) {
+    final parsed = ConstellationAnchorRevision.parseDecimalString(wire);
+    if (parsed is! ConstellationAnchorRevisionParsed) {
+      throw ConstellationException(
+        constellationCode: ConstellationExceptionCode.invalidTarget,
+      );
+    }
+    return parsed.revision;
   }
 
   ConstellationAnchorTarget _parseTarget({

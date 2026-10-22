@@ -87,6 +87,15 @@ Map<String, dynamic> constellationAnchorsApplyResultToGqlMap(
       .toList(growable: false),
 };
 
+Map<String, dynamic> constellationAnchorsResetResultToGqlMap(
+  AnchorResetResult result,
+) => {
+  'beforeRevision': result.beforeRevision.toDecimalString(),
+  'afterRevision': result.afterRevision.toDecimalString(),
+  'clearedCount': result.clearedCount,
+  'replayed': result.replayed,
+};
+
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'id': peer.id,
   'pinState': peer.pinState,

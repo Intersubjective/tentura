@@ -104,7 +104,7 @@ void main() {
       final mutationNames = mutation.all.map((f) => f.name).toSet();
       expect(
         mutationNames,
-        equals({'constellationAnchorsApply'}),
+        equals({'constellationAnchorsApply', 'constellationAnchorsReset'}),
       );
 
       final apply = mutation.constellationAnchorsApply;
@@ -435,6 +435,12 @@ final class _RecordingAnchorRepository
   @override
   Future<ConstellationAnchorRevision> readWatermark(String viewerId) async =>
       ConstellationAnchorRevision.zero;
+
+  @override
+  Future<AnchorResetResult> resetAll({
+    required String viewerId,
+    required String clientOpId,
+  }) => throw UnimplementedError('not used by this test');
 }
 
 final class _RecordingFieldRepository

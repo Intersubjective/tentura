@@ -342,4 +342,10 @@ final class _RecordingAnchorRepository
   @override
   Future<ConstellationAnchorRevision> readWatermark(String viewerId) =>
       throw StateError('The batch result supplies its revisions.');
+
+  @override
+  Future<AnchorResetResult> resetAll({
+    required String viewerId,
+    required String clientOpId,
+  }) => throw UnimplementedError('not used by this test');
 }
