@@ -22,6 +22,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 const _directHintEn = 'You forwarded this request to them directly';
 const _directHintRu = 'Вы переслали этот запрос напрямую';
 const _networkHintEn = 'Joined via the network';
+const _stewardDirectHintEn =
+    'The author forwarded this request to them directly';
+const _ownDirectHintEn = 'The author sent this request to you directly';
+const _ownNetworkHintEn = 'You joined via the network';
 
 class _FakePlatformRepository implements PlatformRepositoryPort {
   @override
@@ -88,6 +92,17 @@ Widget _authorTile(TimelineHelpOffer offer) => HelpOfferTile(
   beaconId: 'B1',
   beaconAuthor: const Profile(id: 'me', displayName: 'Me'),
   beaconAuthorId: 'me',
+  isAuthorView: true,
+  viewerIsAuthor: true,
+  showBackupHint: false,
+);
+
+/// A steward manages offers (author view) but is not the author.
+Widget _stewardTile(TimelineHelpOffer offer) => HelpOfferTile(
+  helpOffer: offer,
+  beaconId: 'B1',
+  beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+  beaconAuthorId: 'auth',
   isAuthorView: true,
   showBackupHint: false,
 );
@@ -217,8 +232,93 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text(_directHintEn), findsNothing);
-        expect(find.text(_networkHintEn), findsOneWidget);
+        expect(find.text(_ownDirectHintEn), findsNothing);
+        expect(find.text(_ownNetworkHintEn), findsOneWidget);
       },
     );
+
+    // The helper did not forward anything: the author's line is not theirs.
+    testWidgets('a direct author forward is told to the helper as such', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          _ownTile(
+            _admittedOffer(
+              userId: 'me',
+              isDirectAuthorForward: true,
+              admissionAction: HelpOfferAdmissionAction.autoAdmit,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(_directHintEn), findsNothing);
+      expect(find.text(_ownDirectHintEn), findsOneWidget);
+    });
+  });
+
+  group('steward view, admitted helper', () {
+    testWidgets("a steward's own offer reads as their own card", (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          HelpOfferTile(
+            helpOffer: _admittedOffer(
+              userId: 'me',
+              isDirectAuthorForward: true,
+              admissionAction: HelpOfferAdmissionAction.autoAdmit,
+            ),
+            beaconId: 'B1',
+            beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+            beaconAuthorId: 'auth',
+            isAuthorView: true,
+            isMine: true,
+            showBackupHint: false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(_stewardDirectHintEn), findsNothing);
+      expect(find.text(_ownDirectHintEn), findsOneWidget);
+    });
+
+    testWidgets('a direct author forward names the author, not "you"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          _stewardTile(
+            _admittedOffer(
+              userId: 'h1',
+              isDirectAuthorForward: true,
+              admissionAction: HelpOfferAdmissionAction.autoAdmit,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(_directHintEn), findsNothing);
+      expect(find.text(_stewardDirectHintEn), findsOneWidget);
+      expect(find.text('Forwarded by you'), findsNothing);
+    });
+
+    testWidgets('no direct forward: joined via the network', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          _stewardTile(
+            _admittedOffer(userId: 'h1', isDirectAuthorForward: false),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(_stewardDirectHintEn), findsNothing);
+      expect(find.text(_networkHintEn), findsOneWidget);
+    });
   });
 }

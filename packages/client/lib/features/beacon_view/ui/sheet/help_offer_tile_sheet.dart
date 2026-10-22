@@ -117,7 +117,11 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
     beaconId: state.beaconId,
     beaconAuthor: state.beacon.author,
     beaconAuthorId: state.beacon.author.id,
-    isAuthorView: state.isAuthorOrSteward,
+    // Own card wins over the management view, as on the People tab: a
+    // steward's own offer speaks to them (#496).
+    isAuthorView:
+        state.isAuthorOrSteward && offer.user.id != state.myProfile.id,
+    viewerIsAuthor: state.isBeaconMine,
     isMine: offer.user.id == state.myProfile.id,
     participant: state.participant,
     onEditRole: cubit.canEditRole

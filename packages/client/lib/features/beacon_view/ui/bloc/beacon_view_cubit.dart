@@ -27,6 +27,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
     show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/forward/domain/forward_trail.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -1603,14 +1604,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     final allEdges = results[0] as List<ForwardEdge>;
     final involvement = results[1] as BeaconInvolvementData;
     final reasons = results[2] as Map<String, List<String>>;
+    // Live forwards only: a cancelled forward never reached anyone.
     final myForwards = allEdges
-        .where((e) => e.sender.id == myUserId)
+        .where((e) => e.sender.id == myUserId && !e.isCancelled)
         .toList(growable: false);
-    final viewerEdges = allEdges
-        .where(
-          (e) => e.sender.id == myUserId || e.recipient.id == myUserId,
-        )
-        .toList(growable: false);
+    final viewerEdges = viewerForwardTrail(allEdges, viewerUserId: myUserId);
     if (!isClosed) {
       emit(
         state.copyWith(
@@ -1621,7 +1619,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           involvementWatchingIds: involvement.watchingIds,
           involvementOnwardForwarderIds: involvement.onwardForwarderIds,
           involvementRejectedIds: involvement.rejectedIds,
-          hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
+          // History, not live state: a cancelled forward still counts.
+          hasForwardedThisBeaconOnce: allEdges.any(
+            (e) => e.sender.id == myUserId,
+          ),
         ),
       );
     }

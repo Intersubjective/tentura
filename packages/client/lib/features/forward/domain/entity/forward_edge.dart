@@ -20,7 +20,14 @@ abstract class ForwardEdge with _$ForwardEdge {
     @Default(false) bool recipientRejected,
     @Default('') String recipientRejectionMessage,
     DateTime? recipientReadAt,
+
+    /// Set when the sender cancelled the forward (or a block cancelled it).
+    /// A cancelled forward is history, not a deleted row: the sender's trail
+    /// keeps it, marked cancelled (#396).
+    DateTime? cancelledAt,
   }) = _ForwardEdge;
 
   const ForwardEdge._();
+
+  bool get isCancelled => cancelledAt != null;
 }

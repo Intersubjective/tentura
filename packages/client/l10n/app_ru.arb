@@ -7262,5 +7262,21 @@
   "constellationArrangeRotateLeft": "Повернуть против часовой стрелки",
   "constellationArrangeRotateRight": "Повернуть по часовой стрелке",
   "constellationArrangeWidth": "Ширина сектора",
-  "constellationArrangeApply": "Расставить"
+  "constellationArrangeApply": "Расставить",
+  "forwardStatusCancelled": "Пересылка отменена",
+  "@forwardStatusCancelled": {
+    "description": "Люди › Пересылки: вы отменили эту пересылку; строка остаётся в истории (#396)"
+  },
+  "helpOfferAuthorForwardedDirectlyHint": "Автор переслал этот запрос напрямую",
+  "@helpOfferAuthorForwardedDirectlyHint": {
+    "description": "Подсказка под автоматическим допуском для стюарда: запрос дошёл до помощника прямой пересылкой автора (#496)"
+  },
+  "helpOfferAuthorSentToYouDirectlyHint": "Автор переслал вам этот запрос напрямую",
+  "@helpOfferAuthorSentToYouDirectlyHint": {
+    "description": "Подсказка под автоматическим допуском на собственной карточке помощника: автор переслал ему запрос напрямую (#496)"
+  },
+  "helpOfferYouJoinedViaNetworkHint": "Вы присоединились через сеть",
+  "@helpOfferYouJoinedViaNetworkHint": {
+    "description": "Подсказка под автоматическим допуском на собственной карточке помощника, когда автор не пересылал ему запрос напрямую (#496)"
+  }
 }
