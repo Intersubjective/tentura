@@ -599,7 +599,7 @@ final class CoordinationCase extends UseCaseBase {
                 HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
           );
         }
-        final pending = await _pendingOfferUserIds(beacon);
+        final pending = await _pendingOfferUserIds(beacon, actorUserId);
         for (final offerUserId in pending) {
           await _declineLocked(
             beacon: beacon,
@@ -616,7 +616,10 @@ final class CoordinationCase extends UseCaseBase {
 
   /// Offers on [beacon] still waiting for an answer; call under the Request
   /// locks. See [declineRemainingHelpOffers] for who is left out.
-  Future<List<String>> _pendingOfferUserIds(BeaconEntity beacon) async {
+  Future<List<String>> _pendingOfferUserIds(
+    BeaconEntity beacon,
+    String actorUserId,
+  ) async {
     final authorId = beacon.author.id;
     final out = <String>[];
     for (final offer in await _helpOfferRepository.fetchByBeaconId(
@@ -626,7 +629,12 @@ final class CoordinationCase extends UseCaseBase {
       if (!offer.isActive || offer.offerKind != 0 || userId == authorId) {
         continue;
       }
-      if (await _userBlockRepository.isBlockedPair(a: authorId, b: userId)) {
+      if (await _userBlockRepository.isBlockedPair(a: authorId, b: userId) ||
+          (actorUserId != authorId &&
+              await _userBlockRepository.isBlockedPair(
+                a: actorUserId,
+                b: userId,
+              ))) {
         continue;
       }
       if (await _commitmentQueryCase.everAcknowledgedPair(
