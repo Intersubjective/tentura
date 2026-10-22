@@ -178,7 +178,7 @@ final class ConstellationFieldSnapshotReader {
 
     final peers = [
       for (final peer in await _peerProfiles(profileIds))
-        contactOnlyIds.contains(peer.id) ? peer.asContactOnly() : peer,
+        if (contactOnlyIds.contains(peer.id)) peer.asContactOnly() else peer,
     ];
     final peerIds = {for (final peer in peers) peer.id};
 
