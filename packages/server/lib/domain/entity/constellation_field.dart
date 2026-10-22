@@ -15,6 +15,7 @@ class ConstellationFieldSnapshot {
     required this.requestsCapped,
     this.posts = const [],
     this.memberWebs = const [],
+    this.directContactIds = const [],
     ConstellationAnchorProjection? anchorProjection,
   }) : anchorProjection =
            anchorProjection ?? ConstellationAnchorProjection.empty;
@@ -28,6 +29,12 @@ class ConstellationFieldSnapshot {
   final bool requestsCapped;
   final List<ConstellationPostRecord> posts;
   final List<ConstellationMemberWebRecord> memberWebs;
+
+  /// Everyone the viewer trusts directly (positive explicit trust), with no
+  /// block in either direction, in id order (#246). Each has a node in
+  /// [peers]; none of them counts against [peersCapped]. Empty in an
+  /// ANCHORS read.
+  final List<String> directContactIds;
   final ConstellationAnchorProjection anchorProjection;
 }
 
@@ -81,6 +88,7 @@ class ConstellationPeerRecord {
     this.image,
     this.pinState,
     this.visible = true,
+    this.contactOnly = false,
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -89,7 +97,8 @@ class ConstellationPeerRecord {
       handle = null,
       image = null,
       pinState = kConstellationPinStateTombstone,
-      visible = true;
+      visible = true,
+      contactOnly = false;
 
   final String id;
   final String? displayName;
@@ -102,6 +111,15 @@ class ConstellationPeerRecord {
   /// False for a pinned person outside the viewer's visible peer set.
   final bool visible;
 
+  /// A contact node without content (#246, Q5): someone the viewer trusts
+  /// directly who is outside the viewer's visible peer set. The record holds
+  /// identity only (id, display name, avatar; no handle), and the snapshot
+  /// carries no edge of theirs but the viewer's own trust edge to them, and
+  /// none of their Requests or Posts through discovery. A Post or Request of
+  /// theirs appears only when the viewer can read it on its own terms (the
+  /// viewer was admitted to it, or pinned it).
+  final bool contactOnly;
+
   ConstellationPeerRecord withVisible({required bool visible}) =>
       ConstellationPeerRecord(
         id: id,
@@ -110,13 +128,25 @@ class ConstellationPeerRecord {
         image: image,
         pinState: pinState,
         visible: visible,
+        contactOnly: contactOnly,
       );
+
+  /// The identity-only form of this record for a contact node (#246).
+  ConstellationPeerRecord asContactOnly() => ConstellationPeerRecord(
+    id: id,
+    displayName: displayName,
+    image: image,
+    pinState: pinState,
+    visible: false,
+    contactOnly: true,
+  );
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ConstellationPeerRecord &&
           other.visible == visible &&
+          other.contactOnly == contactOnly &&
           other.id == id &&
           other.displayName == displayName &&
           other.handle == handle &&
@@ -124,8 +154,15 @@ class ConstellationPeerRecord {
           other.pinState == pinState;
 
   @override
-  int get hashCode =>
-      Object.hash(id, displayName, handle, image, pinState, visible);
+  int get hashCode => Object.hash(
+    id,
+    displayName,
+    handle,
+    image,
+    pinState,
+    visible,
+    contactOnly,
+  );
 }
 
 @immutable

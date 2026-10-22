@@ -86,11 +86,26 @@ final class ConstellationFieldSnapshotReader {
       for (final request in anchorProjection.pinnedRequests) request.authorId,
     };
 
-    final graphPeers = _visibleGraphPeerIds(
+    // Everyone the viewer trusts directly is on the field (#246) and outside
+    // the peer cap (Q6): a visible one as an ordinary peer, any other as a
+    // contact node without content (Q5).
+    final directContactIds = await _directContactIds(viewerId);
+    final visibleSet = visiblePeerIds.toSet();
+    final directVisibleIds = <String>{
+      for (final id in directContactIds)
+        if (visibleSet.contains(id)) id,
+    };
+    final contactOnlyIds = <String>{
+      for (final id in directContactIds)
+        if (!visibleSet.contains(id)) id,
+    };
+
+    final indirectPeers = _visibleGraphPeerIds(
       visiblePeerIds: visiblePeerIds,
       cap: kConstellationPeerCap,
-      excludePeerIds: reservedPeerIds,
+      excludePeerIds: {...reservedPeerIds, ...directVisibleIds},
     );
+    final graphPeerIds = {...directVisibleIds, ...indirectPeers.ids};
 
     final ownRequests = await _ownRequests(
       viewerId: viewerId,
@@ -126,9 +141,9 @@ final class ConstellationFieldSnapshotReader {
     // the full set when the anchor projection already loaded it; otherwise
     // ask for these nodes only, which returns the same rows (an edge's tier
     // depends on its own endpoints only).
-    final edgeNodeIds = {...graphPeers.ids, viewerId};
+    final edgeNodeIds = {...graphPeerIds, viewerId};
     final allTrustEdges = _allTrustEdges;
-    final edges = allTrustEdges == null
+    final visibleEdges = allTrustEdges == null
         ? await _repo.trustEdges(
             viewerId: viewerId,
             context: context,
@@ -140,8 +155,17 @@ final class ConstellationFieldSnapshotReader {
                   edgeNodeIds.contains(edge.dst))
                 edge,
           ];
+    // A contact node carries the viewer's own trust edge and nothing else:
+    // trust edges only ever join visible nodes, so it has none of its own.
+    final edges = contactOnlyIds.isEmpty
+        ? visibleEdges
+        : ([
+            ...visibleEdges,
+            for (final id in contactOnlyIds)
+              ConstellationEdgeRecord(src: viewerId, dst: id, tier: 1),
+          ]..sort(_compareEdges));
 
-    final profileIds = {...graphPeers.ids, ...reservedPeerIds};
+    final profileIds = {...graphPeerIds, ...reservedPeerIds, ...contactOnlyIds};
     for (final request in requests) {
       profileIds.add(request.authorId);
     }
@@ -152,7 +176,11 @@ final class ConstellationFieldSnapshotReader {
       profileIds.add(web.personId);
     }
 
-    final peers = await _peerProfiles(profileIds);
+    final peers = [
+      for (final peer in await _peerProfiles(profileIds))
+        contactOnlyIds.contains(peer.id) ? peer.asContactOnly() : peer,
+    ];
+    final peerIds = {for (final peer in peers) peer.id};
 
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
@@ -160,12 +188,54 @@ final class ConstellationFieldSnapshotReader {
       peers: peers,
       edges: edges,
       requests: requests,
-      peersCapped: graphPeers.capped,
+      peersCapped: indirectPeers.capped,
       requestsCapped: requestsCapped,
       posts: postFeed.posts,
       memberWebs: postFeed.memberWebs,
+      directContactIds: [
+        for (final id in directContactIds)
+          if (peerIds.contains(id)) id,
+      ],
       anchorProjection: anchorProjection,
     );
+  }
+
+  static int _compareEdges(
+    ConstellationEdgeRecord a,
+    ConstellationEdgeRecord b,
+  ) {
+    final src = a.src.compareTo(b.src);
+    if (src != 0) {
+      return src;
+    }
+    final dst = a.dst.compareTo(b.dst);
+    return dst != 0 ? dst : a.tier.compareTo(b.tier);
+  }
+
+  /// People the viewer trusts directly (positive explicit trust, `vote_user`,
+  /// as the friends list reads it), with no block in either direction, in id
+  /// order. Unlike the visible set this needs no MeritRank round trip.
+  Future<List<String>> _directContactIds(String viewerId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT vu.object AS id
+FROM public.vote_user vu
+INNER JOIN public."user" u ON u.id = vu.object
+WHERE vu.subject = $1
+  AND vu.amount > 0
+  AND vu.object <> $1
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_block ub
+    WHERE (ub.blocker_id = $1 AND ub.blocked_id = vu.object)
+       OR (ub.blocker_id = vu.object AND ub.blocked_id = $1)
+  )
+ORDER BY vu.object
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    return [for (final row in rows) row.read<String>('id')];
   }
 
   ConstellationFieldRepository get _repo =>

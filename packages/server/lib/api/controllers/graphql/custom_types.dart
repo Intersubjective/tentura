@@ -898,6 +898,10 @@ final gqlTypeConstellationPeer =
         field('image', gqlTypeImagePublic),
         field('pinState', graphQLString),
         field('visible', graphQLBoolean.nonNullable()),
+        // A contact node without content (#246): a direct contact outside
+        // the viewer's visible set; identity only, no handle, and no edge
+        // but the viewer's own.
+        field('contactOnly', graphQLBoolean.nonNullable()),
       ]);
 
 /// Two-tier trust edge between constellation peers (ids + tier only).
@@ -1137,6 +1141,12 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        // Everyone the viewer trusts directly (#246), each with a node in
+        // `peers`; never capped. Empty in an ANCHORS read.
+        field(
+          'directContactIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
         field(
           'posts',
           GraphQLListType(gqlTypeConstellationPost.nonNullable()).nonNullable(),
