@@ -10622,5 +10622,9 @@
   "constellationArrangeApply": "Arrange",
   "@constellationArrangeApply": {
     "context": "Field map: confirms «Arrange in a sector» and saves the new positions (#644)"
+  },
+  "beaconCurrentLineKeepTheirs": "Keep their version",
+  "@beaconCurrentLineKeepTheirs": {
+    "context": "Next-step editor after someone else changed the next step meanwhile (#517): closes the editor and keeps their line instead of saving yours"
   }
 }

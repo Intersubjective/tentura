@@ -1085,6 +1085,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         String? withdrawReason,
         DateTime createdAt,
         DateTime updatedAt,
+        DateTime? editedAt,
         int? responseType,
         DateTime? responseUpdatedAt,
         String? responseAuthorUserId,
@@ -1109,7 +1110,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// Refetch room cue after local mutations (echo-suppressed on WS).
-  Future<void> refreshBeaconRoomCue({String? savedCurrentLine}) async {
+  /// [savedCurrentLine] and its [savedRevision] (the server's answer to a
+  /// save, or the newer line a refused save reported, #517) are shown at
+  /// once, before the refetch.
+  Future<void> refreshBeaconRoomCue({
+    String? savedCurrentLine,
+    int? savedRevision,
+  }) async {
     if (isClosed) return;
     final trimmed = savedCurrentLine?.trim();
     if (trimmed != null && trimmed.isNotEmpty) {
@@ -1117,11 +1124,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       emit(
         state.copyWith(
           beaconRoomCue:
-              cue?.copyWith(currentLine: trimmed) ??
+              cue?.copyWith(
+                currentLine: trimmed,
+                currentLineRevision: savedRevision ?? cue.currentLineRevision,
+              ) ??
               BeaconRoomState(
                 beaconId: state.beacon.id,
                 updatedAt: DateTime.now().toUtc(),
                 currentLine: trimmed,
+                currentLineRevision: savedRevision ?? 0,
               ),
         ),
       );
@@ -1388,6 +1399,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
                     String? withdrawReason,
                     DateTime createdAt,
                     DateTime updatedAt,
+                    DateTime? editedAt,
                     int? responseType,
                     DateTime? responseUpdatedAt,
                     String? responseAuthorUserId,
@@ -1685,6 +1697,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
     String? withdrawReason,
     DateTime createdAt,
     DateTime updatedAt,
+    DateTime? editedAt,
     int? responseType,
     DateTime? responseUpdatedAt,
     String? responseAuthorUserId,
@@ -1755,13 +1768,14 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
       ),
     );
   }
-  final edited = row.updatedAt.difference(row.createdAt).inSeconds.abs() > 1;
-  if (edited) {
+  // The helper's own edit only, not the accept/admission writes (#361).
+  final editedAt = row.editedAt;
+  if (editedAt != null) {
     events.add(
       TimelineHelpOfferUpdated(
         helpOfferer: row.user,
         message: row.message,
-        updatedAt: row.updatedAt,
+        updatedAt: editedAt,
         helpType: row.helpType,
       ),
     );

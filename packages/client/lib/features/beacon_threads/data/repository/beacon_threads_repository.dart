@@ -470,6 +470,7 @@ class BeaconThreadsRepository {
     return BeaconRoomState(
       beaconId: row.beaconId,
       currentLine: row.currentLine,
+      currentLineRevision: row.currentLineRevision,
       openBlockerId: row.openBlockerId,
       openBlockerTitle: row.openBlockerTitle,
       lastRoomMeaningfulChange: row.lastRoomMeaningfulChange,
@@ -500,16 +501,20 @@ class BeaconThreadsRepository {
     return DateTime.parse(row.seenAt).toUtc();
   }
 
+  /// Saves the next step on top of [baseRevision]; throws
+  /// `NowLineChangedException` when the server has a newer one (#517).
   Future<BeaconRoomState> updateRoomNowLine({
     required String beaconId,
     required String text,
+    required int baseRevision,
   }) async {
     final row = await _remoteApiService
         .request(
           GRoomNowLineUpdateReq(
             (b) => b.vars
               ..beaconId = beaconId
-              ..text = text,
+              ..text = text
+              ..baseRevision = baseRevision,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -517,6 +522,7 @@ class BeaconThreadsRepository {
     return BeaconRoomState(
       beaconId: row.beaconId,
       currentLine: row.currentLine,
+      currentLineRevision: row.currentLineRevision,
       openBlockerId: row.openBlockerId,
       openBlockerTitle: row.openBlockerTitle,
       lastRoomMeaningfulChange: row.lastRoomMeaningfulChange,

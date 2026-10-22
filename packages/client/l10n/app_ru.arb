@@ -7262,5 +7262,6 @@
   "constellationArrangeRotateLeft": "Повернуть против часовой стрелки",
   "constellationArrangeRotateRight": "Повернуть по часовой стрелке",
   "constellationArrangeWidth": "Ширина сектора",
-  "constellationArrangeApply": "Расставить"
+  "constellationArrangeApply": "Расставить",
+  "beaconCurrentLineKeepTheirs": "Оставить их вариант"
 }

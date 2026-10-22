@@ -47,7 +47,6 @@ import '../../domain/use_case/beacon_threads_case.dart';
 import '../message/baton_plan_step_messages.dart';
 import '../message/beacon_room_fact_messages.dart';
 import '../message/discussion_read_only_message.dart';
-import '../message/now_line_changed_message.dart';
 import '../util/room_reply_excerpt.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
@@ -1055,15 +1054,17 @@ class RoomCubit extends Cubit<RoomState> {
     return [...messages, message];
   }
 
-  /// Saves the next step. [expectedLine] is the line the editor opened with
-  /// (required, so no caller writes blind): the save is refused with
-  /// `NowLineChangedException` when someone else changed it meanwhile, and
-  /// the room reloads so the person sees their line and can save again (B085).
-  Future<void> updatePlan(
+  /// Saves the next step on top of [baseRevision], the `currentLineRevision`
+  /// the editor opened with (required, so no caller writes blind). When
+  /// someone else changed it meanwhile the server refuses the save: the room
+  /// reloads to show their line, and the refusal is returned so the caller
+  /// can reopen its editor with the person's text on top of the newer
+  /// revision (B085, #517). Returns null otherwise (errors go to a snackbar).
+  Future<NowLineChangedException?> updatePlan(
     String currentLine, {
-    required String? expectedLine,
+    required int baseRevision,
   }) async {
-    if (_rejectIfPlanUpdateBlocked()) return;
+    if (_rejectIfPlanUpdateBlocked()) return null;
     // Optimistically reflect the new pinned plan/status line so the HUD strip
     // updates instantly; load() below reconciles (and restores on error).
     final optimisticRoomState = state.roomState?.copyWith(
@@ -1079,20 +1080,17 @@ class RoomCubit extends Cubit<RoomState> {
       await _case.updateRoomNowLine(
         beaconId: state.beaconId,
         currentLine: currentLine,
-        expectedLine: expectedLine,
+        baseRevision: baseRevision,
       );
       await load();
     } on NowLineChangedException catch (e) {
-      // The editor has closed, so "save again" (the exception's own text)
-      // does not apply here.
-      _showSnackError(
-        NowLineChangedElsewhereMessage(currentLine: e.currentLine),
-      );
       // Drop the optimistic line: show what is really saved now.
       await load();
+      return e;
     } on Object catch (e) {
       _showSnackError(e);
     }
+    return null;
   }
 
   Future<void> pinFactFromMessage({

@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
@@ -51,6 +52,7 @@ class _RecordingRepo extends FakeBeaconThreadsRepository {
   Future<BeaconRoomState> updateRoomNowLine({
     required String beaconId,
     required String text,
+    required int baseRevision,
   }) async {
     writes.add(text);
     return BeaconRoomState(
@@ -70,10 +72,13 @@ class _RoomCubitStub extends Fake implements RoomCubit {
   RoomState get state => const RoomState(beaconId: 'beacon-1');
 
   @override
-  Future<void> updatePlan(
+  Future<NowLineChangedException?> updatePlan(
     String currentLine, {
-    required String? expectedLine,
-  }) async => plans.add(currentLine);
+    required int baseRevision,
+  }) async {
+    plans.add(currentLine);
+    return null;
+  }
 }
 
 Widget _app(Widget Function(BuildContext context) button) => MaterialApp(
@@ -92,6 +97,7 @@ Future<void> _openNextStepSheet(WidgetTester tester) async {
           context,
           beaconId: 'beacon-1',
           initialText: '',
+          baseRevision: 0,
         ),
         child: const Text('open'),
       ),

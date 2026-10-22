@@ -94,8 +94,19 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
             context,
             beaconId: state.beacon.id,
             initialText: state.beaconRoomCue?.currentLine ?? '',
-            onSaved: (line) => unawaited(
-              beaconViewCubit.refreshBeaconRoomCue(savedCurrentLine: line),
+            baseRevision: state.beaconRoomCue?.currentLineRevision ?? 0,
+            onSaved: (saved) => unawaited(
+              beaconViewCubit.refreshBeaconRoomCue(
+                savedCurrentLine: saved.currentLine,
+                savedRevision: saved.currentLineRevision,
+              ),
+            ),
+            // Someone changed it meanwhile: show theirs at once (#517).
+            onStale: (newer) => unawaited(
+              beaconViewCubit.refreshBeaconRoomCue(
+                savedCurrentLine: newer.currentLine,
+                savedRevision: newer.currentRevision,
+              ),
             ),
           ),
         )

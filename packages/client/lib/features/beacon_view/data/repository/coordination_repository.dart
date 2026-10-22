@@ -258,6 +258,10 @@ HelpOfferRowRecord _helpOfferRowRecord(GHelpOfferWithCoordinationFields e) => (
   withdrawReason: e.withdrawReason,
   createdAt: DateTime.parse(e.createdAt),
   updatedAt: DateTime.parse(e.updatedAt),
+  editedAt: switch (e.editedAt) {
+    final String at => DateTime.parse(at),
+    null => null,
+  },
   responseType: e.responseType,
   responseUpdatedAt: e.responseUpdatedAt == null
       ? null

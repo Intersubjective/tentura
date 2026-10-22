@@ -12,6 +12,7 @@ typedef HelpOfferRowRecord = ({
   String? withdrawReason,
   DateTime createdAt,
   DateTime updatedAt,
+  DateTime? editedAt,
   int? responseType,
   DateTime? responseUpdatedAt,
   String? responseAuthorUserId,

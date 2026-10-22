@@ -328,37 +328,20 @@ base class BeaconThreadsCase extends UseCaseBase {
     String beaconId,
   ) async => const [];
 
-  /// Saves the request's next step. With [expectedLine] (the line the editor
-  /// opened with) the save is refused with [NowLineChangedException] when the
-  /// server's line has changed to something else meanwhile, instead of
-  /// silently overwriting someone else's edit (B085).
-  Future<void> updateRoomNowLine({
+  /// Saves the request's next step on top of [baseRevision], the
+  /// `currentLineRevision` the editor opened with. The server refuses a save
+  /// based on an older revision with [NowLineChangedException] (carrying the
+  /// line saved now), instead of silently overwriting someone else's edit
+  /// (B085, #517). Returns the saved state.
+  Future<BeaconRoomState> updateRoomNowLine({
     required String beaconId,
     required String currentLine,
-    String? expectedLine,
-  }) async {
-    if (expectedLine != null) {
-      // Client-side read-then-write until the server checks a base version
-      // itself (follow-up); then this extra read goes away.
-      String server;
-      try {
-        final state = await _room.fetchBeaconRoomState(beaconId);
-        server = state.currentLine.trim();
-      } on Object catch (e) {
-        // A failed pre-read must not block a save that used to work (e.g.
-        // a transient "database busy"): write as before.
-        logger.warning('B085: next-step pre-read failed, saving anyway', e);
-        server = expectedLine.trim();
-      }
-      if (server != expectedLine.trim() && server != currentLine.trim()) {
-        throw NowLineChangedException(currentLine: server);
-      }
-    }
-    await _room.updateRoomNowLine(
-      beaconId: beaconId,
-      text: currentLine,
-    );
-  }
+    required int baseRevision,
+  }) => _room.updateRoomNowLine(
+    beaconId: beaconId,
+    text: currentLine,
+    baseRevision: baseRevision,
+  );
 
   Future<CoordinationItem?> fetchCurrentCoordinationPlan(
     String beaconId,

@@ -21,6 +21,7 @@ FakeHelpOfferCoordinationRow _seenOfferRow(DateTime authorSeenAt) => (
   withdrawReason: null,
   createdAt: kOfferCreatedAt,
   updatedAt: kOfferCreatedAt,
+  editedAt: null,
   responseType: null,
   responseUpdatedAt: null,
   responseAuthorUserId: null,
