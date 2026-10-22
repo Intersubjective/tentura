@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/constellation/domain/radius_recipient_selection.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 
@@ -105,6 +106,86 @@ void main() {
         expect(forward.state.selectedIds, {'Ua', 'Ub', 'Uc'});
       },
     );
+  });
+
+  group('people laid out only after the composer opened', () {
+    // Forward candidates absent from the normal field get their first graph
+    // positions only once the composing scene places them (tentura-rcp1).
+    late ConstellationComposerCubit unplaced;
+
+    setUp(() {
+      unplaced = ConstellationComposerCubit(
+        positions: const {},
+        eligible: _positions.keys.toSet(),
+        createCubitFactory: (kind) => BeaconCreateCubit(
+          kind: kind,
+          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          effects: effects,
+        ),
+        forwardCubitFactory: (beaconId) => ForwardCubit(
+          beaconId: beaconId,
+          embedded: true,
+          effects: effects,
+          debugSkipInitialLoad: true,
+        ),
+      );
+    });
+
+    tearDown(() => unplaced.close());
+
+    test(
+      'the first people the scene places size the circle to the three '
+      'nearest; their seed positions before that do not',
+      () {
+        unplaced.start(BeaconKind.post, Offset.zero);
+        expect(unplaced.selection.radius, kComposerMinRadius);
+        expect(unplaced.selection.selected, isEmpty);
+
+        // The graph reports the new people at a seed point first ...
+        unplaced.updatePersonPositions({
+          for (final id in _positions.keys) id: const Offset(5, 0),
+        });
+        expect(unplaced.selection.radius, kComposerMinRadius);
+
+        // ... then the composing scene places them at their slots.
+        unplaced.peoplePlaced({
+          for (final e in _positions.entries) e.key: e.value * 10,
+        });
+
+        expect(unplaced.selection.radius, closeTo(330, 1e-9));
+        expect(unplaced.selection.selected, {'Ua', 'Ub', 'Uc'});
+      },
+    );
+
+    test('later placements and a set radius keep the circle', () {
+      unplaced
+        ..start(BeaconKind.post, Offset.zero)
+        ..peoplePlaced({
+          for (final e in _positions.entries) e.key: e.value * 10,
+        })
+        ..setRadius(150)
+        ..updatePersonPositions({'Ub': const Offset(140, 0)})
+        ..peoplePlaced({'Uc': const Offset(145, 0)});
+
+      expect(unplaced.selection.radius, 150);
+      expect(
+        unplaced.selection.selected,
+        {'Ua', 'Ub'},
+        reason: 'once sized, a placement neither resizes nor moves anyone',
+      );
+    });
+
+    test('a viewer radius set before anyone is placed is kept', () {
+      final slots = {for (final e in _positions.entries) e.key: e.value * 10};
+      unplaced
+        ..start(BeaconKind.post, Offset.zero)
+        ..setRadius(150)
+        ..updatePersonPositions(slots)
+        ..peoplePlaced(slots);
+
+      expect(unplaced.selection.radius, 150);
+      expect(unplaced.selection.selected, {'Ua'});
+    });
   });
 
   group('composer start before any edit', () {

@@ -48,6 +48,23 @@ void main() {
       await openConstellation(tester);
 
       await runE2eStep('start the composer on the canvas', () async {
+        // The field's first layout must have placed and centred the scene,
+        // and the drop point must be on screen, before the secondary tap.
+        final cubit = readConstellationCubit(tester);
+        await pumpUntil(
+          tester,
+          () =>
+              cubit.graphController.renderSnapshot.resolvePosition(
+                'fp:$aliceUserId',
+              ) !=
+              null,
+          label: 'constellation laid out',
+        );
+        cubit.panCameraTo(_dropPoint);
+        await pumpBounded(tester, frames: 12);
+        // The helpers are forward candidates, not on Alice's normal field:
+        // the composer places them only after it opens, and its circle is
+        // sized to them then (tentura-rcp1).
         await startMapComposerAt(tester, scene: _dropPoint);
         for (final id in [bobUserId, carolUserId, daveUserId]) {
           await pumpUntilVisible(
@@ -71,19 +88,26 @@ void main() {
 
       late String beaconId;
       await runE2eStep('send the Post from the full screen', () async {
-        beaconId = await sendPostFromFullForm(tester, body: body);
-      });
-
-      await runE2eStep('forward edges go only from Alice to the remaining people', () async {
-        expect(
-          await fetchForwardEdgePairs(
-            beaconId: beaconId,
-            asEmail: aliceEmail,
-            restoreEmail: aliceEmail,
-          ),
-          {'$aliceUserId->$carolUserId', '$aliceUserId->$daveUserId'},
+        beaconId = await sendPostFromFullForm(
+          tester,
+          body: body,
+          recipientIds: {carolUserId, daveUserId},
         );
       });
+
+      await runE2eStep(
+        'forward edges go only from Alice to the remaining people',
+        () async {
+          expect(
+            await fetchForwardEdgePairs(
+              beaconId: beaconId,
+              asEmail: aliceEmail,
+              restoreEmail: aliceEmail,
+            ),
+            {'$aliceUserId->$carolUserId', '$aliceUserId->$daveUserId'},
+          );
+        },
+      );
 
       await runE2eStep('only the remaining recipients are admitted', () async {
         Future<int?> accessOf(String userId, String email) =>

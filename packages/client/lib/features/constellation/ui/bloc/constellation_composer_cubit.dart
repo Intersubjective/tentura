@@ -97,6 +97,10 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
 
   bool _cancelled = false;
 
+  /// Whether the circle of this session was sized to people positions, or
+  /// set by the viewer; until then the first placed people size it.
+  bool _sizedToPositions = false;
+
   BeaconKind _kind = BeaconKind.post;
 
   RadiusRecipientSelection get selection => state;
@@ -120,6 +124,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     _sentInCircleIds = const {};
     _createCubit = createCubitFactory(kind);
     final base = state.withCenter(scenePos.lPoint);
+    _sizedToPositions = base.positions.keys.any(base.eligible.contains);
     emit(
       base.withRadius(
         RadiusRecipientSelection.startRadius(
@@ -157,7 +162,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     final known = state.eligible;
     // People the graph laid out only after the composer opened bring the
     // first positions; size the circle for them as for an initial snapshot.
-    final firstPositions = !first && !state.positions.keys.any(known.contains);
+    final firstPositions = !first && !_sizedToPositions;
     final added = {
       for (final id in people.eligible)
         if (!people.positions.containsKey(id) && !known.contains(id)) id,
@@ -167,10 +172,14 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
         !setEquals(known, people.eligible) ||
         !mapEquals(state.positions, people.positions)) {
       final center = state.center;
+      final resize = first || firstPositions;
+      if (resize) {
+        _sizedToPositions = people.positions.keys.any(people.eligible.contains);
+      }
       emit(
         RadiusRecipientSelection(
           center: center,
-          radius: first || firstPositions
+          radius: resize
               ? RadiusRecipientSelection.startRadius(
                   center,
                   people.positions,
@@ -196,6 +205,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
 
   void setRadius(double radius) {
     if (_cancelled) return;
+    _sizedToPositions = true;
     emit(state.withRadius(radius));
     _push();
   }
@@ -214,6 +224,30 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     };
     if (updated.isEmpty) return;
     emit(state.withPersonPositions(updated));
+    _push();
+  }
+
+  /// The composing scene has placed the people it shows at [positions]. If
+  /// the circle was not sized to anyone yet, takes them and sizes the circle
+  /// as for an initial snapshot; otherwise does nothing. Forward candidates
+  /// absent from the normal field get their first positions only here, after
+  /// the composer opened (the graph reports them at a seed point before that).
+  void peoplePlaced(Map<String, Offset> positions) {
+    if (isClosed || _cancelled || _createCubit == null || _sizedToPositions) {
+      return;
+    }
+    updatePersonPositions(positions);
+    if (!state.positions.keys.any(state.eligible.contains)) return;
+    _sizedToPositions = true;
+    emit(
+      state.withRadius(
+        RadiusRecipientSelection.startRadius(
+          state.center,
+          state.positions,
+          state.eligible,
+        ),
+      ),
+    );
     _push();
   }
 
@@ -279,6 +313,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     final create = _createCubit;
     forwardCubit = null;
     _createCubit = null;
+    _sizedToPositions = false;
     _sentInCircleIds = _cancelled
         ? const {}
         : {
@@ -341,9 +376,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
       recipientIds: forward != null
           ? {...forward.state.selectedIds}
           : recipients,
-      notes: forward != null
-          ? {...forward.state.perRecipientNotes}
-          : const {},
+      notes: forward != null ? {...forward.state.perRecipientNotes} : const {},
       draftId: _createCubit?.state.draftId,
     );
   }

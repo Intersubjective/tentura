@@ -39,6 +39,12 @@ void main() {
     'layout',
     (tester) async {
       final (:cubit, :composer) = await _openComposer(tester);
+      // The positions below are made up, far from where the graph has `a`.
+      // A circle that covers nobody keeps them from changing who is selected:
+      // a selection change redraws the scene, which re-reads the graph's
+      // positions (the opened circle covers `a`, sized to it, tentura-rcp1).
+      composer.setRadius(1);
+      await tester.pumpAndSettle();
       final controller = cubit.graphController;
       final reconciliations = cubit.layoutReconciliationCount;
       final layoutRuns = controller.relayoutInvocationCount;
@@ -87,7 +93,10 @@ void main() {
       // composer must learn of it from the interaction layer itself.
       final token = controller.beginNodePresentationDragForId('fp:a', start);
       for (var i = 1; i <= 20; i++) {
-        controller.updateNodePresentationDrag(token, start + Offset(i * 2.0, 0));
+        controller.updateNodePresentationDrag(
+          token,
+          start + Offset(i * 2.0, 0),
+        );
         await tester.pump(const Duration(milliseconds: 16));
       }
       final moved = controller.getPositionOrNullForId('fp:a')!;

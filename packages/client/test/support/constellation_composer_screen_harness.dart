@@ -74,6 +74,10 @@ final class ComposerHarnessRepository implements ConstellationRepositoryPort {
 
 /// Forward candidates the composer may address; counts how often they are read.
 final class ComposerHarnessForwardRepository implements ForwardRepository {
+  ComposerHarnessForwardRepository({this.candidateIds = const ['a']});
+
+  final List<String> candidateIds;
+
   int candidateReads = 0;
 
   @override
@@ -81,7 +85,7 @@ final class ComposerHarnessForwardRepository implements ForwardRepository {
     String context = '',
   }) async {
     candidateReads++;
-    return const [Profile(id: 'a')];
+    return [for (final id in candidateIds) Profile(id: id)];
   }
 
   @override

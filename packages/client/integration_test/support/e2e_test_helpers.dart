@@ -36,6 +36,7 @@ import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart';
+import 'package:tentura/features/beacon_create/ui/screen/post_create_screen.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
@@ -51,7 +52,6 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/widget/basic_chat_body.dart' show BeaconRoomComposer;
 import 'package:tentura/ui/widget/linear_pi_active.dart' show LinearPiActive;
 
 class IntegrationFixture {
@@ -2347,23 +2347,37 @@ Future<void> openFullFormFromMapComposer(WidgetTester tester) => tapAndSettle(
 );
 
 /// From the full Post create screen (reached via
-/// [openFullFormFromMapComposer]), types [body] and sends; returns the
-/// published Post's beacon id, read back from the post-send navigation URL
-/// (`/beacon/view/<id>`).
+/// [openFullFormFromMapComposer]), types [body], goes on to «Получатели»,
+/// checks that the picker holds exactly [recipientIds] (the map composer's
+/// handoff) and sends; returns the published Post's beacon id, read back from
+/// the post-send navigation URL (`/beacon/view/<id>`).
+///
+/// «Новый пост» is a two-step form — text first, then the recipient picker
+/// with «Отправить (N)» (docs/plans/post-ux-mockups.md M3 rev 2).
 Future<String> sendPostFromFullForm(
   WidgetTester tester, {
   required String body,
+  required Set<String> recipientIds,
 }) async {
-  final field = find.descendant(
-    of: find.byType(BeaconRoomComposer),
-    matching: find.byType(TextField),
-  );
-  await pumpUntilVisible(tester, field, label: 'post create composer field');
+  final field = find.byKey(PostCreateScreen.textFieldKey);
+  await pumpUntilVisible(tester, field, label: 'post create text field');
   await tester.enterText(field, body);
-  await tapAndSettle(
+  await pumpBounded(tester);
+  await tapAndSettle(tester, find.byKey(PostCreateScreen.nextButtonKey));
+  final submit = find.byKey(TestIds.key(TestIds.forwardSubmit));
+  await pumpUntil(
     tester,
-    find.byKey(TestIds.key(TestIds.roomMessageSend)),
+    () =>
+        finderHasMatch(submit) &&
+        tester.widget<OutlinedButton>(submit).onPressed != null,
+    label: 'post recipients step send enabled',
   );
+  expect(
+    tester.element(submit).read<ForwardCubit>().state.selectedIds,
+    recipientIds,
+    reason: 'the Post picker starts from the map composer selection',
+  );
+  await tapAndSettle(tester, submit);
   await pumpUntil(
     tester,
     () => currentAppUrl().contains(kPathBeaconView),

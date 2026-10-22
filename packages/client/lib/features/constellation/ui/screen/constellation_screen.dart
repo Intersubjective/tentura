@@ -181,16 +181,20 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   void _syncComposerPersonPositions() {
     if (!mounted) return;
     final composer = maybeConstellationComposer(context);
-    final snapshot = _graphController.renderSnapshot;
     if (composer == null || composer.isClosed || composer.createCubit == null) {
       return;
     }
-    composer.updatePersonPositions({
+    composer.updatePersonPositions(_personPositions());
+  }
+
+  Map<String, Offset> _personPositions() {
+    final snapshot = _graphController.renderSnapshot;
+    return {
       for (final entry in snapshot.topology.nodesById.entries)
         if (entry.value.payload case FieldPersonNode(:final id))
           if (snapshot.resolvePosition(entry.key) case final position?)
             id: Offset(position.x, position.y),
-    });
+    };
   }
 
   /// Focuses a beacon another screen asked for, once the field is loaded.
@@ -272,6 +276,18 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
             listenWhen: (prev, curr) =>
                 !identical(prev.field, curr.field) && curr.isComposing,
             listener: (context, _) => composer.refreshPeople(),
+          ),
+        // A composing scene rebuild has placed the people it shows; the
+        // first ones placed size the composer's circle.
+        if (composer != null)
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (prev, curr) =>
+                prev.graphRevision != curr.graphRevision && curr.isComposing,
+            listener: (context, _) {
+              if (composer.createCubit != null) {
+                composer.peoplePlaced(_personPositions());
+              }
+            },
           ),
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (prev, curr) =>
