@@ -1,5 +1,5 @@
-// «Новый пост» is a two-step form, like a simplified Request form. Step one:
-// ✕ + «Новый пост», the text field, «Фото» / «Файлы» / «Вставить изображение»
+// «Новый чат» is a two-step form, like a simplified Request form. Step one:
+// ✕ + «Новый чат», the text field, «Фото» / «Файлы» / «Вставить изображение»
 // and the «Можно пересылать» switch (on by default); «Далее: получатели»
 // stays disabled until there is text or an attachment. Step two,
 // «Получатели»: the recipient picker on the shared ForwardCubit, whose
@@ -392,7 +392,7 @@ void main() {
       (tester) async {
         await _pumpPostCreate(tester);
 
-        expect(find.text('Новый пост'), findsOneWidget);
+        expect(find.text('Новый чат'), findsOneWidget);
         expect(_textField, findsOneWidget);
         expect(find.text('О чём ваш пост?'), findsOneWidget);
         expect(find.text('Фото'), findsOneWidget);
@@ -486,7 +486,7 @@ void main() {
         await tester.tap(find.byIcon(Icons.arrow_back));
         await _settle(tester);
 
-        expect(find.text('Новый пост'), findsOneWidget);
+        expect(find.text('Новый чат'), findsOneWidget);
         expect(
           tester.widget<TextField>(_textField).controller!.text,
           'Кто в субботу на велопрогулку?',

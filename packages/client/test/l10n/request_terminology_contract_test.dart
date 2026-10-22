@@ -83,4 +83,30 @@ void main() {
     expect(en.myWorkEmptyActiveCreateCta.toLowerCase(), contains('request'));
     expect(ru.beaconsTitle.toLowerCase(), contains('запрос'));
   });
+
+  // D8/Q1 (#248): starting a Post reads as starting a chat; the object noun
+  // stays Post.
+  test('a new Post is started as a chat', () {
+    expect(L10nEn().postsTabNewPost, 'New chat');
+    expect(L10nRu().postsTabNewPost, 'Новый чат');
+  });
+
+  // #501: a Post's conversation is its chat, never "conversation".
+  test('Post chat copy says chat', () {
+    const keys = [
+      'postMenuLeave',
+      'postLeaveConfirmTitle',
+      'postDeleteConfirmBody',
+      'postParticipantsInConversation',
+      'postChatReadOnlyHint',
+    ];
+    for (final key in keys) {
+      final en = enArb[key] as String;
+      final ru = ruArb[key] as String;
+      expect(en.toLowerCase(), contains('chat'), reason: key);
+      expect(en.toLowerCase(), isNot(contains('conversation')), reason: key);
+      expect(ru.toLowerCase(), contains('чат'), reason: key);
+      expect(ru.toLowerCase(), isNot(contains('разговор')), reason: key);
+    }
+  });
 }

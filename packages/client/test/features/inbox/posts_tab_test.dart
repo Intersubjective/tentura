@@ -647,7 +647,7 @@ void main() {
     });
 
     testWidgets(
-      'the empty state offers «Новый пост» when creating is allowed',
+      'the empty state offers «Новый чат» when creating is allowed',
       (tester) async {
         repository.posts = const [];
         var created = 0;
@@ -659,7 +659,7 @@ void main() {
           ),
         );
 
-        final action = find.text('Новый пост');
+        final action = find.text('Новый чат');
         expect(action, findsOneWidget);
 
         await tester.tap(action);
@@ -669,7 +669,7 @@ void main() {
       },
     );
 
-    testWidgets('the empty state has no «Новый пост» when creating is not '
+    testWidgets('the empty state has no «Новый чат» when creating is not '
         'allowed', (tester) async {
       repository.posts = const [];
       await pumpTab(
@@ -678,7 +678,7 @@ void main() {
       );
 
       expect(find.textContaining('Здесь будут посты'), findsOneWidget);
-      expect(find.text('Новый пост'), findsNothing);
+      expect(find.text('Новый чат'), findsNothing);
     });
 
     testWidgets('by default the empty-state action follows the Post gate', (
@@ -688,19 +688,19 @@ void main() {
       await pumpTab(tester, view: PostsTabView(onCreatePost: () {}));
 
       expect(
-        find.text('Новый пост'),
+        find.text('Новый чат'),
         kPostsEnabled ? findsOneWidget : findsNothing,
       );
     });
 
-    testWidgets('a list with Posts does not show «Новый пост»', (tester) async {
+    testWidgets('a list with Posts does not show «Новый чат»', (tester) async {
       repository.posts = [_post('Pa')];
       await pumpTab(
         tester,
         view: PostsTabView(canCreatePost: true, onCreatePost: () {}),
       );
 
-      expect(find.text('Новый пост'), findsNothing);
+      expect(find.text('Новый чат'), findsNothing);
     });
 
     testWidgets('with Posts the empty-state line is not shown', (tester) async {
