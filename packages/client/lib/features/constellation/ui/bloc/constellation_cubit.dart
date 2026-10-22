@@ -538,7 +538,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             asOfUtc: loadedField.loadedAt,
             labelBudget: labelBudget,
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-            selectedRequestWebs: _selectedRequestWebs,
+            selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
           )
         : ConstellationPerf.timeSync(
@@ -550,7 +550,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               asOfUtc: loadedField.loadedAt,
               labelBudget: labelBudget,
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-              selectedRequestWebs: _selectedRequestWebs,
+              selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
             ),
           );
@@ -654,7 +654,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       asOfUtc: state.loadedAt ?? field.loadedAt,
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-      selectedRequestWebs: _selectedRequestWebs,
+      selectedRequestWebs: _holderWebs,
       extraKeptPeerIds: _extraKeptPeerIds,
     );
     emit(
@@ -1492,7 +1492,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             asOfUtc: state.loadedAt ?? field.loadedAt,
             labelBudget: _currentLabelBudget(),
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-            selectedRequestWebs: _selectedRequestWebs,
+            selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
           )
         : ConstellationPerf.timeSync(
@@ -1504,7 +1504,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               asOfUtc: state.loadedAt ?? field.loadedAt,
               labelBudget: _currentLabelBudget(),
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-              selectedRequestWebs: _selectedRequestWebs,
+              selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
             ),
           );
@@ -1648,6 +1648,29 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ];
     }
     return _requestWebsById[selectedId] ?? const [];
+  }
+
+  /// [_selectedRequestWebs] plus the people whose Requests or Posts a
+  /// show/hide switch hides while their degree stays shown (#645): composed
+  /// as holders, so hiding content never takes a shown person off the field.
+  /// Composition reads only `personId` from these.
+  List<ConstellationMemberWeb> get _holderWebs {
+    final field = state.field;
+    if (field == null || state.isComposing || !hasHiddenLayers) {
+      return _selectedRequestWebs;
+    }
+    _shownField(field);
+    final hiddenHolders = _shownMemo.hiddenItemHolderIds;
+    if (hiddenHolders.isEmpty) return _selectedRequestWebs;
+    return [
+      ..._selectedRequestWebs,
+      for (final id in hiddenHolders)
+        ConstellationMemberWeb(
+          beaconId: '',
+          personId: id,
+          state: ConstellationMemberWebState.inside,
+        ),
+    ];
   }
 
   Future<void> _fetchRequestWebs(String requestId) async {
@@ -2094,8 +2117,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null || composition == null) {
       return null;
     }
-    final source = hasHiddenLayers ? field : composition;
-    if (identical(source, _countsFor) && _counts != null) {
+    // With something hidden, the counts depend on the field and the Request
+    // filters (a filtered-out pinned Request drops its support path).
+    final source = hasHiddenLayers ? (field, state.filters) : composition;
+    if (_counts != null && _sameCountsSource(source)) {
       return _counts;
     }
     // With something hidden, the population is that of the field composed
@@ -2109,13 +2134,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             labelBudget: _currentLabelBudget(),
           ).eligiblePersonIds
         : composition.eligiblePersonIds;
-    _countsFor = hasHiddenLayers ? field : composition;
+    _countsFor = source;
     return _counts = constellationVisibilityCounts(
       field: field,
       viewerId: _viewer.id,
       peopleOnField: people,
       asOfUtc: (state.loadedAt ?? field.loadedAt).toUtc(),
     );
+  }
+
+  bool _sameCountsSource(Object source) {
+    final previous = _countsFor;
+    return switch ((previous, source)) {
+      (
+        (final ConstellationField f0, final ConstellationFilters c0),
+        (final ConstellationField f1, final ConstellationFilters c1),
+      ) =>
+        identical(f0, f1) && c0 == c1,
+      _ => identical(previous, source),
+    };
   }
 
   /// How the selected person is reached from the viewer (#641), or null when
@@ -2716,7 +2753,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             asOfUtc: state.loadedAt ?? field.loadedAt,
             labelBudget: _currentLabelBudget(),
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-            selectedRequestWebs: _selectedRequestWebs,
+            selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
           )
         : ConstellationPerf.timeSync(
@@ -2728,7 +2765,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               asOfUtc: state.loadedAt ?? field.loadedAt,
               labelBudget: _currentLabelBudget(),
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-              selectedRequestWebs: _selectedRequestWebs,
+              selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
             ),
           );

@@ -234,6 +234,32 @@ void main() {
     });
   });
 
+  test('people whose content is hidden by type stay holders', () {
+    Set<String> holders(ConstellationVisibility visibility) =>
+        constellationHiddenItemHolderIds(
+          field: _field(),
+          viewerId: _me,
+          visibility: visibility,
+        );
+    expect(holders(ConstellationVisibility.all), isEmpty);
+    expect(holders(const ConstellationVisibility(requests: false)), {
+      'ann',
+      'bob',
+      'far',
+      'dan',
+    });
+    expect(
+      holders(
+        const ConstellationVisibility(requests: false, secondDegree: false),
+      ),
+      {'ann', 'far'},
+    );
+    expect(holders(const ConstellationVisibility(posts: false)), {
+      'ann',
+      'bob',
+    });
+  });
+
   group('ConstellationVisibility', () {
     test('round-trips through JSON', () {
       const visibility = ConstellationVisibility(

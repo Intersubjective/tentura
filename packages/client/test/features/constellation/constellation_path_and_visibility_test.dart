@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
+import 'package:tentura/features/constellation/domain/constellation_filters.dart';
 import 'package:tentura/features/constellation/domain/constellation_shown_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -383,7 +384,13 @@ void main() {
         }),
         isEmpty,
       );
-      expect(_peopleIds(cubit), containsAll(['ego', 'quiet', 'ann']));
+      // Bob and Far are on the field only through their Requests; their
+      // degrees stay shown, so they stay too.
+      expect(
+        _peopleIds(cubit),
+        containsAll(['ego', 'quiet', 'ann', 'bob', 'far', 'cid']),
+      );
+      expect(_mapNodeIds(cubit), containsAll(['bob', 'far']));
       expect(cubit.discoverableRequestsForPerson('ann'), isEmpty);
       expect(cubit.postsForPerson('ann'), isEmpty);
     });
@@ -422,6 +429,21 @@ void main() {
         expect(after.requests, before.requests);
         expect(after.posts, before.posts);
         expect(after.people, before.people);
+      },
+    );
+
+    test(
+      'counts follow the Request filters while something is hidden',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+        cubit.setVisibility(const ConstellationVisibility(posts: false));
+
+        final first = cubit.visibilityCounts;
+        expect(identical(cubit.visibilityCounts, first), isTrue);
+
+        cubit.setFilterLocation(LocationFilter.hasLocation);
+        expect(identical(cubit.visibilityCounts, first), isFalse);
       },
     );
 

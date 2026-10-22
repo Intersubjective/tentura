@@ -290,6 +290,49 @@ ConstellationField constellationVisibleField({
   );
 }
 
+/// People whose Requests or Posts [visibility] hides by type while their
+/// degree stays shown (#645): the field composes them as holders anyway, so
+/// switching content off never takes a shown person off the field. Mirrors
+/// what made them holders with everything shown: an own or pinned Request,
+/// or a Post the field could draw (active, or pinned).
+Set<String> constellationHiddenItemHolderIds({
+  required ConstellationField field,
+  required String viewerId,
+  required ConstellationVisibility visibility,
+  Map<String, ConstellationTrustDegree>? degrees,
+}) {
+  if (visibility.requests && visibility.posts) {
+    return const {};
+  }
+  final byDegree = !visibility.hidesPeople
+      ? const <String, ConstellationTrustDegree>{}
+      : degrees ?? constellationTrustDegrees(field: field, viewerId: viewerId);
+  bool shown(String personId) =>
+      personId != viewerId &&
+      (!visibility.hidesPeople ||
+          visibility.showsDegree(
+            byDegree[personId] ?? ConstellationTrustDegree.further,
+          ));
+  final projection = field.resolvedAnchorProjection;
+  final anchoredBeaconIds = {
+    for (final anchor in projection.anchors)
+      if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
+        anchor.target.id,
+  };
+  final activeSince = field.loadedAt.subtract(kConstellationPostActiveWindow);
+  return {
+    if (!visibility.requests)
+      for (final request in [...field.requests, ...projection.pinnedRequests])
+        if (shown(request.authorId)) request.authorId,
+    if (!visibility.posts)
+      for (final post in field.posts)
+        if (shown(post.authorId) &&
+            (!post.lastActivityAt.isBefore(activeSince) ||
+                (post.isPinned && anchoredBeaconIds.contains(post.id))))
+          post.authorId,
+  };
+}
+
 /// How many objects of each toggle the field holds (#645), for the counts on
 /// the show/hide chips: the people the field places when everything is shown
 /// (`peopleOnField`) by degree, and their Requests and the Posts the field can

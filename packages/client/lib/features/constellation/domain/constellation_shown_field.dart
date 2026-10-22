@@ -67,6 +67,11 @@ final class ConstellationShownFieldMemo {
   String? _viewerId;
   ConstellationVisibility? _visibility;
   late ConstellationField _shown;
+  Set<String> _hiddenItemHolderIds = const {};
+
+  /// Holders the last [shown] field keeps although their items are hidden
+  /// by type (see [constellationHiddenItemHolderIds]).
+  Set<String> get hiddenItemHolderIds => _hiddenItemHolderIds;
 
   ConstellationField shown(
     ConstellationField field, {
@@ -79,10 +84,20 @@ final class ConstellationShownFieldMemo {
       _source = field;
       _viewerId = viewerId;
       _visibility = visibility;
+      final degrees = visibility.hidesPeople
+          ? constellationTrustDegrees(field: field, viewerId: viewerId)
+          : null;
       _shown = constellationVisibleField(
         field: field,
         viewerId: viewerId,
         visibility: visibility,
+        degrees: degrees,
+      );
+      _hiddenItemHolderIds = constellationHiddenItemHolderIds(
+        field: field,
+        viewerId: viewerId,
+        visibility: visibility,
+        degrees: degrees,
       );
     }
     return _shown;
