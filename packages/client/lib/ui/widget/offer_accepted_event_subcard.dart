@@ -9,7 +9,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// B077 — «Your help was accepted · `author`» as an event sub-card, shown to
+/// B077 — «Your help was accepted · `acceptor`» as an event sub-card, shown to
 /// the helper inside the Request card on the Requests tab and on the Request
 /// screen's People tab until they dismiss it with ×.
 ///
@@ -23,6 +23,8 @@ class OfferAcceptedEventSubcard extends StatelessWidget {
     required this.viewerId,
     required this.author,
     required this.acceptedAt,
+    this.acceptorId,
+    this.acceptor,
     this.requestTitle,
     this.onDismissed,
     this.padding = EdgeInsets.zero,
@@ -37,6 +39,15 @@ class OfferAcceptedEventSubcard extends StatelessWidget {
   final String viewerId;
   final Profile author;
   final DateTime acceptedAt;
+
+  /// Who accepted the offer, when known (#507: the author or a steward).
+  /// Unknown or the author's id: the sub-card names the [author].
+  final String? acceptorId;
+
+  /// [acceptorId]'s profile when the caller has it. Someone other than the
+  /// author with no profile at hand is not named (never the author instead).
+  final Profile? acceptor;
+
   final String? requestTitle;
 
   /// Runs after the dismissal is recorded (e.g. to clear the matching
@@ -59,7 +70,10 @@ class OfferAcceptedEventSubcard extends StatelessWidget {
         if (!dismissals.shouldShow(viewerId: viewerId, beaconId: beaconId)) {
           return const SizedBox.shrink();
         }
-        final name = author.shownName.trim();
+        final id = acceptorId?.trim() ?? '';
+        final byAuthor = id.isEmpty || id == author.id;
+        final actor = byAuthor ? author : acceptor;
+        final name = actor?.shownName.trim() ?? '';
         return Padding(
           padding: padding,
           child: AttentionMiniCard(
@@ -75,13 +89,15 @@ class OfferAcceptedEventSubcard extends StatelessWidget {
               collapsedCount: 1,
               presentationPayloadJson: '{}',
               beaconId: beaconId,
-              actorUserId: author.id,
+              actorUserId: actor?.id ?? id,
               presentationKey: presentationKey,
               surface: AttentionSurface.myWork,
             ),
-            actor: author,
+            actor: actor,
             requestTitle: requestTitle,
-            eventLine: l10n.attentionCardOfferAccepted(name),
+            eventLine: byAuthor || name.isNotEmpty
+                ? l10n.attentionCardOfferAccepted(name)
+                : l10n.activityForwardOutcomeAcceptedNoAuthor,
             onDismiss: () {
               unawaited(
                 dismissals.dismiss(viewerId: viewerId, beaconId: beaconId),

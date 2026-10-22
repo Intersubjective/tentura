@@ -10,6 +10,7 @@ import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -24,6 +25,7 @@ import 'package:tentura/ui/widget/offer_accepted_event_subcard.dart';
 
 const _helper = Profile(id: 'h1', displayName: 'Helper');
 const _author = Profile(id: 'auth', displayName: 'Author');
+const _stewardId = 'stw';
 final _t = DateTime.utc(2025);
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -127,6 +129,57 @@ Future<void> _pump(WidgetTester tester, BeaconViewState state) async {
   await tester.pumpAndSettle();
 }
 
+/// The admitted helper's state as the server returns it, the offer accepted
+/// by [acceptorId] (`responseAuthorUserId`), with [participants] loaded.
+BeaconViewState _acceptedBy(
+  String? acceptorId, {
+  List<BeaconParticipant> participants = const [],
+}) => _state(roomAccess: RoomAccessBits.admitted).copyWith(
+  roomParticipants: participants,
+  helpOffers: timelineHelpOffersFromRemote([
+    (
+      beaconId: 'B1',
+      userId: _helper.id,
+      user: _helper,
+      message: 'I can help',
+      helpType: null,
+      roleLabel: null,
+      status: 0,
+      withdrawReason: null,
+      createdAt: _t,
+      updatedAt: _t,
+      responseType: CoordinationResponseType.useful.index,
+      responseUpdatedAt: _t,
+      responseAuthorUserId: acceptorId,
+      roomAccess: RoomAccessBits.admitted,
+      admissionAction: null,
+      lastDeclineReason: null,
+      lastRemoveReason: null,
+      stakeState: 0,
+      offerKind: 0,
+      isDirectAuthorForward: false,
+      authorSeenAt: null,
+    ),
+  ]),
+);
+
+final _stewardParticipant = BeaconParticipant(
+  id: 'p-stw',
+  beaconId: 'B1',
+  userId: _stewardId,
+  role: BeaconParticipantRoleBits.steward,
+  status: 0,
+  roomAccess: RoomAccessBits.admitted,
+  createdAt: _t,
+  updatedAt: _t,
+  userTitle: 'Stella Steward',
+);
+
+Finder _inSubcard(String text) => find.descendant(
+  of: find.byType(OfferAcceptedEventSubcard),
+  matching: find.text(text),
+);
+
 void main() {
   late _RecordingPort port;
 
@@ -162,6 +215,64 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  group('#507: names the one who accepted', () {
+    final l10n = lookupL10n(const Locale('en'));
+
+    testWidgets("a steward's accept names the steward, not the author", (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _acceptedBy(_stewardId, participants: [_stewardParticipant]),
+      );
+      expect(
+        _inSubcard(l10n.attentionCardOfferAccepted('Stella Steward')),
+        findsOneWidget,
+      );
+      expect(
+        _inSubcard(l10n.attentionCardOfferAccepted('Author')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      "a steward's accept with no profile at hand names no one, not the author",
+      (tester) async {
+        await _pump(tester, _acceptedBy(_stewardId));
+        expect(
+          _inSubcard(l10n.activityForwardOutcomeAcceptedNoAuthor),
+          findsOneWidget,
+        );
+        expect(
+          _inSubcard(l10n.attentionCardOfferAccepted('Author')),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets("the author's accept names the author", (tester) async {
+      await _pump(
+        tester,
+        _acceptedBy(_author.id, participants: [_stewardParticipant]),
+      );
+      expect(
+        _inSubcard(l10n.attentionCardOfferAccepted('Author')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('no recorded acceptor still names the author', (tester) async {
+      await _pump(
+        tester,
+        _acceptedBy(null, participants: [_stewardParticipant]),
+      );
+      expect(
+        _inSubcard(l10n.attentionCardOfferAccepted('Author')),
+        findsOneWidget,
+      );
+    });
   });
 
   testWidgets('× there is remembered for both places', (tester) async {
