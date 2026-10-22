@@ -422,6 +422,8 @@ final class QueryAttention extends GqlNodeBase {
     'inviteOrigin',
     'excerpt',
     'toStatus',
+    // #516: why a helper left ('timing', …; kAllowedWithdrawReasonKeys).
+    'withdrawReason',
     // #367: an accepted helper's forward row ('accepted' | 'wrappingUp').
     'helperStage',
     'roleLabel',
