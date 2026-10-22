@@ -108,6 +108,16 @@ final class InviteTrailingDashHintMessage extends LocalizableMessage {
       'В конце ссылки на приглашение лишний дефис. Удалите «-» в конце и попробуйте снова.';
 }
 
+final class _OpenPostActionLabel extends LocalizableMessage {
+  const _OpenPostActionLabel();
+
+  @override
+  String get toEn => 'Open post';
+
+  @override
+  String get toRu => 'Открыть пост';
+}
+
 final class _OpenBeaconActionLabel extends LocalizableMessage {
   const _OpenBeaconActionLabel();
 
@@ -124,15 +134,24 @@ final class BeaconInviteAcceptedMessage extends LocalizableActionMessage {
     required this.inviterName,
     required this.beaconId,
     required this.beaconTitle,
+    this.isPost = false,
   });
 
   final String inviterName;
   final String beaconId;
   final String beaconTitle;
 
+  /// The invite shared a Post (#501): name the post, not a request.
+  final bool isPost;
+
   @override
   String get toEn {
     final who = inviterName.isEmpty ? 'Someone' : inviterName;
+    if (isPost) {
+      return beaconTitle.isEmpty
+          ? '$who shared a post with you.'
+          : '$who shared the post «$beaconTitle» with you.';
+    }
     final title = beaconTitle.isEmpty ? 'a request' : beaconTitle;
     return "$who shared $title with you. It's in your Inbox.";
   }
@@ -140,12 +159,18 @@ final class BeaconInviteAcceptedMessage extends LocalizableActionMessage {
   @override
   String get toRu {
     final who = inviterName.isEmpty ? 'Кто-то' : inviterName;
+    if (isPost) {
+      return beaconTitle.isEmpty
+          ? '$who поделился(ась) с вами постом.'
+          : '$who поделился(ась) с вами постом «$beaconTitle».';
+    }
     final title = beaconTitle.isEmpty ? 'запрос' : beaconTitle;
     return '$who поделился(ась) «$title» с вами. Он в ваших входящих.';
   }
 
   @override
-  LocalizableMessage get label => const _OpenBeaconActionLabel();
+  LocalizableMessage get label =>
+      isPost ? const _OpenPostActionLabel() : const _OpenBeaconActionLabel();
 
   @override
   void Function() get onPressed => () {

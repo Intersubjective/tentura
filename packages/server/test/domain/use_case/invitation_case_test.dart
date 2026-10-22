@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
@@ -173,6 +174,23 @@ void main() {
       expect((json['beacon']! as Map)['title'], 'Shared beacon');
       expect((json['beacon']! as Map)['snippet'], 'help needed');
       expect((json['beacon']! as Map)['description'], 'help needed');
+      expect((json['beacon']! as Map)['kind'], 'request');
+    });
+
+    test('a Post invite says so in JSON (#501)', () async {
+      stubGetById(invitation(beaconId: 'Bpost'));
+      when(beaconRepo.getBeaconById(beaconId: 'Bpost')).thenAnswer(
+        (_) async => BeaconEntity(
+          id: 'Bpost',
+          title: '',
+          author: const UserEntity(id: issuerId),
+          createdAt: now,
+          updatedAt: now,
+          kind: BeaconKind.post,
+        ),
+      );
+      final json = (await case_.preview(code: 'Iabc')).toJson();
+      expect((json['beacon']! as Map)['kind'], 'post');
     });
 
     test('long beacon description keeps full text and truncates snippet', () async {

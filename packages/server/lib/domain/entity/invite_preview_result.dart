@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 /// What an invite code means at the moment of preview (reuse
@@ -63,6 +64,8 @@ class InvitePreviewResult {
     if (beacon != null)
       'beacon': {
         'id': beacon!.id,
+        // Lets the landing and the app say "post" for a Post invite (#501).
+        'kind': beacon!.kind == BeaconKind.post ? 'post' : 'request',
         'title': beacon!.title,
         'snippet': _snippet(beacon!.description),
         'description': beacon!.description.trim(),

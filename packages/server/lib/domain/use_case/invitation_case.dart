@@ -284,6 +284,7 @@ final class InvitationCase extends UseCaseBase {
       createdAt: beacon.createdAt,
       updatedAt: beacon.updatedAt,
       status: beacon.status,
+      kind: beacon.kind,
     );
   }
 

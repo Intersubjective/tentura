@@ -153,6 +153,39 @@ void main() {
       expect(dest?.showSnackbar, isTrue);
     });
 
+    // #501: a Post invite keeps saying "post" after accepting.
+    test('a Post invite carries its kind to the post-join message', () async {
+      repo.previewResult = InvitePreview(
+        codeStatus: InviteCodeStatus.available,
+        callerStatus: InviteCallerStatus.existingUser,
+        inviter: const InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        beacon: InvitePreviewBeacon.fromJson(const {
+          'id': 'P1',
+          'title': '',
+          'kind': 'post',
+        }),
+      );
+      await cubit.start('Iabc123');
+      await cubit.confirmAccept();
+      final dest = postJoin.takeDestination();
+      expect(dest?.beaconId, 'P1');
+      expect(dest?.isPost, isTrue);
+
+      final message = BeaconInviteAcceptedMessage(
+        inviterName: 'Alice',
+        beaconId: 'P1',
+        beaconTitle: '',
+        isPost: dest!.isPost,
+      );
+      expect(message.toEn, 'Alice shared a post with you.');
+      expect(message.toRu, 'Alice поделился(ась) с вами постом.');
+      expect(message.label.toEn, 'Open post');
+      expect(
+        InvitePreviewBeacon.fromJson(const {'id': 'B1', 'title': 'x'}).isPost,
+        isFalse,
+      );
+    });
+
     test('confirmAccept posts accept-as-existing', () async {
       repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,

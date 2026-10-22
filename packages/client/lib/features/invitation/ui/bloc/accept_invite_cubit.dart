@@ -123,6 +123,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
           beaconTitle: beacon.title,
           inviterName: inviter?.displayName ?? '',
           showSnackbar: true,
+          isPost: beacon.isPost,
         );
         _finishWithMessage(null, navigateToInbox: true);
       } else {

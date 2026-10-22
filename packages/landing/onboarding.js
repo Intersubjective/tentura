@@ -58,16 +58,33 @@ export const INVITE_ABOUT_SENTENCE =
  * repeating it. `signUp` is only set inside an in-app browser, where the
  * person must be told to open the link elsewhere; otherwise the "Get started"
  * label and the buttons already say how to join.
- * @param {{ inviterName: string, hasRequest?: boolean, inApp: boolean }} args
+ * A Post-scoped invite (`isPost`) points at the post card and never says
+ * "request" (#501).
+ * @param {{ inviterName: string, hasRequest?: boolean, isPost?: boolean, inApp: boolean }} args
  */
-export function inviteLandingCopy({ inviterName, hasRequest = false, inApp }) {
+export function inviteLandingCopy({
+  inviterName,
+  hasRequest = false,
+  isPost = false,
+  inApp,
+}) {
+  let why;
+  if (hasRequest && isPost) {
+    why =
+      `${inviterName} shared the post above with you. ` +
+      'Join to read it and reply in its chat.';
+  } else if (hasRequest) {
+    why =
+      `${inviterName} wants your help with the request above. ` +
+      'Join to see it, offer help or pass it on.';
+  } else {
+    why =
+      `${inviterName} wants you in their network, ` +
+      'so you can ask each other for a hand.';
+  }
   return {
     about: INVITE_ABOUT_SENTENCE,
-    why: hasRequest
-      ? `${inviterName} wants your help with the request above. ` +
-        'Join to see it, offer help or pass it on.'
-      : `${inviterName} wants you in their network, ` +
-        'so you can ask each other for a hand.',
+    why,
     signUp: inApp
       ? 'Open this link in your browser, or create an account with email.'
       : null,

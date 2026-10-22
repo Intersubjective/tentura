@@ -89,6 +89,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
       beaconTitle: beacon.title,
       inviterName: preview?.inviter?.displayName ?? '',
       showSnackbar: true,
+      isPost: beacon.isPost,
     );
   }
 
