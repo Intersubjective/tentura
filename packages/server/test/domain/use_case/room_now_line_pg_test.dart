@@ -24,6 +24,8 @@ import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repositor
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
@@ -203,6 +205,7 @@ WHERE beacon_id = @beaconId
           beaconId: beaconId,
           userId: authorId,
           text: '  Fresh NOW line  ',
+          baseRevision: 0,
         );
 
         expect(row['currentLine'], 'Fresh NOW line');
@@ -220,6 +223,7 @@ WHERE beacon_id = @beaconId
           beaconId: beaconId,
           userId: authorId,
           text: 'Receipt key line',
+          baseRevision: 0,
         );
 
         final rows = await writer.execute('''
@@ -241,6 +245,218 @@ ORDER BY id
       skip: skipReason,
     );
 
+    // #517: optimistic concurrency on the next step.
+    group('revision check (#517)', () {
+      Future<int> occurrenceCount() async {
+        final rows = await writer.execute('''
+SELECT count(*)::int AS c FROM public.attention_occurrence
+''');
+        return rows.single.first! as int;
+      }
+
+      test(
+        'each change bumps the revision; the same text keeps it',
+        () async {
+          final first = await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: authorId,
+            text: 'Van at 9:45',
+            baseRevision: 0,
+          );
+          expect(first['currentLineRevision'], 1);
+          final second = await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: memberId,
+            text: 'Van at 10:00',
+            baseRevision: 1,
+          );
+          expect(second['currentLineRevision'], 2);
+          final same = await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: memberId,
+            text: 'Van at 10:00',
+            baseRevision: 2,
+          );
+          expect(same['currentLineRevision'], 2);
+          final read = await roomCase.beaconRoomStateGet(
+            beaconId: beaconId,
+            userId: authorId,
+          );
+          expect(read['currentLineRevision'], 2);
+          expect(read['currentLine'], 'Van at 10:00');
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'a Request without a row reads revision 0',
+        () async {
+          final read = await roomCase.beaconRoomStateGet(
+            beaconId: beaconId,
+            userId: authorId,
+          );
+          expect(read['currentLineRevision'], 0);
+          expect(read['currentLine'], '');
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'two saves from the same base: the second is refused with the '
+        'saved line, and the stale editor recovers on the new revision',
+        () async {
+          await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: authorId,
+            text: 'Van at 9:45',
+            baseRevision: 0,
+          );
+          final before = await occurrenceCount();
+
+          // Both editors opened on revision 1.
+          await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: authorId,
+            text: 'AUTHOR version',
+            baseRevision: 1,
+          );
+          await expectLater(
+            roomCase.updateRoomNowLine(
+              beaconId: beaconId,
+              userId: memberId,
+              text: 'NINA version',
+              baseRevision: 1,
+            ),
+            throwsA(
+              isA<BeaconRoomNowLineConflictException>()
+                  .having((e) => e.currentLine, 'currentLine', 'AUTHOR version')
+                  .having((e) => e.currentRevision, 'currentRevision', 2)
+                  .having((e) => e.updatedBy, 'updatedBy', authorId)
+                  .having(
+                    (e) => e.extensions['code'],
+                    'code',
+                    '${const BeaconExceptionCodes(BeaconExceptionCode.beaconRoomNowLineConflict).codeNumber}',
+                  ),
+            ),
+          );
+          var state = await roomRepo.getBeaconRoomState(beaconId);
+          expect(state?.currentLine, 'AUTHOR version');
+          expect(state?.updatedBy, authorId);
+          expect(
+            await occurrenceCount(),
+            before + 1,
+            reason: 'the refused save announces nothing',
+          );
+
+          // She has seen the author's line and re-applies hers on purpose.
+          final reapplied = await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: memberId,
+            text: 'NINA version',
+            baseRevision: 2,
+          );
+          expect(reapplied['currentLine'], 'NINA version');
+          expect(reapplied['currentLineRevision'], 3);
+          state = await roomRepo.getBeaconRoomState(beaconId);
+          expect(state?.currentLine, 'NINA version');
+          expect(state?.updatedBy, memberId);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'two concurrent first saves: exactly one wins',
+        () async {
+          final results = await Future.wait([
+            for (final (user, text) in [
+              (authorId, 'AUTHOR first'),
+              (memberId, 'NINA first'),
+            ])
+              roomCase
+                  .updateRoomNowLine(
+                    beaconId: beaconId,
+                    userId: user,
+                    text: text,
+                    baseRevision: 0,
+                  )
+                  .then<Object>((row) => row)
+                  .catchError(
+                    (Object e) => e,
+                    test: (e) => e is BeaconRoomNowLineConflictException,
+                  ),
+          ]);
+          final wins = results.whereType<Map<String, Object?>>().toList();
+          final refusals = results
+              .whereType<BeaconRoomNowLineConflictException>()
+              .toList();
+          expect(wins, hasLength(1));
+          expect(refusals, hasLength(1));
+          expect(refusals.single.currentLine, wins.single['currentLine']);
+          final state = await roomRepo.getBeaconRoomState(beaconId);
+          expect(state?.currentLine, wins.single['currentLine']);
+          expect(state?.currentLineRevision, 1);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'a stale save of the very text that is saved succeeds quietly',
+        () async {
+          await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: authorId,
+            text: 'Same words',
+            baseRevision: 0,
+          );
+          final before = await occurrenceCount();
+          final row = await roomCase.updateRoomNowLine(
+            beaconId: beaconId,
+            userId: memberId,
+            text: 'Same words',
+            baseRevision: 0,
+          );
+          expect(row['currentLine'], 'Same words');
+          expect(row['currentLineRevision'], 1);
+          expect(await occurrenceCount(), before);
+          final state = await roomRepo.getBeaconRoomState(beaconId);
+          expect(state?.updatedBy, authorId);
+        },
+        skip: skipReason,
+      );
+
+      test(
+        'the legacy plan-item path bumps the revision too',
+        () async {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_room_state (beacon_id, current_line)
+VALUES (@beaconId, 'Seeded')
+'''),
+            parameters: {'beaconId': beaconId},
+          );
+          await writer.execute(
+            Sql.named('''
+UPDATE public.beacon_room_state SET current_line = 'Changed elsewhere'
+WHERE beacon_id = @beaconId
+'''),
+            parameters: {'beaconId': beaconId},
+          );
+          final state = await roomRepo.getBeaconRoomState(beaconId);
+          expect(state?.currentLineRevision, 2);
+          await expectLater(
+            roomCase.updateRoomNowLine(
+              beaconId: beaconId,
+              userId: authorId,
+              text: 'Mine',
+              baseRevision: 1,
+            ),
+            throwsA(isA<BeaconRoomNowLineConflictException>()),
+          );
+        },
+        skip: skipReason,
+      );
+    });
+
     // U05a/U05b rewrite. This test used to assert that a second identical NOW
     // edit left **one** outbox receipt, which was the receipt-grain collapse
     // upsert U05a retired: each occurrence now keeps its own immutable
@@ -256,11 +472,15 @@ ORDER BY id
           beaconId: beaconId,
           userId: authorId,
           text: line,
+          baseRevision: 0,
         );
+        // Saved again on purpose from the current revision (#517: the same
+        // text keeps revision 1).
         await roomCase.updateRoomNowLine(
           beaconId: beaconId,
           userId: authorId,
           text: line,
+          baseRevision: 1,
         );
 
         final occurrenceRows = await writer.execute('''

@@ -1032,27 +1032,40 @@ class BeaconRoomCase extends UseCaseBase {
         'lastRoomMeaningfulChange': null,
         'updatedAt': nowIso,
         'updatedBy': null,
+        'currentLineRevision': 0,
       };
     }
-    final openBlocker = await _findOpenCoordinationBlocker(
-      beaconId,
-      viewerUserId: userId,
+    return _roomStateMap(
+      row,
+      await _findOpenCoordinationBlocker(beaconId, viewerUserId: userId),
     );
-    return {
-      'beaconId': row.beaconId,
-      'currentLine': row.currentLine,
-      'openBlockerId': openBlocker?.id,
-      'openBlockerTitle': openBlocker?.title,
-      'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
-      'updatedAt': row.updatedAt.toIso8601String(),
-      'updatedBy': row.updatedBy,
-    };
   }
 
+  /// `BeaconRoomStateRow` payload.
+  static Map<String, Object?> _roomStateMap(
+    BeaconRoomStateRecord row,
+    CoordinationItemRecord? openBlocker,
+  ) => {
+    'beaconId': row.beaconId,
+    'currentLine': row.currentLine,
+    'openBlockerId': openBlocker?.id,
+    'openBlockerTitle': openBlocker?.title,
+    'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
+    'updatedAt': row.updatedAt.toIso8601String(),
+    'updatedBy': row.updatedBy,
+    'currentLineRevision': row.currentLineRevision,
+  };
+
+  /// Saves the Request's next step. [baseRevision] is the
+  /// `currentLineRevision` the editor opened with: when someone changed the
+  /// line since, nothing is written and [BeaconRoomNowLineConflictException]
+  /// carries the line saved now (#517). Saving the text that is already
+  /// there succeeds whatever the base.
   Future<Map<String, Object?>> updateRoomNowLine({
     required String beaconId,
     required String userId,
     required String text,
+    required int baseRevision,
   }) async {
     await _requireRequest(beaconId);
     final trimmed = text.trim();
@@ -1077,13 +1090,33 @@ class BeaconRoomCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: userId,
       action: (transaction) async {
-        await _room.setBeaconRoomCurrentLine(
+        final row = await _room.setBeaconRoomCurrentLine(
           beaconId: beaconId,
           text: trimmed,
           updatedBy: userId,
+          baseRevision: baseRevision,
         );
-        final row = await _room.getBeaconRoomState(beaconId);
-        final updatedAt = row!.updatedAt;
+        if (row == null) {
+          final current = await _room.getBeaconRoomState(beaconId);
+          if (current != null && current.currentLine == trimmed) {
+            // Someone saved the same words meanwhile: nothing to lose, and
+            // nothing new to announce.
+            return _roomStateMap(
+              current,
+              await _findOpenCoordinationBlocker(
+                beaconId,
+                viewerUserId: userId,
+              ),
+            );
+          }
+          throw BeaconRoomNowLineConflictException(
+            currentLine: current?.currentLine ?? '',
+            currentRevision: current?.currentLineRevision ?? 0,
+            updatedBy: current?.updatedBy,
+            updatedAt: current?.updatedAt,
+          );
+        }
+        final updatedAt = row.updatedAt;
         await transaction.record(
           await _attentionIntents!.coordinationChanged(
             beaconId: beaconId,
@@ -1094,19 +1127,10 @@ class BeaconRoomCase extends UseCaseBase {
                 '${updatedAt.toUtc().microsecondsSinceEpoch}',
           ),
         );
-        final openBlocker = await _findOpenCoordinationBlocker(
-          beaconId,
-          viewerUserId: userId,
+        return _roomStateMap(
+          row,
+          await _findOpenCoordinationBlocker(beaconId, viewerUserId: userId),
         );
-        return {
-          'beaconId': row.beaconId,
-          'currentLine': row.currentLine,
-          'openBlockerId': openBlocker?.id,
-          'openBlockerTitle': openBlocker?.title,
-          'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
-          'updatedAt': updatedAt.toIso8601String(),
-          'updatedBy': row.updatedBy,
-        };
       },
     );
   }

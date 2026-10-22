@@ -132,4 +132,32 @@ void main() {
     final m = helpOfferWithCoordinationToGqlMap(row);
     expect(m['roomAccess'], isNull);
   });
+  test('helpOfferWithCoordinationToGqlMap emits editedAt only when edited '
+      '(#361)', () {
+    const user = UserPublicRecord(
+      id: 'U1',
+      displayName: 't',
+      description: '',
+      userAvailability: null,
+    );
+    HelpOfferWithCoordinationRow row(DateTime? editedAt) =>
+        HelpOfferWithCoordinationRow(
+          beaconId: 'B1',
+          userId: 'U1',
+          message: 'm',
+          status: 0,
+          createdAt: DateTime.utc(2025),
+          // Accept moved updated_at; that is not an edit.
+          updatedAt: DateTime.utc(2025, 1, 2),
+          user: user,
+          editedAt: editedAt,
+        );
+    expect(helpOfferWithCoordinationToGqlMap(row(null))['editedAt'], isNull);
+    expect(
+      helpOfferWithCoordinationToGqlMap(
+        row(DateTime.utc(2025, 1, 3, 4, 5)),
+      )['editedAt'],
+      '2025-01-03T04:05:00.000Z',
+    );
+  });
 }

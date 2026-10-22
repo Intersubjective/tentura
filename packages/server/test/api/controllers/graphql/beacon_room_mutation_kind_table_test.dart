@@ -130,8 +130,12 @@ final _probes = <String, Future<Object?> Function(BeaconRoomCase)>{
     userId: _userId,
     messageId: _messageId,
   ),
-  'BeaconRoomNowLineUpdate': (c) =>
-      c.updateRoomNowLine(beaconId: _beaconId, userId: _userId, text: 'Now'),
+  'BeaconRoomNowLineUpdate': (c) => c.updateRoomNowLine(
+    beaconId: _beaconId,
+    userId: _userId,
+    text: 'Now',
+    baseRevision: 0,
+  ),
 };
 
 final _now = DateTime.utc(2026);
@@ -305,11 +309,15 @@ class _PostRoom extends Fake implements BeaconRoomRepositoryPort {
   }) async => writes.add('markRoomMessageSemanticDone');
 
   @override
-  Future<void> setBeaconRoomCurrentLine({
+  Future<BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,
     required String updatedBy,
-  }) async => writes.add('setBeaconRoomCurrentLine');
+    required int baseRevision,
+  }) async {
+    writes.add('setBeaconRoomCurrentLine');
+    return null;
+  }
 }
 
 final _message = BeaconRoomMessageRecord(

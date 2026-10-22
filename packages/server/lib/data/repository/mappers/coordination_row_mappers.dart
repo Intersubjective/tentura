@@ -67,6 +67,7 @@ extension BeaconRoomStateRowMapper on db.BeaconRoomState {
     lastRoomMeaningfulChange: lastRoomMeaningfulChange,
     updatedAt: updatedAt.dateTime,
     updatedBy: updatedBy,
+    currentLineRevision: currentLineRevision,
   );
 }
 

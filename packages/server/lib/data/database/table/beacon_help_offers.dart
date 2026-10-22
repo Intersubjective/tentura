@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts.dart';
 
@@ -32,6 +33,13 @@ class BeaconHelpOffers extends Table with TimestampsFields {
 
   /// Display-only projection of commitment events (см. план §2.5).
   late final Column<int> stakeState = integer().withDefault(const Constant(0))();
+
+  /// When the helper last changed the text or help types of the active offer;
+  /// written by the `beacon_help_offer_mark_edited` trigger only (m0259,
+  /// #361). Unlike `updated_at`, accept/admission writes leave it.
+  late final editedAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {beaconId, userId};

@@ -380,6 +380,7 @@ ORDER BY beacon_id, offer_user_id, seq DESC
           status: row.status,
           createdAt: row.createdAt.dateTime.toUtc(),
           updatedAt: row.updatedAt.dateTime.toUtc(),
+          editedAt: row.editedAt?.dateTime.toUtc(),
           user: userPublic,
           helpType: row.helpType,
           roleLabel: row.roleLabel,
