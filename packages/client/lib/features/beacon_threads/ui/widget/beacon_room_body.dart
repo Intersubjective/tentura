@@ -42,6 +42,7 @@ import 'beacon_room_poll_sheet.dart';
 import 'fact_picker_sheet.dart';
 import 'room_baton_card.dart';
 import 'room_baton_create_sheet.dart';
+import 'room_baton_plan_step_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_readers_sheet.dart';
 
@@ -136,6 +137,25 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     ),
   );
+
+  /// The author picks who takes a baton; on a Request whose plan they may
+  /// edit, they are then offered a plan step for it, once (#479, D9).
+  Future<void> _selectBatonTaker(
+    RoomCubit cubit,
+    String batonId,
+    String? userId,
+  ) async {
+    final result = await cubit.batonSelect(batonId: batonId, userId: userId);
+    if (!mounted) return;
+    if (result case BatonSelected(:final planStepOffer?)) {
+      await RoomBatonPlanStepSheet.show(
+        context,
+        offer: planStepOffer,
+        onCreate: (title) =>
+            cubit.createBatonPlanStep(planStepOffer, title: title),
+      );
+    }
+  }
 
   bool _suppressesRichMessageActions(RoomMessage message) =>
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
@@ -417,7 +437,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 : null,
             onBatonSelect: canWrite
                 ? (_, batonId, userId) =>
-                      cubit.batonSelect(batonId: batonId, userId: userId)
+                      unawaited(_selectBatonTaker(cubit, batonId, userId))
                 : null,
             onBatonCancel: canWrite
                 ? (_, batonId) => cubit.batonCancel(batonId: batonId)

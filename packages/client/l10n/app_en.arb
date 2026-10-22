@@ -10092,5 +10092,76 @@
   "skipToContent": "Skip to content",
   "@skipToContent": {
     "context": "Keyboard skip link before Home's navigation rail; moves focus to the page (#500)"
+  },
+  "batonPlanStepPromptTitle": "Create a plan step with {name}?",
+  "@batonPlanStepPromptTitle": {
+    "description": "After the author picks who takes a «Who'll take it?» ask (#479): title of the optional prompt to add it to the Request plan.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonPlanStepPromptBody": "The step goes into this Request's plan, assigned to {name}. You can change it in the plan later.",
+  "@batonPlanStepPromptBody": {
+    "description": "Body of the #479 plan-step prompt after a «Who'll take it?» pick.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonPlanStepTitleLabel": "Step",
+  "@batonPlanStepTitleLabel": {
+    "description": "Label of the editable step title field in the #479 plan-step prompt (prefilled from the ask)."
+  },
+  "batonPlanStepCreate": "Create step",
+  "@batonPlanStepCreate": {
+    "description": "Primary button of the #479 plan-step prompt."
+  },
+  "batonPlanStepNotNow": "Not now",
+  "@batonPlanStepNotNow": {
+    "description": "Dismiss button of the #479 plan-step prompt; no step is created."
+  },
+  "batonTookItAsk": "{name} took it: {ask}",
+  "@batonTookItAsk": {
+    "description": "Room system line after a «Who'll take it?» pick when the ask is not right above it (#479: the card already says «{name} took it.»).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ask": {
+        "type": "String"
+      }
+    }
+  },
+  "declineRemainingOffersAction": "Decline remaining offers",
+  "@declineRemainingOffersAction": {
+    "description": "#268: author action on the People tab after «Enough help»: decline every offer still waiting for an answer."
+  },
+  "declineRemainingOffersTitle": "Decline remaining offers ({count})?",
+  "@declineRemainingOffersTitle": {
+    "description": "#268: title of the one confirmation (with a reason field) before declining all waiting offers.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "declineRemainingOffersNote": "Only offers still waiting for your answer are declined. Accepted helpers stay, and backup offers are kept. Each person sees the reason privately.",
+  "@declineRemainingOffersNote": {
+    "description": "#268: what «Decline remaining offers» does and does not touch."
+  },
+  "declineRemainingOffersDefaultReason": "Thank you! I have enough help now.",
+  "@declineRemainingOffersDefaultReason": {
+    "description": "#268: editable default reason sent privately to each declined person."
+  },
+  "declineRemainingOffersConfirm": "Decline all",
+  "@declineRemainingOffersConfirm": {
+    "description": "#268: confirm button of «Decline remaining offers»."
+  },
+  "helpOfferAcceptSharedChatHint": "Helpers you accept join this Request's shared discussion. There are no private chats.",
+  "@helpOfferAcceptSharedChatHint": {
+    "description": "#268: one line above the offers waiting for the author's answer, explaining the shared-discussion-only model."
   }
 }

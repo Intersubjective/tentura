@@ -341,9 +341,11 @@ RoomCubit roomCubitForTest(
   RoomReadWatermarkStore? watermarkStore,
   BeaconThreadsCase? beaconRoomCase,
   BeaconPlanCase? planCase,
+  String Function()? newPlanStepId,
 }) => RoomCubit(
   beaconId: kRoomCubitFakeBeaconId,
   planCase: planCase,
+  newPlanStepId: newPlanStepId,
   beaconRoomCase:
       beaconRoomCase ??
       roomCubitMakeCase(

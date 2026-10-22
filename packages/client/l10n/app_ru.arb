@@ -7153,5 +7153,17 @@
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",
-  "skipToContent": "Перейти к содержимому"
+  "skipToContent": "Перейти к содержимому",
+  "batonPlanStepPromptTitle": "Создать шаг плана с исполнителем {name}?",
+  "batonPlanStepPromptBody": "Шаг появится в плане запроса, исполнитель — {name}. Позже его можно изменить в плане.",
+  "batonPlanStepTitleLabel": "Шаг",
+  "batonPlanStepCreate": "Создать шаг",
+  "batonPlanStepNotNow": "Не сейчас",
+  "batonTookItAsk": "Берёт на себя: {name} — {ask}",
+  "declineRemainingOffersAction": "Отклонить остальные предложения",
+  "declineRemainingOffersTitle": "Отклонить остальные предложения ({count})?",
+  "declineRemainingOffersNote": "Отклоняются только предложения, которые ещё ждут вашего ответа. Принятые помощники остаются, запасные предложения сохраняются. Причину каждый увидит только сам.",
+  "declineRemainingOffersDefaultReason": "Спасибо! Помощи уже достаточно.",
+  "declineRemainingOffersConfirm": "Отклонить все",
+  "helpOfferAcceptSharedChatHint": "Принятые помощники попадают в общее обсуждение запроса. Личных чатов нет."
 }
