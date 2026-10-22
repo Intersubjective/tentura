@@ -22,7 +22,7 @@ class BeaconRoomStates extends Table {
   late final updatedBy = text().nullable().references(Users, #id)();
 
   /// Counts changes of [currentLine]; written by the
-  /// `beacon_room_state_bump_line_revision` trigger only (m0259, #517).
+  /// `beacon_room_state_bump_line_revision` trigger only (m0258, #517).
   late final currentLineRevision = integer().withDefault(const Constant(0))();
 
   @override

@@ -19,7 +19,7 @@ part of '_migrations.dart';
 /// client could not tell an edit from an accept and marked fresh admissions
 /// "edited". Existing rows stay NULL: past writes cannot be told apart, and a
 /// missing "edited" mark is better than a wrong one.
-final m0259 = Migration('0259', [
+final m0258 = Migration('0258', [
   '''
 ALTER TABLE public.beacon_room_state
   ADD COLUMN current_line_revision integer NOT NULL DEFAULT 0

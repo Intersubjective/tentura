@@ -9,7 +9,7 @@
 // "edited": a timing heuristic that ignored updates near the author's
 // response hid real edits (owner review on PR #610), so the server now keeps
 // `beacon_help_offer.edited_at`, set only when the helper changes the text
-// or help types of an active offer (m0259). The card and the activity
+// or help types of an active offer (m0258). The card and the activity
 // timeline read it; `updated_at` (bumped by every accept write) no longer
 // decides anything. An edit made seconds after the author's response is
 // still an edit.

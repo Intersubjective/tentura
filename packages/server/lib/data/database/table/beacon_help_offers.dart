@@ -35,7 +35,7 @@ class BeaconHelpOffers extends Table with TimestampsFields {
   late final Column<int> stakeState = integer().withDefault(const Constant(0))();
 
   /// When the helper last changed the text or help types of the active offer;
-  /// written by the `beacon_help_offer_mark_edited` trigger only (m0259,
+  /// written by the `beacon_help_offer_mark_edited` trigger only (m0258,
   /// #361). Unlike `updated_at`, accept/admission writes leave it.
   late final editedAt = customType(
     PgTypes.timestampWithTimezone,

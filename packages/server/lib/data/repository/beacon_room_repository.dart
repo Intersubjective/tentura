@@ -1547,7 +1547,7 @@ RETURNING *
     // Compare-and-set on the revision the editor opened with (#517). The
     // row lock of ON CONFLICT serializes two saves from the same base: the
     // second re-checks the WHERE against the committed first one and writes
-    // nothing. The m0259 trigger bumps the revision.
+    // nothing. The m0258 trigger bumps the revision.
     final written = await _db
         .customSelect(
           r'''

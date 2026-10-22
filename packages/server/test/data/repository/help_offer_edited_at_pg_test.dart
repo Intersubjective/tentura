@@ -11,7 +11,7 @@ import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// #361: `beacon_help_offer.edited_at` moves only when the helper edits an
-/// active offer, never on the writes accept/admission make (m0259).
+/// active offer, never on the writes accept/admission make (m0258).
 Future<void> main() async {
   const beaconId = 'Bofferedit001';
   const authorId = 'Uofferedauth1';
