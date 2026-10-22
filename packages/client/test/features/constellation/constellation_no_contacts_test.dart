@@ -105,7 +105,7 @@ void main() {
     );
 
     expect(find.byKey(ConstellationNoContactsBanner.bannerKey), findsOneWidget);
-    expect(find.text("You haven't added anyone yet"), findsOneWidget);
+    expect(find.text('No one is on your Field yet'), findsOneWidget);
     expect(find.text(_trustSentence), findsOneWidget);
     await tester.tap(find.byKey(ConstellationNoContactsBanner.inviteKey));
     expect(invited, isTrue);

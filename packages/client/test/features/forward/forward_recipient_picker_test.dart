@@ -3,12 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/widget/forward_band_strip.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -1128,6 +1130,29 @@ void main() {
         find.byKey(ForwardRecipientPicker.othersSectionKey),
         findsNothing,
       );
+    });
+
+    testWidgets('a band holding the only unseen person is not an empty '
+        'picker (#252)', (tester) async {
+      final cubit = groupedCubit(
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(id: 'u1', displayName: 'Alex', score: 3),
+          ),
+        ],
+      );
+      addTearDown(cubit.close);
+      cubit.emit(
+        cubit.state.copyWith(band: const [ForwardBandRow(userId: 'u1')]),
+      );
+      await pumpPicker(tester, cubit: cubit, embedded: true);
+
+      expect(find.byType(ForwardBandStrip), findsOneWidget);
+      expect(
+        find.text('Everyone you can send to is already involved.'),
+        findsNothing,
+      );
+      expect(find.text('No one to send to yet'), findsNothing);
     });
 
     testWidgets('an empty «Not yet seen» tab says everyone is involved, not '

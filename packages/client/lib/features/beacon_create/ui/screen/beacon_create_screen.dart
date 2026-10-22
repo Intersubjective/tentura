@@ -773,6 +773,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                           Text(
                             state.isDiscoverable
                                 ? l10n.beaconPublishWithoutSendingDiscoverableHint
+                                // Members of the parent Request can read a
+                                // child Request without being sent it.
+                                : state.isChildMode && !state.isPostBud
+                                ? l10n.beaconPublishWithoutSendingHiddenChildHint
                                 : l10n.beaconPublishWithoutSendingHiddenHint,
                             key: BeaconCreateScreen.publishHintKey,
                             textAlign: TextAlign.center,

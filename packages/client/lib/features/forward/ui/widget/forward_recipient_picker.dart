@@ -606,10 +606,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 state.activeFilter != ForwardFilter.alreadyInvolved &&
                 state.band.isNotEmpty;
             final counts = state.scopeCounts;
+            // The band above lists people too (they are left out of
+            // [visible]), so an empty list under a shown band is not an
+            // empty picker (#252).
             final listIsEmpty =
                 state.activeFilter == ForwardFilter.alreadyInvolved
                 ? visible.isEmpty
-                : visible.isEmpty && lineage.isEmpty;
+                : visible.isEmpty && lineage.isEmpty && !showBandBlock;
 
             final showGenuineEmptyMessage =
                 state.candidatesLoad is ForwardCandidatesEmpty && listIsEmpty;

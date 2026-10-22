@@ -42,6 +42,11 @@ class BeaconRecipientsTab extends StatelessWidget {
             final isDiscoverable = context.select<BeaconCreateCubit, bool>(
               (cubit) => cubit.state.isDiscoverable,
             );
+            // Members of the parent Request can read a child Request
+            // without being sent it.
+            final isRequestChild = context.select<BeaconCreateCubit, bool>(
+              (cubit) => cubit.state.isChildMode && !cubit.state.isPostBud,
+            );
             if (!candidatesShown || isLive) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -64,6 +69,8 @@ class BeaconRecipientsTab extends StatelessWidget {
                           child: Text(
                             isDiscoverable
                                 ? l10n.beaconRoutingBannerDiscoverable
+                                : isRequestChild
+                                ? l10n.beaconRoutingBannerChild
                                 : l10n.beaconRoutingBanner,
                             style: TenturaText.body(scheme.onSurfaceVariant),
                           ),

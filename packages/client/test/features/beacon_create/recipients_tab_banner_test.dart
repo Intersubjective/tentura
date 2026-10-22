@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -327,5 +328,24 @@ void main() {
 
     expect(find.text(hiddenBannerText), findsOneWidget);
     expect(find.text(bannerText), findsNothing);
+
+    // A hidden child Request is readable by the parent Request's members.
+    createCubit.emit(
+      createCubit.state.copyWith(
+        creationContext: const BeaconCreationContextChild(
+          parentBeaconId: 'parent-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(hiddenBannerText), findsNothing);
+    expect(
+      find.text(
+        'Until you send it, only people in the request it belongs to will '
+        'see this request.',
+      ),
+      findsOneWidget,
+    );
   });
 }

@@ -10117,7 +10117,7 @@
   "@forwardScopeInvolvedEmpty": {
     "description": "Recipient picker, «Already involved» tab empty (#252)."
   },
-  "constellationNoContactsTitle": "You haven't added anyone yet",
+  "constellationNoContactsTitle": "No one is on your Field yet",
   "@constellationNoContactsTitle": {
     "description": "Field empty state when nobody but the viewer is on the field (#252). Relies on the field always showing direct contacts (#246)."
   },
@@ -10133,7 +10133,7 @@
   "@graphLegendConstellationRequestLinkHint": {
     "description": "Field legend tooltip for «Request link» (#261)."
   },
-  "graphLegendConstellationWiderNetworkReachHint": "You and this person see each other through the trust network, but the path is too long to draw.",
+  "graphLegendConstellationWiderNetworkReachHint": "You and this person see each other through the trust network, but the Field can't show the path between you.",
   "@graphLegendConstellationWiderNetworkReachHint": {
     "description": "Field legend tooltip for «Wider network reach» (#261)."
   },
@@ -10207,5 +10207,13 @@
   "postChatReadOnlyHint": "This chat is read-only",
   "@postChatReadOnlyHint": {
     "description": "Composer hint in a Post's chat when the viewer cannot write (#501)."
+  },
+  "beaconPublishWithoutSendingHiddenChildHint": "Hidden from the Field: only people in the request it belongs to, and people it is sent or forwarded to, will see it.",
+  "@beaconPublishWithoutSendingHiddenChildHint": {
+    "description": "Under «Publish without sending» for a hidden child Request: members of the parent Request can read it without being sent it (#440)."
+  },
+  "beaconRoutingBannerChild": "Until you send it, only people in the request it belongs to will see this request.",
+  "@beaconRoutingBannerChild": {
+    "description": "Recipients-step banner for a hidden child Request (#440); the parent Request's members can read it."
   }
 }

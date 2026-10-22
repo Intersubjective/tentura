@@ -12,8 +12,8 @@ import '../bloc/constellation_cubit.dart';
 
 /// True when the loaded field holds nobody but the viewer (#252).
 ///
-/// The field always carries the viewer's direct contacts (#246), so an empty
-/// field means the viewer has not added anyone yet.
+/// The copy says only that the Field is empty: it does not claim the viewer
+/// trusts nobody (one-way or blocked contacts can be absent from the Field).
 bool constellationFieldHasNoContacts(
   ConstellationField field,
   String viewerId,

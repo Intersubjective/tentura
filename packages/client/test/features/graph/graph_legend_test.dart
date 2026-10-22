@@ -329,7 +329,7 @@ void main() {
       'One of these two people has marked the other as someone they trust.',
       "These two are linked through other people's trust, not by a direct mark.",
       'Joins a request to the person who asked for help.',
-      'You and this person see each other through the trust network, but the path is too long to draw.',
+      "You and this person see each other through the trust network, but the Field can't show the path between you.",
     ]);
 
     await tester.ensureVisible(find.text('Wider network reach'));
@@ -339,7 +339,7 @@ void main() {
     expect(
       find.text(
         'You and this person see each other through the trust network, but '
-        'the path is too long to draw.',
+        "the Field can't show the path between you.",
       ),
       findsOneWidget,
     );
