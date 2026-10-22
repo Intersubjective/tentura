@@ -87,6 +87,11 @@ mention candidates and realtime hints.
   Questions message can never link a poll (`room_poll` goes to General). No
   Questions text is painted over the socket; clients refetch through the
   gated API.
+- The Questions item itself (`coordination_item` kind 7, created on first
+  open) publishes **no** `coordination_item` hint (m0257): the General
+  coordination-item triggers skip kind 7 (before or after an UPDATE), so
+  nobody, inside or outside the audience, learns from the socket that
+  Questions was opened. No client reads the item through that hint.
 - Questions do not move `beacon.last_activity_at`.
 
 ## Client
@@ -109,3 +114,6 @@ mention candidates and realtime hints.
   API with write access but the screen does not show them yet.
 - Removing someone from Questions has no realtime hint to that person; their
   next refetch or open shows "not for you".
+- Opening Questions has no realtime signal of its own (m0257); other devices
+  and audience members see it with the first Questions message hint or their
+  next refetch.
