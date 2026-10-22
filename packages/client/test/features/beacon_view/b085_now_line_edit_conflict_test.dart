@@ -21,11 +21,11 @@ import '../beacon_threads/room_cubit_fakes.dart';
 // checks the revision the editor opened with; this fake does the same.
 
 class _NowLineRepo extends FakeBeaconThreadsRepository {
-  _NowLineRepo({required this.serverLine, this.serverRevision = 1})
-    : super(userId: 'user-1');
+  _NowLineRepo({required this.serverLine}) : super(userId: 'user-1');
 
   String serverLine;
-  int serverRevision;
+  int serverRevision = 1;
+  bool failRead = false;
   final writes = <String>[];
   final bases = <int>[];
 
@@ -43,8 +43,10 @@ class _NowLineRepo extends FakeBeaconThreadsRepository {
   );
 
   @override
-  Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async =>
-      _state(beaconId);
+  Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {
+    if (failRead) throw StateError('database busy');
+    return _state(beaconId);
+  }
 
   @override
   Future<BeaconRoomState> updateRoomNowLine({
@@ -95,6 +97,38 @@ void main() {
     test('leaves other codes to the generic mapping', () {
       expect(() => throwIfNowLineError(1347, const {}), returnsNormally);
       expect(() => throwIfNowLineError(null, null), returnsNormally);
+    });
+  });
+
+  group('newestRoomState', () {
+    BeaconRoomState at(int revision, String line, {String id = 'beacon-1'}) =>
+        BeaconRoomState(
+          beaconId: id,
+          currentLine: line,
+          currentLineRevision: revision,
+          updatedAt: DateTime.utc(2026),
+        );
+
+    test('a fetch older than the shown line keeps the shown line', () {
+      final kept = newestRoomState(at(3, 'NINA version'), at(2, 'AUTHOR'));
+      expect(kept?.currentLine, 'NINA version');
+      expect(kept?.currentLineRevision, 3);
+    });
+
+    test('a same or newer fetch wins; another Request is not merged', () {
+      expect(
+        newestRoomState(
+          at(2, 'mine (optimistic)'),
+          at(2, 'saved'),
+        )?.currentLine,
+        'saved',
+      );
+      expect(newestRoomState(at(2, 'a'), at(5, 'b'))?.currentLine, 'b');
+      expect(
+        newestRoomState(at(9, 'a'), at(1, 'b', id: 'beacon-2'))?.currentLine,
+        'b',
+      );
+      expect(newestRoomState(at(2, 'a'), null), isNull);
     });
   });
 
@@ -159,6 +193,36 @@ void main() {
         isEmpty,
         reason: 'the caller reopens its editor instead',
       );
+    });
+
+    test('the saved revision is the next base even when the reload '
+        'fails', () async {
+      final repo = _NowLineRepo(serverLine: 'Van at 9:45');
+      final cubit = roomCubitForTest(repo);
+      addTearDown(cubit.close);
+      await cubit.load();
+      repo.failRead = true;
+
+      await cubit.updatePlan('NINA version', baseRevision: 1);
+
+      expect(cubit.state.roomState?.currentLine, 'NINA version');
+      expect(cubit.state.roomState?.currentLineRevision, 2);
+    });
+
+    test('a refusal shows the newer line even when the reload fails', () async {
+      final repo = _NowLineRepo(serverLine: 'Van at 9:45');
+      final cubit = roomCubitForTest(repo);
+      addTearDown(cubit.close);
+      await cubit.load();
+      repo
+        ..changeElsewhere('AUTHOR version')
+        ..failRead = true;
+
+      final refused = await cubit.updatePlan('NINA version', baseRevision: 1);
+
+      expect(refused, isNotNull);
+      expect(cubit.state.roomState?.currentLine, 'AUTHOR version');
+      expect(cubit.state.roomState?.currentLineRevision, 2);
     });
 
     test('a save on the current revision goes through', () async {

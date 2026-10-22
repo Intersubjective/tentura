@@ -1105,7 +1105,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
     if (!isClosed && cue != null) {
-      emit(state.copyWith(beaconRoomCue: cue));
+      emit(
+        state.copyWith(
+          beaconRoomCue: newestRoomState(state.beaconRoomCue, cue),
+        ),
+      );
     }
   }
 
@@ -1495,7 +1499,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           admittedHelperRoster: admittedHelperRoster,
           admittedHelpersLoaded: canReadAdmittedHelpers,
           teamAcquaintanceIds: teamAcquaintanceIds,
-          beaconRoomCue: beaconRoomCue,
+          beaconRoomCue: newestRoomState(state.beaconRoomCue, beaconRoomCue),
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
           closureState: closureState,

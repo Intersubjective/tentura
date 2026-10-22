@@ -397,7 +397,13 @@ class RoomCubit extends Cubit<RoomState> {
     if (state.threadItemId != null || !capabilities.plan) return;
     try {
       final roomState = await _case.fetchBeaconRoomState(state.beaconId);
-      if (!isClosed) emit(state.copyWith(roomState: roomState));
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            roomState: newestRoomState(state.roomState, roomState),
+          ),
+        );
+      }
     } on Object catch (_) {
       // Keep the shown NOW line.
     }
@@ -901,7 +907,7 @@ class RoomCubit extends Cubit<RoomState> {
             readWatermarksLoaded:
                 state.readWatermarksLoaded || readWatermarks != null,
             factCards: factCards,
-            roomState: roomState,
+            roomState: newestRoomState(state.roomState, roomState),
             openCoordinationBlocker: openCoordinationBlocker,
             currentCoordinationPlan: currentCoordinationPlan,
             unreadAnchorAt: anchor,
@@ -1077,14 +1083,30 @@ class RoomCubit extends Cubit<RoomState> {
       ),
     );
     try {
-      await _case.updateRoomNowLine(
+      final saved = await _case.updateRoomNowLine(
         beaconId: state.beaconId,
         currentLine: currentLine,
         baseRevision: baseRevision,
       );
+      // The server's answer first (its revision is the next base), then the
+      // reload; a reload that fails or is skipped must not leave the old one.
+      if (!isClosed) emit(state.copyWith(roomState: saved));
       await load();
     } on NowLineChangedException catch (e) {
-      // Drop the optimistic line: show what is really saved now.
+      // Drop the optimistic line: show what is really saved now, at once,
+      // whether or not the reload below succeeds.
+      final shown = state.roomState;
+      if (!isClosed && shown != null) {
+        emit(
+          state.copyWith(
+            roomState: shown.copyWith(
+              currentLine: e.currentLine,
+              currentLineRevision: e.currentRevision,
+              updatedBy: e.updatedBy ?? shown.updatedBy,
+            ),
+          ),
+        );
+      }
       await load();
       return e;
     } on Object catch (e) {
