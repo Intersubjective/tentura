@@ -6019,6 +6019,7 @@
   "updatesEmptyAllHint": "Всё прочитано. Новые обновления появятся здесь.",
   "updatesEmptyUnreadHint": "Всё прочитано. Новые обновления появятся здесь.",
   "updatesEmptyNeedsYouHint": "Нет открытых задач, требующих вашего участия.",
+  "updatesSearchNoResults": "Ничего не найдено по запросу «{query}»",
   "updatesNextStepMarkDoneHint": "Отметьте выполненным, когда закончите задачу.",
   "updatesFallbackTitleGeneric": "Обновление",
   "updatesFallbackBodyGeneric": "Откройте «Новое», чтобы посмотреть изменения.",

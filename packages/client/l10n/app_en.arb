@@ -6690,6 +6690,15 @@
   "updatesEmptyAllHint": "All caught up. New updates will appear here.",
   "updatesEmptyUnreadHint": "All caught up. New updates will appear here.",
   "updatesEmptyNeedsYouHint": "You have no open items that need you.",
+  "updatesSearchNoResults": "No results for “{query}”",
+  "@updatesSearchNoResults": {
+    "context": "Updates",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "updatesNextStepMarkDoneHint": "Mark this done when you finish the task.",
   "updatesFallbackTitleGeneric": "Update",
   "updatesFallbackBodyGeneric": "Open Updates to see what changed.",
