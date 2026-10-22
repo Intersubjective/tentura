@@ -1250,8 +1250,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
     // One node per marker (#391): the marker's focus semantics (focusable /
     // focused / focus action) merge into this labelled button, so Tab and the
-    // web engine's tabindex land on it, and Enter/Space (ActivateIntent) do
-    // what a tap does. Focus alone does not select.
+    // web engine's tabindex land on it, and Enter/Space (ActivateIntent, and
+    // ButtonActivateIntent for Enter on web) do what a tap does. Focus alone
+    // does not select.
     return Semantics(
       container: true,
       button: true,
@@ -1384,8 +1385,17 @@ class _ConstellationMapNodeFocusState
       onShowFocusHighlight: (value) {
         if (value != _highlight) setState(() => _highlight = value);
       },
+      // Space maps to ActivateIntent everywhere, but on web Enter and
+      // numpad Enter map to ButtonActivateIntent (WidgetsApp's web
+      // shortcuts), so the marker answers both (#391).
       actions: <Type, Action<Intent>>{
         ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onActivate();
+            return null;
+          },
+        ),
+        ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
           onInvoke: (_) {
             widget.onActivate();
             return null;

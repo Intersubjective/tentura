@@ -1,5 +1,8 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -9,6 +12,8 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../../support/web_default_shortcuts.dart';
 
 const _viewer = Profile(
   id: 'Uviewer',
@@ -33,12 +38,14 @@ class _BadgeTestGraphCubit extends Cubit<GraphState> implements GraphCubit {
 
 Future<void> _pumpGraphNode(
   WidgetTester tester,
-  GraphNodeWidget child,
-) async {
+  GraphNodeWidget child, {
+  Map<ShortcutActivator, Intent>? shortcuts,
+}) async {
   final cubit = _BadgeTestGraphCubit();
   addTearDown(cubit.close);
   await tester.pumpWidget(
     MaterialApp(
+      shortcuts: shortcuts,
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
@@ -66,6 +73,19 @@ Future<void> _withSemantics(
   } finally {
     handle.dispose();
   }
+}
+
+/// Whether the primary focus sits on (or inside) the pumped [GraphNodeWidget].
+bool _nodeHasFocus(WidgetTester tester) {
+  final focused = FocusManager.instance.primaryFocus?.context;
+  if (focused == null) return false;
+  final node = tester.element(find.byType(GraphNodeWidget));
+  var inside = focused == node;
+  focused.visitAncestorElements((e) {
+    if (e == node) inside = true;
+    return !inside;
+  });
+  return inside;
 }
 
 void main() {
@@ -252,12 +272,94 @@ void main() {
         find.descendant(
           of: find.byType(GraphNodeWidget),
           matching: find.byWidgetPredicate(
-            (widget) =>
-                widget is Semantics && widget.properties.button == true,
+            (widget) => widget is Semantics && widget.properties.button == true,
           ),
         ),
         findsNothing,
       );
+    });
+  });
+
+  // #391 / #615: Graph view nodes were buttons without keyboard focus.
+  group('GraphNodeWidget keyboard', () {
+    const peer = GenealogyUserNode(
+      nodeKey: 'G-peer',
+      user: Profile(id: 'U-peer', displayName: 'Peer'),
+    );
+
+    testWidgets('an interactive node is reachable with Tab', (tester) async {
+      await _pumpGraphNode(
+        tester,
+        GraphNodeWidget(nodeDetails: peer, onTap: () {}),
+      );
+      expect(_nodeHasFocus(tester), isFalse);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(_nodeHasFocus(tester), isTrue);
+    });
+
+    testWidgets('an interactive node is one focusable button with tap', (
+      tester,
+    ) async {
+      await _withSemantics(tester, () async {
+        await _pumpGraphNode(
+          tester,
+          GraphNodeWidget(nodeDetails: peer, onTap: () {}),
+        );
+        final data = _nodeSemantics(tester).getSemanticsData();
+        final flags = data.flagsCollection;
+        expect(flags.isButton, isTrue);
+        // isFocusable == "has a focused state" (not Tristate.none).
+        expect(flags.isFocused, isNot(Tristate.none));
+        expect(data.hasAction(SemanticsAction.tap), isTrue);
+        expect(data.label, 'Peer');
+      });
+    });
+
+    for (final (name, shortcuts) in [
+      ('default', null),
+      ('web', webDefaultShortcuts),
+    ]) {
+      for (final key in [
+        LogicalKeyboardKey.enter,
+        LogicalKeyboardKey.numpadEnter,
+        LogicalKeyboardKey.space,
+      ]) {
+        testWidgets(
+          '$name shortcuts: ${key.keyLabel} activates a focused node',
+          (tester) async {
+            var taps = 0;
+            final node = GraphNodeWidget(
+              nodeDetails: peer,
+              onTap: () => taps++,
+            );
+            await _pumpGraphNode(
+              tester,
+              node,
+              shortcuts: shortcuts,
+            );
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            await tester.pump();
+            expect(_nodeHasFocus(tester), isTrue);
+
+            await tester.sendKeyEvent(key);
+            await tester.pump();
+
+            expect(taps, 1);
+          },
+        );
+      }
+    }
+
+    testWidgets('a non-interactive node takes no focus', (tester) async {
+      await _pumpGraphNode(tester, const GraphNodeWidget(nodeDetails: peer));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(_nodeHasFocus(tester), isFalse);
     });
   });
 }
