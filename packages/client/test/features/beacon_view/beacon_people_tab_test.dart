@@ -216,25 +216,34 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Forwards (0)'), findsOneWidget);
+    // #396: the forward to someone who offered help is still the trail.
+    expect(find.text('Forwards (1)'), findsOneWidget);
     expect(find.text('please help'), findsNothing);
     final graphButtons = find.byWidgetPredicate(
       (w) => w is IconButton && w.tooltip == 'Track of forwards',
     );
     expect(graphButtons, findsOneWidget);
 
-    await tester.tap(find.text('Forwards (0)'));
+    await tester.tap(find.text('Forwards (1)'));
     await tester.pumpAndSettle();
 
     expect(cubit.loadForwardsCalls, 1);
-    expect(find.text('please help'), findsNothing);
-    expect(find.text('Helper'), findsOneWidget);
+    expect(find.text('please help'), findsOneWidget);
+    // One card (Willing to help) and one trail row.
+    expect(find.text('Helper'), findsNWidgets(2));
+    expect(
+      find.descendant(
+        of: find.byType(UnifiedForwardRow),
+        matching: find.text('Helper'),
+      ),
+      findsOneWidget,
+    );
   });
 
   for (final bucket in ['active', 'willing', 'not fitting', 'backup']) {
     for (final inbound in [false, true]) {
       testWidgets(
-        '$bucket person appears once with ${inbound ? 'inbound' : 'outgoing'} forwards',
+        '$bucket person has one card and keeps the ${inbound ? 'inbound' : 'outgoing'} forward in the trail',
         (tester) async {
           await tester.binding.setSurfaceSize(const Size(800, 1600));
           addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -290,16 +299,31 @@ void main() {
             await tester.tap(find.text('Declined offers (1)'));
             await tester.pumpAndSettle();
           }
-          expect(find.text('Helper'), findsOneWidget);
-          expect(find.text('Forwards (0)'), findsOneWidget);
-          expect(find.text('please help'), findsNothing);
+          // People sections stay exclusive: one card. Forwards is the
+          // trail (#396, #496): the forward stays, as one row.
+          final row = find.byType(UnifiedForwardRow);
+          expect(row, findsOneWidget);
+          expect(
+            find.descendant(of: row, matching: find.text('Helper')),
+            findsOneWidget,
+          );
+          expect(find.text('Helper'), findsNWidgets(2));
+          expect(
+            find.descendant(
+              of: find.byType(HelpOfferTile),
+              matching: find.text('Helper'),
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Forwards (1)'), findsOneWidget);
+          expect(find.text('please help'), findsOneWidget);
         },
       );
     }
   }
 
   testWidgets(
-    'forward-only recipients remain unique and move to Active after offering help',
+    'a forward-only recipient has one trail row and keeps it after moving to Active',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -347,12 +371,19 @@ void main() {
           roomAccess: RoomAccessBits.admitted,
         ),
       ]);
-      expect(find.text('Helper'), findsOneWidget);
       // #346: one helper; the author is not counted.
       expect(find.text('Active helpers (1)'), findsOneWidget);
       expect(find.text('Active helpers (2)'), findsNothing);
-      expect(find.text('Forwards (0)'), findsOneWidget);
-      expect(find.text('please help'), findsNothing);
+      // #396: offering help moves the card, not the forward.
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      expect(find.text('please help'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(UnifiedForwardRow),
+          matching: find.text('Helper'),
+        ),
+        findsOneWidget,
+      );
     },
   );
 
@@ -508,7 +539,7 @@ void main() {
   );
 
   testWidgets(
-    'a withdrawn offer followed by a live offer keeps the person in Willing, not Forwards',
+    'a withdrawn offer followed by a live offer is Willing, and the forward row is not marked withdrawn',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -554,10 +585,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Willing to help (1)'), findsOneWidget);
-      expect(find.text('Forwards (0)'), findsOneWidget);
-      await tester.tap(find.text('Forwards (0)'));
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      await tester.tap(find.text('Forwards (1)'));
       await tester.pumpAndSettle();
 
+      expect(find.byType(UnifiedForwardRow), findsOneWidget);
       expect(
         find.descendant(
           of: find.byType(UnifiedForwardRow),
@@ -565,8 +597,6 @@ void main() {
         ),
         findsNothing,
       );
-      expect(find.byType(UnifiedForwardRow), findsNothing);
-      expect(find.text('Helper'), findsOneWidget);
     },
   );
 
@@ -826,6 +856,121 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Forwarded by you'), findsOneWidget);
+  });
+
+  // #496: "Forwarded by you" is the author's edge; a steward's own trail
+  // (People › Forwards) does not hold it, so the steward's card must not
+  // claim it.
+  testWidgets('steward does not see "Forwarded by you" for the author edge', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    const steward = Profile(id: 's1', displayName: 'Steward');
+    _state = _peopleState(
+      myProfile: steward,
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+          isDirectAuthorForward: true,
+        ),
+      ],
+      roomParticipants: [
+        BeaconParticipant(
+          id: 'p-s1',
+          beaconId: 'B1',
+          userId: 's1',
+          userTitle: 'Steward',
+          role: BeaconParticipantRoleBits.steward,
+          status: BeaconParticipantStatusBits.committed,
+          roomAccess: RoomAccessBits.admitted,
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: lookupL10n(const Locale('en')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(_state.isAuthorOrSteward, isTrue);
+    expect(find.text('Forwarded by you'), findsNothing);
+  });
+
+  // #396: cancellation is not deletion. A forward the viewer cancelled stays
+  // in their trail, saying so; a forward someone cancelled towards the
+  // viewer is not how the request reached them.
+  testWidgets('a cancelled forward stays in the trail, marked cancelled', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final l10n = lookupL10n(const Locale('en'));
+    _state = _peopleState(
+      viewerForwardEdges: [
+        ForwardEdge(
+          id: 'e1',
+          beaconId: 'B1',
+          createdAt: _t,
+          sender: const Profile(id: 'auth', displayName: 'Author'),
+          recipient: const Profile(id: 'r1', displayName: 'Recipient'),
+          note: 'taken back',
+          cancelledAt: _t.add(const Duration(minutes: 5)),
+        ),
+        ForwardEdge(
+          id: 'e2',
+          beaconId: 'B1',
+          createdAt: _t,
+          sender: const Profile(id: 'x1', displayName: 'Other Sender'),
+          recipient: const Profile(id: 'auth', displayName: 'Author'),
+          note: 'never mind',
+          cancelledAt: _t.add(const Duration(minutes: 5)),
+        ),
+      ],
+      forwardsLoaded: true,
+    );
+
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: l10n,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Forwards (1)'), findsOneWidget);
+    await tester.tap(find.text('Forwards (1)'));
+    await tester.pumpAndSettle();
+
+    final row = find.byType(UnifiedForwardRow);
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.text('Recipient')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: row,
+        matching: find.text(l10n.forwardStatusCancelled),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Other Sender'), findsNothing);
+    expect(find.text('never mind'), findsNothing);
   });
 
   testWidgets('direct-forward offers sort above others in willing section', (

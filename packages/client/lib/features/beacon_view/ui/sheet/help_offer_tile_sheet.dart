@@ -118,6 +118,7 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
     beaconAuthor: state.beacon.author,
     beaconAuthorId: state.beacon.author.id,
     isAuthorView: state.isAuthorOrSteward,
+    viewerIsAuthor: state.isBeaconMine,
     isMine: offer.user.id == state.myProfile.id,
     participant: state.participant,
     onEditRole: cubit.canEditRole

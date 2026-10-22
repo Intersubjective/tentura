@@ -37,6 +37,7 @@ class HelpOfferTile extends StatelessWidget {
     this.onEditRole,
     this.onWithdraw,
     this.isAuthorView = false,
+    this.viewerIsAuthor = false,
     this.onAccept,
     this.onDecline,
     this.onReleaseCommitment,
@@ -56,6 +57,11 @@ class HelpOfferTile extends StatelessWidget {
   final VoidCallback? onEditRole;
   final VoidCallback? onWithdraw;
   final bool isAuthorView;
+
+  /// The viewer is the Request's author, not a steward. Provenance copy is
+  /// viewer-relative (#496): only the author may read "Forwarded by you" /
+  /// "You forwarded this request to them directly" off the author's edge.
+  final bool viewerIsAuthor;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
   final VoidCallback? onReleaseCommitment;
@@ -282,7 +288,9 @@ class HelpOfferTile extends StatelessWidget {
               ],
             ),
           ],
-          if (isAuthorView && helpOffer.isDirectAuthorForward) ...[
+          if (isAuthorView &&
+              viewerIsAuthor &&
+              helpOffer.isDirectAuthorForward) ...[
             const SizedBox(height: _rowGap),
             _DirectForwardChip(label: l10n.helpOfferDirectForwardChip),
           ],
@@ -350,6 +358,7 @@ class HelpOfferTile extends StatelessWidget {
               isAdmitted: isAdmitted,
               admissionAction: helpOffer.admissionAction,
               isDirectAuthorForward: helpOffer.isDirectAuthorForward,
+              viewerIsAuthor: viewerIsAuthor,
               lastDeclineReason: helpOffer.lastDeclineReason,
               lastRemoveReason: helpOffer.lastRemoveReason,
               isAuthorView: isAuthorView,
@@ -500,6 +509,7 @@ class _AdmissionFooter extends StatelessWidget {
     required this.isAdmitted,
     required this.admissionAction,
     required this.isDirectAuthorForward,
+    required this.viewerIsAuthor,
     required this.lastDeclineReason,
     required this.lastRemoveReason,
     required this.isAuthorView,
@@ -520,6 +530,7 @@ class _AdmissionFooter extends StatelessWidget {
   /// reads (#496). The admission line may only claim a direct forward when
   /// this is true.
   final bool isDirectAuthorForward;
+  final bool viewerIsAuthor;
   final DateTime? authorSeenAt;
   final String? lastDeclineReason;
   final String? lastRemoveReason;
@@ -545,6 +556,7 @@ class _AdmissionFooter extends StatelessWidget {
         isAdmitted: isAdmitted,
         admissionAction: admissionAction,
         isDirectAuthorForward: isDirectAuthorForward,
+        viewerIsAuthor: viewerIsAuthor,
         reason: reason,
         onAccept: onAccept,
         onDecline: onDecline,
@@ -583,6 +595,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.isAdmitted,
     required this.admissionAction,
     required this.isDirectAuthorForward,
+    required this.viewerIsAuthor,
     required this.reason,
     required this.onAccept,
     required this.onDecline,
@@ -595,6 +608,7 @@ class _AuthorAdmissionFooter extends StatelessWidget {
   final bool isAdmitted;
   final HelpOfferAdmissionAction? admissionAction;
   final bool isDirectAuthorForward;
+  final bool viewerIsAuthor;
   final String? reason;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
@@ -623,11 +637,15 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                 if (isAutomatic) ...[
                   SizedBox(height: tt.tightGap),
                   // Same trail as the Forwards block (#496): never claim a
-                  // direct forward the trail does not show.
+                  // direct forward the trail does not show, and say whose
+                  // forward it was to a steward, whose Forwards differ.
                   Text(
-                    isDirectAuthorForward
-                        ? l10n.helpOfferAdmittedAutomaticallyHint
-                        : l10n.helpOfferJoinedViaNetworkHint,
+                    switch ((isDirectAuthorForward, viewerIsAuthor)) {
+                      (true, true) => l10n.helpOfferAdmittedAutomaticallyHint,
+                      (true, false) =>
+                        l10n.helpOfferAuthorForwardedDirectlyHint,
+                      (false, _) => l10n.helpOfferJoinedViaNetworkHint,
+                    },
                     style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ] else ...[
@@ -772,10 +790,12 @@ class _CommitterAdmissionFooter extends StatelessWidget {
             style: TenturaText.bodySmall(color),
           ),
           SizedBox(height: tt.tightGap),
+          // The helper's own card speaks to the helper (#496): "You
+          // forwarded this request to them" is the author's line.
           Text(
             isDirectAuthorForward
-                ? l10n.helpOfferAdmittedAutomaticallyHint
-                : l10n.helpOfferJoinedViaNetworkHint,
+                ? l10n.helpOfferAuthorSentToYouDirectlyHint
+                : l10n.helpOfferYouJoinedViaNetworkHint,
             style: TenturaText.bodySmall(tt.textMuted),
           ),
           SizedBox(height: tt.tightGap),

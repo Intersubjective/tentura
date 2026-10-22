@@ -250,6 +250,18 @@ class UnifiedForwardRow extends StatelessWidget {
     Set<String> withdrawn,
   ) {
     final id = edge.recipient.id;
+    // Cancelled is still history (#396): the row stays, saying so, and no
+    // later reaction is credited to a forward that was taken back.
+    if (edge.isCancelled) {
+      return [
+        _ReactionLine(
+          icon: Icons.cancel_outlined,
+          text: l10n.forwardStatusCancelled,
+          iconColor: scheme.onSurfaceVariant,
+          alignEnd: false,
+        ),
+      ];
+    }
     if (edge.recipientRejected) {
       final text = edge.recipientRejectionMessage.isNotEmpty
           ? l10n.myForwardDeclinedWithReason(edge.recipientRejectionMessage)

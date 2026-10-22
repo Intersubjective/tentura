@@ -20,6 +20,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
+import 'package:tentura/features/forward/domain/forward_trail.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
@@ -273,18 +274,16 @@ class BeaconPeopleTabBody extends StatelessWidget {
               assignedUserIds.add(c.user.id),
         )
         .toList(growable: false);
-    // Forward edges are claimed before the withdrawn fold: the spread of a
-    // request is history, so a recipient who later withdrew keeps their
-    // forward row (marked withdrawn) instead of vanishing from Forwards.
+    // Forwards is the viewer's trail, not a people category (#396, #496):
+    // the spread of a request is history, so a recipient keeps their row
+    // after offering help, being admitted, withdrawing or declining; the row
+    // shows that state. People sections above stay exclusive among
+    // themselves.
     final viewerId = state.myProfile.id;
-    final forwardEdges = state.viewerForwardEdges
-        .where((edge) {
-          final personId = edge.sender.id == viewerId
-              ? edge.recipient.id
-              : edge.sender.id;
-          return assignedUserIds.add(personId);
-        })
-        .toList(growable: false);
+    final forwardEdges = viewerForwardTrail(
+      state.viewerForwardEdges,
+      viewerUserId: viewerId,
+    );
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
         .toList(growable: false);
@@ -391,6 +390,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         beaconAuthorId: beacon.author.id,
         isMine: isMine,
         isAuthorView: state.isAuthorOrSteward && !isMine,
+        viewerIsAuthor: state.isBeaconMine,
         participant: row.participant,
         showAuthorStar: row.isAuthor,
         hasHelpOffer: hasHelpOffer,
@@ -720,6 +720,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                           beaconAuthorId: beacon.author.id,
                           isMine: backupOffers[k].user.id == state.myProfile.id,
                           isAuthorView: state.isAuthorOrSteward,
+                          viewerIsAuthor: state.isBeaconMine,
                           showBackupHint: false,
                           onEditRole:
                               !backupOffers[k].isWithdrawn &&
@@ -761,6 +762,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                             beaconAuthorId: beacon.author.id,
                             isMine: withdrawn[j].user.id == state.myProfile.id,
                             isAuthorView: state.isAuthorOrSteward,
+                            viewerIsAuthor: state.isBeaconMine,
                           ),
                         ],
                       ],

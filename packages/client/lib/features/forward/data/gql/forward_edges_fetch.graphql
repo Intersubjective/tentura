@@ -1,8 +1,17 @@
 # import '/data/gql/user_model.graphql'
 
+# The viewer's forward trail on one Request: every edge the viewer sent or
+# received (Hasura row filter), cancelled ones included so the sender's trail
+# keeps them as history (#396). The relationship filters drop edges whose
+# other end the viewer may not see (`user.hidden_for_viewer`, e.g. blocks):
+# such a row would otherwise arrive with a null sender/recipient.
 query ForwardEdgesFetch($beaconId: String!) {
   beacon_forward_edge(
-    where: {beacon_id: {_eq: $beaconId}},
+    where: {
+      beacon_id: {_eq: $beaconId}
+      sender: {id: {_is_null: false}}
+      recipient: {id: {_is_null: false}}
+    },
     order_by: {created_at: desc}
   ) {
     id
@@ -15,6 +24,7 @@ query ForwardEdgesFetch($beaconId: String!) {
     recipient_rejected
     recipient_rejection_message
     recipient_read_at
+    cancelled_at
     sender {
       ...UserModel
     }

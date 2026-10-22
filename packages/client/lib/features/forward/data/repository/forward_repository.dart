@@ -440,6 +440,7 @@ class ForwardRepository {
                     recipientRejected: e.recipient_rejected,
                     recipientRejectionMessage: e.recipient_rejection_message,
                     recipientReadAt: e.recipient_read_at,
+                    cancelledAt: e.cancelled_at,
                   ),
                 )
                 .toList(),

@@ -10622,5 +10622,21 @@
   "constellationArrangeApply": "Arrange",
   "@constellationArrangeApply": {
     "context": "Field map: confirms «Arrange in a sector» and saves the new positions (#644)"
+  },
+  "forwardStatusCancelled": "Forward cancelled",
+  "@forwardStatusCancelled": {
+    "description": "People › Forwards: the viewer cancelled this forward; the row stays as history (#396)"
+  },
+  "helpOfferAuthorForwardedDirectlyHint": "The author forwarded this request to them directly",
+  "@helpOfferAuthorForwardedDirectlyHint": {
+    "description": "Hint under an automatic admission, seen by a steward: the author's own forward reached this helper (#496)"
+  },
+  "helpOfferAuthorSentToYouDirectlyHint": "The author sent this request to you directly",
+  "@helpOfferAuthorSentToYouDirectlyHint": {
+    "description": "Hint under an automatic admission on the helper's own card: the author forwarded the request to them (#496)"
+  },
+  "helpOfferYouJoinedViaNetworkHint": "You joined via the network",
+  "@helpOfferYouJoinedViaNetworkHint": {
+    "description": "Hint under an automatic admission on the helper's own card when the author did not forward to them directly (#496)"
   }
 }
