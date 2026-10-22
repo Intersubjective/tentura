@@ -97,7 +97,8 @@ COMMENT ON TABLE public.beacon_lobby_ban IS
   // Own standing (always writes on an open Request): author; steward
   // (beacon_steward or participant role 1); admitted participant
   // (room_access 3); a live help offer.
-  // Addressed standing (writes unless the person withdrew or was declined):
+  // Addressed standing (writes unless the person withdrew, was declined or
+  // answered "Can't help"):
   // a live forward edge to them they did not answer "Can't help" to; direct
   // addressee (participant role 6).
   // Read-only standing (Q4): a live forward edge answered "Can't help"
@@ -185,7 +186,8 @@ SELECT
               OR s.rejected_forward) THEN 0
     WHEN s.banned AND NOT s.is_author THEN 0
     WHEN NOT public.beacon_can_read_content(p_beacon_id, s.user_id) THEN 0
-    WHEN (s.own_standing OR (s.addressed AND NOT s.past_offer))
+    WHEN (s.own_standing
+          OR (s.addressed AND NOT s.past_offer AND NOT s.rejected_forward))
       AND s.status NOT IN (1, 2, 6) THEN 2
     ELSE 1
   END)::smallint AS access
@@ -251,7 +253,10 @@ BEGIN
   SELECT COALESCE(array_agg(a.user_id), ARRAY[]::text[])
   INTO v_user_ids
   FROM public.questions_audience(v_beacon_id) a
-  WHERE NOT (a.user_id = ANY (public.realtime_room_recipients(v_beacon_id)));
+  WHERE NOT (a.user_id = ANY (public.realtime_room_recipients(v_beacon_id)))
+    -- No hint about a message to someone blocked with its author.
+    AND (COALESCE(NEW.author_id, OLD.author_id) IS NULL
+      OR NOT public.block_hides(COALESCE(NEW.author_id, OLD.author_id), a.user_id));
   PERFORM public.emit_realtime_entity_change(
     'room_message',
     v_beacon_id,

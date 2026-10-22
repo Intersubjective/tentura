@@ -363,7 +363,9 @@ class AttentionIntentCase {
     questionsScope: questionsScope,
     kind: NotificationKind.roomActivityLowPriority,
     emptyTitle: 'New thread message',
-    emptyBody: 'New thread message',
+    emptyBody: questionsScope
+        ? 'New message in Questions'
+        : 'New thread message',
   );
 
   /// The first response of [actorUserId] in a Post room, told to the Post
@@ -733,7 +735,7 @@ class AttentionIntentCase {
     questionsScope: questionsScope,
     kind: NotificationKind.roomMention,
     emptyTitle: 'New mention',
-    emptyBody: 'mentioned you',
+    emptyBody: questionsScope ? 'mentioned you in Questions' : 'mentioned you',
     bodyPrefixedWithActor: true,
   );
 
@@ -800,7 +802,10 @@ class AttentionIntentCase {
           ? threadItemId
           : 'general',
     );
-    final safeExcerpt = notificationExcerpt(excerpt);
+    // Request Questions: notifications never store or push the message
+    // text (receipts outlive a later ban or block); the screen shows it
+    // through the policy-gated API.
+    final safeExcerpt = questionsScope ? '' : notificationExcerpt(excerpt);
     final title = titleIsActorName && actorName.isNotEmpty
         ? actorName
         : emptyTitle;

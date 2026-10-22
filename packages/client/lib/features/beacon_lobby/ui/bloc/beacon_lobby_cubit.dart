@@ -155,6 +155,7 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
     }
     _refreshing = true;
     var nextReopen = reopen || state.info == null;
+    var reopenedAfterFailure = false;
     try {
       do {
         _refreshAgain = false;
@@ -164,9 +165,17 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
         } on BeaconLobbyUnavailableException {
           _showUnavailable();
         } catch (e) {
-          // A background refresh keeps what is on screen; the next hint or a
-          // pull retries.
-          if (userInitiated && !isClosed) _effects.emit(ShowError(e));
+          if (!nextReopen && !reopenedAfterFailure) {
+            // A failed page refetch may mean access was lost: re-open once,
+            // which locks the screen when the server says so.
+            reopenedAfterFailure = true;
+            _refreshAgain = true;
+            _reopenAgain = true;
+          } else if (userInitiated && !isClosed) {
+            // A background refresh keeps what is on screen; the next hint or
+            // a pull retries.
+            _effects.emit(ShowError(e));
+          }
         }
         nextReopen = _reopenAgain || state.info == null;
       } while (_refreshAgain && !isClosed);
@@ -185,24 +194,31 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
       lobbyId: info.lobbyId,
     );
     if (isClosed) return;
-    // Keep the older pages already loaded; the newest page replaces its own
-    // time range (an edit or delete there shows up).
-    final firstLoad = current == null;
+    // A message hint keeps the older pages already loaded, but only when the
+    // newest page overlaps what is shown (otherwise there would be a silent
+    // gap). Re-opening (standing, blocks or bans may have changed) starts
+    // the history over, so nothing that became hidden stays on screen.
     final cutoff = newest.isEmpty ? null : newest.first.createdAt;
-    final kept = firstLoad || newest.length < pageSize || cutoff == null
-        ? const <BeaconLobbyMessage>[]
-        : [
+    final shownIds = {for (final m in state.messages) m.id};
+    final overlaps = newest.any((m) => shownIds.contains(m.id));
+    final keepOlder =
+        !reopen &&
+        current != null &&
+        newest.length >= pageSize &&
+        cutoff != null &&
+        overlaps;
+    final kept = keepOlder
+        ? [
             for (final m in state.messages)
               if (m.createdAt != null && m.createdAt!.isBefore(cutoff)) m,
-          ];
+          ]
+        : const <BeaconLobbyMessage>[];
     emit(
       state.copyWith(
         status: StateStatus.isSuccess,
         info: info,
         messages: _merge(kept, newest),
-        hasOlder: firstLoad
-            ? newest.length >= pageSize
-            : (kept.isNotEmpty ? state.hasOlder : newest.length >= pageSize),
+        hasOlder: keepOlder ? state.hasOlder : newest.length >= pageSize,
         unavailable: false,
         loadError: null,
       ),

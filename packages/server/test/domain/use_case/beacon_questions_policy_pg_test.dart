@@ -147,6 +147,8 @@ Future<void> main() async {
   // Read-only standing (Q4).
   const rejected = 'Uqreject0001';
   const departed = 'Uqdepart0001';
+  // Direct addressee (role 6) who answered "Can't help".
+  const rejectedAddressee = 'Uqrejadd0001';
   // No standing.
   const cancelled = 'Uqcancel0001';
   const discovery = 'Uqdiscov0001';
@@ -165,6 +167,11 @@ Future<void> main() async {
     (name: 'live offer only', id: offerer, expected: QuestionsAccess.write),
     (name: "answered Can't help", id: rejected, expected: QuestionsAccess.read),
     (name: 'departed helper', id: departed, expected: QuestionsAccess.read),
+    (
+      name: "addressee who answered Can't help",
+      id: rejectedAddressee,
+      expected: QuestionsAccess.read,
+    ),
     (name: 'cancelled forward', id: cancelled, expected: QuestionsAccess.none),
     (name: 'discovery-only', id: discovery, expected: QuestionsAccess.none),
     (name: 'banned', id: banned, expected: QuestionsAccess.none),
@@ -311,6 +318,7 @@ Future<void> main() async {
         offerer,
         rejected,
         departed,
+        rejectedAddressee,
         cancelled,
         discovery,
         banned,
@@ -350,6 +358,8 @@ Future<void> main() async {
       await forward(departed);
       await offer(departed, status: 1);
       await participant(departed, roomAccess: 5);
+      await forward(rejectedAddressee, rejectedEdge: true);
+      await participant(rejectedAddressee, role: 6);
       await forward(cancelled, cancelledEdge: true);
       // Discovery-only: the Request is discoverable, but nobody sent it.
       await forward(banned);
@@ -609,6 +619,8 @@ Future<void> main() async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
       expect(recipients(), containsAll(audience));
+      // Peer blocked the sender: not even a bare hint.
+      expect(recipients(), isNot(contains(peer)));
       for (final c in matrix) {
         if (!c.expected.canRead && c.id != helper) {
           expect(recipients(), isNot(contains(c.id)), reason: c.name);
@@ -671,6 +683,24 @@ Future<void> main() async {
         threadItemId: lobbyId,
       );
       expect(intents.mentioned, isNot(contains(forwardee)));
+      // A third person's reply to the hidden message does not reveal its id.
+      await rooms.createMessage(
+        beaconId: beaconId,
+        userId: offerer,
+        body: 'replying to forwardee',
+        threadItemId: lobbyId,
+        replyToMessageId: fromForwardee['id']! as String,
+      );
+      final peerView = await rooms.listMessages(
+        beaconId: beaconId,
+        userId: peer,
+        threadItemId: lobbyId,
+      );
+      final reply = peerView.singleWhere(
+        (m) => m['body'] == 'replying to forwardee',
+      );
+      expect(reply['replyToMessageId'], isNull);
+      expect(reply['replyToBodyExcerpt'], isNull);
       // The deep link to a hidden message resolves to nothing.
       await expectLater(
         rooms.roomMessageTarget(
@@ -852,6 +882,18 @@ Future<void> main() async {
           messageId: messageId,
         ),
         throwsA(isA<DiscussionScopeDisabledException>()),
+      );
+      // No attachments: room images are not gated by the Questions policy.
+      await expectLater(
+        rooms.createMessage(
+          beaconId: beaconId,
+          userId: author,
+          body: 'a photo',
+          threadItemId: lobbyId,
+          attachmentBytes: Stream.value(Uint8List.fromList([1, 2, 3])),
+          attachmentFilename: 'a.png',
+        ),
+        throwsA(isA<IdWrongException>()),
       );
       // Facts are General-audience: never quoted into Questions.
       await expectLater(

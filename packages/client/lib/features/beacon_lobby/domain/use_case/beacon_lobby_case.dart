@@ -65,6 +65,8 @@ final class BeaconLobbyCase {
           aggregateId: beaconId,
         )
         .map((_) {}),
+    // A block either way hides that person's messages: start over.
+    _realtime.blockMarkers.map((_) {}),
     _realtime.catchUps.map((_) {}),
   ]);
 }

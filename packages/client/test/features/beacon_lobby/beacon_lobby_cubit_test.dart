@@ -196,6 +196,32 @@ void main() {
     await c.close();
   });
 
+  test('a burst larger than a page never leaves a silent gap', () async {
+    BeaconLobbyMessage msg(int i) => BeaconLobbyMessage(
+      id: 'M$i',
+      authorId: 'Uauthor',
+      authorName: 'Anna',
+      body: 'm$i',
+      createdAt: DateTime.utc(2026).add(Duration(minutes: i)),
+    );
+    final port = FakeLobbyPort(viewerId: 'Unina');
+    for (var i = 0; i < 10; i++) {
+      port.messagesList.add(msg(i));
+    }
+    final c = cubitFor(port);
+    await c.load();
+    for (var i = 10; i < 70; i++) {
+      port.messagesList.add(msg(i));
+    }
+    sync.hint(RealtimeEntityKind.roomMessage, 'B1');
+    await settle();
+    await settle();
+    expect(c.state.messages, hasLength(50));
+    expect(c.state.messages.first.body, 'm20');
+    expect(c.state.hasOlder, isTrue);
+    await c.close();
+  });
+
   test('opening marks Questions seen', () async {
     final port = FakeLobbyPort(viewerId: 'Unina');
     final c = cubitFor(port);

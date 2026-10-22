@@ -632,7 +632,14 @@ JOIN public.beacon_fact_card_revision r
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
         'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
         'threadItemId': m.threadItemId,
-        'replyToMessageId': m.replyToMessageId,
+        // A reply to a message hidden from this viewer (Questions blocks)
+        // does not reveal the hidden message's id either.
+        'replyToMessageId':
+            m.replyToMessageId != null &&
+                threadItemId != null &&
+                parent == null
+            ? null
+            : m.replyToMessageId,
         'replyToAuthorId': parent?.authorId,
         'replyToAuthorTitle': parent != null && parent.authorId != null
             ? (userById[parent.authorId!]?.displayName ?? '')

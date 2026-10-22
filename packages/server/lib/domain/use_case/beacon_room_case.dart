@@ -677,6 +677,13 @@ class BeaconRoomCase extends UseCaseBase {
           description: 'Facts cannot be quoted in this thread',
         );
       }
+      // Room images are served from the shared image store, which is not
+      // gated by the Questions policy: no attachments in Questions.
+      if (attachmentBytes != null || uploadedAttachment != null) {
+        throw const IdWrongException(
+          description: 'Attachments are not available in this thread',
+        );
+      }
     } else {
       final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
       if (!allowed) {
@@ -789,6 +796,17 @@ class BeaconRoomCase extends UseCaseBase {
     Future<Map<String, Object?>> persist(
       AttentionTransaction? transaction,
     ) async {
+      // Questions: re-check the policy right before the insert (a ban or a
+      // withdrawal may have landed since the first check).
+      if (questionsAuthorId != null &&
+          !(await _questionsAccess(
+            beaconId: beaconId,
+            userId: userId,
+          )).canWrite) {
+        throw const UnauthorizedException(
+          description: 'Room or item thread access required',
+        );
+      }
       final row = await _room.insertRoomMessage(
         beaconId: beaconId,
         authorId: userId,
@@ -1632,6 +1650,10 @@ class BeaconRoomCase extends UseCaseBase {
       throw const UnauthorizedException(
         description: 'Only the message author can add attachments',
       );
+    }
+    // No attachments in Request Questions (see createMessage).
+    if ((msg.threadItemId ?? '').isNotEmpty) {
+      throw const DiscussionScopeDisabledException();
     }
     await _guardMessageMutation(beaconId: beaconId, msg: msg);
     final payload = await readUint8StreamWithLimit(
