@@ -34,6 +34,7 @@ import '../util/layout_geometry_adapters.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_selection_cubit.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../widget/constellation_camera_controls.dart';
@@ -84,6 +85,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
           ),
           child: MultiBlocProvider(
             providers: [
+              BlocProvider(create: (_) => ConstellationSelectionCubit()),
               BlocProvider(
                 create: (context) => GraphPersonContextCubit(
                   profileViewCase: GetIt.I<ProfileViewCase>(),

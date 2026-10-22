@@ -10560,5 +10560,67 @@
   "constellationShowDegreeFurtherHint": "People three or more trust steps away, or with no chain of trust you can see, with their Requests and Posts",
   "@constellationShowDegreeFurtherHint": {
     "context": "Field: tooltip of the 3rd+ degree switch (#645)"
+  },
+  "constellationSelectMany": "Select several",
+  "@constellationSelectMany": {
+    "context": "Field map: toolbar toggle for the select tool (#642). While on, dragging on empty map draws a selection box and a tap adds or removes a person, Request or Post instead of opening it; two fingers move the map. On a computer Shift-drag and Shift/Ctrl/Cmd-click work without the toggle"
+  },
+  "constellationSelectionCount": "{count} selected",
+  "@constellationSelectionCount": {
+    "context": "Field map: how many nodes are selected (#642)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationSelectionHint": "Draw a box or tap people, Requests and Posts. Move the map with two fingers.",
+  "@constellationSelectionHint": {
+    "context": "Field map: selection bar while the select toggle is on and nothing is selected yet (#642)"
+  },
+  "constellationSelectionClear": "Clear selection",
+  "@constellationSelectionClear": {
+    "context": "Field map: removes every node from the selection and turns the select tool off (#642)"
+  },
+  "constellationSelectionDone": "Done",
+  "@constellationSelectionDone": {
+    "context": "Field map: turns the select tool off and keeps the selection for the bulk actions (#642)"
+  },
+  "constellationArrangeSector": "Arrange in a sector",
+  "@constellationArrangeSector": {
+    "context": "Field map: action that places the selected people evenly along an arc around the viewer, each at their own distance (#644)"
+  },
+  "constellationArrangeNeedsPeople": "Select at least two people",
+  "@constellationArrangeNeedsPeople": {
+    "context": "Field map: why «Arrange in a sector» is unavailable (#644)"
+  },
+  "constellationArrangeTooMany": "You can arrange up to {max} people at a time",
+  "@constellationArrangeTooMany": {
+    "context": "Field map: why «Arrange in a sector» is unavailable (#644)",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationArrangeAimHint": "Drag around yourself to point the sector",
+  "@constellationArrangeAimHint": {
+    "context": "Field map: instruction while choosing the direction of «Arrange in a sector» (#644)"
+  },
+  "constellationArrangeRotateLeft": "Turn counterclockwise",
+  "@constellationArrangeRotateLeft": {
+    "context": "Field map: turns the sector being aimed counterclockwise (#644)"
+  },
+  "constellationArrangeRotateRight": "Turn clockwise",
+  "@constellationArrangeRotateRight": {
+    "context": "Field map: turns the sector being aimed clockwise (#644)"
+  },
+  "constellationArrangeWidth": "Sector width",
+  "@constellationArrangeWidth": {
+    "context": "Field map: slider for how wide the arc of «Arrange in a sector» is (#644)"
+  },
+  "constellationArrangeApply": "Arrange",
+  "@constellationArrangeApply": {
+    "context": "Field map: confirms «Arrange in a sector» and saves the new positions (#644)"
   }
 }

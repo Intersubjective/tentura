@@ -16,6 +16,7 @@ import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/constellation_people.dart';
+import '../../domain/constellation_multi_selection.dart';
 import '../../domain/constellation_shown_field.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
@@ -1874,6 +1875,46 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (!isClosed) addError(error, stackTrace);
       return false;
     }
+  }
+
+  /// «Arrange in sector» (#644): stores [targets] (scene centres by person
+  /// id) as user placements. They go to the outbox together, so they are
+  /// written in one batch based on the anchor revision the user sees: a
+  /// reset made after it rejects them, and «Сбросить позиции» undoes them.
+  /// False when nothing was written.
+  bool placePeople(Map<String, Offset> targets) {
+    final placement = _placementCase;
+    if (isClosed ||
+        placement == null ||
+        state.isComposing ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return false;
+    }
+    final writes = [
+      for (final MapEntry(key: id, value: centre) in targets.entries)
+        if (id != _viewer.id)
+          (
+            target: ConstellationAnchorTarget.person(id),
+            position: constellationPointToV1Anchor(centre.lPoint),
+          ),
+    ];
+    if (writes.isEmpty ||
+        writes.length > kConstellationSectorMaxPeople ||
+        writes.any(
+          (write) => ConstellationAnchorPosition.validate(
+            xUnits: write.position.xUnits,
+            yUnits: write.position.yUnits,
+            coordinateSpaceVersion: write.position.coordinateSpaceVersion,
+          ) is! ConstellationAnchorPositionValid,
+        )) {
+      return false;
+    }
+    _submitUpsert(
+      target: writes.first.target,
+      position: writes.first.position,
+      companions: writes.sublist(1),
+    );
+    return true;
   }
 
   bool canPinTarget(ConstellationAnchorTarget target) {

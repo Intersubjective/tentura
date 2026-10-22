@@ -7249,5 +7249,18 @@
   "constellationShowDegreeSecond": "2-й круг",
   "constellationShowDegreeSecondHint": "Люди в двух шагах доверия от вас, с их запросами и постами",
   "constellationShowDegreeFurther": "3-й круг и дальше",
-  "constellationShowDegreeFurtherHint": "Люди в трёх и более шагах доверия или без видимой вам цепочки доверия, с их запросами и постами"
+  "constellationShowDegreeFurtherHint": "Люди в трёх и более шагах доверия или без видимой вам цепочки доверия, с их запросами и постами",
+  "constellationSelectMany": "Выбрать несколько",
+  "constellationSelectionCount": "Выбрано: {count}",
+  "constellationSelectionHint": "Обведите рамкой или нажмите на людей, запросы и посты. Поле двигается двумя пальцами.",
+  "constellationSelectionClear": "Снять выделение",
+  "constellationSelectionDone": "Готово",
+  "constellationArrangeSector": "Расставить сектором",
+  "constellationArrangeNeedsPeople": "Выберите хотя бы двух человек",
+  "constellationArrangeTooMany": "За один раз можно расставить не больше {max} человек",
+  "constellationArrangeAimHint": "Проведите вокруг себя, чтобы направить сектор",
+  "constellationArrangeRotateLeft": "Повернуть против часовой стрелки",
+  "constellationArrangeRotateRight": "Повернуть по часовой стрелке",
+  "constellationArrangeWidth": "Ширина сектора",
+  "constellationArrangeApply": "Расставить"
 }
