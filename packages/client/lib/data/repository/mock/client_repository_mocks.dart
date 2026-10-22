@@ -14,6 +14,7 @@ import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dar
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon_lobby/domain/port/beacon_lobby_port.dart';
 import 'package:tentura/features/beacon_plan/data/repository/beacon_plan_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 
@@ -49,6 +50,9 @@ import 'package:tentura/features/settings/domain/port/settings_repository_port.d
 
 @Injectable(as: ComplaintRepository, env: [Environment.test], order: 1)
 class ComplaintRepositoryMock extends Mock implements ComplaintRepository {}
+
+@Injectable(as: BeaconLobbyPort, env: [Environment.test], order: 1)
+class BeaconLobbyRepositoryMock extends Mock implements BeaconLobbyPort {}
 
 @Injectable(as: InboxRepository, env: [Environment.test], order: 1)
 class InboxRepositoryMock extends Mock implements InboxRepository {}

@@ -815,6 +815,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }) async {
     final q = _db.select(_db.coordinationItems)
       ..where((t) => t.beaconId.equals(beaconId))
+      // The Request Questions scope item is not a coordination item to list
+      // (its message counts would reach people outside its audience).
+      ..where((t) => t.kind.equals(coordinationItemKindLobby).not())
       ..where(
         (t) =>
             t.published.equals(true) |

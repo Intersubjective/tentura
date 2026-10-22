@@ -447,6 +447,22 @@ final class DiscussionScopeDisabledException extends ExceptionBase {
       );
 }
 
+/// Request Questions (internally the lobby, U088): the caller is not in its
+/// audience (see `questions_access_levels`), was removed by the author, or
+/// is blocked. Its own code so the client can tell "not for you" from a
+/// failed request.
+final class BeaconLobbyAccessException extends ExceptionBase {
+  const BeaconLobbyAccessException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconLobbyAccessDenied,
+        ),
+        description:
+            description ??
+            'Questions are for the people this request was sent to',
+      );
+}
+
 final class CoordinationKindDisabledException extends ExceptionBase {
   const CoordinationKindDisabledException({String? description})
     : super(

@@ -81,6 +81,9 @@ const kPathWebAppIcon192 = '/tentura-icon-192.png';
 /// Beacon detail screen (client Auto Route).
 const kPathBeaconView = '/beacon/view';
 
+/// Request Questions screen (client Auto Route; internally the lobby).
+const kPathBeaconQuestions = '/beacon/lobby';
+
 /// Post-close review contributions screen (client Auto Route).
 const kPathReviewContributions = '/beacon/review';
 const kPathWebSocketEndpoint = '/api/v2/ws';

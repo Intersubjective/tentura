@@ -226,6 +226,38 @@ final gqlTypeAttentionSurfaceSummary =
         field('forYouSweepEligible', graphQLBoolean.nonNullable()),
       ]);
 
+/// U088 — what `BeaconLobby` returns: the lobby's thread scope id and what
+/// the caller may do there (the author also gets the banned list).
+final gqlTypeBeaconLobby = GraphQLObjectType('BeaconLobby', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('lobbyId', graphQLString.nonNullable()),
+    field('isAuthor', graphQLBoolean.nonNullable()),
+    field('canPost', graphQLBoolean.nonNullable()),
+    // Never `.nonNullable()` on a list type (project GraphQL rule).
+    field('bannedUserIds', GraphQLListType(graphQLString.nonNullable())),
+    // Author only: the removed people with their names, so the screen never
+    // depends on route arguments for them.
+    field('banned', GraphQLListType(gqlTypeBeaconLobbyBannedUser.nonNullable())),
+  ]);
+
+final gqlTypeBeaconLobbyBannedUser =
+    GraphQLObjectType('BeaconLobbyBannedUser', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('title', graphQLString.nonNullable()),
+      ]);
+
+/// Request Questions — whether to show the entry row (never creates the
+/// scope, never throws for "no access").
+final gqlTypeBeaconLobbyAccess = GraphQLObjectType('BeaconLobbyAccess', null)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('canRead', graphQLBoolean.nonNullable()),
+    field('canPost', graphQLBoolean.nonNullable()),
+    field('messageCount', graphQLInt.nonNullable()),
+  ]);
+
 final gqlTypeAttentionReconcileResult =
     GraphQLObjectType('AttentionReconcileResult', null)
       ..fields.addAll([

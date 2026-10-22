@@ -128,7 +128,7 @@ At **enough help**, new offers are **not blocked** — they are submitted as **b
 
 Request detail: **Discussion**, **People**, **Log** + coordination header (STATUS / NOW / YOU / ACT).
 
-**Discussion** — workspace for admitted helpers: **General** (the only public conversation), child request cards, hierarchy notices, messages, plans, facts, replies, mentions, and polls. Ask/promise/blocker coordination-item threads are retired. Discussion-private content does not leak to non-members on public request surfaces. Child General requires independent admission; parent admission alone does not grant it. See [`features/beacon_room.md`](features/beacon_room.md).
+**Discussion** — workspace for admitted helpers: **General** (the only public conversation), child request cards, hierarchy notices, messages, plans, facts, replies, mentions, and polls. Ask/promise/blocker coordination-item threads are retired. Discussion-private content does not leak to non-members on public request surfaces. Separately, **Questions** lets the people a Request was sent to ask the author before offering help (public to that audience); see [`features/beacon_questions.md`](features/beacon_questions.md). Child General requires independent admission; parent admission alone does not grant it. See [`features/beacon_room.md`](features/beacon_room.md).
 
 **Remove from chat ≠ End participation** — revoke Chat access without erasing stake history; ending participation is a separate author action (`releaseCommitment`). Vocabulary and gates: [`../CONTEXT.md`](../CONTEXT.md) § Beacon lifecycle / Commitment facts.
 

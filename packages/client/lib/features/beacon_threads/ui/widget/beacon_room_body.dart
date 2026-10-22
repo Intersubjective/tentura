@@ -350,18 +350,28 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         : null,
                   )
                 : null,
-            emptyPlaceholder: Center(
-              child: Padding(
-                padding: EdgeInsets.all(context.tt.screenHPadding),
-                child: Text(
-                  l10n.beaconRoomEmptyState,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+            // #443: a Request's empty discussion says what it is for and
+            // where recipients ask before helping (Questions). A Post's
+            // chat keeps its one line.
+            emptyPlaceholder: widget.postRoot == null
+                ? TenturaEmptyState(
+                    key: const Key('beaconRoomEmptyState'),
+                    icon: TenturaIcons.comments,
+                    title: l10n.beaconRoomEmptyTitle,
+                    body: l10n.beaconRoomEmptyBody,
+                  )
+                : Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(context.tt.screenHPadding),
+                      child: Text(
+                        l10n.beaconRoomEmptyState,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
             messages: state.messages,
             myProfile: myProfile,
             participants: state.participants,

@@ -506,6 +506,35 @@ void main() {
         expect(await recipientIds(intent), isNot(contains(target)));
         expect(await recipientIds(intent), contains(unrelated));
       });
+
+      test('a Request Questions notice carries no message text and opens '
+          'the Questions screen', () async {
+        final harness = TestAttentionHarness();
+        final posted = await harness.intents.roomMessagePosted(
+          beaconId: beacon,
+          messageId: 'message',
+          actorUserId: actor,
+          recipientUserIds: {target},
+          excerpt: 'Which Saturday?',
+          threadItemId: item,
+          questionsScope: true,
+          sourceEventKey: eventKey,
+        );
+        final mentioned = await harness.intents.roomMentioned(
+          beaconId: beacon,
+          messageId: 'message',
+          actorUserId: actor,
+          recipientUserIds: {target},
+          excerpt: '@target Which Saturday?',
+          threadItemId: item,
+          questionsScope: true,
+          sourceEventKey: eventKey,
+        );
+        for (final intent in [posted, mentioned]) {
+          expect(intent.body, isNot(contains('Saturday')));
+          expect(intent.actionUrl, '/#/beacon/lobby/$beacon');
+        }
+      });
     });
 
     group('requestStatusChanged', () {

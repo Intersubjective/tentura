@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
+import 'package:tentura_server/domain/entity/questions_access.dart';
 
 import 'package:injectable/injectable.dart';
 
@@ -13,6 +14,7 @@ import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart
 
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_lobby_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
@@ -87,6 +89,7 @@ class BeaconRoomCase extends UseCaseBase {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     this._beaconPlan,
+    this._lobby,
     required super.env,
     required super.logger,
   }) : _beaconRepository = beaconRepository,
@@ -102,6 +105,10 @@ class BeaconRoomCase extends UseCaseBase {
   /// Request plan slices on the inbox batch (#220 §4.9); nullable for test
   /// construction.
   final BeaconPlanCase? _beaconPlan;
+
+  /// U088 — the Request lobby (an item-thread scope); nullable for test
+  /// construction, where the lobby is simply unavailable.
+  final BeaconLobbyRepositoryPort? _lobby;
 
   /// Rejects a Post for the Request-only room mutations.
   Future<void> _requireRequest(String beaconId) async {
@@ -145,21 +152,236 @@ class BeaconRoomCase extends UseCaseBase {
     }
   }
 
+  /// [_rejectDisabledDiscussionScope], except that the Request's own
+  /// Questions scope (internally the lobby, U088) is an enabled scope.
+  Future<void> _rejectDisabledScope({
+    required String beaconId,
+    required String? threadScopeId,
+  }) async {
+    if (await _isLobbyOf(beaconId: beaconId, threadScopeId: threadScopeId)) {
+      return;
+    }
+    _rejectDisabledDiscussionScope(threadScopeId);
+  }
+
+  Future<bool> _isLobbyOf({
+    required String beaconId,
+    required String? threadScopeId,
+  }) async {
+    final lobby = _lobby;
+    final tid = threadScopeId?.trim();
+    if (lobby == null || tid == null || tid.isEmpty) return false;
+    return await lobby.lobbyBeaconId(tid) == beaconId;
+  }
+
+  /// Request Questions — THE access policy for one person: the server-owned
+  /// `questions_access_levels` (m0254), never a Dart re-implementation.
+  /// Readable Request AND addressed audience AND not banned / blocked;
+  /// write only with current standing on an open Request. See
+  /// `docs/features/beacon_questions.md`.
+  Future<QuestionsAccess> _questionsAccess({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final lobby = _lobby;
+    if (lobby == null) return QuestionsAccess.none;
+    final levels = await lobby.accessLevels(
+      beaconId: beaconId,
+      userIds: [userId],
+    );
+    return levels[userId] ?? QuestionsAccess.none;
+  }
+
+  /// In Questions, keeps only those of [userIds] the policy lets read it (one
+  /// set query); any other scope keeps everyone. Mentions and directed
+  /// notices carry the message text, so Questions text must not reach anyone
+  /// outside its audience (e.g. a banned or blocked person).
+  Future<Set<String>> _onlyLobbyMembersIn({
+    required String beaconId,
+    required String? threadScopeId,
+    required Iterable<String> userIds,
+  }) async {
+    final ids = userIds.toSet();
+    if (ids.isEmpty ||
+        !await _isLobbyOf(beaconId: beaconId, threadScopeId: threadScopeId)) {
+      return ids;
+    }
+    final levels = await _lobby!.accessLevels(
+      beaconId: beaconId,
+      userIds: ids,
+    );
+    return {
+      for (final e in levels.entries)
+        if (e.value.canRead) e.key,
+    };
+  }
+
+  /// Request Questions — who can be @mentioned there: the whole audience the
+  /// policy lets read it, minus people blocked either way with the sender.
+  Future<List<AdmittedRoomMentionParticipant>> _questionsMentionCandidates({
+    required String beaconId,
+    required String? actorUserId,
+  }) async {
+    final audience = await _lobby!.audience(beaconId);
+    final hidden = actorUserId == null
+        ? const <String>{}
+        : await _userBlockRepository.hiddenPeerIds(
+            viewerId: actorUserId,
+            peerIds: [for (final m in audience) m.userId],
+          );
+    return [
+      for (final m in audience)
+        if (!hidden.contains(m.userId))
+          AdmittedRoomMentionParticipant(
+            userId: m.userId,
+            displayName: m.displayName,
+            handle: m.handle,
+          ),
+    ];
+  }
+
+  /// Request Questions — opens it for [userId] (creating the scope on first
+  /// use) and says what they may do there. The author also gets the people
+  /// they removed, with names.
+  Future<Map<String, Object?>> beaconLobby({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final lobby = _lobby;
+    await _requireRequest(beaconId);
+    final access = await _questionsAccess(beaconId: beaconId, userId: userId);
+    if (lobby == null || !access.canRead) {
+      throw const BeaconLobbyAccessException();
+    }
+    final authorId = await _room.beaconAuthorUserId(beaconId);
+    if (authorId == null || authorId.isEmpty) {
+      throw IdNotFoundException(id: beaconId, description: 'Request not found');
+    }
+    final lobbyId = await lobby.ensureLobby(
+      beaconId: beaconId,
+      authorId: authorId,
+    );
+    final isAuthor = authorId == userId;
+    final banned = isAuthor
+        ? await lobby.bannedUsers(beaconId)
+        : const <QuestionsBannedUser>[];
+    return {
+      'beaconId': beaconId,
+      'lobbyId': lobbyId,
+      'isAuthor': isAuthor,
+      // Read-only standing, or a closed / cancelled Request (the policy
+      // already folds the lifecycle in; the lifecycle check stays as the
+      // same rule the post path enforces).
+      'canPost':
+          access.canWrite && !await _lifecycleBlocksOrdinaryWrites(beaconId),
+      'bannedUserIds': [for (final b in banned) b.userId],
+      'banned': [
+        for (final b in banned) {'userId': b.userId, 'title': b.displayName},
+      ],
+    };
+  }
+
+  /// Request Questions — whether the entry row is shown, without creating
+  /// the scope. Never throws for "no access": [userId] learns only their own
+  /// standing.
+  Future<Map<String, Object?>> beaconLobbyAccess({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final lobby = _lobby;
+    final access = await _questionsAccess(beaconId: beaconId, userId: userId);
+    var messageCount = 0;
+    if (lobby != null && access.canRead) {
+      final lobbyId = await lobby.findLobby(beaconId);
+      if (lobbyId != null) {
+        messageCount = await lobby.countVisibleMessages(
+          lobbyId: lobbyId,
+          viewerId: userId,
+        );
+      }
+    }
+    return {
+      'beaconId': beaconId,
+      'canRead': access.canRead,
+      'canPost':
+          access.canWrite && !await _lifecycleBlocksOrdinaryWrites(beaconId),
+      'messageCount': messageCount,
+    };
+  }
+
+  /// Request Questions — the author removes [bannedUserId]: they can no
+  /// longer read or post there. Offering help again does not lift it.
+  Future<bool> banFromLobby({
+    required String beaconId,
+    required String userId,
+    required String bannedUserId,
+  }) async {
+    final lobby = await _requireLobbyAuthor(beaconId: beaconId, userId: userId);
+    final target = bannedUserId.trim();
+    if (target.isEmpty || target == userId) {
+      throw const IdWrongException(
+        description: 'The author cannot be removed from Questions',
+      );
+    }
+    final banned = await lobby.ban(
+      beaconId: beaconId,
+      userId: target,
+      bannedBy: userId,
+    );
+    if (!banned) {
+      throw IdNotFoundException(id: target, description: 'User not found');
+    }
+    return true;
+  }
+
+  /// Request Questions — the author lets [bannedUserId] back in.
+  Future<bool> unbanFromLobby({
+    required String beaconId,
+    required String userId,
+    required String bannedUserId,
+  }) async {
+    final lobby = await _requireLobbyAuthor(beaconId: beaconId, userId: userId);
+    await lobby.unban(beaconId: beaconId, userId: bannedUserId.trim());
+    return true;
+  }
+
+  Future<BeaconLobbyRepositoryPort> _requireLobbyAuthor({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final lobby = _lobby;
+    await _requireRequest(beaconId);
+    if (lobby == null ||
+        !await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
+      throw const UnauthorizedException(
+        description: 'Only the author manages Questions',
+      );
+    }
+    return lobby;
+  }
+
   Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) async {
-    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    if (status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+    if (await _lifecycleBlocksOrdinaryWrites(beaconId)) {
       throw const BeaconCreateException(
         description: 'Discussion is read-only for this request',
       );
     }
   }
 
+  Future<bool> _lifecycleBlocksOrdinaryWrites(String beaconId) async {
+    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
+    return status != null &&
+        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status);
+  }
+
   Future<void> _guardMessageMutation({
     required String beaconId,
     required BeaconRoomMessageRecord msg,
   }) async {
-    _rejectDisabledDiscussionScope(msg.threadItemId);
+    await _rejectDisabledScope(
+      beaconId: beaconId,
+      threadScopeId: msg.threadItemId,
+    );
     await _rejectOrdinaryUserWritesForLifecycle(beaconId);
   }
 
@@ -202,7 +424,7 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   // DORMANT(item-threads): item-thread participant access helper.
-  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
   bool _isItemParticipant(CoordinationItemRecord item, String userId) =>
       item.creatorId == userId ||
       item.targetPersonId == userId ||
@@ -218,12 +440,22 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   // DORMANT(item-threads): item-thread access gate (non-room members).
-  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
   Future<bool> _canAccessThread({
     required String beaconId,
     required String userId,
     required String threadItemId,
+    bool write = false,
   }) async {
+    final lobbyBeaconId = await _lobby?.lobbyBeaconId(threadItemId);
+    if (lobbyBeaconId != null) {
+      if (lobbyBeaconId != beaconId) return false;
+      final access = await _questionsAccess(
+        beaconId: beaconId,
+        userId: userId,
+      );
+      return write ? access.canWrite : access.canRead;
+    }
     if (_discussionPolicy.generalOnly) {
       return false;
     }
@@ -250,21 +482,31 @@ class BeaconRoomCase extends UseCaseBase {
     }
   }
 
+  /// [write] false is for reads keyed by a message (attachment download).
   Future<bool> _canMutateMessage({
     required String beaconId,
     required String userId,
     required BeaconRoomMessageRecord msg,
+    bool write = true,
   }) async {
     final tid = msg.threadItemId;
     if (tid == null || tid.isEmpty) {
       return _canUseRoom(beaconId: beaconId, userId: userId);
     }
     await _rejectPlanItemThread(tid);
-    return _canAccessThread(
+    final allowed = await _canAccessThread(
       beaconId: beaconId,
       userId: userId,
       threadItemId: tid,
+      write: write,
     );
+    if (!allowed) return false;
+    // Questions crosses blocks: a message whose author and the viewer
+    // blocked each other is hidden from the viewer, so it cannot be acted on.
+    final authorId = msg.authorId;
+    return authorId == null ||
+        authorId == userId ||
+        !await _userBlockRepository.isBlockedPair(a: userId, b: authorId);
   }
 
   void _assertBodyWithinLimit(String trimmedBody) {
@@ -298,8 +540,16 @@ class BeaconRoomCase extends UseCaseBase {
     required List<int> explicitMentionOffsets,
     required List<int> explicitMentionLengths,
     List<ValidatedMentionSpan> preservedMentionSpans = const [],
+    String? threadScopeId,
+    String? actorUserId,
   }) async {
-    final admitted = await _room.listAdmittedMentionParticipants(beaconId);
+    final admitted =
+        await _isLobbyOf(beaconId: beaconId, threadScopeId: threadScopeId)
+        ? await _questionsMentionCandidates(
+            beaconId: beaconId,
+            actorUserId: actorUserId,
+          )
+        : await _room.listAdmittedMentionParticipants(beaconId);
     final byId = {
       for (final participant in admitted) participant.userId: participant,
     };
@@ -359,8 +609,8 @@ class BeaconRoomCase extends UseCaseBase {
     );
   }
 
-  // DORMANT(item-threads): optional threadItemId; item-thread branch never taken in production (always null; General is thread_item_id IS NULL).
-  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  // DORMANT(item-threads): optional threadItemId; the only live item-thread scope is the Request lobby (U088, coordination_item kind 7). Every other item thread stays disabled.
+  // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a lobby. See #192.
   /// Persists a message, optionally using an upload prepared by an outer flow.
   /// That flow must schedule hashing after commit if [deferAttachmentHash] is set.
   Future<Map<String, Object?>> createMessage({
@@ -389,7 +639,10 @@ class BeaconRoomCase extends UseCaseBase {
     }
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
-    _rejectDisabledDiscussionScope(inThread ? tid : null);
+    await _rejectDisabledScope(
+      beaconId: beaconId,
+      threadScopeId: inThread ? tid : null,
+    );
     await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     CoordinationItemRecord? threadItem;
     if (inThread) {
@@ -398,6 +651,7 @@ class BeaconRoomCase extends UseCaseBase {
         beaconId: beaconId,
         userId: userId,
         threadItemId: tid,
+        write: true,
       );
       if (!allowed) {
         throw const UnauthorizedException(
@@ -416,6 +670,20 @@ class BeaconRoomCase extends UseCaseBase {
         beaconId: beaconId,
         userId: userId,
       );
+      // Facts belong to the General room's audience; quoting one into
+      // Questions would show it to people outside that room.
+      if (quotedFactCardId != null) {
+        throw const IdWrongException(
+          description: 'Facts cannot be quoted in this thread',
+        );
+      }
+      // Room images are served from the shared image store, which is not
+      // gated by the Questions policy: no attachments in Questions.
+      if (attachmentBytes != null || uploadedAttachment != null) {
+        throw const IdWrongException(
+          description: 'Attachments are not available in this thread',
+        );
+      }
     } else {
       final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
       if (!allowed) {
@@ -434,6 +702,18 @@ class BeaconRoomCase extends UseCaseBase {
       if (repliedMessage == null ||
           repliedMessage.beaconId != beaconId ||
           repliedMessage.threadItemId != (inThread ? tid : null)) {
+        throw const IdWrongException(
+          description:
+              'Reply must reference a message in the same thread scope',
+        );
+      }
+      // Questions hides authors blocked either way; one cannot reply to a
+      // message one cannot see.
+      final repliedAuthor = repliedMessage.authorId;
+      if (inThread &&
+          repliedAuthor != null &&
+          repliedAuthor != userId &&
+          await _userBlockRepository.isBlockedPair(a: userId, b: repliedAuthor)) {
         throw const IdWrongException(
           description:
               'Reply must reference a message in the same thread scope',
@@ -467,6 +747,8 @@ class BeaconRoomCase extends UseCaseBase {
       explicitMentionUserIds: explicitMentionUserIds,
       explicitMentionOffsets: explicitMentionOffsets,
       explicitMentionLengths: explicitMentionLengths,
+      threadScopeId: inThread ? tid : null,
+      actorUserId: userId,
     );
     final mentionIds = resolvedMentions.ids;
     final mentionRecipientIds = {
@@ -476,13 +758,24 @@ class BeaconRoomCase extends UseCaseBase {
             !suppressMentionNotifyFor.contains(id))
           id,
     };
-    final otherDirectedIds =
-        <String>{
-            if (repliedMessage?.authorId case final author?) author,
-            if (threadItem?.targetPersonId case final target?) target,
-          }
-          ..removeWhere((id) => id.isEmpty || id == userId)
-          ..removeAll(mentionRecipientIds);
+    // Request Questions: the author hears about every question, directed or
+    // not (#543 review), as an ordinary room-message attention item.
+    final questionsAuthorId =
+        inThread && threadItem?.kind == coordinationItemKindLobby
+        ? await _room.beaconAuthorUserId(beaconId)
+        : null;
+    final otherDirectedIds = await _onlyLobbyMembersIn(
+      beaconId: beaconId,
+      threadScopeId: inThread ? tid : null,
+      userIds:
+          <String>{
+              if (repliedMessage?.authorId case final author?) author,
+              if (threadItem?.targetPersonId case final target?) target,
+              ?questionsAuthorId,
+            }
+            ..removeWhere((id) => id.isEmpty || id == userId)
+            ..removeAll(mentionRecipientIds),
+    );
 
     final hasDirected =
         mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
@@ -503,6 +796,17 @@ class BeaconRoomCase extends UseCaseBase {
     Future<Map<String, Object?>> persist(
       AttentionTransaction? transaction,
     ) async {
+      // Questions: re-check the policy right before the insert (a ban or a
+      // withdrawal may have landed since the first check).
+      if (questionsAuthorId != null &&
+          !(await _questionsAccess(
+            beaconId: beaconId,
+            userId: userId,
+          )).canWrite) {
+        throw const UnauthorizedException(
+          description: 'Room or item thread access required',
+        );
+      }
       final row = await _room.insertRoomMessage(
         beaconId: beaconId,
         authorId: userId,
@@ -532,6 +836,7 @@ class BeaconRoomCase extends UseCaseBase {
               recipientUserIds: mentionRecipientIds,
               excerpt: excerpt,
               threadItemId: inThread ? tid : null,
+              questionsScope: questionsAuthorId != null,
               sourceEventKey: 'room_mention:${row.id}',
             ),
           );
@@ -545,6 +850,7 @@ class BeaconRoomCase extends UseCaseBase {
               recipientUserIds: otherDirectedIds,
               excerpt: excerpt,
               threadItemId: inThread ? tid : null,
+              questionsScope: questionsAuthorId != null,
               sourceEventKey: 'room_message:${row.id}',
             ),
           );
@@ -586,7 +892,7 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   // DORMANT(item-threads): itemParticipantsOnly path for non-room item-thread viewers.
-  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
   Future<List<BeaconThreadRecord>> listThreads({
     required String beaconId,
     required String userId,
@@ -610,8 +916,8 @@ class BeaconRoomCase extends UseCaseBase {
     return rows;
   }
 
-  // DORMANT(item-threads): optional threadItemId; item-thread branch never taken in production (always null; General is thread_item_id IS NULL).
-  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  // DORMANT(item-threads): optional threadItemId; the only live item-thread scope is the Request lobby (U088, coordination_item kind 7). Every other item thread stays disabled.
+  // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a lobby. See #192.
   Future<List<Map<String, Object?>>> listMessages({
     required String beaconId,
     required String userId,
@@ -620,7 +926,10 @@ class BeaconRoomCase extends UseCaseBase {
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
-    _rejectDisabledDiscussionScope(inThread ? tid : null);
+    await _rejectDisabledScope(
+      beaconId: beaconId,
+      threadScopeId: inThread ? tid : null,
+    );
     if (inThread) {
       await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
@@ -664,8 +973,11 @@ class BeaconRoomCase extends UseCaseBase {
       );
     }
     final threadItemId = message.threadItemId?.trim();
-    _rejectDisabledDiscussionScope(
-      threadItemId == null || threadItemId.isEmpty ? null : threadItemId,
+    await _rejectDisabledScope(
+      beaconId: beaconId,
+      threadScopeId: threadItemId == null || threadItemId.isEmpty
+          ? null
+          : threadItemId,
     );
     final allowed = threadItemId == null || threadItemId.isEmpty
         ? await _canUseRoom(beaconId: beaconId, userId: userId)
@@ -678,6 +990,15 @@ class BeaconRoomCase extends UseCaseBase {
       throw const UnauthorizedException(
         description: 'Room or item thread access required',
       );
+    }
+    // Questions hides authors blocked either way from the viewer.
+    final targetAuthor = message.authorId;
+    if (threadItemId != null &&
+        threadItemId.isNotEmpty &&
+        targetAuthor != null &&
+        targetAuthor != userId &&
+        await _userBlockRepository.isBlockedPair(a: userId, b: targetAuthor)) {
+      throw IdNotFoundException(id: messageId);
     }
     final target = await _room.roomMessageTarget(
       beaconId: beaconId,
@@ -989,6 +1310,11 @@ class BeaconRoomCase extends UseCaseBase {
         description: 'Message is not on this request',
       );
     }
+    // "Done" writes a room-visible activity event: General messages only
+    // (never a Questions message).
+    if ((msg.threadItemId ?? '').isNotEmpty) {
+      throw const DiscussionScopeDisabledException();
+    }
     final allowed = await _canMutateMessage(
       beaconId: beaconId,
       userId: userId,
@@ -1016,7 +1342,7 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   // DORMANT(item-threads): optional threadItemId; item-thread seen watermark never used in production.
-  // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
+  // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
   Future<Map<String, Object?>> markBeaconRoomSeen({
     required String beaconId,
     required String userId,
@@ -1025,7 +1351,10 @@ class BeaconRoomCase extends UseCaseBase {
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
-    _rejectDisabledDiscussionScope(inThread ? tid : null);
+    await _rejectDisabledScope(
+      beaconId: beaconId,
+      threadScopeId: inThread ? tid : null,
+    );
     if (inThread) {
       await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
@@ -1322,6 +1651,10 @@ class BeaconRoomCase extends UseCaseBase {
         description: 'Only the message author can add attachments',
       );
     }
+    // No attachments in Request Questions (see createMessage).
+    if ((msg.threadItemId ?? '').isNotEmpty) {
+      throw const DiscussionScopeDisabledException();
+    }
     await _guardMessageMutation(beaconId: beaconId, msg: msg);
     final payload = await readUint8StreamWithLimit(
       attachmentBytes,
@@ -1464,6 +1797,8 @@ class BeaconRoomCase extends UseCaseBase {
           ? explicitMentionLengths
           : const [],
       preservedMentionSpans: preserved,
+      threadScopeId: msg.threadItemId,
+      actorUserId: userId,
     );
     final mentionIds = resolvedMentions.ids;
     final newlyMentionedIds = {
@@ -1487,6 +1822,10 @@ class BeaconRoomCase extends UseCaseBase {
             recipientUserIds: newlyMentionedIds,
             excerpt: trimmed,
             threadItemId: msg.threadItemId,
+            questionsScope: await _isLobbyOf(
+              beaconId: beaconId,
+              threadScopeId: msg.threadItemId,
+            ),
             sourceEventKey:
                 'room_mention_edit:$messageId:${DateTime.timestamp().millisecondsSinceEpoch}',
           ),
@@ -1529,11 +1868,15 @@ class BeaconRoomCase extends UseCaseBase {
         description: 'Message missing',
       );
     }
-    _rejectDisabledDiscussionScope(msg.threadItemId);
+    await _rejectDisabledScope(
+      beaconId: msg.beaconId,
+      threadScopeId: msg.threadItemId,
+    );
     final roomOk = await _canMutateMessage(
       beaconId: msg.beaconId,
       userId: userId,
       msg: msg,
+      write: false,
     );
     if (!roomOk) {
       throw const UnauthorizedException(description: 'Room access required');

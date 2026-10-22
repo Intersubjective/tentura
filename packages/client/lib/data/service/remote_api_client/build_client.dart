@@ -19,6 +19,7 @@ import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura/data/service/network_reachability.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
+import 'package:tentura/features/beacon_lobby/data/model/beacon_lobby_error_mapper.dart';
 import 'package:tentura/features/beacon_plan/data/model/beacon_plan_error_mapper.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura_root/consts.dart';
@@ -104,6 +105,7 @@ Future<Client> buildClient({
               throwIfClosureError(code);
               throwIfBatonError(code);
               throwIfBeaconPlanError(code, ext);
+              throwIfBeaconLobbyError(code);
             }
             throw mapRemoteFailure(errs);
           }

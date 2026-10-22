@@ -351,6 +351,7 @@ class AttentionIntentCase {
     required String excerpt,
     required String sourceEventKey,
     String? threadItemId,
+    bool questionsScope = false,
   }) => _directedRoomMessage(
     beaconId: beaconId,
     messageId: messageId,
@@ -359,9 +360,12 @@ class AttentionIntentCase {
     excerpt: excerpt,
     sourceEventKey: sourceEventKey,
     threadItemId: threadItemId,
+    questionsScope: questionsScope,
     kind: NotificationKind.roomActivityLowPriority,
     emptyTitle: 'New thread message',
-    emptyBody: 'New thread message',
+    emptyBody: questionsScope
+        ? 'New message in Questions'
+        : 'New thread message',
   );
 
   /// The first response of [actorUserId] in a Post room, told to the Post
@@ -719,6 +723,7 @@ class AttentionIntentCase {
     required String excerpt,
     required String sourceEventKey,
     String? threadItemId,
+    bool questionsScope = false,
   }) => _directedRoomMessage(
     beaconId: beaconId,
     messageId: messageId,
@@ -727,13 +732,14 @@ class AttentionIntentCase {
     excerpt: excerpt,
     sourceEventKey: sourceEventKey,
     threadItemId: threadItemId,
+    questionsScope: questionsScope,
     kind: NotificationKind.roomMention,
     emptyTitle: 'New mention',
-    emptyBody: 'mentioned you',
+    emptyBody: questionsScope ? 'mentioned you in Questions' : 'mentioned you',
     bodyPrefixedWithActor: true,
   );
 
-  // DORMANT(item-threads): threadItemId scopes attention deep links; always null in production (General is thread_item_id IS NULL).
+  // DORMANT(item-threads): threadItemId scopes attention deep links; the only live thread scope is Request Questions (kind 7, [questionsScope]), which deep-links to its own screen.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<AttentionDispatchIntent> _directedRoomMessage({
     required String beaconId,
@@ -746,6 +752,7 @@ class AttentionIntentCase {
     required String emptyTitle,
     required String emptyBody,
     String? threadItemId,
+    bool questionsScope = false,
     bool titleIsActorName = true,
     bool bodyPrefixedWithActor = false,
     AttentionEventType eventType = AttentionEventType.roomMessagePosted,
@@ -795,7 +802,10 @@ class AttentionIntentCase {
           ? threadItemId
           : 'general',
     );
-    final safeExcerpt = notificationExcerpt(excerpt);
+    // Request Questions: notifications never store or push the message
+    // text (receipts outlive a later ban or block); the screen shows it
+    // through the policy-gated API.
+    final safeExcerpt = questionsScope ? '' : notificationExcerpt(excerpt);
     final title = titleIsActorName && actorName.isNotEmpty
         ? actorName
         : emptyTitle;
@@ -812,9 +822,12 @@ class AttentionIntentCase {
       kind: kind,
       title: title,
       body: body,
-      actionUrl:
-          '/#$kPathBeaconView/$encodedBeacon?tab=threads&thread=$encodedThread'
-          '&entry=deep_link&is_deep_link=true&message=$encodedMessage',
+      // A Request Questions message opens the Questions screen, not
+      // General.
+      actionUrl: questionsScope
+          ? '/#$kPathBeaconQuestions/$encodedBeacon'
+          : '/#$kPathBeaconView/$encodedBeacon?tab=threads&thread=$encodedThread'
+                '&entry=deep_link&is_deep_link=true&message=$encodedMessage',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,

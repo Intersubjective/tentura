@@ -413,6 +413,13 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
+    // Request lobby (U088): questions before helping.
+    AutoRoute(
+      usesPathAsKey: true,
+      page: BeaconLobbyRoute.page,
+      path: '$kPathBeaconLobby/:id',
+    ),
+
     // Forward Beacon
     AutoRoute(
       usesPathAsKey: true,
