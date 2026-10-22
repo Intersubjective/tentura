@@ -1,7 +1,9 @@
 import 'dart:async' show unawaited;
 
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
 final class InviteNoLongerValidMessage extends LocalizableMessage {
@@ -22,6 +24,46 @@ final class InviteOwnInviteMessage extends LocalizableMessage {
 
   @override
   String get toRu => 'Это ваша собственная ссылка-приглашение.';
+}
+
+/// Opening your own invite link while signed in (#272): say plainly that it
+/// is yours, how to use it, and how to try it out; offer to copy it.
+final class InviteOwnInviteLinkMessage extends LocalizableActionMessage {
+  const InviteOwnInviteLinkMessage({required this.code});
+
+  /// Normalized invite code, e.g. `I0123abcd`.
+  final String code;
+
+  @override
+  String get toEn =>
+      'This is your own invite link. Send it to the person you want to '
+      'invite. To try it yourself, open it in a private browser window.';
+
+  @override
+  String get toRu =>
+      'Это ваша собственная ссылка-приглашение. Отправьте её тому, кого '
+      'хотите пригласить. Чтобы проверить её самим, откройте её в приватном '
+      'окне браузера.';
+
+  @override
+  LocalizableMessage get label => const _CopyInviteLinkActionLabel();
+
+  @override
+  void Function() get onPressed => () {
+    unawaited(
+      Clipboard.setData(ClipboardData(text: inviteShareUri(code).toString())),
+    );
+  };
+}
+
+final class _CopyInviteLinkActionLabel extends LocalizableMessage {
+  const _CopyInviteLinkActionLabel();
+
+  @override
+  String get toEn => 'Copy link';
+
+  @override
+  String get toRu => 'Копировать ссылку';
 }
 
 final class InviteAlreadyFriendsMessage extends LocalizableMessage {

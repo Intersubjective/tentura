@@ -71,6 +71,29 @@ void main() {
       );
     });
 
+    // #272: opening your own invite link while signed in says plainly that
+    // it is yours, how to use it, and offers to copy the link.
+    test('own invite link explains itself and offers Copy link', () async {
+      repo.previewResult = const InvitePreview(
+        codeStatus: InviteCodeStatus.available,
+        callerStatus: InviteCallerStatus.isInviter,
+      );
+      await cubit.start('Iabc123');
+      expect(repo.acceptCalls, 0);
+      final message = effects.emitted
+          .whereType<ShowMessage>()
+          .map((e) => e.message)
+          .whereType<InviteOwnInviteLinkMessage>()
+          .single;
+      expect(message.code, 'Iabc123');
+      expect(message.toEn, contains('your own invite link'));
+      expect(message.toEn, contains('private browser window'));
+      expect(message.toRu, contains('приватном окне'));
+      expect(message.label.toEn, 'Copy link');
+      expect(message.label.toRu, 'Копировать ссылку');
+      expect(effects.emitted.whereType<NavigateReplace>(), isNotEmpty);
+    });
+
     test('existing-user awaits confirmation', () async {
       repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,

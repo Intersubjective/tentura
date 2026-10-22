@@ -148,7 +148,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     }
     switch (preview.callerStatus) {
       case InviteCallerStatus.isInviter:
-        _finishWithMessage(const InviteOwnInviteMessage());
+        _finishWithMessage(InviteOwnInviteLinkMessage(code: code));
       case InviteCallerStatus.alreadyFriends:
         _finishWithMessage(const InviteAlreadyFriendsMessage());
       case InviteCallerStatus.anonymous:
