@@ -535,7 +535,7 @@ class GraphCubit extends Cubit<GraphState> {
     }
   }
 
-  /// Swaps every loaded live-user node for [updated.id] to [updated], keeping
+  /// Swaps every loaded live-user node of that person to [updated], keeping
   /// its size, pin and highlight. No edge changes.
   void _replaceUserNodePayload(Profile updated) {
     for (final entry in _nodes.entries) {
