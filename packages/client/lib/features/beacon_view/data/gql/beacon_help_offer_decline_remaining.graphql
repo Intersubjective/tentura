@@ -1,0 +1,3 @@
+mutation DeclineRemainingHelpOffers($beaconId: String!, $reason: String!) {
+  declineRemainingHelpOffers(id: $beaconId, reason: $reason)
+}

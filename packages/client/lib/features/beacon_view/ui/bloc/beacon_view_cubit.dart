@@ -891,7 +891,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
-  Future<void> setBeaconStatus(
+  /// Sets the lifecycle status; returns whether the server took it.
+  Future<bool> setBeaconStatus(
     BeaconStatus status,
   ) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -901,8 +902,32 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         status: status.smallintValue,
       );
       await _fetchBeaconByIdWithTimeline();
+      return true;
     } catch (e) {
       _showSnackError(e);
+      return false;
+    }
+  }
+
+  /// «Decline remaining offers» (#268): one server call that declines every
+  /// offer still waiting, with one [reason] each declined person sees
+  /// privately. Returns how many were declined, or null on failure (the error
+  /// is shown).
+  Future<int?> declineRemainingOffers({required String reason}) async {
+    try {
+      final declined = await _case.declineRemainingHelpOffers(
+        beaconId: state.beacon.id,
+        reason: reason.trim(),
+      );
+      await _fetchBeaconByIdWithTimeline();
+      if (!isClosed) {
+        _effects.emit(ShowMessage(RemainingOffersDeclinedMessage(declined)));
+      }
+      return declined;
+    } catch (e) {
+      await _fetchBeaconByIdWithTimeline();
+      if (!isClosed) _showSnackError(e);
+      return null;
     }
   }
 

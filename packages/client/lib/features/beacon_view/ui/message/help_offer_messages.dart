@@ -30,6 +30,25 @@ final class MovedToInboxMessage extends LocalizableMessage {
       'Предложение отозвано. Обновления по нему останутся во вкладке «Слежу».';
 }
 
+/// After «Decline remaining offers» (#268).
+final class RemainingOffersDeclinedMessage extends LocalizableMessage {
+  const RemainingOffersDeclinedMessage(this.count);
+
+  final int count;
+
+  @override
+  String get toEn => count == 0
+      ? 'No offers were waiting.'
+      : count == 1
+      ? '1 offer declined.'
+      : '$count offers declined.';
+
+  @override
+  String get toRu => count == 0
+      ? 'Ожидающих предложений не было.'
+      : 'Отклонено предложений: $count.';
+}
+
 final class _ForwardActionLabel extends LocalizableMessage {
   const _ForwardActionLabel();
 

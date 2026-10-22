@@ -330,6 +330,7 @@ class _V2RoutingLink extends Link {
     'SetCoordinationResponse',
     'AcceptHelpOffer',
     'DeclineHelpOffer',
+    'DeclineRemainingHelpOffers',
     'RemoveFromRoom',
     'BeaconReleaseCommitment',
     'SetBeaconStatus',

@@ -258,6 +258,20 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
+  /// «Decline remaining offers» (#268): returns how many were declined.
+  Future<int> declineRemainingHelpOffers({
+    required String beaconId,
+    required String reason,
+  }) async {
+    final declined = await _coordinationRepository.declineRemainingHelpOffers(
+      beaconId: beaconId,
+      reason: reason,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return declined;
+  }
+
   Future<({BeaconStatus status, DateTime? updatedAt})> removeFromRoom({
     required String beaconId,
     required String offerUserId,

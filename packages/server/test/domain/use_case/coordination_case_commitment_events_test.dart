@@ -388,6 +388,92 @@ void main() {
     });
   });
 
+  group('declineRemainingHelpOffers', () {
+    test('reads status and offers only after taking the hierarchy '
+        'lock', () async {
+      var lockedWhenStatusRead = -1;
+      var lockedWhenOffersRead = -1;
+      when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer((_) async {
+        lockedWhenStatusRead = hierarchy.lockMutationScopeCalls;
+        return beacon(status: BeaconStatus.enoughHelp);
+      });
+      when(helpOfferRepo.fetchByBeaconId(beaconId)).thenAnswer((_) async {
+        lockedWhenOffersRead = hierarchy.lockMutationScopeCalls;
+        return [activeOffer()];
+      });
+      when(
+        roomRepo.findParticipant(beaconId: beaconId, userId: helperId),
+      ).thenAnswer(
+        (_) async => testBeaconParticipant(
+          beaconId: beaconId,
+          userId: helperId,
+          roomAccess: RoomAccessBits.requested,
+        ),
+      );
+      when(
+        coordinationRepo.declineHelpOffer(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: authorId,
+          reason: 'enough',
+        ),
+      ).thenAnswer(
+        (_) async => (status: BeaconStatus.enoughHelp, statusChangedAt: now),
+      );
+
+      final declined = await case_.declineRemainingHelpOffers(
+        beaconId: beaconId,
+        actorUserId: authorId,
+        reason: ' enough ',
+      );
+
+      expect(declined, 1);
+      expect(hierarchy.lockMutationScopeCalls, 1);
+      expect(lockedWhenStatusRead, 1, reason: 'status re-read under lock');
+      expect(lockedWhenOffersRead, 1, reason: 'offers re-read under lock');
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
+    });
+
+    test('skips a pair acknowledged meanwhile', () async {
+      commitmentRepo = RecordingCommitmentRepository(
+        eventsByPair: {
+          commitmentPairKey(beaconId, helperId): [
+            event(seq: 1, kind: CommitmentEventKind.offered),
+            event(seq: 2, kind: CommitmentEventKind.acknowledged),
+          ],
+        },
+      );
+      buildCase();
+      stubAdmissionPrereqs();
+      when(
+        beaconRepo.getBeaconById(beaconId: beaconId),
+      ).thenAnswer((_) async => beacon(status: BeaconStatus.enoughHelp));
+
+      final declined = await case_.declineRemainingHelpOffers(
+        beaconId: beaconId,
+        actorUserId: authorId,
+        reason: 'enough',
+      );
+
+      expect(declined, 0);
+      verifyNever(
+        coordinationRepo.declineHelpOffer(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          actorUserId: anyNamed('actorUserId'),
+          reason: anyNamed('reason'),
+        ),
+      );
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, isEmpty);
+    });
+  });
+
   group('removeFromRoom', () {
     test('records removedFromChat with trimmed reason', () async {
       stubAdmissionPrereqs();

@@ -539,7 +539,6 @@ final class CoordinationCase extends UseCaseBase {
           offerUserId: offerUserId,
           actorUserId: actorUserId,
         );
-        final beacon = prepared.beacon;
         // Re-read after locking: an invite accept may have acknowledged the
         // helper while this waited for the locks.
         final hadAcknowledged = await _commitmentQueryCase.everAcknowledgedPair(
@@ -552,38 +551,145 @@ final class CoordinationCase extends UseCaseBase {
                 .commitmentAlreadyAcknowledged,
           );
         }
-        // Snapshot the affected helper while the pre-decline audience is intact.
-        final intent = await _attentionIntents!.offerDeclined(
-          receiverId: offerUserId,
-          beaconId: beaconId,
-          actorUserId: actorUserId,
-          reason: trimmedReason,
-          sourceEventKey: 'admission:${generateId('A')}',
-        );
-        final snap = await _coordinationRepository.declineHelpOffer(
-          beaconId: beaconId,
+        final snap = await _declineLocked(
+          beacon: prepared.beacon,
           offerUserId: offerUserId,
           actorUserId: actorUserId,
           reason: trimmedReason,
-        );
-        await _helpOfferRepository.deactivate(
-          beaconId: beaconId,
-          userId: offerUserId,
-        );
-        await _beaconRoomRepository.revokeOfferUserBeaconRoomAccess(
-          beaconId: beaconId,
-          offerUserId: offerUserId,
-          authorUserId: actorUserId,
-        );
-        await transaction.record(intent);
-        await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
-          beaconId: beaconId,
-          authorAccountId: beacon.author.id,
-          helpOffererUserId: offerUserId,
+          transaction: transaction,
         );
         return _statusResult(beaconId, snap);
       },
     );
+  }
+
+  /// «Decline remaining offers» (#268, D10): after «Enough help», declines
+  /// every offer still waiting for an answer, in one transaction, with one
+  /// [reason] that each declined person sees privately (as with a single
+  /// decline; it is never posted to the room).
+  ///
+  /// Declines only pending ordinary offers. Left alone: admitted helpers (any
+  /// pair ever acknowledged), anyone admitted to the room in another role
+  /// (a steward and the like), backup offers (made after «Enough help», so
+  /// standing by is their point; new ones stay allowed), blocked pairs and
+  /// the author. Watchers and recipients hold no offer, so they are never
+  /// touched. Eligibility is re-read under the same locks as admission and
+  /// closure (hierarchy, then the Request), so an offer accepted meanwhile is
+  /// skipped and a status changed meanwhile fails the whole call. Returns how
+  /// many offers were declined.
+  Future<int> declineRemainingHelpOffers({
+    required String beaconId,
+    required String actorUserId,
+    required String reason,
+  }) async {
+    final trimmedReason = _validateReason(reason);
+    return _attention!.runAction(
+      actorUserId: actorUserId,
+      action: (transaction) async {
+        // Lock order (Arch §0): as [declineHelpOffer].
+        await _hierarchyRepository.lockMutationScope();
+        await _closureCase?.lockRequest(beaconId);
+        final beacon = await _ensureAuthorOrSteward(
+          beaconId: beaconId,
+          userId: actorUserId,
+        );
+        if (beacon.status != BeaconStatus.enoughHelp) {
+          throw HelpOfferCoordinationException(
+            coordinationCode:
+                HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+          );
+        }
+        final pending = await _pendingOfferUserIds(beacon);
+        for (final offerUserId in pending) {
+          await _declineLocked(
+            beacon: beacon,
+            offerUserId: offerUserId,
+            actorUserId: actorUserId,
+            reason: trimmedReason,
+            transaction: transaction,
+          );
+        }
+        return pending.length;
+      },
+    );
+  }
+
+  /// Offers on [beacon] still waiting for an answer; call under the Request
+  /// locks. See [declineRemainingHelpOffers] for who is left out.
+  Future<List<String>> _pendingOfferUserIds(BeaconEntity beacon) async {
+    final authorId = beacon.author.id;
+    final out = <String>[];
+    for (final offer in await _helpOfferRepository.fetchByBeaconId(
+      beacon.id,
+    )) {
+      final userId = offer.userId;
+      if (!offer.isActive || offer.offerKind != 0 || userId == authorId) {
+        continue;
+      }
+      if (await _userBlockRepository.isBlockedPair(a: authorId, b: userId)) {
+        continue;
+      }
+      if (await _commitmentQueryCase.everAcknowledgedPair(
+        beaconId: beacon.id,
+        userId: userId,
+      )) {
+        continue;
+      }
+      final participant = await _beaconRoomRepository.findParticipant(
+        beaconId: beacon.id,
+        userId: userId,
+      );
+      // An addressee keeps access through a decline; anyone else admitted
+      // (a steward, say) would lose it, so their offer is left alone.
+      if (participant != null &&
+          participant.roomAccess == RoomAccessBits.admitted &&
+          participant.role != BeaconParticipantRoleBits.addressee) {
+        continue;
+      }
+      out.add(userId);
+    }
+    return out;
+  }
+
+  /// One decline, with the Request locks held and eligibility checked.
+  Future<({BeaconStatus status, DateTime? statusChangedAt})> _declineLocked({
+    required BeaconEntity beacon,
+    required String offerUserId,
+    required String actorUserId,
+    required String reason,
+    required AttentionTransaction transaction,
+  }) async {
+    final beaconId = beacon.id;
+    // Snapshot the affected helper while the pre-decline audience is intact.
+    final intent = await _attentionIntents!.offerDeclined(
+      receiverId: offerUserId,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+      reason: reason,
+      sourceEventKey: 'admission:${generateId('A')}',
+    );
+    final snap = await _coordinationRepository.declineHelpOffer(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      actorUserId: actorUserId,
+      reason: reason,
+    );
+    await _helpOfferRepository.deactivate(
+      beaconId: beaconId,
+      userId: offerUserId,
+    );
+    await _beaconRoomRepository.revokeOfferUserBeaconRoomAccess(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      authorUserId: actorUserId,
+    );
+    await transaction.record(intent);
+    await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
+      beaconId: beaconId,
+      authorAccountId: beacon.author.id,
+      helpOffererUserId: offerUserId,
+    );
+    return snap;
   }
 
   Future<BeaconStatusResult> removeFromRoom({

@@ -397,6 +397,38 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// True for the beacon author or a promoted Steward.
   bool get isAuthorOrSteward => isBeaconMine || isSteward;
 
+  /// Offers «Decline remaining offers» (#268) would decline, as far as this
+  /// client can tell: live ordinary offers from people not admitted (an
+  /// addressee may be). Backup offers and accepted helpers are left alone.
+  /// The server re-checks under its locks and is the authority.
+  List<TimelineHelpOffer> get remainingPendingOffers {
+    final authorId = beacon.author.id;
+    final admittedHelperIds = {for (final p in admittedHelperRoster) p.id};
+    final participantById = {for (final p in roomParticipants) p.userId: p};
+    return [
+      for (final c in helpOffers)
+        if (!c.isWithdrawn &&
+            c.offerKind == 0 &&
+            c.user.id != authorId &&
+            c.stakeState != CommitmentStakeState.acknowledged &&
+            !admittedHelperIds.contains(c.user.id) &&
+            !_admittedOtherThanAddressee(participantById[c.user.id]))
+          c,
+    ];
+  }
+
+  static bool _admittedOtherThanAddressee(BeaconParticipant? p) =>
+      p != null &&
+      p.roomAccess == RoomAccessBits.admitted &&
+      p.role != BeaconParticipantRoleBits.addressee;
+
+  /// «Decline remaining offers» is offered: the author (or a steward) after
+  /// «Enough help», with offers still waiting.
+  bool get canDeclineRemainingOffers =>
+      isAuthorOrSteward &&
+      beacon.status == BeaconStatus.enoughHelp &&
+      remainingPendingOffers.isNotEmpty;
+
   /// May create/edit coordination items and the room current line (author,
   /// steward, or admitted room member; mirrors server coordination access).
   bool get canCoordinateInBeaconRoom {

@@ -19,6 +19,7 @@ import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/ui/screen/closure_review_page.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/decline_remaining_offers_flow.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overflow.dart';
@@ -210,7 +211,10 @@ Future<void> beaconViewHandleAuthorHudAction({
           BeaconHudAuthorAction.markEnoughHelp) {
         return;
       }
-      await cubit.setBeaconStatus(BeaconStatus.enoughHelp);
+      if (await cubit.setBeaconStatus(BeaconStatus.enoughHelp) &&
+          context.mounted) {
+        await beaconViewOfferDeclineRemainingOffers(context, cubit);
+      }
     case BeaconHudAuthorAction.wrapUpForReview:
       await beaconViewRunAuthorCloseSheet(
         context: context,
