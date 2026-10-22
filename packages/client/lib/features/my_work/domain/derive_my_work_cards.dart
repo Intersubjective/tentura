@@ -237,9 +237,27 @@ List<MyWorkCardViewModel> upsertAuthoredMyWorkCard(
   List<MyWorkCardViewModel> cards,
   Beacon beacon,
 ) {
-  final card = _deriveAuthored(beacon: beacon);
+  final existing = cards.where((c) => c.beaconId == beacon.id).firstOrNull;
+  // #487 — a Request edit does not move it in the hierarchy: keep the parent
+  // link the list already read instead of dropping it until the next load.
+  final card = _withParentLinkFrom(_deriveAuthored(beacon: beacon), existing);
   final without = cards.where((c) => c.beaconId != beacon.id).toList();
   return [...without, card]..sort(compareMyWorkCards);
+}
+
+MyWorkCardViewModel _withParentLinkFrom(
+  MyWorkCardViewModel card,
+  MyWorkCardViewModel? source,
+) {
+  if (source == null ||
+      source.parentBeaconId.isEmpty ||
+      card.parentBeaconId.isNotEmpty) {
+    return card;
+  }
+  return card.copyWith(
+    parentBeaconId: source.parentBeaconId,
+    parentTitle: source.parentTitle,
+  );
 }
 
 /// Merges [serverCards] with local cards for [preferIds].
@@ -264,7 +282,9 @@ List<MyWorkCardViewModel> mergeMyWorkDeskCards({
             when server.beacon.updatedAt.isAfter(local.beacon.updatedAt))
           ...const <MyWorkCardViewModel>[]
         else
-          local,
+          // #487 — the local copy is the fresher Request, but only the
+          // server read knows its parent link (a just-created child).
+          _withParentLinkFrom(local, serverById[id]),
   ];
   if (preferred.isEmpty) {
     return serverCards;
