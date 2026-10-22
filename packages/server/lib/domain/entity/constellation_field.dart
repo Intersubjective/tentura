@@ -120,11 +120,13 @@ class ConstellationPeerRecord {
   /// viewer was admitted to it, or pinned it).
   final bool contactOnly;
 
+  /// This record marked inside or outside the viewer's visible set; outside
+  /// it, the record is identity only (no handle).
   ConstellationPeerRecord withVisible({required bool visible}) =>
       ConstellationPeerRecord(
         id: id,
         displayName: displayName,
-        handle: handle,
+        handle: visible ? handle : null,
         image: image,
         pinState: pinState,
         visible: visible,

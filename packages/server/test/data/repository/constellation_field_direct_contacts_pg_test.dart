@@ -194,7 +194,14 @@ ON CONFLICT (id) DO NOTHING
 
       final snapshot = await read();
 
-      expect(snapshot.anchorProjection.pinnedPeers.single.visible, isFalse);
+      final pinned = snapshot.anchorProjection.pinnedPeers.single;
+      expect(pinned.visible, isFalse);
+      expect(pinned.contactOnly, isTrue);
+      expect(pinned.handle, isNull, reason: 'identity only in every copy');
+      final anchorsOnly = await read(
+        projection: ConstellationProjection.anchors,
+      );
+      expect(anchorsOnly.anchorProjection.pinnedPeers.single.handle, isNull);
       expect(
         snapshot.peers.singleWhere((p) => p.id == oneWay).contactOnly,
         isTrue,

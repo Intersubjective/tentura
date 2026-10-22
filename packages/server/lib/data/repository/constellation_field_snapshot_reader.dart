@@ -196,9 +196,33 @@ final class ConstellationFieldSnapshotReader {
         for (final id in directContactIds)
           if (peerIds.contains(id)) id,
       ],
-      anchorProjection: anchorProjection,
+      anchorProjection: contactOnlyIds.isEmpty
+          ? anchorProjection
+          : _withPinnedContactNodes(anchorProjection, contactOnlyIds),
     );
   }
+
+  /// A pinned contact node is the same identity-only record as in the
+  /// snapshot's peers.
+  static ConstellationAnchorProjection _withPinnedContactNodes(
+    ConstellationAnchorProjection projection,
+    Set<String> contactOnlyIds,
+  ) => ConstellationAnchorProjection(
+    revision: projection.revision,
+    anchors: projection.anchors,
+    pinnedPeers: [
+      for (final peer in projection.pinnedPeers)
+        if (contactOnlyIds.contains(peer.id) && peer.pinState == null)
+          peer.asContactOnly()
+        else
+          peer,
+    ],
+    pinnedRequests: projection.pinnedRequests,
+    supportPeers: projection.supportPeers,
+    supportEdges: projection.supportEdges,
+    serverFilteredBeaconIds: projection.serverFilteredBeaconIds,
+    serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+  );
 
   static int _compareEdges(
     ConstellationEdgeRecord a,
