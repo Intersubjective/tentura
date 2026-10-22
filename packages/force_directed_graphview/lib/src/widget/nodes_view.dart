@@ -133,6 +133,7 @@ class _NodesLayersState extends State<_NodesLayers> {
               controller: controller,
               relayout: _restingPositions,
               orderedNodeIds: resting,
+              sizes: _sizesOf(controller, resting),
             ),
             children: [for (final id in resting) wrap(id, isolate: false)],
           ),
@@ -142,6 +143,7 @@ class _NodesLayersState extends State<_NodesLayers> {
             controller: controller,
             relayout: controller,
             orderedNodeIds: dragged,
+            sizes: _sizesOf(controller, dragged),
           ),
           children: [for (final id in dragged) wrap(id, isolate: true)],
         ),
@@ -198,8 +200,8 @@ class _RenderRepaintOnTick extends RenderProxyBox {
   }
 }
 
-/// Notifies only when the position of one of its nodes changed, so a layer of
-/// resting nodes is not laid out again by unrelated scene changes.
+/// Notifies only when the position or size of one of its nodes changed, so a
+/// layer of resting nodes is not laid out again by unrelated scene changes.
 class _RestingPositions extends ChangeNotifier {
   GraphController<dynamic, dynamic>? controller;
   List<GraphNodeId> _nodeIds = const [];
@@ -222,7 +224,8 @@ class _RestingPositions extends ChangeNotifier {
       final point = snapshot.resolvePosition(id);
       result
         ..add(point?.x ?? double.nan)
-        ..add(point?.y ?? double.nan);
+        ..add(point?.y ?? double.nan)
+        ..add(snapshot.topology.nodesById[id]?.size.width ?? double.nan);
     }
     return result;
   }
@@ -247,12 +250,16 @@ class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
     required this.controller,
     required Listenable relayout,
     required this.orderedNodeIds,
+    required this.sizes,
   }) : super(relayout: relayout);
 
   /// Positions are read at layout time, so a position-only scene change
   /// relays out without rebuilding this widget.
   final GraphController<dynamic, dynamic> controller;
   final List<GraphNodeId> orderedNodeIds;
+
+  /// Node widths when this delegate was built, so a resized node relays out.
+  final List<double> sizes;
 
   @override
   void performLayout(Size size) {
@@ -275,5 +282,14 @@ class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
   @override
   bool shouldRelayout(covariant _NodesLayoutDelegate oldDelegate) =>
       controller != oldDelegate.controller ||
-      !listEquals(orderedNodeIds, oldDelegate.orderedNodeIds);
+      !listEquals(orderedNodeIds, oldDelegate.orderedNodeIds) ||
+      !listEquals(sizes, oldDelegate.sizes);
+}
+
+List<double> _sizesOf(
+  GraphController<dynamic, dynamic> controller,
+  List<GraphNodeId> ids,
+) {
+  final nodesById = controller.renderSnapshot.topology.nodesById;
+  return [for (final id in ids) nodesById[id]?.size.width ?? double.nan];
 }
