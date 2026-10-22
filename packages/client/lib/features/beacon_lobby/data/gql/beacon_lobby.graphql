@@ -1,16 +1,31 @@
-# U088 — the Request lobby (server: BeaconLobby, item-thread scope kind 7).
+# Request Questions (internally the lobby; server: BeaconLobby, item-thread
+# scope kind 7, access policy `questions_access_levels`).
 query BeaconLobby($beaconId: String!) {
   BeaconLobby(beaconId: $beaconId) {
     beaconId
     lobbyId
     isAuthor
     canPost
-    bannedUserIds
+    banned {
+      userId
+      title
+    }
   }
 }
 
-query BeaconLobbyMessages($beaconId: String!, $lobbyId: String!) {
-  RoomMessageList(beaconId: $beaconId, threadItemId: $lobbyId) {
+# The viewer's own standing, for the entry row (never creates the scope).
+query BeaconLobbyAccess($beaconId: String!) {
+  BeaconLobbyAccess(beaconId: $beaconId) {
+    beaconId
+    canRead
+    canPost
+    messageCount
+  }
+}
+
+# Newest page first (server limit 50); `beforeIso` pages back.
+query BeaconLobbyMessages($beaconId: String!, $lobbyId: String!, $beforeIso: String) {
+  RoomMessageList(beaconId: $beaconId, threadItemId: $lobbyId, beforeIso: $beforeIso) {
     id
     authorId
     authorTitle
@@ -22,6 +37,12 @@ query BeaconLobbyMessages($beaconId: String!, $lobbyId: String!) {
 mutation BeaconLobbyPost($beaconId: String!, $lobbyId: String!, $body: String!) {
   RoomMessageCreate(beaconId: $beaconId, body: $body, threadItemId: $lobbyId) {
     id
+  }
+}
+
+mutation BeaconLobbyMarkSeen($beaconId: String!, $lobbyId: String!) {
+  MarkThreadSeen(beaconId: $beaconId, threadId: $lobbyId) {
+    beaconId
   }
 }
 

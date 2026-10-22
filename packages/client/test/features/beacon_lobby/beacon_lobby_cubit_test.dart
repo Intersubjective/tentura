@@ -7,7 +7,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 
 import 'fake_lobby_port.dart';
 
-/// U088 — the Request lobby, client state.
+/// Request Questions (internally the lobby, U088), client state.
 void main() {
   late FakeRealtimeSyncPort sync;
   late RecordingEffects effects;
@@ -96,13 +96,13 @@ void main() {
     final c = cubitFor(port);
     await c.load();
     await c.ban('Unina');
-    expect(c.state.bannedUserIds, ['Unina']);
+    expect([for (final b in c.state.banned) b.userId], ['Unina']);
     await c.unban('Unina');
-    expect(c.state.bannedUserIds, isEmpty);
+    expect([for (final b in c.state.banned) b.userId], isEmpty);
     port.failNext = true;
     await c.ban('Unina');
     expect(effects.emitted.single, isA<ShowError>());
-    expect(c.state.bannedUserIds, isEmpty);
+    expect([for (final b in c.state.banned) b.userId], isEmpty);
     await c.close();
   });
 
@@ -121,7 +121,7 @@ void main() {
       final c = cubitFor(port);
       await c.load();
       await c.ban('Unina');
-      expect(c.state.bannedUserIds, ['Unina']);
+      expect([for (final b in c.state.banned) b.userId], ['Unina']);
       expect(
         [for (final m in c.state.messages) m.body],
         ['I can bring a ladder'],
@@ -130,27 +130,78 @@ void main() {
     },
   );
 
-  test('a realtime hint for this Request refetches the lobby once', () async {
+  test('a message hint refetches the newest page only (no access '
+      're-check); an offer hint re-opens', () async {
     final port = FakeLobbyPort(viewerId: 'Uauthor');
     final c = cubitFor(port);
     await c.load();
-    final opens = port.calls.where((x) => x == 'open').length;
+    int count(String call) => port.calls.where((x) => x == call).length;
+    final opens = count('open');
+    final pages = count('messages');
     port.messagesList.add(
-      const BeaconLobbyMessage(
+      BeaconLobbyMessage(
         id: 'M9',
         authorId: 'Unina',
         authorName: 'Nina',
         body: 'Is there a lift?',
+        createdAt: DateTime.utc(2026, 2),
       ),
     );
     sync.hint(RealtimeEntityKind.roomMessage, 'Bother');
     await settle();
-    expect(port.calls.where((x) => x == 'open'), hasLength(opens));
+    expect(count('messages'), pages);
     sync.hint(RealtimeEntityKind.roomMessage, 'B1');
     await settle();
     await settle();
-    expect(port.calls.where((x) => x == 'open'), hasLength(opens + 1));
+    expect(count('open'), opens);
+    expect(count('messages'), pages + 1);
     expect([for (final m in c.state.messages) m.body], ['Is there a lift?']);
+    sync.hint(RealtimeEntityKind.helpOffer, 'B1');
+    await settle();
+    await settle();
+    expect(count('open'), opens + 1);
+    await c.close();
+  });
+
+  test('pages back with beforeIso until the oldest message', () async {
+    final port = FakeLobbyPort(viewerId: 'Unina');
+    for (var i = 0; i < 120; i++) {
+      port.messagesList.add(
+        BeaconLobbyMessage(
+          id: 'M$i',
+          authorId: 'Uauthor',
+          authorName: 'Anna',
+          body: 'm$i',
+          createdAt: DateTime.utc(2026).add(Duration(minutes: i)),
+        ),
+      );
+    }
+    final c = cubitFor(port);
+    await c.load();
+    expect(c.state.messages, hasLength(50));
+    expect(c.state.messages.first.body, 'm70');
+    expect(c.state.hasOlder, isTrue);
+    await c.loadOlder();
+    expect(c.state.messages, hasLength(100));
+    expect(c.state.hasOlder, isTrue);
+    await c.loadOlder();
+    expect(c.state.messages, hasLength(120));
+    expect(c.state.messages.first.body, 'm0');
+    expect(c.state.hasOlder, isFalse);
+    // A later message hint keeps the older pages loaded.
+    sync.hint(RealtimeEntityKind.roomMessage, 'B1');
+    await settle();
+    await settle();
+    expect(c.state.messages, hasLength(120));
+    await c.close();
+  });
+
+  test('opening marks Questions seen', () async {
+    final port = FakeLobbyPort(viewerId: 'Unina');
+    final c = cubitFor(port);
+    await c.load();
+    await settle();
+    expect(port.calls, contains('seen'));
     await c.close();
   });
 

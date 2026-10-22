@@ -4735,6 +4735,7 @@ input polling_variant_stream_cursor_value_input {
 
 type query_root {
   BeaconLobby(beaconId: String!): v2_BeaconLobby!
+  BeaconLobbyAccess(beaconId: String!): v2_BeaconLobbyAccess!
   BeaconActivityEventList(beaconId: String!): [v2_BeaconActivityEventRow!]
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
   BeaconFactCardRevisions(before: String, beaconId: String!, factCardId: String!): v2_BeaconFactCardRevisionsPage!
@@ -8465,11 +8466,24 @@ type v2_image {
 }
 
 type v2_BeaconLobby {
+  banned: [v2_BeaconLobbyBannedUser!]
   bannedUserIds: [String!]
   beaconId: String!
   canPost: Boolean!
   isAuthor: Boolean!
   lobbyId: String!
+}
+
+type v2_BeaconLobbyAccess {
+  beaconId: String!
+  canPost: Boolean!
+  canRead: Boolean!
+  messageCount: Int!
+}
+
+type v2_BeaconLobbyBannedUser {
+  title: String!
+  userId: String!
 }
 
 type v2_InboxRoomContextRow {

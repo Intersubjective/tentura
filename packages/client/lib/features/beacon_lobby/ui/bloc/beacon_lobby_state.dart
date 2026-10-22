@@ -11,13 +11,19 @@ abstract class BeaconLobbyState extends StateBase with _$BeaconLobbyState {
   const factory BeaconLobbyState({
     @Default(StateIsLoading()) StateStatus status,
     BeaconLobbyInfo? info,
+
+    /// Oldest first.
     @Default([]) List<BeaconLobbyMessage> messages,
+
+    /// The last page fetched backwards was full: there may be older ones.
+    @Default(false) bool hasOlder,
+    @Default(false) bool loadingOlder,
     @Default(false) bool sending,
 
     /// Counts accepted posts; the composer clears when it grows.
     @Default(0) int postedCount,
 
-    /// The server said this viewer may not use the lobby.
+    /// The server said this viewer may not use Questions.
     @Default(false) bool unavailable,
 
     /// The first load failed for another reason (offline, server error):
@@ -31,5 +37,7 @@ abstract class BeaconLobbyState extends StateBase with _$BeaconLobbyState {
 
   bool get canPost => info?.canPost ?? false;
 
-  List<String> get bannedUserIds => info?.bannedUserIds ?? const [];
+  List<BeaconLobbyBannedPerson> get banned => info?.banned ?? const [];
+
+  bool isBanned(String userId) => banned.any((b) => b.userId == userId);
 }

@@ -68,7 +68,7 @@ The **Chat** surface exposes one addressable conversation per request:
 | **General** | The main conversation (`thread_item_id` null in storage): messages, replies, mentions, polls, facts, plans |
 | **Child requests** | Separate published beacons under this parent — cards on the parent, full detail via normal request routes |
 
-Retired **ask**, **commitment (promise)**, and **blocker** coordination-item threads are no longer list rows or navigation targets. Server thread scope machinery remains for internal fixtures; the product path is General-only.
+Retired **ask**, **commitment (promise)**, and **blocker** coordination-item threads are no longer list rows or navigation targets. Server thread scope machinery remains for internal fixtures; the product path is General-only. The one live thread scope, Request **Questions**, sits outside the discussion and has its own audience: [`beacon_questions.md`](beacon_questions.md).
 
 **Plan** and plan-step coordination items are not Discussion list rows; plan work surfaces in General and the Log.
 

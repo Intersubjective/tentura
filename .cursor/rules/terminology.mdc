@@ -20,6 +20,8 @@ Russian: **запрос** / **запросы**; workspace **обсуждение
 
 One conversation inside the workspace is a **thread** / **тема**; the built-in thread is **General** / **Общее** (not a glossary-table column).
 
+**Questions** / «Вопросы» (internally: the Request **lobby**; `BeaconLobby*`, `beacon_lobby`, `coordination_item` kind 7) is a Request's pre-commitment conversation for the people it was sent to, outside the discussion. Never call it «Лобби» / "Lobby" in user-facing copy; in running RU text it is «вопросы» (e.g. «Закрыть доступ к вопросам»). See [`docs/features/beacon_questions.md`](../../docs/features/beacon_questions.md).
+
 **Chat** (`labelBeaconTabChat` / «Чат») is the sanctioned **short tab-label form** of the discussion workspace on request detail — not a separate product noun. Keep **discussion** / **обсуждение** as the general workspace noun everywhere else (admission copy, push, sheets, `docs/features/beacon_room.md`).
 
 ## Forbidden

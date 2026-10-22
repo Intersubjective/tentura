@@ -6,14 +6,28 @@ import '../../domain/entity/beacon_lobby.dart';
 import '../../domain/port/beacon_lobby_port.dart';
 import '../gql/_g/beacon_lobby.req.gql.dart';
 
-/// U088 — the lobby over the existing item-thread room API
-/// (`RoomMessageList` / `RoomMessageCreate` with `threadItemId` = lobby id).
-/// A denial arrives as `BeaconLobbyUnavailableException` (error link, 1347).
+/// Request Questions (internally the lobby, U088) over the existing
+/// item-thread room API (`RoomMessageList` / `RoomMessageCreate` /
+/// `MarkThreadSeen` with the Questions scope id). A denial arrives as
+/// `BeaconLobbyUnavailableException` (error link, 1347).
 @LazySingleton(as: BeaconLobbyPort, env: [Environment.dev, Environment.prod])
 class BeaconLobbyRepository implements BeaconLobbyPort {
   BeaconLobbyRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
+
+  @override
+  Future<BeaconLobbyAccess> access(String beaconId) async {
+    final r = await _remoteApiService
+        .request(GBeaconLobbyAccessReq((b) => b..vars.beaconId = beaconId))
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final a = r.dataOrThrow(label: 'BeaconLobbyAccess').BeaconLobbyAccess;
+    return BeaconLobbyAccess(
+      canRead: a.canRead,
+      canPost: a.canPost,
+      messageCount: a.messageCount,
+    );
+  }
 
   @override
   Future<BeaconLobbyInfo> open(String beaconId) async {
@@ -26,7 +40,11 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
       lobbyId: l.lobbyId,
       isAuthor: l.isAuthor,
       canPost: l.canPost,
-      bannedUserIds: l.bannedUserIds?.toList() ?? const [],
+      banned: [
+        ...?l.banned?.map(
+          (b) => BeaconLobbyBannedPerson(userId: b.userId, name: b.title),
+        ),
+      ],
     );
   }
 
@@ -34,13 +52,15 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
   Future<List<BeaconLobbyMessage>> messages({
     required String beaconId,
     required String lobbyId,
+    DateTime? before,
   }) async {
     final r = await _remoteApiService
         .request(
           GBeaconLobbyMessagesReq(
             (b) => b
               ..vars.beaconId = beaconId
-              ..vars.lobbyId = lobbyId,
+              ..vars.lobbyId = lobbyId
+              ..vars.beforeIso = before?.toUtc().toIso8601String(),
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
@@ -82,6 +102,23 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
     r.dataOrThrow(label: 'BeaconLobbyPost');
+  }
+
+  @override
+  Future<void> markSeen({
+    required String beaconId,
+    required String lobbyId,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconLobbyMarkSeenReq(
+            (b) => b
+              ..vars.beaconId = beaconId
+              ..vars.lobbyId = lobbyId,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    r.dataOrThrow(label: 'BeaconLobbyMarkSeen');
   }
 
   @override

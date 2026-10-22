@@ -12,8 +12,9 @@ import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-/// In-memory lobby with the server's rules (U088): the author and people
-/// with a live offer get in, removed people don't, only the author removes.
+/// In-memory Request Questions (internally the lobby, U088). The real
+/// audience is the server policy; here a fixed set of readers stands in for
+/// it, removed people are kept out, only the author removes.
 class FakeLobbyPort implements BeaconLobbyPort {
   FakeLobbyPort({
     required this.viewerId,
@@ -53,17 +54,54 @@ class FakeLobbyPort implements BeaconLobbyPort {
       lobbyId: 'Llobby',
       isAuthor: viewerId == authorId,
       canPost: canPost,
-      bannedUserIds: viewerId == authorId ? List.of(banned) : const [],
+      banned: viewerId == authorId
+          ? [
+              for (final id in banned)
+                BeaconLobbyBannedPerson(userId: id, name: 'Name of $id'),
+            ]
+          : const [],
     );
   }
+
+  @override
+  Future<BeaconLobbyAccess> access(String beaconId) async {
+    calls.add('access');
+    _maybeFail();
+    return BeaconLobbyAccess(
+      canRead: _allowed,
+      canPost: _allowed && canPost,
+      messageCount: _allowed ? messagesList.length : 0,
+    );
+  }
+
+  /// Server page size.
+  static const pageSize = 50;
 
   @override
   Future<List<BeaconLobbyMessage>> messages({
     required String beaconId,
     required String lobbyId,
+    DateTime? before,
   }) async {
+    calls.add(before == null ? 'messages' : 'messages before');
     if (!_allowed) throw const BeaconLobbyUnavailableException();
-    return List.of(messagesList);
+    final older = [
+      for (final m in messagesList)
+        if (before == null ||
+            (m.createdAt != null && m.createdAt!.isBefore(before)))
+          m,
+    ];
+    return older.length <= pageSize
+        ? older
+        : older.sublist(older.length - pageSize);
+  }
+
+  @override
+  Future<void> markSeen({
+    required String beaconId,
+    required String lobbyId,
+  }) async {
+    calls.add('seen');
   }
 
   @override
@@ -80,6 +118,9 @@ class FakeLobbyPort implements BeaconLobbyPort {
         authorId: viewerId,
         authorName: viewerId == authorId ? 'Anna' : 'Nina',
         body: body,
+        createdAt: DateTime.utc(2026).add(
+          Duration(minutes: messagesList.length),
+        ),
       ),
     );
   }

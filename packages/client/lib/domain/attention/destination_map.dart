@@ -37,6 +37,12 @@ Uri attentionDestination(AttentionReceipt receipt) {
         kQueryThreadId: RequestThread.generalId,
       },
     ),
+    // A thread-scoped message is a Request Questions message (the only live
+    // thread scope): it opens the Questions screen, not General.
+    'beacon_room_message'
+        when beaconId != null &&
+            (receipt.coordinationItemId?.trim().isNotEmpty ?? false) =>
+      Uri(path: '$kPathBeaconLobby/$beaconId'),
     'beacon_room_message' when beaconId != null => Uri(
       path: '$kPathBeaconView/$beaconId',
       queryParameters: {

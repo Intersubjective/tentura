@@ -108,6 +108,19 @@ void main() {
     },
   );
 
+  test('a Request Questions message opens the Questions screen', () {
+    final uri = attentionDestination(
+      receipt(
+        destinationKind: 'beacon_room_message',
+        targetEntityId: 'M1',
+        beaconId: 'B1',
+        coordinationItemId: 'Lquestions1',
+      ),
+    );
+
+    expect(uri.path, '$kPathBeaconLobby/B1');
+  });
+
   test('unknown destination retains the server action url', () {
     expect(
       attentionDestination(

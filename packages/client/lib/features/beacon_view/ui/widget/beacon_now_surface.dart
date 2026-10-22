@@ -220,7 +220,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
           p.closureState != c.closureState ||
           p.beaconContextLoaded != c.beaconContextLoaded ||
           p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
-          canOpenBeaconLobby(p) != canOpenBeaconLobby(c) ||
+          p.beacon.isRequest != c.beacon.isRequest ||
           p.coordinationDeniesRoomAdmission !=
               c.coordinationDeniesRoomAdmission,
       builder: (context, state) {
@@ -313,11 +313,13 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                       child: BeaconHudOutcomeSection(beacon: state.beacon),
                     ),
                   ),
-                  if (canOpenBeaconLobby(state))
+                  // Request Questions: the row shows itself only when the
+                  // server policy lets this viewer read Questions.
+                  if (state.beacon.isRequest)
                     SliverToBoxAdapter(
                       child: Material(
                         color: scheme.surface,
-                        child: BeaconLobbyEntryRow(state: state),
+                        child: BeaconLobbyEntryRow(beaconId: state.beacon.id),
                       ),
                     ),
                   SliverToBoxAdapter(

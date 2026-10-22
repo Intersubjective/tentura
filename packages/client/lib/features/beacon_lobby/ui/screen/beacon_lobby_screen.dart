@@ -14,20 +14,18 @@ import '../../domain/use_case/beacon_lobby_case.dart';
 import '../bloc/beacon_lobby_cubit.dart';
 import '../widget/beacon_lobby_body.dart';
 
-/// U088 — the Request lobby: questions before helping, for the author and
-/// the people with a live help offer. The author can remove someone from it.
+/// Request **Questions** (internally the lobby, U088): questions before
+/// helping, for the Request's addressed audience; the whole thread is public
+/// to that audience. The author can remove someone from it. Who may read or
+/// post is decided by the server policy only.
 @RoutePage()
 class BeaconLobbyScreen extends StatelessWidget implements AutoRouteWrapper {
   const BeaconLobbyScreen({
     @PathParam('id') this.beaconId = '',
-    this.knownNames = const {},
     super.key,
   });
 
   final String beaconId;
-
-  /// Display names by user id (help offerers), for the removed list.
-  final Map<String, String> knownNames;
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
@@ -55,7 +53,6 @@ class BeaconLobbyScreen extends StatelessWidget implements AutoRouteWrapper {
     body: SafeArea(
       child: BeaconLobbyBody(
         myUserId: context.read<ProfileCubit>().state.profile.id,
-        knownNames: knownNames,
       ),
     ),
   );

@@ -9,18 +9,12 @@ import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import '../../domain/entity/beacon_lobby.dart';
 import '../bloc/beacon_lobby_cubit.dart';
 
-/// The lobby screen's content under its top bar (U088).
+/// The Request Questions screen's content under its top bar (internally the
+/// lobby, U088).
 class BeaconLobbyBody extends StatefulWidget {
-  const BeaconLobbyBody({
-    required this.myUserId,
-    this.knownNames = const {},
-    super.key,
-  });
+  const BeaconLobbyBody({required this.myUserId, super.key});
 
   final String myUserId;
-
-  /// Display names by user id (help offerers), for the removed list.
-  final Map<String, String> knownNames;
 
   @override
   State<BeaconLobbyBody> createState() => _BeaconLobbyBodyState();
@@ -35,39 +29,19 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
     super.dispose();
   }
 
-  /// A removed person with no live offer and no message here has no known
-  /// name: show "someone", never an internal id.
-  String _nameOf(String userId, BeaconLobbyState state, L10n l10n) {
-    final known = widget.knownNames[userId];
-    if (known != null && known.isNotEmpty) return known;
-    for (final m in state.messages) {
-      if (m.authorId == userId && m.authorName.isNotEmpty) return m.authorName;
-    }
-    return l10n.beaconLobbySomeone;
-  }
-
   Future<void> _confirmBan(
     BeaconLobbyCubit cubit,
     String userId,
     String name,
   ) async {
     final l10n = L10n.of(context)!;
-    final ok = await showDialog<bool>(
+    final ok = await TenturaConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.beaconLobbyBanConfirmTitle(name)),
-        content: Text(l10n.beaconLobbyBanConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.beaconLobbyBanAction),
-          ),
-        ],
+      title: l10n.beaconLobbyBanConfirmTitle(
+        name.isEmpty ? l10n.beaconLobbySomeone : name,
       ),
+      content: l10n.beaconLobbyBanConfirmBody,
+      confirmLabel: l10n.beaconLobbyBanAction,
     );
     if (ok ?? false) await cubit.ban(userId);
   }
@@ -92,15 +66,11 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
           );
         }
         if (state.unavailable) {
-          return Center(
-            child: Padding(
-              padding: tt.cardPadding,
-              child: Text(
-                l10n.beaconLobbyUnavailable,
-                textAlign: TextAlign.center,
-                style: TenturaText.body(tt.textMuted),
-              ),
-            ),
+          return TenturaEmptyState(
+            key: const Key('beaconLobbyUnavailable'),
+            icon: TenturaIcons.comments,
+            title: l10n.beaconLobbyTitle,
+            body: l10n.beaconLobbyUnavailable,
           );
         }
         return Column(
@@ -113,55 +83,48 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
             ),
-            if (state.isAuthor && state.bannedUserIds.isNotEmpty)
-              ExpansionTile(
-                key: const Key('beaconLobbyBannedFold'),
-                title: Row(
-                  children: [
-                    Flexible(child: Text(l10n.beaconLobbyBannedHeading)),
-                    SizedBox(width: tt.iconTextGap),
-                    Text(
-                      '${state.bannedUserIds.length}',
-                      style: TenturaText.bodySmall(tt.textMuted),
-                    ),
-                  ],
-                ),
-                children: [
-                  for (final id in state.bannedUserIds)
-                    ListTile(
-                      title: Text(_nameOf(id, state, l10n)),
-                      trailing: TextButton(
-                        onPressed: () => unawaited(cubit.unban(id)),
-                        child: Text(l10n.beaconLobbyUnbanAction),
-                      ),
-                    ),
-                ],
+            if (state.isAuthor && state.banned.isNotEmpty)
+              _BannedFold(
+                banned: state.banned,
+                onUnban: (id) => unawaited(cubit.unban(id)),
               ),
             Expanded(
               child: RefreshIndicator.adaptive(
                 onRefresh: cubit.refresh,
                 child: state.messages.isEmpty
-                    ? ListView(
-                        children: [
-                          Padding(
-                            padding: tt.cardPadding,
-                            child: Text(
-                              l10n.beaconLobbyEmpty,
-                              textAlign: TextAlign.center,
-                              style: TenturaText.body(tt.textMuted),
+                    ? CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: TenturaEmptyState(
+                              key: const Key('beaconLobbyEmpty'),
+                              icon: TenturaIcons.comments,
+                              title: l10n.beaconLobbyEmpty,
+                              body: l10n.beaconLobbyEmptyBody,
                             ),
                           ),
                         ],
                       )
                     : ListView(
                         children: [
+                          if (state.hasOlder)
+                            Center(
+                              child: TextButton(
+                                key: const Key('beaconLobbyLoadOlder'),
+                                onPressed: state.loadingOlder
+                                    ? null
+                                    : () => unawaited(cubit.loadOlder()),
+                                child: Text(l10n.beaconLobbyLoadOlder),
+                              ),
+                            ),
                           for (final m in state.messages)
                             _LobbyMessageTile(
                               message: m,
                               canBan:
                                   state.isAuthor &&
                                   m.authorId != widget.myUserId &&
-                                  !state.bannedUserIds.contains(m.authorId),
+                                  !state.isBanned(m.authorId),
                               onBan: () => unawaited(
                                 _confirmBan(cubit, m.authorId, m.authorName),
                               ),
@@ -192,12 +155,21 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                     IconButton(
                       key: const Key('beaconLobbySend'),
                       tooltip: l10n.beaconLobbySend,
-                      icon: const Icon(Icons.send),
+                      icon: const Icon(TenturaIcons.send),
                       onPressed: state.sending
                           ? null
                           : () => unawaited(cubit.post(_composer.text)),
                     ),
                   ],
+                ),
+              )
+            else if (state.info != null)
+              Padding(
+                key: const Key('beaconLobbyReadOnly'),
+                padding: tt.listRowPadding,
+                child: Text(
+                  l10n.beaconLobbyReadOnly,
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
           ],
@@ -207,8 +179,47 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
   }
 }
 
-/// One lobby message: a deliberately light version of the room message tile
-/// (author, text, and the author's remove action).
+/// The author's fold of people removed from Questions, with names from the
+/// server (never from route arguments).
+class _BannedFold extends StatelessWidget {
+  const _BannedFold({required this.banned, required this.onUnban});
+
+  final List<BeaconLobbyBannedPerson> banned;
+  final ValueChanged<String> onUnban;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return ExpansionTile(
+      key: const Key('beaconLobbyBannedFold'),
+      title: Semantics(
+        label: l10n.beaconLobbyBannedCountSemantics(banned.length),
+        excludeSemantics: true,
+        child: Row(
+          children: [
+            Flexible(child: Text(l10n.beaconLobbyBannedHeading)),
+            SizedBox(width: tt.iconTextGap),
+            TenturaMetaText('${banned.length}'),
+          ],
+        ),
+      ),
+      children: [
+        for (final b in banned)
+          ListTile(
+            title: Text(b.name.isEmpty ? l10n.beaconLobbySomeone : b.name),
+            trailing: TextButton(
+              onPressed: () => onUnban(b.userId),
+              child: Text(l10n.beaconLobbyUnbanAction),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// One Questions message: a deliberately light version of the room message
+/// tile (author, time, text, and the author's remove action).
 class _LobbyMessageTile extends StatelessWidget {
   const _LobbyMessageTile({
     required this.message,
@@ -221,15 +232,31 @@ class _LobbyMessageTile extends StatelessWidget {
   final VoidCallback onBan;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    title: Text(message.authorName),
-    subtitle: Text(message.body),
-    trailing: canBan
-        ? IconButton(
-            tooltip: L10n.of(context)!.beaconLobbyBanAction,
-            icon: const Icon(Icons.person_remove_outlined),
-            onPressed: onBan,
-          )
-        : null,
-  );
+  Widget build(BuildContext context) {
+    final at = message.createdAt;
+    final loc = MaterialLocalizations.of(context);
+    final tt = context.tt;
+    return ListTile(
+      title: Row(
+        children: [
+          Flexible(child: Text(message.authorName)),
+          if (at != null) ...[
+            SizedBox(width: tt.iconTextGap),
+            TenturaMetaText(
+              '${loc.formatShortDate(at)} '
+              '${loc.formatTimeOfDay(TimeOfDay.fromDateTime(at))}',
+            ),
+          ],
+        ],
+      ),
+      subtitle: Text(message.body),
+      trailing: canBan
+          ? IconButton(
+              tooltip: L10n.of(context)!.beaconLobbyBanAction,
+              icon: const Icon(Icons.person_remove_outlined),
+              onPressed: onBan,
+            )
+          : null,
+    );
+  }
 }

@@ -10093,44 +10093,44 @@
   "@skipToContent": {
     "context": "Keyboard skip link before Home's navigation rail; moves focus to the page (#500)"
   },
-  "beaconLobbyTitle": "Lobby",
+  "beaconLobbyTitle": "Questions",
   "@beaconLobbyTitle": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyEntrySubtitle": "Questions before helping. Only the author and people who offered help see it.",
+  "beaconLobbyEntrySubtitle": "Ask the author before offering help. Everyone this request was sent to sees the questions and answers.",
   "@beaconLobbyEntrySubtitle": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyEmpty": "No messages yet. Ask the author anything about the request.",
+  "beaconLobbyEmpty": "No questions yet",
   "@beaconLobbyEmpty": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions: empty-state title",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyComposerHint": "Write to the lobby",
+  "beaconLobbyComposerHint": "Ask a question",
   "@beaconLobbyComposerHint": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
   "beaconLobbySend": "Send",
   "@beaconLobbySend": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyUnavailable": "The lobby is only for the author and people with an active help offer.",
+  "beaconLobbyUnavailable": "Questions are for the people this request was sent to.",
   "@beaconLobbyUnavailable": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyBanAction": "Remove from lobby",
+  "beaconLobbyBanAction": "Remove from Questions",
   "@beaconLobbyBanAction": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyBanConfirmTitle": "Remove {name} from the lobby?",
+  "beaconLobbyBanConfirmTitle": "Remove {name} from Questions?",
   "@beaconLobbyBanConfirmTitle": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen",
     "placeholders": {
       "name": {
@@ -10138,24 +10138,67 @@
       }
     }
   },
-  "beaconLobbyBanConfirmBody": "They won't be able to read or write here until you let them back in. Their help offer stays.",
+  "beaconLobbyBanConfirmBody": "They won't be able to read or write in Questions until you let them back in. Their help offer stays.",
   "@beaconLobbyBanConfirmBody": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyBannedHeading": "Removed from lobby",
+  "beaconLobbyBannedHeading": "Removed from Questions",
   "@beaconLobbyBannedHeading": {
-    "description": "U088 Request lobby: fold of people the author removed; the count follows as a plain muted number",
+    "description": "Request Questions: fold of people the author removed",
     "context": "BeaconLobbyScreen"
   },
   "beaconLobbyUnbanAction": "Let back in",
   "@beaconLobbyUnbanAction": {
-    "description": "U088 Request lobby",
+    "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
   "beaconLobbySomeone": "Someone",
   "@beaconLobbySomeone": {
-    "description": "U088 Request lobby: stands for a removed person whose name is unknown",
+    "description": "Request Questions (internally the lobby, U088 / #526): stands for a removed person whose name is unknown",
     "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyEmptyBody": "Ask what you need to know before offering help: when, where, what to bring. Everyone this request was sent to will see the answer.",
+  "@beaconLobbyEmptyBody": {
+    "description": "Request Questions: empty-state body",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyReadOnly": "Read-only: the request is closed, or you are no longer helping with it. Offer help to ask again.",
+  "@beaconLobbyReadOnly": {
+    "description": "Request Questions: shown instead of the composer when the viewer may read but not post",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyEntryCount": "{count, plural, =0{No questions yet} =1{1 message} other{{count} messages}}",
+  "@beaconLobbyEntryCount": {
+    "description": "Request Questions: entry row meta line (messages the viewer can see)",
+    "context": "BeaconLobbyScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconLobbyLoadOlder": "Show earlier messages",
+  "@beaconLobbyLoadOlder": {
+    "description": "Request Questions: pages back",
+    "context": "BeaconLobbyScreen"
+  },
+  "beaconLobbyBannedCountSemantics": "{count, plural, =1{Removed from Questions: 1 person} other{Removed from Questions: {count} people}}",
+  "@beaconLobbyBannedCountSemantics": {
+    "description": "Request Questions: screen-reader label of the removed-people fold",
+    "context": "BeaconLobbyScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconRoomEmptyTitle": "No messages yet",
+  "@beaconRoomEmptyTitle": {
+    "description": "#443 Request discussion empty state: title"
+  },
+  "beaconRoomEmptyBody": "This is where you and your helpers coordinate. People you sent the request to can ask you in Questions before they offer help.",
+  "@beaconRoomEmptyBody": {
+    "description": "#443 Request discussion empty state: body"
   }
 }

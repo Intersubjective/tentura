@@ -1,16 +1,22 @@
 import '../entity/beacon_lobby.dart';
 
-/// U088 — what the Request lobby needs from the server.
+/// Request Questions (internally the lobby, U088): what it needs from the
+/// server.
 abstract interface class BeaconLobbyPort {
-  /// Opens the lobby (the server creates it on first use). Throws
-  /// `BeaconLobbyUnavailableException` when the viewer may not use it: not
-  /// the author, no live help offer, or removed by the author.
+  /// The viewer's own standing; never throws for "no access".
+  Future<BeaconLobbyAccess> access(String beaconId);
+
+  /// Opens Questions (the server creates the scope on first use). Throws
+  /// `BeaconLobbyUnavailableException` when the viewer is not in its
+  /// audience, was removed by the author, or is blocked.
   Future<BeaconLobbyInfo> open(String beaconId);
 
-  /// Messages oldest first.
+  /// One page of messages, oldest first: the newest page, or the page
+  /// before [before].
   Future<List<BeaconLobbyMessage>> messages({
     required String beaconId,
     required String lobbyId,
+    DateTime? before,
   });
 
   Future<void> post({
@@ -18,6 +24,9 @@ abstract interface class BeaconLobbyPort {
     required String lobbyId,
     required String body,
   });
+
+  /// Marks Questions read (settles its attention items).
+  Future<void> markSeen({required String beaconId, required String lobbyId});
 
   Future<void> ban({required String beaconId, required String userId});
 

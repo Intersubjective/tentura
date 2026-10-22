@@ -30,6 +30,7 @@ Short pointers for agents — read only what your task needs.
 | Doc | Read when |
 |-----|-----------|
 | [`features/beacon_room.md`](features/beacon_room.md) | Threads tab, General/semantic threads, discussion admission, People/Log |
+| [`features/beacon_questions.md`](features/beacon_questions.md) | Request Questions («Вопросы»): asking the author before offering help; the one audience policy |
 | [`features/constellation.md`](features/constellation.md) | Constellation map/text field, discoverability, personal pins, filters, and limitations |
 | [`features/request-attention.md`](features/request-attention.md) | **Request attention contract**: one primary surface, obligations vs optional updates, read/clear/settle, the clearing ritual, indicator formulas — read before touching My desk / For you |
 | [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Retired client-side marker mechanism; superseded by `features/request-attention.md` — kept for history |

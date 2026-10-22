@@ -1,7 +1,8 @@
 // Issue #443: an empty Request room must not be a blank void — the chat
-// column shows a one-line empty state (l10n key `beaconRoomEmptyState`, en+ru)
-// while the composer stays usable. Loading, error and non-empty rooms keep
-// their existing content and never show the empty state.
+// column shows the design-system empty state (title `beaconRoomEmptyTitle`
+// plus one line `beaconRoomEmptyBody` that points recipients at Questions,
+// en+ru) while the composer stays usable. Loading, error and non-empty rooms
+// keep their existing content and never show the empty state.
 
 import 'dart:convert';
 import 'dart:io';
@@ -15,19 +16,20 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'support/room_body_harness.dart';
 
-const _key = 'beaconRoomEmptyState';
+const _key = 'beaconRoomEmptyTitle';
+const _bodyKey = 'beaconRoomEmptyBody';
 const _viewer = Profile(id: 'me', displayName: 'Me');
 
 Map<String, dynamic> _arb(String locale) =>
     jsonDecode(File('l10n/app_$locale.arb').readAsStringSync())
         as Map<String, dynamic>;
 
-String _copy(String locale) {
-  final value = _arb(locale)[_key];
+String _copy(String locale, [String key = _key]) {
+  final value = _arb(locale)[key];
   expect(
     value,
     isA<String>(),
-    reason: 'app_$locale.arb needs a "$_key" entry (issue #443)',
+    reason: 'app_$locale.arb needs a "$key" entry (issue #443)',
   );
   return value as String;
 }
@@ -41,9 +43,13 @@ void main() {
       expect(en.contains('\n'), isFalse, reason: 'one line of copy');
       expect(ru, isNot(en));
       expect(RegExp('[а-яА-ЯёЁ]').hasMatch(ru), isTrue);
+      final body = _copy('en', _bodyKey);
+      expect(body.contains('\n'), isFalse, reason: 'one line of copy');
+      expect(body, contains('Questions'));
+      expect(_copy('ru', _bodyKey), contains('Вопросы'));
     });
 
-    testWidgets('desktop: empty loaded room shows the one-line empty state', (
+    testWidgets('desktop: empty loaded room shows the empty state', (
       tester,
     ) async {
       final copy = _copy('en');
@@ -56,6 +62,7 @@ void main() {
       await tester.pump();
 
       expect(find.text(copy), findsOneWidget);
+      expect(find.text(_copy('en', _bodyKey)), findsOneWidget);
       // The composer is still there under the empty state.
       expect(find.byType(TextField), findsWidgets);
       expect(tester.takeException(), isNull);
