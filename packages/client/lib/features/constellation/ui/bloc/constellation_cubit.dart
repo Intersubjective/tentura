@@ -1930,12 +1930,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
-  /// «Arrange in sector» (#644): stores [targets] (scene centres by person
-  /// id) as user placements. They go to the outbox together, so they are
-  /// written in one batch based on the anchor revision the user sees: a
-  /// reset made after it rejects them, and «Сбросить позиции» undoes them.
-  /// False when nothing was written.
-  bool placePeople(Map<String, Offset> targets) {
+  /// «Arrange in sector» (#644): stores [targets] (scene centres of people,
+  /// Requests and Posts) as user placements. A moved person's pinned
+  /// Requests that are not arranged themselves follow their author by the
+  /// same delta, as on a drag; an arranged Request goes to its own target.
+  /// Everything goes to the outbox together, in batches of
+  /// [kConstellationPlacementBatchCap] based on the anchor revision the user
+  /// sees: a reset made after it rejects them, and «Сбросить позиции» undoes
+  /// them. Nodes that cannot be dragged are left out. False when nothing
+  /// was written.
+  bool placeArrangement(Map<ConstellationAnchorTarget, Offset> targets) {
     final placement = _placementCase;
     if (isClosed ||
         placement == null ||
@@ -1943,26 +1947,69 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.placementPhase != ConstellationPlacementPhase.idle) {
       return false;
     }
+    final snapshot = graphController.renderSnapshot;
+    Offset? drawnAt(ConstellationAnchorTarget target) {
+      final point = snapshot.resolvePosition(
+        constellationGraphNodeIdForTarget(target),
+      );
+      return point == null ? null : Offset(point.x, point.y);
+    }
+
+    bool draggable(ConstellationAnchorTarget target) {
+      final node = graphController.nodePayloadForId(
+        constellationGraphNodeIdForTarget(target),
+      );
+      return node is NodeDetails &&
+          canDragNode(node) &&
+          anchorTargetForNode(node) == target;
+    }
+
+    final arranged = {
+      for (final MapEntry(key: target, value: centre) in targets.entries)
+        if (draggable(target)) target: centre,
+    };
+    if (arranged.isEmpty || arranged.length > kConstellationSectorMaxItems) {
+      return false;
+    }
+    final companions = <ConstellationAnchorTarget, Offset>{};
+    for (final MapEntry(key: target, value: centre) in arranged.entries) {
+      if (target.kind != ConstellationAnchorTargetKind.person) continue;
+      final from = drawnAt(target);
+      if (from == null) continue;
+      final delta = centre - from;
+      for (final requestId in _interaction.pinnedCompanionRequestIds(
+        authorId: target.id,
+        field: state.field,
+        composition: state.composition,
+      )) {
+        final companion = ConstellationAnchorTarget.beacon(requestId);
+        final start = drawnAt(companion);
+        if (arranged.containsKey(companion) || start == null) continue;
+        companions[companion] = constellationCompanionPosition(
+          companionStart: start.lPoint,
+          parentDelta: delta.lPoint,
+        ).offset;
+      }
+    }
     final writes = [
-      for (final MapEntry(key: id, value: centre) in targets.entries)
-        if (id != _viewer.id)
-          (
-            target: ConstellationAnchorTarget.person(id),
-            position: constellationPointToV1Anchor(centre.lPoint),
-          ),
+      for (final MapEntry(key: target, value: centre) in {
+        ...arranged,
+        ...companions,
+      }.entries)
+        (
+          target: target,
+          position: constellationPointToV1Anchor(centre.lPoint),
+        ),
     ];
-    if (writes.isEmpty ||
-        writes.length > kConstellationSectorMaxPeople ||
-        writes.any(
-          (write) =>
-              ConstellationAnchorPosition.validate(
-                    xUnits: write.position.xUnits,
-                    yUnits: write.position.yUnits,
-                    coordinateSpaceVersion:
-                        write.position.coordinateSpaceVersion,
-                  )
-                  is! ConstellationAnchorPositionValid,
-        )) {
+    if (writes.any(
+      (write) =>
+          ConstellationAnchorPosition.validate(
+                xUnits: write.position.xUnits,
+                yUnits: write.position.yUnits,
+                coordinateSpaceVersion: write.position.coordinateSpaceVersion,
+              )
+              is! ConstellationAnchorPositionValid,
+    )) {
       return false;
     }
     _submitUpsert(

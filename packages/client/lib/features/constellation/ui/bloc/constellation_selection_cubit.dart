@@ -7,7 +7,7 @@ import '../../domain/constellation_multi_selection.dart';
 
 export '../../domain/constellation_multi_selection.dart';
 
-/// Screen-scoped Field multi-selection (#642) and the sector being aimed for
+/// Screen-scoped Field multi-selection (#642) and the sector being edited for
 /// «Arrange in sector» (#644). Kept apart from the field cubit so selecting
 /// never recomposes or re-lays out the field.
 class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
@@ -54,17 +54,19 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
     emit(ConstellationMultiSelection.empty);
   }
 
-  void beginSector({required double direction}) {
+  /// Starts editing «Arrange in sector» at [draft].
+  void beginSector(ConstellationSectorDraft draft) {
     if (isClosed || !state.canArrange) return;
-    emit(
-      state.withSector(
-        const ConstellationSectorDraft(direction: 0).copyWith(
-          direction: direction,
-        ),
-      ),
-    );
+    emit(state.withSector(draft.copyWith()));
   }
 
+  /// The sector being edited becomes [draft] (a handle was dragged).
+  void editSector(ConstellationSectorDraft draft) {
+    if (isClosed || state.sector == null) return;
+    emit(state.withSector(draft.copyWith()));
+  }
+
+  /// Turns or widens the sector being edited (the bar's buttons and slider).
   void aimSector({double? direction, double? span}) {
     final sector = state.sector;
     if (isClosed || sector == null) return;
@@ -76,7 +78,7 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
     emit(state.withSector(null));
   }
 
-  /// Escape steps back once: the sector being aimed, then the selection.
+  /// Escape steps back once: the sector being edited, then the selection.
   /// False when there was nothing to undo.
   bool escape() {
     if (isClosed) return false;

@@ -5,9 +5,11 @@ import 'package:meta/meta.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'constellation_sector_arrangement.dart';
+import 'layout/layout_geometry.dart';
 
-/// Most people one arrangement can move: they are written as one batch.
-const int kConstellationSectorMaxPeople = 64;
+/// Most nodes one arrangement can move. The writes go to the outbox in
+/// batches of `kConstellationPlacementBatchCap`.
+const int kConstellationSectorMaxItems = 256;
 
 /// How a rubber-band box changes the selection (#642).
 enum ConstellationBoxMerge {
@@ -21,38 +23,93 @@ enum ConstellationBoxMerge {
   toggle,
 }
 
-/// The sector the user is aiming before the arrangement is written (#644).
+/// Which part of the sector the user is dragging (#644).
+enum ConstellationSectorEdge {
+  /// The edge the sector starts from (counterclockwise on screen).
+  start,
+
+  /// The edge it ends at (clockwise on screen).
+  end,
+}
+
+/// The sector the user is editing before the arrangement is written (#644):
+/// a centre anywhere on the field, the radius of the first ring, and the
+/// sector's direction and width.
 @immutable
 final class ConstellationSectorDraft {
   const ConstellationSectorDraft({
+    required this.centre,
+    required this.radius,
     required this.direction,
     this.span = kConstellationSectorDefaultSpan,
   });
 
-  /// Radians, scene coordinates (y down; 0 points right).
+  /// Scene coordinates.
+  final LPoint centre;
+
+  /// Radius of the first ring, in scene units.
+  final double radius;
+
+  /// The sector's bisector: radians, scene coordinates (y down; 0 points
+  /// right).
   final double direction;
 
-  /// Requested sector width in radians; widened when people would not fit.
+  /// Sector width in radians, up to the whole circle.
   final double span;
 
-  ConstellationSectorDraft copyWith({double? direction, double? span}) =>
-      ConstellationSectorDraft(
-        direction: _normalize(direction ?? this.direction),
-        span: (span ?? this.span).clamp(
-          kConstellationSectorMinSpan,
-          kConstellationSectorMaxSpan,
-        ),
-      );
+  /// The angle the sector starts at (its [ConstellationSectorEdge.start]).
+  double get start => direction - span / 2;
+
+  /// The angle the sector ends at (its [ConstellationSectorEdge.end]).
+  double get end => direction + span / 2;
+
+  bool get isFullCircle => span >= kConstellationSectorMaxSpan - 1e-9;
+
+  ConstellationSectorDraft copyWith({
+    LPoint? centre,
+    double? radius,
+    double? direction,
+    double? span,
+  }) => ConstellationSectorDraft(
+    centre: centre ?? this.centre,
+    radius: math.max(0, radius ?? this.radius),
+    direction: _normalize(direction ?? this.direction),
+    span: (span ?? this.span).clamp(
+      kConstellationSectorMinSpan,
+      kConstellationSectorMaxSpan,
+    ),
+  );
+
+  /// [edge] turned by [delta] radians while the other edge stays put, as
+  /// when dragging one side of a pie slice. The width stops at its limits.
+  ConstellationSectorDraft withEdgeMoved(
+    ConstellationSectorEdge edge,
+    double delta,
+  ) {
+    switch (edge) {
+      case ConstellationSectorEdge.end:
+        final width = _clampSpan(span + delta);
+        return copyWith(direction: start + width / 2, span: width);
+      case ConstellationSectorEdge.start:
+        final width = _clampSpan(span - delta);
+        return copyWith(direction: end - width / 2, span: width);
+    }
+  }
 
   @override
   bool operator ==(Object other) =>
       other is ConstellationSectorDraft &&
+      other.centre == centre &&
+      other.radius == radius &&
       other.direction == direction &&
       other.span == span;
 
   @override
-  int get hashCode => Object.hash(direction, span);
+  int get hashCode => Object.hash(centre, radius, direction, span);
 }
+
+double _clampSpan(double span) =>
+    span.clamp(kConstellationSectorMinSpan, kConstellationSectorMaxSpan);
 
 /// Field multi-selection (#642): people and Requests/Posts picked for a bulk
 /// action. Selecting never changes the person panel or the focus spotlight.
@@ -72,7 +129,7 @@ final class ConstellationMultiSelection {
   /// Selected nodes in the order they were picked.
   final Set<ConstellationAnchorTarget> targets;
 
-  /// Set while the user aims an «Arrange in sector».
+  /// Set while the user edits an «Arrange in sector».
   final ConstellationSectorDraft? sector;
 
   int get count => targets.length;
@@ -83,12 +140,6 @@ final class ConstellationMultiSelection {
   bool get isActive => selecting || targets.isNotEmpty;
 
   bool contains(ConstellationAnchorTarget target) => targets.contains(target);
-
-  /// Ids of the selected people, in the order they were picked.
-  List<String> get personIds => [
-    for (final target in targets)
-      if (target.kind == ConstellationAnchorTargetKind.person) target.id,
-  ];
 
   /// The other selected nodes that move with [grabbed] when it is dragged,
   /// as in a graphics editor: the rest of the selection when [grabbed] is
@@ -103,11 +154,9 @@ final class ConstellationMultiSelection {
             if (target != grabbed) target,
         };
 
-  /// Whether the selected people can be arranged in one batch.
-  bool get canArrange {
-    final people = personIds.length;
-    return people >= 2 && people <= kConstellationSectorMaxPeople;
-  }
+  /// Whether the selection can be arranged in a sector: people, Requests
+  /// and Posts alike, at least two of them.
+  bool get canArrange => count >= 2 && count <= kConstellationSectorMaxItems;
 
   ConstellationMultiSelection toggle(ConstellationAnchorTarget target) {
     final next = {...targets};

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -16,14 +17,18 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_selection_layers.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
@@ -35,8 +40,10 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 // select tool on a one-finger or mouse drag on empty map draws it and two
 // fingers move the map; Shift-drag draws it any time. Taps toggle nodes with
 // the tool on or with Shift/Ctrl/Cmd held; dragging a node still moves it.
-// «Arrange in a sector» (#644) writes the selected people as one batch of
-// user placements based on the anchor revision the user sees.
+// «Arrange in a sector» (#644): the centre, radius, edges and direction are
+// dragged on the map over a preview, and Apply writes the selected people,
+// Requests and Posts as user placements based on the anchor revision the
+// user sees.
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -81,6 +88,9 @@ const _people = [
 /// on a revision older than the last reset, and resets.
 final class _Server implements ConstellationAnchorRepositoryPort {
   int revision = 7;
+
+  /// Requests on the field (none unless a test adds them).
+  final requests = <ConstellationRequest>[];
   int resetWatermark = 0;
   final anchors = <ConstellationAnchorTarget, ConstellationAnchor>{};
   final applies = <List<ConstellationAnchorApplyOp>>[];
@@ -167,6 +177,7 @@ final class _Fields implements ConstellationRepositoryPort {
       ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
       ConstellationTrustEdgeEntity(src: 'ego', dst: 'b', tier: 1),
     ],
+    requests: List.of(server.requests),
     posts: [
       for (final person in _people)
         ConstellationPost(
@@ -186,7 +197,13 @@ final class _Fields implements ConstellationRepositoryPort {
           ))
             person,
       ],
-      pinnedRequests: const [],
+      pinnedRequests: [
+        for (final request in server.requests)
+          if (server.anchors.containsKey(
+            ConstellationAnchorTarget.beacon(request.id),
+          ))
+            request,
+      ],
       supportPeers: const [],
       supportEdges: const [],
       serverFilteredBeaconIds: const [],
@@ -214,8 +231,12 @@ final class _Harness {
   Set<ConstellationAnchorTarget> get selected => selection.state.targets;
 }
 
-Future<_Harness> _mount(WidgetTester tester) async {
+Future<_Harness> _mount(
+  WidgetTester tester, {
+  void Function(_Server server)? seed,
+}) async {
   final server = _Server();
+  seed?.call(server);
   final sync = buildTestRealtimeSync();
   final store = ConstellationStoreFixture(
     _Fields(server),
@@ -725,10 +746,19 @@ void main() {
   });
 
   group('«Arrange in a sector»', () {
-    Future<void> arrange(WidgetTester tester, _Harness h) async {
-      h.selection
-        ..toggle(_ann)
-        ..toggle(_bob);
+    final postA = ConstellationAnchorTarget.beacon('post-a');
+    final postB = ConstellationAnchorTarget.beacon('post-b');
+
+    Finder handle(String name) => find.byKey(Key('constellation.sector.$name'));
+
+    /// Selects [targets], opens the sector editor and points it up, clear of
+    /// the bar at the bottom.
+    Future<void> open(
+      WidgetTester tester,
+      _Harness h,
+      Iterable<ConstellationAnchorTarget> targets,
+    ) async {
+      h.selection.addAll(targets);
       await _frames(tester);
       await tester.tap(
         find.byKey(const Key('constellation.selection.arrange')),
@@ -736,14 +766,39 @@ void main() {
       await _frames(tester);
       expect(h.selection.state.sector, isNotNull);
       expect(
-        find.byKey(const Key('constellation.selection.sector_aim')),
+        find.byKey(const Key('constellation.selection.sector_editor')),
         findsOneWidget,
       );
-      // Point the sector straight down from the viewer.
-      final ego = tester.getCenter(_node('ego'));
-      await tester.tapAt(ego + const Offset(0, 200));
+      h.selection.aimSector(direction: -math.pi / 2);
       await _frames(tester);
-      expect(h.selection.state.sector!.direction, closeTo(1.5708, 1e-3));
+    }
+
+    /// What the editor previews now, by anchor target.
+    Map<ConstellationAnchorTarget, Offset> preview(
+      WidgetTester tester,
+      _Harness h,
+    ) {
+      final context = tester.element(
+        find.byKey(const Key('constellation.selection.sector_editor')),
+      );
+      final items = constellationSectorItems(h.cubit, h.selection.state);
+      final layout = constellationSectorPreview(
+        selection: h.selection.state,
+        items: items,
+        minSpacing: constellationSectorSpacing(
+          context,
+          h.cubit,
+          items.targets.values,
+        ),
+      )!;
+      return {
+        for (final MapEntry(key: graphId, value: point)
+            in layout.targets.entries)
+          items.targets[graphId]!: Offset(point.x, point.y),
+      };
+    }
+
+    Future<void> apply(WidgetTester tester) async {
       await tester.tap(
         find.byKey(const Key('constellation.selection.sector_apply')),
       );
@@ -751,23 +806,214 @@ void main() {
       await _settle(tester);
     }
 
-    testWidgets('is offered for two or more people only', (tester) async {
+    /// [from] turned by [radians] around [centre].
+    Offset turned(Offset from, Offset centre, double radians) {
+      final offset = from - centre;
+      return centre +
+          Offset(
+            offset.dx * math.cos(radians) - offset.dy * math.sin(radians),
+            offset.dx * math.sin(radians) + offset.dy * math.cos(radians),
+          );
+    }
+
+    Future<void> arc(
+      WidgetTester tester,
+      Offset from,
+      Offset centre,
+      double radians,
+    ) async {
+      final gesture = await tester.startGesture(
+        from,
+        kind: PointerDeviceKind.mouse,
+      );
+      await _frames(tester);
+      for (var i = 1; i <= 8; i++) {
+        await gesture.moveTo(turned(from, centre, radians * i / 8));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await _frames(tester);
+    }
+
+    testWidgets('is offered for two or more nodes, people or not', (
+      tester,
+    ) async {
       final h = await _mount(tester);
       h.selection.toggle(_ann);
       await _frames(tester);
       final button = find.byKey(const Key('constellation.selection.arrange'));
       expect(tester.widget<TextButton>(button).onPressed, isNull);
 
-      h.selection.toggle(_bob);
+      h.selection.toggle(postA);
       await _frames(tester);
       expect(tester.widget<TextButton>(button).onPressed, isNotNull);
     });
 
-    testWidgets('writes the people as one batch based on the revision the '
-        'user sees, and they stay placed after a reload', (tester) async {
+    testWidgets('starts around the viewer, with a preview and every '
+        'handle', (tester) async {
       final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
 
-      await arrange(tester, h);
+      final ego = tester.getCenter(_node('ego'));
+      expect(
+        tester.getCenter(handle('centre')),
+        offsetMoreOrLessEquals(ego, epsilon: 1),
+      );
+      for (final name in ['radius', 'start', 'end', 'direction']) {
+        expect(handle(name), findsOneWidget, reason: name);
+        final size = tester.getSize(handle(name));
+        expect(size.width, greaterThanOrEqualTo(kMinInteractiveDimension));
+      }
+      expect(find.byKey(const Key('constellation.sector.shape')), findsOne);
+      expect(preview(tester, h).keys, unorderedEquals([_ann, _bob]));
+      expect(h.server.applies, isEmpty, reason: 'nothing written yet');
+    });
+
+    testWidgets('dragging the centre handle moves the sector anywhere', (
+      tester,
+    ) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final before = h.selection.state.sector!;
+      final scale = h.cubit.graphController.cameraScale;
+
+      final from = tester.getCenter(handle('centre'));
+      await _drag(tester, from, from + const Offset(120, 40));
+
+      final after = h.selection.state.sector!;
+      expect(after.centre.x - before.centre.x, closeTo(120 / scale, 2));
+      expect(after.centre.y - before.centre.y, closeTo(40 / scale, 2));
+      expect(after.radius, before.radius);
+      expect(after.span, before.span);
+      expect(
+        tester.getCenter(handle('centre')),
+        offsetMoreOrLessEquals(from + const Offset(120, 40), epsilon: 2),
+      );
+      for (final point in preview(tester, h).values) {
+        expect(
+          (point - after.centre.offset).distance,
+          greaterThanOrEqualTo(after.radius - 1e-6),
+        );
+      }
+    });
+
+    testWidgets('dragging inside the sector moves it as well', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final before = h.selection.state.sector!;
+      final centre = tester.getCenter(handle('centre'));
+      // On the first ring, half way between the edges.
+      final towards = tester.getCenter(handle('direction')) - centre;
+      final inside =
+          centre +
+          towards /
+              towards.distance *
+              (tester.getCenter(handle('radius')) - centre).distance;
+
+      await _drag(tester, inside, inside + const Offset(-50, 30));
+
+      final after = h.selection.state.sector!;
+      expect(after.centre, isNot(before.centre));
+      expect(after.direction, closeTo(before.direction, 1e-9));
+    });
+
+    testWidgets('the rim handle changes the radius', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final before = h.selection.state.sector!;
+      final scale = h.cubit.graphController.cameraScale;
+      final centre = tester.getCenter(handle('centre'));
+      final from = tester.getCenter(handle('radius'));
+      final outward = (from - centre) / (from - centre).distance;
+
+      await _drag(tester, from, from + outward * 90);
+
+      final after = h.selection.state.sector!;
+      expect(after.radius - before.radius, closeTo(90 / scale, 3));
+      expect(after.centre, before.centre);
+      for (final point in preview(tester, h).values) {
+        expect(
+          (point - after.centre.offset).distance,
+          greaterThanOrEqualTo(after.radius - 1e-6),
+        );
+      }
+    });
+
+    testWidgets('the edge handles set the width from either side and the '
+        'direction handle turns it', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final centre = tester.getCenter(handle('centre'));
+
+      var before = h.selection.state.sector!;
+      await arc(tester, tester.getCenter(handle('end')), centre, 0.4);
+      var after = h.selection.state.sector!;
+      expect(after.span - before.span, closeTo(0.4, 0.03));
+      expect(after.start, closeTo(before.start, 0.03));
+
+      before = after;
+      await arc(tester, tester.getCenter(handle('start')), centre, 0.3);
+      after = h.selection.state.sector!;
+      expect(before.span - after.span, closeTo(0.3, 0.03));
+      expect(after.end, closeTo(before.end, 0.03));
+
+      before = after;
+      await arc(tester, tester.getCenter(handle('direction')), centre, -0.5);
+      after = h.selection.state.sector!;
+      expect(after.direction - before.direction, closeTo(-0.5, 0.03));
+      expect(after.span, closeTo(before.span, 1e-9));
+      for (final point in preview(tester, h).values) {
+        final offset = point - after.centre.offset;
+        final along =
+            (math.atan2(offset.dy, offset.dx) - after.start) % (2 * math.pi);
+        expect(along, lessThanOrEqualTo(after.span + 1e-9));
+      }
+    });
+
+    testWidgets('near the whole circle each edge handle still moves its own '
+        'edge', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      // Pointing down puts the seam at the top, clear of the bar.
+      h.selection.aimSector(direction: math.pi / 2, span: 2 * math.pi - 0.3);
+      await _frames(tester);
+      final centre = tester.getCenter(handle('centre'));
+      final before = h.selection.state.sector!;
+
+      await arc(tester, tester.getCenter(handle('start')), centre, 0.2);
+
+      final after = h.selection.state.sector!;
+      expect(after.end, closeTo(before.end, 0.03), reason: 'end stays');
+      expect(before.span - after.span, closeTo(0.2, 0.03));
+    });
+
+    testWidgets('a widened sector goes all the way round and stops there', (
+      tester,
+    ) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final centre = tester.getCenter(handle('centre'));
+
+      // Well past the whole circle, in steps.
+      for (var i = 0; i < 4; i++) {
+        await arc(tester, tester.getCenter(handle('end')), centre, 1.5);
+      }
+
+      expect(h.selection.state.sector!.isFullCircle, isTrue);
+      expect(handle('start'), findsNothing, reason: 'one seam');
+    });
+
+    testWidgets('writes the people as one batch, where the preview showed, '
+        'based on the revision the user sees; they stay after a reload', (
+      tester,
+    ) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final from = tester.getCenter(handle('centre'));
+      await _drag(tester, from, from + const Offset(60, 80));
+      final expected = preview(tester, h);
+
+      await apply(tester);
 
       expect(h.server.applies, hasLength(1), reason: 'one batch');
       final ops = h.server.applies.single;
@@ -775,10 +1021,11 @@ void main() {
       for (final op in ops) {
         expect(op.kind, ConstellationAnchorOpKind.upsert);
         expect(op.baseRevision, _revision(7));
-      }
-      // Below the viewer: both land in the lower half (scene y grows down).
-      for (final op in ops) {
-        expect(op.position!.yUnits, greaterThan(0));
+        final want = constellationPointToV1Anchor(
+          expected[op.target]!.lPoint,
+        );
+        expect(op.position!.xUnits, closeTo(want.xUnits, 1e-9));
+        expect(op.position!.yUnits, closeTo(want.yUnits, 1e-9));
       }
       expect(h.selection.state.sector, isNull);
       expect(h.selected, {_ann, _bob}, reason: 'the selection stays');
@@ -796,13 +1043,169 @@ void main() {
       expect(h.cubit.isAnchored(_bob), isTrue);
     });
 
+    testWidgets('Posts arrange alone, and mixed with people', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [postA, postB]);
+      expect(preview(tester, h).keys, unorderedEquals([postA, postB]));
+
+      await apply(tester);
+
+      expect(
+        h.server.applies.single.map((op) => op.target),
+        unorderedEquals([postA, postB]),
+      );
+
+      h.selection.clear();
+      await open(tester, h, [_ann, postA, postB]);
+      expect(preview(tester, h).keys, unorderedEquals([_ann, postA, postB]));
+      await apply(tester);
+      expect(
+        h.server.applies.last.map((op) => op.target),
+        unorderedEquals([_ann, postA, postB]),
+      );
+    });
+
+    group('a pinned Request of an arranged person', () {
+      final request = ConstellationAnchorTarget.beacon('req-a');
+
+      void seed(_Server server) {
+        server.requests.add(
+          const ConstellationRequest(
+            id: 'req-a',
+            authorId: 'a',
+            title: 'Help',
+            status: 0,
+          ),
+        );
+        server.anchors[request] = ConstellationAnchor(
+          target: request,
+          position: const ConstellationAnchorPosition(
+            xUnits: 1.5,
+            yUnits: 0.5,
+            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+          ),
+          revision: _revision(7),
+          placedAt: DateTime.utc(2026, 10, 22),
+        );
+      }
+
+      Offset drawnAt(_Harness h, ConstellationAnchorTarget target) {
+        final point = h.cubit.graphController.renderSnapshot.resolvePosition(
+          constellationGraphNodeIdForTarget(target),
+        )!;
+        return Offset(point.x, point.y);
+      }
+
+      Offset personAt(_Harness h, String id) {
+        final point = h.cubit.graphController.renderSnapshot.resolvePosition(
+          constellationGraphNodeIdForTarget(
+            ConstellationAnchorTarget.person(id),
+          ),
+        )!;
+        return Offset(point.x, point.y);
+      }
+
+      testWidgets('follows its author by the same move when it is not '
+          'arranged itself', (tester) async {
+        final h = await _mount(tester, seed: seed);
+        expect(_node('req-a'), findsOneWidget);
+        await open(tester, h, [_ann, _bob]);
+        final expected = preview(tester, h);
+        final delta = expected[_ann]! - personAt(h, 'a');
+        final requestStart = drawnAt(h, request);
+
+        await apply(tester);
+
+        final ops = h.server.applies.single;
+        expect(
+          ops.map((op) => op.target),
+          unorderedEquals([_ann, _bob, request]),
+        );
+        final op = ops.firstWhere((op) => op.target == request);
+        final want = constellationPointToV1Anchor(
+          (requestStart + delta).lPoint,
+        );
+        expect(op.position!.xUnits, closeTo(want.xUnits, 1e-6));
+        expect(op.position!.yUnits, closeTo(want.yUnits, 1e-6));
+      });
+
+      testWidgets('goes to its own place when it is arranged with its '
+          'author', (tester) async {
+        final h = await _mount(tester, seed: seed);
+        await open(tester, h, [_ann, request]);
+        final expected = preview(tester, h);
+        expect(expected.keys, unorderedEquals([_ann, request]));
+
+        await apply(tester);
+
+        final op = h.server.applies.single.firstWhere(
+          (op) => op.target == request,
+        );
+        final want = constellationPointToV1Anchor(expected[request]!.lPoint);
+        expect(op.position!.xUnits, closeTo(want.xUnits, 1e-9));
+        expect(op.position!.yUnits, closeTo(want.yUnits, 1e-9));
+      });
+    });
+
+    testWidgets('a selected node that is not on the map is left out, and '
+        'the bar says so', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [
+        _ann,
+        _bob,
+        ConstellationAnchorTarget.person('x'),
+      ]);
+
+      expect(preview(tester, h).keys, unorderedEquals([_ann, _bob]));
+      expect(
+        find.textContaining("1 selected item can't be placed"),
+        findsOneWidget,
+      );
+      await apply(tester);
+      expect(
+        h.server.applies.single.map((op) => op.target),
+        unorderedEquals([_ann, _bob]),
+      );
+    });
+
+    testWidgets('places off the field cannot be applied', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final sector = h.selection.state.sector!;
+      // Against the left edge of the stored-position envelope, pointing out.
+      h.selection.editSector(
+        sector.copyWith(
+          centre: (
+            x:
+                kConstellationCanvasCentre +
+                kConstellationCoordinateMinUnits *
+                    kConstellationRingUnitPixels +
+                20,
+            y: kConstellationCanvasCentre,
+          ),
+          direction: math.pi,
+        ),
+      );
+      await _frames(tester);
+
+      expect(
+        find.byKey(const Key('constellation.selection.sector_off_field')),
+        findsOneWidget,
+      );
+      final applyButton = find.byKey(
+        const Key('constellation.selection.sector_apply'),
+      );
+      expect(tester.widget<FilledButton>(applyButton).onPressed, isNull);
+    });
+
     testWidgets('is rejected when a reset happened after the revision it '
         'is based on', (tester) async {
       final h = await _mount(tester);
       // Another device reset the positions; this one has not heard yet.
       h.server.resetWatermark = 9;
 
-      await arrange(tester, h);
+      await open(tester, h, [_ann, _bob]);
+      await apply(tester);
 
       expect(h.server.applies, hasLength(1));
       expect(h.server.anchors, isEmpty);
@@ -812,7 +1215,8 @@ void main() {
 
     testWidgets('«Сбросить позиции» undoes it', (tester) async {
       final h = await _mount(tester);
-      await arrange(tester, h);
+      await open(tester, h, [_ann, _bob]);
+      await apply(tester);
       expect(h.server.anchors, hasLength(2));
 
       await tester.runAsync(h.cubit.resetAllPositions);
@@ -823,23 +1227,61 @@ void main() {
       expect(h.cubit.isAnchored(_bob), isFalse);
     });
 
-    testWidgets('Cancel leaves everyone where they are', (tester) async {
+    for (final how in ['Cancel', 'Escape']) {
+      testWidgets('$how after editing leaves everyone where they are', (
+        tester,
+      ) async {
+        final h = await _mount(tester);
+        final annBefore = tester.getCenter(_node('a'));
+        await open(tester, h, [_ann, _bob]);
+        final from = tester.getCenter(handle('centre'));
+        await _drag(tester, from, from + const Offset(80, 30));
+        final radius = tester.getCenter(handle('radius'));
+        await _drag(tester, radius, radius + const Offset(-40, -40));
+
+        if (how == 'Cancel') {
+          await tester.tap(
+            find.byKey(const Key('constellation.selection.sector_cancel')),
+          );
+        } else {
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        }
+        await _settle(tester);
+
+        expect(h.selection.state.sector, isNull);
+        expect(h.selected, {_ann, _bob}, reason: 'the selection stays');
+        expect(h.server.applies, isEmpty);
+        expect(
+          find.byKey(const Key('constellation.selection.sector_editor')),
+          findsNothing,
+        );
+        expect(tester.getCenter(_node('a')), annBefore);
+      });
+    }
+
+    testWidgets('two fingers still move the map while editing', (
+      tester,
+    ) async {
       final h = await _mount(tester);
-      h.selection
-        ..toggle(_ann)
-        ..toggle(_bob);
+      await open(tester, h, [_ann, _bob]);
+      final before = h.selection.state.sector!;
+      final annBefore = tester.getCenter(_node('a'));
+      final from = _farCorner(tester);
+
+      final first = await tester.startGesture(from);
+      final second = await tester.startGesture(from + const Offset(0, 60));
       await _frames(tester);
-      await tester.tap(
-        find.byKey(const Key('constellation.selection.arrange')),
-      );
-      await _frames(tester);
-      await tester.tap(
-        find.byKey(const Key('constellation.selection.sector_cancel')),
-      );
+      for (var i = 1; i <= 8; i++) {
+        await first.moveTo(from + Offset(-15.0 * i, -5.0 * i));
+        await second.moveTo(from + Offset(-15.0 * i, 60 - 5.0 * i));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await first.up();
+      await second.up();
       await _settle(tester);
 
-      expect(h.selection.state.sector, isNull);
-      expect(h.server.applies, isEmpty);
+      expect(h.selection.state.sector, before, reason: 'the sector stays');
+      expect(tester.getCenter(_node('a')), isNot(annBefore));
     });
   });
 }

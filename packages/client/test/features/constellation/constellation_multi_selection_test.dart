@@ -33,16 +33,12 @@ void main() {
     expect(cubit.state.isEmpty, isTrue);
   });
 
-  test('people and Requests are both selectable; only people arrange', () {
-    cubit
-      ..toggle(_ann)
-      ..toggle(_request);
+  test('people and Requests are both selectable and both arrange', () {
+    cubit.toggle(_request);
+    expect(cubit.state.canArrange, isFalse, reason: 'one is not enough');
 
+    cubit.toggle(_ann);
     expect(cubit.state.count, 2);
-    expect(cubit.state.personIds, ['ann']);
-    expect(cubit.state.canArrange, isFalse);
-
-    cubit.toggle(_bob);
     expect(cubit.state.canArrange, isTrue);
   });
 
@@ -105,59 +101,88 @@ void main() {
   });
 
   group('sector', () {
+    const draft = ConstellationSectorDraft(
+      centre: (x: 100, y: 200),
+      radius: 300,
+      direction: 1,
+    );
+
     setUp(() {
       cubit
         ..toggle(_ann)
         ..toggle(_bob);
     });
 
-    test('starts at the given direction with the default width', () {
-      cubit.beginSector(direction: 1);
-      expect(cubit.state.sector!.direction, closeTo(1, 1e-12));
-      expect(cubit.state.sector!.span, closeTo(math.pi / 2, 1e-12));
+    test('starts at the given draft with the default width', () {
+      cubit.beginSector(draft);
+      final sector = cubit.state.sector!;
+      expect(sector.centre, (x: 100.0, y: 200.0));
+      expect(sector.radius, 300);
+      expect(sector.direction, closeTo(1, 1e-12));
+      expect(sector.span, closeTo(math.pi / 2, 1e-12));
     });
 
-    test('needs at least two people', () {
+    test('Requests and Posts arrange alone too', () {
       cubit
         ..clear()
-        ..toggle(_ann)
         ..toggle(_request)
-        ..beginSector(direction: 0);
+        ..toggle(ConstellationAnchorTarget.beacon('post'))
+        ..beginSector(draft);
+      expect(cubit.state.sector, isNotNull);
+    });
+
+    test('needs at least two nodes', () {
+      cubit
+        ..clear()
+        ..toggle(_request)
+        ..beginSector(draft);
       expect(cubit.state.sector, isNull);
     });
 
-    test('refuses more people than one batch can carry', () {
+    test('refuses more nodes than one arrangement can carry', () {
       cubit
         ..clear()
         ..addAll([
-          for (var i = 0; i <= kConstellationSectorMaxPeople; i++)
+          for (var i = 0; i <= kConstellationSectorMaxItems; i++)
             ConstellationAnchorTarget.person('p$i'),
         ])
-        ..beginSector(direction: 0);
+        ..beginSector(draft);
       expect(cubit.state.canArrange, isFalse);
       expect(cubit.state.sector, isNull);
     });
 
     test('aiming turns it and clamps its width', () {
       cubit
-        ..beginSector(direction: 0)
+        ..beginSector(draft)
         ..aimSector(direction: 3 * math.pi, span: 100);
       expect(cubit.state.sector!.direction.abs(), closeTo(math.pi, 1e-9));
       expect(cubit.state.sector!.span, kConstellationSectorMaxSpan);
+      expect(cubit.state.sector!.isFullCircle, isTrue);
 
       cubit.aimSector(span: 0);
       expect(cubit.state.sector!.span, kConstellationSectorMinSpan);
     });
 
+    test('editing replaces the draft, and does nothing without one', () {
+      cubit.editSector(draft);
+      expect(cubit.state.sector, isNull);
+
+      cubit
+        ..beginSector(draft)
+        ..editSector(draft.copyWith(centre: (x: 5, y: 6), radius: -4));
+      expect(cubit.state.sector!.centre, (x: 5.0, y: 6.0));
+      expect(cubit.state.sector!.radius, 0, reason: 'never negative');
+    });
+
     test('a changed selection drops the sector', () {
       cubit
-        ..beginSector(direction: 0)
+        ..beginSector(draft)
         ..toggle(_cat);
       expect(cubit.state.sector, isNull);
     });
 
     test('Escape backs out of the sector first, then the selection', () {
-      cubit.beginSector(direction: 0);
+      cubit.beginSector(draft);
 
       expect(cubit.escape(), isTrue);
       expect(cubit.state.sector, isNull);
@@ -167,6 +192,38 @@ void main() {
       expect(cubit.state.isActive, isFalse);
 
       expect(cubit.escape(), isFalse);
+    });
+  });
+
+  group('ConstellationSectorDraft.withEdgeMoved', () {
+    const draft = ConstellationSectorDraft(
+      centre: (x: 0, y: 0),
+      radius: 100,
+      direction: 0,
+    );
+
+    test('the end edge widens the sector, the start edge stays put', () {
+      final moved = draft.withEdgeMoved(ConstellationSectorEdge.end, 0.5);
+      expect(moved.start, closeTo(draft.start, 1e-12));
+      expect(moved.end, closeTo(draft.end + 0.5, 1e-12));
+      expect(moved.span, closeTo(draft.span + 0.5, 1e-12));
+    });
+
+    test('the start edge narrows it, the end edge stays put', () {
+      final moved = draft.withEdgeMoved(ConstellationSectorEdge.start, 0.5);
+      expect(moved.end, closeTo(draft.end, 1e-12));
+      expect(moved.start, closeTo(draft.start + 0.5, 1e-12));
+      expect(moved.span, closeTo(draft.span - 0.5, 1e-12));
+    });
+
+    test('the width stops at the whole circle and at the narrowest, with '
+        'the other edge still in place', () {
+      final full = draft.withEdgeMoved(ConstellationSectorEdge.end, 100);
+      expect(full.span, kConstellationSectorMaxSpan);
+      expect(full.start, closeTo(draft.start, 1e-9));
+      final narrow = draft.withEdgeMoved(ConstellationSectorEdge.start, 100);
+      expect(narrow.span, kConstellationSectorMinSpan);
+      expect(narrow.end, closeTo(draft.end, 1e-9));
     });
   });
 
@@ -191,7 +248,13 @@ void main() {
       expect(cubit.state.dragGroupFor(_ann), isEmpty);
       cubit
         ..toggle(_bob)
-        ..beginSector(direction: 0);
+        ..beginSector(
+          const ConstellationSectorDraft(
+            centre: (x: 0, y: 0),
+            radius: 100,
+            direction: 0,
+          ),
+        );
       expect(cubit.state.dragGroupFor(_ann), isEmpty);
     });
   });

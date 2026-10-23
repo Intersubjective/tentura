@@ -209,14 +209,15 @@ class ConstellationInteractionController {
     }
   }
 
-  void _addPersonDragCompanions({
+  /// The pinned Requests of [authorId] drawn on the map now: they follow
+  /// their author whenever the author is moved.
+  Set<String> pinnedCompanionRequestIds({
     required String authorId,
     required ConstellationField? field,
     required ConstellationComposedPresentation? composition,
-    required List<ConstellationAnchor> fallbackAnchors,
   }) {
     if (field == null || composition == null) {
-      return;
+      return const {};
     }
     final pinnedBeaconIds = constellationPinnedBeaconIds(
       composition.anchorOverlay.anchors,
@@ -233,9 +234,22 @@ class ConstellationInteractionController {
         if (graphId.startsWith('${TenturaGraphNodeKind.fieldRequest}:'))
           tenturaLayoutDomainId(graphId),
     };
-    final companionIds = satellites.pinnedIds
+    return satellites.pinnedIds
         .intersection(_scene.displayedRequestIds)
         .intersection(onGraphRequestIds);
+  }
+
+  void _addPersonDragCompanions({
+    required String authorId,
+    required ConstellationField? field,
+    required ConstellationComposedPresentation? composition,
+    required List<ConstellationAnchor> fallbackAnchors,
+  }) {
+    final companionIds = pinnedCompanionRequestIds(
+      authorId: authorId,
+      field: field,
+      composition: composition,
+    );
     for (final requestId in companionIds) {
       final companionTarget = ConstellationAnchorTarget.beacon(requestId);
       final graphId = constellationGraphNodeIdForTarget(companionTarget);
