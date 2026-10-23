@@ -257,7 +257,7 @@ final class AuthGoogleController extends BaseController {
         authMethod: 'google',
         request: request,
       );
-      return _oauthStateError();
+      return _callbackFailure(request, payload: payload);
     }
     final redirectUri = _callbackUri().toString();
     OidcIdentity identity;
@@ -378,7 +378,7 @@ final class AuthGoogleController extends BaseController {
         authMethod: 'google',
         request: request,
       );
-      return _oauthStateError();
+      return _callbackFailure(request, payload: payload);
     }
   }
 
@@ -423,38 +423,53 @@ final class AuthGoogleController extends BaseController {
   /// clears the (stale) state cookie and sends the user back to the landing page
   /// with `?auth_error=<reason>` so the start page can say what happened
   /// (#418). [reason] is always one of our own constants, never Google's text.
-  Response _oauthStateError({String reason = _authErrorFailed}) =>
-      Response.found(
-        '${publicLandingUrl(env.publicOrigin)}?auth_error=$reason',
-        headers: withSetCookie(
-          {kHeaderCacheControl: kCacheControlNoStore},
-          buildClearCookie(kCookieOAuthStateName),
-        ),
-      );
+  /// A sign-in started from an invite page ([returnTo] is `/invite/<code>`)
+  /// goes back to that invite page instead, so the invite is not lost (#601).
+  Response _oauthStateError({
+    String reason = _authErrorFailed,
+    String returnTo = '',
+  }) {
+    final base =
+        invitePageUrlFromReturnTo(
+          returnTo: returnTo,
+          publicOrigin: env.publicOrigin,
+        ) ??
+        publicLandingUrl(env.publicOrigin);
+    return Response.found(
+      '$base?auth_error=$reason',
+      headers: withSetCookie(
+        {kHeaderCacheControl: kCacheControlNoStore},
+        buildClearCookie(kCookieOAuthStateName),
+      ),
+    );
+  }
 
-  /// A failed callback (cancelled consent, failed token exchange). A Settings
-  /// link flow — the signed state cookie carries `linkAccountId` — returns to
-  /// Sign-in methods with `linked=error` so the SPA shows its toast; anything
-  /// else falls back to [_oauthStateError]. The cookie only picks which of our
-  /// own pages to land on, so an unverified state is harmless here.
+  /// A failed callback (cancelled consent, failed token exchange, state
+  /// mismatch, unexpected login error). A Settings link flow — the signed
+  /// state cookie carries `linkAccountId` — returns to Sign-in methods with
+  /// `linked=error` so the SPA shows its toast; anything else falls back to
+  /// [_oauthStateError], back on the invite page the sign-in started from when
+  /// there was one (#601). The cookie only picks which of our own pages to
+  /// land on, so an unverified state is harmless here.
   Response _callbackFailure(
     Request request, {
     OAuthStatePayload? payload,
     String reason = _authErrorFailed,
   }) {
-    var linkAccountId = payload?.linkAccountId;
-    if (payload == null) {
+    var state = payload;
+    if (state == null) {
       final cookie = readCookie(request, kCookieOAuthStateName);
       if (cookie != null && cookie.isNotEmpty) {
         try {
-          linkAccountId = _oauthStateCodec.decode(cookie).linkAccountId;
+          state = _oauthStateCodec.decode(cookie);
         } on OidcStateMismatchException {
-          linkAccountId = null;
+          state = null;
         }
       }
     }
+    final linkAccountId = state?.linkAccountId;
     if (linkAccountId == null || linkAccountId.isEmpty) {
-      return _oauthStateError(reason: reason);
+      return _oauthStateError(reason: reason, returnTo: state?.returnTo ?? '');
     }
     return Response.found(
       _linkReturn('error'),
