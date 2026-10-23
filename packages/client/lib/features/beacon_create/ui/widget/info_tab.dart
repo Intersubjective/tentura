@@ -344,10 +344,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     await _flushDraft();
     if (!context.mounted) return;
     final l10n = L10n.of(context)!;
-    // Switching the segment is provisional until a date is picked or OK is
-    // pressed: dismissing the sheet used to leave "When? Tap to choose" on the
-    // form for a mode the user never confirmed (UI review, creation flow).
+    // Everything done in the sheet (segment switches and picked dates) is
+    // provisional until OK: closing it any other way ((x), scrim, Escape,
+    // back) puts the timing back as it was on open (UI review; #607).
     final kindOnOpen = _timingKindNotifier.value;
+    final timingOnOpen = _cubit.state;
     final confirmed = await showTenturaAdaptiveSheet<bool>(
       context: context,
       builder: (_) => UnfocusSheetBody(
@@ -462,13 +463,16 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         ),
       ),
     );
-    final noDatePicked =
-        _cubit.state.startAt == null && _cubit.state.endAt == null;
-    if (confirmed != true &&
-        noDatePicked &&
-        _timingKindNotifier.value != kindOnOpen) {
-      _onTimingKindChanged(kindOnOpen);
+    if (confirmed == true) return;
+    final now = _cubit.state;
+    if (now.startAt != timingOnOpen.startAt ||
+        now.endAt != timingOnOpen.endAt ||
+        now.cachedDeadlineAt != timingOnOpen.cachedDeadlineAt ||
+        now.cachedEventStartAt != timingOnOpen.cachedEventStartAt ||
+        now.cachedEventEndAt != timingOnOpen.cachedEventEndAt) {
+      _cubit.restoreTiming(timingOnOpen);
     }
+    if (mounted) _timingKindNotifier.value = kindOnOpen;
   }
 
   Future<void> _showCoverSheet(BuildContext context) async {
