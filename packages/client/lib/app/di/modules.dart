@@ -71,15 +71,13 @@ abstract class RegisterModule {
         driftWorker: Uri.parse('/assets/packages/drift_worker.js'),
       ),
     );
-    final initial = open();
+    // A plain, connection-independent stream store on purpose: drift's
+    // per-connection stores (cross-tab / cross-isolate relays) stay bound to
+    // the connection that made them, which a reopen abandons. Nothing here
+    // watches local tables, so nothing needs cross-tab updates; a future
+    // `.watch()` still updates for writes made by this tab.
     return DatabaseConnection(
-      ReopeningQueryExecutor(
-        open,
-        initial: initial,
-        onRetry: _reportDatabaseReopen,
-      ),
-      // Keep drift's store: on the web it relays table updates across tabs.
-      streamQueries: initial.streamQueries,
+      ReopeningQueryExecutor(open, onRetry: _reportDatabaseReopen),
     ).interceptWith(SentryQueryInterceptor(databaseName: _mainDbName));
   }
 

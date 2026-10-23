@@ -51,12 +51,11 @@ final class LocalDatabaseOpenException implements Exception {
 final class ReopeningQueryExecutor extends QueryExecutor {
   ReopeningQueryExecutor(
     this._open, {
-    QueryExecutor? initial,
     List<Duration> retryDelays = defaultRetryDelays,
     this._onRetry,
     Future<void> Function(Duration delay)? delay,
     this._closeTimeout = const Duration(seconds: 2),
-  }) : _inner = initial ?? _open(),
+  }) : _inner = _open(),
        _retryDelays = List.unmodifiable(retryDelays),
        _delay = delay ?? Future<void>.delayed;
 
