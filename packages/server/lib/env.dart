@@ -89,7 +89,9 @@ Duration? _parseEnvDuration(String? raw) {
 /// mutations. The client version and web bootstrap cache-buster ship together.
 /// Raised to 7.45.0 for next-step revisions (#517): `BeaconRoomNowLineUpdate`
 /// requires `baseRevision`, which older clients do not send.
-const kDefaultMinClientVersion = '7.45.0';
+/// Raised to 7.46.0 for who-did-what events (#528, #486): old clients render
+/// kind-8 edit lines as empty bubbles and don't use `beaconCantHelp`.
+const kDefaultMinClientVersion = '7.46.0';
 
 class Env {
   Env({
