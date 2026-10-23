@@ -63,7 +63,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconParentId) this.parentBeaconId = '',
     @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
     @QueryParam(kQueryBeaconForkFrom) this.forkSourceId = '',
-    this.forkPlanStepTimes,
+    @QueryParam(kQueryBeaconForkPlan) this.forkPlanTimes = '',
     this.initialRecipientIds = const {},
     this.initialNotes = const {},
     this.onRecipientsChanged,
@@ -106,8 +106,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// server draft is forked from it only at the first edit or save.
   final String forkSourceId;
 
-  /// Plan step times chosen for the copy; null copies no plan.
-  final List<PlanStepTime>? forkPlanStepTimes;
+  /// Plan step times chosen for the copy, as [encodePlanStepTimesQuery]
+  /// writes them into the URL (#607); empty copies no plan.
+  final String forkPlanTimes;
 
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
@@ -123,7 +124,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
           forkSourceIdToLoad: forkSourceId.isEmpty ? null : forkSourceId,
-          forkPlanStepTimes: forkPlanStepTimes,
+          forkPlanStepTimes: decodePlanStepTimesQuery(forkPlanTimes),
           forkTitle: L10n.of(context)!.beaconCopyOfTitle,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,

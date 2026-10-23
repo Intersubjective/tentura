@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:meta/meta.dart';
 
 import 'beacon_plan.dart';
@@ -108,3 +110,50 @@ DateTime defaultPlanCopyAnchor({
   }
   return candidate.toUtc();
 }
+
+/// [times] as a URL query value (#607), so the copy editor's plan choice
+/// survives a web reload: `''` when the copy goes without the plan (null),
+/// else a JSON list of `[sourceStepId, startMs, endMs]` (UTC epoch
+/// milliseconds, null when untimed).
+String encodePlanStepTimesQuery(List<PlanStepTime>? times) => times == null
+    ? ''
+    : jsonEncode([
+        for (final t in times)
+          [
+            t.sourceStepId,
+            t.startAt?.millisecondsSinceEpoch,
+            t.endAt?.millisecondsSinceEpoch,
+          ],
+      ]);
+
+/// Reverse of [encodePlanStepTimesQuery]. Null (copy without the plan) for an
+/// empty or malformed value, so a hand-edited URL never breaks the editor.
+List<PlanStepTime>? decodePlanStepTimesQuery(String value) {
+  if (value.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is! List) return null;
+    final times = <PlanStepTime>[];
+    for (final item in decoded) {
+      if (item is! List || item.length != 3) return null;
+      final Object? id = item[0];
+      final Object? start = item[1];
+      final Object? end = item[2];
+      if (id is! String || id.isEmpty) return null;
+      if (start is! int? || end is! int?) return null;
+      times.add(
+        PlanStepTime(
+          sourceStepId: id,
+          startAt: _utcFromMillis(start),
+          endAt: _utcFromMillis(end),
+        ),
+      );
+    }
+    return times;
+  } on FormatException {
+    return null;
+  }
+}
+
+DateTime? _utcFromMillis(int? ms) =>
+    ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);

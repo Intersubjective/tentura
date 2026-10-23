@@ -94,6 +94,10 @@ const kQueryBeaconSourceMessageId = 'source_message_id';
 /// Request id «Create from this request» copies (#493).
 const kQueryBeaconForkFrom = 'fork_from';
 
+/// Plan step times chosen for a «Create from this request» copy (#607), so a
+/// web reload of the copy keeps them. Empty: the copy goes without the plan.
+const kQueryBeaconForkPlan = 'fork_plan';
+
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 
