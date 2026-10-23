@@ -12,10 +12,12 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
+import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
 
 Size measureConstellationLabelPlate({
@@ -247,6 +249,8 @@ class _ConstellationViewportOverlayState
 
   @override
   Widget build(BuildContext context) {
+    // Off the screen's presence scope (e.g. a bare widget test) no halo.
+    final presence = context.read<ConstellationPresenceCubit?>();
     return BlocBuilder<ConstellationCubit, ConstellationState>(
       bloc: widget.cubit,
       buildWhen: (previous, current) =>
@@ -313,6 +317,7 @@ class _ConstellationViewportOverlayState
               selectedPersonId: selectedPersonId,
               selectedRequestId: selectedRequestId,
             );
+            final trustGraphIds = rings.trust.keys.toSet();
 
             final inputs = <ConstellationFrameNodeInput>[];
             final labelTexts = <String>[];
@@ -728,6 +733,28 @@ class _ConstellationViewportOverlayState
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
+                    // Presence halos under the trust rings; they repaint on
+                    // their own, never with the rings or the labels.
+                    if (presence != null)
+                      Positioned.fill(
+                        child:
+                            BlocBuilder<
+                              ConstellationPresenceCubit,
+                              Set<String>
+                            >(
+                              bloc: presence,
+                              builder: (context, online) =>
+                                  ConstellationPresenceHaloLayer(
+                                    frame: frame,
+                                    onlineGraphIds: constellationOnlineGraphIds(
+                                      onlinePersonIds: online,
+                                      isOnMap: nodeByGraphId.containsKey,
+                                    ),
+                                    trustGraphIds: trustGraphIds,
+                                    viewport: viewport,
+                                  ),
+                            ),
+                      ),
                     Positioned.fill(
                       child: ConstellationNodeRingLayer(
                         frame: frame,

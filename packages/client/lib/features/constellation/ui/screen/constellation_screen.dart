@@ -31,9 +31,11 @@ import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../util/layout_geometry_adapters.dart';
+import '../../domain/constellation_presence.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_presence_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
@@ -86,6 +88,30 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
           child: MultiBlocProvider(
             providers: [
               BlocProvider(create: (_) => ConstellationSelectionCubit()),
+              // Friends' presence on the field: watched for the people on
+              // it, re-diffed only when the field or its composition change.
+              BlocProvider(
+                lazy: false,
+                create: (context) {
+                  final constellation = context.read<ConstellationCubit>();
+                  Set<String> watchIdsOf(ConstellationState state) =>
+                      constellationPresenceWatchIds(
+                        field: state.field,
+                        composition: state.composition,
+                        viewerId: viewer.id,
+                      );
+                  return ConstellationPresenceCubit(
+                    initialWatchIds: watchIdsOf(constellation.state),
+                    watchIds: constellation.stream
+                        .distinct(
+                          (a, b) =>
+                              identical(a.field, b.field) &&
+                              identical(a.composition, b.composition),
+                        )
+                        .map(watchIdsOf),
+                  );
+                },
+              ),
               BlocProvider(
                 create: (context) => GraphPersonContextCubit(
                   profileViewCase: GetIt.I<ProfileViewCase>(),

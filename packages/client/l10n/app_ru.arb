@@ -7285,6 +7285,8 @@
   "constellationTrustTheyTrustHint": "Этот человек отметил вас как того, кому доверяет; вы его — пока нет.",
   "constellationTrustContactOnly": "Контакт без содержимого",
   "constellationTrustContactOnlyHint": "Вы доверяете этому человеку, но вы пока не видите друг друга через сеть доверия, поэтому на поле — только его имя и фото.",
+  "constellationPresenceOnline": "Сейчас в сети",
+  "constellationPresenceOnlineHint": "Мягкое зелёное свечение вокруг друга значит, что он сейчас в сети.",
   "constellationTrustChainThrough": "Через: {chain}",
   "constellationTrustChainNone": "Ни одна видимая вам цепочка доверия не ведёт к этому человеку.",
   "constellationTrustChainHidden": "Среди показанных людей нет цепочки доверия к этому человеку. Часть людей скрыта.",

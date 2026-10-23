@@ -10570,6 +10570,14 @@
   "@constellationTrustContactOnlyHint": {
     "context": "Field legend: one-sentence hint for the contact-node ring (#643)"
   },
+  "constellationPresenceOnline": "Online now",
+  "@constellationPresenceOnline": {
+    "context": "Field legend: the soft green pulsing halo around a person who is online now"
+  },
+  "constellationPresenceOnlineHint": "A soft green pulse around a friend means they are online now.",
+  "@constellationPresenceOnlineHint": {
+    "context": "Field legend: one-sentence hint for the online presence halo; only friends and people you share a Request chat with show it"
+  },
   "constellationTrustChainThrough": "Through {chain}",
   "@constellationTrustChainThrough": {
     "context": "Field map: person panel line naming the people on the shortest chain of trust from the viewer to the selected person, joined with arrows, e.g. 'Through Dima → Raf' (#641)",
