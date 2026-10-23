@@ -513,8 +513,8 @@ class _RoomPollCardState extends State<RoomPollCard> {
                         },
                         child: Text(
                           poll.pollType == PollType.range
-                              ? 'Submit ratings'
-                              : 'Submit',
+                              ? l10n.beaconRoomPollSubmitRatings
+                              : l10n.beaconRoomPollSubmit,
                         ),
                       ),
                     ],
@@ -543,7 +543,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                         _pendingMultiple = poll.myVariantIds.toSet();
                         _pendingRange = {};
                       }),
-                      child: const Text('Change answer'),
+                      child: Text(l10n.beaconRoomPollChangeAnswer),
                     ),
                   ),
               ],

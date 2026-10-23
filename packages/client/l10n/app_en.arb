@@ -10144,6 +10144,18 @@
       }
     }
   },
+  "beaconRoomPollSubmit": "Submit",
+  "@beaconRoomPollSubmit": {
+    "context": "Room poll: button that sends the selected options of a multiple-choice poll (#609)"
+  },
+  "beaconRoomPollSubmitRatings": "Submit ratings",
+  "@beaconRoomPollSubmitRatings": {
+    "context": "Room poll: button that sends the scores of a rating (range) poll (#609)"
+  },
+  "beaconRoomPollChangeAnswer": "Change answer",
+  "@beaconRoomPollChangeAnswer": {
+    "context": "Room poll footer: lets a voter revote when the poll allows it (#609)"
+  },
   "updatesRowMenuTooltip": "Update actions",
   "@updatesRowMenuTooltip": {
     "context": "Updates feed row: overflow menu button (#416)"

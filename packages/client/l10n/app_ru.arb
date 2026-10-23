@@ -7196,6 +7196,9 @@
       }
     }
   },
+  "beaconRoomPollSubmit": "Отправить",
+  "beaconRoomPollSubmitRatings": "Отправить оценки",
+  "beaconRoomPollChangeAnswer": "Изменить ответ",
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",
