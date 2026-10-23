@@ -2616,7 +2616,7 @@
   "@timelineDeclined": {
     "context": "BeaconViewScreen"
   },
-  "forwardDeclined": "Отклонил(а) этот запрос",
+  "forwardDeclined": "Убрал(а) этот запрос",
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
   },
@@ -3813,7 +3813,7 @@
   "@activityForwardOutcomeWatching": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeNotInterested": "Вы отказались",
+  "activityForwardOutcomeNotInterested": "Вы убрали",
   "@activityForwardOutcomeNotInterested": {
     "context": "InboxScreen"
   },
@@ -4257,12 +4257,12 @@
     "context": "BeaconViewScreen",
     "description": "Subsection header in the Forwards tab showing who the current user forwarded to"
   },
-  "myForwardDeclined": "Отклонено",
+  "myForwardDeclined": "Убрано",
   "@myForwardDeclined": {
     "context": "BeaconViewScreen",
     "description": "Reaction label when a forward recipient declined the beacon"
   },
-  "myForwardDeclinedWithReason": "Отклонено: {reason}",
+  "myForwardDeclinedWithReason": "Убрано: {reason}",
   "@myForwardDeclinedWithReason": {
     "context": "BeaconViewScreen",
     "description": "Reaction label with reason when a forward recipient declined the beacon",

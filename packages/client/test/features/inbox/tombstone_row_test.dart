@@ -108,7 +108,7 @@ void main() {
     const expected = {
       AttentionForwardOutcome.helping: 'Вы предложили помощь',
       AttentionForwardOutcome.watching: 'Вы начали следить',
-      AttentionForwardOutcome.notInterested: 'Вы отказались',
+      AttentionForwardOutcome.notInterested: 'Вы убрали',
       AttentionForwardOutcome.closedBeforeResponse:
           'Автор закрыл запрос до вашего ответа',
       AttentionForwardOutcome.deletedBeforeResponse: 'Запрос удалён',

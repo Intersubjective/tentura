@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/inbox/ui/widget/activity_forward_outcome_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// #485: "Declined" meant two things. Requests the viewer puts away from
@@ -47,6 +49,52 @@ void main() {
       }
       expect(ru.inboxRejectedTitle, isNot(en.inboxRejectedTitle));
       expect(ru.inboxRejectedEmptyHint, isNot(en.inboxRejectedEmptyHint));
+    });
+  });
+
+  // V3 (#611, part of #485): the request-side "declined" strings say
+  // "dismissed", matching the Dismissed tab.
+  group('request-side outcome copy says dismissed', () {
+    test('English request-side strings say dismissed', () {
+      expect(en.activityForwardOutcomeNotInterested, 'You dismissed it');
+      expect(en.forwardDeclined, 'Dismissed this request');
+      expect(en.myForwardDeclined, 'Dismissed');
+      expect(en.myForwardDeclinedWithReason('Busy'), 'Dismissed: Busy');
+      for (final s in [
+        en.activityForwardOutcomeNotInterested,
+        en.forwardDeclined,
+        en.myForwardDeclined,
+        en.myForwardDeclinedWithReason('Busy'),
+      ]) {
+        expect(s.toLowerCase(), isNot(contains('declin')), reason: s);
+      }
+    });
+
+    test('Russian request-side strings say убрано, not отклонено', () {
+      expect(ru.activityForwardOutcomeNotInterested, 'Вы убрали');
+      expect(ru.forwardDeclined, 'Убрал(а) этот запрос');
+      expect(ru.myForwardDeclined, 'Убрано');
+      expect(ru.myForwardDeclinedWithReason('Занят'), 'Убрано: Занят');
+      for (final s in [
+        ru.activityForwardOutcomeNotInterested,
+        ru.forwardDeclined,
+        ru.myForwardDeclined,
+        ru.myForwardDeclinedWithReason('Занят'),
+      ]) {
+        expect(s.toLowerCase(), isNot(contains('отклон')), reason: s);
+        expect(s.toLowerCase(), isNot(contains('отказ')), reason: s);
+      }
+    });
+
+    test('the Activity outcome label for notInterested says dismissed', () {
+      expect(
+        activityForwardOutcomeLabel(en, AttentionForwardOutcome.notInterested),
+        'You dismissed it',
+      );
+      expect(
+        activityForwardOutcomeLabel(ru, AttentionForwardOutcome.notInterested),
+        'Вы убрали',
+      );
     });
   });
 
