@@ -33,7 +33,7 @@ Future<void> runBeaconCreateFromAction(
   await context.router.push(
     BeaconCreateRoute(
       forkSourceId: sourceBeaconId,
-      forkPlanStepTimes: times,
+      forkPlanTimes: encodePlanStepTimesQuery(times),
     ),
   );
 }

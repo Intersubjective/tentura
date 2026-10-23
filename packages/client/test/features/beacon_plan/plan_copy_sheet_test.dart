@@ -6,9 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_copy_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -146,10 +148,25 @@ void main() {
     await tester.tap(find.byKey(PlanCopySheet.confirmKey));
     await tester.pumpAndSettle();
     expect(router.pushed, hasLength(1));
-    final args = (router.pushed.single as BeaconCreateRoute).args!;
+    final route = router.pushed.single as BeaconCreateRoute;
+    final args = route.args!;
     expect(args.forkSourceId, 'src');
     expect(args.draftId, isEmpty);
-    expect(args.forkPlanStepTimes, hasLength(plan.steps.length));
+    // #607: the times ride in the URL, so a web reload (args rebuilt from
+    // the query alone) still copies the plan at the chosen times.
+    final fromUrl = decodePlanStepTimesQuery(
+      route.queryParams.getString(kQueryBeaconForkPlan, ''),
+    );
+    expect(fromUrl, hasLength(plan.steps.length));
+    expect(
+      fromUrl!.map((t) => t.sourceStepId),
+      plan.steps.map((s) => s.id),
+    );
+    expect(
+      fromUrl.where((t) => t.startAt != null),
+      hasLength(plan.steps.where((s) => s.startAt != null).length),
+    );
+    expect(decodePlanStepTimesQuery(args.forkPlanTimes), fromUrl);
 
     // Dismissed: the editor does not open at all.
     router.pushed.clear();
@@ -179,7 +196,13 @@ void main() {
     final args = (router.pushed.single as BeaconCreateRoute).args!;
     expect(args.forkSourceId, 'src');
     expect(args.draftId, isEmpty);
-    expect(args.forkPlanStepTimes, isNull);
+    expect(args.forkPlanTimes, isEmpty);
+    expect(
+      decodePlanStepTimesQuery(
+        router.pushed.single.queryParams.getString(kQueryBeaconForkPlan, ''),
+      ),
+      isNull,
+    );
   });
 }
 
