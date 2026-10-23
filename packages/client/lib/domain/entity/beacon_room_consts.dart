@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart' show StringCharacters;
+
 /// Mirrors `packages/server/lib/consts/beacon_room_consts.dart`.
 abstract final class BeaconParticipantRoleBits {
   static const author = 0;
@@ -150,7 +152,14 @@ const kBeaconRoomCurrentLineMaxLength = 60;
 String clipBeaconRoomCurrentLine(String raw) {
   final t = raw.trim();
   if (t.length <= kBeaconRoomCurrentLineMaxLength) return t;
-  return '${t.substring(0, kBeaconRoomCurrentLineMaxLength - 1)}…';
+  // Cut on a character boundary, never half an emoji (#603).
+  const room = kBeaconRoomCurrentLineMaxLength - 1;
+  var end = 0;
+  for (final char in t.characters) {
+    if (end + char.length > room) break;
+    end += char.length;
+  }
+  return '${t.substring(0, end)}…';
 }
 
 abstract final class BeaconParticipantStatusBits {

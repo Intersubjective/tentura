@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -10,7 +11,6 @@ import 'package:tentura/features/beacon_threads/domain/exception/now_line_change
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 /// Sets the beacon room [current line] via [BeaconThreadsCase.updateRoomNowLine].
@@ -82,6 +82,9 @@ class _BeaconCurrentLineSheetBodyState
   /// Set when someone else changed the line while this editor was open.
   String? _conflict;
 
+  /// Set when a save failed for another reason (network, server).
+  String? _saveError;
+
   /// Whether a newer line was seen while this editor was open; then "Keep
   /// theirs" closes without saving.
   var _sawNewer = false;
@@ -105,7 +108,10 @@ class _BeaconCurrentLineSheetBodyState
 
   Future<void> _save() async {
     if (!_canSubmit) return;
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _saveError = null;
+    });
     try {
       final line = _controller.text.trim();
       final saved = await widget.threadsCase.updateRoomNowLine(
@@ -129,19 +135,19 @@ class _BeaconCurrentLineSheetBodyState
           _conflict = e.toL10n(L10n.of(context)?.localeName);
         });
       }
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      // Shown inside the sheet: a snackbar would sit under it, unseen (#603).
+      // The text stays in the field for another try.
+      reportUserFacingError(e, stackTrace: st);
       if (mounted) {
-        setState(() => _submitting = false);
         final locale = L10n.of(context)?.localeName;
-        showSnackBar(
-          context,
-          isError: true,
-          text: switch (e) {
+        setState(() {
+          _submitting = false;
+          _saveError = switch (e) {
             final Localizable l => l.toL10n(locale),
             _ => e.toString(),
-          },
-          error: e,
-        );
+          };
+        });
       }
     }
   }
@@ -195,12 +201,15 @@ class _BeaconCurrentLineSheetBodyState
                 hintText: l10n.beaconRoomStripCurrentLineLabel,
                 helperText: l10n.beaconCurrentLineEditHelper,
                 helperMaxLines: 3,
-                errorText: _conflict,
+                errorText: _conflict ?? _saveError,
                 errorMaxLines: 4,
               ),
               // The conflict note is about the text they saw; once they edit,
               // it no longer applies (B085 review).
-              onChanged: (_) => setState(() => _conflict = null),
+              onChanged: (_) => setState(() {
+                _conflict = null;
+                _saveError = null;
+              }),
               maxLength: kBeaconRoomCurrentLineMaxLength,
               // Code units, as the server counts the line (#343): maxLength
               // alone counts characters, so an emoji fit here and failed there.
