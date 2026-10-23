@@ -140,6 +140,7 @@ class _ConstellationEdgeSwatchPainter extends CustomPainter {
       dash: style.dash,
       gap: style.gap,
       endDots: style.endDots,
+      twin: style.twin,
     );
   }
 

@@ -26,6 +26,7 @@ import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
+import '../../domain/use_case/constellation_mutual_trust_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
@@ -74,6 +75,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             placementCase: GetIt.I<ConstellationPlacementCase>(),
             memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
+            mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
             viewer: viewer,
             scene: ConstellationSceneController(
               slicer: FrameSliceScheduler(

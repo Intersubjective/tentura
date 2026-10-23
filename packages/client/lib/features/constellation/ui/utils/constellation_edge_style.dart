@@ -7,13 +7,15 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import '../bloc/constellation_cubit.dart';
 
 /// Every kind keeps a non-color cue: solid / dashed / dotted pattern, width,
-/// and `endDots` (request links end in dots on both ends).
+/// `endDots` (request links end in dots on both ends) and `twin` (mutual
+/// trust is two parallel strokes, one per direction).
 typedef ConstellationEdgeStyle = ({
   Color color,
   double width,
   double dash,
   double gap,
   bool endDots,
+  bool twin,
 });
 
 /// Shared by every edge's end dots: the painter is synchronous, so the color is
@@ -64,6 +66,10 @@ Path? constellationEdgeDashPath(
 /// A caller that keeps the path of an edge between frames passes it as
 /// [dashPath] (built by [constellationEdgeDashPath] for the same `a`, `b`,
 /// [dash] and [gap]); otherwise it is built here.
+///
+/// A [twin] edge is the same stroke twice, 1.5 stroke widths to either side
+/// of `a → b`: two strokes of space between them, room for a path edge drawn
+/// along the same pair to show through.
 void paintConstellationEdgeStroke(
   Canvas canvas,
   Offset a,
@@ -73,7 +79,34 @@ void paintConstellationEdgeStroke(
   required double gap,
   required bool endDots,
   Path? dashPath,
+  bool twin = false,
 }) {
+  if (twin) {
+    final delta = b - a;
+    final length = delta.distance;
+    if (length > 0) {
+      final offset =
+          Offset(-delta.dy / length, delta.dx / length) *
+          (paint.strokeWidth * 1.5);
+      for (final side in [offset, -offset]) {
+        canvas
+          ..save()
+          ..translate(side.dx, side.dy);
+        paintConstellationEdgeStroke(
+          canvas,
+          a,
+          b,
+          paint,
+          dash: dash,
+          gap: gap,
+          endDots: endDots,
+          dashPath: dashPath,
+        );
+        canvas.restore();
+      }
+      return;
+    }
+  }
   if (dash <= 0) {
     canvas.drawLine(a, b, paint);
   } else {
@@ -103,6 +136,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 0,
     gap: 0,
     endDots: false,
+    twin: false,
   ),
   ConstellationEdgeKind.tier2Path => (
     color: tt.graphEdgePath,
@@ -110,6 +144,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 6,
     gap: 4,
     endDots: false,
+    twin: false,
   ),
   ConstellationEdgeKind.ringStub => (
     color: tt.graphEdgePath,
@@ -117,6 +152,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 2,
     gap: 4,
     endDots: false,
+    twin: false,
   ),
   ConstellationEdgeKind.webForwarded => (
     color: scheme.tertiary,
@@ -124,6 +160,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 2,
     gap: 4,
     endDots: false,
+    twin: false,
   ),
   ConstellationEdgeKind.webInside => (
     color: scheme.tertiary,
@@ -131,6 +168,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 0,
     gap: 0,
     endDots: false,
+    twin: false,
   ),
   ConstellationEdgeKind.draftRecipient => (
     color: scheme.tertiary,
@@ -138,6 +176,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 6,
     gap: 4,
     endDots: false,
+    twin: false,
   ),
   ConstellationEdgeKind.attachment => (
     color: scheme.secondary,
@@ -145,6 +184,7 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 0,
     gap: 0,
     endDots: true,
+    twin: false,
   ),
   ConstellationEdgeKind.grewFrom => (
     color: scheme.secondary,
@@ -152,5 +192,15 @@ ConstellationEdgeStyle constellationEdgeStyle(
     dash: 6,
     gap: 4,
     endDots: false,
+    twin: false,
+  ),
+  // The colour of the mutual trust ring (#643), thinner than a path.
+  ConstellationEdgeKind.mutualTrust => (
+    color: scheme.primary,
+    width: 1.25,
+    dash: 0,
+    gap: 0,
+    endDots: false,
+    twin: true,
   ),
 };

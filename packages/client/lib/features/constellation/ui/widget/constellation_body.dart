@@ -1531,6 +1531,7 @@ class ConstellationEdgePainter
           tt.graphEdgePath == other.tt.graphEdgePath &&
           scheme.tertiary == other.scheme.tertiary &&
           scheme.secondary == other.scheme.secondary &&
+          scheme.primary == other.scheme.primary &&
           (identical(edgeKindByPair, other.edgeKindByPair) ||
               mapEquals(edgeKindByPair, other.edgeKindByPair)) &&
           (identical(edgeFadeBySemanticId, other.edgeFadeBySemanticId) ||
@@ -1542,6 +1543,7 @@ class ConstellationEdgePainter
     tt.graphEdgePath,
     scheme.tertiary,
     scheme.secondary,
+    scheme.primary,
   );
 
   @visibleForTesting
@@ -1623,6 +1625,7 @@ class ConstellationEdgePainter
       gap: dashGap,
       endDots: style.endDots,
       dashPath: dashPath,
+      twin: style.twin,
     );
   }
 

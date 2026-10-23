@@ -5100,6 +5100,7 @@ type query_root {
   closureState(beaconId: String!): v2_ClosureState!
   constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
   constellationFieldRequests(ids: [String!]!, participatedOnly: Boolean! = false, showClosed: Boolean! = false): [v2_ConstellationRequest!]!
+  constellationMutualTrust(personId: String!): [String!]!
 
   """
   fetch data from the table: "edge"

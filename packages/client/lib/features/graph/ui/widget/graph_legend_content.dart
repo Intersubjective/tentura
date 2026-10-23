@@ -180,6 +180,16 @@ class GraphLegendContent extends StatelessWidget {
             label: l10n.beaconGrewFromPost,
             style: grewFromStyle,
           ),
+          _ConstellationEdgeRow(
+            key: const ValueKey('constellation.legend.edge.mutualTrust'),
+            label: l10n.graphLegendConstellationMutualTrust,
+            hint: l10n.graphLegendConstellationMutualTrustHint,
+            style: constellationEdgeStyle(
+              ConstellationEdgeKind.mutualTrust,
+              tt,
+              scheme,
+            ),
+          ),
         ];
       }(),
     };
@@ -623,6 +633,7 @@ class _ConstellationEdgeRow extends StatelessWidget {
     required this.label,
     required this.style,
     this.hint,
+    super.key,
   });
 
   final String label;

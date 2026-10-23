@@ -35,6 +35,11 @@ enum ConstellationEdgeKind {
 
   /// A Request budded from a Post: Post → child (post→Request budding D5).
   grewFrom,
+
+  /// While a person is selected: them → each person on the field they trust
+  /// both ways (explicit trust marks only). Drawn over the scene, never laid
+  /// out.
+  mutualTrust,
 }
 
 const kConstellationLayoutMaxHops = 3;
@@ -437,6 +442,7 @@ class ConstellationSceneController {
     required ConstellationFootprintMetrics? footprintMetrics,
     required Profile Function(ConstellationPerson peer) profileFromPeer,
     ConstellationTrustChain? trustChain,
+    Set<String> mutualTrustIds = const {},
   }) {
     final peersById = {
       for (final peer in field.peers) peer.id: peer,
@@ -588,7 +594,8 @@ class ConstellationSceneController {
           ConstellationEdgeKind.webForwarded ||
           ConstellationEdgeKind.webInside ||
           ConstellationEdgeKind.draftRecipient ||
-          ConstellationEdgeKind.grewFrom => 1.5,
+          ConstellationEdgeKind.grewFrom ||
+          ConstellationEdgeKind.mutualTrust => 1.5,
         },
         semanticId:
             '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
@@ -754,6 +761,22 @@ class ConstellationSceneController {
         nodeById: nodeById,
         addEdge: addEdge,
       );
+    }
+
+    // After the chain highlight, so the chain's fade never reaches them.
+    // Only between people on the field: addEdge drops the rest.
+    if (selectedPersonId != null &&
+        nodeById[selectedPersonId] is FieldPersonNode) {
+      for (final personId in mutualTrustIds.toList()..sort()) {
+        if (personId != selectedPersonId &&
+            nodeById[personId] is FieldPersonNode) {
+          addEdge(
+            srcId: selectedPersonId,
+            dstId: personId,
+            kind: ConstellationEdgeKind.mutualTrust,
+          );
+        }
+      }
     }
 
     final previousNodeIds = graphController
