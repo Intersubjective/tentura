@@ -15,9 +15,13 @@ const _trailingPunctuation = '.,;:!?\'"';
 /// underlined links (color/tap only -- no widget/state of its own). Plugs
 /// into any `ReadMoreText`/`ShowMoreText.annotations` or
 /// `buildRoomMessageAnnotatedBodySpan(annotations:)` call site.
+///
+/// [focusedUrl] is the link holding keyboard focus (see
+/// `RoomMessageLinkFocus`); it is drawn inverted so the focus is visible.
 List<Annotation> buildUrlAnnotations({
   required Color linkColor,
   Future<void> Function(Uri uri)? onTapLink,
+  String? focusedUrl,
 }) {
   final tapLink =
       onTapLink ??
@@ -26,7 +30,7 @@ List<Annotation> buildUrlAnnotations({
     Annotation(
       regExp: _urlPattern,
       spanBuilder: ({required text, textStyle}) =>
-          _buildUrlSpan(text, textStyle, linkColor, tapLink),
+          _buildUrlSpan(text, textStyle, linkColor, tapLink, focusedUrl),
     ),
   ];
 }
@@ -65,6 +69,7 @@ TextSpan _buildUrlSpan(
   TextStyle? textStyle,
   Color linkColor,
   Future<void> Function(Uri uri) onTapLink,
+  String? focusedUrl,
 ) {
   final split = _extractValidUrl(matched);
   if (split == null) {
@@ -72,13 +77,19 @@ TextSpan _buildUrlSpan(
   }
   final (url, trailing) = split;
   final uri = Uri.parse(url);
+  final focused = url == focusedUrl;
+  final onLink =
+      ThemeData.estimateBrightnessForColor(linkColor) == Brightness.dark
+      ? Colors.white
+      : Colors.black;
 
   final linkSpan = TextSpan(
     text: url,
     style: textStyle?.copyWith(
-      color: linkColor,
+      color: focused ? onLink : linkColor,
+      backgroundColor: focused ? linkColor : null,
       decoration: TextDecoration.underline,
-      decorationColor: linkColor,
+      decorationColor: focused ? onLink : linkColor,
     ),
     mouseCursor: SystemMouseCursors.click,
     // Rebuilt on every span rebuild; there's no owning State to dispose it
