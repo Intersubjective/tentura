@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/services.dart';
+import 'package:readmore/readmore.dart' show Annotation;
 
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
@@ -41,6 +42,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_closure_story_car
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_date_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_fact_quote.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_link_focus.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_receipt_glyph.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
@@ -1213,8 +1215,9 @@ class RoomMessageTile extends StatelessWidget {
       }
     }
     final mentionedIds = message.mentions.toSet();
-    final mentionAnnotations = [
-      ...buildUrlAnnotations(linkColor: tt.info),
+    // focusedUrl: the link holding keyboard focus is drawn highlighted (#617).
+    List<Annotation> annotationsFor(String? focusedUrl) => [
+      ...buildUrlAnnotations(linkColor: tt.info, focusedUrl: focusedUrl),
       ...buildRoomMessageMentionAnnotations(
         handleToUserId: handleToUserId,
         mentionedIds: mentionedIds,
@@ -1223,6 +1226,7 @@ class RoomMessageTile extends StatelessWidget {
         selfMentionBackground: scheme.primaryContainer.withValues(alpha: 0.8),
       ),
     ];
+    final mentionAnnotations = annotationsFor(null);
     final explicitMentionSpans = usableRoomMessageMentionSpans(
       spans: message.mentionSpans,
       body: display,
@@ -1442,33 +1446,42 @@ class RoomMessageTile extends StatelessWidget {
         if (display.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(top: tt.rowGap / 2),
-            child: useInlineMeta && trailingMetrics != null
-                ? RoomMessageTextBody(
-                    display: display,
-                    dateLine: dateLine,
-                    bodyStyle: bodyStyle,
-                    metaStyle: metaStyle,
-                    metrics: trailingMetrics,
-                    mentionAnnotations: mentionAnnotations,
-                    explicitSpans: explicitMentionSpans,
-                    explicitMentionStyle: explicitMentionStyle,
-                    trailingGlyph: inlineReceiptGlyph,
-                    dateLineWidget: dateLineWidget,
-                  )
-                // Full body either way: a reaction row must not
-                // fold the text into "read more" (#351).
-                : TenturaSelectionArea(
-                    child: Text.rich(
-                      buildRoomMessageBodySpanWithExplicitMentions(
-                        data: display,
-                        textStyle: bodyStyle,
-                        plainTextAnnotations: mentionAnnotations,
+            // Links in the text are Tab stops that open on Enter (#617).
+            child: RoomMessageLinkFocus(
+              text: display,
+              builder: (context, focusedUrl) {
+                final annotations = focusedUrl == null
+                    ? mentionAnnotations
+                    : annotationsFor(focusedUrl);
+                return useInlineMeta && trailingMetrics != null
+                    ? RoomMessageTextBody(
+                        display: display,
+                        dateLine: dateLine,
+                        bodyStyle: bodyStyle,
+                        metaStyle: metaStyle,
+                        metrics: trailingMetrics,
+                        mentionAnnotations: annotations,
                         explicitSpans: explicitMentionSpans,
                         explicitMentionStyle: explicitMentionStyle,
-                      ),
-                      textAlign: TextAlign.start,
-                    ),
-                  ),
+                        trailingGlyph: inlineReceiptGlyph,
+                        dateLineWidget: dateLineWidget,
+                      )
+                    // Full body either way: a reaction row must not
+                    // fold the text into "read more" (#351).
+                    : TenturaSelectionArea(
+                        child: Text.rich(
+                          buildRoomMessageBodySpanWithExplicitMentions(
+                            data: display,
+                            textStyle: bodyStyle,
+                            plainTextAnnotations: annotations,
+                            explicitSpans: explicitMentionSpans,
+                            explicitMentionStyle: explicitMentionStyle,
+                          ),
+                          textAlign: TextAlign.start,
+                        ),
+                      );
+              },
+            ),
           ),
         if (imageAttachments.isNotEmpty)
           Padding(
