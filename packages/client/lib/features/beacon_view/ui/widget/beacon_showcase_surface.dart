@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
@@ -443,6 +444,9 @@ class _ShowcaseBottomPanel extends StatelessWidget {
         !isPreview &&
         state.isRoomAdmissionBlocked &&
         !state.coordinationDeniesRoomAdmission;
+    // Closed or cancelled: the team is past tense and an unanswered offer is
+    // no longer "with the author" (#686).
+    final finished = beacon.status.isFinished;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -464,12 +468,14 @@ class _ShowcaseBottomPanel extends StatelessWidget {
             children: [
               BeaconShowcaseTeamStrip(
                 team: team,
+                finished: finished,
                 onTap: team.isEmpty
                     ? null
                     : () => unawaited(
                         showBeaconShowcaseTeamSheet(
                           context,
                           team: team,
+                          finished: finished,
                           onOpenProfile: isPreview
                               ? null
                               : screenCubit.showProfile,
@@ -479,8 +485,11 @@ class _ShowcaseBottomPanel extends StatelessWidget {
               if (offerPending) ...[
                 SizedBox(height: tt.tightGap),
                 Text(
-                  l10n.beaconShowcaseOfferPending,
-                  style: TenturaText.bodySmall(tt.info),
+                  beaconShowcaseOfferPendingText(l10n, state),
+                  key: const Key('beaconShowcaseOfferPending'),
+                  style: TenturaText.bodySmall(
+                    finished ? tt.textMuted : tt.info,
+                  ),
                 ),
               ],
               if (primary.isNotEmpty) ...[
@@ -536,6 +545,20 @@ class _ShowcaseBottomPanel extends StatelessWidget {
   ];
 }
 
+/// The line under the team for someone whose offer is waiting: with the
+/// author while the Request runs; once it is closed or cancelled, that it
+/// ended before the offer was answered (or, for a backup offer, needed).
+String beaconShowcaseOfferPendingText(L10n l10n, BeaconViewState state) {
+  final isBackup = state.myActiveHelpOffer?.offerKind == 1;
+  return switch (state.beacon.status) {
+    BeaconStatus.cancelled => l10n.beaconShowcaseOfferUnansweredCancelled,
+    BeaconStatus.closed when isBackup =>
+      l10n.beaconShowcaseBackupOfferUnneededClosed,
+    BeaconStatus.closed => l10n.beaconShowcaseOfferUnansweredClosed,
+    _ => l10n.beaconShowcaseOfferPending,
+  };
+}
+
 /// "IN ON IT (IV)(OL)(+2)" with a caption naming the people the viewer
 /// knows.
 class BeaconShowcaseTeamStrip extends StatelessWidget {
@@ -543,6 +566,7 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
     required this.team,
     this.onTap,
     this.maxFaces = 5,
+    this.finished = false,
     super.key,
   });
 
@@ -550,13 +574,20 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
   final VoidCallback? onTap;
   final int maxFaces;
 
+  /// The Request is closed or cancelled: the strip speaks in the past tense.
+  final bool finished;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final faces = team.visible.take(maxFaces).toList();
     final extra = team.total - faces.length;
-    final caption = beaconShowcaseTeamCaption(l10n, team);
+    final caption = beaconShowcaseTeamCaption(
+      l10n,
+      team,
+      finished: finished,
+    );
 
     return InkWell(
       onTap: onTap,
@@ -570,7 +601,9 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  l10n.beaconShowcaseTeamLabel,
+                  finished
+                      ? l10n.beaconShowcaseTeamLabelClosed
+                      : l10n.beaconShowcaseTeamLabel,
                   style: TenturaText.typeLabel(tt.textMuted),
                 ),
                 SizedBox(width: tt.rowGap),
@@ -605,11 +638,23 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
 }
 
 /// Caption under the strip: known people by name first, else a head count,
-/// else an invitation to be first.
-String beaconShowcaseTeamCaption(L10n l10n, BeaconShowcaseTeam team) {
-  if (team.isEmpty) return l10n.beaconShowcaseTeamEmpty;
+/// else an invitation to be first — in the past tense once [finished].
+String beaconShowcaseTeamCaption(
+  L10n l10n,
+  BeaconShowcaseTeam team, {
+  bool finished = false,
+}) {
+  if (team.isEmpty) {
+    return finished
+        ? l10n.beaconShowcaseTeamEmptyClosed
+        : l10n.beaconShowcaseTeamEmpty;
+  }
   final known = team.acquaintances;
-  if (known.isEmpty) return l10n.beaconShowcaseTeamNoAcquaintances(team.total);
+  if (known.isEmpty) {
+    return finished
+        ? l10n.beaconShowcaseTeamNoAcquaintancesClosed(team.total)
+        : l10n.beaconShowcaseTeamNoAcquaintances(team.total);
+  }
   const named = 2;
   final names = known.take(named).map((p) => p.shownName).join(', ');
   final rest = known.length - named;
@@ -623,6 +668,7 @@ Future<void> showBeaconShowcaseTeamSheet(
   BuildContext context, {
   required BeaconShowcaseTeam team,
   ValueChanged<String>? onOpenProfile,
+  bool finished = false,
 }) {
   final l10n = L10n.of(context)!;
   final known = {for (final p in team.acquaintances) p.id};
@@ -638,7 +684,9 @@ Future<void> showBeaconShowcaseTeamSheet(
             Padding(
               padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
               child: Text(
-                l10n.beaconShowcaseTeamSheetTitle,
+                finished
+                    ? l10n.beaconShowcaseTeamSheetTitleClosed
+                    : l10n.beaconShowcaseTeamSheetTitle,
                 style: Theme.of(ctx).textTheme.titleSmall,
               ),
             ),
