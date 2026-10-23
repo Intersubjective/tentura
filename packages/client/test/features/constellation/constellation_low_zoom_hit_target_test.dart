@@ -129,32 +129,26 @@ void main() {
     });
   });
 
-  group('action and trust rings', () {
-    ConstellationNodeRingGeometry geometry(
-      double bodyDiameter, {
-      bool hasTrustRing = false,
-    }) => constellationNodeRingGeometry(
-      body: Rect.fromCircle(
-        center: const Offset(100, 100),
-        radius: bodyDiameter / 2,
-      ),
-      minTarget: minTarget,
-      gap: 2,
-      minTrustRadius: 9,
-      badgeDiameter: 16,
-      hasTrustRing: hasTrustRing,
-      rtl: false,
-    );
+  group('action ring and trust disc', () {
+    ConstellationNodeRingGeometry geometry(double bodyDiameter) =>
+        constellationNodeRingGeometry(
+          body: Rect.fromCircle(
+            center: const Offset(100, 100),
+            radius: bodyDiameter / 2,
+          ),
+          minTarget: minTarget,
+          gap: 2,
+          minTrustRadius: 9,
+          badgeDiameter: 16,
+          rtl: false,
+        );
 
     test('at low zoom the action ring is the target size and larger than '
         'the node', () {
-      for (final hasTrustRing in [false, true]) {
-        final g = geometry(lowZoomBody, hasTrustRing: hasTrustRing);
-        expect(g.showsActionRing, isTrue);
-        expect(g.actionRadius * 2, greaterThanOrEqualTo(minTarget));
-        expect(g.actionRadius, greaterThan(lowZoomBody / 2));
-        expect(g.actionRadius, greaterThan(g.trustRadius));
-      }
+      final g = geometry(lowZoomBody);
+      expect(g.showsActionRing, isTrue);
+      expect(g.actionRadius * 2, greaterThanOrEqualTo(minTarget));
+      expect(g.actionRadius, greaterThan(lowZoomBody / 2));
     });
 
     test('a node at least as large as a target draws no action ring', () {
@@ -162,15 +156,14 @@ void main() {
       expect(geometry(80).showsActionRing, isFalse);
     });
 
-    test('the trust ring hugs the body but never shrinks below its floor', () {
-      expect(geometry(lowZoomBody, hasTrustRing: true).trustRadius, 9);
-      final big = geometry(40, hasTrustRing: true);
+    test('the disc circle hugs the body but never shrinks below its floor', () {
+      expect(geometry(lowZoomBody).trustRadius, 9);
+      final big = geometry(40);
       expect(big.trustRadius, greaterThan(20));
-      expect(big.trustRadius, lessThan(big.actionRadius));
     });
 
     test('the badge sits on the ring at the top start', () {
-      final g = geometry(40, hasTrustRing: true);
+      final g = geometry(40);
       expect((g.badgeCentre - g.centre).distance, closeTo(g.trustRadius, 1e-9));
       expect(g.badgeCentre.dx, lessThan(g.centre.dx));
       expect(g.badgeCentre.dy, lessThan(g.centre.dy));
@@ -180,7 +173,6 @@ void main() {
         gap: 2,
         minTrustRadius: 9,
         badgeDiameter: 16,
-        hasTrustRing: true,
         rtl: true,
       );
       expect(rtl.badgeCentre.dx, greaterThan(rtl.centre.dx));
@@ -209,7 +201,6 @@ void main() {
             gap: tt.tightGap,
             minTrustRadius: constellationTrustMinRadius(tt),
             badgeDiameter: constellationTrustBadgeDiameter(tt),
-            hasTrustRing: true,
             rtl: rtl,
           );
           final disc = Rect.fromCircle(
@@ -287,7 +278,6 @@ void main() {
         gap: tt.tightGap,
         minTrustRadius: constellationTrustMinRadius(tt),
         badgeDiameter: constellationTrustBadgeDiameter(tt),
-        hasTrustRing: true,
         rtl: false,
       );
       final disc = Rect.fromCircle(
@@ -384,13 +374,8 @@ void main() {
       );
     });
 
-    for (final (badge, dashed) in const [
-      (ConstellationTrustBadge.mutual, false),
-      (ConstellationTrustBadge.youTrust, true),
-      (ConstellationTrustBadge.theyTrust, true),
-      (ConstellationTrustBadge.contactOnly, true),
-    ]) {
-      testWidgets('paints the ${badge.name} ring and glyph disc', (
+    for (final badge in ConstellationTrustBadge.values) {
+      testWidgets('paints the ${badge.name} glyph disc and no ring', (
         tester,
       ) async {
         final frame = frameOf([
@@ -407,21 +392,14 @@ void main() {
           gap: tt.tightGap,
           minTrustRadius: constellationTrustMinRadius(tt),
           badgeDiameter: constellationTrustBadgeDiameter(tt),
-          hasTrustRing: true,
           rtl: false,
         );
-        final ring = dashed
-            ? (paints..path(color: style.color, style: PaintingStyle.stroke))
-            : (paints..circle(
-                x: 200,
-                y: 200,
-                radius: g.trustRadius,
-                color: style.color,
-                style: PaintingStyle.stroke,
-              ));
+        // Only the disc: nothing is drawn round the person.
+        expect(rings(), isNot(paints..path()));
+        expect(rings(), isNot(paints..circle(x: 200, y: 200)));
         expect(
           rings(),
-          ring
+          paints
             ..circle(
               x: g.badgeCentre.dx,
               y: g.badgeCentre.dy,
@@ -473,10 +451,23 @@ void main() {
       var layers = 0;
       // The kept mark first, then both faded ones inside ONE translucent
       // layer at the chain's dim opacity.
+      final g = (Offset c) => constellationNodeRingGeometry(
+        body: Rect.fromCircle(center: c, radius: 20),
+        minTarget: minTarget,
+        gap: tester.element(rings()).tt.tightGap,
+        minTrustRadius: constellationTrustMinRadius(tester.element(rings()).tt),
+        badgeDiameter: constellationTrustBadgeDiameter(
+          tester.element(rings()).tt,
+        ),
+        rtl: false,
+      ).badgeCentre;
+      final on = g(const Offset(100, 200));
+      final off1 = g(const Offset(200, 300));
+      final off2 = g(const Offset(300, 200));
       expect(
         rings(),
         paints
-          ..circle(x: 100, y: 200)
+          ..circle(x: on.dx, y: on.dy)
           ..something((name, args) {
             if (name != #saveLayer) return false;
             layers++;
@@ -490,13 +481,11 @@ void main() {
             );
             return true;
           })
-          // Each mark: its ring, then the glyph disc (fill, stroke, glyph).
-          ..circle(x: 200, y: 300)
-          ..circle()
+          // Each mark: the glyph disc (fill, stroke, glyph).
+          ..circle(x: off1.dx, y: off1.dy)
           ..circle()
           ..paragraph()
-          ..circle(x: 300, y: 200)
-          ..circle()
+          ..circle(x: off2.dx, y: off2.dy)
           ..circle()
           ..paragraph()
           ..restore(),

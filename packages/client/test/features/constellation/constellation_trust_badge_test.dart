@@ -142,11 +142,6 @@ void main() {
       };
       final icons = styles.values.map((s) => s.icon).toSet();
       expect(icons, hasLength(ConstellationTrustBadge.values.length));
-      expect(styles[ConstellationTrustBadge.mutual]!.dash, 0);
-      expect(styles[ConstellationTrustBadge.youTrust]!.dash, greaterThan(0));
-      expect(styles[ConstellationTrustBadge.theyTrust]!.dash, greaterThan(0));
-      final dotted = styles[ConstellationTrustBadge.contactOnly]!;
-      expect(dotted.dash, lessThan(dotted.gap));
       // Direction glyphs mirror in RTL.
       expect(
         constellationTrustBadgeStyle(
@@ -160,7 +155,7 @@ void main() {
   });
 
   group('on the field', () {
-    testWidgets('every person node carries its trust ring and label', (
+    testWidgets('every person node carries its trust disc and label', (
       tester,
     ) async {
       final cubit = await loadReferenceCubit(field: _everyState());

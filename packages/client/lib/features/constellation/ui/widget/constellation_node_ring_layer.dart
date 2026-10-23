@@ -13,24 +13,17 @@ import '../../domain/constellation_trust_chain.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 
-/// How a trust badge looks: a ring around the person and a glyph disc on
-/// it. Colour is never the only cue: the ring's pattern and the glyph differ
-/// as well (#643).
+/// How a trust badge looks: a glyph disc on the person's top start corner.
+/// Colour is never the only cue: the glyph differs as well (#643).
 @immutable
 final class ConstellationTrustBadgeStyle {
   const ConstellationTrustBadgeStyle({
     required this.color,
     required this.icon,
-    required this.dash,
-    required this.gap,
   });
 
   final Color color;
   final IconData icon;
-
-  /// Dash and gap of the ring, in px along it; a zero dash is a solid ring.
-  final double dash;
-  final double gap;
 }
 
 ConstellationTrustBadgeStyle constellationTrustBadgeStyle(
@@ -38,32 +31,22 @@ ConstellationTrustBadgeStyle constellationTrustBadgeStyle(
   ColorScheme scheme, {
   required bool rtl,
 }) {
-  const stroke = TenturaSpacing.focusRing;
   return switch (badge) {
     ConstellationTrustBadge.mutual => ConstellationTrustBadgeStyle(
       color: scheme.primary,
       icon: Icons.sync_alt,
-      dash: 0,
-      gap: 0,
     ),
     ConstellationTrustBadge.youTrust => ConstellationTrustBadgeStyle(
       color: scheme.primary,
       icon: rtl ? Icons.arrow_back : Icons.arrow_forward,
-      dash: stroke * 2,
-      gap: stroke * 1.5,
     ),
     ConstellationTrustBadge.theyTrust => ConstellationTrustBadgeStyle(
       color: scheme.tertiary,
       icon: rtl ? Icons.arrow_forward : Icons.arrow_back,
-      dash: stroke * 2,
-      gap: stroke * 1.5,
     ),
-    // A dotted ring: round caps on near-zero dashes.
     ConstellationTrustBadge.contactOnly => ConstellationTrustBadgeStyle(
       color: scheme.onSurfaceVariant,
       icon: Icons.visibility_off_outlined,
-      dash: 0.01,
-      gap: stroke * 2,
     ),
   };
 }
@@ -120,7 +103,7 @@ constellationNodeRingInputs({
   return (trust: trust, selected: selected);
 }
 
-/// On-screen geometry of the rings around one node, in viewport px.
+/// On-screen geometry of the marks around one node, in viewport px.
 @immutable
 final class ConstellationNodeRingGeometry {
   const ConstellationNodeRingGeometry({
@@ -134,12 +117,12 @@ final class ConstellationNodeRingGeometry {
 
   final Offset centre;
 
-  /// The trust ring hugs the body; it never shrinks below a readable size.
+  /// The circle the trust glyph disc is centred on: it hugs the body and
+  /// never shrinks below a readable size.
   final double trustRadius;
 
   /// The hover / selection ring: at least half of `minTarget`, and outside
-  /// the body and the trust ring, so it is always larger than the node
-  /// (#640).
+  /// the body, so it is always larger than the node (#640).
   final double actionRadius;
 
   final Offset badgeCentre;
@@ -156,16 +139,14 @@ ConstellationNodeRingGeometry constellationNodeRingGeometry({
   required double gap,
   required double minTrustRadius,
   required double badgeDiameter,
-  required bool hasTrustRing,
   required bool rtl,
 }) {
   const stroke = TenturaSpacing.focusRing;
   final bodyRadius = body.shortestSide / 2;
   final trustRadius = math.max(bodyRadius + gap + stroke / 2, minTrustRadius);
-  final innerEdge = hasTrustRing ? trustRadius : bodyRadius;
-  final actionRadius = math.max(minTarget / 2, innerEdge + gap + stroke);
-  // Top start of the trust ring, at 45 degrees: a person's label sits
-  // below it and the pin badge at the top end.
+  final actionRadius = math.max(minTarget / 2, bodyRadius + gap + stroke);
+  // Top start, at 45 degrees: a person's label sits below and the pin badge
+  // at the top end.
   final offset = trustRadius * math.sqrt1_2;
   return ConstellationNodeRingGeometry(
     centre: body.center,
@@ -181,7 +162,7 @@ ConstellationNodeRingGeometry constellationNodeRingGeometry({
 /// any zoom.
 double constellationTrustBadgeDiameter(TenturaTokens tt) => tt.iconSize * 0.75;
 
-/// The smallest trust ring, around a node zoomed far out.
+/// The smallest circle a trust glyph disc sits on, around a small node.
 double constellationTrustMinRadius(TenturaTokens tt) => tt.avatarTinySize / 2;
 
 /// How far a node's decorations reach past its body at the top and sides,
@@ -204,7 +185,6 @@ double constellationNodeBadgeOverhang({
     gap: tt.tightGap,
     minTrustRadius: constellationTrustMinRadius(tt),
     badgeDiameter: constellationTrustBadgeDiameter(tt),
-    hasTrustRing: true,
     rtl: false,
   );
   final disc = Rect.fromCircle(
@@ -221,9 +201,11 @@ double constellationNodeBadgeOverhang({
 
 /// Viewport-space rings drawn over the field's nodes (#640, #643):
 ///
-/// * every person with a trust relation to the viewer gets a trust ring and
-///   a glyph disc, at a fixed on-screen size, shown only at normal detail
-///   (as the pin badge) so they never cover a zoomed-out node;
+/// * every person with a trust relation to the viewer gets a glyph disc on
+///   their top start corner, at a fixed on-screen size, shown only at normal
+///   detail (as the pin badge) so it never covers a zoomed-out node. There
+///   is no ring around the person: it repeated the disc and cluttered a busy
+///   field;
 /// * a node smaller than a tap target gets a hover ring (mouse) and, when
 ///   selected, a selection ring at the tap target's size — larger than the
 ///   node, matching what a tap there resolves to.
@@ -338,35 +320,24 @@ class ConstellationNodeRingPainter extends CustomPainter {
     null => null,
   };
 
-  ConstellationNodeRingGeometry _geometry(Rect body, bool hasTrustRing) =>
+  ConstellationNodeRingGeometry _geometry(Rect body) =>
       constellationNodeRingGeometry(
         body: body,
         minTarget: minTarget,
         gap: gap,
         minTrustRadius: minTrustRadius,
         badgeDiameter: badgeDiameter,
-        hasTrustRing: hasTrustRing,
         rtl: rtl,
       );
 
   void _paintTrustMark(
     Canvas canvas,
-    Paint ring,
     ConstellationTrustGlyphCache glyphCache,
     ConstellationTrustBadge badge,
     Rect body,
   ) {
-    final g = _geometry(body, true);
+    final g = _geometry(body);
     final style = constellationTrustBadgeStyle(badge, scheme, rtl: rtl);
-    ring.color = style.color;
-    if (style.dash <= 0) {
-      canvas.drawCircle(g.centre, g.trustRadius, ring);
-    } else {
-      canvas.drawPath(
-        _dashedCircle(g.centre, g.trustRadius, style.dash, style.gap),
-        ring,
-      );
-    }
     _paintBadge(
       canvas,
       g,
@@ -382,11 +353,6 @@ class ConstellationNodeRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final visible = (Offset.zero & size).inflate(minTarget);
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = TenturaSpacing.focusRing
-      ..strokeCap = StrokeCap.round
-      ..isAntiAlias = true;
     final ownGlyphs = glyphs == null ? ConstellationTrustGlyphCache() : null;
     final glyphCache = glyphs ?? ownGlyphs!;
     // Fixed-size trust marks would cover a zoomed-out node whole: like the
@@ -424,7 +390,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
         );
       }
       for (final (_, badge, body) in pass) {
-        _paintTrustMark(canvas, ring, glyphCache, badge, body);
+        _paintTrustMark(canvas, glyphCache, badge, body);
       }
       if (isFaded) {
         canvas.restore();
@@ -444,7 +410,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
       if (body == null) {
         continue;
       }
-      final g = _geometry(body, trustByGraphId.containsKey(id));
+      final g = _geometry(body);
       if (!g.showsActionRing) {
         continue;
       }
@@ -481,23 +447,6 @@ class ConstellationNodeRingPainter extends CustomPainter {
       canvas,
       g.badgeCentre - Offset(glyph.width / 2, glyph.height / 2),
     );
-  }
-
-  static Path _dashedCircle(
-    Offset centre,
-    double radius,
-    double dash,
-    double gap,
-  ) {
-    final count = math.max(4, (2 * math.pi * radius / (dash + gap)).floor());
-    final step = 2 * math.pi / count;
-    final sweep = step * dash / (dash + gap);
-    final rect = Rect.fromCircle(center: centre, radius: radius);
-    final path = Path();
-    for (var i = 0; i < count; i++) {
-      path.addArc(rect, -math.pi / 2 + i * step, sweep);
-    }
-    return path;
   }
 
   @override
@@ -549,7 +498,7 @@ final class ConstellationTrustGlyphCache {
   }
 }
 
-/// Legend sample of a trust badge: a person disc with its ring and glyph.
+/// Legend sample of a trust badge: a person disc with its glyph disc.
 class ConstellationTrustBadgeSwatch extends StatelessWidget {
   const ConstellationTrustBadgeSwatch({required this.badge, super.key});
 

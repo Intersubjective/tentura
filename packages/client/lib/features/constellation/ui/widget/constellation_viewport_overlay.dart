@@ -317,7 +317,6 @@ class _ConstellationViewportOverlayState
               selectedPersonId: selectedPersonId,
               selectedRequestId: selectedRequestId,
             );
-            final trustGraphIds = rings.trust.keys.toSet();
             // Off the selected person's trust chain (#641) the node fades,
             // and its trust marks and presence halo with it.
             final dimmedGraphIds =
@@ -759,7 +758,6 @@ class _ConstellationViewportOverlayState
                                       onlinePersonIds: online,
                                       isOnMap: nodeByGraphId.containsKey,
                                     ),
-                                    trustGraphIds: trustGraphIds,
                                     dimmedGraphIds: dimmedGraphIds,
                                     viewport: viewport,
                                   ),

@@ -287,20 +287,6 @@ void main() {
       expect(large.width, 40 * kConstellationPresenceHaloWidthRatio);
       expect(large.width, greaterThan(small.width));
     });
-
-    test('goes outside the trust ring when that is drawn', () {
-      final body = Rect.fromCircle(center: Offset.zero, radius: 20);
-      final bare = constellationPresenceHaloGeometry(body: body);
-      final ringed = constellationPresenceHaloGeometry(
-        body: body,
-        trustRadius: 24,
-      );
-      expect(
-        ringed.innerRadius,
-        greaterThan(24 + TenturaSpacing.focusRing / 2),
-      );
-      expect(ringed.innerRadius, greaterThan(bare.innerRadius));
-    });
   });
 
   group('halo layer', () {
@@ -310,7 +296,6 @@ void main() {
       WidgetTester tester, {
       required ConstellationPresentationFrame frame,
       required Set<GraphNodeId> online,
-      Set<GraphNodeId> trust = const {},
       Set<GraphNodeId> dimmed = const {},
       bool disableAnimations = false,
       bool tickersEnabled = true,
@@ -334,7 +319,6 @@ void main() {
                     child: ConstellationPresenceHaloLayer(
                       frame: frame,
                       onlineGraphIds: online,
-                      trustGraphIds: trust,
                       dimmedGraphIds: dimmed,
                       viewport: const Size(400, 400),
                     ),
@@ -488,7 +472,7 @@ void main() {
       );
     });
 
-    testWidgets('it sits outside the trust ring at normal detail', (
+    testWidgets('it hugs the body; the trust disc draws over it', (
       tester,
     ) async {
       final frame = _frameOf([
@@ -498,23 +482,11 @@ void main() {
         tester,
         frame: frame,
         online: {'p'},
-        trust: {'p'},
         disableAnimations: true,
       );
-      final tt = tester.element(halos()).tt;
-      final trust = constellationNodeRingGeometry(
-        body: frame.bodies['p']!,
-        minTarget: kMinInteractiveDimension,
-        gap: tt.tightGap,
-        minTrustRadius: constellationTrustMinRadius(tt),
-        badgeDiameter: constellationTrustBadgeDiameter(tt),
-        hasTrustRing: true,
-        rtl: false,
-      );
-      expect(
-        painterOf(tester).geometryOf('p')!.innerRadius,
-        greaterThan(trust.trustRadius + TenturaSpacing.focusRing / 2),
-      );
+      final g = painterOf(tester).geometryOf('p')!;
+      expect(g.innerRadius, greaterThan(20));
+      expect(g.innerRadius, lessThan(20 * 1.2), reason: 'no ring to clear');
     });
 
     testWidgets('it pulses while an online person is on screen', (

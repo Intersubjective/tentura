@@ -10,14 +10,12 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
-import 'constellation_node_ring_layer.dart';
 
 /// Halo band width as a share of the body radius: the halo scales with the
 /// node, so a zoomed-out node is never covered by a fixed-size mark.
 const kConstellationPresenceHaloWidthRatio = 0.25;
 
-/// Clearance between the node (or its trust ring) and the halo, as a share
-/// of the body radius.
+/// Clearance between the node and the halo, as a share of the body radius.
 const kConstellationPresenceHaloGapRatio = 0.08;
 
 /// The narrowest halo band, in px: at bare zoom the halo is how an online
@@ -47,16 +45,12 @@ final class ConstellationPresenceHaloGeometry {
   double get outerRadius => innerRadius + width;
 }
 
-/// The halo around [body]: just outside it, or outside its trust ring of
-/// [trustRadius] (stroke centre) when that ring is drawn.
+/// The halo around [body], just outside it.
 ConstellationPresenceHaloGeometry constellationPresenceHaloGeometry({
   required Rect body,
-  double? trustRadius,
 }) {
   final bodyRadius = body.shortestSide / 2;
-  final innerEdge = trustRadius == null
-      ? bodyRadius
-      : math.max(bodyRadius, trustRadius + TenturaSpacing.focusRing / 2);
+  final innerEdge = bodyRadius;
   final gap = math.max(
     bodyRadius * kConstellationPresenceHaloGapRatio,
     kConstellationPresenceHaloMinGap,
@@ -71,39 +65,14 @@ ConstellationPresenceHaloGeometry constellationPresenceHaloGeometry({
   );
 }
 
-/// The halo of node [id] on [frame], or null when it has no body there:
-/// outside its trust ring when that ring is drawn (normal detail, a person
-/// in [trustGraphIds]), else just outside the body.
+/// The halo of node [id] on [frame], or null when it has no body there.
 ConstellationPresenceHaloGeometry? constellationPresenceHaloOf({
   required ConstellationPresentationFrame frame,
   required GraphNodeId id,
-  required Set<GraphNodeId> trustGraphIds,
-  required double trustGap,
-  required double minTrustRadius,
-}) {
-  final body = frame.bodies[id];
-  if (body == null) {
-    return null;
-  }
-  // Trust rings show only at normal detail (as the ring layer draws them).
-  final ringed =
-      frame.detail == ConstellationDetailLevel.normal &&
-      trustGraphIds.contains(id);
-  return constellationPresenceHaloGeometry(
-    body: body,
-    trustRadius: ringed
-        ? constellationNodeRingGeometry(
-            body: body,
-            minTarget: 0,
-            gap: trustGap,
-            minTrustRadius: minTrustRadius,
-            badgeDiameter: 0,
-            hasTrustRing: true,
-            rtl: false,
-          ).trustRadius
-        : null,
-  );
-}
+}) => switch (frame.bodies[id]) {
+  final body? => constellationPresenceHaloGeometry(body: body),
+  null => null,
+};
 
 /// Whether [g] reaches into [viewport] (both in viewport px).
 bool constellationPresenceHaloVisible(
@@ -135,7 +104,6 @@ class ConstellationPresenceHaloLayer extends StatefulWidget {
   const ConstellationPresenceHaloLayer({
     required this.frame,
     required this.onlineGraphIds,
-    required this.trustGraphIds,
     required this.viewport,
     this.dimmedGraphIds = const {},
     super.key,
@@ -148,9 +116,6 @@ class ConstellationPresenceHaloLayer extends StatefulWidget {
   /// with them.
   final Set<GraphNodeId> dimmedGraphIds;
 
-  /// People drawn with a trust ring (at normal detail): their halo goes
-  /// outside it.
-  final Set<GraphNodeId> trustGraphIds;
   final Size viewport;
 
   @override
@@ -170,16 +135,11 @@ class _ConstellationPresenceHaloLayerState
     curve: Curves.easeInOut,
   );
   bool _reduceMotion = false;
-  double _trustGap = 0;
-  double _minTrustRadius = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final tt = context.tt;
-    _trustGap = tt.tightGap;
-    _minTrustRadius = constellationTrustMinRadius(tt);
     _syncTicker();
   }
 
@@ -193,9 +153,6 @@ class _ConstellationPresenceHaloLayerState
       final g = constellationPresenceHaloOf(
         frame: widget.frame,
         id: id,
-        trustGraphIds: widget.trustGraphIds,
-        trustGap: _trustGap,
-        minTrustRadius: _minTrustRadius,
       );
       if (g != null && constellationPresenceHaloVisible(g, viewport)) {
         return true;
@@ -239,11 +196,8 @@ class _ConstellationPresenceHaloLayerState
           painter: ConstellationPresenceHaloPainter(
             frame: widget.frame,
             onlineGraphIds: widget.onlineGraphIds,
-            trustGraphIds: widget.trustGraphIds,
             dimmedGraphIds: widget.dimmedGraphIds,
             color: tt.good,
-            trustGap: _trustGap,
-            minTrustRadius: _minTrustRadius,
             pulse: _reduceMotion ? null : _breath,
           ),
         ),
@@ -260,20 +214,14 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
   ConstellationPresenceHaloPainter({
     required this.frame,
     required this.onlineGraphIds,
-    required this.trustGraphIds,
     required this.color,
-    required this.trustGap,
-    required this.minTrustRadius,
     this.dimmedGraphIds = const {},
     this.pulse,
   }) : super(repaint: pulse);
 
   final ConstellationPresentationFrame frame;
   final Set<GraphNodeId> onlineGraphIds;
-  final Set<GraphNodeId> trustGraphIds;
   final Color color;
-  final double trustGap;
-  final double minTrustRadius;
   final Set<GraphNodeId> dimmedGraphIds;
   final Animation<double>? pulse;
 
@@ -284,9 +232,6 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
       ? constellationPresenceHaloOf(
           frame: frame,
           id: id,
-          trustGraphIds: trustGraphIds,
-          trustGap: trustGap,
-          minTrustRadius: minTrustRadius,
         )
       : null;
 
@@ -332,11 +277,8 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
   bool shouldRepaint(ConstellationPresenceHaloPainter old) =>
       !identical(old.frame, frame) ||
       !setEquals(old.onlineGraphIds, onlineGraphIds) ||
-      !setEquals(old.trustGraphIds, trustGraphIds) ||
       !setEquals(old.dimmedGraphIds, dimmedGraphIds) ||
       old.color != color ||
-      old.trustGap != trustGap ||
-      old.minTrustRadius != minTrustRadius ||
       old.pulse != pulse;
 }
 
@@ -401,10 +343,7 @@ class ConstellationPresenceHaloSwatch extends StatelessWidget {
                   forcedLabels: const {},
                 ),
                 onlineGraphIds: const {'swatch'},
-                trustGraphIds: const {},
                 color: tt.good,
-                trustGap: tt.tightGap,
-                minTrustRadius: constellationTrustMinRadius(tt),
               ),
             ),
           ),
