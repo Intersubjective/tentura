@@ -93,6 +93,10 @@ final class BeaconViewCase extends UseCaseBase {
 
   Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
+  /// A block or unblock either way (this or another session): the Request
+  /// may now be unreadable, or its people and messages filtered (#638).
+  Stream<void> get blockMarkers => _realtimeSyncCase.blockMarkers.map((_) {});
+
   Stream<RealtimeEntityChange> get peopleChanges =>
       _realtimeSyncCase.changesFor(
         const {RealtimeEntityKind.relationship, RealtimeEntityKind.profile},

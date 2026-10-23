@@ -105,6 +105,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       (_) => _requestFullRefresh(),
       cancelOnError: false,
     );
+    _blockMarkersSub = _case.blockMarkers.listen(
+      (_) => _onBlockMarker(),
+      cancelOnError: false,
+    );
     _peopleChangesSub = _case.peopleChanges.listen(
       _onPeopleChanged,
       cancelOnError: false,
@@ -178,6 +182,18 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   late final StreamSubscription<void> _catchUpsSub;
 
+  late final StreamSubscription<void> _blockMarkersSub;
+
+  /// A block marker arrived and the refresh it asked for has not run yet.
+  /// That refresh treats a Request it can no longer read as unavailable
+  /// instead of keeping the stale page (#638).
+  bool _blockRefreshPending = false;
+
+  /// Bumped by each block marker. A refresh that started before the latest
+  /// marker drops its results: they may show a Request the block has since
+  /// taken away, and the marker's own refresh reports the current state.
+  int _blockGeneration = 0;
+
   late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
 
   late final StreamSubscription<RealtimeEntityChange> _peopleSeenChangesSub;
@@ -221,6 +237,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     await _beaconChangesSub.cancel();
     await _beaconRoomRefreshSub.cancel();
     await _catchUpsSub.cancel();
+    await _blockMarkersSub.cancel();
     await _peopleChangesSub.cancel();
     await _peopleSeenChangesSub.cancel();
     return super.close();
@@ -228,6 +245,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   void _requestFullRefreshFor(String beaconId) {
     if (beaconId != state.beacon.id) return;
+    _requestFullRefresh();
+  }
+
+  void _onBlockMarker() {
+    _blockGeneration++;
+    _blockRefreshPending = true;
     _requestFullRefresh();
   }
 
@@ -959,8 +982,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     _fetchInProgress = true;
     _fetchPending = false;
     _pendingRoomTypes.clear();
+    final afterBlock = _blockRefreshPending;
+    _blockRefreshPending = false;
     try {
-      await _fetchBeaconByIdWithTimeline(background: background);
+      await _fetchBeaconByIdWithTimeline(
+        background: background,
+        afterBlock: afterBlock,
+      );
     } finally {
       _fetchInProgress = false;
       if (!isClosed) {
@@ -1302,8 +1330,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   Future<void> _fetchBeaconByIdWithTimeline({
     bool background = false,
+    bool afterBlock = false,
     BeaconStatus? statusOverride,
   }) async {
+    final blockGeneration = _blockGeneration;
     try {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
@@ -1322,7 +1352,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
             : fetched.copyWith(status: statusOverride);
       } on BeaconFetchException {
         if (isClosed) return;
-        if (!state.beaconContentLoaded) {
+        // After a block marker a missing Request means the block took the
+        // viewer's access away, not a busy read (#638).
+        if (!state.beaconContentLoaded || afterBlock) {
           emit(
             state.copyWith(
               beaconContentLoaded: false,
@@ -1336,6 +1368,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         }
         return;
       }
+      if (blockGeneration != _blockGeneration) return;
 
       if (!isClosed) {
         emit(
@@ -1497,6 +1530,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         }
       }
 
+      if (isClosed || blockGeneration != _blockGeneration) return;
       _hydratePinnedFactsSeen(beaconId, factCards);
       final clearForwards = skipRoom && wasForwardsLoaded;
       emit(
