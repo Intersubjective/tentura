@@ -8455,6 +8455,7 @@
   },
   "graphTrustNotSaved": "Trust change not saved",
   "graphTrustRetry": "Retry",
+  "graphTrustEmpty": "No trust links yet. Trust someone from their profile to see them here.",
   "relativeTimeCompactNow": "now",
   "@relativeTimeCompactNow": {
     "context": "For You Request card (#189)"

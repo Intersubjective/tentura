@@ -6860,6 +6860,7 @@
   "lazyWriteAckOverdue": "Изменения ещё сохраняются. Они остаются на экране и будут отправлены, как только позволит связь.",
   "graphTrustNotSaved": "Изменение доверия не сохранено",
   "graphTrustRetry": "Повторить",
+  "graphTrustEmpty": "Связей доверия пока нет. Отметьте доверие в профиле человека, и он появится здесь.",
   "relativeTimeCompactNow": "сейчас",
   "relativeTimeCompactMinutes": "{n} мин",
   "relativeTimeCompactHours": "{n} ч",

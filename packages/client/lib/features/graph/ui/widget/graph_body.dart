@@ -199,6 +199,13 @@ class GraphBodyState extends State<GraphBody>
           right: 0,
           child: LinearPiActive.builder(context, graphState.isLoading),
         ),
+        if (_graphCubit.mode == GraphMode.trust)
+          ListenableBuilder(
+            listenable: _graphCubit.graphController,
+            builder: (context, _) => _isTrustGraphEmpty(graphState)
+                ? _buildTrustEmptyState(context)
+                : const SizedBox.shrink(),
+          ),
         if (widget.legendExpanded)
           Positioned(
             left: 0,
@@ -221,6 +228,40 @@ class GraphBodyState extends State<GraphBody>
         if (panelVisible)
           _buildPersonContextOverlay(context, graphState, contextState),
       ],
+    );
+  }
+
+  /// Loaded Trust graph holding only the viewer's own node (#615). A failed
+  /// first load leaves the canvas without the Me node, so it never shows.
+  bool _isTrustGraphEmpty(GraphState graphState) {
+    if (graphState.isLoading) {
+      return false;
+    }
+    final controller = _graphCubit.graphController;
+    final meId = graphState.me.id;
+    return controller.edges.isEmpty &&
+        controller.nodes.any((node) => node.id == meId);
+  }
+
+  /// One line under the centred Me node; the canvas stays pannable.
+  Widget _buildTrustEmptyState(BuildContext context) {
+    final tt = context.tt;
+    return IgnorePointer(
+      child: Align(
+        alignment: const Alignment(0, 0.4),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+            child: Text(
+              L10n.of(context)!.graphTrustEmpty,
+              textAlign: TextAlign.center,
+              style: TenturaText.body(
+                Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
