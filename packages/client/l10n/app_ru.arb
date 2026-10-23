@@ -6045,6 +6045,8 @@
   "updatesMarkUnseen": "Снять отметку о прочтении",
   "updatesMarkUnseenFailed": "Не удалось вернуть в непрочитанные. Попробуйте ещё раз.",
   "updatesMarkAllSeenFailed": "Не удалось отметить всё прочитанным. Попробуйте ещё раз.",
+  "updatesClearStale": "Уже убрано",
+  "updatesClearDenied": "Здесь это не убрать",
   "updatesMarkDoneFailed": "Не удалось отметить выполненным. Попробуйте ещё раз.",
   "updatesMarkDone": "Отметить выполненным",
   "updatesMarkAllSeen": "Прочитать всё",

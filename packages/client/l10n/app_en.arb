@@ -6714,6 +6714,14 @@
   "@updatesMarkAllSeenFailed": {
     "description": "Error snackbar when the Updates \"Read all\" action fails (#601)."
   },
+  "updatesClearStale": "Already cleared",
+  "@updatesClearStale": {
+    "description": "Muted (non-error) snackbar when an Updates clear (Mark seen / Read all) comes back stale: the item was already cleared (#601)."
+  },
+  "updatesClearDenied": "Can't be cleared here",
+  "@updatesClearDenied": {
+    "description": "Muted (non-error) snackbar when an Updates clear (Mark seen / Read all) is denied by the server (#601)."
+  },
   "updatesMarkDoneFailed": "Couldn't mark as done. Try again.",
   "@updatesMarkDoneFailed": {
     "description": "Error snackbar when the per-item Updates \"Mark done\" action fails (#601)."

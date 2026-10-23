@@ -7,6 +7,7 @@ import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
+import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
@@ -21,6 +22,15 @@ import 'updates_feed_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 export 'updates_feed_state.dart';
+
+/// A clear that did not apply, said as a muted (non-error) line (#601).
+enum UpdatesClearNotice {
+  /// The server answered `stale`: it was already cleared.
+  stale,
+
+  /// The server answered `denied`: it cannot be cleared from here.
+  denied,
+}
 
 /// Presentation-only projection of the domain-owned attention feed.
 final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
@@ -63,6 +73,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   late final StreamSubscription<AttentionFeedSnapshot> _accountSub;
   late final StreamSubscription<AttentionFeedSession> _sessionSub;
   late final StreamSubscription<RealtimeEntityChange> _promptInvalidationSub;
+  final _clearNotices = StreamController<UpdatesClearNotice>.broadcast();
   int _promptFetchEpoch = 0;
   int _actorsGeneration = 0;
 
@@ -226,10 +237,14 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     try {
       final receipt = _receiptById(id);
       await _attention.markSeen([id]);
+      UpdatesClearNotice? notice;
       if (receipt == null || isActiveOptional(receipt)) {
-        await _attention.clearReceipt(receiptId: id);
+        notice = _clearNoticeFor(
+          await _attention.clearReceipt(receiptId: id),
+        );
       }
       if (!isClosed) emit(state.copyWith(actionError: null));
+      _sayClearNotice(notice);
       return true;
     } catch (error, stackTrace) {
       _logger.warning('Updates mark-seen failed', error, stackTrace);
@@ -276,9 +291,29 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     );
   }
 
-  /// "Read all" (#601): returns false when it failed.
-  Future<bool> markAllSeen() =>
-      _runAction('mark-all-seen', _attention.markAllSeen);
+  /// "Read all" (#601, #258): reads everything **and** clears the active
+  /// optional rows, like the per-item [markSeen], in one bounded server sweep
+  /// ([AttentionCase.readAll]); obligations are only read (they leave Unread
+  /// when settled). A stale or denied member is not news here, so no
+  /// [clearNotices] line. Returns false when it failed.
+  Future<bool> markAllSeen() => _runAction('mark-all-seen', () async {
+    await _attention.readAll();
+  });
+
+  /// A clear the server answered `stale` (already gone) or `denied` is not a
+  /// failure, but it is not silence either (#601): a muted line says so.
+  Stream<UpdatesClearNotice> get clearNotices => _clearNotices.stream;
+
+  static UpdatesClearNotice? _clearNoticeFor(AttentionClearResult result) =>
+      switch (result.status) {
+        AttentionOperationStatus.stale => UpdatesClearNotice.stale,
+        AttentionOperationStatus.denied => UpdatesClearNotice.denied,
+        _ => null,
+      };
+
+  void _sayClearNotice(UpdatesClearNotice? notice) {
+    if (notice != null && !_clearNotices.isClosed) _clearNotices.add(notice);
+  }
 
   /// "Mark done" (#601): returns false when it failed.
   Future<bool> settle(String id) =>
@@ -306,6 +341,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     await _accountSub.cancel();
     await _sessionSub.cancel();
     await _promptInvalidationSub.cancel();
+    await _clearNotices.close();
     return super.close();
   }
 }
