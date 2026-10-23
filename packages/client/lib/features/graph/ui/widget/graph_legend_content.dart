@@ -5,6 +5,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_presence_halo_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_status_marker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
@@ -254,6 +255,15 @@ class GraphLegendContent extends StatelessWidget {
         ]);
       case GraphLegendMode.constellation:
         rows.addAll([
+          Padding(
+            padding: EdgeInsets.only(bottom: tt.tightGap),
+            child: _LegendRow(
+              key: const ValueKey('constellation.legend.presence.online'),
+              swatch: const ConstellationPresenceHaloSwatch(),
+              label: l10n.constellationPresenceOnline,
+              hint: l10n.constellationPresenceOnlineHint,
+            ),
+          ),
           row(
             TenturaIdentityTileFrame(
               size: tt.avatarSize * 0.75,

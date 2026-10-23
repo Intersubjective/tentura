@@ -8,6 +8,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_presence_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -233,6 +234,8 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   FakeUiEffectPort? effects,
   ConstellationPresentationFrameHolder? presentationFrameHolder,
   TextDirection textDirection = TextDirection.ltr,
+  ConstellationPresenceCubit? presence,
+  bool disableAnimations = false,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -250,6 +253,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
           data: MediaQueryData(
             size: size,
             textScaler: resolvedScaler,
+            disableAnimations: disableAnimations,
           ),
           child: TenturaResponsiveScope(
             child: MultiBlocProvider(
@@ -261,6 +265,10 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                 BlocProvider<ScreenCubit>(
                   create: (_) => ScreenCubit(fx),
                 ),
+                if (presence != null)
+                  BlocProvider<ConstellationPresenceCubit>.value(
+                    value: presence,
+                  ),
               ],
               child: ConstellationBody(
                 legendExpanded: false,

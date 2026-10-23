@@ -16,6 +16,8 @@ class UserPresenceService {
     _messagesSub = remoteApiService.webSocketMessages.listen(_onMessage);
     _stateSub = remoteApiService.webSocketState.listen((state) {
       if (state == WebSocketState.connected) {
+        // A new socket is a new server session with no watch yet.
+        _serverHasWatch = false;
         _sendWatchUpdates(remoteApiService);
       }
     });
@@ -33,6 +35,7 @@ class UserPresenceService {
     _messagesSub = messages.listen(_onMessage);
     _stateSub = connectionState.listen((state) {
       if (state == WebSocketState.connected) {
+        _serverHasWatch = false;
         _sendWatchUpdates(null);
       }
     });
@@ -45,6 +48,11 @@ class UserPresenceService {
       BehaviorSubject<Map<String, UserPresenceStatus>>.seeded({});
 
   final _watchSources = <String, Set<String>>{};
+
+  /// Whether the last watch sent on this socket named any peer. The server
+  /// replaces its watch with each list, so once the last source is gone an
+  /// empty list must be sent, or it keeps pushing peers no one shows.
+  bool _serverHasWatch = false;
 
   late final StreamSubscription<Map<String, dynamic>> _messagesSub;
   late final StreamSubscription<WebSocketState> _stateSub;
@@ -70,9 +78,10 @@ class UserPresenceService {
 
   void _sendWatchUpdates(RemoteApiService? api) {
     final peerIds = _watchSources.values.expand((s) => s).toSet().toList();
-    if (peerIds.isEmpty) {
+    if (peerIds.isEmpty && !_serverHasWatch) {
       return;
     }
+    _serverHasWatch = peerIds.isNotEmpty;
     final payload = jsonEncode({
       'type': 'subscription',
       'path': 'user_presence',

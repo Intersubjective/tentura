@@ -17,6 +17,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_presence_halo_layer.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -362,6 +363,34 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('field legend explains the online halo, hint on tap', (
+    tester,
+  ) async {
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    final row = find.byKey(
+      const ValueKey('constellation.legend.presence.online'),
+    );
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(
+        of: row,
+        matching: find.byType(ConstellationPresenceHaloSwatch),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Online now'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.text(
+        'A soft green pulse around a friend means they are online now.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('trust graph legend keeps the contact badges', (tester) async {
     await _pumpLegendContent(tester, GraphLegendMode.trust);
     expect(find.byType(ContactBadgeLegend), findsOneWidget);
@@ -387,6 +416,7 @@ void main() {
       "These two are linked through other people's trust, not by a direct mark.",
       'Joins a request to the person who asked for help.',
       "You and this person see each other through the trust network, but the Field can't show the path between you.",
+      'A soft green pulse around a friend means they are online now.',
     ]);
 
     await tester.ensureVisible(find.text('Wider network reach'));

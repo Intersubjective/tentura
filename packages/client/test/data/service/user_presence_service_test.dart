@@ -50,6 +50,22 @@ void main() {
       expect(sent.last, contains('"peer_ids":["U2"]'));
     });
 
+    test('removing the last source clears the server watch once', () {
+      service
+        ..removeWatch('friends')
+        ..setWatchPeers('friends', const {});
+      expect(sent, isEmpty, reason: 'nothing was watched yet');
+
+      service
+        ..setWatchPeers('friends', {'U1'})
+        ..removeWatch('friends');
+      expect(sent, hasLength(2));
+      expect(sent.last, contains('"peer_ids":[]'));
+
+      service.setWatchPeers('room:B1', const {});
+      expect(sent, hasLength(2), reason: 'already cleared');
+    });
+
     test('applies user_presence subscription events to snapshot', () async {
       final seen = <Map<String, UserPresenceStatus>>[];
       final sub = service.presenceChanges.listen(seen.add);

@@ -9,11 +9,14 @@ import 'constellation_node_ring_layer.dart';
 import 'constellation_request_status_marker.dart';
 
 /// Combined accessibility label for a Constellation map node (body + pin/status).
+///
+/// [online]: the person is online now (their presence halo is drawn).
 String constellationNodeSemanticLabel({
   required L10n l10n,
   required TenturaTokens tt,
   required ConstellationCubit cubit,
   required NodeDetails node,
+  bool online = false,
 }) {
   return switch (node) {
     FieldPersonNode(:final person) => () {
@@ -24,9 +27,11 @@ String constellationNodeSemanticLabel({
               field: field,
               viewerId: cubit.viewerId,
             )[person.id];
-      final base = trust == null
-          ? person.shownName
-          : '${person.shownName}, ${constellationTrustBadgeLabel(l10n, trust)}';
+      final base = [
+        person.shownName,
+        if (trust != null) constellationTrustBadgeLabel(l10n, trust),
+        if (online) l10n.chatPresenceOnline,
+      ].join(', ');
       if (cubit.isAnchored(ConstellationAnchorTarget.person(person.id))) {
         return '$base, ${l10n.constellationPinMarkerSemantics}';
       }

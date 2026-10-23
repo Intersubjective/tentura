@@ -39,6 +39,7 @@ import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
+import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
 import 'constellation_request_label.dart';
@@ -1094,13 +1095,18 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   bloc: cubit,
                   selector: (_) =>
                       anchorTarget != null && cubit.isAnchored(anchorTarget),
-                  builder: (context, _) => _wrapConstellationMapNodeSemantics(
-                    context: context,
-                    cubit: cubit,
-                    state: state,
-                    node: node,
-                    panelVisible: panelVisible,
-                    mapNode: mapNode,
+                  builder: (context, _) => ConstellationPersonPresenceBuilder(
+                    personId: node is FieldPersonNode ? node.person.id : null,
+                    builder: (context, online) =>
+                        _wrapConstellationMapNodeSemantics(
+                          context: context,
+                          cubit: cubit,
+                          state: state,
+                          node: node,
+                          panelVisible: panelVisible,
+                          mapNode: mapNode,
+                          online: online,
+                        ),
                   ),
                 );
               },
@@ -1224,6 +1230,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     required NodeDetails node,
     required bool panelVisible,
     required _ConstellationMapNode mapNode,
+    bool online = false,
   }) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
@@ -1243,6 +1250,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       tt: tt,
       cubit: cubit,
       node: node,
+      online: online,
     );
     // Off the selected person's trust chain (#641): the marker fades.
     final marker = cubit.isDimmedByTrustChain(node)
