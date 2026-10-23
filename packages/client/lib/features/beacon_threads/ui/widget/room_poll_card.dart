@@ -14,6 +14,7 @@ class RoomPollCard extends StatefulWidget {
     this.onVote,
     this.participants = const [],
     this.isAuthor = false,
+    this.isClosed = false,
     super.key,
   });
 
@@ -28,6 +29,11 @@ class RoomPollCard extends StatefulWidget {
   /// Whether the viewer authored the poll. The author sees the results
   /// (percentages, counts, averages) even before voting themselves.
   final bool isAuthor;
+
+  /// Whether the poll is closed because its Request is final (read-only).
+  /// A closed poll shows its results to everyone, voted or not, with no
+  /// vote controls (#609).
+  final bool isClosed;
 
   @override
   State<RoomPollCard> createState() => _RoomPollCardState();
@@ -54,7 +60,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
     _pendingRange = {};
   }
 
-  bool get _isVoted => !_revoting && widget.poll.hasVoted;
+  bool get _isVoted => widget.isClosed || (!_revoting && widget.poll.hasVoted);
 
   void _submitVote(List<String> variantIds, {int? score}) {
     setState(() => _revoting = false);
@@ -254,7 +260,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
         children: [
           Row(
             children: [
-              if (poll.pollType == PollType.single)
+              if (widget.isClosed && !isMine)
+                Icon(Icons.bar_chart, size: 20, color: cs.outline)
+              else if (poll.pollType == PollType.single)
                 Icon(
                   isMine
                       ? Icons.radio_button_checked
@@ -436,6 +444,15 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
               ],
             ),
+            if (widget.isClosed) ...[
+              SizedBox(height: context.tt.tightGap),
+              Text(
+                l10n.beaconRoomPollClosedVotesCount(poll.totalVotes),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
             SizedBox(height: context.tt.rowGap),
 
             // Poll controls stay out of the focus tree so they do not hold
@@ -522,32 +539,34 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
               ),
 
-            SizedBox(height: context.tt.rowGap),
-
-            // Footer: vote count + revote button
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.beaconRoomPollVotesCount(poll.totalVotes),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
+            // Footer: vote count + revote button. A closed poll carries the
+            // count in its header instead.
+            if (!widget.isClosed) ...[
+              SizedBox(height: context.tt.rowGap),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.beaconRoomPollVotesCount(poll.totalVotes),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ),
-                ),
-                if (voted && poll.allowRevote && widget.onVote != null)
-                  ExcludeFocus(
-                    child: TextButton(
-                      onPressed: () => setState(() {
-                        _revoting = true;
-                        _pendingMultiple = poll.myVariantIds.toSet();
-                        _pendingRange = {};
-                      }),
-                      child: Text(l10n.beaconRoomPollChangeAnswer),
+                  if (voted && poll.allowRevote && widget.onVote != null)
+                    ExcludeFocus(
+                      child: TextButton(
+                        onPressed: () => setState(() {
+                          _revoting = true;
+                          _pendingMultiple = poll.myVariantIds.toSet();
+                          _pendingRange = {};
+                        }),
+                        child: Text(l10n.beaconRoomPollChangeAnswer),
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

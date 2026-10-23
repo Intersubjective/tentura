@@ -105,6 +105,7 @@ class BasicChatBody extends StatefulWidget {
     this.pendingJumpMessageId,
     this.receiptIndex,
     this.capabilities = const RoomCapabilities.request(),
+    this.pollsClosed = false,
     this.hideUntilViewportPositioned = false,
     super.key,
   });
@@ -249,6 +250,10 @@ class BasicChatBody extends StatefulWidget {
 
   /// Request-only features passed down to each [RoomMessageTile].
   final RoomCapabilities capabilities;
+
+  /// The Request is final (read-only): polls show their results to
+  /// everyone and take no votes (#609).
+  final bool pollsClosed;
 
   /// Keeps the message list invisible until [BasicChatBodyState.
   /// onRoomDataChangedForViewport] has placed it (first unread or bottom), so
@@ -740,6 +745,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                               highlightedMessageId: _highlightedMessageId,
                               receipt: widget.receiptIndex?.receiptFor(m),
                               capabilities: widget.capabilities,
+                              pollsClosed: widget.pollsClosed,
                             );
 
                             return Column(

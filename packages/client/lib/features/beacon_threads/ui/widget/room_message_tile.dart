@@ -111,10 +111,15 @@ class RoomMessageTile extends StatelessWidget {
     this.promotedChildBeaconId,
     this.receipt,
     this.capabilities = const RoomCapabilities.request(),
+    this.pollsClosed = false,
     super.key,
   });
 
   final RoomMessage message;
+
+  /// The hosting Request is final (read-only): a poll on this message shows
+  /// its results to everyone and takes no votes (#609).
+  final bool pollsClosed;
 
   /// Request-only features the hosting room offers.
   final RoomCapabilities capabilities;
@@ -1546,6 +1551,7 @@ class RoomMessageTile extends StatelessWidget {
                   ),
               participants: participants,
               isAuthor: isMine,
+              isClosed: pollsClosed,
               onVote: onVotePoll == null
                   ? null
                   : (variantIds, {score}) => unawaited(
