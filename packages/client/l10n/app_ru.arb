@@ -403,6 +403,14 @@
   "@friendsInvitesEmptyTitle": {
     "context": "FriendsScreen"
   },
+  "friendsInvitesPendingEmptyTitle": "Нет ожидающих приглашений",
+  "@friendsInvitesPendingEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesPendingEmptyBody": "Создайте приглашение, чтобы позвать человека, которому вы доверяете.",
+  "@friendsInvitesPendingEmptyBody": {
+    "context": "FriendsScreen"
+  },
   "friendsInvitesPeopleSection": "Люди",
   "@friendsInvitesPeopleSection": {
     "context": "FriendsScreen"

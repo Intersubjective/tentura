@@ -27,6 +27,7 @@ import '../bloc/friends_cubit.dart';
 import '../invite_pending_subtitle.dart';
 import '../widget/accepted_invite_list_tile.dart';
 import '../widget/friends_app_bar_actions.dart';
+import '../widget/pending_invites_empty_state.dart';
 
 /// Semantic hook for blocked-people navigation from People.
 void navigateToBlockedPeopleFromFriends(BuildContext context) {
@@ -511,37 +512,8 @@ class _InvitesSegmentList extends StatelessWidget {
                           l10n: l10n,
                           onSwitchToPending: onSwitchToPending,
                         )
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.person_add_alt_1_outlined,
-                              size: tt.iconSize * 3,
-                              color: onSurfaceVariant,
-                            ),
-                            SizedBox(height: tt.sectionGap),
-                            Text(
-                              l10n.friendsInvitesEmptyTitle,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: onSurfaceVariant,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(height: tt.rowGap),
-                            Text(
-                              l10n.invitationDualPurposeBody,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: onSurfaceVariant,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            SizedBox(height: tt.sectionGap),
-                            FilledButton.icon(
-                              icon: const Icon(Icons.person_add_alt_1),
-                              label: Text(l10n.friendsCreateInvitation),
-                              onPressed: onCreateInvitation,
-                            ),
-                          ],
+                      : PendingInvitesEmptyState(
+                          onCreateInvitation: onCreateInvitation,
                         ),
                 ),
               ),
