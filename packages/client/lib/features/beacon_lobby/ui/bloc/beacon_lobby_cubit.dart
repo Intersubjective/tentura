@@ -117,9 +117,15 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
       await _case.post(beaconId: beaconId, lobbyId: info.lobbyId, body: body);
       if (isClosed) return;
       emit(state.copyWith(sending: false, postedCount: state.postedCount + 1));
+    } on BeaconLobbyPostDeniedException {
+      // Removed, or no longer allowed to ask, while the screen was open: a
+      // fresh read of access says which (the "removed" screen or the
+      // read-only note), instead of an error bar (#683).
+      if (isClosed) return;
+      emit(state.copyWith(sending: false));
+      await _refresh(reopen: true);
+      return;
     } on BeaconLobbyUnavailableException {
-      // Removed (or the Request changed) while the screen was open: the
-      // screen says why instead of an error bar (#683).
       if (isClosed) return;
       emit(state.copyWith(sending: false));
       _showUnavailable();

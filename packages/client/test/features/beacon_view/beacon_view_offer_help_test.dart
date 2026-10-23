@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
@@ -62,10 +63,14 @@ void main() {
 
         expect(forward.offerHelpCalls, 1);
         expect(cubit.state.beacon.status, BeaconStatus.open);
-        final messages =
-            effects.emitted.whereType<ShowMessage>().map((e) => e.message);
+        final messages = effects.emitted.whereType<ShowMessage>().map(
+          (e) => e.message,
+        );
         expect(messages, contains(isA<BackupOfferSentMessage>()));
-        expect(messages, isNot(contains(isA<HelpOfferedForwardNudgeMessage>())));
+        expect(
+          messages,
+          isNot(contains(isA<HelpOfferedForwardNudgeMessage>())),
+        );
       },
     );
 
@@ -99,17 +104,78 @@ void main() {
         expect(forward.offerHelpCalls, 1);
         final showMessages = effects.emitted.whereType<ShowMessage>().toList();
         expect(showMessages, hasLength(1));
-        expect(showMessages.single.message, isA<HelpOfferedForwardNudgeMessage>());
         expect(
-          (showMessages.single.message as HelpOfferedForwardNudgeMessage).beaconId,
+          showMessages.single.message,
+          isA<HelpOfferedForwardNudgeMessage>(),
+        );
+        expect(
+          (showMessages.single.message as HelpOfferedForwardNudgeMessage)
+              .beaconId,
           beaconId,
         );
+      },
+    );
+
+    test(
+      'an offer that races the close shows plain copy and refreshes the '
+      'Request (#683)',
+      () async {
+        final forward = _RefusingOfferHelpForwardRepository();
+        addTearDown(forward.dispose);
+        var closed = false;
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon(
+            status: closed ? BeaconStatus.reviewOpen : BeaconStatus.open,
+          );
+        final effects = FakeUiEffectPort();
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: buildTestBeaconViewCase(
+            forward: forward,
+            beaconRepo: beaconRepo,
+          ),
+          effects: effects,
+        );
+        addTearDown(cubit.close);
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beaconContentLoaded,
+        );
+
+        // The author starts the final check while the offer is being written.
+        closed = true;
+        await cubit.offerHelp(message: 'I can help');
+
+        final error = effects.emitted.whereType<ShowError>().single.error;
+        expect(error, isA<RemoteApiException>());
+        expect(
+          (error as RemoteApiException).toL10n('en'),
+          isNot(contains('beaconNotOpen')),
+        );
+        expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
+        expect(cubit.state.beacon.status, BeaconStatus.reviewOpen);
+        expect(cubit.state.isLoading, isFalse);
       },
     );
   });
 }
 
-class TrackingOfferHelpForwardRepository extends FakeBeaconViewForwardRepository {
+/// The server refuses the offer: the Request left the open family.
+class _RefusingOfferHelpForwardRepository
+    extends FakeBeaconViewForwardRepository {
+  @override
+  Future<bool> offerHelp({
+    required String beaconId,
+    String? message,
+    List<String>? helpTypes,
+    int? expectedOfferKind,
+    bool notifyHelpOfferListeners = true,
+  }) async => throw const RemoteApiException('beaconNotOpen', code: '1500');
+}
+
+class TrackingOfferHelpForwardRepository
+    extends FakeBeaconViewForwardRepository {
   int offerHelpCalls = 0;
 
   @override

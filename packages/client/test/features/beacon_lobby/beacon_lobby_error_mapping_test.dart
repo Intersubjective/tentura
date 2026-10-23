@@ -29,16 +29,19 @@ void main() {
     );
   });
 
-  test('a refused Questions read or write (1102) is the same denial, not '
-      'raw server text (#683)', () {
+  test('a refused Questions read (1102) is the denial; a refused post asks '
+      'for a fresh read; never raw server text (#683)', () {
+    const refused = RemoteApiException(
+      'Room or item thread access required',
+      code: '1102',
+    );
     expect(
-      beaconLobbyScopeError(
-        const RemoteApiException(
-          'Room or item thread access required',
-          code: '1102',
-        ),
-      ),
+      beaconLobbyScopeError(refused),
       isA<BeaconLobbyUnavailableException>(),
+    );
+    expect(
+      beaconLobbyScopeError(refused, write: true),
+      isA<BeaconLobbyPostDeniedException>(),
     );
     const other = RemoteApiException('boom', code: '1000');
     expect(beaconLobbyScopeError(other), same(other));

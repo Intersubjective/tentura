@@ -119,7 +119,7 @@ class FakeLobbyPort implements BeaconLobbyPort {
     calls.add('post $body');
     _maybeFail();
     // The repository turns the room API's refusal (1102) into this (#683).
-    if (!_allowed) throw const BeaconLobbyUnavailableException();
+    if (!_allowed || !canPost) throw const BeaconLobbyPostDeniedException();
     messagesList.add(
       BeaconLobbyMessage(
         id: 'M${messagesList.length}',

@@ -12,8 +12,9 @@ import '../gql/_g/beacon_lobby.req.gql.dart';
 /// item-thread room API (`RoomMessageList` / `RoomMessageCreate` /
 /// `MarkThreadSeen` with the Questions scope id). A denial arrives as
 /// `BeaconLobbyUnavailableException` (error link, 1347); so does the room
-/// API's own refusal of the Questions scope on a read or a write (1102, e.g.
-/// the author removed the viewer while the screen was open, #683).
+/// API's own refusal of a Questions read (1102, e.g. the author removed the
+/// viewer while the screen was open, #683). A refused post (1102) is
+/// `BeaconLobbyPostDeniedException`: the viewer may still read.
 @LazySingleton(as: BeaconLobbyPort, env: [Environment.dev, Environment.prod])
 class BeaconLobbyRepository implements BeaconLobbyPort {
   BeaconLobbyRepository(this._remoteApiService);
@@ -97,7 +98,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
     required String beaconId,
     required String lobbyId,
     required String body,
-  }) => _inQuestions(() async {
+  }) => _inQuestions(write: true, () async {
     final r = await _remoteApiService
         .request(
           GBeaconLobbyPostReq(
@@ -114,11 +115,14 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
   /// The room API answers a Questions-scope read or write it refuses with
   /// its generic access code: here that can only mean Questions is closed
   /// to the viewer.
-  static Future<T> _inQuestions<T>(Future<T> Function() run) async {
+  static Future<T> _inQuestions<T>(
+    Future<T> Function() run, {
+    bool write = false,
+  }) async {
     try {
       return await run();
     } on RemoteApiException catch (e) {
-      final mapped = beaconLobbyScopeError(e);
+      final mapped = beaconLobbyScopeError(e, write: write);
       if (identical(mapped, e)) rethrow;
       throw mapped;
     }

@@ -17,12 +17,19 @@ const kBeaconLobbyRoomAccessDeniedCode = '1102';
 
 /// A Questions-scope read or write that the room API refuses comes back
 /// with its generic access code (1102, "Room or item thread access
-/// required"). On a Questions call that can only mean Questions is closed to
-/// the viewer — e.g. the author removed them while the screen was open —
-/// so it becomes [BeaconLobbyUnavailableException] (#683). Any other error
-/// is returned unchanged.
-Object beaconLobbyScopeError(Object error) =>
-    error is RemoteApiException &&
-        error.code?.trim() == kBeaconLobbyRoomAccessDeniedCode
-    ? const BeaconLobbyUnavailableException()
-    : error;
+/// required"), never as text to show (#683):
+///  - a refused read means Questions is closed to the viewer (the author
+///    removed them while the screen was open): [BeaconLobbyUnavailableException];
+///  - a refused write only means they may no longer write — they may still
+///    read (an offer declined or withdrawn meanwhile), so it becomes
+///    [BeaconLobbyPostDeniedException] and the screen re-reads its access.
+/// Any other error is returned unchanged.
+Object beaconLobbyScopeError(Object error, {bool write = false}) {
+  if (error is! RemoteApiException ||
+      error.code?.trim() != kBeaconLobbyRoomAccessDeniedCode) {
+    return error;
+  }
+  return write
+      ? const BeaconLobbyPostDeniedException()
+      : const BeaconLobbyUnavailableException();
+}

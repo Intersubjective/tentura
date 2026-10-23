@@ -2,6 +2,8 @@
 // land on the page under it while the sheet animates away (it opened
 // Questions or the Forward picker right after «Offer help»).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -58,6 +60,41 @@ Future<void> _pumpPage(
 }
 
 void main() {
+  testWidgets('a page opened right after the close does not bring the '
+      'shield back when it closes', (tester) async {
+    var pageTaps = 0;
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      onPageTap: () => pageTaps++,
+    );
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final send = tester.getCenter(find.text('Send'));
+    await tester.tapAt(send);
+    await tester.pump();
+    // The action the sheet confirmed opens a full page at once.
+    unawaited(
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('next page')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('next page'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    navigator.pop();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('tenturaSheetCloseTapShield')), findsNothing);
+
+    pageTaps = 0;
+    await tester.tapAt(send);
+    await tester.pumpAndSettle();
+    expect(pageTaps, 1);
+  });
+
   for (final (name, size) in [
     ('bottom sheet (compact)', const Size(390, 844)),
     ('dialog (wide)', const Size(1280, 800)),

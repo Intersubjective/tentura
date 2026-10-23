@@ -7294,7 +7294,7 @@
   "updatesFallbackTitleHelpWithdrawn": "Предложение помощи отозвано",
   "updatesFallbackBodyHelpWithdrawn": "Кто-то отозвал своё предложение помощи.",
   "beaconShowcaseTeamLabelClosed": "ПОМОГЛИ",
-  "beaconShowcaseTeamNoAcquaintancesClosed": "{count, plural, =1{Помог 1 человек} few{Помогли {count} человека} other{Помогли {count} человек}}",
+  "beaconShowcaseTeamNoAcquaintancesClosed": "{count, plural, =1{Помог 1 человек} one{Помог {count} человек} few{Помогли {count} человека} other{Помогли {count} человек}}",
   "beaconShowcaseTeamEmptyClosed": "Никто не присоединился к помощи",
   "beaconShowcaseTeamSheetTitleClosed": "Помогли",
   "beaconShowcaseOfferUnansweredClosed": "Запрос закрыт до того, как автор ответил на ваше предложение.",

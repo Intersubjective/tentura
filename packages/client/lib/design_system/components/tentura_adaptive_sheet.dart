@@ -98,20 +98,24 @@ void _shieldTapsAfterClose(NavigatorState navigator) {
   final overlay = navigator.mounted ? navigator.overlay : null;
   if (overlay == null || !overlay.mounted) return;
   late final OverlayEntry entry;
-  entry = OverlayEntry(
-    builder: (_) => _TapShield(
-      onDone: () {
-        if (entry.mounted) entry.remove();
-        entry.dispose();
-      },
-    ),
-  );
+  var removed = false;
+  void remove() {
+    if (removed) return;
+    removed = true;
+    entry
+      ..remove()
+      ..dispose();
+  }
+
+  entry = OverlayEntry(builder: (_) => _TapShield(onDone: remove));
   overlay.insert(entry);
 }
 
 /// Swallows pointer events for [kTenturaSheetCloseTapShield], then calls
 /// [onDone]. Timed by a ticker, not a timer, so it ends with the frames
-/// (and never outlives a widget test as a pending timer).
+/// (and never outlives a widget test as a pending timer). Taken out of the
+/// tree early (its overlay rebuilt without it), it calls [onDone] too, so
+/// the entry never comes back as a fresh shield.
 class _TapShield extends StatefulWidget {
   const _TapShield({required this.onDone});
 
@@ -142,6 +146,7 @@ class _TapShieldState extends State<_TapShield>
   void dispose() {
     _disposed = true;
     _clock.dispose();
+    widget.onDone();
     super.dispose();
   }
 

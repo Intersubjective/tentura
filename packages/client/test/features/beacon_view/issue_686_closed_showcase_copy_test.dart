@@ -125,10 +125,18 @@ void main() {
         beaconShowcaseTeamCaption(en, team(2), finished: true),
         '2 people helped',
       );
-      expect(
-        beaconShowcaseTeamCaption(ru, team(1), finished: true),
-        'Помог 1 человек',
-      );
+      for (final (count, text) in [
+        (1, 'Помог 1 человек'),
+        (2, 'Помогли 2 человека'),
+        (5, 'Помогли 5 человек'),
+        (21, 'Помог 21 человек'),
+        (22, 'Помогли 22 человека'),
+      ]) {
+        expect(
+          beaconShowcaseTeamCaption(ru, team(count), finished: true),
+          text,
+        );
+      }
       expect(
         beaconShowcaseTeamCaption(
           en,
