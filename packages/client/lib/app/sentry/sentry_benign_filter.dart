@@ -15,6 +15,7 @@ bool isBenignSentryThrowable(Object? error) {
     return false;
   }
   if (error is ConnectionUplinkException ||
+      error is RequestTimeoutException ||
       error is AuthSessionLostException ||
       error is AuthenticationNoKeyException ||
       error is SessionAuthRejectedException) {
@@ -93,6 +94,7 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
   for (final ex in exceptions) {
     final type = ex.type ?? '';
     if (type.contains('ConnectionUplinkException') ||
+        type.contains('RequestTimeoutException') ||
         type.contains('SocketException') ||
         type.contains('AuthSessionLostException') ||
         type.contains('AuthenticationNoKeyException')) {

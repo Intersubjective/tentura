@@ -10,7 +10,7 @@ import 'package:tentura/data/service/network_reachability.dart';
 import 'package:tentura/data/service/remote_api_client/build_client.dart';
 
 /// What the fake server does with the next request.
-enum _Answer { networkDown, data, graphQlError }
+enum _Answer { networkDown, data, graphQlError, held }
 
 /// #513: the HTTP client is where an offline browser is first noticed. It
 /// must tell [NetworkReachability] about a transport failure, and about any
@@ -24,7 +24,7 @@ void main() {
           apiEndpointUrl: 'https://example.test/api/v1/graphql',
           apiEndpointUrlV2: 'https://example.test/api/v2/graphql',
           userAgent: 'test',
-          requestTimeout: const Duration(seconds: 2),
+          requestTimeout: const Duration(milliseconds: 300),
         ),
         getToken: () async => 'test-token',
         httpClient: MockClient(
@@ -42,6 +42,15 @@ void main() {
               '"extensions":{"code":"1501"}}]}',
               200,
               headers: {'content-type': 'application/json'},
+            ),
+            // The server is slow: it answers only after the request timeout.
+            _Answer.held => Future<http.Response>.delayed(
+              const Duration(seconds: 1),
+              () => http.Response(
+                '{"data":{"__typename":"Query"}}',
+                200,
+                headers: {'content-type': 'application/json'},
+              ),
             ),
           },
         ),
@@ -62,7 +71,7 @@ void main() {
           .request(request)
           .where((event) => event.dataSource == DataSource.Link)
           .first
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 2));
     } on Object catch (_) {
       // Failures are the point of some pings; the reachability is asserted.
     }
@@ -101,6 +110,34 @@ void main() {
       answer = _Answer.graphQlError;
       await ping(client);
       expect(reachability.isOnline, isTrue);
+    });
+
+    test('a request timeout alone never marks the network offline', () async {
+      final reachability = NetworkReachability.forTesting();
+      addTearDown(reachability.dispose);
+      final client = await buildFakeClient(reachability);
+      final changes = <bool>[];
+      final sub = reachability.onlineChanges.listen(changes.add);
+      addTearDown(sub.cancel);
+
+      answer = _Answer.held;
+      await ping(client);
+      expect(reachability.isOnline, isTrue);
+      expect(changes, isEmpty);
+    });
+
+    test('a timeout does not mark an offline network online either', () async {
+      final reachability = NetworkReachability.forTesting();
+      addTearDown(reachability.dispose);
+      final client = await buildFakeClient(reachability);
+
+      answer = _Answer.networkDown;
+      await ping(client);
+      expect(reachability.isOnline, isFalse);
+
+      answer = _Answer.held;
+      await ping(client);
+      expect(reachability.isOnline, isFalse);
     });
   });
 }

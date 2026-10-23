@@ -1351,9 +1351,10 @@ class RoomCubit extends Cubit<RoomState> {
       return true;
     } on Object catch (e) {
       _pendingLocalMessageIds.remove(localId);
-      // Only a real connection failure is «offline». A timeout may have
-      // posted the message (createMessage has no idempotency key), so it
-      // gets no Retry notice, just the snackbar (#513).
+      // Only a real connection failure is «offline». A timeout (the link maps
+      // it to RequestTimeoutException) may have posted the message
+      // (createMessage has no idempotency key), so it gets no Retry notice,
+      // just the snackbar (#513).
       final offline = e is ConnectionUplinkException;
       emit(
         state.copyWith(
