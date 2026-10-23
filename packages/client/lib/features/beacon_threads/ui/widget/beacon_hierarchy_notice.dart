@@ -95,8 +95,11 @@ class BeaconHierarchyNotice extends StatelessWidget {
         tt.screenHPadding,
         tt.tightGap / 2,
       ),
+      // #415: the line says its text once (the Text below is excluded).
       child: Semantics(
+        container: true,
         label: line,
+        excludeSemantics: true,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -159,6 +162,8 @@ class _ChildCreatedCenteredNoticeState
     final line = l10n.beaconHierarchyNoticeChildCreated;
     final title = _titleFromSummary(childPreview);
     final label = title == null ? line : '$line. $title';
+    void openChild() =>
+        context.router.push(BeaconViewRoute(id: widget.childBeaconId));
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -167,58 +172,65 @@ class _ChildCreatedCenteredNoticeState
         tt.screenHPadding,
         tt.tightGap / 2,
       ),
-      child: Semantics(
-        button: true,
-        label: label,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: () => context.router.push(
-              BeaconViewRoute(id: widget.childBeaconId),
-            ),
-            borderRadius: BorderRadius.circular(tt.cardRadius),
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.subdirectory_arrow_right_outlined,
-                        size: 14,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      SizedBox(width: tt.iconTextGap / 2),
-                      Flexible(
-                        child: Text(
-                          line,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                            height: 1.15,
+      // #415: the line names itself once (the texts inside are excluded),
+      // and carries the focus state of its InkWell.
+      child: TenturaFocusSemantics(
+        builder: (context, focused) => Semantics(
+          container: true,
+          button: true,
+          label: label,
+          focused: focused,
+          excludeSemantics: true,
+          // The excluded InkWell no longer lends its tap to this node.
+          onTap: openChild,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: openChild,
+              borderRadius: BorderRadius.circular(tt.cardRadius),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.subdirectory_arrow_right_outlined,
+                          size: 14,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        SizedBox(width: tt.iconTextGap / 2),
+                        Flexible(
+                          child: Text(
+                            line,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                              height: 1.15,
+                            ),
                           ),
+                        ),
+                      ],
+                    ),
+                    if (title != null) ...[
+                      SizedBox(height: tt.tightGap / 2),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                  ),
-                  if (title != null) ...[
-                    SizedBox(height: tt.tightGap / 2),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -247,6 +259,7 @@ class _CenteredLinkNotice extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tt = context.tt;
+    void openChild() => context.router.push(BeaconViewRoute(id: childBeaconId));
     return Padding(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
@@ -261,12 +274,12 @@ class _CenteredLinkNotice extends StatelessWidget {
           label: line,
           focused: focused,
           excludeSemantics: true,
+          // The excluded InkWell no longer lends its tap to this node.
+          onTap: openChild,
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              onTap: () => context.router.push(
-                BeaconViewRoute(id: childBeaconId),
-              ),
+              onTap: openChild,
               borderRadius: BorderRadius.circular(tt.cardRadius),
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
