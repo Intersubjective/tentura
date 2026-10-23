@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../tentura_spacing.dart';
 import '../tentura_tokens.dart';
@@ -11,7 +12,7 @@ class TenturaVerticalResizeHandle extends StatefulWidget {
   const TenturaVerticalResizeHandle({
     required this.onDragDelta,
     this.subtle = true,
-    this.semanticLabel = 'Resize',
+    this.semanticLabel,
     super.key,
   });
 
@@ -20,7 +21,8 @@ class TenturaVerticalResizeHandle extends StatefulWidget {
 
   final bool subtle;
 
-  final String semanticLabel;
+  /// Screen-reader name; null reads the app-language default (#670).
+  final String? semanticLabel;
 
   @override
   State<TenturaVerticalResizeHandle> createState() =>
@@ -42,7 +44,10 @@ class _TenturaVerticalResizeHandleState
         : (widget.subtle ? tt.borderSubtle : tt.border);
 
     return Semantics(
-      label: widget.semanticLabel,
+      label:
+          widget.semanticLabel ??
+          L10n.of(context)?.paneResizeHandleSemantics ??
+          'Resize panes',
       slider: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.resizeColumn,

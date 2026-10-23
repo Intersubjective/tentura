@@ -120,7 +120,7 @@ class HelpOfferTile extends StatelessWidget {
                 1
         ? null
         : '${dateFormatYMD(participantUpdatedAt, locale: l10n.localeName)} · '
-              '${timeFormatHm(participantUpdatedAt)}';
+              '${timeFormatHm(participantUpdatedAt, locale: l10n.localeName)}';
     final stakeParticipationLabel = helpOfferStakeParticipationLabel(
       l10n,
       helpOffer.stakeState,
@@ -212,7 +212,7 @@ class HelpOfferTile extends StatelessWidget {
                           Tooltip(
                             message:
                                 '${dateFormatYMD(dateShown.toLocal(), locale: l10n.localeName)} · '
-                                '${timeFormatHm(dateShown.toLocal())}',
+                                '${timeFormatHm(dateShown.toLocal(), locale: l10n.localeName)}',
                             child: TenturaMetaText(
                               '${_offerWhen(dateShown, l10n)}'
                               '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
@@ -499,7 +499,7 @@ class _AuthorSeenRow extends StatelessWidget {
     return Tooltip(
       message: l10n.helpOfferAuthorSeenAtTooltip(
         '${dateFormatYMD(seenAt, locale: l10n.localeName)} · '
-        '${timeFormatHm(seenAt)}',
+        '${timeFormatHm(seenAt, locale: l10n.localeName)}',
       ),
       child: row,
     );

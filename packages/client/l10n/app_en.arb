@@ -4813,6 +4813,10 @@
   "beaconHudYouLabel": "YOU",
   "beaconHudPeopleRowSemantics": "People involved",
   "beaconHudLastEventRowSemantics": "Latest activity",
+  "paneResizeHandleSemantics": "Resize panes",
+  "@paneResizeHandleSemantics": {
+    "description": "Screen-reader name of the draggable divider between the Chat and Overview panes (#670)."
+  },
   "beaconYouAskCount": "{count, plural, one{1 ask} other{{count} asks}}",
   "@beaconYouAskCount": {
     "placeholders": {

@@ -135,7 +135,7 @@ class PostInfoSheet extends StatelessWidget {
                         ),
                         Text(
                           '${dateFormatYMD(beacon.createdAt, locale: l10n.localeName)} '
-                          '${timeFormatHm(beacon.createdAt)}',
+                          '${timeFormatHm(beacon.createdAt, locale: l10n.localeName)}',
                           style: TenturaText.bodySmall(tt.textMuted),
                         ),
                       ],

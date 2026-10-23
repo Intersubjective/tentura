@@ -32,8 +32,9 @@ String postMuteUntilTime(DateTime until, DateTime now, {String? locale}) {
       local.month == today.month &&
       local.day == today.day;
   return sameDay
-      ? timeFormatHm(local)
-      : '${dateFormatYMD(local, locale: locale)} ${timeFormatHm(local)}';
+      ? timeFormatHm(local, locale: locale)
+      : '${dateFormatYMD(local, locale: locale)} '
+            '${timeFormatHm(local, locale: locale)}';
 }
 
 /// «Заглушено до …» / «навсегда» for a muted Post; null when it is not muted.
