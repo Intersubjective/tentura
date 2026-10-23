@@ -76,7 +76,11 @@ final class EmojiSuggestionsOverlay extends StatelessWidget {
   final List<EmojiMatch> suggestions;
   final Rect anchor;
   final int selectedIndex;
-  final void Function(EmojiMatch match) onSelect;
+
+  /// `pointerKind` is the pointer that picked the row (`unknown` for an
+  /// accessibility tap); null when picked from the keyboard.
+  final void Function(EmojiMatch match, {PointerDeviceKind? pointerKind})
+  onSelect;
   final VoidCallback onDismiss;
   final void Function(int index) onHighlight;
 
@@ -86,13 +90,13 @@ final class EmojiSuggestionsOverlay extends StatelessWidget {
     rowHeight: _kEmojiSuggestionRowHeight,
     anchor: anchor,
     selectedIndex: selectedIndex,
-    onSelectIndex: (i, _) => onSelect(suggestions[i]),
+    onSelectIndex: (i, kind) => onSelect(suggestions[i], pointerKind: kind),
     onDismiss: onDismiss,
     rowBuilder: (i, selected) => _EmojiSuggestionRow(
       match: suggestions[i],
       selected: selected,
       onHover: () => onHighlight(i),
-      onTap: () => onSelect(suggestions[i]),
+      onTap: (kind) => onSelect(suggestions[i], pointerKind: kind),
     ),
   );
 }
@@ -301,7 +305,7 @@ class _EmojiSuggestionRow extends StatelessWidget {
   final EmojiMatch match;
   final bool selected;
   final VoidCallback onHover;
-  final VoidCallback onTap;
+  final ValueChanged<PointerDeviceKind> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -317,7 +321,7 @@ class _EmojiSuggestionRow extends StatelessWidget {
         onEnter: (_) => onHover(),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onTap,
+          onTapUp: (details) => onTap(details.kind),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: selected

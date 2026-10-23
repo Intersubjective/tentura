@@ -235,4 +235,123 @@ void main() {
       expect(composerText(tester).text, 'Hi @Nina Mover recheck 473');
     });
   });
+
+  // #630: emoji suggestion rows had the same mouse-pick problem as #624.
+  group('picking an emoji suggestion keeps typing in the composer (#630)', () {
+    const typed = 'hi :smi';
+    const picked = 'hi 😄';
+
+    TextEditingController composerText(WidgetTester tester) =>
+        tester.widget<TextField>(find.byType(TextField)).controller!;
+
+    bool composerHasFocus(WidgetTester tester) =>
+        tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus;
+
+    Future<void> typeHiSmi(WidgetTester tester) async {
+      await _pumpRoomComposer(tester, [_participant('bob')]);
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), typed);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(':smile:'), findsOneWidget);
+    }
+
+    void keepTyping(WidgetTester tester, String more) {
+      final value = composerText(tester).value;
+      final caret = value.selection.baseOffset;
+      final text = value.text.replaceRange(caret, caret, more);
+      tester.testTextInput.updateEditingValue(
+        TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: caret + more.length),
+        ),
+      );
+    }
+
+    void expectPickedWithCaretAfterEmoji(WidgetTester tester) {
+      final value = composerText(tester).value;
+      expect(value.text, picked);
+      expect(
+        value.selection,
+        const TextSelection.collapsed(offset: picked.length),
+      );
+      expect(composerHasFocus(tester), isTrue);
+      expect(find.text(':smile:'), findsNothing);
+    }
+
+    testWidgets('mouse pick re-attaches the keyboard to the field', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+      tester.testTextInput.log.clear();
+
+      await tester.tap(find.text(':smile:'), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.pump();
+
+      expectPickedWithCaretAfterEmoji(tester);
+      final methods = [for (final c in tester.testTextInput.log) c.method];
+      final afterClose = methods.skipWhile(
+        (m) => m != 'TextInput.clearClient',
+      );
+      expect(
+        afterClose,
+        containsAllInOrder(['TextInput.setClient', 'TextInput.show']),
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
+    });
+
+    testWidgets('after a mouse pick the next words land in the field', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+
+      await tester.tap(find.text(':smile:'), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.pump();
+
+      expectPickedWithCaretAfterEmoji(tester);
+      keepTyping(tester, ' there');
+      await tester.pump();
+      expect(composerText(tester).text, '$picked there');
+      expect(composerHasFocus(tester), isTrue);
+    });
+
+    testWidgets('picking with Enter keeps typing in the field', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump();
+
+      expectPickedWithCaretAfterEmoji(tester);
+      keepTyping(tester, ' there');
+      await tester.pump();
+      expect(composerText(tester).text, '$picked there');
+    });
+
+    testWidgets('touch pick keeps the keyboard up without reconnecting', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+      tester.testTextInput.log.clear();
+
+      await tester.tap(find.text(':smile:'));
+      await tester.pump();
+      await tester.pump();
+
+      expectPickedWithCaretAfterEmoji(tester);
+      expect(
+        [for (final c in tester.testTextInput.log) c.method],
+        isNot(contains('TextInput.clearClient')),
+      );
+      keepTyping(tester, ' there');
+      await tester.pump();
+      expect(composerText(tester).text, '$picked there');
+    });
+  });
 }
