@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import 'activity_forward_outcome_copy.dart';
 
@@ -86,10 +87,10 @@ class TombstoneRow extends StatelessWidget {
     );
     final localCreatedAt = receipt.createdAt.toLocal();
     // #189: the card's short age, so a tombstone and the card beside it
-    // read the same way.
-    final age = cardRelativeAge(
+    // read the same way; both follow the shared clock (#532).
+    String age() => cardRelativeAge(
       when: receipt.createdAt,
-      now: DateTime.now(),
+      now: RelativeTimestampTicker.now(),
       l10n: l10n,
     );
     final absoluteTime =
@@ -151,14 +152,16 @@ class TombstoneRow extends StatelessWidget {
                             child: Tooltip(
                               message: absoluteTime,
                               excludeFromSemantics: true,
-                              child: Text(
-                                age,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TenturaText.withTabular(
-                                  TenturaText.bodySmall(tt.textMuted),
+                              child: RelativeTimestampTicker(
+                                builder: (_) => Text(
+                                  age(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TenturaText.withTabular(
+                                    TenturaText.bodySmall(tt.textMuted),
+                                  ),
+                                  semanticsLabel: '',
                                 ),
-                                semanticsLabel: '',
                               ),
                             ),
                           ),

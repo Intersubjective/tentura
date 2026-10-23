@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
 
@@ -115,10 +116,10 @@ class PostAttentionRow extends StatelessWidget {
     };
 
     // #476: the card's short age («7m»), as the tombstones and Request cards
-    // beside it read.
-    final age = cardRelativeAge(
+    // beside it read; all follow the shared clock (#532).
+    String age() => cardRelativeAge(
       when: latest?.createdAt ?? receipt.createdAt,
-      now: DateTime.now(),
+      now: RelativeTimestampTicker.now(),
       l10n: l10n,
     );
 
@@ -184,14 +185,16 @@ class PostAttentionRow extends StatelessWidget {
                           else
                             const Spacer(),
                           SizedBox(width: tt.iconTextGap),
-                          Text(
-                            age,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TenturaText.withTabular(
-                              TenturaText.bodySmall(tt.textMuted),
+                          RelativeTimestampTicker(
+                            builder: (_) => Text(
+                              age(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TenturaText.withTabular(
+                                TenturaText.bodySmall(tt.textMuted),
+                              ),
+                              semanticsLabel: '',
                             ),
-                            semanticsLabel: '',
                           ),
                         ],
                       ),

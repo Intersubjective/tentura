@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../../domain/entity/post_summary.dart';
 
@@ -18,8 +19,9 @@ class PostConversationRow extends StatelessWidget {
 
   final PostSummary post;
 
-  /// The clock the list was arranged against; mute expiry and the age are
-  /// read off it.
+  /// The clock the list was arranged against; mute expiry is read off it.
+  /// The age follows the shared [RelativeTimestampTicker] clock, so it keeps
+  /// counting while the list stays open (#532).
   final DateTime now;
 
   final VoidCallback onOpen;
@@ -115,18 +117,20 @@ class PostConversationRow extends StatelessWidget {
                               ),
                             ),
                             SizedBox(width: tt.iconTextGap),
-                            Text(
-                              compactRelativeTimeAgo(
-                                when: post.lastActivityAt,
-                                now: now,
-                                l10n: l10n,
+                            RelativeTimestampTicker(
+                              builder: (_) => Text(
+                                compactRelativeTimeAgo(
+                                  when: post.lastActivityAt,
+                                  now: RelativeTimestampTicker.now(),
+                                  l10n: l10n,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TenturaText.withTabular(
+                                  TenturaText.bodySmall(tt.textMuted),
+                                ),
+                                semanticsLabel: '',
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TenturaText.withTabular(
-                                TenturaText.bodySmall(tt.textMuted),
-                              ),
-                              semanticsLabel: '',
                             ),
                           ],
                         ),
