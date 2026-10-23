@@ -383,6 +383,17 @@ final class ClosureCase extends UseCaseBase {
         !now.isBefore(epoch.openedAt.add(_closeNowGrace));
   }
 
+  /// When the 48 h review grace ends, or null when it cannot matter: a small
+  /// episode closes without the review, and with no voter left nobody can
+  /// answer it. The client shows its early-close hint only for a non-null
+  /// value, so it does not duplicate [_smallEpisodeSize] (#632).
+  static DateTime? earlyCloseAt({
+    required ClosureEpoch epoch,
+    required List<ClosureMemberRow> members,
+  }) => members.length > _smallEpisodeSize && members.any(isVoter)
+      ? epoch.openedAt.add(_closeNowGrace)
+      : null;
+
   /// `voter = active_at_open && departure != removed` (U49).
   static bool isVoter(ClosureMemberRow m) =>
       m.activeAtOpen && m.departure != Departure.removed;
@@ -769,7 +780,7 @@ final class ClosureCase extends UseCaseBase {
     ];
     final finalized = epoch.status == ClosureEpochStatus.finalized;
     final story = isAuthor || finalized ? await _repo.story(beaconId) : null;
-    final earlyCloseAt = epoch.openedAt.add(_closeNowGrace);
+    final earlyCloseAt = ClosureCase.earlyCloseAt(epoch: epoch, members: rows);
 
     switch (role) {
       case ClosureRole.author:
