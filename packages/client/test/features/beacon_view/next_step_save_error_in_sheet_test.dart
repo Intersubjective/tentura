@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -65,6 +66,12 @@ Future<void> _openSheet(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
+}
+
+/// Whether keyboard focus is in the next-step field.
+bool _fieldHasFocus(WidgetTester tester) {
+  final node = tester.widget<EditableText>(find.byType(EditableText)).focusNode;
+  return node.hasPrimaryFocus && FocusManager.instance.primaryFocus == node;
 }
 
 Future<void> _save(WidgetTester tester) async {
@@ -147,5 +154,44 @@ void main() {
     expect(repo.writes, ['Van at 9:45']);
     expect(find.byType(TextField), findsNothing);
     expect(find.text(_errorText), findsNothing);
+  });
+
+  // #693: the field is disabled while saving, which took focus away, and a
+  // failed save left it nowhere, so a keyboard user could not keep typing.
+  testWidgets('focus returns to the field after a failed save', (
+    tester,
+  ) async {
+    await _openSheet(tester);
+    await tester.enterText(find.byType(TextField), 'Van at 9:45');
+    await tester.pumpAndSettle();
+    expect(_fieldHasFocus(tester), isTrue);
+
+    await _save(tester);
+
+    expect(find.text(_errorText), findsOneWidget);
+    expect(_fieldHasFocus(tester), isTrue);
+  });
+
+  testWidgets('focus returns to the field after a conflicting save', (
+    tester,
+  ) async {
+    repo.error = const NowLineChangedException(
+      currentLine: 'Bus at 10',
+      currentRevision: 2,
+    );
+    await _openSheet(tester);
+    await tester.enterText(find.byType(TextField), 'Van at 9:45');
+    await tester.pumpAndSettle();
+
+    await _save(tester);
+
+    expect(find.textContaining('Bus at 10'), findsOneWidget);
+    expect(_fieldHasFocus(tester), isTrue);
+  });
+
+  // Guard: the sheet opens with focus in the field (autofocus).
+  testWidgets('the field has focus when the sheet opens', (tester) async {
+    await _openSheet(tester);
+    expect(_fieldHasFocus(tester), isTrue);
   });
 }

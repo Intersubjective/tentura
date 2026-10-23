@@ -72,6 +72,11 @@ class _BeaconCurrentLineSheetBody extends StatefulWidget {
 class _BeaconCurrentLineSheetBodyState
     extends State<_BeaconCurrentLineSheetBody> {
   late final TextEditingController _controller;
+
+  /// The field is disabled while saving, which takes focus away; a failed
+  /// save gives it back so a keyboard user can keep typing (#693).
+  final _focusNode = FocusNode();
+
   var _submitting = false;
 
   /// The revision this save is based on: the one the editor opened with,
@@ -99,12 +104,21 @@ class _BeaconCurrentLineSheetBodyState
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   bool get _canSubmit => _controller.text.trim().isNotEmpty && !_submitting;
 
   bool get _isDirty => _controller.text.trim() != widget.initialText.trim();
+
+  /// Called after a failed save: the field can take focus again only once it
+  /// is rebuilt enabled, so the request waits for that frame (#693).
+  void _refocusField() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
 
   Future<void> _save() async {
     if (!_canSubmit) return;
@@ -134,6 +148,7 @@ class _BeaconCurrentLineSheetBodyState
           _sawNewer = true;
           _conflict = e.toL10n(L10n.of(context)?.localeName);
         });
+        _refocusField();
       }
     } on Object catch (e, st) {
       // Shown inside the sheet: a snackbar would sit under it, unseen (#603).
@@ -148,6 +163,7 @@ class _BeaconCurrentLineSheetBodyState
             _ => e.toString(),
           };
         });
+        _refocusField();
       }
     }
   }
@@ -197,6 +213,7 @@ class _BeaconCurrentLineSheetBodyState
             SizedBox(height: tt.rowGap),
             TextField(
               controller: _controller,
+              focusNode: _focusNode,
               decoration: InputDecoration(
                 hintText: l10n.beaconRoomStripCurrentLineLabel,
                 helperText: l10n.beaconCurrentLineEditHelper,
