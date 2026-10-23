@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -11,6 +12,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../constellation_field_patches.dart';
 import '../entity/constellation_anchor_projection.dart';
 import '../entity/constellation_field.dart';
 import '../entity/constellation_field_store_state.dart';
@@ -19,6 +21,7 @@ import '../port/constellation_account_port.dart';
 import '../port/constellation_anchor_repository_port.dart';
 import '../port/constellation_repository_port.dart';
 
+export '../constellation_field_patches.dart' show ConstellationViewerRelation;
 export '../entity/constellation_field_store_state.dart';
 export '../entity/constellation_projection_params.dart';
 
@@ -29,6 +32,25 @@ const kLazyFieldRefreshInterval = Duration(minutes: 5);
 /// ARCH 5.9: an anchor write unacknowledged this long after its first
 /// dispatch is reported once as overdue.
 const kLazyWriteAckTimeout = Duration(seconds: 15);
+
+/// How far the store's reads had got when a targeted read started (#672,
+/// #671). A targeted result stamped with it is applied only while no FULL that
+/// started later has landed, and is held over every FULL that started
+/// earlier.
+@immutable
+final class ConstellationFieldReadMark {
+  const ConstellationFieldReadMark._({
+    required this.generation,
+    required this.paramsGeneration,
+    required this.fullReadSeq,
+    required this.tick,
+  });
+
+  final int generation;
+  final int paramsGeneration;
+  final int fullReadSeq;
+  final int tick;
+}
 
 enum ConstellationRefreshReason {
   /// Explicit load: dispatched at once, sharing an in-flight read.
@@ -128,6 +150,12 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   BigInt? _queuedHintRevision;
   var _queuedHintUnreadable = false;
 
+  /// Viewer relations and Requests learned outside a FULL (#672, #671),
+  /// re-applied over every FULL that started before they were learned.
+  final _heldRelations = <String, _HeldRelation>{};
+  final _heldRequests = <String, _HeldRequest>{};
+  var _relationTick = 0;
+
   /// Pending account-owned replays a catch-up read must wait for, if any.
   Future<void>? Function()? _catchUpHold;
 
@@ -202,17 +230,20 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         result.beforeRevision.compareTo(_state.coveredRevision) == 0;
     _emit(
       ConstellationFieldStoreState(
-        field: field.copyWith(
-          anchorProjection: ConstellationAnchorProjection(
-            revision: advance ? result.afterRevision : held.revision,
-            anchors: anchors.values.toList(growable: false),
-            pinnedPeers: peers.values.toList(growable: false),
-            pinnedRequests: requests.values.toList(growable: false),
-            supportPeers: held.supportPeers,
-            supportEdges: held.supportEdges,
-            serverFilteredBeaconIds: held.serverFilteredBeaconIds,
-            serverFilteredBeaconCount: held.serverFilteredBeaconCount,
+        field: keepUnpinnedRequests(
+          field.copyWith(
+            anchorProjection: ConstellationAnchorProjection(
+              revision: advance ? result.afterRevision : held.revision,
+              anchors: anchors.values.toList(growable: false),
+              pinnedPeers: peers.values.toList(growable: false),
+              pinnedRequests: requests.values.toList(growable: false),
+              supportPeers: held.supportPeers,
+              supportEdges: held.supportEdges,
+              serverFilteredBeaconIds: held.serverFilteredBeaconIds,
+              serverFilteredBeaconCount: held.serverFilteredBeaconCount,
+            ),
           ),
+          before: held.pinnedRequests,
         ),
         coveredRevision: advance
             ? result.afterRevision
@@ -233,17 +264,20 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     }
     _emit(
       ConstellationFieldStoreState(
-        field: field.copyWith(
-          anchorProjection: ConstellationAnchorProjection(
-            revision: revision,
-            anchors: const [],
-            pinnedPeers: const [],
-            pinnedRequests: const [],
-            supportPeers: const [],
-            supportEdges: const [],
-            serverFilteredBeaconIds: const [],
-            serverFilteredBeaconCount: 0,
+        field: keepUnpinnedRequests(
+          field.copyWith(
+            anchorProjection: ConstellationAnchorProjection(
+              revision: revision,
+              anchors: const [],
+              pinnedPeers: const [],
+              pinnedRequests: const [],
+              supportPeers: const [],
+              supportEdges: const [],
+              serverFilteredBeaconIds: const [],
+              serverFilteredBeaconCount: 0,
+            ),
           ),
+          before: field.resolvedAnchorProjection.pinnedRequests,
         ),
         coveredRevision: revision,
         generation: _state.generation,
@@ -260,6 +294,122 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   // ignore: use_setters_to_change_properties -- a hook, not a property
   void holdAnchorHints(Future<void>? Function()? hold) =>
       _anchorHintHold = hold;
+
+  /// Whether a read may run now: an account is set and a field is shown.
+  bool get canFetch => _canFetch;
+
+  /// The account the field belongs to (the viewer), or empty.
+  String get accountId => _accountId;
+
+  /// Take before a targeted read; stamp its result with it.
+  ConstellationFieldReadMark readMark() => ConstellationFieldReadMark._(
+    generation: _state.generation,
+    paramsGeneration: _paramsGeneration,
+    fullReadSeq: _fullReadSeq,
+    tick: ++_relationTick,
+  );
+
+  /// The viewer's own acknowledged trust write to [personId] (#672): patched
+  /// into the field at once, no read. A person not on the field yet has no
+  /// node to patch; trusting them asks for one urgent FULL.
+  void applyOwnTrust(String personId, {required bool trusts}) {
+    if (_accountId.isEmpty || personId == _accountId) return;
+    final field = _state.field;
+    if (field != null &&
+        trusts &&
+        !constellationFieldHasPerson(field, personId)) {
+      unawaited(requestRefresh(ConstellationRefreshReason.realtime));
+      return;
+    }
+    applyRelations([
+      ConstellationViewerRelation(personId: personId, viewerTrusts: trusts),
+    ], readMark());
+  }
+
+  /// Relations read for [mark] (#672). Ignored when a FULL that started after
+  /// [mark] has landed already (it is at least as new), and per direction
+  /// when something newer was learned meanwhile.
+  void applyRelations(
+    Iterable<ConstellationViewerRelation> relations,
+    ConstellationFieldReadMark mark,
+  ) {
+    if (mark.generation != _state.generation ||
+        _accountId.isEmpty ||
+        _lastAppliedReadSeq > mark.fullReadSeq) {
+      return;
+    }
+    var changed = false;
+    for (final relation in relations) {
+      if (relation.personId == _accountId) continue;
+      final held = _heldRelations.putIfAbsent(
+        relation.personId,
+        _HeldRelation.new,
+      );
+      changed |= held.learn(relation, mark);
+    }
+    if (changed) _emitHeld();
+  }
+
+  /// Requests read for [mark] (#671): added to the field until a FULL that
+  /// started after [mark] lands. Ignored for an obsolete params binding.
+  void addRequests(
+    Iterable<ConstellationRequest> requests,
+    ConstellationFieldReadMark mark,
+  ) {
+    if (mark.generation != _state.generation ||
+        mark.paramsGeneration != _paramsGeneration ||
+        _lastAppliedReadSeq > mark.fullReadSeq) {
+      return;
+    }
+    var changed = false;
+    for (final request in requests) {
+      _heldRequests[request.id] = _HeldRequest(request, mark.fullReadSeq);
+      changed = true;
+    }
+    if (changed) _emitHeld();
+  }
+
+  void _emitHeld() {
+    final field = _state.field;
+    if (field == null) return;
+    final patched = _withHeld(field);
+    if (identical(patched, field)) return;
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
+  /// [field] with every held relation and Request applied.
+  ConstellationField _withHeld(ConstellationField field) {
+    var result = field;
+    if (_heldRelations.isNotEmpty) {
+      result = patchViewerRelations(
+        result,
+        viewerId: _accountId,
+        relations: [
+          for (final entry in _heldRelations.entries)
+            entry.value.asRelation(entry.key),
+        ],
+      );
+    }
+    if (_heldRequests.isNotEmpty) {
+      result = addFieldRequests(result, [
+        for (final held in _heldRequests.values) held.request,
+      ]);
+    }
+    return result;
+  }
+
+  /// A FULL that started as read [readSeq] supersedes everything learned
+  /// before it started.
+  void _releaseHeldBefore(int readSeq) {
+    _heldRelations.removeWhere((_, held) => held.releaseBefore(readSeq));
+    _heldRequests.removeWhere((_, held) => held.fullReadSeq < readSeq);
+  }
 
   bool get _visible => _browserVisible && _leases.any((l) => l.visible);
 
@@ -288,6 +438,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     }
     _params = params;
     _paramsGeneration++;
+    // Requests read under the previous filters may not belong any more.
+    _heldRequests.clear();
     // Anchors held were computed for the previous params binding.
     if (_state.coveredRevision.compareTo(ConstellationAnchorRevision.zero) !=
         0) {
@@ -353,6 +505,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _accountId = accountId;
     _params = const ConstellationProjectionParams();
     _paramsGeneration++;
+    _heldRelations.clear();
+    _heldRequests.clear();
     _cancelTimer();
     _queued = false;
     _queuedUrgent = false;
@@ -553,17 +707,26 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       }
       _lastAppliedReadSeq = readSeq;
       _retryNotBefore = null;
+      _releaseHeldBefore(readSeq);
       // FULL freshness follows read order; the anchor layer only follows
       // anchor revision.
       final incoming = field.resolvedAnchorProjection.revision;
       final adoptAnchors = incoming.compareTo(_state.coveredRevision) >= 0;
       _emit(
         ConstellationFieldStoreState(
-          field: adoptAnchors
-              ? field
-              : field.copyWith(
-                  anchorProjection: _state.field?.anchorProjection,
-                ),
+          field: _withHeld(
+            adoptAnchors
+                ? field
+                // The held anchors are newer: a Request this older read still
+                // has pinned (and so left out of its Requests) but the held
+                // projection no longer anchors stays on the field (#673).
+                : keepUnpinnedRequests(
+                    field.copyWith(
+                      anchorProjection: _state.field?.anchorProjection,
+                    ),
+                    before: field.resolvedAnchorProjection.pinnedRequests,
+                  ),
+          ),
           coveredRevision: adoptAnchors ? incoming : _state.coveredRevision,
           generation: generation,
         ),
@@ -649,12 +812,78 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     }
     _emit(
       ConstellationFieldStoreState(
-        field: field.copyWith(anchorProjection: projection),
+        field: _withHeld(
+          keepUnpinnedRequests(
+            field.copyWith(anchorProjection: projection),
+            before: field.resolvedAnchorProjection.pinnedRequests,
+          ),
+        ),
         coveredRevision: projection.revision,
         generation: _state.generation,
       ),
     );
   }
+}
+
+/// One person's relation learned outside a FULL; each direction keeps the
+/// read it came from.
+final class _HeldRelation {
+  bool? viewerTrusts;
+  bool? trustsViewer;
+  var _viewerTick = -1;
+  var _trustsTick = -1;
+  var _viewerFullSeq = 0;
+  var _trustsFullSeq = 0;
+
+  /// Takes the known directions of [relation] unless something newer than
+  /// [mark] is held already. Whether anything changed.
+  bool learn(
+    ConstellationViewerRelation relation,
+    ConstellationFieldReadMark mark,
+  ) {
+    var changed = false;
+    final viewer = relation.viewerTrusts;
+    if (viewer != null && mark.tick > _viewerTick) {
+      changed |= viewerTrusts != viewer;
+      viewerTrusts = viewer;
+      _viewerTick = mark.tick;
+      _viewerFullSeq = mark.fullReadSeq;
+    }
+    final trusts = relation.trustsViewer;
+    if (trusts != null && mark.tick > _trustsTick) {
+      changed |= trustsViewer != trusts;
+      trustsViewer = trusts;
+      _trustsTick = mark.tick;
+      _trustsFullSeq = mark.fullReadSeq;
+    }
+    return changed;
+  }
+
+  /// Forgets directions learned before FULL [readSeq] started; whether
+  /// nothing is left.
+  bool releaseBefore(int readSeq) {
+    if (viewerTrusts != null && _viewerFullSeq < readSeq) {
+      viewerTrusts = null;
+    }
+    if (trustsViewer != null && _trustsFullSeq < readSeq) {
+      trustsViewer = null;
+    }
+    return viewerTrusts == null && trustsViewer == null;
+  }
+
+  ConstellationViewerRelation asRelation(String personId) =>
+      ConstellationViewerRelation(
+        personId: personId,
+        viewerTrusts: viewerTrusts,
+        trustsViewer: trustsViewer,
+      );
+}
+
+final class _HeldRequest {
+  const _HeldRequest(this.request, this.fullReadSeq);
+
+  final ConstellationRequest request;
+  final int fullReadSeq;
 }
 
 final class _FullFlight {

@@ -1,0 +1,36 @@
+# import '/data/gql/image_model_v2.graphql'
+
+# A few Requests by id, as a FULL read would place them on the field (#671).
+# The server returns only those the viewer may read and discover.
+query ConstellationFieldRequestsFetch(
+  $ids: [String!]!
+  $showClosed: Boolean! = false
+  $participatedOnly: Boolean! = false
+) {
+  constellationFieldRequests(
+    ids: $ids
+    showClosed: $showClosed
+    participatedOnly: $participatedOnly
+  ) {
+    id
+    authorId
+    title
+    status
+    needs
+    primaryNeedSlug
+    startAt
+    endAt
+    addressLabel
+    hasCoordinates
+    isMine
+    viewerHasActiveHelpOffer
+    viewerIsRoomParticipant
+    viewerHasForwardEdge
+    parentBeaconId
+    helpOfferCount
+    coverSource
+    coverThumb {
+      ...ImageModelV2
+    }
+  }
+}

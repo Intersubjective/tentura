@@ -1,0 +1,9 @@
+# The viewer's explicit trust to and from a few people (#672): no
+# MeritRank scores, only the two vote_user lookups.
+query ConstellationViewerRelations($ids: [String!]!) {
+  user(where: { id: { _in: $ids } }) {
+    id
+    my_vote
+    trusts_viewer
+  }
+}

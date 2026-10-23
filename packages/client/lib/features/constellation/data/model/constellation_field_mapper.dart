@@ -9,6 +9,34 @@ import '../gql/_g/beacon_member_webs.data.gql.dart';
 import '../gql/_g/constellation_anchors_apply.data.gql.dart';
 import '../gql/_g/constellation_anchors_fetch.data.gql.dart';
 import '../gql/_g/constellation_field_fetch.data.gql.dart';
+import '../gql/_g/constellation_field_requests_fetch.data.gql.dart';
+
+List<ConstellationRequest> mapConstellationFieldRequestsFetch(
+  Iterable<GConstellationFieldRequestsFetchData_constellationFieldRequests>
+  requests,
+) => [
+  for (final request in requests)
+    _mapRequestFields(
+      id: request.id,
+      authorId: request.authorId,
+      title: request.title,
+      status: request.status,
+      needs: request.needs,
+      primaryNeedSlug: request.primaryNeedSlug,
+      startAt: request.startAt,
+      endAt: request.endAt,
+      addressLabel: request.addressLabel,
+      hasCoordinates: request.hasCoordinates,
+      isMine: request.isMine,
+      viewerHasActiveHelpOffer: request.viewerHasActiveHelpOffer,
+      viewerIsRoomParticipant: request.viewerIsRoomParticipant,
+      viewerHasForwardEdge: request.viewerHasForwardEdge,
+      helpOfferCount: request.helpOfferCount,
+      coverSource: request.coverSource,
+      coverThumb: request.coverThumb as ImageModelV2?,
+      parentBeaconId: request.parentBeaconId,
+    ),
+];
 
 ConstellationField mapConstellationFieldFromFieldFetch(
   GConstellationFieldFetchData_constellationField payload,

@@ -30,6 +30,7 @@ enum RealtimeEntityKind {
   beaconHierarchy,
   constellationAnchor,
   constellationField,
+  constellationItem,
   inviteSeedPrompt,
   beaconPlan,
   ;
@@ -59,6 +60,7 @@ enum RealtimeEntityKind {
     'beacon_hierarchy' => RealtimeEntityKind.beaconHierarchy,
     'constellation_anchor' => RealtimeEntityKind.constellationAnchor,
     'constellation_field' => RealtimeEntityKind.constellationField,
+    'constellation_item' => RealtimeEntityKind.constellationItem,
     'invite_seed_prompt' => RealtimeEntityKind.inviteSeedPrompt,
     'beacon_plan' => RealtimeEntityKind.beaconPlan,
     _ => null,

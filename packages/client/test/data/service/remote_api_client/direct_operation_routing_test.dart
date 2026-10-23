@@ -48,6 +48,15 @@ void main() {
       }
     });
 
+    test('the field targeted Request read routes to Tentura V2 (#671); '
+        'the relation read stays on Hasura (#672)', () {
+      expect(
+        isTenturaDirectOperation('ConstellationFieldRequestsFetch'),
+        isTrue,
+      );
+      expect(isTenturaDirectOperation('ConstellationViewerRelations'), isFalse);
+    });
+
     test('ForwardCandidatesFetch routes to Tentura V2', () {
       expect(isTenturaDirectOperation('ForwardCandidatesFetch'), isTrue);
     });
