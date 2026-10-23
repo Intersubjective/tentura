@@ -47,7 +47,8 @@ class BeaconTile extends StatelessWidget {
     );
     final updatedLine = beaconHasRealUpdate(beacon)
         ? l10n.myWorkUpdatedLine(
-            '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
+            '${dateFormatYMD(beacon.updatedAt, locale: l10n.localeName)} '
+            '${timeFormatHm(beacon.updatedAt)}',
           )
         : null;
 
