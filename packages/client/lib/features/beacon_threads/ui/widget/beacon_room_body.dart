@@ -1435,7 +1435,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       cubit,
       l10n,
       initialText: initialText,
-      allowEmpty: false,
     );
     if (saved) widget.onCoordinationSaved?.call();
   }
@@ -1465,7 +1464,7 @@ Future<bool> _editPlanLine(
   RoomCubit cubit,
   L10n l10n, {
   required String initialText,
-  bool allowEmpty = true,
+  bool allowEmpty = false,
 }) async {
   var text = initialText;
   var baseRevision = cubit.state.roomState?.currentLineRevision ?? 0;
@@ -1480,6 +1479,7 @@ Future<bool> _editPlanLine(
         hintText: l10n.beaconRoomStripCurrentLineLabel,
         initialText: text,
         maxLength: kBeaconRoomCurrentLineMaxLength,
+        allowEmpty: allowEmpty,
         notice: notice,
       ),
     );
