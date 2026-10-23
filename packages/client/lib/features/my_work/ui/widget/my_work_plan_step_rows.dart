@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_plan_rows.dart
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// Test keys of the My Work plan rows.
 abstract final class MyWorkPlanKeys {
@@ -200,24 +201,38 @@ class _PendingRow extends StatelessWidget {
               pending.actorNames[id] ?? parent.nameOf(id),
           ].join(', ');
     final lastAt = pending.lastAt;
-    final when = lastAt == null
-        ? ''
-        : compactRelativeTimeAgo(when: lastAt, now: parent.now, l10n: l10n);
     final sample = pending.sample;
-    final text = pending.stepIds.length <= 1 && sample != null
-        ? l10n.planChangeOne(
-            actor,
-            when,
-            sample.title,
-            planPendingChangeText(sample, parent.viewerId, parent.nameOf, l10n),
-          )
-        : l10n.planChangeMany(
-            actor,
-            when,
-            pending.stepIds.isEmpty
-                ? pending.changeCount
-                : pending.stepIds.length,
-          );
+    // The age follows the shared clock, so «2m ago» keeps counting while the
+    // card stays open (#532); the row's spoken label carries the same text.
+    String text() {
+      final when = lastAt == null
+          ? ''
+          : compactRelativeTimeAgo(
+              when: lastAt,
+              now: RelativeTimestampTicker.now(),
+              l10n: l10n,
+            );
+      return pending.stepIds.length <= 1 && sample != null
+          ? l10n.planChangeOne(
+              actor,
+              when,
+              sample.title,
+              planPendingChangeText(
+                sample,
+                parent.viewerId,
+                parent.nameOf,
+                l10n,
+              ),
+            )
+          : l10n.planChangeMany(
+              actor,
+              when,
+              pending.stepIds.isEmpty
+                  ? pending.changeCount
+                  : pending.stepIds.length,
+            );
+    }
+
     final onAck = parent.onAck;
     final onDone = parent.onDone;
     final tick = row.canTickStep;
@@ -225,35 +240,40 @@ class _PendingRow extends StatelessWidget {
     final onOpen = parent.onOpenStep;
     return KeyedSubtree(
       key: MyWorkPlanKeys.pending,
-      child: _RowFrame(
-        icon: Icons.edit_note_outlined,
-        iconColor: tt.info,
-        onTap: onOpen == null || firstStep == null
-            ? null
-            : () => onOpen(firstStep),
-        tapSemantics: text,
-        head: Text(
-          text,
-          style: TenturaText.hudBodySmall(tt.info),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          if (onAck != null)
-            FilledButton.tonal(
-              key: MyWorkPlanKeys.ack,
-              onPressed: () => onAck(pending.headSeq),
-              style: _buttonStyle(context),
-              child: Text(l10n.planActionAck),
+      child: RelativeTimestampTicker(
+        builder: (_) {
+          final line = text();
+          return _RowFrame(
+            icon: Icons.edit_note_outlined,
+            iconColor: tt.info,
+            onTap: onOpen == null || firstStep == null
+                ? null
+                : () => onOpen(firstStep),
+            tapSemantics: line,
+            head: Text(
+              line,
+              style: TenturaText.hudBodySmall(tt.info),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-          if (onDone != null && tick != null)
-            TextButton(
-              key: MyWorkPlanKeys.done,
-              onPressed: () => onDone(tick.id),
-              style: _buttonStyle(context),
-              child: Text(l10n.planActionDone),
-            ),
-        ],
+            actions: [
+              if (onAck != null)
+                FilledButton.tonal(
+                  key: MyWorkPlanKeys.ack,
+                  onPressed: () => onAck(pending.headSeq),
+                  style: _buttonStyle(context),
+                  child: Text(l10n.planActionAck),
+                ),
+              if (onDone != null && tick != null)
+                TextButton(
+                  key: MyWorkPlanKeys.done,
+                  onPressed: () => onDone(tick.id),
+                  style: _buttonStyle(context),
+                  child: Text(l10n.planActionDone),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

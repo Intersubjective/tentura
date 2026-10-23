@@ -12,6 +12,7 @@ import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// Profile-beacon list tile — uses [Beacon] directly (no synthetic [InboxItem]).
 class BeaconTile extends StatelessWidget {
@@ -49,13 +50,6 @@ class BeaconTile extends StatelessWidget {
             '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
           )
         : null;
-    final updatedAgo = l10n.myWorkUpdatedRelative(
-      compactRelativeTimeAgo(
-        when: beacon.updatedAt,
-        now: DateTime.now(),
-        l10n: l10n,
-      ),
-    );
 
     return BeaconCardShell(
       onTap: onOpenBeacon,
@@ -88,9 +82,19 @@ class BeaconTile extends StatelessWidget {
                 top: tt.tightGap,
                 left: kBeaconCardHeaderIconSize + kSpacingSmall,
               ),
-              child: Text(
-                updatedAgo,
-                style: TenturaText.bodySmall(tt.textMuted),
+              // The age follows the shared clock, so it keeps counting while
+              // the list stays open (#532).
+              child: RelativeTimestampTicker(
+                builder: (_) => Text(
+                  l10n.myWorkUpdatedRelative(
+                    compactRelativeTimeAgo(
+                      when: beacon.updatedAt,
+                      now: RelativeTimestampTicker.now(),
+                      l10n: l10n,
+                    ),
+                  ),
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
               ),
             ),
           if (beacon.needs.isNotEmpty) ...[

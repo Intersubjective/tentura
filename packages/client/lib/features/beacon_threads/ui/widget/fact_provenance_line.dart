@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// Who pinned a fact and who last edited it, e.g. `Anna · 3d ago` or
 /// `Anna · edited by Boris +2 · 2h ago`.
@@ -20,11 +21,18 @@ class FactProvenanceLine extends StatelessWidget {
   final BeaconFactCard fact;
   final bool compact;
 
+  // The line is the age's own widget: it follows the shared clock, so «5m»
+  // keeps counting while the room stays open (#532). A compact line shows no
+  // time and does not listen.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => compact
+      ? _buildLine(context)
+      : RelativeTimestampTicker(builder: _buildLine);
+
+  Widget _buildLine(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
+    final now = RelativeTimestampTicker.now();
     final edited =
         fact.revisionSeq > 1 ||
         fact.historyTruncated ||
