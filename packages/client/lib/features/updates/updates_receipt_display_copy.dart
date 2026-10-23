@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/withdraw_reason_label.dart';
 
 /// Trust-change presentation keys emitted by the server (direction-encoded).
 const trustChangePresentationKeys = <String>{
@@ -92,6 +93,39 @@ String? beaconTitleFromPresentationPayload(String presentationPayloadJson) {
 /// receipt predates the field — only then is `body` worth parsing.
 String? excerptFromPresentationPayload(String presentationPayloadJson) =>
     _payloadString(presentationPayloadJson, 'excerpt');
+
+/// Why a helper left the Request (#516): the withdraw reason key a helper
+/// withdrawal's `promiseWithdrawn` carries. Null on a withdrawn promise.
+String? withdrawReasonFromPresentationPayload(String presentationPayloadJson) =>
+    switch (_payloadString(presentationPayloadJson, 'withdrawReason')) {
+      final key? when key.isNotEmpty => key,
+      _ => null,
+    };
+
+/// «Nina left the request (Timing no longer works)» for a helper's
+/// withdrawal (#516), with the note quoted when [note] is given; null for any
+/// other event (a withdrawn promise keeps its own copy) or without a name.
+String? helperLeftEventLine({
+  required String presentationPayloadJson,
+  required String? actorName,
+  required L10n l10n,
+  String note = '',
+}) {
+  final name = actorName?.trim() ?? '';
+  if (name.isEmpty) return null;
+  if (attentionEventTypeOf(presentationPayloadJson) != 'promiseWithdrawn') {
+    return null;
+  }
+  final reason = withdrawReasonLabel(
+    l10n,
+    withdrawReasonFromPresentationPayload(presentationPayloadJson),
+  );
+  if (reason == null) return null;
+  final words = note.trim();
+  return words.isEmpty
+      ? l10n.beaconRoomParticipantLeft(name, reason)
+      : l10n.beaconRoomParticipantLeftWithNote(name, reason, words);
+}
 
 /// The [BeaconStatus] a status-change event moved the Request to.
 BeaconStatus? toStatusFromPresentationPayload(String presentationPayloadJson) {
@@ -637,8 +671,15 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   final localized = _fallbackTitle(presentationKey, l10n);
   final isKnownKey = localized != l10n.updatesFallbackTitleGeneric;
+  final helperLeft = helperLeftEventLine(
+    presentationPayloadJson: presentationPayloadJson,
+    actorName: actorName,
+    l10n: l10n,
+  );
   final String event;
-  if (canned != null) {
+  if (helperLeft != null) {
+    event = helperLeft;
+  } else if (canned != null) {
     event = canned;
   } else if (isKnownKey) {
     event = localized;

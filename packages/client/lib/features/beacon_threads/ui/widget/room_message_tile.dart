@@ -23,8 +23,6 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_status_change.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
-    show withdrawReasonLabel;
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -52,6 +50,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/withdraw_reason_label.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
@@ -3090,18 +3089,25 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
       content = TenturaFocusRing.exclude(
         child: Focus(
           focusNode: _focusNode,
-          // The bubble's labels and actions are already exposed; an extra
-          // focus node would change how they merge.
           includeSemantics: false,
           onKeyEvent: _onKeyEvent,
-          child: Listener(
-            onPointerDown: _onPointerDown,
-            onPointerUp: _onPointerUp,
-            onPointerCancel: _onPointerCancel,
-            child: DecoratedBox(
-              position: DecorationPosition.foreground,
-              decoration: ring,
-              child: content,
+          // #415: the bubble is its own semantics node and says when it has
+          // keyboard focus. Without it a Tab onto the bubble focused no
+          // node, so on the web the browser's focus stayed on the control
+          // before it, and that control seemed to take two presses.
+          child: Semantics(
+            container: true,
+            focused: _focusNode.hasPrimaryFocus,
+            onFocus: _focusNode.requestFocus,
+            child: Listener(
+              onPointerDown: _onPointerDown,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: _onPointerCancel,
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: ring,
+                child: content,
+              ),
             ),
           ),
         ),

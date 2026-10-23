@@ -100,6 +100,7 @@ MyWorkHelpOfferedRow _helperRow(Beacon beacon) => (
   forwarderSenders: const <Profile>[],
   helpOfferRowUpdatedAt: DateTime(2026, 9, 4),
   authorCoordinationUpdatedAt: null,
+  coordinationAuthor: null,
 );
 
 void main() {

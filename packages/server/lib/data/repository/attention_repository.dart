@@ -1712,6 +1712,47 @@ WHERE outbox.account_id = \$1
   }
 
   @override
+  Future<int> markUnread({
+    required String accountId,
+    required List<String> ids,
+  }) async {
+    if (ids.isEmpty) {
+      return 0;
+    }
+    final placeholders = List.generate(
+      ids.length,
+      (index) => '\$${index + 2}',
+    ).join(', ');
+    // #601: the Unread view is the clear axis, so Mark unread resets the clear
+    // facts (together, per notification_outbox__clear_facts_chk) and the read
+    // axis. No unseen-sibling guard: un-clearing one row must not depend on
+    // other rows of its dedup family.
+    return _database.customUpdate(
+      '''
+UPDATE public.notification_outbox outbox
+SET
+  seen_at = NULL,
+  cleared_at = NULL,
+  clear_reason = NULL,
+  cleared_by_operation_id = NULL
+WHERE outbox.account_id = \$1
+  AND NOT outbox.requires_action
+  AND (outbox.cleared_at IS NOT NULL OR outbox.seen_at IS NOT NULL)
+  AND outbox.id IN ($placeholders)
+  AND outbox.id IN (
+    SELECT receipt_id
+    FROM public.visible_attention_receipts(\$1)
+  )
+''',
+      variables: [
+        Variable<String>(accountId),
+        for (final id in ids) Variable<String>(id),
+      ],
+      updateKind: UpdateKind.update,
+    );
+  }
+
+  @override
   Future<int> markAllSeen(String accountId, {AttentionSurface? surface}) =>
       _database.customUpdate(
         // U10a: this was a third copy of the visible/surface CTE — projecting

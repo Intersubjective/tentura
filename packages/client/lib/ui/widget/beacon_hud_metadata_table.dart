@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 /// One row in [BeaconHudMetadataTable]: lead icon metadata + body (+ optional trailing).
 @immutable
@@ -165,23 +166,26 @@ class _MetadataTableRow extends StatelessWidget {
           Expanded(
             child: Material(
               color: Colors.transparent,
-              child: Semantics(
-                button: true,
-                label: entry.semanticsValue ?? entry.semanticsLabel,
-                // Body Text/icons keep default semantics; exclude so the
-                // merged button label does not leave parentDataDirty on web.
-                child: ExcludeSemantics(
-                  child: InkWell(
-                    onTap: entry.onTap,
-                    borderRadius: BorderRadius.circular(8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 44),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          iconColumn,
-                          Expanded(child: bodyContent),
-                        ],
+              // #415: the row names itself, so it carries the focus state.
+              child: TenturaFocusSemantics(
+                builder: (_, focused) => Semantics(
+                  button: true,
+                  label: entry.semanticsValue ?? entry.semanticsLabel,
+                  focused: focused,
+                  // Body Text/icons keep default semantics; exclude so the
+                  // merged button label does not leave parentDataDirty on web.
+                  child: ExcludeSemantics(
+                    child: InkWell(
+                      onTap: entry.onTap,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        child: Row(
+                          children: [
+                            iconColumn,
+                            Expanded(child: bodyContent),
+                          ],
+                        ),
                       ),
                     ),
                   ),

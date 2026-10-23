@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 /// Compact (i) button that opens [fullText] in a dismissible dialog.
 class TenturaInfoHintButton extends StatelessWidget {
@@ -57,23 +58,31 @@ class TenturaInfoHintButton extends StatelessWidget {
     // non-container `button` wrapper merged up into the nearest ancestor
     // node and turned the whole surrounding area (e.g. a sheet's scroll
     // view) into one button, hiding its contents from web a11y (#360).
-    return Semantics(
-      container: true,
-      button: true,
-      focusable: true,
-      label: label,
-      onTap: open,
-      excludeSemantics: true,
-      child: IconButton(
-        tooltip: fullText,
-        visualDensity: VisualDensity.compact,
-        padding: EdgeInsets.zero,
-        constraints: BoxConstraints(
-          minWidth: tt.buttonHeight,
-          minHeight: tt.buttonHeight,
+    // #415: it also carries the IconButton's focus state, so Tab shows on
+    // the web.
+    return TenturaFocusSemantics(
+      builder: (_, focused) => Semantics(
+        container: true,
+        button: true,
+        focused: focused,
+        label: label,
+        onTap: open,
+        excludeSemantics: true,
+        child: IconButton(
+          tooltip: fullText,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(
+            minWidth: tt.buttonHeight,
+            minHeight: tt.buttonHeight,
+          ),
+          onPressed: open,
+          icon: Icon(
+            Icons.info_outline,
+            size: tt.iconSize * 0.85,
+            color: muted,
+          ),
         ),
-        onPressed: open,
-        icon: Icon(Icons.info_outline, size: tt.iconSize * 0.85, color: muted),
       ),
     );
   }

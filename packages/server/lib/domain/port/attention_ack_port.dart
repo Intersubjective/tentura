@@ -11,6 +11,17 @@ abstract interface class AttentionAckPort {
     required List<String> ids,
   });
 
+  /// #601: *Mark unread* on an Updates item — un-clears (`cleared_at`,
+  /// `clear_reason`, `cleared_by_operation_id` back to NULL) and un-reads
+  /// (`seen_at` NULL) the caller's own visible optional receipts, so a
+  /// cleared item returns under Unread. Live obligations (`requires_action`)
+  /// are never cleared and are not touched. Unlike [markUnseen] it does not
+  /// defer to an unseen sibling sharing the `dedup_key`.
+  Future<int> markUnread({
+    required String accountId,
+    required List<String> ids,
+  });
+
   Future<int> markAllSeen(String accountId, {AttentionSurface? surface});
 
   Future<int> markSeenForBeacon({

@@ -20,23 +20,26 @@ class RealtimeStatusPresenter extends StatelessWidget {
       >(
         selector: (state) =>
             (offline: state.showOfflineBanner, paused: state.showPausedBanner),
-        builder: (context, banners) => Stack(
-          fit: StackFit.expand,
-          children: [
-            child,
-            // Offline explains a paused socket too, so it wins.
-            if (banners.offline)
-              const Align(
-                alignment: Alignment.topCenter,
-                child: _RealtimeStatusBanner(offline: true),
-              )
-            else if (banners.paused)
-              const Align(
-                alignment: Alignment.topCenter,
-                child: _RealtimeStatusBanner(offline: false),
+        // The banner takes its own room at the top and pushes the screen
+        // down instead of overlaying the app bar title (#513). The child
+        // keeps its slot either way, so showing the banner keeps its state.
+        builder: (context, banners) {
+          final shown = banners.offline || banners.paused;
+          return Column(
+            children: [
+              // Offline explains a paused socket too, so it wins.
+              if (shown) _RealtimeStatusBanner(offline: banners.offline),
+              Expanded(
+                // The banner already pads for the status bar inset.
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeTop: shown,
+                  child: child,
+                ),
               ),
-          ],
-        ),
+            ],
+          );
+        },
       );
 }
 
@@ -48,10 +51,11 @@ class _RealtimeStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    return SafeArea(
-      bottom: false,
-      child: Material(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    // The banner's colour fills the status bar inset it pads for.
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: SafeArea(
+        bottom: false,
         child: Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(

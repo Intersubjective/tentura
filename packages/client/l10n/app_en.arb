@@ -4448,6 +4448,19 @@
     "context": "BeaconViewScreen",
     "description": "Empty state when the viewer has no inbox forward provenance"
   },
+  "beaconForwardsRecipientsMoved": "{count, plural, one{1 person you forwarded to is now under {section}} other{{count} people you forwarded to are now under {section}}}",
+  "@beaconForwardsRecipientsMoved": {
+    "context": "BeaconViewScreen",
+    "description": "People > Forwards: people the viewer forwarded to who now have a card in another People section (named by section), so they get no Forwards row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "section": {
+        "type": "String"
+      }
+    }
+  },
   "beaconForwardsCount": "{count} forwards",
   "@beaconForwardsCount": {
     "context": "BeaconViewScreen",
@@ -6690,6 +6703,15 @@
   "updatesEmptyAllHint": "All caught up. New updates will appear here.",
   "updatesEmptyUnreadHint": "All caught up. New updates will appear here.",
   "updatesEmptyNeedsYouHint": "You have no open items that need you.",
+  "updatesSearchNoResults": "No results for “{query}”",
+  "@updatesSearchNoResults": {
+    "context": "Updates",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "updatesNextStepMarkDoneHint": "Mark this done when you finish the task.",
   "updatesFallbackTitleGeneric": "Update",
   "updatesFallbackBodyGeneric": "Open Updates to see what changed.",
@@ -8085,8 +8107,8 @@
       }
     }
   },
-  "beaconHudCounterTeam": "{count, plural, =1{1 person in the team} other{{count} people in the team}}",
-  "@beaconHudCounterTeam": {
+  "beaconHudCounterHelpers": "{count, plural, =0{No helpers yet} =1{1 helper} other{{count} helpers}}",
+  "@beaconHudCounterHelpers": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -8111,8 +8133,8 @@
   },
   "beaconHudEssenceLabel": "About",
   "beaconHudEssenceMore": "Details",
-  "beaconHudCounterTeamShort": "{count, plural, =1{1 person} other{{count} people}}",
-  "@beaconHudCounterTeamShort": {
+  "beaconHudCounterHelpersShort": "{count, plural, =0{No helpers yet} =1{1 helper} other{{count} helpers}}",
+  "@beaconHudCounterHelpersShort": {
     "placeholders": {
       "count": {
         "type": "int"

@@ -495,6 +495,8 @@ final class HelpOfferCase extends UseCaseBase {
               beaconId: beaconId,
               withdrawerUserId: userId,
               sourceEventKey: 'help_withdrawn:${generateId('A')}',
+              withdrawReason: withdrawReason,
+              note: message,
             ),
           );
         } else {

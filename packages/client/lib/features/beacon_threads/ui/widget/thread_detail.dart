@@ -16,6 +16,7 @@ import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 String threadGeneralAppBarTitle(L10n l10n, Beacon beacon) =>
     beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
@@ -116,14 +117,18 @@ class ThreadDetailColumnChrome extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Semantics(
-                label: l10n.beaconRoomBackToChat,
-                button: true,
-                child: ExcludeSemantics(
-                  child: IconButton(
-                    tooltip: l10n.beaconRoomBackToChat,
-                    onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back),
+              // #415: the label wrapper carries the button's focus state.
+              TenturaFocusSemantics(
+                builder: (_, focused) => Semantics(
+                  label: l10n.beaconRoomBackToChat,
+                  button: true,
+                  focused: focused,
+                  child: ExcludeSemantics(
+                    child: IconButton(
+                      tooltip: l10n.beaconRoomBackToChat,
+                      onPressed: onBack,
+                      icon: const Icon(Icons.arrow_back),
+                    ),
                   ),
                 ),
               ),

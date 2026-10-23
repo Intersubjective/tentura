@@ -27,6 +27,7 @@ import 'package:tentura/features/attention/data/gql/_g/attention_receipt_fields.
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_all_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen_for_beacon.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_mark_unread.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_unseen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_live_obligations.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_markers.req.gql.dart';
@@ -399,6 +400,18 @@ final class AttentionRepository implements AttentionRepositoryPort {
   }
 
   @override
+  Future<int> markUnread(List<String> ids) async {
+    if (ids.isEmpty) return 0;
+    final data = await _remoteClient
+        .request(
+          GAttentionMarkUnreadReq((request) => request.vars.ids.addAll(ids)),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    return data.attentionMarkUnread;
+  }
+
+  @override
   Future<int> markAllSeen({AttentionSurface? surface}) async {
     final data = await _remoteClient
         .request(
@@ -670,7 +683,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
     final result = data.attentionUndo;
     final refusal = AttentionUndoRefusal.fromWire(result.refusal);
     if (refusal == AttentionUndoRefusal.unknown) {
-      _log.warning('[$_label] unknown undo refusal wire value: ${result.refusal}');
+      _log.warning(
+        '[$_label] unknown undo refusal wire value: ${result.refusal}',
+      );
     }
     return AttentionUndoResult(
       operationId: result.operationId,

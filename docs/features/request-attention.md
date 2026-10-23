@@ -70,7 +70,8 @@ These never substitute for one another:
 - reading something never clears it and never settles it;
 - clearing never settles — a swept surface does not mean work was done;
 - settling removes an obligation even if its receipt was never read;
-- marking something unread in History never resurrects attention on a primary surface.
+- marking a cleared optional item unread is an explicit un-clear (#601): that one item is active
+  again and back under Unread; it never revives an obligation or anything the person did not name.
 
 _Avoid:_ using "seen" as the storage for "cleared"; inferring settlement from a row disappearing from a surface.
 

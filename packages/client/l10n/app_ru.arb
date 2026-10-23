@@ -4208,6 +4208,19 @@
     "context": "BeaconViewScreen",
     "description": "Empty state when the viewer has no inbox forward provenance"
   },
+  "beaconForwardsRecipientsMoved": "{count, plural, one{{count} человек, которому вы переслали запрос, теперь в разделе «{section}»} few{{count} человека, которым вы переслали запрос, теперь в разделе «{section}»} many{{count} человек, которым вы переслали запрос, теперь в разделе «{section}»} other{{count} человека, которым вы переслали запрос, теперь в разделе «{section}»}}",
+  "@beaconForwardsRecipientsMoved": {
+    "context": "BeaconViewScreen",
+    "description": "People > Forwards: people the viewer forwarded to who now have a card in another People section (named by section), so they get no Forwards row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "section": {
+        "type": "String"
+      }
+    }
+  },
   "beaconForwardsCount": "{count} пересылок",
   "@beaconForwardsCount": {
     "context": "BeaconViewScreen",
@@ -6019,6 +6032,7 @@
   "updatesEmptyAllHint": "Всё прочитано. Новые обновления появятся здесь.",
   "updatesEmptyUnreadHint": "Всё прочитано. Новые обновления появятся здесь.",
   "updatesEmptyNeedsYouHint": "Нет открытых задач, требующих вашего участия.",
+  "updatesSearchNoResults": "Ничего не найдено по запросу «{query}»",
   "updatesNextStepMarkDoneHint": "Отметьте выполненным, когда закончите задачу.",
   "updatesFallbackTitleGeneric": "Обновление",
   "updatesFallbackBodyGeneric": "Откройте «Новое», чтобы посмотреть изменения.",
@@ -6696,12 +6710,12 @@
   "beaconHudStepLabel": "СЛЕДУЮЩИЙ ШАГ",
   "beaconHudStepEmptyEditable": "Следующий шаг не задан. Нажмите карандаш, чтобы указать",
   "beaconHudStepAttribution": "{name} · {when}",
-  "beaconHudCounterTeam": "{count, plural, =1{В команде 1 человек} few{В команде {count} человека} other{В команде {count} человек}}",
+  "beaconHudCounterHelpers": "{count, plural, =0{Пока нет помощников} one{{count} помощник} few{{count} помощника} many{{count} помощников} other{{count} помощника}}",
   "beaconHudCounterSubrequests": "{count, plural, =1{1 подзапрос} few{{count} подзапроса} other{{count} подзапросов}}",
   "beaconHudCounterFacts": "{count, plural, =1{1 закреплённый факт} few{{count} закреплённых факта} other{{count} закреплённых фактов}}",
   "beaconHudEssenceLabel": "Суть",
   "beaconHudEssenceMore": "Подробнее",
-  "beaconHudCounterTeamShort": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
+  "beaconHudCounterHelpersShort": "{count, plural, =0{Пока нет помощников} one{{count} помощник} few{{count} помощника} many{{count} помощников} other{{count} помощника}}",
   "beaconHudCounterFactsShort": "{count, plural, one{{count} факт} few{{count} факта} many{{count} фактов} other{{count} факта}}",
   "beaconOutcomeSection": "Итог",
   "beaconOutcomeClosed": "Завершён",

@@ -236,6 +236,16 @@ class _FakeAck implements AttentionAckPort {
   }
 
   @override
+  Future<int> markUnread({
+    required String accountId,
+    required List<String> ids,
+  }) async {
+    this.accountId = accountId;
+    this.ids = ids;
+    return ids.length;
+  }
+
+  @override
   Future<int> markSeenForBeacon({
     required String accountId,
     required String beaconId,
@@ -595,29 +605,31 @@ void main() {
     );
   });
 
-  test('attentionSurfaceSummary exposes the §6 indicators and nothing else',
-      () async {
-    final query = _FakeQuery();
-    final field = QueryAttention(
-      query: query,
-    ).all.singleWhere((field) => field.name == 'attentionSurfaceSummary');
+  test(
+    'attentionSurfaceSummary exposes the §6 indicators and nothing else',
+    () async {
+      final query = _FakeQuery();
+      final field = QueryAttention(
+        query: query,
+      ).all.singleWhere((field) => field.name == 'attentionSurfaceSummary');
 
-    // An exact map, so this is also the assertion that the retired totals
-    // are gone from the wire: CHANGES IN U18c — `activityUnreadTotal`,
-    // `myWorkUnreadTotal` and `needsYouTotal` used to head this map, and a
-    // resolver that still emitted any of them fails here.
-    expect(await field.resolve!(null, auth), {
-      // §6 `my desk.dot`, `for you.dot` and — CHANGES IN U15R-e — the fourth
-      // rule, `my desk.count`. There is no `forYouCount` key: §6 says
-      // `for you.count = never`, so the wire has nowhere to put one.
-      'myDeskDot': true,
-      'forYouDot': false,
-      'myDeskCount': 3,
-      // CHANGES IN U16c-1: the *Dismiss all* enablement signal.
-      'forYouSweepEligible': true,
-    });
-    expect(query.accountId, 'U1');
-  });
+      // An exact map, so this is also the assertion that the retired totals
+      // are gone from the wire: CHANGES IN U18c — `activityUnreadTotal`,
+      // `myWorkUnreadTotal` and `needsYouTotal` used to head this map, and a
+      // resolver that still emitted any of them fails here.
+      expect(await field.resolve!(null, auth), {
+        // §6 `my desk.dot`, `for you.dot` and — CHANGES IN U15R-e — the fourth
+        // rule, `my desk.count`. There is no `forYouCount` key: §6 says
+        // `for you.count = never`, so the wire has nowhere to put one.
+        'myDeskDot': true,
+        'forYouDot': false,
+        'myDeskCount': 3,
+        // CHANGES IN U16c-1: the *Dismiss all* enablement signal.
+        'forYouSweepEligible': true,
+      });
+      expect(query.accountId, 'U1');
+    },
+  );
 
   // U18c. The resolver map assertion above catches a resolver that still
   // *emits* a retired total; it cannot catch the schema still *declaring*

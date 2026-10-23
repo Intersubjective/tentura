@@ -50,10 +50,17 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
       return widget.child;
     }
 
-    return SelectionArea(
-      focusNode: _focusNode,
-      contextMenuBuilder: (_, _) => const SizedBox.shrink(),
-      child: widget.child,
+    // Nothing inside the selectable layer is a Tab stop either: on the web
+    // SelectableRegion adds a browser-menu view with a focus node of its own
+    // while the browser menu is on, which was one more invisible stop after
+    // each message, fact or description (#415). The text here has no
+    // controls of its own; a click still focuses the selection.
+    return ExcludeFocusTraversal(
+      child: SelectionArea(
+        focusNode: _focusNode,
+        contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+        child: widget.child,
+      ),
     );
   }
 }

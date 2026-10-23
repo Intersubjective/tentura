@@ -23,6 +23,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/web_default_shortcuts.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
@@ -118,12 +119,17 @@ Future<ConstellationCubit> _loadCubit({bool withBob = false}) async {
 
 const _size = Size(1200, 900);
 
-Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
+Future<void> _pumpBody(
+  WidgetTester tester,
+  ConstellationCubit cubit, {
+  Map<ShortcutActivator, Intent>? shortcuts,
+}) async {
   const size = _size;
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
+      shortcuts: shortcuts,
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
@@ -308,6 +314,68 @@ void main() {
 
     expect(cubit.state.selectedPersonId, 'a');
     expect(cubit.state.selectedRequestId, isNull);
+  });
+
+  // The browser keyboard map (#391 QA on dev 7.41.26): Space opened a focused
+  // node but Enter did nothing, because on web Enter is ButtonActivateIntent.
+  for (final key in [
+    LogicalKeyboardKey.enter,
+    LogicalKeyboardKey.numpadEnter,
+  ]) {
+    testWidgets(
+      'with web shortcuts, ${key.keyLabel} opens a focused Post node',
+      (tester) async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+        await _pumpBody(tester, cubit, shortcuts: webDefaultShortcuts);
+        expect(
+          await _tabTo(tester, 'post-a', const ['a']),
+          isTrue,
+          reason: 'Tab never moved focus onto the Post node',
+        );
+        expect(cubit.state.selectedRequestId, isNull, reason: 'focus alone');
+
+        await tester.sendKeyEvent(key);
+        await tester.pump();
+
+        expect(cubit.state.selectedRequestId, 'post-a');
+        expect(cubit.state.selectedPersonId, isNull);
+      },
+    );
+
+    testWidgets(
+      'with web shortcuts, ${key.keyLabel} opens a focused person node',
+      (tester) async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+        await _pumpBody(tester, cubit, shortcuts: webDefaultShortcuts);
+        expect(
+          await _tabTo(tester, 'a', const ['post-a']),
+          isTrue,
+          reason: 'Tab never moved focus onto the person node',
+        );
+
+        await tester.sendKeyEvent(key);
+        await tester.pump();
+
+        expect(cubit.state.selectedPersonId, 'a');
+        expect(cubit.state.selectedRequestId, isNull);
+      },
+    );
+  }
+
+  testWidgets('with web shortcuts, Space still opens a focused person node', (
+    tester,
+  ) async {
+    final cubit = await _loadCubit();
+    addTearDown(cubit.close);
+    await _pumpBody(tester, cubit, shortcuts: webDefaultShortcuts);
+    expect(await _tabTo(tester, 'a', const ['post-a']), isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+
+    expect(cubit.state.selectedPersonId, 'a');
   });
 
   testWidgets('map node semantics are focusable and take semantic focus', (

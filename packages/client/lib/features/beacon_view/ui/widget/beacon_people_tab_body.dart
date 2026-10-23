@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/domain/plan_assignable_people.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/decline_remaining_offers_flow.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
@@ -187,6 +188,19 @@ class BeaconPeopleTabBody extends StatelessWidget {
             beaconId: beacon.id,
             viewerId: state.myProfile.id,
             author: beacon.author,
+            // #507: name the one who accepted (a steward may have).
+            acceptorId: myAcceptedOffer.coordinationResponseAuthorId,
+            acceptor:
+                planAssignablePeople(
+                      author: beacon.author,
+                      admittedHelpers: state.admittedHelperRoster,
+                      roomParticipants: state.roomParticipants,
+                    )
+                    .where(
+                      (p) =>
+                          p.id == myAcceptedOffer.coordinationResponseAuthorId,
+                    )
+                    .firstOrNull,
             // As on the Requests tab: when the author responded, not when
             // the offer was last edited.
             acceptedAt:

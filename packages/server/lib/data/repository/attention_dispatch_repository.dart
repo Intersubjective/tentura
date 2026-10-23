@@ -367,6 +367,7 @@ WHERE NOT EXISTS (SELECT 1 FROM collapsed)''',
     'inviteOrigin': role.inviteOrigin,
     'excerpt': role.excerpt,
     'toStatus': role.toStatus,
+    'withdrawReason': role.withdrawReason,
   };
 
   Map<String, Object?> _decisionPayload(AttentionChannelDecision decision) => {

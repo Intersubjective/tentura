@@ -262,8 +262,19 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
 
   /// "Mark unread" (#601): returns false when it failed
   /// ([UpdatesFeedState.actionError]) so the caller can say so.
-  Future<bool> markUnseen(String id) =>
-      _runAction('mark-unseen', () => _attention.markUnseen([id]));
+  ///
+  /// The Unread view is the clear axis, so on a cleared (Done) optional item
+  /// this un-clears it ([AttentionCase.markUnread]); otherwise it only moves
+  /// the read dot.
+  Future<bool> markUnseen(String id) {
+    final receipt = _receiptById(id);
+    final cleared =
+        receipt != null && receipt.isCleared && !receipt.requiresAction;
+    return _runAction(
+      'mark-unseen',
+      () => cleared ? _attention.markUnread([id]) : _attention.markUnseen([id]),
+    );
+  }
 
   /// "Read all" (#601): returns false when it failed.
   Future<bool> markAllSeen() =>

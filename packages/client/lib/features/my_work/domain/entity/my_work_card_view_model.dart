@@ -72,6 +72,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// Help-offered cards: `beacon_help_offer_coordinations.updated_at`.
     DateTime? authorCoordinationUpdatedAt,
 
+    /// Help-offered cards: who wrote that coordination response — the author
+    /// or a steward (#507).
+    Profile? coordinationAuthor,
+
     /// Latest meaningful coordination-log event (V2 batch).
     MyWorkLastEvent? lastActivityEvent,
 

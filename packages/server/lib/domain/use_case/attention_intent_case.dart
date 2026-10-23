@@ -106,21 +106,38 @@ class AttentionIntentCase {
     targetEntityId: helpOffererId,
   );
 
+  /// A helper left the Request (#516): the helper's note is the excerpt and
+  /// the withdraw reason key rides every recipient's role, so the author
+  /// reads who left and why.
   Future<AttentionDispatchIntent> helpWithdrawn({
     required String beaconId,
     required String withdrawerUserId,
     required String sourceEventKey,
-  }) => fromBeaconNotification(
-    notification: BeaconNotificationIntent(
-      kind: NotificationKind.commitmentEvent,
-      priority: NotificationPriority.normal,
-      beaconId: beaconId,
-      actorUserId: withdrawerUserId,
-      promiseWithdrawn: true,
-    ),
-    eventType: AttentionEventType.promiseWithdrawn,
-    sourceEventKey: sourceEventKey,
-  );
+    String? withdrawReason,
+    String note = '',
+  }) async {
+    final intent = await fromBeaconNotification(
+      notification: BeaconNotificationIntent(
+        kind: NotificationKind.commitmentEvent,
+        priority: NotificationPriority.normal,
+        beaconId: beaconId,
+        actorUserId: withdrawerUserId,
+        promiseWithdrawn: true,
+        bodyExcerpt: notificationExcerpt(note),
+      ),
+      eventType: AttentionEventType.promiseWithdrawn,
+      sourceEventKey: sourceEventKey,
+    );
+    if (withdrawReason == null) return intent;
+    return intent.copyWith(
+      recipients: [
+        for (final recipient in intent.recipients)
+          recipient.copyWith(
+            role: recipient.role.copyWith(withdrawReason: withdrawReason),
+          ),
+      ],
+    );
+  }
 
   Future<AttentionDispatchIntent> offerAccepted({
     required String receiverId,

@@ -1351,6 +1351,10 @@ class RoomCubit extends Cubit<RoomState> {
       return true;
     } on Object catch (e) {
       _pendingLocalMessageIds.remove(localId);
+      // Only a real connection failure is «offline». A timeout may have
+      // posted the message (createMessage has no idempotency key), so it
+      // gets no Retry notice, just the snackbar (#513).
+      final offline = e is ConnectionUplinkException;
       emit(
         state.copyWith(
           messages: state.messages
@@ -1358,15 +1362,21 @@ class RoomCubit extends Cubit<RoomState> {
               .toList(),
           // No connection: the composer shows «Not sent» with Retry (#513).
           // A refusal from the server keeps the snackbar below only.
-          sendFailedOffline:
-              e is ConnectionUplinkException || e is TimeoutException,
+          sendFailedOffline: offline,
         ),
       );
       _flushDeferredOwnPaints();
       await _requestRefresh(
         scope: _RoomRefreshScope.messages,
       );
-      _showSnackError(e);
+      if (offline) {
+        // The inline notice is the feedback; no snackbar over it (#513).
+        if (!isClosed) {
+          emit(state.copyWith(status: const StateIsSuccess(), loadError: null));
+        }
+      } else {
+        _showSnackError(e);
+      }
       return false;
     }
   }

@@ -1,6 +1,7 @@
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 
 /// Recipient-specific projection policy. Every output is persisted so reads do
@@ -724,6 +725,9 @@ class AttentionPolicy {
           : null,
       'inviteOrigin': _safeInviteOrigin(role.inviteOrigin),
       'toStatus': _safeStatusName(role.toStatus),
+      'withdrawReason': isAllowedWithdrawReason(role.withdrawReason)
+          ? role.withdrawReason
+          : null,
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {

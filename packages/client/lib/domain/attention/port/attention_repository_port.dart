@@ -24,6 +24,10 @@ abstract interface class AttentionRepositoryPort {
 
   Future<int> markUnseen(List<String> ids);
 
+  /// #601 — *Mark unread*: un-clears and un-reads the caller's optional
+  /// receipts among [ids] (`attentionMarkUnread`). Answers the rows changed.
+  Future<int> markUnread(List<String> ids);
+
   Future<int> markAllSeen({AttentionSurface? surface});
 
   Future<AttentionSurfaceSummary> surfaceSummary();
