@@ -52,6 +52,10 @@ to at most three channels. Each event declares which channels it uses; nothing e
 - `requestEdited` activity event: `diff {field, from, to}`.
 - `helpWithdrawn` receipt payload: `withdrawReason` (a known key, gated like the excerpt), `leftDiscussion`, `nextStepMentionsActor`, `excerpt` (note);
   destination `beacon_people_offer` → the person.
+- One formatter reads `helpWithdrawn` for every surface (Request card change line, Request-scoped rows,
+  Updates): `whoDidWhatReceiptDisplayCopy` (client). A `promiseWithdrawn` receipt that carries a
+  `withdrawReason` was written before 7.46.0 gave withdrawals their own event and reads the same way; a
+  coordination promise's `promiseWithdrawn` never carries one.
 - `forwardDeclined` receipt payload: `excerpt` (note), `targetEntityId` = the recipient; destination `beacon`.
 
 Contract rows: [`docs/contracts/updates-event-contract.json`](../contracts/updates-event-contract.json).
