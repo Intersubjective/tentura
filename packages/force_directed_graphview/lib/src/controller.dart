@@ -79,6 +79,15 @@ class GraphController<N, E> with ChangeNotifier {
   /// its final position.
   Offset? Function(GraphNodeId nodeId)? spawnPositionResolver;
 
+  /// Nodes seeded through [reconcileTopology]'s `initialPositions` that have
+  /// not reached their first layout position yet; they paint beneath every
+  /// other node so they emerge from under whatever sits at their seed.
+  final _spawningIds = <GraphNodeId>{};
+
+  /// Nodes still on their way out of their initial position.
+  @visibleForTesting
+  Set<GraphNodeId> get spawningNodeIds => Set.unmodifiable(_spawningIds);
+
   /// { @nodoc }
   Set<N> get nodes => Set.unmodifiable(_nodes);
 
@@ -271,16 +280,25 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   /// Replaces nodes and edges by stable id without clearing the camera.
+  ///
+  /// [initialPositions] seeds nodes that are new to the scene: each is drawn
+  /// there until the next layout lands, and its layout transition starts
+  /// there; until it reaches its layout position it paints beneath every
+  /// other node. Entries for nodes already in the scene, or not in
+  /// [targetNodes], are ignored; a new node without one starts at the canvas
+  /// centre.
   void reconcileTopology(
     Set<N> targetNodes,
     Set<E> targetEdges, {
     bool requestLayout = false,
     bool layoutOnTopologyChange = true,
+    Map<GraphNodeId, Offset> initialPositions = const {},
   }) {
     _replaceNodeAndEdgeSets(targetNodes, targetEdges);
     _commitTopologyChange(
       requestLayout: requestLayout,
       layoutOnTopologyChange: layoutOnTopologyChange,
+      initialPositions: initialPositions,
     );
   }
 
@@ -325,10 +343,16 @@ class GraphController<N, E> with ChangeNotifier {
   void _commitTopologyChange({
     required bool requestLayout,
     bool layoutOnTopologyChange = true,
+    Map<GraphNodeId, Offset> initialPositions = const {},
   }) {
     _currentSize = _size?.resolve(nodeSizes: _nodes.map(_nodeSizeOf));
     final revisionBefore = _scene.topologyRevision;
-    _applyTopologyFromController();
+    final seeds = _initialSeedsForNewNodes(initialPositions);
+    _applyTopologyFromController(initialPositions: seeds);
+    final present = _scene.snapshot.topology.nodesById;
+    _spawningIds
+      ..removeWhere((id) => !present.containsKey(id))
+      ..addAll(seeds.keys);
     final topologyChanged = _scene.topologyRevision != revisionBefore;
     if (requestLayout || (layoutOnTopologyChange && topologyChanged)) {
       _requestSceneLayout();
@@ -446,6 +470,18 @@ class GraphController<N, E> with ChangeNotifier {
     for (final id in snapshot.topology.nodesById.keys) {
       if (remaining.remove(id)) {
         ordered.add(id);
+      }
+    }
+
+    if (_spawningIds.isNotEmpty) {
+      final spawning = [
+        for (final id in ordered)
+          if (_spawningIds.contains(id)) id,
+      ];
+      if (spawning.isNotEmpty) {
+        ordered
+          ..removeWhere(_spawningIds.contains)
+          ..insertAll(0, spawning);
       }
     }
 
@@ -804,6 +840,10 @@ class GraphController<N, E> with ChangeNotifier {
         }
       }
     }
+    // A spawning node with no way to go is already where it belongs.
+    _spawningIds.removeWhere(
+      (id) => target.containsKey(id) && !movingTarget.containsKey(id),
+    );
     _transitionFrom = movingFrom.isEmpty ? null : movingFrom;
     _transitionTarget = movingTarget.isEmpty ? null : movingTarget;
     _transitionLayoutTicket = _scene.snapshot.layout?.ticket;
@@ -852,6 +892,8 @@ class GraphController<N, E> with ChangeNotifier {
         _transitionLayoutTicket == _scene.snapshot.layout?.ticket) {
       _ticker?.start();
     } else {
+      final dropped = _transitionTarget?.keys;
+      if (dropped != null) _spawningIds.removeAll(dropped);
       _transitionFrom = null;
       _transitionTarget = null;
       _pendingLayoutPositions = null;
@@ -890,6 +932,24 @@ class GraphController<N, E> with ChangeNotifier {
         ...initialPositions,
       },
     );
+  }
+
+  /// [positions] narrowed to finite seeds of nodes new to the scene.
+  Map<GraphNodeId, ScenePoint> _initialSeedsForNewNodes(
+    Map<GraphNodeId, Offset> positions,
+  ) {
+    if (positions.isEmpty) {
+      return const {};
+    }
+    final present = _scene.snapshot.topology.nodesById;
+    final next = {for (final node in _nodes) _nodeIdOf(node)};
+    return {
+      for (final entry in positions.entries)
+        if (next.contains(entry.key) &&
+            !present.containsKey(entry.key) &&
+            entry.value.isFinite)
+          entry.key: ScenePoint(x: entry.value.dx, y: entry.value.dy),
+    };
   }
 
   Map<GraphNodeId, ScenePoint> _canvasCenterSeedsForNewNodes() {
@@ -945,6 +1005,10 @@ class GraphController<N, E> with ChangeNotifier {
         _scene.setLayoutTransition(displayed);
       }
     }
+    // A spawn cut short stays where it stopped; one still waiting for its
+    // layout keeps its seed and spawns when that layout lands.
+    final interrupted = _transitionTarget?.keys;
+    if (interrupted != null) _spawningIds.removeAll(interrupted);
     _transitionFrom = null;
     _transitionTarget = null;
     _transitionLayoutTicket = null;
@@ -990,6 +1054,7 @@ class GraphController<N, E> with ChangeNotifier {
         (_transitionLayoutTicket != null &&
             activeLayoutTicket != _transitionLayoutTicket)) {
       _ticker?.stop();
+      _spawningIds.removeAll(target.keys);
       _transitionFrom = null;
       _transitionTarget = null;
       _transitionLayoutTicket = null;
@@ -1019,6 +1084,7 @@ class GraphController<N, E> with ChangeNotifier {
     }
 
     if (t >= 1.0) {
+      _spawningIds.removeAll(target.keys);
       _scene.setLayoutTransition(null);
       _transitionFrom = null;
       _transitionTarget = null;
@@ -1172,6 +1238,7 @@ class GraphController<N, E> with ChangeNotifier {
     _transformationController?.removeListener(_onCameraChanged);
     _transformationController = null;
     _viewportPixelSize = null;
+    _spawningIds.clear();
     _transitionFrom = null;
     _transitionTarget = null;
     _transitionLayoutTicket = null;
@@ -1270,6 +1337,7 @@ class GraphController<N, E> with ChangeNotifier {
     _cameraGated = false;
     _zoomLiveWhileGated = false;
     _lastHandledLayoutSuccessTicket = null;
+    _spawningIds.clear();
     _transitionFrom = null;
     _transitionTarget = null;
     _transitionLayoutTicket = null;

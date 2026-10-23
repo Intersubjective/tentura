@@ -894,7 +894,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
               minScale: 0.1,
               maxScale: 3,
               layoutAlgorithm: layoutAlgorithm,
-              layoutTransitionDuration: const Duration(milliseconds: 350),
+              // New Requests spring out from under their author along this
+              // transition; reduced motion lands every node at once.
+              layoutTransitionDuration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 350),
               canDragNode: cubit.canDragNode,
               transformNodeDragPosition: cubit.clampClusterDragPosition,
               onNodeDragStart: (node, position) {
