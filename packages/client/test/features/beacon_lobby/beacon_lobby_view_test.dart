@@ -339,6 +339,34 @@ void main() {
       });
     }
 
+    testWidgets('the author of a closed Request: told it is closed, never '
+        '"offer help", and no one to remove', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Uauthor')
+        ..messagesList.addAll([ninaMsg, annaMsg])
+        ..canPost = false
+        ..limitReason = BeaconLobbyLimitReason.closed;
+      await tester.pumpWidget(_lobby(port, 'Uauthor'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('This request is closed'), findsOneWidget);
+      expect(find.textContaining('Offer help'), findsNothing);
+      expect(find.byTooltip('Remove from Questions'), findsNothing);
+    });
+
+    testWidgets('the remove confirmation holds whether or not they offered '
+        'help', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Uauthor')
+        ..messagesList.add(ninaMsg);
+      await tester.pumpWidget(_lobby(port, 'Uauthor'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove from Questions'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Their help offer stays'), findsNothing);
+      expect(
+        find.textContaining("This doesn't touch a help offer they made"),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('removed by the author: says so', (tester) async {
       final port = FakeLobbyPort(viewerId: 'Unina')
         ..banned.add('Unina')
