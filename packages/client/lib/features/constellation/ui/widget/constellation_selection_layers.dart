@@ -791,6 +791,18 @@ enum _SectorGrip { radius, endEdge, startEdge, direction, centre, body }
 
 Offset _unit(double angle) => Offset(math.cos(angle), math.sin(angle));
 
+/// The resize cursor closest to a drag along [angle] (screen radians, y
+/// down): the radius handle resizes along its own radius.
+MouseCursor _radialResizeCursor(double angle) {
+  // Fold to [0, π): a resize cursor points both ways.
+  final a = angle % math.pi;
+  const eighth = math.pi / 8;
+  if (a < eighth || a >= 7 * eighth) return SystemMouseCursors.resizeLeftRight;
+  if (a < 3 * eighth) return SystemMouseCursors.resizeUpLeftDownRight;
+  if (a < 5 * eighth) return SystemMouseCursors.resizeUpDown;
+  return SystemMouseCursors.resizeUpRightDownLeft;
+}
+
 /// The radians from [from] to [to], the short way round: in (-π, π].
 double _turn(double from, double to) {
   var delta = (to - from) % (2 * math.pi);
@@ -1166,6 +1178,7 @@ class _SectorView extends StatelessWidget {
       String label,
       MouseCursor cursor, {
       IconData? icon,
+      double iconTurn = 0,
     }) {
       final at = geometry.handle(grip);
       final hit = geometry.hit;
@@ -1195,10 +1208,13 @@ class _SectorView extends StatelessWidget {
                     dimension: tt.iconSize,
                     child: icon == null
                         ? null
-                        : Icon(
-                            icon,
-                            size: tt.iconSize - tt.tightGap,
-                            color: scheme.onPrimary,
+                        : Transform.rotate(
+                            angle: iconTurn,
+                            child: Icon(
+                              icon,
+                              size: tt.iconSize - tt.tightGap,
+                              color: scheme.onPrimary,
+                            ),
                           ),
                   ),
                 ),
@@ -1250,11 +1266,15 @@ class _SectorView extends StatelessWidget {
           l10n.constellationArrangeEndEdge,
           SystemMouseCursors.grab,
         ),
+        // Arrows along the radius, so it reads as «drag in or out» and not as
+        // another corner of the sector.
         handle(
           _SectorGrip.radius,
           'radius',
           l10n.constellationArrangeRadius,
-          SystemMouseCursors.resizeLeftRight,
+          _radialResizeCursor(geometry.draft.start),
+          icon: Icons.unfold_more,
+          iconTurn: geometry.draft.start + math.pi / 2,
         ),
       ],
     );
