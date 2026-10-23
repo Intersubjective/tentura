@@ -561,3 +561,201 @@ for (const real of ['Ada Lovelace', 'Ada', 'Анна К.']) {
     assert.equal(input.value, real);
   });
 }
+
+
+// #522 (ichorid review of #538): the pager added no history entries, so the
+// browser Back button on step 2 or 3 left the flow instead of going back one
+// step. A fake session history: `back()` past the first entry "leaves".
+function installFakeHistory() {
+  const listeners = new Set();
+  const h = {
+    entries: [{ state: null }],
+    index: 0,
+    left: false,
+    get state() {
+      return this.entries[this.index].state;
+    },
+    pushState(state) {
+      this.entries.splice(this.index + 1);
+      this.entries.push({ state: structuredClone(state) });
+      this.index += 1;
+    },
+    replaceState(state) {
+      this.entries[this.index] = { state: structuredClone(state) };
+    },
+    go(delta) {
+      const to = this.index + delta;
+      if (to < 0) {
+        this.left = true;
+        return;
+      }
+      if (to >= this.entries.length) return;
+      this.index = to;
+      // Browsers fire popstate asynchronously.
+      const state = this.state;
+      setTimeout(() => {
+        for (const fn of listeners) fn({ state });
+      }, 0);
+    },
+    back() {
+      this.go(-1);
+    },
+    forward() {
+      this.go(1);
+    },
+  };
+  globalThis.history = h;
+  globalThis.addEventListener = (type, fn) => {
+    if (type === 'popstate') listeners.add(fn);
+  };
+  globalThis.removeEventListener = (type, fn) => {
+    if (type === 'popstate') listeners.delete(fn);
+  };
+  h.listeners = listeners;
+  return h;
+}
+
+function removeFakeHistory() {
+  delete globalThis.history;
+  delete globalThis.addEventListener;
+  delete globalThis.removeEventListener;
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+async function renderPagerWithHistory(t, history = installFakeHistory()) {
+  installDomFake();
+  globalThis.window = globalThis;
+  t.after(removeFakeHistory);
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'Ada' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: () => {},
+    openProductUrl: () => '/app/',
+    storage: fakeStorage({ tentura_post_signup_name_done: 'U1' }),
+  });
+  assert.ok(card.querySelector('.pager'), 'pager rendered');
+  const step = () => card.querySelector('.pager-progress').textContent;
+  const next = card.querySelector('.btn-primary');
+  const back = card.querySelector('.pager-back');
+  return { card, history, step, next, back };
+}
+
+test('#522: browser Back on step 2 returns to step 1, not out of the pager', async (t) => {
+  const { card, history, step, next, back } = await renderPagerWithHistory(t);
+  assert.equal(step(), 'Step 1 of 3');
+  next.click();
+  assert.equal(step(), 'Step 2 of 3');
+
+  history.back();
+  await tick();
+  assert.equal(history.left, false, 'browser Back did not leave the page');
+  assert.equal(step(), 'Step 1 of 3');
+  assert.equal(back.hidden, true, 'no Back on step 1');
+  assert.equal(card.querySelector('#display-name'), null, 'not the name form');
+});
+
+test('#522: browser Back and Forward walk the pager steps', async (t) => {
+  const { history, step, next } = await renderPagerWithHistory(t);
+  next.click();
+  next.click();
+  assert.equal(step(), 'Step 3 of 3');
+
+  history.back();
+  await tick();
+  assert.equal(step(), 'Step 2 of 3');
+  history.forward();
+  await tick();
+  assert.equal(step(), 'Step 3 of 3');
+  history.back();
+  await tick();
+  history.back();
+  await tick();
+  assert.equal(step(), 'Step 1 of 3');
+  assert.equal(history.left, false);
+});
+
+test('#522: the in-page Back keeps browser history in step', async (t) => {
+  const { history, step, next, back } = await renderPagerWithHistory(t);
+  next.click();
+  next.click();
+  back.click();
+  await tick();
+  assert.equal(step(), 'Step 2 of 3');
+  // Browser Back now goes to step 1, not to a stale step 3 entry.
+  history.back();
+  await tick();
+  assert.equal(step(), 'Step 1 of 3');
+  assert.equal(history.left, false);
+  // From step 1, browser Back leaves the pager as before.
+  history.back();
+  await tick();
+  assert.equal(history.left, true);
+});
+
+test('#522: reload on a later step resumes at that step', async (t) => {
+  const first = await renderPagerWithHistory(t);
+  first.next.click();
+  assert.equal(first.step(), 'Step 2 of 3');
+
+  // Reload keeps the session history entry and its state.
+  const reloaded = await renderPagerWithHistory(t, first.history);
+  assert.equal(reloaded.step(), 'Step 2 of 3');
+  first.history.back();
+  await tick();
+  assert.equal(reloaded.step(), 'Step 1 of 3');
+});
+
+// #522 (ichorid review of #695): the popstate listener was dropped only on
+// the next pager render, never when onboarding finished.
+test('#522: Continue drops the pager popstate listener', async (t) => {
+  const { card, history, next } = await renderPagerWithHistory(t);
+  assert.equal(history.listeners.size, 1);
+  next.click();
+  next.click();
+  const continueLink = card.querySelectorAll('a')[0];
+  assert.equal(continueLink.hidden, false, 'Continue shows on the last page');
+  continueLink.click();
+  assert.equal(history.listeners.size, 0);
+});
+
+test('#522: Skip drops the pager popstate listener', async (t) => {
+  globalThis.location = { assign() {} };
+  t.after(() => delete globalThis.location);
+  const { card, history } = await renderPagerWithHistory(t);
+  assert.equal(history.listeners.size, 1);
+  card.querySelector('.hint-link').click();
+  assert.equal(history.listeners.size, 0);
+});
+
+test('#522 guard: a re-render keeps exactly one popstate listener', async (t) => {
+  const first = await renderPagerWithHistory(t);
+  await renderPagerWithHistory(t, first.history);
+  assert.equal(first.history.listeners.size, 1);
+});
+
+test('#522 guard: the pager still steps without a history API', async () => {
+  installDomFake();
+  globalThis.window = globalThis;
+  assert.equal(globalThis.history, undefined);
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'Ada' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: () => {},
+    openProductUrl: () => '/app/',
+    storage: fakeStorage({ tentura_post_signup_name_done: 'U1' }),
+  });
+  const step = () => card.querySelector('.pager-progress').textContent;
+  card.querySelector('.btn-primary').click();
+  assert.equal(step(), 'Step 2 of 3');
+  card.querySelector('.pager-back').click();
+  assert.equal(step(), 'Step 1 of 3');
+});
