@@ -13,7 +13,9 @@ class Coordinates extends LatLng {
 
   bool get isEmpty => latitude == 0 && longitude == 0;
 
-  bool get isNotEmpty => latitude != 0 && longitude != 0;
+  /// Any point other than the unset 0,0 value, including points on the
+  /// equator or the prime meridian (one coordinate exactly 0).
+  bool get isNotEmpty => !isEmpty;
 
   @override
   String toString() => '($latitude, $longitude)';

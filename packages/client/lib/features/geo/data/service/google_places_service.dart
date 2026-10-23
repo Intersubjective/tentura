@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/env.dart';
 
+import 'google_maps_errors.dart';
 import 'google_maps_json.dart';
 
 final class GooglePlacePrediction {
@@ -99,7 +100,7 @@ class GooglePlacesService {
   Map<String, String> _headers({required String fieldMask}) {
     final apiKey = _env.googleMapsApiKey;
     if (apiKey.isEmpty) {
-      throw StateError('GOOGLE_MAPS_API_KEY is not configured');
+      throw GoogleMapsKeyMissingError();
     }
     return {
       'Content-Type': 'application/json',

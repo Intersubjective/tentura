@@ -1137,6 +1137,31 @@
     "context": "ChooseLocationDialog",
     "description": "Shown when the address search service refuses the request (e.g. its key or billing); the map still takes a pin."
   },
+  "chooseLocationSearchHint": "Search address",
+  "@chooseLocationSearchHint": {
+    "context": "ChooseLocationDialog",
+    "description": "Hint in the location picker search bar."
+  },
+  "chooseLocationSearching": "Searching…",
+  "@chooseLocationSearching": {
+    "context": "ChooseLocationDialog",
+    "description": "Shown in the suggestions panel while an address search runs."
+  },
+  "chooseLocationNoneSelected": "Choose a location",
+  "@chooseLocationNoneSelected": {
+    "context": "ChooseLocationDialog",
+    "description": "Bottom bar text before any point is picked."
+  },
+  "chooseLocationResolvingAddress": "Resolving address…",
+  "@chooseLocationResolvingAddress": {
+    "context": "ChooseLocationDialog",
+    "description": "Bottom bar text while the address of a picked point is looked up."
+  },
+  "chooseLocationConfirm": "Use this location",
+  "@chooseLocationConfirm": {
+    "context": "ChooseLocationDialog",
+    "description": "Button that confirms the picked point."
+  },
   "goToEgo": "Go to Ego",
   "@goToEgo": {
     "context": "GraphScreen"
