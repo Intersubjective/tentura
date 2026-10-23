@@ -10160,6 +10160,15 @@
   "@beaconRoomPollChangeAnswer": {
     "context": "Room poll footer: lets a voter revote when the poll allows it (#609)"
   },
+  "beaconRoomPollClosedVotesCount": "{count, plural, =0{Poll closed · No votes} =1{Poll closed · 1 vote} other{Poll closed · {count} votes}}",
+  "@beaconRoomPollClosedVotesCount": {
+    "context": "Room poll header once the Request is final: the poll is closed and everyone sees the results (#609)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "updatesRowMenuTooltip": "Update actions",
   "@updatesRowMenuTooltip": {
     "context": "Updates feed row: overflow menu button (#416)"

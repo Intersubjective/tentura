@@ -7200,6 +7200,7 @@
   "beaconRoomPollSubmit": "Отправить",
   "beaconRoomPollSubmitRatings": "Отправить оценки",
   "beaconRoomPollChangeAnswer": "Изменить ответ",
+  "beaconRoomPollClosedVotesCount": "{count, plural, =0{Опрос закрыт · Нет голосов} one{Опрос закрыт · {count} голос} few{Опрос закрыт · {count} голоса} other{Опрос закрыт · {count} голосов}}",
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",

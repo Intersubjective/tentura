@@ -508,6 +508,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             pinnedFactForMessage: state.factForRoomMessage,
             pendingJumpMessageId: state.scrollToMessageId,
             capabilities: widget.capabilities,
+            // Final (read-only) Request; unknown status is not "closed".
+            pollsClosed: state.beaconStatus?.allowsDiscussionWrites == false,
             hideUntilViewportPositioned: true,
           );
         },
