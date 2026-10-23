@@ -18,12 +18,14 @@ import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
+import '../../domain/constellation_mutual_trust.dart';
 import '../../domain/constellation_shown_field.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/use_case/constellation_member_webs_case.dart';
+import '../../domain/use_case/constellation_mutual_trust_case.dart';
 import '../../domain/entity/placement_outbox.dart';
 import '../../domain/placement_overlay.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
@@ -121,6 +123,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._placementCase,
     this._memberWebsCase,
     this._visibilityCase,
+    this._mutualTrustCase,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this._composePresentation = composeConstellationPresentation,
@@ -136,6 +139,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _placementSub = _placementCase?.changes.listen(_onPlacementChanged);
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
+    graphController.addListener(_onGraphControllerChanged);
     if (loadOnCreate) {
       unawaited(load());
     }
@@ -147,12 +151,43 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationPlacementCase? _placementCase;
   final ConstellationMemberWebsCase? _memberWebsCase;
   final ConstellationVisibilityCase? _visibilityCase;
+  final ConstellationMutualTrustCase? _mutualTrustCase;
   final Profile _viewer;
 
   /// Lazily fetched member webs per selected Request id (kept for the
   /// cubit's lifetime; a field reload does not invalidate it).
   final Map<String, List<ConstellationMemberWeb>> _requestWebsById = {};
   final Set<String> _requestWebsInFlight = {};
+
+  /// Who each selected person trusts both ways, as the server answered it,
+  /// with the [_trustGeneration] it was asked under (kept for the cubit's
+  /// lifetime and asked again once the field's trust edges change).
+  final Map<String, ({int generation, Set<String> ids})> _mutualTrustById = {};
+  final Set<String> _mutualTrustInFlight = {};
+  bool _mutualTrustRedrawPending = false;
+  ConstellationField? _trustGenerationField;
+  int _trustGenerationValue = 0;
+
+  /// Bumped whenever trust on the field may have changed: a new read (its
+  /// `loadedAt`) or other trust edges (a patch to the viewer's own trust).
+  /// Anchor and placement changes copy the field but keep both, so they never
+  /// ask the server again.
+  int get _trustGeneration {
+    final field = state.field;
+    final previous = _trustGenerationField;
+    if (!identical(field, previous)) {
+      _trustGenerationField = field;
+      if (previous == null ||
+          field == null ||
+          previous.loadedAt != field.loadedAt ||
+          !listEquals(previous.edges, field.edges)) {
+        _trustGenerationValue++;
+      }
+    }
+    return _trustGenerationValue;
+  }
+
+  ({Set<String> local, Set<String> fetched, Set<String> ids})? _mutualTrustMemo;
   final ForwardCase? _forwardCaseOverride;
 
   late final StoreLease _storeLease;
@@ -328,6 +363,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _finishDropReflowSpans();
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
+    graphController.removeListener(_onGraphControllerChanged);
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     _scene.dispose();
     return super.close();
@@ -1209,6 +1245,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// and layout; returns whether there were any.
   bool _releaseFreeze() {
     _scene.releaseFreeze();
+    if (_mutualTrustRedrawPending) {
+      scheduleMicrotask(_drainMutualTrustRedraw);
+    }
     final storeHeld = _storeInputHeld;
     final outboxHeld = _outboxInputHeld;
     _storeInputHeld = false;
@@ -1749,6 +1788,117 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     } finally {
       _requestWebsInFlight.remove(requestId);
     }
+  }
+
+  /// Asks who the selected person trusts both ways, unless the answer held
+  /// for them was read for the field's current trust edges. Once those
+  /// change (a refresh, a patch to the viewer's own trust) the held answer is
+  /// still drawn until the new one replaces it. An answer redraws the field only
+  /// while that person is still the selected one, so a late answer for
+  /// someone deselected (or replaced) changes nothing on screen.
+  void _ensureMutualTrust() {
+    final personId = state.selectedPersonId;
+    final field = state.field;
+    final case_ = _mutualTrustCase;
+    if (case_ == null ||
+        personId == null ||
+        field == null ||
+        state.isComposing) {
+      return;
+    }
+    final generation = _trustGeneration;
+    if (_mutualTrustById[personId]?.generation == generation ||
+        !_mutualTrustInFlight.add(personId)) {
+      return;
+    }
+    unawaited(_fetchMutualTrust(case_, personId, generation));
+  }
+
+  Future<void> _fetchMutualTrust(
+    ConstellationMutualTrustCase case_,
+    String personId,
+    int generation,
+  ) async {
+    try {
+      final ids = await case_.fetch(personId);
+      if (isClosed) {
+        return;
+      }
+      _mutualTrustById[personId] = (
+        generation: generation,
+        ids: Set.unmodifiable(ids),
+      );
+    } on Object catch (e, st) {
+      if (isClosed) {
+        return;
+      }
+      // Keep what was known; ask again only once the trust edges change.
+      _mutualTrustById[personId] = (
+        generation: generation,
+        ids: _mutualTrustById[personId]?.ids ?? const {},
+      );
+      addError(e, st);
+      return;
+    } finally {
+      _mutualTrustInFlight.remove(personId);
+    }
+    if (state.selectedPersonId == personId) {
+      // An answer for older trust edges asks again at once.
+      _ensureMutualTrust();
+      _mutualTrustRedrawPending = true;
+      _drainMutualTrustRedraw();
+    }
+  }
+
+  /// Draws an answer that arrived after its selection was drawn. Adding
+  /// edges changes the scene topology, which would cancel a layout in flight
+  /// or stop its transition, so the redraw waits for the scene to settle
+  /// (and for a drag to end); [_onGraphControllerChanged] and
+  /// [_releaseFreeze] retry it.
+  void _drainMutualTrustRedraw() {
+    if (!_mutualTrustRedrawPending ||
+        isClosed ||
+        _scene.isFrozen ||
+        graphController.isLayoutSettling) {
+      return;
+    }
+    _mutualTrustRedrawPending = false;
+    _scene.rebuild(_rebuildGraphWithoutLayout);
+  }
+
+  void _onGraphControllerChanged() {
+    if (_mutualTrustRedrawPending) {
+      // Never change the topology from inside the controller's notification.
+      scheduleMicrotask(_drainMutualTrustRedraw);
+    }
+  }
+
+  /// Who the selected person trusts both ways (explicit trust marks only):
+  /// what the field's own edges show at once, plus what the server answered
+  /// for them. Empty with nobody selected, or while composing.
+  Set<String> get selectedMutualTrustIds {
+    final personId = state.selectedPersonId;
+    final field = state.field;
+    if (personId == null || field == null || state.isComposing) {
+      return const {};
+    }
+    final local = constellationFieldMutualTrustIds(
+      field: field,
+      personId: personId,
+    );
+    final fetched = _mutualTrustById[personId]?.ids;
+    if (fetched == null || fetched.isEmpty) {
+      return local;
+    }
+    final memo = _mutualTrustMemo;
+    if (memo != null &&
+        identical(memo.local, local) &&
+        identical(memo.fetched, fetched)) {
+      return memo.ids;
+    }
+    final ids = Set<String>.unmodifiable({...local, ...fetched});
+    _mutualTrustMemo = (local: local, fetched: fetched, ids: ids);
+    return ids;
   }
 
   void setViewMode(ConstellationViewMode viewMode) {
@@ -2321,15 +2471,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// Whether [node] is off the selected person's highlighted trust chain
-  /// (#641): everything is, except the chain's people and the selected
-  /// person's own Requests and Posts.
+  /// (#641): everything is, except the chain's people, the people the
+  /// selected person trusts both ways (their edges are drawn to them) and the
+  /// selected person's own Requests and Posts.
   bool isDimmedByTrustChain(NodeDetails node) {
     final chain = selectedTrustChain;
     if (chain is! ConstellationTrustChainFound) {
       return false;
     }
     return switch (node) {
-      FieldPersonNode(:final person) => !chain.path.contains(person.id),
+      FieldPersonNode(:final person) =>
+        !chain.path.contains(person.id) &&
+            !selectedMutualTrustIds.contains(person.id),
       FieldBeaconNode(:final userId) => userId != chain.path.last,
       _ => true,
     };
@@ -2653,6 +2806,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         selectedRequestId: personId != null ? null : state.selectedRequestId,
       ),
     );
+    _ensureMutualTrust();
     if (previousMemberId != _selectedRequestMemberId ||
         (state.selectedRequestId != previousRequestId &&
             _selectionAddsMembers(previousRequestId))) {
@@ -2961,6 +3115,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void _rebuildGraphWithoutLayout() => _buildGraphScene(layout: false);
 
   void _buildGraphScene({bool layout = true}) {
+    // Every build draws the latest mutual trust answer, and asks for one when
+    // the selected person has none for this field.
+    _mutualTrustRedrawPending = false;
+    _ensureMutualTrust();
     final field = state.field == null ? null : _composerField(state.field!);
     final paths = state.paths;
     final composition = state.composition;
@@ -2991,6 +3149,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       selectedPersonId: state.selectedPersonId,
       selectedRequestId: state.selectedRequestId,
       trustChain: selectedTrustChain,
+      mutualTrustIds: selectedMutualTrustIds,
       loadedAt: state.loadedAt,
       isComposing: state.isComposing,
       composingSelectedIds: _composingSelectedIds,

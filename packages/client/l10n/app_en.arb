@@ -11006,5 +11006,14 @@
   "@beaconLobbyRemoveConfirmBody": {
     "description": "Request Questions: confirmation before the author removes someone; true whether or not they offered help (#657)",
     "context": "Request Questions"
+  },
+  "graphLegendConstellationMutualTrust": "Trust each other",
+  "@graphLegendConstellationMutualTrust": {
+    "description": "Field legend: the double line drawn from a selected person to each person on the Field they and that person both mark as trusted",
+    "context": "GraphScreen"
+  },
+  "graphLegendConstellationMutualTrustHint": "Shown while someone is selected: a double line joins them to each person on the Field they trust both ways.",
+  "@graphLegendConstellationMutualTrustHint": {
+    "description": "Field legend tooltip for «Trust each other»."
   }
 }

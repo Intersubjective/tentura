@@ -260,8 +260,44 @@ void main() {
         )
         .map((s) => s.style)
         .toList();
-    expect(styles, hasLength(5), reason: 'four kinds plus grewFrom (D5)');
+    expect(
+      styles,
+      hasLength(6),
+      reason: 'four kinds plus grewFrom (D5) and mutual trust',
+    );
     expect(styles.where((s) => s.endDots), hasLength(1));
+  });
+
+  testWidgets('constellation legend names the mutual trust edge, a twin '
+      'stroke in the mutual ring colour', (tester) async {
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    final row = find.byKey(
+      const ValueKey('constellation.legend.edge.mutualTrust'),
+    );
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.text('Trust each other')),
+      findsOneWidget,
+    );
+    final swatch = tester.widget<GraphLegendConstellationEdgeSwatch>(
+      find.descendant(
+        of: row,
+        matching: find.byType(GraphLegendConstellationEdgeSwatch),
+      ),
+    );
+    final context = tester.element(find.byType(GraphLegendContent));
+    final theme = Theme.of(context);
+    expect(
+      swatch.style,
+      constellationEdgeStyle(
+        ConstellationEdgeKind.mutualTrust,
+        theme.extension<TenturaTokens>()!,
+        theme.colorScheme,
+      ),
+    );
+    expect(swatch.style.twin, isTrue);
+    expect(swatch.style.color, theme.colorScheme.primary);
   });
 
   testWidgets('trust legend samples come from the shared edge styles', (
@@ -416,6 +452,7 @@ void main() {
       "These two are linked through other people's trust, not by a direct mark.",
       'Joins a request to the person who asked for help.',
       "You and this person see each other through the trust network, but the Field can't show the path between you.",
+      'Shown while someone is selected: a double line joins them to each person on the Field they trust both ways.',
       'A soft green pulse around a friend means they are online now.',
     ]);
 

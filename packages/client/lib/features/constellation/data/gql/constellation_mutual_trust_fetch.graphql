@@ -1,0 +1,5 @@
+# Who a selected person on the field trusts both ways (explicit trust marks
+# only), by id. The server answers only with people the viewer may see.
+query ConstellationMutualTrustFetch($personId: String!) {
+  constellationMutualTrust(personId: $personId)
+}

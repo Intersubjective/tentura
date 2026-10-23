@@ -414,6 +414,7 @@ void main() {
       required double gap,
       required double strokeWidth,
       required bool endDots,
+      bool twin = false,
     }) async {
       final image = await tester.runAsync(
         () => _render(
@@ -425,6 +426,7 @@ void main() {
             dash: dash,
             gap: gap,
             endDots: endDots,
+            twin: twin,
           ),
           width: width,
           height: height,
@@ -636,6 +638,31 @@ void main() {
       expect(alphaAt(bytes, 57, 31), 0);
       expect(alphaAt(bytes, 58, 31), 0);
       expect(alphaAt(bytes, 51, 28), 0);
+    });
+
+    testWidgets('a twin edge is two strokes with clear space between', (
+      tester,
+    ) async {
+      // Horizontal edge y = 32, 2 px strokes 1.5 widths (3 px) to either
+      // side: rows 28-29 and 34-35 carry ink, the middle stays clear.
+      final bytes = await renderEdge(
+        tester,
+        a: const Offset(20, 32),
+        b: const Offset(120, 32),
+        dash: 0,
+        gap: 0,
+        strokeWidth: 2,
+        endDots: false,
+        twin: true,
+      );
+
+      for (final y in [28, 29, 34, 35]) {
+        expect(alphaAt(bytes, 70, y), greaterThanOrEqualTo(250), reason: '$y');
+        expectColor(bytes, 70, y);
+      }
+      for (final y in [31, 32]) {
+        expect(alphaAt(bytes, 70, y), 0, reason: 'row $y between the strokes');
+      }
     });
   });
 }
