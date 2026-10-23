@@ -127,6 +127,22 @@ void main() {
     expect(sections.willingToHelp, isEmpty);
   });
 
+  // #399: once the server drops the earlier answer, a helper who withdrew
+  // (room access revoked) and offered again is a fresh, pending offer.
+  test('re-offer after withdrawal without answer → willing to help', () {
+    final sections = classifyBeaconPeopleSections(
+      beacon: _beacon(authorId: 'auth'),
+      helpOffers: [_offer(userId: 'h1')],
+      roomParticipants: [
+        _participant(userId: 'h1', roomAccess: RoomAccessBits.none),
+      ],
+      viewerUserId: 'auth',
+    );
+    expect(sections.willingToHelp.single.userId, 'h1');
+    expect(sections.notFitting, isEmpty);
+    expect(sections.activeHelpers.map((r) => r.userId), ['auth']);
+  });
+
   test('admitted participant with response stays in active helpers only', () {
     final sections = classifyBeaconPeopleSections(
       beacon: _beacon(authorId: 'auth'),

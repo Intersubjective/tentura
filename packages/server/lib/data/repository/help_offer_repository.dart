@@ -31,6 +31,9 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
     final helpTypesJson = helpTypes?.isEmpty ?? true
         ? null
         : jsonEncode(helpTypes);
+    final previous = await _database.managers.beaconHelpOffers
+        .filter((e) => e.beaconId.id(beaconId) & e.userId.id(userId))
+        .getSingleOrNull();
     await _database.into(_database.beaconHelpOffers).insert(
       BeaconHelpOffersCompanion.insert(
         beaconId: beaconId,
@@ -53,6 +56,15 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
         ),
       ),
     );
+    // A re-offer after a withdrawal (or deactivation) reuses the row; the
+    // author's answer to the earlier offer must not file the new one (#399).
+    if (status == 0 && previous != null && previous.status != 0) {
+      await _database.managers.beaconHelpOfferCoordinations
+          .filter(
+            (e) => e.offerBeaconId.id(beaconId) & e.offerUserId.id(userId),
+          )
+          .delete();
+    }
   });
 
   @override
