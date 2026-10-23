@@ -9,7 +9,8 @@ import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 /// U087 — one "latest" line per Request card: who wrote last, what, how long
 /// ago, and how many messages are unread ("Nina: Parking sorted? · 1m",
 /// "2 new"). A message with no text reads as what it carries ("📷 Photo",
-/// #498). Renders nothing without a member message.
+/// #498); a poll reads as its question ("📊 Lunch?", #609). Renders
+/// nothing without a member message.
 class MyWorkLatestMessageLine extends StatelessWidget {
   const MyWorkLatestMessageLine({
     required this.vm,
@@ -40,8 +41,10 @@ class MyWorkLatestMessageLine extends StatelessWidget {
   Widget _buildLine(BuildContext context, DateTime clock) {
     final l10n = L10n.of(context)!;
     final caption = vm.roomLatestMessageText.trim();
+    // #609: a poll with no text arrives as its question; mark it as a poll,
+    // as reply excerpts do ("📊 Lunch?").
     final text = caption.isNotEmpty
-        ? caption
+        ? (vm.roomLatestMessageKind == 'poll' ? '📊 $caption' : caption)
         : switch (vm.roomLatestMessageKind) {
             'image' => l10n.myWorkLatestPhoto,
             'file' => l10n.myWorkLatestFile,

@@ -1798,7 +1798,13 @@ SELECT
   -- The Requests card shows one clipped line; don't ship whole bodies.
   -- Collapse whitespace before the cut, so a body that is mostly blank lines
   -- still reaches the 160-rune clip (and its "…") when it was cut here.
-  left(regexp_replace(btrim(lm.body), '\s+', ' ', 'g'), 200)
+  -- #609: a poll with no text previews as its question (kind stays 'poll').
+  left(regexp_replace(btrim(CASE
+      WHEN btrim(lm.body) = '' AND lm.linked_polling_id IS NOT NULL
+        THEN coalesce((SELECT p.question FROM public.polling p
+          WHERE p.id = lm.linked_polling_id), '')
+      ELSE lm.body
+    END), '\s+', ' ', 'g'), 200)
     AS last_message_body,
   lm.author_id AS last_message_author_id,
   u.display_name AS last_message_author_name,
