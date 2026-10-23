@@ -492,8 +492,16 @@ final class HelpOfferCase extends UseCaseBase {
             beaconId: beaconId,
             touchForwardOrdering: false,
           );
-          // #516: the author hears who left and why, and whether the next
-          // step still names them.
+        } else {
+          await _inboxRepository.applyTombstoneAfterWithdraw(
+            userId: userId,
+            beaconId: beaconId,
+          );
+        }
+        // #516: the author hears who left and why, and whether the next
+        // step still names them — also while Wrapping up (#489), when a
+        // departing reviewer matters most.
+        if (beaconAfter.status.allowsCoordination) {
           final nextStep = leftDiscussion
               ? (await _roomRepository.getBeaconRoomState(
                       beaconId,
@@ -510,11 +518,6 @@ final class HelpOfferCase extends UseCaseBase {
               leftDiscussion: leftDiscussion,
               nextStep: nextStep,
             ),
-          );
-        } else {
-          await _inboxRepository.applyTombstoneAfterWithdraw(
-            userId: userId,
-            beaconId: beaconId,
           );
         }
       },
