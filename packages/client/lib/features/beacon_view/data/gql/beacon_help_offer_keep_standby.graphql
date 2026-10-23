@@ -1,0 +1,9 @@
+mutation BeaconHelpOfferKeepStandby(
+  $beaconId: String!
+  $offerUserId: String!
+) {
+  beaconHelpOfferKeepStandby(
+    id: $beaconId
+    offerUserId: $offerUserId
+  )
+}

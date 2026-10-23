@@ -830,6 +830,7 @@
             "ClosureCase.close",
             "CoordinationCase.acceptHelpOffer",
             "CoordinationCase.declineHelpOffer",
+            "CoordinationCase.keepHelpOfferAsStandby",
             "CoordinationCase.releaseCommitment",
             "CoordinationCase.removeFromRoom",
             "HelpOfferCase.withdraw"

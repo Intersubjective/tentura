@@ -337,6 +337,128 @@ void main() {
     await cubit.close();
   });
 
+  // #596: a pending backup offer is answered with «Keep as standby» or
+  // «Decline»; it is still never admitted from the sheet.
+  group('backup offer', () {
+    Future<
+      ({
+        HelpOfferTileSheetCubit cubit,
+        FakeBeaconViewCoordinationRepository coord,
+      })
+    >
+    build({
+      required Profile viewer,
+      int offerKind = 1,
+      int stakeState = 0,
+      BeaconStatus status = BeaconStatus.enoughHelp,
+    }) async {
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (id) async => Beacon.empty.copyWith(
+          id: id,
+          status: status,
+          author: author,
+        );
+      final coord = FakeBeaconViewCoordinationRepository(
+        rows: [
+          _row(
+            userId: offerer.id,
+            offerKind: offerKind,
+            stakeState: stakeState,
+          ),
+        ],
+      );
+      final cubit = HelpOfferTileSheetCubit(
+        beaconId: 'b1',
+        offerUserId: offerer.id,
+        myProfile: viewer,
+        beaconViewCase: buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          coordinationRepo: coord,
+        ),
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.load();
+      return (cubit: cubit, coord: coord);
+    }
+
+    test('the author keeps it as standby', () async {
+      final (:cubit, :coord) = await build(viewer: author);
+
+      expect(cubit.canAnswerBackupOffer, isTrue);
+      expect(await cubit.keepStandby(), isTrue);
+      expect(coord.keepHelpOfferStandbyCalls, [
+        (beaconId: 'b1', offerUserId: offerer.id),
+      ]);
+
+      await cubit.close();
+    });
+
+    test('the author declines it with a reason', () async {
+      final (:cubit, :coord) = await build(viewer: author);
+
+      expect(cubit.canDeclineOffer, isTrue);
+      expect(await cubit.decline(reason: 'covered'), isTrue);
+      expect(coord.declineHelpOfferCalls, [
+        (beaconId: 'b1', offerUserId: offerer.id, reason: 'covered'),
+      ]);
+
+      await cubit.close();
+    });
+
+    test('it is still not admitted from the sheet', () async {
+      final (:cubit, :coord) = await build(viewer: author);
+
+      expect(cubit.canManageOffer, isFalse);
+      expect(await cubit.accept(), isFalse);
+      expect(coord.acceptHelpOfferCalls, isEmpty);
+
+      await cubit.close();
+    });
+
+    test('someone else on the Request cannot answer it', () async {
+      final (:cubit, :coord) = await build(
+        viewer: const Profile(id: 'other-1', displayName: 'Other'),
+      );
+
+      expect(cubit.canAnswerBackupOffer, isFalse);
+      expect(await cubit.keepStandby(), isFalse);
+      expect(await cubit.decline(reason: 'x'), isFalse);
+      expect(coord.keepHelpOfferStandbyCalls, isEmpty);
+      expect(coord.declineHelpOfferCalls, isEmpty);
+
+      await cubit.close();
+    });
+
+    test('an admitted backup helper has nothing left to answer', () async {
+      final (:cubit, :coord) = await build(
+        viewer: author,
+        stakeState: 2, // acknowledged
+      );
+
+      expect(cubit.canAnswerBackupOffer, isFalse);
+      expect(await cubit.keepStandby(), isFalse);
+      expect(coord.keepHelpOfferStandbyCalls, isEmpty);
+
+      await cubit.close();
+    });
+
+    test('an ordinary offer has no Keep as standby', () async {
+      final (:cubit, :coord) = await build(
+        viewer: author,
+        offerKind: 0,
+        status: BeaconStatus.open,
+      );
+
+      expect(cubit.canAnswerBackupOffer, isFalse);
+      expect(await cubit.keepStandby(), isFalse);
+      expect(coord.keepHelpOfferStandbyCalls, isEmpty);
+      // Guard: accept and decline stay as they were.
+      expect(cubit.canManageOffer, isTrue);
+
+      await cubit.close();
+    });
+  });
+
   test('missing offer leaves no admit path', () async {
     final beaconRepo = TrackingBeaconRepository()
       ..fetchByIdHandler = (id) async => Beacon.empty.copyWith(

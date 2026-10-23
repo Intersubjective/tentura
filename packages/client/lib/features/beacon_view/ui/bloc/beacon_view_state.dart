@@ -88,6 +88,15 @@ class TimelineHelpOffer {
 
   bool get isEdited => !isWithdrawn && editedAt != null;
 
+  /// [offerKind] of an ordinary offer.
+  static const offerKindRegular = 0;
+
+  /// [offerKind] of a backup offer: made by someone who could step in if the
+  /// accepted helpers fall through (#596).
+  static const offerKindBackup = 1;
+
+  bool get isBackup => offerKind == offerKindBackup;
+
   TimelineHelpOffer copyWith({
     Profile? user,
     String? message,

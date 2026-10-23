@@ -15,6 +15,7 @@ import '../gql/_g/help_offer_with_coordination_fields.data.gql.dart';
 import '../gql/_g/beacon_help_offer_accept.req.gql.dart';
 import '../gql/_g/beacon_help_offer_decline.req.gql.dart';
 import '../gql/_g/beacon_help_offer_decline_remaining.req.gql.dart';
+import '../gql/_g/beacon_help_offer_keep_standby.req.gql.dart';
 import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
 import '../gql/_g/beacon_help_offer_role_label_set.req.gql.dart';
 import '../gql/_g/beacon_release_commitment.req.gql.dart';
@@ -115,6 +116,21 @@ class CoordinationRepository {
               : DateTime.tryParse(res.statusChangedAt!),
         );
       });
+
+  /// «Keep as standby» (#596): answers a backup offer; it stays a backup.
+  Future<bool> keepHelpOfferStandby({
+    required String beaconId,
+    required String offerUserId,
+  }) => _remoteApiService
+      .request(
+        GBeaconHelpOfferKeepStandbyReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.offerUserId = offerUserId,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconHelpOfferKeepStandby);
 
   /// Declines every offer still waiting for an answer (after «Enough
   /// help»); returns how many were declined.

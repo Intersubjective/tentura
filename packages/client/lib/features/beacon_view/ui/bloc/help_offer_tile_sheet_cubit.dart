@@ -88,8 +88,22 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
     }
   }
 
+  /// Accept and decline for an ordinary offer.
   bool get canManageOffer =>
-      state.beacon.status.isOpenFamily && _canActOnOtherOffer;
+      state.beacon.status.isOpenFamily &&
+      _canActOnOtherOffer &&
+      !state.offer!.isBackup;
+
+  /// A pending backup offer is answered with «Keep as standby» or «Decline»
+  /// instead (#596); it is never admitted from the sheet.
+  bool get canAnswerBackupOffer =>
+      state.beacon.status.isOpenFamily &&
+      _canActOnOtherOffer &&
+      state.offer!.isBackup &&
+      state.participant?.roomAccess != RoomAccessBits.admitted &&
+      state.offer!.stakeState != CommitmentStakeState.acknowledged;
+
+  bool get canDeclineOffer => canManageOffer || canAnswerBackupOffer;
 
   /// Author may end a helper's participation in every non-final status,
   /// Wrapping up included (#489); admitting offers stays open-only.
@@ -98,7 +112,7 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
     if (offer == null || offer.isWithdrawn) return false;
     // The sheet alone leaves backup offers out; the People tab shows End
     // participation for an admitted backup helper too.
-    if (offer.offerKind == 1) return false;
+    if (offer.isBackup) return false;
     final beacon = state.beacon;
     return beacon.canEndParticipationOf(
       targetIsAuthor: offer.user.id == beacon.author.id,
@@ -110,7 +124,6 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
   bool get _canActOnOtherOffer {
     final offer = state.offer;
     if (offer == null || offer.isWithdrawn) return false;
-    if (offer.offerKind == 1) return false;
     final beacon = state.beacon;
     if (offer.user.id == beacon.author.id) return false;
     if (offer.user.id == state.myProfile.id) return false;
@@ -132,12 +145,26 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
   }
 
   Future<bool> decline({required String reason}) async {
-    if (!canManageOffer) return false;
+    if (!canDeclineOffer) return false;
     try {
       await _case.declineHelpOffer(
         beaconId: state.beaconId,
         offerUserId: state.offerUserId,
         reason: reason,
+      );
+      return true;
+    } catch (e) {
+      _effects.emit(ShowError(e));
+      return false;
+    }
+  }
+
+  Future<bool> keepStandby() async {
+    if (!canAnswerBackupOffer) return false;
+    try {
+      await _case.keepHelpOfferStandby(
+        beaconId: state.beaconId,
+        offerUserId: state.offerUserId,
       );
       return true;
     } catch (e) {

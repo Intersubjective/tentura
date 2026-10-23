@@ -4,6 +4,15 @@ import 'user_entity.dart';
 
 part 'help_offer_entity.freezed.dart';
 
+/// Values of `beacon_help_offer.offer_kind`.
+abstract final class HelpOfferKind {
+  /// An ordinary offer.
+  static const normal = 0;
+
+  /// A backup offer, made while the Request had «Enough help».
+  static const backup = 1;
+}
+
 @freezed
 abstract class HelpOfferEntity with _$HelpOfferEntity {
   const factory HelpOfferEntity({

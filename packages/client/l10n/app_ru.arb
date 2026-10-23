@@ -5000,6 +5000,14 @@
   "@helpOfferBackupAuthorNote": {
     "description": "Пометка автору на карточке запасного без действия Принять"
   },
+  "helpOfferKeepStandby": "Оставить запасным",
+  "@helpOfferKeepStandby": {
+    "description": "Лист отклика: ответить на запасной отклик, не принимая его; он остаётся запасным"
+  },
+  "helpOfferKeptStandby": "Отклик оставлен запасным",
+  "@helpOfferKeptStandby": {
+    "description": "Снекбар после «Оставить запасным» на запасном отклике"
+  },
   "helpOffersBackupGroupHint": "На подхвате: подключатся, если понадобится больше помощи. Доступа к обсуждению нет.",
   "@helpOffersBackupGroupHint": {
     "description": "Один раз под заголовком группы На подхвате на вкладке Люди"

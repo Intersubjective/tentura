@@ -16,6 +16,8 @@ import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Opens a People-tab-identical help-offer card for admission from My Desk.
 Future<void> showHelpOfferTileSheet({
@@ -87,6 +89,24 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _tile(context, l10n, state, cubit, offer, canManage),
+                  // A backup offer is answered here, not admitted (#596).
+                  if (cubit.canAnswerBackupOffer) ...[
+                    SizedBox(height: tt.tightGap),
+                    _BackupOfferActions(
+                      offerUserId: offer.user.id,
+                      onKeepStandby: () async {
+                        final ok = await cubit.keepStandby();
+                        if (!ok || !context.mounted) return;
+                        showSnackBar(
+                          context,
+                          text: l10n.helpOfferKeptStandby,
+                        );
+                        Navigator.of(context).pop();
+                      },
+                      onDecline: () =>
+                          unawaited(_decline(context, l10n, cubit)),
+                    ),
+                  ],
                   // Accepting from My Desk explains the shared discussion
                   // too (#268), as the People tab does.
                   if (canManage) ...[
@@ -141,18 +161,7 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
           }
         : null,
     onDecline: canManage
-        ? () async {
-            final reason = await HelpOfferAdmissionReasonDialog.show(
-              context,
-              title: l10n.helpOfferDeclineDialogTitle,
-              hintText: l10n.helpOfferDeclineDialogHint,
-              submitLabel: l10n.helpOfferAdmissionDecline,
-              destructive: true,
-            );
-            if (reason == null || !context.mounted) return;
-            final ok = await cubit.decline(reason: reason);
-            if (ok && context.mounted) Navigator.of(context).pop();
-          }
+        ? () => unawaited(_decline(context, l10n, cubit))
         : null,
     onReleaseCommitment:
         cubit.canEndParticipation &&
@@ -169,6 +178,63 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
           }
         : null,
   );
+}
+
+Future<void> _decline(
+  BuildContext context,
+  L10n l10n,
+  HelpOfferTileSheetCubit cubit,
+) async {
+  final reason = await HelpOfferAdmissionReasonDialog.show(
+    context,
+    title: l10n.helpOfferDeclineDialogTitle,
+    hintText: l10n.helpOfferDeclineDialogHint,
+    submitLabel: l10n.helpOfferAdmissionDecline,
+    destructive: true,
+  );
+  if (reason == null || !context.mounted) return;
+  final ok = await cubit.decline(reason: reason);
+  if (ok && context.mounted) Navigator.of(context).pop();
+}
+
+/// «Keep as standby» / «Decline» for a pending backup offer (#596).
+class _BackupOfferActions extends StatelessWidget {
+  const _BackupOfferActions({
+    required this.offerUserId,
+    required this.onKeepStandby,
+    required this.onDecline,
+  });
+
+  final String offerUserId;
+  final VoidCallback onKeepStandby;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    // Wraps onto two lines when both labels do not fit, e.g. at a large text
+    // scale.
+    return OverflowBar(
+      spacing: tt.rowGap,
+      overflowSpacing: tt.tightGap,
+      children: [
+        FilledButton.tonal(
+          key: TestIds.key(TestIds.helpOfferKeepStandby(offerUserId)),
+          onPressed: onKeepStandby,
+          child: Text(l10n.helpOfferKeepStandby),
+        ),
+        TextButton(
+          key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
+          onPressed: onDecline,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: Text(l10n.helpOfferAdmissionDecline),
+        ),
+      ],
+    );
+  }
 }
 
 /// Convenience for My Desk: resolves `myProfile` from `ProfileCubit` when present.

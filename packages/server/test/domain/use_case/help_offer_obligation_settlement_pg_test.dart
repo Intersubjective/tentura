@@ -240,6 +240,51 @@ WHERE outbox.occurrence_id = occ.id
       expect(await _helpOfferSettlementKind(writer, _helperId), 'superseded');
     }, skip: skipReason);
 
+    // #596: «Keep as standby» answers a backup offer: no live
+    // helpOfferSubmitted obligation is left, and the offer stays a backup.
+    test(
+      'keeping a backup offer as standby ends the author obligation',
+      () async {
+        await writer.execute('''
+UPDATE public.beacon SET status = ${BeaconStatus.enoughHelp.smallintValue}
+WHERE id = '$_beaconId'
+''');
+        await harness.helpOfferCase.offerHelp(
+          beaconId: _beaconId,
+          userId: _helperId,
+        );
+        expect(await needsYou(_authorId), 1);
+
+        await harness.coordinationCase.keepHelpOfferAsStandby(
+          beaconId: _beaconId,
+          offerUserId: _helperId,
+          actorUserId: _authorId,
+        );
+
+        expect(await needsYou(_authorId), 0);
+        // An answer, not a dropped question (#707 review): resolved and seen.
+        expect(await _helpOfferSettlementKind(writer, _helperId), 'resolved');
+        final seen = await writer.execute('''
+SELECT outbox.seen_at
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE occ.event_type = 'helpOfferSubmitted'
+  AND outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$_helperId'
+''');
+        expect(seen, isNotEmpty);
+        expect(seen.map((row) => row[0]), everyElement(isNotNull));
+        final offer = await writer.execute('''
+SELECT status, offer_kind FROM public.beacon_help_offer
+WHERE beacon_id = '$_beaconId' AND user_id = '$_helperId'
+''');
+        expect(offer.single[1], 1);
+        expect(offer.single[0], 0);
+      },
+      skip: skipReason,
+    );
+
     // B084: the real rules behind the leave line (the use-case test mocks
     // the port). Fails on the base: no activity event was written.
     test('an admitted helper who withdraws leaves a line and a log event',
