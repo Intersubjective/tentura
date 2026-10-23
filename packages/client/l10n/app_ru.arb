@@ -3094,7 +3094,7 @@
       }
     }
   },
-  "forwardRecipientNoteHint": "Заметка для {name}",
+  "forwardRecipientNoteHint": "Добавьте заметку для {name} (необязательно)",
   "@forwardRecipientNoteHint": {
     "context": "ForwardBeaconScreen",
     "placeholders": {

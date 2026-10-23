@@ -24,7 +24,7 @@ class PerRecipientNoteInput extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback? onClose;
 
-  /// Overrides the default «Note for {name}» hint.
+  /// Overrides the default «Add a note for {name} (optional)» hint.
   final String? hintText;
 
   @override

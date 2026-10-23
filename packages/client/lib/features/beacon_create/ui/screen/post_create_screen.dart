@@ -353,6 +353,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
         sendLabel: l10n.postCreateSendToCount,
         promptUncoveredNotes: false,
         copyProfile: ForwardTargetProfile.post,
+        recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
         onSendPressed: () => unawaited(_send()),
       ),
     ),

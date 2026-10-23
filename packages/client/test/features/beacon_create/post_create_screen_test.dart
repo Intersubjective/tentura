@@ -28,8 +28,10 @@ import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/post_create_screen.dart';
+import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/per_recipient_note_input.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -553,6 +555,53 @@ void main() {
 
       expect(h.port.policies.single, BeaconForwardPolicyValue.closed);
     });
+    // #607 (#439): the author writes their own Post, so the per-person note
+    // field reads as an optional note, not «Заметка для Клары».
+    testWidgets(
+      'the per-person note hint is an optional note, not «Заметка для»',
+      (
+        tester,
+      ) async {
+        final h = await _pumpPostCreate(tester);
+        await tester.enterText(_textField, 'Кто в субботу на велопрогулку?');
+        await _settle(tester);
+        await _goToRecipients(tester);
+
+        h.forward.emit(
+          h.forward.state.copyWith(
+            candidates: const [
+              ForwardCandidate(
+                profile: Profile(
+                  id: 'u1',
+                  displayName: 'Клара',
+                  rScore: 1,
+                  score: 70,
+                ),
+              ),
+            ],
+            selectedIds: const {'u1'},
+          ),
+        );
+        await _settle(tester);
+
+        final hints = [
+          for (final field in tester.widgetList<TextField>(
+            find.descendant(
+              of: find.byType(PerRecipientNoteInput),
+              matching: find.byType(TextField),
+            ),
+          ))
+            field.decoration?.hintText,
+        ];
+        // Precondition: Клара has the per-person note field under her row.
+        expect(hints, isNotEmpty);
+        expect(
+          hints,
+          everyElement('Добавьте заметку для этого человека (необязательно)'),
+        );
+        expect(find.textContaining('Заметка для'), findsNothing);
+      },
+    );
   });
 
   group('closing', () {
