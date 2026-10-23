@@ -76,6 +76,17 @@ void main() {
   group('isTransientRemoteFailure', () {
     test('timeouts, 5xx, 408/429 and transport failures are transient', () {
       expect(isTransientRemoteFailure(TimeoutException('slow')), isTrue);
+      // #513: the link delivers timeouts already mapped; still retried.
+      expect(
+        isTransientRemoteFailure(const RequestTimeoutException()),
+        isTrue,
+      );
+      expect(
+        isTransientRemoteFailure(
+          mapRemoteFailure(TimeoutException('GraphQL request timed out')),
+        ),
+        isTrue,
+      );
       expect(isTransientRemoteFailure(SessionHttpException(502)), isTrue);
       expect(isTransientRemoteFailure(SessionHttpException(429)), isTrue);
       expect(

@@ -55,7 +55,8 @@ void main() {
 
   group('buildClient transport timeout', () {
     test(
-      'non-upload operations fail with connectivity error instead of hanging',
+      'non-upload operations fail with a timeout, not an offline error, '
+      'instead of hanging (#513)',
       () async {
         final client = await buildHangingClient();
         final request = operationRequest(
@@ -85,13 +86,65 @@ void main() {
         if (failure is OperationResponse) {
           final response = failure;
           expect(response.hasErrors, isTrue);
-          expect(
-            mapRemoteFailure(response.linkException),
-            isA<ConnectionUplinkException>(),
-          );
+          final mapped = mapRemoteFailure(response.linkException);
+          expect(mapped, isA<RequestTimeoutException>());
+          expect(mapped, isNot(isA<ConnectionUplinkException>()));
         } else {
-          expect(failure, isA<ConnectionUplinkException>());
+          expect(failure, isA<RequestTimeoutException>());
+          expect(failure, isNot(isA<ConnectionUplinkException>()));
         }
+      },
+    );
+
+    test(
+      'a mutation whose answer is held past the timeout fails as a timeout, '
+      'not offline, and is sent once (#513)',
+      () async {
+        final heldAnswer = Completer<http.Response>();
+        var sends = 0;
+        final client = await buildClient(
+          params: (
+            apiEndpointUrl: 'https://example.test/api/v1/graphql',
+            apiEndpointUrlV2: 'https://example.test/api/v2/graphql',
+            userAgent: 'test',
+            requestTimeout: requestTimeout,
+          ),
+          getToken: () async => 'test-token',
+          httpClient: MockClient((_) {
+            sends++;
+            return heldAnswer.future;
+          }),
+        );
+        addTearDown(client.dispose);
+        final request = operationRequest(
+          operationName: 'RoomMessageCreate',
+          document: 'mutation RoomMessageCreate { __typename }',
+        );
+
+        Object? failure;
+        try {
+          final response = await client
+              .request(request)
+              .where((event) => event.dataSource == DataSource.Link)
+              .first
+              .timeout(waitPastTimeout);
+          failure = mapRemoteFailure(response.linkException);
+        } on Object catch (e) {
+          failure = e;
+        }
+        // The server saved it after all; its late answer must change nothing.
+        heldAnswer.complete(
+          http.Response(
+            '{"data":{"__typename":"Mutation"}}',
+            200,
+            headers: {'content-type': 'application/json'},
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(failure, isA<RequestTimeoutException>());
+        expect(failure, isNot(isA<ConnectionUplinkException>()));
+        expect(sends, 1);
       },
     );
 
@@ -211,7 +264,7 @@ void main() {
           outerFailure = e;
         }
 
-        expect(outerFailure, isA<ConnectionUplinkException>());
+        expect(outerFailure, isA<RequestTimeoutException>());
       },
     );
   });

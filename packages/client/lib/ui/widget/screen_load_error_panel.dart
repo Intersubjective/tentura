@@ -77,7 +77,9 @@ ScreenLoadErrorKind _classifyLoadError(Object error) {
       error is SessionAuthRejectedException) {
     return ScreenLoadErrorKind.session;
   }
-  if (error is ConnectionUplinkException || error is TimeoutException) {
+  if (error is ConnectionUplinkException ||
+      error is RequestTimeoutException ||
+      error is TimeoutException) {
     return ScreenLoadErrorKind.network;
   }
   if (error is ServerStatusException) {

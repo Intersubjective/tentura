@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ferry/ferry.dart' show ResponseFormatException, ServerException;
 import 'package:gql_exec/gql_exec.dart';
 import 'package:test/test.dart';
@@ -52,6 +54,33 @@ void main() {
 
     test('transport-level failures keep the no-internet mapping', () {
       final mapped = mapRemoteFailure(Exception('SocketException: refused'));
+      expect(mapped, isA<ConnectionUplinkException>());
+    });
+
+    test('a request timeout maps to a timeout, never to no-internet', () {
+      final mapped = mapRemoteFailure(
+        TimeoutException(
+          'GraphQL request timed out',
+          const Duration(seconds: 15),
+        ),
+      );
+      expect(mapped, isA<RequestTimeoutException>());
+      expect(mapped, isNot(isA<ConnectionUplinkException>()));
+    });
+
+    test('a timeout wrapped by the link layer is still a timeout', () {
+      final mapped = mapRemoteFailure(
+        ServerException(
+          originalException: TimeoutException('GraphQL request timed out'),
+        ),
+      );
+      expect(mapped, isA<RequestTimeoutException>());
+    });
+
+    test('an OS connect timeout is still a connection failure', () {
+      final mapped = mapRemoteFailure(
+        Exception('SocketException: Connection timed out'),
+      );
       expect(mapped, isA<ConnectionUplinkException>());
     });
 

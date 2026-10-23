@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/data/service/remote_api_client/auth_loss_classifier.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
@@ -50,6 +52,34 @@ void main() {
         expect(fakeRoom.createMessageCalls, 1);
         expect(cubit.state.sendFailedOffline, isFalse);
         expect(effects.emitted, isNotEmpty);
+      },
+    );
+
+    test(
+      'a timeout as the client link delivers it (mapped) is not offline '
+      'either: the normal error shows and nothing is retried',
+      () async {
+        registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+        final fakeRoom =
+            FakeBeaconThreadsRepository(userId: kRoomCubitFakeMyUserId)
+              ..createMessageError = mapRemoteFailure(
+                TimeoutException(
+                  'GraphQL request timed out',
+                  const Duration(seconds: 15),
+                ),
+              );
+        final effects = FakeUiEffectPort();
+        final cubit = roomCubitForTest(fakeRoom, effects: effects);
+        addTearDown(cubit.close);
+        await awaitRoomCubitLoad(cubit);
+
+        expect(await cubit.sendMessage(body: 'see you at 6'), isFalse);
+
+        expect(fakeRoom.createMessageCalls, 1);
+        expect(cubit.state.sendFailedOffline, isFalse);
+        final errors = effects.emitted.whereType<ShowError>().toList();
+        expect(errors, hasLength(1));
+        expect(errors.single.error, isA<RequestTimeoutException>());
       },
     );
 

@@ -36,6 +36,22 @@ final class ConnectionUplinkException extends GenericException {
   String get toRu => 'Нет соединения с интернетом';
 }
 
+/// The server did not answer within the request timeout (#513). Unlike
+/// [ConnectionUplinkException] the network may be fine and the request may
+/// still have been carried out (a slow mutation can land after the client
+/// gave up), so it is not shown as offline and not offered a blind Retry.
+final class RequestTimeoutException extends GenericException {
+  const RequestTimeoutException();
+
+  @override
+  String get toEn =>
+      'The server took too long to answer. It may still have gone through.';
+
+  @override
+  String get toRu =>
+      'Сервер слишком долго не отвечал. Возможно, действие всё же выполнено.';
+}
+
 /// An error reported by the server (GraphQL/API error with a message).
 /// Unlike [ConnectionUplinkException] the server DID answer — surfacing its
 /// message beats a misleading "no internet". Server messages are not

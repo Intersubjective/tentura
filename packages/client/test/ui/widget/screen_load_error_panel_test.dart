@@ -23,6 +23,14 @@ void main() {
     expect(details.supportRef, startsWith('E'));
   });
 
+  test('classifies a request timeout as a network error (#513)', () {
+    final details = describeScreenLoadError(
+      error: const RequestTimeoutException(),
+      l10n: l10n,
+    );
+    expect(details.kind, ScreenLoadErrorKind.network);
+  });
+
   test('classifies session errors', () {
     final details = describeScreenLoadError(
       error: const AuthSessionLostException(),

@@ -223,8 +223,10 @@ class _DeferredDeliveryClient extends Client {
 
 /// Tells [NetworkReachability] what each request learned about the network
 /// (#513): any answer from the server (data or its own error) means online, a
-/// transport failure or timeout means offline. Sits outermost so it sees the
-/// errors already classified by the error link and the timeout link.
+/// transport failure means offline. A timeout says neither: the server may be
+/// slow on a working network, so it leaves the reachability as it was. Sits
+/// outermost so it sees the errors already classified by the error link and
+/// the timeout link.
 class _ReachabilityLink extends Link {
   _ReachabilityLink(this.reachability);
 
@@ -239,10 +241,13 @@ class _ReachabilityLink extends Link {
             sink.add(response);
           },
           handleError: (error, stackTrace, sink) {
-            if (mapRemoteFailure(error) is ConnectionUplinkException) {
-              reachability.reportTransportFailure();
-            } else {
-              reachability.reportSuccess();
+            switch (mapRemoteFailure(error)) {
+              case ConnectionUplinkException():
+                reachability.reportTransportFailure();
+              case RequestTimeoutException():
+                break;
+              default:
+                reachability.reportSuccess();
             }
             sink.addError(error, stackTrace);
           },

@@ -81,6 +81,13 @@ void main() {
       },
     );
 
+    test('a request timeout is benign like the offline error (#513)', () {
+      const error = RequestTimeoutException();
+
+      expect(isBenignSentryThrowable(error), isTrue);
+      expect(isBenignSentryExceptionText(screenLoad(error)), isTrue);
+    });
+
     test('screen-load failure for a non-network kind still reports', () {
       const error = RemoteApiException('Internal server error');
       final message = screenLoad(error);

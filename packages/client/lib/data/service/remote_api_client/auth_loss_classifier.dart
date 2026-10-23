@@ -136,6 +136,12 @@ Exception mapRemoteFailure(Object? error) {
       message.contains('could not verify jwt')) {
     return const AuthSessionLostException();
   }
+  // A request timeout is not «no internet»: the server may have received the
+  // request and carried it out (#513: a slow RoomMessageCreate was saved,
+  // shown as offline, and Retry posted it twice).
+  if (error is TimeoutException || message.contains('timeoutexception')) {
+    return const RequestTimeoutException();
+  }
   // Only errors that actually look like a transport/connectivity failure
   // become "no internet". Everything else (client-side StateError from an
   // empty stream, deserialization failures, unhandled link exceptions, …) is
@@ -186,6 +192,7 @@ bool isTransientRemoteFailure(Object? error) {
   }
   final mapped = mapRemoteFailure(error);
   return mapped is ConnectionUplinkException ||
+      mapped is RequestTimeoutException ||
       (mapped is ServerStatusException &&
           _isTransientStatus(mapped.statusCode));
 }
@@ -194,7 +201,7 @@ bool _isTransientStatus(int status) =>
     status >= 500 || status == 408 || status == 429;
 
 /// Heuristic: does this error message look like a network/transport failure?
-/// Matches the common socket/timeout/TLS/XHR/fetch signatures across the
+/// Matches the common socket/TLS/XHR/fetch signatures across the
 /// native (`dart:io`) and web (`package:http` BrowserClient) stacks.
 bool _looksLikeConnectivityFailure(String message) {
   const markers = [
@@ -208,7 +215,6 @@ bool _looksLikeConnectivityFailure(String message) {
     'connection timed out',
     'network is unreachable',
     'software caused connection abort',
-    'timeoutexception',
     'clientexception', // package:http transport error
     'xmlhttprequest error', // web
     'failed to fetch', // web fetch
