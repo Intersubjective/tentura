@@ -4513,7 +4513,7 @@
     },
     "description": "Child request card: one admitted helper display name"
   },
-  "threadGeneralTitle": "Общее",
+  "threadGeneralTitle": "Обсуждение",
   "threadClosedFoldTitle": "Закрытые ({count})",
   "@threadClosedFoldTitle": {
     "placeholders": {
@@ -4588,9 +4588,9 @@
   "beaconSituationCurrentLineLabel": "Следующий шаг",
   "beaconSituationBlockerLabel": "Блокер",
   "beaconSituationLastChangeLabel": "Последнее",
-  "beaconSituationOpenRoom": "Открыть Общее",
+  "beaconSituationOpenRoom": "Открыть обсуждение",
   "beaconBlockersPanelTitle": "Блокеры / Вопросы",
-  "beaconBlockersPanelAskInRoom": "Спросить в Общем",
+  "beaconBlockersPanelAskInRoom": "Спросить в обсуждении",
   "beaconHudYourRolePanelTitle": "Ваша роль",
   "beaconHudYouAuthorReview": "{count, plural, one{Проверить {count} предложение} few{Проверить {count} предложения} other{Проверить {count} предложений}}",
   "@beaconHudYouAuthorReview": {
@@ -4693,7 +4693,7 @@
   "beaconCloseSheetActionKeepActive": "Оставить активным",
   "beaconCloseSheetActionOpenPeople": "Открыть людей",
   "beaconCloseAnswerFirst": "Сначала ответить",
-  "beaconCloseSheetActionResolveRoom": "Открыть Общее",
+  "beaconCloseSheetActionResolveRoom": "Открыть обсуждение",
   "beaconCloseSheetActionNotNow": "Не сейчас",
   "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
   "beaconCloseSheetReadyReviewTitle": "Закрыть и подвести итоги?",
@@ -4922,7 +4922,7 @@
   "beaconNeedCardTitle": "Что нужно",
   "beaconDefinitionSectionTitle": "Описание",
   "beaconDefinitionLastPublicChangeLabel": "Последнее обновление",
-  "beaconDefinitionLastRoomChangeLabel": "Последнее в Общем",
+  "beaconDefinitionLastRoomChangeLabel": "Последнее в обсуждении",
   "beaconNeedAndContextTitle": "Запрос и контекст",
   "beaconContextAttachmentsTitle": "Контекст и вложения",
   "beaconNeedBriefPrefix": "Запрос:",
@@ -5091,13 +5091,13 @@
     }
   },
   "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
-  "beaconRoomTitle": "Общее",
+  "beaconRoomTitle": "Обсуждение",
   "beaconRoomMessageHint": "Напишите сообщение…",
   "beaconRoomMessageReadOnlyHint": "Это обсуждение доступно только для чтения",
   "@beaconRoomMessageReadOnlyHint": {
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
-  "beaconRoomOpen": "Общее",
+  "beaconRoomOpen": "Обсуждение",
   "beaconRoomBackToChat": "К чату",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
@@ -5383,7 +5383,7 @@
   "beaconRoomStripCurrentLineLabel": "Что команда делает дальше",
   "beaconRoomStripLastPrivateFactLabel": "Закреплённые факты",
   "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
-  "beaconRoomStripOpenBlockerHint": "Открыт блокер в Общем (подробности в теме).",
+  "beaconRoomStripOpenBlockerHint": "Открыт блокер в обсуждении (подробности в теме).",
   "coordinationCreatePromiseAction": "Дать обещание…",
   "coordinationCreatePromiseSheetPrompt": "Что вы обещаете сделать?",
   "coordinationCreatePromiseFromMessage": "Обещание из сообщения",
@@ -5535,7 +5535,7 @@
       }
     }
   },
-  "inboxCardRoomUnread": "{count, plural, =0{Общее без новых сообщений} one{1 непрочитанное в Общем} few{{count} непрочитанных в Общем} many{{count} непрочитанных в Общем} other{{count} непрочитанных в Общем}}",
+  "inboxCardRoomUnread": "{count, plural, =0{Обсуждение без новых сообщений} one{{count} непрочитанное в обсуждении} few{{count} непрочитанных в обсуждении} many{{count} непрочитанных в обсуждении} other{{count} непрочитанных в обсуждении}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
       "count": {
@@ -5543,7 +5543,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "Следующий шаг в Общем: {text}",
+  "inboxCardRoomCurrentLine": "Следующий шаг в обсуждении: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -5559,7 +5559,7 @@
       }
     }
   },
-  "inboxCardRoomLastChange": "Последнее в Общем: {text}",
+  "inboxCardRoomLastChange": "Последнее в обсуждении: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
       "text": {
@@ -6155,7 +6155,7 @@
   "updatesFallbackTitleCommitmentCancelled": "Обязательство отменено",
   "updatesFallbackBodyCommitmentCancelled": "Обязательство по запросу отменено.",
   "updatesFallbackTitleCommitmentRedirected": "Переназначено на вас",
-  "updatesFallbackBodyCommitmentRedirected": "Откройте Общее, чтобы увидеть назначение.",
+  "updatesFallbackBodyCommitmentRedirected": "Откройте обсуждение, чтобы увидеть назначение.",
   "updatesFallbackTitleTrustGivenChanged": "Изменение доверия",
   "updatesFallbackBodyTrustGivenChanged": "Ваше доверие к кому-то изменилось после закрытия запроса.",
   "updatesFallbackTitleTrustReceivedChanged": "Изменение доверия",
