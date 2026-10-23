@@ -90,6 +90,19 @@ final class ConstellationMultiSelection {
       if (target.kind == ConstellationAnchorTargetKind.person) target.id,
   ];
 
+  /// The other selected nodes that move with [grabbed] when it is dragged,
+  /// as in a graphics editor: the rest of the selection when [grabbed] is
+  /// part of it, nothing when it is not (it then moves alone and the
+  /// selection stays as it is) or while a sector is being aimed.
+  Set<ConstellationAnchorTarget> dragGroupFor(
+    ConstellationAnchorTarget grabbed,
+  ) => sector != null || !targets.contains(grabbed)
+      ? const {}
+      : {
+          for (final target in targets)
+            if (target != grabbed) target,
+        };
+
   /// Whether the selected people can be arranged in one batch.
   bool get canArrange {
     final people = personIds.length;

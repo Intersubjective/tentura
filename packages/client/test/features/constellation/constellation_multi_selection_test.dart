@@ -169,4 +169,30 @@ void main() {
       expect(cubit.escape(), isFalse);
     });
   });
+
+  group('dragGroupFor (group drag)', () {
+    test('a selected node takes the rest of the selection along', () {
+      cubit
+        ..toggle(_ann)
+        ..toggle(_bob)
+        ..toggle(_request);
+      expect(cubit.state.dragGroupFor(_bob), {_ann, _request});
+    });
+
+    test('a node outside the selection moves alone', () {
+      cubit
+        ..toggle(_ann)
+        ..toggle(_bob);
+      expect(cubit.state.dragGroupFor(_cat), isEmpty);
+    });
+
+    test('a lone selected node and a sector being aimed take nothing', () {
+      cubit.toggle(_ann);
+      expect(cubit.state.dragGroupFor(_ann), isEmpty);
+      cubit
+        ..toggle(_bob)
+        ..beginSector(direction: 0);
+      expect(cubit.state.dragGroupFor(_ann), isEmpty);
+    });
+  });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' show TimelineTask;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -703,14 +704,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _clearClusterPresentations();
   }
 
+  /// Starts dragging [target]. The [group] nodes (the rest of a selection
+  /// the grabbed node is part of) move with it as one rigid group and are
+  /// written with it on the drop; those that cannot be dragged stay put.
   void beginDragExisting({
     required ConstellationAnchorTarget target,
+    Iterable<ConstellationAnchorTarget> group = const [],
   }) {
     if (isClosed) {
       return;
     }
     _interaction.beginDragging(target.graphNodeId);
-    _beginClusterDragPresentation(target);
+    _beginClusterDragPresentation(target, group: group);
     graphController.setCameraInteractionGated(true);
     emit(
       state.copyWith(
@@ -721,12 +726,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
-  void beginDragNew({required ConstellationAnchorTarget target}) {
+  /// Starts dragging [target], which has no stored position yet; [group]
+  /// as in [beginDragExisting].
+  void beginDragNew({
+    required ConstellationAnchorTarget target,
+    Iterable<ConstellationAnchorTarget> group = const [],
+  }) {
     if (isClosed) {
       return;
     }
     _interaction.beginDragging(target.graphNodeId);
-    _beginClusterDragPresentation(target);
+    _beginClusterDragPresentation(target, group: group);
     graphController.setCameraInteractionGated(true);
     emit(
       state.copyWith(
@@ -994,16 +1004,35 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return Offset(start.dx + limited.x, start.dy + limited.y);
   }
 
-  void _beginClusterDragPresentation(ConstellationAnchorTarget target) =>
-      _interaction.beginClusterDragPresentation(
-        target,
-        field: state.field,
-        composition: state.composition,
-        fallbackAnchors: [
-          ...?state.composition?.anchorOverlay.anchors,
-          ...?state.confirmedProjection?.anchors,
-        ],
-      );
+  void _beginClusterDragPresentation(
+    ConstellationAnchorTarget target, {
+    Iterable<ConstellationAnchorTarget> group = const [],
+  }) => _interaction.beginClusterDragPresentation(
+    target,
+    field: state.field,
+    composition: state.composition,
+    fallbackAnchors: [
+      ...?state.composition?.anchorOverlay.anchors,
+      ...?state.confirmedProjection?.anchors,
+    ],
+    group: state.isComposing ? const [] : _draggableGroup(target, group),
+  );
+
+  /// The [group] nodes that a drag of their own could move: on the graph now,
+  /// draggable, and not [grabbed] itself.
+  List<ConstellationAnchorTarget> _draggableGroup(
+    ConstellationAnchorTarget grabbed,
+    Iterable<ConstellationAnchorTarget> group,
+  ) => [
+    for (final member in group)
+      if (member != grabbed)
+        if (graphController.nodePayloadForId(
+              constellationGraphNodeIdForTarget(member),
+            )
+            case final NodeDetails node
+            when canDragNode(node) && anchorTargetForNode(node) == member)
+          member,
+  ];
 
   void _finishDropReflowSpans() {
     if (kReleaseMode) return;
@@ -1090,7 +1119,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (entry.key == parentGraphId) {
         continue;
       }
-      if (!remotePinnedBeaconIds.contains(entry.value.id)) {
+      // A group member is written wherever it was, pinned before or not,
+      // as a drag of its own would; a person's Request only when pinned.
+      final isGroupMember = _interaction.groupMemberGraphIds.contains(
+        entry.key,
+      );
+      if (isGroupMember
+          ? _isRevokedWhileHeld(entry.value)
+          : !remotePinnedBeaconIds.contains(entry.value.id)) {
         droppedCompanionGraphIds.add(entry.key);
         continue;
       }
@@ -1103,6 +1139,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         parentGraphId,
         (x: parentDelta.dx, y: parentDelta.dy),
       );
+      // A member that started outside the stored-position envelope and could
+      // not get back in is not written (it would fail the whole batch); it
+      // returns to where it was.
+      if (isGroupMember &&
+          !constellationPointWithinEnvelope((x: centre.dx, y: centre.dy))) {
+        droppedCompanionGraphIds.add(entry.key);
+        continue;
+      }
       final companionTarget = entry.value;
       companions.add((
         target: companionTarget,
@@ -1111,9 +1155,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     for (final graphId in droppedCompanionGraphIds) {
       graphController.clearPresentationForNodeId(graphId);
-      _interaction.placementClusterGraphIds.remove(graphId);
-      _interaction.placementClusterTargets.remove(graphId);
-      _interaction.clusterStartCentres.remove(graphId);
+      _interaction.removeFromCluster(graphId);
     }
     _interaction.placementClusterGraphIds.add(parentGraphId);
     _interaction.placementClusterTargets.putIfAbsent(
@@ -1205,17 +1247,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _scene.updateSingleNodePresentation(parentGraphId, sceneCentre);
       return;
     }
-    final parentStart = _interaction.clusterStartCentres[parentGraphId];
-    if (parentStart == null) {
-      return;
-    }
     final node = graphController.nodePayloadForId(parentGraphId)!;
     final dropCentre = clampClusterDragPosition(node, sceneCentre);
-    final limited = constellationLimitClusterDelta(
-      parentStart: (x: parentStart.dx, y: parentStart.dy),
-      proposedParent: (x: dropCentre.dx, y: dropCentre.dy),
-      companionStarts: _interaction.companionClusterStarts(parentGraphId),
+    final limited = _interaction.limitedClusterDelta(
+      parentGraphId,
+      dropCentre,
     );
+    if (limited == null) {
+      return;
+    }
     final updates = <GraphPresentationToken, Offset>{};
     for (final graphId in _interaction.placementClusterGraphIds) {
       final start = _interaction.clusterStartCentres[graphId];
@@ -1349,11 +1389,24 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _writeCount++;
     _placementAwaitingStore = true;
-    _placementCase.place(
-      parent: target,
-      position: position,
-      companions: companions,
-    );
+    // A group drag may hold more nodes than one batch takes: the rest go as
+    // further batches, each with its first node as the parent.
+    final writes = [(target: target, position: position), ...companions];
+    for (
+      var start = 0;
+      start < writes.length;
+      start += kConstellationPlacementBatchCap
+    ) {
+      final batch = writes.sublist(
+        start,
+        math.min(start + kConstellationPlacementBatchCap, writes.length),
+      );
+      _placementCase.place(
+        parent: batch.first.target,
+        position: batch.first.position,
+        companions: batch.sublist(1),
+      );
+    }
     if (!kReleaseMode) {
       _finishAckSpanOnSettlement(ackSpan, {
         target,
@@ -1901,11 +1954,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (writes.isEmpty ||
         writes.length > kConstellationSectorMaxPeople ||
         writes.any(
-          (write) => ConstellationAnchorPosition.validate(
-            xUnits: write.position.xUnits,
-            yUnits: write.position.yUnits,
-            coordinateSpaceVersion: write.position.coordinateSpaceVersion,
-          ) is! ConstellationAnchorPositionValid,
+          (write) =>
+              ConstellationAnchorPosition.validate(
+                    xUnits: write.position.xUnits,
+                    yUnits: write.position.yUnits,
+                    coordinateSpaceVersion:
+                        write.position.coordinateSpaceVersion,
+                  )
+                  is! ConstellationAnchorPositionValid,
         )) {
       return false;
     }
@@ -1942,7 +1998,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
     final layoutInput = _pinLayoutInput!;
-    return _pinAvailability[target] ??= computeConstellationPinPosition(
+    return _pinAvailability[target] ??=
+        computeConstellationPinPosition(
           target: target,
           layoutInput: layoutInput,
           placedLayout: _pinBaseLayout ??= computeConstellationPinBaseLayout(

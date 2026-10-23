@@ -16,6 +16,10 @@ import '../placement_overlay.dart';
 import '../port/constellation_anchor_repository_port.dart';
 import 'constellation_field_store_case.dart';
 
+/// Most placements one [ConstellationPlacementCase.place] call (one cluster,
+/// sent as one batch) may hold.
+const int kConstellationPlacementBatchCap = 64;
+
 /// Account-owned placement writes, separate from the store's read lifecycle.
 @Order(2)
 @singleton
@@ -41,7 +45,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _store.holdAnchorHints(() => _applyBarrier?.future);
   }
 
-  static const _batchCap = 64;
+  static const _batchCap = kConstellationPlacementBatchCap;
   static const _maxAttempts = 3;
   static const _baseBackoff = Duration(seconds: 1);
   static const _maxBackoff = Duration(seconds: 30);

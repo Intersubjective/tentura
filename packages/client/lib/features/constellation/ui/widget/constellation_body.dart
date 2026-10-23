@@ -906,10 +906,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 if (target == null) {
                   return;
                 }
+                // A node of the selection takes the rest of it along; any
+                // other node moves alone and the selection stays.
+                final group =
+                    maybeConstellationSelection(
+                      context,
+                    )?.state.dragGroupFor(target) ??
+                    const <ConstellationAnchorTarget>{};
                 if (cubit.isAnchored(target)) {
-                  cubit.beginDragExisting(target: target);
+                  cubit.beginDragExisting(target: target, group: group);
                 } else {
-                  cubit.beginDragNew(target: target);
+                  cubit.beginDragNew(target: target, group: group);
                 }
               },
               onNodeDragUpdate: (node, position) {

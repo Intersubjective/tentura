@@ -88,6 +88,26 @@ bool _centreValid(ConstellationPoint centre, ConstellationSize size) =>
       constellationRenderedBounds(centre: centre, size: size),
     );
 
+/// The largest part of [raw] that [valid] accepts, given that a part [valid]
+/// accepts is accepted at every smaller part too (the bounds are convex and
+/// the start is inside them).
+double _settleAxis(double raw, bool Function(double) valid) {
+  if (valid(raw)) {
+    return raw;
+  }
+  var lo = 0.0;
+  var hi = 1.0;
+  for (var i = 0; i < 30; i++) {
+    final mid = (lo + hi) / 2;
+    if (valid(raw * mid)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return raw * lo;
+}
+
 /// Moves [start] by [delta] one axis at a time, stopping each axis at the last
 /// valid position, so a body pressed against a wall keeps sliding along it.
 ConstellationPoint _slideWithinBounds(
@@ -95,28 +115,11 @@ ConstellationPoint _slideWithinBounds(
   ConstellationPoint delta,
   ConstellationSize size,
 ) {
-  double settle(double raw, bool Function(double) valid) {
-    if (valid(raw)) {
-      return raw;
-    }
-    var lo = 0.0;
-    var hi = 1.0;
-    for (var i = 0; i < 30; i++) {
-      final mid = (lo + hi) / 2;
-      if (valid(raw * mid)) {
-        lo = mid;
-      } else {
-        hi = mid;
-      }
-    }
-    return raw * lo;
-  }
-
-  final dx = settle(
+  final dx = _settleAxis(
     delta.x,
     (d) => _centreValid((x: start.x + d, y: start.y), size),
   );
-  final dy = settle(
+  final dy = _settleAxis(
     delta.y,
     (d) => _centreValid((x: start.x + dx, y: start.y + d), size),
   );
@@ -153,3 +156,50 @@ ConstellationPoint constellationCompanionPosition({
   required ConstellationPoint parentDelta,
   ConstellationSize companionSize = kConstellationDragRequestBodySize,
 }) => _slideWithinBounds(companionStart, parentDelta, companionSize);
+
+/// Scene delta for a selection moved as one group: the largest part of the
+/// pointer's delta, axis by axis, that the dragged parent and every other
+/// member can travel together. The group stays rigid, as in a graphics
+/// editor, instead of members bunching up against a wall one by one.
+///
+/// Each member is held to the bounds it has when dragged alone (the envelope
+/// and the canvas, at the parent [size] [constellationLimitClusterDelta]
+/// uses). A member that already starts outside them would hold the whole
+/// group still, so it does not count; it follows on its own through
+/// [constellationGroupMemberPosition]. The parent always counts, exactly as in
+/// [constellationLimitClusterDelta].
+ConstellationPoint constellationLimitGroupDelta({
+  required ConstellationPoint parentStart,
+  required ConstellationPoint proposedParent,
+  required Iterable<ConstellationPoint> memberStarts,
+  ConstellationSize size = kConstellationDragPersonBodySize,
+}) {
+  final starts = [
+    parentStart,
+    for (final start in memberStarts)
+      if (_centreValid(start, size)) start,
+  ];
+  bool allValid(double dx, double dy) => starts.every(
+    (start) => _centreValid((x: start.x + dx, y: start.y + dy), size),
+  );
+  final dx = _settleAxis(
+    proposedParent.x - parentStart.x,
+    (d) => allValid(d, 0),
+  );
+  final dy = _settleAxis(
+    proposedParent.y - parentStart.y,
+    (d) => allValid(dx, d),
+  );
+  return (x: dx, y: dy);
+}
+
+/// Where a group member rests when the group moved by [groupDelta] (already
+/// limited by [constellationLimitGroupDelta]): by the same delta as the
+/// parent, unless it started outside the bounds, when it slides on its own.
+ConstellationPoint constellationGroupMemberPosition({
+  required ConstellationPoint memberStart,
+  required ConstellationPoint groupDelta,
+  ConstellationSize size = kConstellationDragPersonBodySize,
+}) => _centreValid(memberStart, size)
+    ? (x: memberStart.x + groupDelta.x, y: memberStart.y + groupDelta.y)
+    : _slideWithinBounds(memberStart, groupDelta, size);
