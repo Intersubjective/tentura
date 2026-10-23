@@ -36,9 +36,16 @@ final class MarkSeenServerFake extends AttentionRepositoryFake {
   /// When true every write fails the way an offline link does.
   bool failWrites = false;
 
+  /// #601 — what an explicit clear answers. Anything but `complete` applies
+  /// nothing (a `stale` snapshot, a `denied` member).
+  AttentionOperationStatus clearStatus = AttentionOperationStatus.complete;
+
   /// Every receipt id the client asked to capture for a clear (before the
   /// server filtered it).
   final clearRequestedIds = <String>[];
+
+  /// Every operation id the client sent through `attentionDismissAll`.
+  final dismissAllOperationIds = <String>[];
 
   AttentionReceipt row(String id) => _rows[id]!;
 
@@ -161,6 +168,15 @@ final class MarkSeenServerFake extends AttentionRepositoryFake {
     if (failWrites) throw StateError('offline');
     final body = snapshotToken.substring('snap:'.length);
     final ids = body.isEmpty ? const <String>[] : body.split(',');
+    if (clearStatus != AttentionOperationStatus.complete) {
+      return AttentionClearResult(
+        operationId: operationId,
+        status: clearStatus,
+        deniedReceiptIds: clearStatus == AttentionOperationStatus.denied
+            ? ids
+            : const <String>[],
+      );
+    }
     for (final id in ids) {
       final r = _rows[id];
       if (r == null) continue;
@@ -171,6 +187,43 @@ final class MarkSeenServerFake extends AttentionRepositoryFake {
       operationId: operationId,
       status: AttentionOperationStatus.complete,
       appliedReceiptIds: ids,
+    );
+  }
+
+  /// Server Set R (`AttentionDismissibleSql.dismissibleReceipts`): uncleared
+  /// optional Activity receipts, the relay still to be answered left out.
+  /// Obligations are never members.
+  @override
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) async {
+    dismissAllOperationIds.add(operationId);
+    if (failWrites) throw StateError('offline');
+    if (clearStatus != AttentionOperationStatus.complete) {
+      return AttentionDismissAllResult(
+        operationId: operationId,
+        status: clearStatus,
+      );
+    }
+    final ids = [
+      for (final r in _rows.values)
+        if (r.surface == AttentionSurface.activity &&
+            _serverActiveOptional(r) &&
+            r.presentationKey != 'relay_received')
+          r.id,
+    ];
+    for (final id in ids) {
+      _rows[id] = _rows[id]!.copyWith(clearedAt: DateTime.utc(2026, 10, 14));
+      clearedIds.add(id);
+    }
+    return AttentionDismissAllResult(
+      operationId: operationId,
+      status: AttentionOperationStatus.complete,
+      appliedReceiptIds: ids,
+      appliedCount: ids.length,
+      undoToken: 'undo:$operationId',
+      undoDeadline: DateTime.utc(2026, 10, 14, 10),
     );
   }
 }

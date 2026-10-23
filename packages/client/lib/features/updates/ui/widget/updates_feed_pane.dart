@@ -61,6 +61,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
   Timer? _searchDebounce;
   var _searchOpen = false;
   var _restoredSearchText = false;
+  StreamSubscription<UpdatesClearNotice>? _clearNoticeSub;
 
   @override
   void initState() {
@@ -93,6 +94,9 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _clearNoticeSub ??= context.read<UpdatesFeedCubit>().clearNotices.listen(
+      _sayClearNotice,
+    );
     if (!_restoredSearchText) {
       _restoredSearchText = true;
       final saved = context.read<UpdatesFeedCubit>().state.searchText;
@@ -111,8 +115,22 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     unawaited(context.read<UpdatesFeedCubit>().loadNextPage());
   }
 
+  /// #601 — a clear that came back stale/denied: a muted line, not an error.
+  void _sayClearNotice(UpdatesClearNotice notice) {
+    if (!mounted) return;
+    final l10n = L10n.of(context)!;
+    showSnackBar(
+      context,
+      text: switch (notice) {
+        UpdatesClearNotice.stale => l10n.updatesClearStale,
+        UpdatesClearNotice.denied => l10n.updatesClearDenied,
+      },
+    );
+  }
+
   @override
   void dispose() {
+    unawaited(_clearNoticeSub?.cancel());
     widget.searchOpen?.removeListener(_onExternalSearchToggle);
     WidgetsBinding.instance.removeObserver(this);
     _searchDebounce?.cancel();

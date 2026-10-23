@@ -963,6 +963,15 @@ final class AttentionCase implements AttentionReconcilePort {
     }
   }
 
+  /// "Read all" on Updates (#601, #258, V2): marks everything seen, then
+  /// clears what is dismissible in one bounded server sweep ([dismissAll]).
+  /// Obligations are only read; the sweep never takes them. The result is the
+  /// sweep's, undo token included.
+  Future<AttentionDismissAllResult> readAll() async {
+    await markAllSeen();
+    return dismissAll();
+  }
+
   /// Restores what [operationId] applied, within the server's window.
   ///
   /// Undo is deliberately **not** optimistic. It is rare, it is bounded, and
