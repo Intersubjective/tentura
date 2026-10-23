@@ -7,11 +7,8 @@ import 'package:tentura/domain/entity/profile.dart';
 
 /// Which strip is pinned above the room messages.
 enum RoomPinnedStrip {
-  /// Request rooms: the NOW line (and an open blocker under it).
-  requestNow,
-
-  /// Request rooms beside the Now pane (wide split): the pane already shows
-  /// the NOW line, so the chat pins only an open blocker (#451).
+  /// Request rooms: only an open blocker. The next step lives on the Now
+  /// tab, where it is edited; pinned over the chat it took too much room.
   requestBlocker,
 
   /// Post rooms: the root message.
@@ -42,7 +39,7 @@ class RoomCapabilities {
       childPromotion = true,
       commitmentSheet = true,
       closure = true,
-      pinnedStrip = RoomPinnedStrip.requestNow,
+      pinnedStrip = RoomPinnedStrip.requestBlocker,
       childPromotionOwnOnly = false;
 
   /// Every Request-only feature off.
@@ -70,22 +67,6 @@ class RoomCapabilities {
   /// «Оформить запрос»). The message actions evaluate ownership; the client
   /// gate `kPostBuddingEnabled` still decides whether the action shows.
   final bool childPromotionOwnOnly;
-
-  /// The same features with another pinned strip.
-  RoomCapabilities withPinnedStrip(RoomPinnedStrip strip) =>
-      strip == pinnedStrip
-      ? this
-      : RoomCapabilities(
-          facts: facts,
-          blocker: blocker,
-          plan: plan,
-          coordinationItems: coordinationItems,
-          childPromotion: childPromotion,
-          commitmentSheet: commitmentSheet,
-          closure: closure,
-          pinnedStrip: strip,
-          childPromotionOwnOnly: childPromotionOwnOnly,
-        );
 
   @override
   bool operator ==(Object other) =>

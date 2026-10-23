@@ -314,24 +314,17 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final isThreadMode = state.threadItemId != null;
           final err = state.loadError?.toString() ?? '';
           final canWrite = state.canWriteDiscussion;
-          final showPinnedNow =
-              !isThreadMode &&
-              widget.capabilities.pinnedStrip == RoomPinnedStrip.requestNow &&
-              beaconRoomShowsPinnedNow(
-                roomState: state.roomState,
-                openBlocker: state.openCoordinationBlocker,
-              );
-          // Beside the Now pane (wide split) the pane carries the NOW line;
-          // the chat keeps only an open blocker (#451).
+          // The next step stays on the Now tab; the chat pins only an open
+          // blocker.
           final showPinnedBlocker =
               !isThreadMode &&
               widget.capabilities.pinnedStrip ==
                   RoomPinnedStrip.requestBlocker &&
-              beaconRoomHudNowDisplay(
+              beaconRoomBlockerText(
                     l10n,
                     roomState: state.roomState,
                     openBlocker: state.openCoordinationBlocker,
-                  ).blockerText !=
+                  ) !=
                   null;
           final showPostRoot =
               !isThreadMode &&
@@ -359,16 +352,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     ),
                   )
                 : showPinnedBlocker
-                ? _PinnedNowRow(state: state, blockerOnly: true)
-                : showPinnedNow
-                ? _PinnedNowRow(
-                    state: state,
-                    onEdit: state.canUpdatePlan
-                        ? () => unawaited(
-                            _showPlanUpdateSheet(context, cubit, l10n),
-                          )
-                        : null,
-                  )
+                ? _PinnedBlockerRow(state: state)
                 : null,
             // #443: a Request's empty discussion says what it is for and
             // where recipients ask before helping (Questions). A Post's
@@ -1312,12 +1296,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
   }
 
-  Future<void> _showPlanUpdateSheet(
-    BuildContext context,
-    RoomCubit cubit,
-    L10n l10n,
-  ) => showBeaconRoomUpdatePlanSheet(context, cubit, l10n);
-
   Future<void> _showEditMessageSheet(
     BuildContext context,
     RoomCubit cubit,
@@ -1461,8 +1439,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   }
 }
 
-/// Standalone "Update plan" text sheet
-/// on the pinned-now strip and the beacon app-bar overflow menu.
+/// Standalone "Update plan" text sheet, from the beacon app-bar overflow
+/// menu.
 Future<void> showBeaconRoomUpdatePlanSheet(
   BuildContext context,
   RoomCubit cubit,
@@ -1653,24 +1631,17 @@ class _BeaconRoomTextBottomSheetState
   }
 }
 
-class _PinnedNowRow extends StatelessWidget {
-  const _PinnedNowRow({
-    required this.state,
-    this.onEdit,
-    this.blockerOnly = false,
-  });
+/// An open blocker pinned over the chat.
+class _PinnedBlockerRow extends StatelessWidget {
+  const _PinnedBlockerRow({required this.state});
 
   final RoomState state;
-  final VoidCallback? onEdit;
-
-  /// Only the open blocker, no NOW line (the Now pane beside shows it).
-  final bool blockerOnly;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final nowDisplay = beaconRoomHudNowDisplay(
+    final blockerText = beaconRoomBlockerText(
       l10n,
       roomState: state.roomState,
       openBlocker: state.openCoordinationBlocker,
@@ -1698,14 +1669,8 @@ class _PinnedNowRow extends StatelessWidget {
               child: HudLabeledMultiline(
                 leadingIcon: BeaconHudRowIcons.now,
                 semanticsLabel: l10n.beaconHudNowLabel,
-                text: blockerOnly
-                    ? nowDisplay.blockerText ?? ''
-                    : nowDisplay.primaryText,
-                subline: blockerOnly ? null : nowDisplay.blockerText,
+                text: blockerText ?? '',
                 mutedColor: tt.textMuted,
-                isPlaceholder: !blockerOnly && nowDisplay.isPlaceholder,
-                onEdit: onEdit,
-                editSemanticLabel: l10n.beaconHudEditNowLine,
                 primaryMaxLines: 1,
                 showTruncationHint: false,
               ),

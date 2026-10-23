@@ -221,8 +221,8 @@ double constellationNodeBadgeOverhang({
 /// Viewport-space rings drawn over the field's nodes (#640, #643):
 ///
 /// * every person with a trust relation to the viewer gets a trust ring and
-///   a glyph disc, at a fixed on-screen size, so they stay readable however
-///   far the map is zoomed out;
+///   a glyph disc, at a fixed on-screen size, shown only at normal detail
+///   (as the pin badge) so they never cover a zoomed-out node;
 /// * a node smaller than a tap target gets a hover ring (mouse) and, when
 ///   selected, a selection ring at the tap target's size — larger than the
 ///   node, matching what a tap there resolves to.
@@ -350,6 +350,11 @@ class ConstellationNodeRingPainter extends CustomPainter {
       ..isAntiAlias = true;
     final ownGlyphs = glyphs == null ? ConstellationTrustGlyphCache() : null;
     final glyphCache = glyphs ?? ownGlyphs!;
+    // Fixed-size trust marks would cover a zoomed-out node whole: like the
+    // pin badge, they show only at normal detail.
+    final trustByGraphId = frame.detail == ConstellationDetailLevel.normal
+        ? this.trustByGraphId
+        : const <GraphNodeId, ConstellationTrustBadge>{};
 
     for (final id in frame.paintOrder) {
       final badge = trustByGraphId[id];

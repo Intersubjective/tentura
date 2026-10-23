@@ -20,8 +20,8 @@ import 'beacon_view_screen_harness.dart';
 
 /// #451: the next step («NOW …») sat twice on a wide window: once in the Now
 /// pane (pinned HUD) and once as the pinned strip at the top of the chat.
-/// It is shown once: the Now pane on a wide (split) window, the chat strip on
-/// a narrow one (where Now and Chat are separate tabs).
+/// The chat no longer pins it at all — it took too much room there — so it
+/// shows on the Now tab / pane only, where it is edited.
 const _kNowLine = 'Frame on Saturday at the school gate';
 
 class _NowLineRoomRepository extends FakeBeaconThreadsRepository {
@@ -169,7 +169,7 @@ void main() {
     );
   });
 
-  testWidgets('narrow window: the chat tab keeps the pinned next step', (
+  testWidgets('narrow window: the chat tab does not pin the next step', (
     tester,
   ) async {
     final bundle = await _setUpRoom(tester);
@@ -186,8 +186,7 @@ void main() {
     await tapBeaconChatTabAndWaitForRoom(tester);
     await _waitForRoomState(tester, bundle.cubits);
 
-    // Chat is its own tab: the strip is the only place the step shows here.
     expect(find.byType(BeaconHudPinnedBlock), findsNothing);
-    expect(_nowLineIn(find.byType(ThreadDetail)), findsOneWidget);
+    expect(_nowLineIn(find.byType(ThreadDetail)), findsNothing);
   });
 }

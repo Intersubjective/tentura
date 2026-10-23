@@ -1,7 +1,8 @@
 // Room widgets honour the host's `RoomCapabilities`: a Post room (all
 // Request-only features off) shows no Request actions in the message actions
-// sheet, no pinned NOW row, no commitment sheet, child-promotion footer, fact
-// history or closure story card; a Request room (`request()`) keeps them all.
+// sheet, no commitment sheet, child-promotion footer, fact history or closure
+// story card; a Request room (`request()`) keeps them all. Neither pins the
+// NOW line: it lives on the Request's Now tab.
 // `BeaconRoomSurface` takes a `RoomHost` and rebuilds when `host.changes` fires.
 
 import 'dart:async';
@@ -566,7 +567,7 @@ void main() {
     });
   });
 
-  group('pinned NOW row follows room capabilities', () {
+  group('no room pins the NOW line', () {
     final nowState = _state(
       messages: [_plainMessage()],
       roomState: BeaconRoomState(
@@ -589,7 +590,7 @@ void main() {
       );
     });
 
-    testWidgets('Request room shows the pinned NOW row', (tester) async {
+    testWidgets('Request room shows no pinned NOW row', (tester) async {
       await _pumpRoomBody(
         tester,
         roomState: nowState,
@@ -598,7 +599,7 @@ void main() {
 
       expect(
         find.textContaining(_nowLine, findRichText: true),
-        findsOneWidget,
+        findsNothing,
       );
     });
   });
@@ -769,8 +770,9 @@ void main() {
       expect(find.text(l10n.beaconRoomActionPinFact), findsNothing);
     });
 
-    testWidgets('a Request host yields a room with the pinned NOW row and '
-        'Request actions', (tester) async {
+    testWidgets('a Request host yields a room with Request actions', (
+      tester,
+    ) async {
       final host = _FakeRoomHost()
         ..capabilities = const RoomCapabilities.request();
       addTearDown(() async {
@@ -780,10 +782,6 @@ void main() {
       });
       await _pumpSurface(tester, host: host, roomState: nowState);
 
-      expect(
-        find.textContaining(_nowLine, findRichText: true),
-        findsOneWidget,
-      );
       await _openActionsSheet(tester);
       expect(find.text(l10n.beaconRoomActionTurnInto), findsOneWidget);
       expect(find.text(l10n.beaconRoomActionPinFact), findsOneWidget);
@@ -800,20 +798,14 @@ void main() {
         await closing;
       });
       await _pumpSurface(tester, host: host, roomState: nowState);
-      expect(
-        find.textContaining(_nowLine, findRichText: true),
-        findsNothing,
-      );
 
       host.capabilities = const RoomCapabilities.request();
       host.announce();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        find.textContaining(_nowLine, findRichText: true),
-        findsOneWidget,
-      );
+      await _openActionsSheet(tester);
+      expect(find.text(l10n.beaconRoomActionTurnInto), findsOneWidget);
     });
   });
 

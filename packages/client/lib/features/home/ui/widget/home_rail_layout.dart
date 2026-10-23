@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 
@@ -114,26 +115,36 @@ class _HomeRailLayoutState extends State<HomeRailLayout> {
               ],
             ),
             PositionedDirectional(
-              start: gap,
-              top: gap,
+              start: _skipFocused ? gap : 0,
+              top: _skipFocused ? gap : 0,
               child: FocusTraversalOrder(
                 order: const NumericFocusOrder(0),
-                // Zero-size and transparent until focused: no pointer hits
-                // over the rail, yet still in the semantics tree.
-                child: Align(
-                  alignment: AlignmentDirectional.topStart,
-                  widthFactor: _skipFocused ? 1 : 0,
-                  heightFactor: _skipFocused ? 1 : 0,
-                  child: Semantics(
-                    sortKey: const OrdinalSortKey(0),
-                    container: true,
-                    child: Opacity(
-                      opacity: _skipFocused ? 1 : 0,
-                      alwaysIncludeSemantics: true,
-                      child: FilledButton(
-                        focusNode: _skip,
-                        onPressed: _content.requestFocus,
-                        child: Text(l10n.skipToContent),
+                // Until focused: transparent and clipped to one pixel in the
+                // window corner, still in the semantics tree. The clip bounds
+                // the semantics rect too — on web that rect is a clickable
+                // element, and at full size it swallowed clicks on the first
+                // rail destination.
+                child: SizedBox(
+                  width: _skipFocused ? null : 1,
+                  height: _skipFocused ? null : 1,
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: AlignmentDirectional.topStart,
+                      maxWidth: double.infinity,
+                      maxHeight: double.infinity,
+                      fit: OverflowBoxFit.deferToChild,
+                      child: Semantics(
+                        sortKey: const OrdinalSortKey(0),
+                        container: true,
+                        child: Opacity(
+                          opacity: _skipFocused ? 1 : 0,
+                          alwaysIncludeSemantics: true,
+                          child: FilledButton(
+                            focusNode: _skip,
+                            onPressed: _content.requestFocus,
+                            child: Text(l10n.skipToContent),
+                          ),
+                        ),
                       ),
                     ),
                   ),

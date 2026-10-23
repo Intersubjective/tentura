@@ -440,6 +440,39 @@ void main() {
       });
     }
 
+    // Trust marks keep a fixed on-screen size, so zoomed out they covered the
+    // node whole; like the pin badge they show only at normal detail.
+    for (final detail in const [
+      ConstellationDetailLevel.overview,
+      ConstellationDetailLevel.bare,
+    ]) {
+      testWidgets('at ${detail.name} detail no trust ring or disc', (
+        tester,
+      ) async {
+        final frame = frameOf([
+          ('p', const Offset(200, 200), lowZoomBody),
+        ], detail: detail);
+        await pumpLayer(
+          tester,
+          frame: frame,
+          trust: {'p': ConstellationTrustBadge.mutual},
+        );
+        expect(rings(), paintsNothing);
+
+        // Selected, it gets the plain target-size ring.
+        await pumpLayer(
+          tester,
+          frame: frame,
+          trust: {'p': ConstellationTrustBadge.mutual},
+          selected: 'p',
+        );
+        expect(
+          rings(),
+          paints..circle(x: 200, y: 200, radius: minTarget / 2),
+        );
+      });
+    }
+
     testWidgets('a node larger than a target gets no action ring', (
       tester,
     ) async {

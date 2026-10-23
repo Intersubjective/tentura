@@ -155,42 +155,17 @@ BeaconHudNowDisplay myWorkDeskNowDisplay(
   );
 }
 
-/// Room pin NOW row from [BeaconRoomState] and optional open blocker item.
-BeaconHudNowDisplay beaconRoomHudNowDisplay(
+/// The room's pinned open-blocker line, or null when nothing is blocked.
+String? beaconRoomBlockerText(
   L10n l10n, {
   required BeaconRoomState? roomState,
   CoordinationItem? openBlocker,
 }) {
   final blockerTitle = roomState?.openBlockerTitle?.trim() ??
       openBlocker?.title.trim();
-  final blockerText = blockerTitle != null && blockerTitle.isNotEmpty
+  return blockerTitle != null && blockerTitle.isNotEmpty
       ? l10n.beaconHudNowBlocked(blockerTitle)
       : null;
-
-  final currentLine = roomState?.currentLine.trim() ?? '';
-  if (currentLine.isNotEmpty) {
-    return BeaconHudNowDisplay(
-      primaryText: clipBeaconRoomCurrentLine(currentLine),
-      blockerText: blockerText,
-    );
-  }
-
-  return BeaconHudNowDisplay(
-    primaryText: l10n.beaconHudNoCurrentLine,
-    blockerText: blockerText,
-    isPlaceholder: true,
-  );
-}
-
-bool beaconRoomShowsPinnedNow({
-  required BeaconRoomState? roomState,
-  CoordinationItem? openBlocker,
-}) {
-  final currentLine = roomState?.currentLine.trim() ?? '';
-  if (currentLine.isNotEmpty) return true;
-  final blockerTitle = roomState?.openBlockerTitle?.trim() ??
-      openBlocker?.title.trim();
-  return blockerTitle != null && blockerTitle.isNotEmpty;
 }
 
 /// User-relative “YOU” instruction line (no new server fields).

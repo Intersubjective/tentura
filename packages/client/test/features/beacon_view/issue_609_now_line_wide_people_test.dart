@@ -19,11 +19,10 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 import 'beacon_view_screen_harness.dart';
 
-/// #609 (with #509): on a wide window the chat drops its pinned next step
-/// because the Now pane beside it shows the step (#451). When the trailing
-/// pane shows People (or Plan) instead of Now, the step was shown nowhere.
-/// The chat must pin it again whenever the Now pane is not on screen, and
-/// drop it again when Now comes back (still shown once).
+/// #609 (with #509) had the chat pin the next step whenever the Now pane
+/// beside it gave way to People or Plan. The owner reversed that: the pinned
+/// step took too much room over the chat, so the chat never pins it — the
+/// step lives on the Now tab, where it is edited.
 const _kNowLine = 'Van at 9:45, dolly from Omar';
 
 class _NowLineRoomRepository extends FakeBeaconThreadsRepository {
@@ -142,8 +141,8 @@ void main() {
     await unregisterBeaconViewHarnessGetIt();
   });
 
-  testWidgets('wide window, People beside the chat: the chat pins the next '
-      'step', (tester) async {
+  testWidgets('wide window, People beside the chat: the chat does not pin '
+      'the next step', (tester) async {
     final bundle = await _setUpRoom();
     await pumpBeaconViewHarness(
       tester,
@@ -164,9 +163,7 @@ void main() {
     // The Now pane is gone; the chat stays beside People.
     expect(find.byType(BeaconHudPinnedBlock), findsNothing);
     expect(find.byType(ThreadDetail), findsOneWidget);
-    // The step is still on screen, once, pinned in the chat.
-    expect(_nowLineIn(find.byType(ThreadDetail)), findsOneWidget);
-    expect(_nowLineAnywhere, findsOneWidget);
+    expect(_nowLineAnywhere, findsNothing);
   });
 
   testWidgets('wide window, back to Now: the step is shown once again, in '
@@ -182,11 +179,10 @@ void main() {
     await _waitForRoomState(tester, bundle.cubits);
 
     await _tapTab(tester, TestIds.beaconTabPeople);
-    expect(_nowLineIn(find.byType(ThreadDetail)), findsOneWidget);
+    expect(_nowLineAnywhere, findsNothing);
 
     await _tapTab(tester, TestIds.beaconTabNow);
 
-    // Guard: pinning the step in the chat always (dropping #451) fails here.
     expect(_nowLineIn(find.byType(BeaconHudPinnedBlock)), findsOneWidget);
     expect(_nowLineIn(find.byType(ThreadDetail)), findsNothing);
     expect(_nowLineAnywhere, findsOneWidget);

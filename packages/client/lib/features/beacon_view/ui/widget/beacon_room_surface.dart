@@ -26,7 +26,6 @@ class BeaconRoomSurface extends StatefulWidget {
     this.onCoordinationSaved,
     this.onOpenCoordinationItem,
     this.postRoot,
-    this.pinnedStrip,
     super.key,
   });
 
@@ -43,9 +42,6 @@ class BeaconRoomSurface extends StatefulWidget {
 
   /// Post rooms only: the pinned root strip.
   final RoomPostRootPin? postRoot;
-
-  /// Overrides the host's pinned strip; null keeps the host's.
-  final RoomPinnedStrip? pinnedStrip;
 
   @override
   State<BeaconRoomSurface> createState() => _BeaconRoomSurfaceState();
@@ -261,9 +257,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                   thread: _generalThread!,
                   beaconAuthorId: host.author.id,
                   beaconAuthor: host.author,
-                  capabilities: widget.pinnedStrip == null
-                      ? host.capabilities
-                      : host.capabilities.withPinnedStrip(widget.pinnedStrip!),
+                  capabilities: host.capabilities,
                   postRoot: widget.postRoot,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,

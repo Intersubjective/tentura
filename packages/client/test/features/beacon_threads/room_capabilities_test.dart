@@ -196,7 +196,7 @@ void main() {
       expect(caps.childPromotion, isTrue);
       expect(caps.commitmentSheet, isTrue);
       expect(caps.closure, isTrue);
-      expect(caps.pinnedStrip, RoomPinnedStrip.requestNow);
+      expect(caps.pinnedStrip, RoomPinnedStrip.requestBlocker);
     });
 
     test('post preset turns every flag off and pins the root strip', () {

@@ -313,6 +313,17 @@ SemanticsNode? _skipNode(WidgetTester tester) {
   return null;
 }
 
+/// [node]'s rect in window coordinates.
+Rect _globalRect(SemanticsNode node) {
+  var rect = node.rect;
+  for (SemanticsNode? n = node; n != null; n = n.parent) {
+    if (n.transform != null) {
+      rect = MatrixUtils.transformRect(n.transform!, rect);
+    }
+  }
+  return rect;
+}
+
 /// Index of the first node in reading order whose label contains [label].
 int _firstIndexOf(List<SemanticsNode> order, String label) =>
     order.indexWhere((n) => n.label.contains(label));
@@ -528,6 +539,21 @@ void main() {
       expect(_focusAt(rail), 'skip');
       _expectSkipShown(tester);
       await _activateSkipAndExpectPageFocus(tester, rail);
+      semantics.dispose();
+    });
+
+    // On web every semantics node is a clickable element: an unfocused skip
+    // control with a full-size rect sat over the first destination and ate
+    // clicks on it, showing «Skip to content» under the pointer instead.
+    testWidgets('#500 hidden Skip to content covers no rail destination', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpHome(tester, size: const Size(1280, 800));
+
+      final rect = _globalRect(_skipNode(tester)!);
+      expect(rect.width, lessThanOrEqualTo(1), reason: '$rect');
+      expect(rect.height, lessThanOrEqualTo(1), reason: '$rect');
       semantics.dispose();
     });
 
