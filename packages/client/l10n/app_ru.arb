@@ -7312,7 +7312,7 @@
   "constellationArrangeTooMany": "За один раз можно расставить не больше {max}",
   "constellationArrangeEditHint": "Перетащите сектор или его центр, чтобы сдвинуть; внутреннюю точку — чтобы изменить радиус; внешние точки — чтобы повернуть и расширить.",
   "constellationArrangeSkipped": "{count, plural, one{{count} выбранный объект нельзя расставить — он останется на месте} few{{count} выбранных объекта нельзя расставить — они останутся на месте} many{{count} выбранных объектов нельзя расставить — они останутся на месте} other{{count} выбранного объекта нельзя расставить — они останутся на месте}}",
-  "constellationArrangeOffField": "Часть мест выходит за край поля. Сдвиньте сектор или уменьшите его.",
+  "constellationArrangeOffField": "Часть мест выходит за край поля — эти объекты встанут у края поля.",
   "constellationArrangeCentre": "Центр сектора",
   "constellationArrangeRadius": "Внутренний радиус",
   "constellationArrangeStartEdge": "Начальный край сектора",

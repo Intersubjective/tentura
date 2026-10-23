@@ -2081,11 +2081,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// «Arrange in sector» (#644): stores [targets] (scene centres of people,
-  /// Requests and Posts) as user placements. A moved person's pinned
-  /// Requests that are not arranged themselves follow their author by the
-  /// same delta, as on a drag; an arranged Request goes to its own target.
-  /// Everything goes to the outbox together, in batches of
-  /// [kConstellationPlacementBatchCap] based on the anchor revision the user
+  /// Requests and Posts) as user placements. A target outside the
+  /// stored-position envelope is placed at its edge instead, held to the
+  /// bounds a drag holds a node to, so the server never refuses the batch.
+  /// A moved person's pinned Requests and Posts that are not arranged
+  /// themselves follow their author by the same delta, as on a drag (one that
+  /// cannot get inside the envelope stays where it is); an arranged Request
+  /// or Post goes to its own target. Everything goes to the outbox together,
+  /// in batches of [kConstellationPlacementBatchCap] based on the anchor revision the user
   /// sees: a reset made after it rejects them, and «Сбросить позиции» undoes
   /// them. Nodes that cannot be dragged are left out. False when nothing
   /// was written.
@@ -2116,7 +2119,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
     final arranged = {
       for (final MapEntry(key: target, value: centre) in targets.entries)
-        if (draggable(target)) target: centre,
+        if (draggable(target))
+          target: constellationClampToDragBounds(centre.lPoint).offset,
     };
     if (arranged.isEmpty || arranged.length > kConstellationSectorMaxItems) {
       return false;
@@ -2127,18 +2131,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       final from = drawnAt(target);
       if (from == null) continue;
       final delta = centre - from;
-      for (final requestId in _interaction.pinnedCompanionRequestIds(
+      for (final beaconId in _interaction.pinnedCompanionBeaconIds(
         authorId: target.id,
         field: state.field,
         composition: state.composition,
       )) {
-        final companion = ConstellationAnchorTarget.beacon(requestId);
+        final companion = ConstellationAnchorTarget.beacon(beaconId);
         final start = drawnAt(companion);
         if (arranged.containsKey(companion) || start == null) continue;
-        companions[companion] = constellationCompanionPosition(
+        final rest = constellationCompanionPosition(
           companionStart: start.lPoint,
           parentDelta: delta.lPoint,
-        ).offset;
+        );
+        // One that started outside the envelope and could not get back in
+        // would fail the whole batch: it stays where it is.
+        if (!constellationPointWithinEnvelope(rest)) continue;
+        companions[companion] = rest.offset;
       }
     }
     final writes = [

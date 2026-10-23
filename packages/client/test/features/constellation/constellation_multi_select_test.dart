@@ -79,13 +79,17 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 ConstellationAnchorRevision _revision(int value) =>
     ConstellationAnchorRevision(BigInt.from(value));
 
+/// One stored-position unit in scene pixels.
+const _unitPixels = kConstellationRingUnitPixels;
+
 const _people = [
   ConstellationPerson(id: 'a', displayName: 'Ann'),
   ConstellationPerson(id: 'b', displayName: 'Bob'),
 ];
 
 /// The anchor store of the server: applies batches, rejects a write based
-/// on a revision older than the last reset, and resets.
+/// on a revision older than the last reset or with a position out of range,
+/// and resets.
 final class _Server implements ConstellationAnchorRepositoryPort {
   int revision = 7;
 
@@ -94,6 +98,9 @@ final class _Server implements ConstellationAnchorRepositoryPort {
   int resetWatermark = 0;
   final anchors = <ConstellationAnchorTarget, ConstellationAnchor>{};
   final applies = <List<ConstellationAnchorApplyOp>>[];
+
+  /// Targets whose written position the server refused as out of range.
+  final outOfRange = <ConstellationAnchorTarget>[];
 
   @override
   Future<ConstellationAnchorApplyResult> apply({
@@ -105,6 +112,24 @@ final class _Server implements ConstellationAnchorRepositoryPort {
     final results = <ConstellationAnchorOpResult>[];
     for (final op in ops) {
       final base = op.baseRevision;
+      final position = op.position!;
+      if (ConstellationAnchorPosition.validate(
+            xUnits: position.xUnits,
+            yUnits: position.yUnits,
+            coordinateSpaceVersion: position.coordinateSpaceVersion,
+          )
+          is! ConstellationAnchorPositionValid) {
+        outOfRange.add(op.target);
+        results.add(
+          ConstellationAnchorOpResult(
+            clientOpId: op.clientOpId,
+            status: ConstellationAnchorOpStatus.rejected,
+            reason: 'out of range',
+            target: op.target,
+          ),
+        );
+        continue;
+      }
       if (base != null && base.compareTo(_revision(resetWatermark)) < 0) {
         results.add(
           ConstellationAnchorOpResult(
@@ -1168,34 +1193,67 @@ void main() {
       );
     });
 
-    testWidgets('places off the field cannot be applied', (tester) async {
+    testWidgets('places off the field can still be applied: the bar warns, '
+        'and those nodes are written at the edge of the field', (
+      tester,
+    ) async {
       final h = await _mount(tester);
       await open(tester, h, [_ann, _bob]);
       final sector = h.selection.state.sector!;
+      const envelopeLeft =
+          kConstellationCanvasCentre +
+          kConstellationCoordinateMinUnits * kConstellationRingUnitPixels;
       // Against the left edge of the stored-position envelope, pointing out.
       h.selection.editSector(
         sector.copyWith(
-          centre: (
-            x:
-                kConstellationCanvasCentre +
-                kConstellationCoordinateMinUnits *
-                    kConstellationRingUnitPixels +
-                20,
-            y: kConstellationCanvasCentre,
-          ),
+          centre: (x: envelopeLeft + 20, y: kConstellationCanvasCentre),
           direction: math.pi,
         ),
       );
       await _frames(tester);
-
+      final expected = preview(tester, h);
       expect(
-        find.byKey(const Key('constellation.selection.sector_off_field')),
+        expected.values.every((point) => point.dx < envelopeLeft),
+        isTrue,
+        reason: 'the test needs every place off the field',
+      );
+
+      final warning = find.byKey(
+        const Key('constellation.selection.sector_off_field'),
+      );
+      expect(warning, findsOneWidget);
+      expect(
+        find.text(
+          'Some places fall outside the field: those items will be placed '
+          'at the edge of the field.',
+        ),
         findsOneWidget,
       );
       final applyButton = find.byKey(
         const Key('constellation.selection.sector_apply'),
       );
-      expect(tester.widget<FilledButton>(applyButton).onPressed, isNull);
+      expect(tester.widget<FilledButton>(applyButton).onPressed, isNotNull);
+
+      await apply(tester);
+
+      expect(h.server.applies, hasLength(1), reason: 'one batch');
+      expect(h.server.outOfRange, isEmpty, reason: 'nothing refused');
+      final ops = h.server.applies.single;
+      expect(ops.map((op) => op.target), unorderedEquals([_ann, _bob]));
+      for (final op in ops) {
+        final position = op.position!;
+        expect(position.xUnits, greaterThan(kConstellationCoordinateMinUnits));
+        expect(
+          position.xUnits,
+          closeTo(kConstellationCoordinateMinUnits, 2 / _unitPixels),
+          reason: '${op.target} rests at the left edge',
+        );
+        // Only the axis that was off the field is moved.
+        final want = constellationPointToV1Anchor(expected[op.target]!.lPoint);
+        expect(position.yUnits, closeTo(want.yUnits, 1e-9));
+      }
+      expect(h.server.anchors.keys, unorderedEquals([_ann, _bob]));
+      expect(h.selection.state.sector, isNull, reason: 'the editor closes');
     });
 
     testWidgets('is rejected when a reset happened after the revision it '

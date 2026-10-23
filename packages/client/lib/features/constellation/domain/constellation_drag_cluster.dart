@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:meta/meta.dart';
+import 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 
 import 'constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -11,7 +14,8 @@ const kConstellationDragRequestBodySize = (width: 36.0, height: 36.0);
 /// Units epsilon for "anchor adopted at intended position" after recovery.
 const kConstellationAnchorAdoptEpsilonUnits = 1e-4;
 
-/// Pinned vs unpinned Request satellites of one author from field/overlay.
+/// Pinned vs unpinned satellites (Requests and Posts) of one author from
+/// field/overlay.
 @immutable
 final class ConstellationAuthorSatellites {
   const ConstellationAuthorSatellites({
@@ -25,7 +29,9 @@ final class ConstellationAuthorSatellites {
   Set<String> get allIds => {...pinnedIds, ...unpinnedIds};
 }
 
-/// Partitions an author's Requests using field + overlay rows and pinned ids.
+/// Partitions an author's Requests and Posts using field + overlay rows and
+/// pinned ids: a Request is pinned when [pinnedBeaconIds] holds it, a Post
+/// when [pinnedPostIds] does (the Posts the field draws at their pin).
 ///
 /// Does **not** use layout-visible maps — dormant/filter-hidden pins stay in
 /// [pinnedIds] when present in [pinnedBeaconIds] even if not drawn.
@@ -34,20 +40,32 @@ ConstellationAuthorSatellites constellationAuthorSatellites({
   required Iterable<ConstellationRequest> fieldRequests,
   required Iterable<ConstellationRequest> overlayPinnedRequests,
   required Set<String> pinnedBeaconIds,
+  Iterable<ConstellationPost> fieldPosts = const [],
+  Set<String> pinnedPostIds = const {},
 }) {
-  final byId = <String, ConstellationRequest>{
+  final requestIds = <String>{
     for (final request in fieldRequests)
-      if (request.authorId == authorId) request.id: request,
+      if (request.authorId == authorId) request.id,
     for (final request in overlayPinnedRequests)
-      if (request.authorId == authorId) request.id: request,
+      if (request.authorId == authorId) request.id,
   };
   final pinned = <String>{};
   final unpinned = <String>{};
-  for (final id in byId.keys) {
+  for (final id in requestIds) {
     if (pinnedBeaconIds.contains(id)) {
       pinned.add(id);
     } else {
       unpinned.add(id);
+    }
+  }
+  for (final post in fieldPosts) {
+    if (post.authorId != authorId || requestIds.contains(post.id)) {
+      continue;
+    }
+    if (pinnedPostIds.contains(post.id)) {
+      pinned.add(post.id);
+    } else {
+      unpinned.add(post.id);
     }
   }
   return ConstellationAuthorSatellites(
@@ -156,6 +174,42 @@ ConstellationPoint constellationCompanionPosition({
   required ConstellationPoint parentDelta,
   ConstellationSize companionSize = kConstellationDragRequestBodySize,
 }) => _slideWithinBounds(companionStart, parentDelta, companionSize);
+
+/// How far inside the stored-position envelope edge a clamped centre rests,
+/// in scene pixels, so its stored units survive rounding.
+const double kConstellationEnvelopeClampInsetPixels = 1;
+
+/// The nearest centre to [point] that a drag would let a node of [size] rest
+/// at: inside the stored-position envelope (a hair inside its edges) and with
+/// the body on the canvas, the same bounds a dragged node or a rigid group is
+/// held to. [point] itself when it is already there.
+ConstellationPoint constellationClampToDragBounds(
+  ConstellationPoint point, {
+  ConstellationSize size = kConstellationDragPersonBodySize,
+}) {
+  if (_centreValid(point, size)) {
+    return point;
+  }
+  const inset = kConstellationEnvelopeClampInsetPixels;
+  const envelopeMin =
+      kConstellationCanvasCentre +
+      kConstellationCoordinateMinUnits * kConstellationRingUnitPixels +
+      inset;
+  const envelopeMax =
+      kConstellationCanvasCentre +
+      kConstellationCoordinateMaxUnits * kConstellationRingUnitPixels -
+      inset;
+  double clampAxis(double value, double half) => value
+      .clamp(
+        math.max(envelopeMin, half),
+        math.min(envelopeMax, kConstellationCanvasExtent - half),
+      )
+      .toDouble();
+  return (
+    x: clampAxis(point.x, size.width / 2),
+    y: clampAxis(point.y, size.height / 2),
+  );
+}
 
 /// Scene delta for a selection moved as one group: the largest part of the
 /// pointer's delta, axis by axis, that the dragged parent and every other

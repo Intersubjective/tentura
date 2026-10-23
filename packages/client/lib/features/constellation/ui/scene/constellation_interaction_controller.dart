@@ -34,11 +34,11 @@ class ConstellationInteractionController {
   /// The other selected nodes moved with the dragged one (group drag): they
   /// travel by the parent's own delta as one rigid group and are all written
   /// on the drop, pinned before or not. The rest of the cluster are a
-  /// person's pinned Requests, which follow on their own as before.
+  /// person's pinned Requests and Posts, which follow on their own as before.
   final Set<GraphNodeId> groupMemberGraphIds = {};
 
-  /// The person each pinned Request of the cluster belongs to: it follows
-  /// that person's own movement, not the dragged node's.
+  /// The person each pinned Request or Post of the cluster belongs to: it
+  /// follows that person's own movement, not the dragged node's.
   final Map<GraphNodeId, GraphNodeId> companionAuthorGraphIds = {};
 
   /// Entering `dragging` (ARCH §5.4): freezes the committed scene.
@@ -160,7 +160,8 @@ class ConstellationInteractionController {
 
   /// Starts the drag of [target] and of the nodes that travel with it: the
   /// other [group] members (the rest of a selection, already filtered to
-  /// draggable nodes on the graph) and every person's pinned Requests.
+  /// draggable nodes on the graph) and every person's pinned Requests and
+  /// Posts.
   void beginClusterDragPresentation(
     ConstellationAnchorTarget target, {
     required ConstellationField? field,
@@ -209,9 +210,9 @@ class ConstellationInteractionController {
     }
   }
 
-  /// The pinned Requests of [authorId] drawn on the map now: they follow
-  /// their author whenever the author is moved.
-  Set<String> pinnedCompanionRequestIds({
+  /// The pinned Requests and Posts of [authorId] drawn on the map now: they
+  /// follow their author whenever the author is moved.
+  Set<String> pinnedCompanionBeaconIds({
     required String authorId,
     required ConstellationField? field,
     required ConstellationComposedPresentation? composition,
@@ -227,7 +228,10 @@ class ConstellationInteractionController {
       fieldRequests: field.requests,
       overlayPinnedRequests: composition.anchorOverlay.pinnedRequests,
       pinnedBeaconIds: pinnedBeaconIds,
+      fieldPosts: field.posts,
+      pinnedPostIds: composition.pinnedPostIds,
     );
+    // Requests and Posts share the field-beacon graph id kind.
     final onGraphRequestIds = <String>{
       for (final graphId
           in _graphController.renderSnapshot.topology.nodesById.keys)
@@ -245,15 +249,16 @@ class ConstellationInteractionController {
     required ConstellationComposedPresentation? composition,
     required List<ConstellationAnchor> fallbackAnchors,
   }) {
-    final companionIds = pinnedCompanionRequestIds(
+    final companionIds = pinnedCompanionBeaconIds(
       authorId: authorId,
       field: field,
       composition: composition,
     );
-    for (final requestId in companionIds) {
-      final companionTarget = ConstellationAnchorTarget.beacon(requestId);
+    for (final beaconId in companionIds) {
+      final companionTarget = ConstellationAnchorTarget.beacon(beaconId);
       final graphId = constellationGraphNodeIdForTarget(companionTarget);
-      // A selected Request moves with the group rather than its author.
+      // A selected Request or Post moves with the group rather than its
+      // author.
       if (placementClusterGraphIds.contains(graphId) ||
           _graphController.nodePayloadForId(graphId) == null) {
         continue;
@@ -314,8 +319,9 @@ class ConstellationInteractionController {
       );
       return Offset(point.x, point.y);
     }
-    // A pinned Request moves as far as its own author did, which for a group
-    // member that cannot travel the whole way is less than the parent.
+    // A pinned Request or Post moves as far as its own author did, which for
+    // a group member that cannot travel the whole way is less than the
+    // parent.
     final authorGraphId = companionAuthorGraphIds[graphId] ?? parentGraphId;
     final authorStart = clusterStartCentres[authorGraphId];
     var authorDelta = (x: 0.0, y: 0.0);

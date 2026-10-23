@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/constellation_drag_cluster.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 
@@ -32,6 +33,79 @@ void main() {
       );
       expect(result.pinnedIds, {'B2'});
       expect(result.unpinnedIds, {'B1'});
+    });
+
+    test("partitions the author's Posts by the pinned Posts", () {
+      final at = DateTime.utc(2026, 10, 22);
+      final result = constellationAuthorSatellites(
+        authorId: 'p1',
+        fieldRequests: const [],
+        overlayPinnedRequests: const [],
+        // A Post id among the anchored beacons alone is not enough.
+        pinnedBeaconIds: const {'P2'},
+        fieldPosts: [
+          ConstellationPost(
+            id: 'P1',
+            authorId: 'p1',
+            rootExcerpt: 'a',
+            lastActivityAt: at,
+          ),
+          ConstellationPost(
+            id: 'P2',
+            authorId: 'p1',
+            rootExcerpt: 'b',
+            lastActivityAt: at,
+          ),
+          ConstellationPost(
+            id: 'P3',
+            authorId: 'p2',
+            rootExcerpt: 'c',
+            lastActivityAt: at,
+          ),
+        ],
+        pinnedPostIds: const {'P1', 'P3'},
+      );
+      expect(result.pinnedIds, {'P1'});
+      expect(result.unpinnedIds, {'P2'});
+    });
+  });
+
+  group('constellationClampToDragBounds', () {
+    const min = 2048 - 10 * 170.0;
+    const max = 2048 + 10 * 170.0;
+
+    test('keeps a point already inside', () {
+      const inside = (x: 2100.0, y: 1900.0);
+      expect(constellationClampToDragBounds(inside), inside);
+    });
+
+    test('puts a point outside the envelope just inside its edge, moving '
+        'only the axes that are out', () {
+      final left = constellationClampToDragBounds((x: 100, y: 2000));
+      expect(
+        left.x,
+        closeTo(min + kConstellationEnvelopeClampInsetPixels, 1e-9),
+      );
+      expect(left.y, 2000);
+
+      final corner = constellationClampToDragBounds((x: 5000, y: -300));
+      expect(
+        corner.x,
+        closeTo(max - kConstellationEnvelopeClampInsetPixels, 1e-9),
+      );
+      expect(
+        corner.y,
+        closeTo(min + kConstellationEnvelopeClampInsetPixels, 1e-9),
+      );
+      final units = constellationPointToV1Anchor(corner);
+      expect(
+        ConstellationAnchorPosition.validate(
+          xUnits: units.xUnits,
+          yUnits: units.yUnits,
+          coordinateSpaceVersion: units.coordinateSpaceVersion,
+        ),
+        isA<ConstellationAnchorPositionValid>(),
+      );
     });
   });
 

@@ -1434,7 +1434,8 @@ class ConstellationSelectionBar extends StatelessWidget {
       selection.cancelSector();
       return;
     }
-    if (preview.outside.isNotEmpty) return;
+    // Places off the field are allowed: the cubit puts those nodes at the
+    // edge of the field, and the bar has said so.
     if (cubit.placeArrangement({
       for (final MapEntry(key: graphId, value: point)
           in preview.targets.entries)
@@ -1645,7 +1646,7 @@ class ConstellationSelectionBar extends StatelessWidget {
             SizedBox(width: context.tt.rowGap),
             FilledButton(
               key: const Key('constellation.selection.sector_apply'),
-              onPressed: preview == null || offField
+              onPressed: preview == null
                   ? null
                   : () => _apply(context, selection),
               child: Text(l10n.constellationArrangeApply),

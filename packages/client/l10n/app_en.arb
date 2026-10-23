@@ -10699,9 +10699,9 @@
       }
     }
   },
-  "constellationArrangeOffField": "Some places fall outside the field. Move the sector or make it smaller.",
+  "constellationArrangeOffField": "Some places fall outside the field: those items will be placed at the edge of the field.",
   "@constellationArrangeOffField": {
-    "context": "Field map: why «Arrange» is unavailable: some target places are beyond the edge of the field (#644)"
+    "context": "Field map: warning in «Arrange in a sector»: some target places are beyond the edge of the field, so Apply puts those nodes at the edge instead (#644)"
   },
   "constellationArrangeCentre": "Sector centre",
   "@constellationArrangeCentre": {
