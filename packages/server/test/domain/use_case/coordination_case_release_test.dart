@@ -35,7 +35,6 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
-
 class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   _TransactionStubBeaconRepo(this._beacon);
 
@@ -45,16 +44,14 @@ class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
-  }) async =>
-      _beacon;
+  }) async => _beacon;
 
   @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
-  }) =>
-      fn(_beacon);
+  }) => fn(_beacon);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -90,6 +87,20 @@ class _RacingLockHierarchy extends FakeBeaconHierarchyRepository {
       _secondArrived.complete();
       await _firstDone.future;
     }
+  }
+}
+
+/// Runs [onLock] once the hierarchy lock is taken, to model a write that
+/// committed between the pre-checks and the locked reads (#634).
+class _OnLockHierarchy extends FakeBeaconHierarchyRepository {
+  _OnLockHierarchy(this.onLock);
+
+  final void Function() onLock;
+
+  @override
+  Future<void> lockMutationScope() async {
+    await super.lockMutationScope();
+    onLock();
   }
 }
 
@@ -203,24 +214,28 @@ void main() {
     buildCoordinationCase();
   });
 
-  test('release without acknowledgement throws commitmentNotAcknowledged', () async {
-    await expectLater(
-      coordinationCase.releaseCommitment(
-        beaconId: beaconId,
-        offerUserId: helperId,
-        authorUserId: authorId,
-        reason: 'done',
-      ),
-      throwsA(
-        isA<HelpOfferCoordinationException>().having(
-          (e) => (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
-          'code',
-          HelpOfferCoordinationExceptionCode.commitmentNotAcknowledged,
+  test(
+    'release without acknowledgement throws commitmentNotAcknowledged',
+    () async {
+      await expectLater(
+        coordinationCase.releaseCommitment(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          authorUserId: authorId,
+          reason: 'done',
         ),
-      ),
-    );
-    expect(commitmentRepo.recordCalls, isEmpty);
-  });
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.commitmentNotAcknowledged,
+          ),
+        ),
+      );
+      expect(commitmentRepo.recordCalls, isEmpty);
+    },
+  );
 
   test('release removes current stake but keeps everAcknowledged', () async {
     commitmentRepo = RecordingCommitmentRepository();
@@ -246,7 +261,10 @@ void main() {
     );
 
     expect(commitmentRepo.recordCalls, hasLength(3));
-    expect(commitmentRepo.recordCalls.last.kind, CommitmentEventKind.releasedByAuthor);
+    expect(
+      commitmentRepo.recordCalls.last.kind,
+      CommitmentEventKind.releasedByAuthor,
+    );
 
     final events = await commitmentRepo.eventsForPair(
       beaconId: beaconId,
@@ -434,4 +452,85 @@ void main() {
       expect(secondResult.beaconId, beaconId);
     },
   );
+
+  group('status re-read under the lock (#634)', () {
+    Future<void> seedAcknowledged() async {
+      commitmentRepo = RecordingCommitmentRepository();
+      await commitmentRepo.record(
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: authorId,
+        kind: CommitmentEventKind.offered,
+      );
+      await commitmentRepo.record(
+        beaconId: beaconId,
+        userId: helperId,
+        actorUserId: authorId,
+        kind: CommitmentEventKind.acknowledged,
+      );
+    }
+
+    test('a Close committed before the lock ends in beaconNotOpen', () async {
+      await seedAcknowledged();
+      final hierarchy = _OnLockHierarchy(() {
+        // The author closed the request while this release waited.
+        when(
+          beaconRepo.getBeaconById(beaconId: beaconId),
+        ).thenAnswer((_) async => beacon(status: BeaconStatus.closed));
+        when(
+          coordinationRepo.beaconStatusSnapshot(beaconId),
+        ).thenAnswer(
+          (_) async => (status: BeaconStatus.closed, statusChangedAt: now),
+        );
+      });
+      buildCoordinationCase(hierarchy: hierarchy);
+      final recordsBefore = commitmentRepo.recordCalls.length;
+
+      await expectLater(
+        coordinationCase.releaseCommitment(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          authorUserId: authorId,
+          reason: 'done',
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.beaconNotOpen,
+          ),
+        ),
+      );
+
+      expect(hierarchy.lockMutationScopeCalls, 1);
+      expect(commitmentRepo.recordCalls, hasLength(recordsBefore));
+      expect(attention.recorded, isEmpty);
+      verifyNever(
+        helpOfferRepo.deactivate(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+    });
+
+    test('an unchanged status under the lock still releases', () async {
+      await seedAcknowledged();
+      final hierarchy = _OnLockHierarchy(() {});
+      buildCoordinationCase(hierarchy: hierarchy);
+
+      await coordinationCase.releaseCommitment(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        authorUserId: authorId,
+        reason: 'done',
+      );
+
+      expect(hierarchy.lockMutationScopeCalls, 1);
+      expect(
+        commitmentRepo.recordCalls.last.kind,
+        CommitmentEventKind.releasedByAuthor,
+      );
+    });
+  });
 }
