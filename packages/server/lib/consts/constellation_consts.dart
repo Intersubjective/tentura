@@ -7,6 +7,10 @@ const kConstellationRequestCap = 150;
 /// Candidates examined per readability batch of the discoverable keyset scan.
 const kConstellationDiscoverableScanBatch = kConstellationRequestCap + 1;
 
+/// Most Requests one targeted `constellationFieldRequests` read returns
+/// (#671); the client asks for the few a burst of hints named.
+const kConstellationFieldRequestsByIdsCap = 20;
+
 /// Max characters of a Post's root message shown on its field card.
 const kConstellationPostExcerptLength = 140;
 

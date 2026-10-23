@@ -365,6 +365,7 @@ class _V2RoutingLink extends Link {
     'ContactDelete',
     'ConstellationFieldFetch',
     'ConstellationAnchorsFetch',
+    'ConstellationFieldRequestsFetch',
     'ConstellationAnchorsApply',
     'ConstellationAnchorsReset',
     'UserBlock',

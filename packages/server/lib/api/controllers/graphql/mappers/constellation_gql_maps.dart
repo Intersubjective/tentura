@@ -117,6 +117,11 @@ Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) =>
     ? {'id': request.id, 'pinState': request.pinState}
     : _liveRequestToGqlMap(request);
 
+/// One live Request row, as the field's `requests` list carries it.
+Map<String, dynamic> constellationRequestToGqlMap(
+  ConstellationRequestRecord request,
+) => _liveRequestToGqlMap(request);
+
 Map<String, dynamic> _liveRequestToGqlMap(ConstellationRequestRecord request) =>
     {
       'id': request.id,

@@ -210,10 +210,11 @@
       "clientKind": "relationship",
       "genericTriggerArgs": [],
       "specializedPublishers": ["notify_relationship_change"],
-      "impacts": ["friends", "profile_controls", "people_visibility", "forward_candidates", "trust_graph"],
+      "impacts": ["friends", "profile_controls", "people_visibility", "forward_candidates", "trust_graph", "constellation_field"],
       "tests": [
         "packages/client/test/features/friends/friends_cubit_test.dart",
-        "packages/client/test/features/graph/graph_relationship_realtime_test.dart"
+        "packages/client/test/features/graph/graph_relationship_realtime_test.dart",
+        "packages/client/test/features/constellation/constellation_field_freshness_case_test.dart"
       ]
     },
     {
@@ -282,6 +283,18 @@
       "tests": [
         "packages/client/test/data/service/invalidation_service_constellation_revision_test.dart",
         "packages/server/test/data/database/constellation_field_hint_producers_pg_test.dart"
+      ]
+    },
+    {
+      "wireKind": "constellation_item",
+      "acceptedWireKinds": ["constellation_item"],
+      "clientKind": "constellationItem",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_constellation_item_discoverable"],
+      "impacts": ["constellation_field"],
+      "tests": [
+        "packages/client/test/features/constellation/constellation_field_freshness_case_test.dart",
+        "packages/server/test/data/database/constellation_item_hint_producer_pg_test.dart"
       ]
     },
     {

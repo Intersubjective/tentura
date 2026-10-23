@@ -9,11 +9,13 @@ import 'package:tentura/data/repository/remote_repository.dart';
 
 import '../../domain/exception.dart';
 import '../../domain/port/like_write_port.dart';
+import '../../domain/port/person_trust_writes_port.dart';
 import '../gql/_g/like_beacon_by_id.req.gql.dart';
 import '../gql/_g/like_user_by_id.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class LikeRemoteRepository extends RemoteRepository implements LikeWritePort {
+class LikeRemoteRepository extends RemoteRepository
+    implements LikeWritePort, PersonTrustWritesPort {
   LikeRemoteRepository({
     required super.remoteApiService,
     required super.log,
@@ -22,6 +24,16 @@ class LikeRemoteRepository extends RemoteRepository implements LikeWritePort {
   final _controller = StreamController<RepositoryEvent<Likable>>.broadcast();
 
   Stream<RepositoryEvent<Likable>> get changes => _controller.stream;
+
+  @override
+  Stream<PersonTrustWrite> get personTrustWrites => changes.expand(
+    (event) => switch (event) {
+      RepositoryEventUpdate(value: final Profile profile) => [
+        (personId: profile.id, amount: profile.myVote),
+      ],
+      _ => const <PersonTrustWrite>[],
+    },
+  );
 
   @disposeMethod
   Future<void> dispose() => _controller.close();

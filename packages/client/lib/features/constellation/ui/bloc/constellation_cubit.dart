@@ -2680,24 +2680,35 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _scene.centreOnPerson(personId, insets);
   }
 
+  /// [personId]'s Requests on the field, pinned ones included (#673): a FULL
+  /// read carries a pinned Request only in the anchor projection, so reading
+  /// `requests` alone loses it after a reload.
   List<ConstellationRequest> discoverableRequestsForPerson(String personId) {
     final field = shownField;
     if (field == null) {
       return const [];
     }
-    final filteredRequestIds = _filteredRequestIds(field);
+    final byId = <String, ConstellationRequest>{
+      for (final request in [
+        ...field.requests,
+        ...field.resolvedAnchorProjection.pinnedRequests,
+      ])
+        if (request.authorId == personId) request.id: request,
+    };
+    final filteredRequestIds = _filteredRequestIds(field, byId.values);
     return [
-      for (final request in field.requests)
-        if (request.authorId == personId &&
-            filteredRequestIds.contains(request.id))
-          request,
+      for (final request in byId.values)
+        if (filteredRequestIds.contains(request.id)) request,
     ]..sort((a, b) => a.id.compareTo(b.id));
   }
 
-  Set<String> _filteredRequestIds(ConstellationField field) {
+  Set<String> _filteredRequestIds(
+    ConstellationField field, [
+    Iterable<ConstellationRequest>? requests,
+  ]) {
     final asOf = state.loadedAt ?? field.loadedAt;
     return filterRequestIds(
-      requests: field.requests.map(
+      requests: (requests ?? field.requests).map(
         (request) => (
           id: request.id,
           needs: request.needs.toSet(),

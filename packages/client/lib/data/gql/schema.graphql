@@ -5099,6 +5099,7 @@ type query_root {
   closureResultForViewer(beaconId: String!): v2_ClosureResult
   closureState(beaconId: String!): v2_ClosureState!
   constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
+  constellationFieldRequests(ids: [String!]!, participatedOnly: Boolean! = false, showClosed: Boolean! = false): [v2_ConstellationRequest!]!
 
   """
   fetch data from the table: "edge"

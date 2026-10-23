@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 const impactSubscribers = <String, List<String>>{
   'constellation_field': [
     'packages/client/lib/features/constellation/domain/use_case/constellation_field_store_case.dart',
+    'packages/client/lib/features/constellation/domain/use_case/constellation_field_freshness_case.dart',
   ],
   'avatars': [
     'packages/client/lib/features/profile/ui/bloc/profile_cubit.dart',
