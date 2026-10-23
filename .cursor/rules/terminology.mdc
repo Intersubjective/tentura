@@ -20,7 +20,7 @@ alwaysApply: true
 
 Russian: **запрос** / **запросы**; workspace **обсуждение**. Coordination **ask** (sub-thread item in a thread): **просьба** / **просьбы** — not «запрос».
 
-One conversation inside the workspace is a **thread** / **тема**; the built-in thread is **General** / **Общее** (not a glossary-table column).
+One conversation inside the workspace is a **thread** / **тема**; the built-in thread is shown as **Discussion** / «Обсуждение» (#609, V4; formerly General / Общее, which must not come back in user-facing copy). Internally it is still the General thread (`threadGeneralTitle`, General-only rooms); the inbox category "General" is a different thing (not a glossary-table column).
 
 **Questions** / «Вопросы» (internally: the Request **lobby**; `BeaconLobby*`, `beacon_lobby`, `coordination_item` kind 7) is a Request's pre-commitment conversation for the people it was sent to, outside the discussion. Never call it «Лобби» / "Lobby" in user-facing copy; in running RU text it is «вопросы» (e.g. «Закрыть доступ к вопросам»). See [`docs/features/beacon_questions.md`](../../docs/features/beacon_questions.md).
 

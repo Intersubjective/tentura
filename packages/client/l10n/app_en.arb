@@ -4764,7 +4764,7 @@
     },
     "description": "Child request card: one admitted helper display name"
   },
-  "threadGeneralTitle": "General",
+  "threadGeneralTitle": "Discussion",
   "threadClosedFoldTitle": "Closed ({count})",
   "@threadClosedFoldTitle": {
     "placeholders": {
@@ -4867,9 +4867,9 @@
   "beaconSituationCurrentLineLabel": "Next step",
   "beaconSituationBlockerLabel": "Blocker",
   "beaconSituationLastChangeLabel": "Last",
-  "beaconSituationOpenRoom": "Open General",
+  "beaconSituationOpenRoom": "Open discussion",
   "beaconBlockersPanelTitle": "Blockers / questions",
-  "beaconBlockersPanelAskInRoom": "Ask in General",
+  "beaconBlockersPanelAskInRoom": "Ask in discussion",
   "beaconHudYourRolePanelTitle": "Your role",
   "beaconHudYouAuthorReview": "{count, plural, =1{Review 1 offer} other{Review {count} offers}}",
   "@beaconHudYouAuthorReview": {
@@ -4978,7 +4978,7 @@
   "beaconCloseSheetActionKeepActive": "Keep active",
   "beaconCloseSheetActionOpenPeople": "Open people",
   "beaconCloseAnswerFirst": "Answer first",
-  "beaconCloseSheetActionResolveRoom": "Open General",
+  "beaconCloseSheetActionResolveRoom": "Open discussion",
   "beaconCloseSheetActionNotNow": "Not now",
   "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
   "beaconCloseSheetReadyReviewTitle": "Close and start the final check?",
@@ -5209,7 +5209,7 @@
   "beaconNeedCardTitle": "Need",
   "beaconDefinitionSectionTitle": "Definition",
   "beaconDefinitionLastPublicChangeLabel": "Last update",
-  "beaconDefinitionLastRoomChangeLabel": "Last in General",
+  "beaconDefinitionLastRoomChangeLabel": "Last in discussion",
   "beaconNeedAndContextTitle": "Need & context",
   "beaconContextAttachmentsTitle": "Context & attachments",
   "beaconNeedBriefPrefix": "Need:",
@@ -5385,13 +5385,13 @@
     }
   },
   "beaconRelationNoTrail": "No forward chain recorded for you.",
-  "beaconRoomTitle": "General",
+  "beaconRoomTitle": "Discussion",
   "beaconRoomMessageHint": "Write a message…",
   "beaconRoomMessageReadOnlyHint": "This discussion is read-only",
   "@beaconRoomMessageReadOnlyHint": {
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
-  "beaconRoomOpen": "General",
+  "beaconRoomOpen": "Discussion",
   "beaconRoomBackToChat": "Back to Chat",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
@@ -5718,7 +5718,7 @@
   "beaconRoomStripCurrentLineLabel": "What the team does next",
   "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
-  "beaconRoomStripOpenBlockerHint": "A blocker is open in General (details in the thread).",
+  "beaconRoomStripOpenBlockerHint": "A blocker is open in the discussion (details in the thread).",
   "coordinationCreatePromiseAction": "Make a promise…",
   "coordinationCreatePromiseSheetPrompt": "What do you promise to do?",
   "coordinationCreatePromiseFromMessage": "Promise from message",
@@ -6018,7 +6018,7 @@
       }
     }
   },
-  "inboxCardRoomUnread": "{count, plural, =0{General up to date} one{1 unread in General} other{{count} unread in General}}",
+  "inboxCardRoomUnread": "{count, plural, =0{Discussion up to date} one{1 unread in the discussion} other{{count} unread in the discussion}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
       "count": {
@@ -6026,7 +6026,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "Next step in General: {text}",
+  "inboxCardRoomCurrentLine": "Next step in the discussion: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -6042,7 +6042,7 @@
       }
     }
   },
-  "inboxCardRoomLastChange": "Latest in General: {text}",
+  "inboxCardRoomLastChange": "Latest in the discussion: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
       "text": {
@@ -6853,7 +6853,7 @@
   "updatesFallbackTitleCommitmentCancelled": "Commitment cancelled",
   "updatesFallbackBodyCommitmentCancelled": "A commitment was cancelled on a request.",
   "updatesFallbackTitleCommitmentRedirected": "Reassigned to you",
-  "updatesFallbackBodyCommitmentRedirected": "Open General to see your assignment.",
+  "updatesFallbackBodyCommitmentRedirected": "Open the discussion to see your assignment.",
   "updatesFallbackTitleTrustGivenChanged": "Trust update",
   "updatesFallbackBodyTrustGivenChanged": "Your trust in someone changed after a request closed.",
   "updatesFallbackTitleTrustReceivedChanged": "Trust update",
