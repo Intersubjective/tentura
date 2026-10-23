@@ -434,8 +434,54 @@ function renderNameStep({ prefill, track, onDone }) {
   );
 }
 
+// #522: each pager step is its own session-history entry, so the browser
+// Back/Forward buttons move between steps instead of leaving the flow.
+const PAGER_HISTORY_KEY = 'tenturaOnboardingPage';
+let detachPagerHistory = null;
+
+function pagerHistory() {
+  const h = globalThis.history;
+  if (
+    !h ||
+    typeof h.pushState !== 'function' ||
+    typeof globalThis.addEventListener !== 'function'
+  ) {
+    return null;
+  }
+  return h;
+}
+
+function pageFromHistoryState(state) {
+  const page = state?.[PAGER_HISTORY_KEY];
+  return Number.isInteger(page) ? page : null;
+}
+
+function writePagerHistory(nav, page, { push }) {
+  const state = { ...(nav.state ?? {}), [PAGER_HISTORY_KEY]: page };
+  try {
+    if (push) {
+      nav.pushState(state, '');
+    } else {
+      nav.replaceState(state, '');
+    }
+  } catch (_) {
+    /* sandboxed or old browser: browser Back just leaves the flow */
+  }
+}
+
 function renderOnboardingPager({ track, openProductUrl, storage }) {
   let page = 0;
+  const nav = pagerHistory();
+  // Set below when this pager listens to browser Back/Forward.
+  let detachOwnHistory = null;
+  // Leaving the flow (Continue or Skip) drops this pager's popstate
+  // listener; a re-render drops it too (detachPagerHistory).
+  const finishPagerHistory = () => {
+    if (!detachOwnHistory) return;
+    detachOwnHistory();
+    if (detachPagerHistory === detachOwnHistory) detachPagerHistory = null;
+    detachOwnHistory = null;
+  };
 
   const title = el('h1', {});
   const body = el('p', {});
@@ -455,6 +501,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
   );
   openApp.addEventListener('click', () => {
     markOnboardingDone(storage);
+    finishPagerHistory();
     track('onboarding_done');
   });
 
@@ -465,6 +512,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
   );
   skip.addEventListener('click', () => {
     markOnboardingDone(storage);
+    finishPagerHistory();
     track('onboarding_skipped', { page: page + 1 });
     location.assign(openProductUrl());
   });
@@ -504,9 +552,37 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     track('onboarding_view', { page: page + 1 });
   };
 
-  back.addEventListener('click', () => show(page - 1));
-  next.addEventListener('click', () => show(page + 1));
-  show(0);
+  back.addEventListener('click', () => {
+    // Our own entry for this step sits on top of the previous step's: go
+    // back through history so browser Back/Forward stay in step.
+    if (nav && page > 0 && pageFromHistoryState(nav.state) === page) {
+      nav.back();
+      return;
+    }
+    show(page - 1);
+  });
+  next.addEventListener('click', () => {
+    show(page + 1);
+    if (nav) writePagerHistory(nav, page, { push: true });
+  });
+
+  if (nav) {
+    detachPagerHistory?.();
+    const onPopState = (e) => {
+      const target = pageFromHistoryState(e.state);
+      // Not one of our entries: leave it to the page.
+      if (target != null) show(target);
+    };
+    globalThis.addEventListener('popstate', onPopState);
+    detachOwnHistory = () =>
+      globalThis.removeEventListener?.('popstate', onPopState);
+    detachPagerHistory = detachOwnHistory;
+    // Reload keeps the entry's state: resume at that step.
+    show(pageFromHistoryState(nav.state) ?? 0);
+    writePagerHistory(nav, page, { push: false });
+  } else {
+    show(0);
+  }
 
   return el(
     'div',
