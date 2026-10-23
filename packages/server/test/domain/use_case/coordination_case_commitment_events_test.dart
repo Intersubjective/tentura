@@ -388,6 +388,202 @@ void main() {
     });
   });
 
+  // #596: a backup offer is answered with «Keep as standby»: the author's
+  // obligation ends, the offer stays a backup.
+  group('keepHelpOfferAsStandby', () {
+    HelpOfferEntity backupOffer() =>
+        activeOffer().copyWith(offerKind: HelpOfferKind.backup);
+
+    void stubBackupOffer() {
+      when(
+        helpOfferRepo.fetchByBeaconId(beaconId),
+      ).thenAnswer((_) async => [backupOffer()]);
+    }
+
+    Matcher throwsCoordinationCode(HelpOfferCoordinationExceptionCode code) =>
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            code,
+          ),
+        );
+
+    test('author ends the obligation and leaves the offer alone', () async {
+      stubAdmissionPrereqs();
+      stubBackupOffer();
+
+      await case_.keepHelpOfferAsStandby(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: authorId,
+      );
+
+      expect(hierarchy.lockMutationScopeCalls, 1);
+      // An answer: resolved, receipt seen (#707 review), not superseded.
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
+      expect(systemSettlement.supersedeAuthorHelpOfferSubmittedCalls, isEmpty);
+      expect(commitmentRepo.recordCalls, isEmpty);
+      verifyNever(
+        helpOfferRepo.deactivate(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+      verifyNever(
+        coordinationRepo.declineHelpOffer(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          actorUserId: anyNamed('actorUserId'),
+          reason: anyNamed('reason'),
+        ),
+      );
+    });
+
+    test('steward ends the obligation of the author account', () async {
+      stubAdmissionPrereqs(actorUserId: stewardId);
+      stubBackupOffer();
+
+      await case_.keepHelpOfferAsStandby(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: stewardId,
+      );
+
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
+    });
+
+    test('someone who is neither author nor steward is refused', () async {
+      const otherId = 'U-other';
+      stubAdmissionPrereqs();
+      stubBackupOffer();
+      when(
+        roomRepo.isBeaconSteward(beaconId: beaconId, userId: otherId),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.keepHelpOfferAsStandby(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: otherId,
+        ),
+        throwsCoordinationCode(
+          HelpOfferCoordinationExceptionCode.notBeaconAuthor,
+        ),
+      );
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, isEmpty);
+    });
+
+    test('an ordinary offer is refused', () async {
+      stubAdmissionPrereqs();
+
+      await expectLater(
+        case_.keepHelpOfferAsStandby(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: authorId,
+        ),
+        throwsCoordinationCode(
+          HelpOfferCoordinationExceptionCode.offerKindChanged,
+        ),
+      );
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, isEmpty);
+    });
+
+    test('a withdrawn or missing offer is refused', () async {
+      stubAdmissionPrereqs();
+      when(
+        helpOfferRepo.fetchByBeaconId(beaconId),
+      ).thenAnswer((_) async => const []);
+
+      await expectLater(
+        case_.keepHelpOfferAsStandby(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: authorId,
+        ),
+        throwsCoordinationCode(
+          HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+        ),
+      );
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, isEmpty);
+    });
+
+    // #707 review: a backup already admitted or acknowledged is no longer
+    // pending; the server refuses it as decline does.
+    test('an acknowledged backup offer is refused', () async {
+      commitmentRepo = RecordingCommitmentRepository(
+        eventsByPair: {
+          commitmentPairKey(beaconId, helperId): [
+            event(seq: 1, kind: CommitmentEventKind.offered),
+            event(seq: 2, kind: CommitmentEventKind.acknowledged),
+          ],
+        },
+      );
+      buildCase();
+      stubAdmissionPrereqs();
+      stubBackupOffer();
+
+      await expectLater(
+        case_.keepHelpOfferAsStandby(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: authorId,
+        ),
+        throwsCoordinationCode(
+          HelpOfferCoordinationExceptionCode.commitmentAlreadyAcknowledged,
+        ),
+      );
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, isEmpty);
+      expect(systemSettlement.supersedeAuthorHelpOfferSubmittedCalls, isEmpty);
+    });
+
+    // Guard (passes before #596): declining a backup offer was already
+    // allowed on the server; only the sheet hid it.
+    test('declining a backup offer settles the obligation', () async {
+      stubAdmissionPrereqs();
+      stubBackupOffer();
+      when(
+        coordinationRepo.declineHelpOffer(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: authorId,
+          reason: 'no',
+        ),
+      ).thenAnswer(
+        (_) async => (status: BeaconStatus.enoughHelp, statusChangedAt: now),
+      );
+
+      await case_.declineHelpOffer(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: authorId,
+        reason: 'no',
+      );
+
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
+    });
+  });
+
   group('declineRemainingHelpOffers', () {
     test('reads status and offers only after taking the hierarchy '
         'lock', () async {

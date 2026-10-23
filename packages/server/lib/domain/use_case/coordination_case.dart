@@ -563,6 +563,53 @@ final class CoordinationCase extends UseCaseBase {
     );
   }
 
+  /// «Keep as standby» (#596): the author or a steward answers a backup
+  /// offer without admitting or declining it. That is an answer, so the
+  /// author's `helpOfferSubmitted` obligation is settled as `resolved` and its
+  /// receipt marked seen; the offer stays active as a backup and nothing is
+  /// recorded for the helper. Only a pending backup can be kept: one already
+  /// acknowledged is refused, as [declineHelpOffer] refuses it.
+  Future<void> keepHelpOfferAsStandby({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+  }) async {
+    await _attention!.runAction<void>(
+      actorUserId: actorUserId,
+      action: (transaction) async {
+        // Lock order (Arch §0): as [declineHelpOffer].
+        await _hierarchyRepository.lockMutationScope();
+        await _closureCase?.lockRequest(beaconId);
+        final prepared = await _prepareAdmissionAction(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          actorUserId: actorUserId,
+        );
+        if (prepared.offer.offerKind != HelpOfferKind.backup) {
+          throw HelpOfferCoordinationException(
+            coordinationCode:
+                HelpOfferCoordinationExceptionCode.offerKindChanged,
+          );
+        }
+        // Re-read after locking, as in [declineHelpOffer].
+        if (await _commitmentQueryCase.everAcknowledgedPair(
+          beaconId: beaconId,
+          userId: offerUserId,
+        )) {
+          throw HelpOfferCoordinationException(
+            coordinationCode: HelpOfferCoordinationExceptionCode
+                .commitmentAlreadyAcknowledged,
+          );
+        }
+        await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
+          beaconId: beaconId,
+          authorAccountId: prepared.beacon.author.id,
+          helpOffererUserId: offerUserId,
+        );
+      },
+    );
+  }
+
   /// «Decline remaining offers» (#268, D10): after «Enough help», declines
   /// every offer still waiting for an answer, in one transaction, with one
   /// [reason] that each declined person sees privately (as with a single

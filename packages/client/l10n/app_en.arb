@@ -5294,6 +5294,14 @@
   "@helpOfferBackupAuthorNote": {
     "description": "Author note on a backup card with no Admit action"
   },
+  "helpOfferKeepStandby": "Keep as standby",
+  "@helpOfferKeepStandby": {
+    "description": "Help-offer sheet: answer a backup offer without admitting it; it stays a backup"
+  },
+  "helpOfferKeptStandby": "Kept as standby",
+  "@helpOfferKeptStandby": {
+    "description": "Snackbar after Keep as standby on a backup offer"
+  },
   "helpOffersBackupGroupHint": "On standby: they offered to step in if more help is needed. Not in the discussion.",
   "@helpOffersBackupGroupHint": {
     "description": "Once under the People tab Backup offers group header"

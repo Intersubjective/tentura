@@ -243,6 +243,7 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
       <({String beaconId, String offerUserId, String reason})>[];
   final removeFromRoomCalls =
       <({String beaconId, String offerUserId, String reason})>[];
+  final keepHelpOfferStandbyCalls = <({String beaconId, String offerUserId})>[];
 
   final peopleSeenBeaconIds = <String>[];
 
@@ -317,6 +318,18 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
       reason: reason,
     ));
     return (status: BeaconStatus.open, updatedAt: DateTime.utc(2026));
+  }
+
+  @override
+  Future<bool> keepHelpOfferStandby({
+    required String beaconId,
+    required String offerUserId,
+  }) async {
+    keepHelpOfferStandbyCalls.add((
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+    ));
+    return true;
   }
 
   // Default markBeaconPeopleSeen via noSuchMethod (not a concrete override)

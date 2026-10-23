@@ -40,6 +40,7 @@ final class MutationCoordination extends GqlNodeBase {
     setCoordinationResponse,
     acceptHelpOffer,
     declineHelpOffer,
+    beaconHelpOfferKeepStandby,
     declineRemainingHelpOffers,
     removeFromRoom,
     releaseCommitment,
@@ -111,6 +112,27 @@ final class MutationCoordination extends GqlNodeBase {
                 reason: _reason.fromArgsNonNullable(args),
               )
               .then(beaconStatusResultToGqlMap);
+        },
+      );
+
+  /// «Keep as standby» (#596): answers a backup offer without admitting or
+  /// declining it; ends the author's obligation for it.
+  GraphQLObjectField<dynamic, dynamic> get beaconHelpOfferKeepStandby =>
+      GraphQLObjectField(
+        'beaconHelpOfferKeepStandby',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          _offerUserId.field,
+        ],
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          await _coordinationCase.keepHelpOfferAsStandby(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            offerUserId: _offerUserId.fromArgsNonNullable(args),
+            actorUserId: jwt.sub,
+          );
+          return true;
         },
       );
 

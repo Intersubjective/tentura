@@ -147,6 +147,8 @@ abstract final class TestIds {
 
   static String helpOfferAccept(String userId) => 'help_offer.$userId.accept';
   static String helpOfferDecline(String userId) => 'help_offer.$userId.decline';
+  static String helpOfferKeepStandby(String userId) =>
+      'help_offer.$userId.keep_standby';
   static String helpOfferRemove(String userId) => 'help_offer.$userId.remove';
   static String helpOfferRelease(String userId) => 'help_offer.$userId.release';
 

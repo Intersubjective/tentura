@@ -265,6 +265,20 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
+  /// «Keep as standby» (#596): the backup offer stays; the author's open
+  /// question about it ends.
+  Future<void> keepHelpOfferStandby({
+    required String beaconId,
+    required String offerUserId,
+  }) async {
+    await _coordinationRepository.keepHelpOfferStandby(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    await _beaconRepository.refreshAndNotify(beaconId);
+  }
+
   /// «Decline remaining offers» (#268): returns how many were declined.
   Future<int> declineRemainingHelpOffers({
     required String beaconId,

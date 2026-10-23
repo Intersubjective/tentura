@@ -3846,6 +3846,7 @@ type mutation_root {
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
   beaconForwardingOpen(id: String!): Boolean
+  beaconHelpOfferKeepStandby(id: String!, offerUserId: String!): Boolean!
   beaconHelpOfferRoleLabelSet(id: String!, offerUserId: String!, roleLabel: String!): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
