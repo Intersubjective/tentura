@@ -204,6 +204,23 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
     final hint = beaconStatusMenuDisabledReasonLabel(l10n, row.disabledReason);
     final outcome = beaconStatusMenuRowOutcomeLabel(l10n, row);
     final subtitle = !row.isEnabled && hint.isNotEmpty ? hint : outcome;
+    final closure = this.closure;
+    final finalCheckLine = closure == null
+        ? null
+        : [
+            l10n.beaconFinalCheckEndsAt(
+              DateFormat.MMMd(
+                l10n.localeName,
+              ).add_Hm().format(closure.closesAt.toLocal()),
+            ),
+            if (showExtensions && closure.extensionsUsed >= _maxExtensions)
+              l10n.beaconFinalCheckNoExtensionsLeft
+            else if (showExtensions)
+              l10n.beaconFinalCheckExtensionsUsed(
+                closure.extensionsUsed,
+                _maxExtensions,
+              ),
+          ].join(' · ');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -233,29 +250,23 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
                   onTap!();
                 },
         ),
-        if (closure case final closure?)
+        if (finalCheckLine != null)
           Padding(
             padding: EdgeInsets.only(
               left: tt.screenHPadding + tt.iconSize + tt.iconTextGap,
               right: tt.screenHPadding,
               bottom: tt.tightGap,
             ),
-            child: Text(
-              [
-                l10n.beaconFinalCheckEndsAt(
-                  DateFormat.MMMd(
-                    l10n.localeName,
-                  ).add_Hm().format(closure.closesAt.toLocal()),
-                ),
-                if (showExtensions && closure.extensionsUsed >= _maxExtensions)
-                  l10n.beaconFinalCheckNoExtensionsLeft
-                else if (showExtensions)
-                  l10n.beaconFinalCheckExtensionsUsed(
-                    closure.extensionsUsed,
-                    _maxExtensions,
-                  ),
-              ].join(' · '),
-              style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+            // Its own node for screen readers (#380, #634): the plain Text
+            // was merged away and the line could not be reached.
+            child: Semantics(
+              container: true,
+              label: finalCheckLine,
+              excludeSemantics: true,
+              child: Text(
+                finalCheckLine,
+                style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+              ),
             ),
           ),
         if (onSecondaryTap != null)
