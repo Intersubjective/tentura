@@ -483,7 +483,6 @@ class RootRouter extends RootStackRouter {
       keepHistory: false,
       usesPathAsKey: true,
       maintainState: false,
-      fullscreenDialog: true,
       page: ComplaintRoute.page,
       path: '$kPathComplaint/:id',
     ),
