@@ -10671,13 +10671,13 @@
   },
   "constellationArrangeSector": "Arrange in a sector",
   "@constellationArrangeSector": {
-    "context": "Field map: action that places the selected people evenly along an arc around the viewer, each at their own distance (#644)"
+    "context": "Field map: action that places the selected people, Requests and Posts evenly in rings inside a sector whose centre, radius, direction and width the user drags on the map (#644)"
   },
-  "constellationArrangeNeedsPeople": "Select at least two people",
-  "@constellationArrangeNeedsPeople": {
+  "constellationArrangeNeedsTwo": "Select at least two people, Requests or Posts",
+  "@constellationArrangeNeedsTwo": {
     "context": "Field map: why «Arrange in a sector» is unavailable (#644)"
   },
-  "constellationArrangeTooMany": "You can arrange up to {max} people at a time",
+  "constellationArrangeTooMany": "You can arrange up to {max} at a time",
   "@constellationArrangeTooMany": {
     "context": "Field map: why «Arrange in a sector» is unavailable (#644)",
     "placeholders": {
@@ -10686,21 +10686,54 @@
       }
     }
   },
-  "constellationArrangeAimHint": "Drag around yourself to point the sector",
-  "@constellationArrangeAimHint": {
-    "context": "Field map: instruction while choosing the direction of «Arrange in a sector» (#644)"
+  "constellationArrangeEditHint": "Drag the sector or its centre to move it, the inner dot to change the radius, the outer dots to turn and widen it.",
+  "@constellationArrangeEditHint": {
+    "context": "Field map: instruction while editing «Arrange in a sector»; the handles are drawn on the map (#644)"
+  },
+  "constellationArrangeSkipped": "{count, plural, =1{1 selected item can't be placed and stays where it is} other{{count} selected items can't be placed and stay where they are}}",
+  "@constellationArrangeSkipped": {
+    "context": "Field map: some selected nodes are not on the map now, so «Arrange in a sector» leaves them out (#644)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationArrangeOffField": "Some places fall outside the field. Move the sector or make it smaller.",
+  "@constellationArrangeOffField": {
+    "context": "Field map: why «Arrange» is unavailable: some target places are beyond the edge of the field (#644)"
+  },
+  "constellationArrangeCentre": "Sector centre",
+  "@constellationArrangeCentre": {
+    "context": "Field map: accessibility label of the handle that moves the centre of «Arrange in a sector» (#644)"
+  },
+  "constellationArrangeRadius": "Inner radius",
+  "@constellationArrangeRadius": {
+    "context": "Field map: accessibility label of the handle that sets the radius of the first ring of «Arrange in a sector» (#644)"
+  },
+  "constellationArrangeStartEdge": "Sector start edge",
+  "@constellationArrangeStartEdge": {
+    "context": "Field map: accessibility label of the handle on the counterclockwise edge of «Arrange in a sector» (#644)"
+  },
+  "constellationArrangeEndEdge": "Sector end edge",
+  "@constellationArrangeEndEdge": {
+    "context": "Field map: accessibility label of the handle on the clockwise edge of «Arrange in a sector» (#644)"
+  },
+  "constellationArrangeDirection": "Sector direction",
+  "@constellationArrangeDirection": {
+    "context": "Field map: accessibility label of the handle that turns «Arrange in a sector» (#644)"
   },
   "constellationArrangeRotateLeft": "Turn counterclockwise",
   "@constellationArrangeRotateLeft": {
-    "context": "Field map: turns the sector being aimed counterclockwise (#644)"
+    "context": "Field map: turns the sector being edited counterclockwise (#644)"
   },
   "constellationArrangeRotateRight": "Turn clockwise",
   "@constellationArrangeRotateRight": {
-    "context": "Field map: turns the sector being aimed clockwise (#644)"
+    "context": "Field map: turns the sector being edited clockwise (#644)"
   },
   "constellationArrangeWidth": "Sector width",
   "@constellationArrangeWidth": {
-    "context": "Field map: slider for how wide the arc of «Arrange in a sector» is (#644)"
+    "context": "Field map: slider for how wide the sector of «Arrange in a sector» is (#644)"
   },
   "constellationArrangeApply": "Arrange",
   "@constellationArrangeApply": {
