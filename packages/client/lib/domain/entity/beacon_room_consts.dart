@@ -102,6 +102,11 @@ abstract final class BeaconRoomSystemMessageKind {
   /// `{version: 1, fromStatus, toStatus, reason}` (smallint statuses).
   /// Author is the actor, empty for an automatic change.
   static const statusChanged = 7;
+
+  /// #528: someone changed the Request's next step or title; payload
+  /// `{version: 1, field, from, to, edits?}` (`RequestEditField`). Author is
+  /// the actor. A run of one person's edits is one line ([RoomRequestEdit]).
+  static const requestEdited = 8;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

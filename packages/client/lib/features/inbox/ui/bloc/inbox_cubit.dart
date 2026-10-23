@@ -289,11 +289,13 @@ class InboxCubit extends Cubit<InboxState> {
     await _updateStatus(beaconId, InboxItemStatus.rejected, privateNote: note);
   }
 
+  /// «Can't help» (#486): the server tells the author, with [message].
   Future<void> reject(String beaconId, {String message = ''}) async {
     await _updateStatus(
       beaconId,
       InboxItemStatus.rejected,
       rejectionMessage: message,
+      cantHelp: true,
     );
   }
 
@@ -368,6 +370,7 @@ class InboxCubit extends Cubit<InboxState> {
     InboxItemStatus status, {
     String rejectionMessage = '',
     String? privateNote,
+    bool cantHelp = false,
   }) async {
     final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
     if (idx < 0) return;
@@ -375,6 +378,11 @@ class InboxCubit extends Cubit<InboxState> {
     try {
       if (privateNote != null) {
         await _inboxCase.dismiss(beaconId: beaconId, privateNote: privateNote);
+      } else if (cantHelp) {
+        await _inboxCase.cantHelp(
+          beaconId: beaconId,
+          message: rejectionMessage,
+        );
       } else {
         await _inboxCase.setStatus(
           beaconId: beaconId,

@@ -37,6 +37,19 @@ DateTime? _lifecycleClosesAt(BeaconActivityEvent e) {
   return raw is String ? DateTime.tryParse(raw) : null;
 }
 
+/// #528: `diff.field` of a `requestEdited` event.
+String? _requestEditField(BeaconActivityEvent e) {
+  final raw = e.diffJson;
+  if (raw == null || raw.trim().isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    final field = decoded is Map ? decoded['field'] : null;
+    return field is String ? field : null;
+  } on Object {
+    return null;
+  }
+}
+
 bool beaconLifecycleEventIsSystem(BeaconActivityEvent e) {
   final reason = lifecycleChangeReasonFromEvent(e);
   return reason == BeaconLifecycleChangeReason.closureExpired ||
@@ -106,6 +119,10 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
       Icons.person_remove_outlined,
     BeaconActivityEventTypeBits.participantJoined => Icons.person_add_alt_1,
     BeaconActivityEventTypeBits.participantLeft => Icons.person_remove_outlined,
+    BeaconActivityEventTypeBits.requestEdited =>
+      _requestEditField(e) == RequestEditField.title
+          ? Icons.title
+          : Icons.edit_note,
     _ => Icons.hub_outlined,
   };
 }
@@ -321,6 +338,10 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
       l10n.beaconActivityParticipantJoined,
     BeaconActivityEventTypeBits.participantLeft =>
       l10n.beaconActivityParticipantLeft,
+    BeaconActivityEventTypeBits.requestEdited =>
+      _requestEditField(e) == RequestEditField.title
+          ? l10n.beaconActivityTitleChanged
+          : l10n.beaconActivityNextStepChanged,
     _ => l10n.beaconActivityCoordinationFallback,
   };
 }

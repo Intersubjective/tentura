@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:tentura_root/domain/next_step_mention.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -105,6 +106,37 @@ String? beaconStepEditorName(BeaconViewState state) {
     if (p.userId == id && p.userTitle.trim().isNotEmpty) {
       return p.userTitle.trim();
     }
+  }
+  return null;
+}
+
+/// #516 — the person the next step still names although they withdrew after
+/// it was set, or null. The rule is the server's (`nextStepMentionsPerson`):
+/// their name's first word, whole name or @handle, as a word. Editing the
+/// next step after they left clears it.
+String? beaconStepLeaverName(BeaconViewState state) {
+  final cue = state.beaconRoomCue;
+  final step = cue?.currentLine.trim() ?? '';
+  if (cue == null || step.isEmpty) return null;
+  for (final offer in state.helpOffers) {
+    if (!offer.isWithdrawn || !offer.updatedAt.isAfter(cue.updatedAt)) {
+      continue;
+    }
+    final user = offer.user;
+    final named =
+        {
+              user.displayName,
+              user.contactName,
+            }
+            .where((n) => n.trim().isNotEmpty)
+            .any(
+              (n) => nextStepMentionsPerson(
+                step,
+                displayName: n,
+                handle: user.handle,
+              ),
+            );
+    if (named) return user.shownName;
   }
   return null;
 }

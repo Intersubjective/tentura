@@ -3833,6 +3833,7 @@ type mutation_root {
   beaconAuthorInviteWithdraw(inviteId: String!): v2_AuthorInviteResult!
   beaconBudFromPost(addressLabel: String, clientCommandId: String!, closePost: Boolean, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, invitees: [v2_PostBudInviteeInput!], isDiscoverable: Boolean, needs: String, postId: String!, primaryNeedSlug: String, sourceMessageId: String!, startAt: String, tags: String, title: String!): v2_PostBudResult!
   beaconCancel(id: String!): v2_BeaconCancelResult!
+  beaconCantHelp(id: String!, message: String): Boolean!
   beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
   beaconClose(beaconId: String!): Boolean!
   beaconCloseNow(beaconId: String!, expectedEpoch: Int!): Boolean!

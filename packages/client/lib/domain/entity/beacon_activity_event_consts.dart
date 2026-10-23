@@ -30,11 +30,21 @@ abstract final class BeaconActivityEventTypeBits {
   static const factRemoved = 20;
   static const participantLeft = 25;
 
+  /// #528: the next step or the title changed; `diff` is
+  /// `{field, from, to}` ([RequestEditField]).
+  static const requestEdited = 26;
+
   /// Inclusive lower bound of the `kind * 100 + eventKind` coordination range.
   static const coordinationTypeMin = 100;
 
   /// Exclusive upper bound (excludes promise = kind 5, i.e. 500+).
   static const coordinationTypeMax = 500;
+}
+
+/// `requestEdited` line payload / activity `diff` `field` (#528).
+abstract final class RequestEditField {
+  static const nextStep = 'nextStep';
+  static const title = 'title';
 }
 
 /// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].

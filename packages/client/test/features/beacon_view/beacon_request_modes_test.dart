@@ -28,6 +28,7 @@ BeaconViewState _state({
   Set<String> acquaintances = const {},
   BeaconRoomState? cue,
   List<BeaconParticipant> participants = const [],
+  List<TimelineHelpOffer> offers = const [],
 }) => BeaconViewState(
   beacon: Beacon.empty.copyWith(
     id: 'B1',
@@ -42,6 +43,7 @@ BeaconViewState _state({
   teamAcquaintanceIds: acquaintances,
   beaconRoomCue: cue,
   roomParticipants: participants,
+  helpOffers: offers,
 );
 
 final _l10n = L10nEn();
@@ -177,6 +179,70 @@ void main() {
     });
   });
 
+  // #516: the next step still names someone who left after it was set.
+  group('beaconStepLeaverName', () {
+    const omar = Profile(id: 'omar', displayName: 'Omar Dinner');
+    final setAt = DateTime(2026, 1, 1, 10);
+    BeaconRoomState cue(String line) => BeaconRoomState(
+      beaconId: 'B1',
+      updatedAt: setAt,
+      currentLine: line,
+      updatedBy: 'author',
+    );
+    TimelineHelpOffer offer({required bool withdrawn, required DateTime at}) =>
+        TimelineHelpOffer(
+          user: omar,
+          message: '',
+          createdAt: DateTime(2026),
+          updatedAt: at,
+          isWithdrawn: withdrawn,
+        );
+
+    test('names a person who withdrew after the step was set', () {
+      expect(
+        beaconStepLeaverName(
+          _state(
+            cue: cue('Omar: dolly'),
+            offers: [offer(withdrawn: true, at: DateTime(2026, 1, 1, 11))],
+          ),
+        ),
+        'Omar Dinner',
+      );
+    });
+
+    test('a step written after the leave, another name, or an active '
+        'offer is not flagged', () {
+      final later = DateTime(2026, 1, 1, 11);
+      expect(
+        beaconStepLeaverName(
+          _state(
+            cue: cue('Omar: dolly'),
+            offers: [offer(withdrawn: true, at: DateTime(2026, 1, 1, 9))],
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        beaconStepLeaverName(
+          _state(
+            cue: cue('Nina: van'),
+            offers: [offer(withdrawn: true, at: later)],
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        beaconStepLeaverName(
+          _state(
+            cue: cue('Omar: dolly'),
+            offers: [offer(withdrawn: false, at: later)],
+          ),
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('widgets', () {
     Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
       MaterialApp(
@@ -234,6 +300,40 @@ void main() {
       expect(find.textContaining('Olga · '), findsOneWidget);
       expect(find.bySemanticsLabel('2 people in the team'), findsOneWidget);
       expect(find.text('2 people'), findsOneWidget);
+    });
+
+    testWidgets('the next step is flagged when a person it names left', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        BeaconHudPinnedBlock(
+          state: _state(
+            access: BeaconAccessLevel.member,
+            cue: BeaconRoomState(
+              beaconId: 'B1',
+              updatedAt: DateTime(2026, 1, 1, 10),
+              currentLine: 'Omar: dolly',
+              updatedBy: 'author',
+            ),
+            offers: [
+              TimelineHelpOffer(
+                user: const Profile(id: 'omar', displayName: 'Omar Dinner'),
+                message: '',
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026, 1, 1, 11),
+                isWithdrawn: true,
+              ),
+            ],
+          ),
+          now: DateTime(2026, 1, 1, 12),
+        ),
+      );
+      expect(find.byKey(beaconHudStepLeaverFlagKey), findsOneWidget);
+      expect(
+        find.text('Omar Dinner left after this was set'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a long description folds behind Read more', (tester) async {

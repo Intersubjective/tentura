@@ -327,6 +327,8 @@ class _V2RoutingLink extends Link {
     'ClosureSetMark',
     'ClosureSaveStory',
     'BeaconWithdraw',
+    // #486: «Can't help» tells the author (server `ForwardCase.cantHelp`).
+    'InboxCantHelp',
     'HelpOffersWithCoordination',
     'MyHelpOffer',
     'SetCoordinationResponse',

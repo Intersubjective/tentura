@@ -78,7 +78,8 @@ final class InboxCase extends UseCaseBase {
   Future<List<InboxItem>> fetch({required String userId}) =>
       _repository.fetch(userId: userId);
 
-  Future<({List<InboxItem> page, int totalCount})> fetchActivityOffersFirstPage({
+  Future<({List<InboxItem> page, int totalCount})>
+  fetchActivityOffersFirstPage({
     required String userId,
     int limit = InboxRepository.activityOffersPageSize,
   }) => _repository.fetchActivityOffersFirstPage(userId: userId, limit: limit);
@@ -122,6 +123,10 @@ final class InboxCase extends UseCaseBase {
     status: status,
     rejectionMessage: rejectionMessage,
   );
+
+  /// «Can't help» (#486): the author is told, with [message].
+  Future<void> cantHelp({required String beaconId, String message = ''}) =>
+      _repository.cantHelp(beaconId: beaconId, message: message);
 
   Future<void> dismiss({required String beaconId, String privateNote = ''}) =>
       _repository.dismiss(beaconId: beaconId, privateNote: privateNote);

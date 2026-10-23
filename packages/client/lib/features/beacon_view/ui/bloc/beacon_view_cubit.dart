@@ -377,11 +377,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   Future<void> rejectInbox({String message = ''}) async {
     if (state.inboxStatus == null) return;
     try {
-      await _case.setInboxStatus(
-        beaconId: state.beacon.id,
-        status: InboxItemStatus.rejected,
-        rejectionMessage: message,
-      );
+      await _case.cantHelp(beaconId: state.beacon.id, message: message);
       emit(state.copyWith(inboxStatus: InboxItemStatus.rejected));
     } catch (e) {
       _showSnackError(e);
