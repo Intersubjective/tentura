@@ -809,11 +809,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
+  /// Removes [offerUserId] from the room optimistically; a refusal restores
+  /// the People tab before the error shows (#691). Never throws.
   Future<void> removeFromRoom({
     required String offerUserId,
     required String reason,
   }) async {
     final trimmedReason = reason.trim();
+    final previousOffers = state.helpOffers;
+    final previousParticipants = state.roomParticipants;
     final optimisticOffers = [
       for (final c in state.helpOffers)
         if (c.user.id == offerUserId)
@@ -849,17 +853,28 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       );
       unawaited(_fetchBeaconByIdWithTimeline());
     } catch (e) {
-      await _fetchBeaconByIdWithTimeline();
-      if (!isClosed) _showSnackError(e);
-      rethrow;
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          helpOffers: previousOffers,
+          roomParticipants: previousParticipants,
+        ),
+      );
+      _showSnackError(e);
+      unawaited(_fetchBeaconByIdWithTimeline());
     }
   }
 
+  /// Ends [offerUserId]'s participation optimistically. A refusal (e.g. the
+  /// author closed the Request first, #691) restores the People tab before
+  /// the error shows; the call itself never throws.
   Future<void> releaseCommitment({
     required String offerUserId,
     required String reason,
   }) async {
     final trimmedReason = reason.trim();
+    final previousOffers = state.helpOffers;
+    final previousParticipants = state.roomParticipants;
     final optimisticOffers = [
       for (final c in state.helpOffers)
         if (c.user.id == offerUserId)
@@ -896,9 +911,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       );
       unawaited(_fetchBeaconByIdWithTimeline());
     } catch (e) {
-      await _fetchBeaconByIdWithTimeline();
-      if (!isClosed) _showSnackError(e);
-      rethrow;
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          helpOffers: previousOffers,
+          roomParticipants: previousParticipants,
+        ),
+      );
+      _showSnackError(e);
+      unawaited(_fetchBeaconByIdWithTimeline());
     }
   }
 
