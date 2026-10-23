@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/gestures.dart' show GestureBinding, PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -933,6 +933,15 @@ class BeaconRoomComposer extends StatefulWidget {
   State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
 }
 
+/// How long after a pointer pick of a suggestion the composer takes back a
+/// focus loss the user did not cause (#688).
+const _kSuggestionPickFocusHold = Duration(milliseconds: 500);
+
+/// Lets a widget test take the web path of a suggestion pick; null means
+/// the real platform ([kIsWeb]).
+@visibleForTesting
+bool? debugComposerIsWebOverride;
+
 class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     with PendingAttachmentsMixin {
   static final _composerBorder = OutlineInputBorder(
@@ -952,6 +961,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     emojiForShortcode: EmojiCatalog.emojiForShortcode,
   );
   late final FocusNode _composerFocus;
+
+  /// Set while a pointer pick of a suggestion holds focus on the field.
+  Timer? _suggestionPickFocusHold;
   final _composerAnchorKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   List<BeaconParticipant> _overlaySuggestions = const [];
@@ -1012,6 +1024,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
       return KeyEventResult.ignored;
     }
     final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.tab) {
+      _releaseComposerFocusHold();
+    }
     if (key == LogicalKeyboardKey.escape) {
       if (_suggestionCount > 0) {
         _removeOverlay();
@@ -1086,6 +1101,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   void dispose() {
     _text.removeListener(_onTextChanged);
     _composerFocus.removeListener(_onComposerFocusChange);
+    _releaseComposerFocusHold();
     _overlaySyncScheduled = false;
     _removeOverlay();
     _composerFocus.unfocus();
@@ -1236,17 +1252,56 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   /// Keeps typing in the field after a suggestion was picked; [pointerKind]
   /// is null for a keyboard pick.
   void _refocusAfterSuggestionPick(PointerDeviceKind? pointerKind) {
+    final isWeb = debugComposerIsWebOverride ?? kIsWeb;
     if (pointerKind != null &&
-        (kIsWeb || pointerKind != PointerDeviceKind.touch)) {
+        (isWeb || pointerKind != PointerDeviceKind.touch)) {
       // A click on the list takes the browser's focus off the field while
       // the field still counts as focused, so the next words went nowhere
       // (#624, #630). Re-attach the field, as clicking into it does. Native
       // touch keeps focus as is, so the soft keyboard does not flicker.
       _composerFocus.unfocus();
       requestComposerFocus();
+      // The hold is for clicks only: on mobile-web touch it would pop the
+      // soft keyboard back up after Done/Back closed it (#688 review).
+      if (pointerKind != PointerDeviceKind.touch) {
+        _holdComposerFocusAfterPick();
+      }
     } else if (!_composerFocus.hasFocus) {
       _composerFocus.requestFocus();
     }
+  }
+
+  /// A quick click (pointer down and up in one frame, as tap-to-click sends)
+  /// could let a late browser focus change take the field away again right
+  /// after the re-attach above, so the next keys were lost (#688). For a
+  /// moment after a pointer pick, a focus loss the user did not cause (no new
+  /// pointer down, no Tab) gives the field its focus back.
+  void _holdComposerFocusAfterPick() {
+    _releaseComposerFocusHold();
+    GestureBinding.instance.pointerRouter.addGlobalRoute(
+      _releaseComposerFocusHoldOnPointerDown,
+    );
+    _suggestionPickFocusHold = Timer(
+      _kSuggestionPickFocusHold,
+      _releaseComposerFocusHold,
+    );
+  }
+
+  void _releaseComposerFocusHoldOnPointerDown(PointerEvent event) {
+    if (event is PointerDownEvent) {
+      _releaseComposerFocusHold();
+    }
+  }
+
+  void _releaseComposerFocusHold() {
+    if (_suggestionPickFocusHold == null) {
+      return;
+    }
+    _suggestionPickFocusHold!.cancel();
+    _suggestionPickFocusHold = null;
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(
+      _releaseComposerFocusHoldOnPointerDown,
+    );
   }
 
   bool _acceptSelectedSuggestion() {
@@ -1396,6 +1451,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   /// `RoomPollCard` handles that, and this covers any remaining
   /// focus->connection timing gap (EditableText #126312).
   void _onComposerFocusChange() {
+    if (!_composerFocus.hasFocus && _suggestionPickFocusHold != null) {
+      requestComposerFocus();
+      return;
+    }
     if (kIsWeb || !_composerFocus.hasFocus) {
       return;
     }
@@ -1671,6 +1730,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
                       unawaited(_submit());
                     },
                     onTapOutside: (_) {
+                      _releaseComposerFocusHold();
                       _removeOverlay();
                       // Only dismiss our own keyboard; don't yank focus from
                       // poll interactives (sliders/buttons) elsewhere on screen.
