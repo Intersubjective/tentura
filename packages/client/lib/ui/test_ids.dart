@@ -100,12 +100,23 @@ abstract final class TestIds {
       'room.message.reaction_picker_button';
   static const roomAuthorCommitmentGlyphs =
       'room.message.author_commitment_glyphs';
+
+  /// Identifier prefix of every mention suggestion row. The web composer
+  /// keeps the browser focus on its field when one of these rows is pressed
+  /// (`keepTextInputFocusOnPress` in `BasicChatBody`), so the fix for #688
+  /// depends on this value: renaming it changes runtime behaviour, not only
+  /// tests.
+  static const roomMentionSuggestionPrefix = 'room.mention.suggestion.';
   static String roomMentionSuggestion(String handle) =>
-      'room.mention.suggestion.${handle.trim().toLowerCase()}';
+      '$roomMentionSuggestionPrefix${handle.trim().toLowerCase()}';
   static const roomEmojiButton = 'room.emoji.button';
   static const roomEmojiPicker = 'room.emoji.picker';
+
+  /// Identifier prefix of every emoji suggestion row. Like
+  /// [roomMentionSuggestionPrefix], the fix for #688 depends on it.
+  static const roomEmojiSuggestionPrefix = 'room.emoji.suggestion.';
   static String roomEmojiSuggestion(String shortcode) =>
-      'room.emoji.suggestion.$shortcode';
+      '$roomEmojiSuggestionPrefix$shortcode';
   static const beaconForward = 'beacon.forward';
   static const beaconTabNow = 'beacon.tab.now';
   static const beaconTabPlan = 'beacon.tab.plan';
