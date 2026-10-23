@@ -78,7 +78,9 @@ class GraphLayoutView extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         if (!controller.canLayout) {
-          return const SizedBox.shrink();
+          // Not zero-size: InteractiveViewer asserts on an empty child once
+          // the person zooms or pans the still-empty graph (#464).
+          return SizedBox.fromSize(size: controller.emptySceneSize);
         }
 
         final snapshot = controller.renderSnapshot;

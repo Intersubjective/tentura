@@ -90,6 +90,24 @@ class GraphController<N, E> with ChangeNotifier {
   Size get canvasSize =>
       _currentSize ?? (throw StateError('Size is not available yet'));
 
+  /// Size the view gives its scene while nothing is laid out yet (no nodes,
+  /// or the first layout still running). Never empty: [InteractiveViewer]
+  /// asserts on a zero-size child as soon as it is zoomed or panned (#464).
+  /// The canvas size when it is known, so the camera bounds don't change once
+  /// the graph arrives; otherwise the viewport.
+  Size get emptySceneSize {
+    for (final size in [
+      _currentSize,
+      _viewportPixelSize,
+      _lastLayoutConstraints
+    ]) {
+      if (size != null && size.isFinite && !size.isEmpty) {
+        return size;
+      }
+    }
+    return const Size.square(1);
+  }
+
   /// Checks whether the graph is laid out and the size is available.
   bool get canLayout {
     if (_currentSize == null || _nodes.isEmpty) {
