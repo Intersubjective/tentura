@@ -590,7 +590,8 @@ class RequestAttentionCard extends StatelessWidget {
       actorName: name,
       l10n: l10n,
     );
-    return switch (attentionEventTypeOf(payload)) {
+    return switch (whoDidWhatEventTypeOf(payload) ??
+        attentionEventTypeOf(payload)) {
       'blockerOpened' when words.isNotEmpty => l10n.attentionCardChangeBlocker(
         words,
       ),
@@ -624,12 +625,7 @@ class RequestAttentionCard extends StatelessWidget {
   bool _changeCarriesReason(AttentionReceipt receipt) {
     final payload = receipt.presentationPayloadJson;
     // A withdrawal or «Can't help» line names the person and their reason.
-    if (const {
-      'helpWithdrawn',
-      'forwardDeclined',
-    }.contains(attentionEventTypeOf(payload))) {
-      return true;
-    }
+    if (whoDidWhatEventTypeOf(payload) != null) return true;
     final words = excerptFromPresentationPayload(payload) ?? '';
     if (words.isEmpty || words == beacon.title) return false;
     return switch (attentionEventTypeOf(payload)) {

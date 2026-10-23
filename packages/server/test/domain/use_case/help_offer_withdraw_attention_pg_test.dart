@@ -134,6 +134,20 @@ Future<void> main() async {
         expect(r.payload['personal'], isFalse);
         // The helper is never told about their own withdrawal.
         expect(await _withdrawnReceipts(writer, _helperId), isEmpty);
+        // The durable recipient snapshot keeps the producer's facts too.
+        final facts = await writer.execute(
+          Sql.named('''
+SELECT r.role_facts
+FROM public.attention_occurrence_recipient r
+JOIN public.attention_occurrence o ON o.id = r.occurrence_id
+WHERE r.account_id = @author AND o.event_type = 'helpWithdrawn'
+'''),
+          parameters: {'author': _authorId},
+        );
+        final roleFacts = facts.single.single! as Map<String, Object?>;
+        expect(roleFacts['withdrawReason'], 'timing');
+        expect(roleFacts['leftDiscussion'], isTrue);
+        expect(roleFacts['nextStepMentionsActor'], isTrue);
       },
       skip: skipReason,
     );

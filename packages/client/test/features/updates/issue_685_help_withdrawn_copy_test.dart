@@ -103,6 +103,30 @@ void main() {
       );
     });
 
+    test('no name: the reason leads the words', () {
+      final c = copy(en, title: 'Someone', payload: _payloadWithNote);
+      expect(c.event, en.updatesFallbackTitleHelpWithdrawn);
+      expect(c.excerpt, '${en.withdrawTimingChanged} · Back next week');
+    });
+
+    test('a promiseWithdrawn with a reason (written before 7.46.0) reads '
+        'as a withdrawal', () {
+      final c = requestScopedEventCopy(
+        title: 'Cleo QA2',
+        body: 'Cleo QA2 withdrew their help',
+        presentationKey: 'promise_withdrawn',
+        presentationPayloadJson:
+            '{"eventType":"promiseWithdrawn","beaconTitle":"Move a couch",'
+            '"excerpt":"","withdrawReason":"timing"}',
+        requestTitle: 'Move a couch',
+        l10n: en,
+      );
+      expect(
+        c.event,
+        'Cleo QA2 withdrew their help offer (${en.withdrawTimingChanged})',
+      );
+    });
+
     test('no name and no reason: still plain words', () {
       final c = copy(en, title: 'Someone', payload: _payloadNoReason);
       expect(c.event, en.updatesFallbackTitleHelpWithdrawn);

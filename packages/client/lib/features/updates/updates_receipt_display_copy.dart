@@ -397,6 +397,29 @@ UpdatesFeedRowCopy? whoDidWhatReceiptDisplayCopy({
   );
 }
 
+/// The who-did-what event a receipt is: `helpWithdrawn`, `forwardDeclined`,
+/// or null for any other. A `promiseWithdrawn` that carries a withdraw
+/// reason is a helper's withdrawal written before 7.46.0 gave it its own
+/// event (main 62055251b); a coordination promise never carries one.
+String? whoDidWhatEventTypeOf(
+  String presentationPayloadJson, {
+  String? presentationKey,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
+  return switch (type) {
+    'helpWithdrawn' || 'help_withdrawn' => 'helpWithdrawn',
+    'forwardDeclined' || 'forward_declined' => 'forwardDeclined',
+    'promiseWithdrawn' || 'promise_withdrawn'
+        when _payloadString(
+              presentationPayloadJson,
+              'withdrawReason',
+            )?.isNotEmpty ??
+            false =>
+      'helpWithdrawn',
+    _ => null,
+  };
+}
+
 typedef _WhoDidWhatWords = ({String headline, String note, String flag});
 
 _WhoDidWhatWords? _whoDidWhatWords({
@@ -407,10 +430,12 @@ _WhoDidWhatWords? _whoDidWhatWords({
   String? actorName,
   Set<String> requestTitles = const {},
 }) {
-  final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
-  final isWithdrawal = type == 'helpWithdrawn' || type == 'help_withdrawn';
-  final isDecline = type == 'forwardDeclined' || type == 'forward_declined';
-  if (!isWithdrawal && !isDecline) return null;
+  final type = whoDidWhatEventTypeOf(
+    presentationPayloadJson,
+    presentationKey: presentationKey,
+  );
+  if (type == null) return null;
+  final isDecline = type == 'forwardDeclined';
   final t = title.trim();
   final fromTitle =
       t.isEmpty ||
@@ -433,17 +458,18 @@ _WhoDidWhatWords? _whoDidWhatWords({
   final flagged =
       _payloadBool(presentationPayloadJson, 'nextStepMentionsActor') ?? false;
   final flag = flagged ? l10n.attentionEventNextStepNamesLeaver : '';
-  if (name == null) {
-    return (
-      headline: l10n.updatesFallbackTitleHelpWithdrawn,
-      note: note,
-      flag: flag,
-    );
-  }
   final reason = withdrawReasonLabel(
     l10n,
     _payloadString(presentationPayloadJson, 'withdrawReason'),
   );
+  if (name == null) {
+    // No name to hang the reason on: it leads the words instead.
+    return (
+      headline: l10n.updatesFallbackTitleHelpWithdrawn,
+      note: [?reason, if (note.isNotEmpty) note].join(' · '),
+      flag: flag,
+    );
+  }
   final left = _payloadBool(presentationPayloadJson, 'leftDiscussion') ?? false;
   return (
     headline: reason == null
