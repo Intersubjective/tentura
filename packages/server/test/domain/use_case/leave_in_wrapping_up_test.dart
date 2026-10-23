@@ -173,6 +173,9 @@ void main() {
     when(
       roomRepo.findParticipant(beaconId: _beaconId, userId: _helperId),
     ).thenAnswer((_) async => admittedHelper());
+    // #489/#516: a leaving admitted helper's withdrawal reads the next step
+    // for the author's helpWithdrawn item.
+    when(roomRepo.getBeaconRoomState(any)).thenAnswer((_) async => null);
     // #489: an admitted helper's removal posts a room line; strict mocks
     // need it stubbed.
     when(
@@ -299,6 +302,11 @@ void main() {
         // U49: only an author removal drops a vote; a voluntary leaver
         // still counts in the review set.
         expect(ClosureCase.isVoter(closureRepo.rows[_helperId]!), isTrue);
+        // The author hears who left and why, as on an open Request.
+        expect(
+          attention.recorded.map((i) => i.eventType.name),
+          contains('helpWithdrawn'),
+        );
       },
     );
 
