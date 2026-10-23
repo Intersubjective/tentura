@@ -718,6 +718,7 @@ ConstellationSectorLayout? constellationSectorPreview({
     direction: sector.direction,
     span: sector.span,
     innerRadius: sector.radius,
+    outerRadius: sector.outerRadius,
     minSpacing: minSpacing,
     bounds: _envelope,
   );
@@ -740,8 +741,30 @@ Offset _viewerScenePoint(ConstellationCubit cubit) {
 /// where the nearest of them is, so they move as little as possible. When the
 /// viewer is off screen (the user is working on a far part of the field) a
 /// full circle around the middle of the arranged nodes instead, so the
-/// centre handle is on screen to grab.
+/// centre handle is on screen to grab. Its outer radius is the smallest that
+/// holds every node [minSpacing] apart
+/// ([constellationSectorCompactOuterRadius]).
 ConstellationSectorDraft constellationSectorInitialDraft({
+  required ConstellationCubit cubit,
+  required ConstellationSectorItems items,
+  required double minSpacing,
+}) {
+  final draft = _initialSector(
+    cubit: cubit,
+    items: items,
+    minSpacing: minSpacing,
+  );
+  return draft.copyWith(
+    outerRadius: constellationSectorCompactOuterRadius(
+      innerRadius: draft.radius,
+      span: draft.span,
+      count: items.members.length,
+      minSpacing: minSpacing,
+    ).clamp(draft.radius, _maxSectorRadius),
+  );
+}
+
+ConstellationSectorDraft _initialSector({
   required ConstellationCubit cubit,
   required ConstellationSectorItems items,
   required double minSpacing,
@@ -787,12 +810,20 @@ ConstellationSectorDraft constellationSectorInitialDraft({
 
 /// The parts of the sector a press can grab, in the order a press is tested
 /// against them where their hit areas overlap.
-enum _SectorGrip { radius, endEdge, startEdge, direction, centre, body }
+enum _SectorGrip {
+  radius,
+  outerRadius,
+  endEdge,
+  startEdge,
+  direction,
+  centre,
+  body,
+}
 
 Offset _unit(double angle) => Offset(math.cos(angle), math.sin(angle));
 
 /// The resize cursor closest to a drag along [angle] (screen radians, y
-/// down): the radius handle resizes along its own radius.
+/// down): the radius handles resize along their own radius.
 MouseCursor _radialResizeCursor(double angle) {
   // Fold to [0, π): a resize cursor points both ways.
   final a = angle % math.pi;
@@ -812,7 +843,15 @@ double _turn(double from, double to) {
 
 /// The sector as drawn now, in viewport coordinates. The shape follows the
 /// scene (it grows and shrinks with the zoom); the handles keep their size
-/// and are kept apart from each other at any zoom.
+/// and never overlap, at any zoom and width.
+///
+/// Handle layout: the centre, the inner radius, the outer radius and the
+/// turn handle sit on the sector's middle line, in that order outward (the
+/// radius handles on their arcs, the turn handle just past the outer one);
+/// the edge handles sit at the outer corners, moved sideways off the middle
+/// line when the sector is too narrow to hold them clear of it. Where a thin
+/// band or the zoom brings a handle onto its neighbour it gives way, and a
+/// thin line ties it to its place on the shape.
 final class _SectorGeometry {
   factory _SectorGeometry({
     required GraphController<NodeDetails, EdgeDetails> controller,
@@ -820,32 +859,26 @@ final class _SectorGeometry {
     required ConstellationSectorLayout? preview,
     required double minSpacing,
     required double hit,
-    required double gap,
   }) {
     final scale = controller.cameraScale;
-    final inner = math.max(draft.radius, minSpacing) * scale;
-    final outermost = preview == null || preview.rings.isEmpty
-        ? inner
-        : preview.rings.last * scale;
-    // The shape reaches half a spacing past the outer ring, so the nodes on
-    // it sit inside.
-    final reach = outermost + minSpacing * scale / 2;
-    final radiusHandle = math.max(inner, hit / 2);
-    // The outer handles sit past the shape and the radius handle, and far
-    // enough out that a narrow sector does not stack them up.
-    final apart = math.min(
-      hit / (2 * math.sin(math.max(draft.span, 1e-3) / 4)),
-      hit * 4,
-    );
+    final inner = (preview?.inner ?? draft.radius) * scale;
+    final outer = (preview?.outer ?? draft.outerRadius) * scale;
+    // The outer handle stays on its arc so it follows the pointer; when the
+    // band is thinner than a handle the inner one gives way towards the
+    // centre, and at a far zoom both move out off the centre handle.
+    final outerHandle = math.max(outer, 2 * hit);
+    final innerHandle = math.min(math.max(inner, hit), outerHandle - hit);
     return _SectorGeometry._(
       draft: draft,
       preview: preview,
       centre: controller.sceneToViewportLocal(draft.centre.offset),
       scale: scale,
       inner: inner,
-      reach: reach,
-      handleReach: math.max(math.max(reach + gap, radiusHandle + hit), apart),
-      radiusHandle: radiusHandle,
+      outer: outer,
+      // A press on a node of the outer ring still grabs the sector.
+      reach: outer + minSpacing * scale / 2,
+      innerHandle: innerHandle,
+      outerHandle: outerHandle,
       hit: hit,
     );
   }
@@ -856,9 +889,10 @@ final class _SectorGeometry {
     required this.centre,
     required this.scale,
     required this.inner,
+    required this.outer,
     required this.reach,
-    required this.handleReach,
-    required this.radiusHandle,
+    required this.innerHandle,
+    required this.outerHandle,
     required this.hit,
   });
 
@@ -867,29 +901,60 @@ final class _SectorGeometry {
   final Offset centre;
   final double scale;
 
-  /// Viewport radius of the first ring.
+  /// Viewport radius of the inner edge (the first ring).
   final double inner;
 
-  /// Viewport radius of the drawn shape.
+  /// Viewport radius of the outer edge (the last ring).
+  final double outer;
+
+  /// How far from the centre a press still grabs the sector.
   final double reach;
 
-  /// Viewport distance of the edge and direction handles from the centre.
-  final double handleReach;
+  /// Viewport distance of the inner radius handle from the centre: on the
+  /// inner edge, unless that is within a handle of the outer one or of the
+  /// centre.
+  final double innerHandle;
 
-  /// Viewport distance of the radius handle from the centre: on the first
-  /// ring, unless the zoom brings that ring onto the centre handle.
-  final double radiusHandle;
+  /// Viewport distance of the outer radius and edge handles from the centre:
+  /// on the outer edge, unless the zoom brings it within two handles of the
+  /// centre.
+  final double outerHandle;
 
   /// Diameter of a handle's hit area.
   final double hit;
 
-  Offset handle(_SectorGrip grip) => switch (grip) {
-    _SectorGrip.radius => centre + _unit(draft.start) * radiusHandle,
-    _SectorGrip.startEdge => centre + _unit(draft.start) * handleReach,
-    _SectorGrip.endEdge => centre + _unit(draft.end) * handleReach,
-    _SectorGrip.direction => centre + _unit(draft.direction) * handleReach,
+  /// Where [grip] belongs on the shape; its handle may sit further out
+  /// ([handle]).
+  Offset anchor(_SectorGrip grip) => switch (grip) {
+    _SectorGrip.radius => centre + _unit(draft.direction) * inner,
+    _SectorGrip.outerRadius ||
+    _SectorGrip.direction => centre + _unit(draft.direction) * outer,
+    _SectorGrip.startEdge => centre + _unit(draft.start) * outer,
+    _SectorGrip.endEdge => centre + _unit(draft.end) * outer,
     _SectorGrip.centre || _SectorGrip.body => centre,
   };
+
+  Offset handle(_SectorGrip grip) => switch (grip) {
+    _SectorGrip.radius => centre + _unit(draft.direction) * innerHandle,
+    _SectorGrip.outerRadius => centre + _unit(draft.direction) * outerHandle,
+    _SectorGrip.direction =>
+      centre + _unit(draft.direction) * (outerHandle + hit),
+    _SectorGrip.startEdge => _edgeHandle(draft.start, -1),
+    _SectorGrip.endEdge => _edgeHandle(draft.end, 1),
+    _SectorGrip.centre || _SectorGrip.body => centre,
+  };
+
+  /// The corner at [angle], moved sideways ([side] -1 towards the start, 1
+  /// towards the end) until it is a whole handle clear of the middle line,
+  /// where the other handles are (and so of the other corner). The seam of a
+  /// full circle is behind the centre, far from all of them.
+  Offset _edgeHandle(double angle, int side) {
+    final corner = centre + _unit(angle) * outerHandle;
+    if (draft.isFullCircle) return corner;
+    final clear = outerHandle * math.sin(draft.span / 2).abs();
+    if (clear >= hit) return corner;
+    return corner + _unit(draft.direction + side * math.pi / 2) * (hit - clear);
+  }
 
   /// The handles drawn now: a full circle has one seam handle, the end.
   Iterable<_SectorGrip> get handles => [
@@ -900,9 +965,9 @@ final class _SectorGeometry {
   ];
 
   /// What a press at [local] grabs; null when it is off the sector. Where
-  /// hit areas overlap (a nearly full circle, a far zoom) the handle nearest
-  /// the press wins, then the one listed first; a press inside the drawn
-  /// shape but on no handle grabs the whole sector.
+  /// hit areas touch the handle nearest the press wins, then the one listed
+  /// first; a press inside the sector but on no handle grabs the whole
+  /// sector.
   _SectorGrip? gripAt(Offset local) {
     _SectorGrip? nearest;
     var best = double.infinity;
@@ -943,7 +1008,8 @@ final class _GripDrag {
     return math.atan2(offset.dy, offset.dx);
   }
 
-  /// The sector with the pointer now at [scene].
+  /// The sector with the pointer now at [scene]. The inner radius stops at
+  /// [minSpacing] from the centre, so the band never collapses onto it.
   ConstellationSectorDraft update(Offset scene, double minSpacing) {
     final angle = _angleOf(scene, draft);
     // Summed step by step, so a turn past the back of the circle keeps
@@ -951,13 +1017,21 @@ final class _GripDrag {
     _turned += _turn(_lastAngle, angle);
     _lastAngle = angle;
     final centre = draft.centre.offset;
+    final pulled = (scene - centre).distance - (downScene - centre).distance;
     return switch (grip) {
+      // Past the outer radius it pushes that along.
       _SectorGrip.radius => draft.copyWith(
-        radius:
-            (math.max(draft.radius, minSpacing) +
-                    (scene - centre).distance -
-                    (downScene - centre).distance)
-                .clamp(minSpacing, _maxSectorRadius),
+        radius: (math.max(draft.radius, minSpacing) + pulled).clamp(
+          minSpacing,
+          _maxSectorRadius,
+        ),
+      ),
+      // Stops at the inner radius: the nodes are then on one ring.
+      _SectorGrip.outerRadius => draft.copyWith(
+        outerRadius: (draft.outerRadius + pulled).clamp(
+          math.min(draft.radius, _maxSectorRadius),
+          _maxSectorRadius,
+        ),
       ),
       _SectorGrip.endEdge => draft.withEdgeMoved(
         ConstellationSectorEdge.end,
@@ -978,11 +1052,11 @@ final class _GripDrag {
 }
 
 /// Editing «Arrange in a sector» on the map, as in a graphics editor (#644):
-/// drag the centre handle or the sector itself to move it anywhere, the dot
-/// where the first ring meets the start edge to change the radius, the dots
-/// at the two outer corners to move either edge (direction and width at
-/// once, up to the whole circle) and the one in the middle of the outer arc
-/// to turn it. Ghosts show where every node will go.
+/// drag the centre handle or the sector itself to move it anywhere, the
+/// arrows on the inner and outer arc to set the band the nodes go in, the
+/// dots at the two outer corners to move either edge (direction and width at
+/// once, up to the whole circle) and the one just past the outer arc to turn
+/// it. Ghosts show where every node will go.
 ///
 /// The handles are the composer's (`ConstellationComposerHandle`): drawn at a
 /// fixed size whatever the zoom, a press inside one claims the gesture at
@@ -1042,7 +1116,6 @@ class _SectorEditorState extends State<_SectorEditor> {
               preview: preview,
               minSpacing: minSpacing,
               hit: _hit,
-              gap: context.tt.rowGap,
             ),
     );
   }
@@ -1266,15 +1339,23 @@ class _SectorView extends StatelessWidget {
           l10n.constellationArrangeEndEdge,
           SystemMouseCursors.grab,
         ),
-        // Arrows along the radius, so it reads as «drag in or out» and not as
-        // another corner of the sector.
+        // Arrows along the radius, so they read as «drag in or out» and not
+        // as more corners of the sector.
         handle(
           _SectorGrip.radius,
           'radius',
           l10n.constellationArrangeRadius,
-          _radialResizeCursor(geometry.draft.start),
+          _radialResizeCursor(geometry.draft.direction),
           icon: Icons.unfold_more,
-          iconTurn: geometry.draft.start + math.pi / 2,
+          iconTurn: geometry.draft.direction + math.pi / 2,
+        ),
+        handle(
+          _SectorGrip.outerRadius,
+          'outer',
+          l10n.constellationArrangeOuterRadius,
+          _radialResizeCursor(geometry.draft.direction),
+          icon: Icons.unfold_more,
+          iconTurn: geometry.draft.direction + math.pi / 2,
         ),
       ],
     );
@@ -1305,62 +1386,56 @@ class _SectorPainter extends CustomPainter {
     final draft = geometry.draft;
     final centre = geometry.centre;
     final full = draft.isFullCircle;
-    final reach = geometry.reach;
+    final inner = geometry.inner;
+    final outer = geometry.outer;
+    final outerRect = Rect.fromCircle(center: centre, radius: outer);
+    final innerRect = Rect.fromCircle(center: centre, radius: inner);
+    // The band the nodes go in: from the inner arc to the outer one.
     final shape = full
-        ? (Path()..addOval(Rect.fromCircle(center: centre, radius: reach)))
+        ? (Path()
+            ..fillType = PathFillType.evenOdd
+            ..addOval(outerRect)
+            ..addOval(innerRect))
         : (Path()
-            ..moveTo(centre.dx, centre.dy)
-            ..arcTo(
-              Rect.fromCircle(center: centre, radius: reach),
-              draft.start,
-              draft.span,
-              false,
-            )
+            ..arcTo(outerRect, draft.start, draft.span, true)
+            ..arcTo(innerRect, draft.end, -draft.span, false)
             ..close());
-    final outline = Paint()
+    final thin = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke;
+      ..strokeWidth = stroke / 2;
     canvas
       ..drawPath(shape, Paint()..color = color.withValues(alpha: 0.06))
-      ..drawPath(shape, outline);
-    // The outer handles keep their distance at any zoom; a thin line ties
-    // each to the shape when they sit past it.
-    if (geometry.handleReach > reach) {
-      final tie = Paint()
-        ..color = color
-        ..strokeWidth = stroke / 2;
-      for (final angle in [
-        draft.direction,
-        draft.end,
-        if (!full) draft.start,
-      ]) {
-        canvas.drawLine(
-          centre + _unit(angle) * reach,
-          centre + _unit(angle) * geometry.handleReach,
-          tie,
-        );
-      }
-    }
-    // The rings the nodes go on, faintly; the first one, which the radius
-    // handle drags, in full.
-    final rings = Paint()
+      ..drawPath(shape, thin);
+    // The edges run on to the centre faintly, so the band reads as part of a
+    // sector around it.
+    final faint = Paint()
       ..color = guide.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke / 2;
-    for (final radius in geometry.preview?.rings ?? const <double>[]) {
-      _arc(canvas, centre, radius * geometry.scale, draft, rings);
+    if (!full) {
+      for (final angle in [draft.start, draft.end]) {
+        canvas.drawLine(centre, centre + _unit(angle) * inner, faint);
+      }
     }
-    _arc(
-      canvas,
-      centre,
-      geometry.inner,
-      draft,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke * 2,
-    );
+    // A handle kept clear of its neighbours is tied to its place on the
+    // shape by a thin line.
+    for (final grip in geometry.handles) {
+      final from = geometry.anchor(grip);
+      final to = geometry.handle(grip);
+      if ((to - from).distance > 0.5) canvas.drawLine(from, to, thin);
+    }
+    // The rings the nodes go on, faintly; the two edges the radius handles
+    // drag, in full.
+    for (final radius in geometry.preview?.rings ?? const <double>[]) {
+      _arc(canvas, centre, radius * geometry.scale, draft, faint);
+    }
+    final edge = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke * 2;
+    _arc(canvas, centre, inner, draft, edge);
+    _arc(canvas, centre, outer, draft, edge);
     final line = Paint()
       ..color = guide
       ..strokeWidth = stroke;
@@ -1530,12 +1605,14 @@ class ConstellationSelectionBar extends StatelessWidget {
         : null;
     final arrange = Tooltip(
       message: reason ?? l10n.constellationArrangeSector,
-      child: TextButton.icon(
+      // A tonal button with a sector icon, so it stands out in the bar; at
+      // phone width the label shortens and the icon stays.
+      child: FilledButton.tonalIcon(
         key: const Key('constellation.selection.arrange'),
         onPressed: reason == null
             ? () => _beginSector(context, selection)
             : null,
-        icon: const Icon(Icons.radar),
+        icon: const Icon(Icons.pie_chart_outline),
         label: Text(
           l10n.constellationArrangeSector,
           overflow: TextOverflow.ellipsis,

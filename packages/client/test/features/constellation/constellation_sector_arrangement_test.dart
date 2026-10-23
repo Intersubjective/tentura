@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/constellation_sector_arrangement.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 
-// «Arrange in a sector» (#644): the selected nodes go evenly into rings
-// inside a sector around any centre — inner rings first, equal steps along
-// every ring, the last ring spread over the whole sector — the nearest nodes
-// on the inner ring and everyone keeping their order around the centre.
+// «Arrange in a sector» (#644): the selected nodes go evenly into rings in
+// the band of a sector, from its inner radius to its outer one, around any
+// centre — equal steps along every ring, rings at equal steps from edge to
+// edge, every ring spread over the whole sector — the nearest nodes on the
+// inner ring and everyone keeping their order around the centre. The band is
+// kept exactly as asked, however tight.
 
 const LPoint _centre = (x: 2048, y: 2048);
 const double _spacing = 100;
@@ -53,12 +55,15 @@ List<ConstellationSectorMember> _scatter(int count, {int seed = 7}) {
   ];
 }
 
+/// Arranges [members]; without [outerRadius], in the compact band a new
+/// sector starts with.
 ConstellationSectorLayout _arrange(
   List<ConstellationSectorMember> members, {
   LPoint centre = _centre,
   double direction = -math.pi / 2,
   double span = math.pi / 2,
   double innerRadius = 300,
+  double? outerRadius,
   double minSpacing = _spacing,
   LRect? bounds,
 }) => arrangeConstellationSector(
@@ -67,6 +72,14 @@ ConstellationSectorLayout _arrange(
   direction: direction,
   span: span,
   innerRadius: innerRadius,
+  outerRadius:
+      outerRadius ??
+      constellationSectorCompactOuterRadius(
+        innerRadius: innerRadius,
+        span: span,
+        count: members.length,
+        minSpacing: minSpacing,
+      ),
   minSpacing: minSpacing,
   bounds: bounds,
 );
@@ -87,6 +100,48 @@ List<List<LPoint>> _byRing(
       ),
     ),
 ];
+
+double _minDistance(Iterable<LPoint> targets) {
+  final points = targets.toList();
+  var nearest = double.infinity;
+  for (var i = 0; i < points.length; i++) {
+    for (var j = i + 1; j < points.length; j++) {
+      nearest = math.min(nearest, _distance(points[i], points[j]));
+    }
+  }
+  return nearest;
+}
+
+/// Every target is on a ring of [layout], inside the band and the sector,
+/// and every ring's steps are equal and centred in the sector.
+void _expectEvenInBand(ConstellationSectorLayout layout, int count) {
+  expect(layout.targets, hasLength(count));
+  final rings = _byRing(layout);
+  expect(
+    rings.fold<int>(0, (sum, ring) => sum + ring.length),
+    count,
+    reason: 'every target is on a ring',
+  );
+  for (final radius in layout.rings) {
+    expect(radius, greaterThanOrEqualTo(layout.inner - 1e-9));
+    expect(radius, lessThanOrEqualTo(layout.outer + 1e-9));
+  }
+  for (final ring in rings) {
+    expect(ring, isNotEmpty, reason: 'no empty ring');
+    final cell = layout.sweep / ring.length;
+    final angles = ring.map(_angle).toList();
+    // Counterclockwise distances, so a step of half the circle is one too.
+    double turn(double to, double from) => (to - from) % (2 * math.pi);
+    expect(turn(angles.first, layout.start), closeTo(cell / 2, 1e-9));
+    for (var i = 1; i < angles.length; i++) {
+      expect(turn(angles[i], angles[i - 1]), closeTo(cell, 1e-9));
+    }
+  }
+  for (final point in layout.targets.values) {
+    final along = (_angle(point) - layout.start) % (2 * math.pi);
+    expect(along, lessThanOrEqualTo(layout.sweep + 1e-9));
+  }
+}
 
 void main() {
   group('constellationSectorRingCapacity', () {
@@ -143,19 +198,73 @@ void main() {
     });
   });
 
+  group('constellationSectorCompactOuterRadius', () {
+    test('is the last ring when rings a spacing apart fill from the inner '
+        'one, each as full as it can be', () {
+      var radius = 300.0;
+      var left = 40;
+      while (true) {
+        left -= constellationSectorRingCapacity(
+          radius: radius,
+          span: math.pi / 2,
+          minSpacing: _spacing,
+        );
+        if (left <= 0) break;
+        radius += _spacing;
+      }
+      expect(
+        constellationSectorCompactOuterRadius(
+          innerRadius: 300,
+          span: math.pi / 2,
+          count: 40,
+          minSpacing: _spacing,
+        ),
+        radius,
+      );
+    });
+
+    test('is the inner radius when one ring holds them all, and never less '
+        'than a spacing from the centre', () {
+      expect(
+        constellationSectorCompactOuterRadius(
+          innerRadius: 300,
+          span: math.pi / 2,
+          count: 3,
+          minSpacing: _spacing,
+        ),
+        300,
+      );
+      expect(
+        constellationSectorCompactOuterRadius(
+          innerRadius: 0,
+          span: math.pi / 12,
+          count: 1,
+          minSpacing: _spacing,
+        ),
+        _spacing,
+      );
+    });
+  });
+
   group('arrangeConstellationSector', () {
-    test('a single ring: equal steps across the sector, centred on the '
-        'direction, every target inside it', () {
+    test('equal radii make one ring: equal steps across the sector, centred '
+        'on the direction', () {
       final members = [
         (id: 'a', position: _polar(0.1, 300)),
         (id: 'b', position: _polar(2, 300)),
         (id: 'c', position: _polar(-2.5, 300)),
       ];
       const direction = math.pi / 2;
-      final layout = _arrange(members, direction: direction);
+      final layout = _arrange(
+        members,
+        direction: direction,
+        outerRadius: 300,
+      );
 
       expect(layout.targets.keys, unorderedEquals(['a', 'b', 'c']));
       expect(layout.rings, [300]);
+      expect(layout.inner, 300);
+      expect(layout.outer, 300);
       expect(layout.sweep, closeTo(math.pi / 2, 1e-12));
       expect(layout.start, closeTo(direction - math.pi / 4, 1e-12));
       final ring = _byRing(layout).single;
@@ -165,91 +274,127 @@ void main() {
       expect(_diff(angles[1], angles[0]), closeTo(math.pi / 6, 1e-9));
       expect(_diff(angles[2], angles[1]), closeTo(math.pi / 6, 1e-9));
       expect(_diff(angles[1], direction), closeTo(0, 1e-9));
-      for (final point in ring) {
-        expect(_radius(point), closeTo(300, 1e-9));
+    });
+
+    test('an outer radius below the inner one counts as the inner one', () {
+      final layout = _arrange(_scatter(3), outerRadius: 100);
+      expect(layout.outer, 300);
+      expect(layout.rings, [300]);
+    });
+
+    test('a band too thin for a second ring holds one ring half way', () {
+      final layout = _arrange(_scatter(3), outerRadius: 340);
+      expect(layout.rings, [320]);
+      _expectEvenInBand(layout, 3);
+    });
+
+    test('rings go from the inner edge to the outer one at equal steps, and '
+        'share the nodes by their length', () {
+      final layout = _arrange(_scatter(60), outerRadius: 1000);
+      final rings = layout.rings;
+      expect(rings.length, greaterThan(2));
+      expect(rings.first, 300);
+      expect(rings.last, 1000);
+      final step = (1000 - 300) / (rings.length - 1);
+      for (var i = 1; i < rings.length; i++) {
+        expect(rings[i] - rings[i - 1], closeTo(step, 1e-9));
+      }
+      final counts = [for (final ring in _byRing(layout)) ring.length];
+      final total = rings.fold<double>(0, (sum, r) => sum + r);
+      for (var i = 0; i < rings.length; i++) {
+        expect(
+          counts[i],
+          closeTo(60 * rings[i] / total, 1),
+          reason: 'ring $i takes its share',
+        );
+      }
+      _expectEvenInBand(layout, 60);
+    });
+
+    test('cells come out about as deep as they are wide', () {
+      final layout = _arrange(_scatter(100), outerRadius: 1500);
+      final rings = layout.rings;
+      final depth = (rings.last - rings.first) / (rings.length - 1);
+      for (final ring in _byRing(layout)) {
+        final width = _distance(ring[0], ring[1]);
+        expect(width / depth, inInclusiveRange(0.5, 2));
       }
     });
 
-    test('fills inner rings first, then adds rings a spacing apart', () {
-      final members = _scatter(40);
-      final layout = _arrange(members);
-
-      expect(layout.targets, hasLength(40));
-      for (var i = 0; i < layout.rings.length; i++) {
-        expect(layout.rings[i], closeTo(300 + i * _spacing, 1e-9));
-      }
-      final rings = _byRing(layout);
-      expect(rings.fold<int>(0, (sum, ring) => sum + ring.length), 40);
-      for (var i = 0; i < rings.length - 1; i++) {
-        expect(
-          rings[i].length,
-          constellationSectorRingCapacity(
-            radius: layout.rings[i],
-            span: math.pi / 2,
-            minSpacing: _spacing,
-          ),
-          reason: 'ring $i is full',
-        );
-      }
+    test('a wider band spreads the same nodes further apart', () {
+      final members = _scatter(30);
+      final compact = _arrange(members);
+      final wide = _arrange(members, outerRadius: 2000);
+      expect(wide.outer, 2000);
       expect(
-        rings.last.length,
-        lessThanOrEqualTo(
-          constellationSectorRingCapacity(
-            radius: layout.rings.last,
-            span: math.pi / 2,
-            minSpacing: _spacing,
-          ),
-        ),
+        _minDistance(wide.targets.values),
+        greaterThan(_minDistance(compact.targets.values)),
       );
     });
 
-    test('steps are equal along every ring, and the last ring is spread '
-        'over the whole sector, centred', () {
-      final layout = _arrange(_scatter(23));
-      final rings = _byRing(layout);
-      expect(rings.length, greaterThan(1));
-      for (final ring in rings) {
-        final cell = layout.sweep / ring.length;
-        final angles = ring.map(_angle).toList();
-        expect(_diff(angles.first, layout.start), closeTo(cell / 2, 1e-9));
-        expect(
-          _diff(layout.start + layout.sweep, angles.last),
-          closeTo(cell / 2, 1e-9),
-        );
-        for (var i = 1; i < angles.length; i++) {
-          expect(_diff(angles[i], angles[i - 1]), closeTo(cell, 1e-9));
+    test('a band with room for them keeps the nodes a spacing apart', () {
+      for (final span in [math.pi / 12, math.pi / 3, math.pi, 2 * math.pi]) {
+        for (final count in [2, 7, 30, 64, 200]) {
+          for (final inner in [100.0, 300.0]) {
+            final layout = _arrange(
+              _scatter(count, seed: count),
+              span: span,
+              innerRadius: inner,
+            );
+            expect(
+              _minDistance(layout.targets.values),
+              greaterThanOrEqualTo(_spacing - 1e-6),
+              reason: '$count nodes, ${(span * 180 / math.pi).round()}°',
+            );
+          }
         }
       }
     });
 
+    test('a band too tight for them is kept as it is: the nodes come '
+        'closer, even overlap, still evenly', () {
+      final layout = _arrange(_scatter(40), innerRadius: 200, outerRadius: 260);
+      expect(layout.inner, 200);
+      expect(layout.outer, 260);
+      expect(_minDistance(layout.targets.values), lessThan(_spacing));
+      _expectEvenInBand(layout, 40);
+
+      final single = _arrange(
+        _scatter(40),
+        innerRadius: 150,
+        outerRadius: 150,
+        span: math.pi / 12,
+      );
+      expect(single.rings, [150]);
+      _expectEvenInBand(single, 40);
+    });
+
     for (final span in [math.pi / 12, math.pi / 3, math.pi, 2 * math.pi]) {
       for (final count in [1, 2, 7, 30, 64, 200]) {
-        test(
-          'no two targets closer than the spacing and all inside the '
-          'sector: $count nodes, span ${(span * 180 / math.pi).round()}°',
-          () {
+        for (final (name, inner, outer) in [
+          ('one ring', 150.0, 150.0),
+          ('tight', 150.0, 220.0),
+          ('compact', 150.0, null),
+          ('wide', 150.0, 3000.0),
+        ]) {
+          test('$count nodes, span ${(span * 180 / math.pi).round()}°, '
+              '$name band: all inside it and evenly spaced', () {
             final layout = _arrange(
               _scatter(count, seed: count),
               span: span,
-              innerRadius: 40,
+              innerRadius: inner,
+              outerRadius: outer,
               direction: 2.5,
             );
-            final points = layout.targets.values.toList();
-            expect(points, hasLength(count));
-            for (var i = 0; i < points.length; i++) {
-              for (var j = i + 1; j < points.length; j++) {
-                expect(
-                  _distance(points[i], points[j]),
-                  greaterThanOrEqualTo(_spacing - 1e-6),
-                );
-              }
-              // Never closer to the centre than one spacing.
-              expect(_radius(points[i]), greaterThanOrEqualTo(_spacing - 1e-9));
-              final along = (_angle(points[i]) - layout.start) % (2 * math.pi);
-              expect(along, lessThanOrEqualTo(layout.sweep + 1e-9));
+            expect(layout.inner, inner);
+            if (outer != null) expect(layout.outer, outer);
+            _expectEvenInBand(layout, count);
+            for (final point in layout.targets.values) {
+              expect(_radius(point), greaterThanOrEqualTo(inner - 1e-9));
+              expect(_radius(point), lessThanOrEqualTo(layout.outer + 1e-9));
             }
-          },
-        );
+          });
+        }
       }
     }
 
@@ -268,12 +413,12 @@ void main() {
       }
     });
 
-    test('a radius too small for anyone gets rings outward instead of '
-        'overlaps', () {
-      final layout = _arrange(_scatter(5), innerRadius: 0, span: math.pi / 12);
-      expect(layout.rings.first, _spacing);
-      // A narrow sector holds one per ring here: a column outward.
-      expect(layout.rings, hasLength(5));
+    test('the radii are kept exactly, even right at the centre', () {
+      final layout = _arrange(_scatter(5), innerRadius: 0, outerRadius: 0);
+      expect(layout.rings, [0]);
+      for (final point in layout.targets.values) {
+        expect(_radius(point), closeTo(0, 1e-9));
+      }
     });
 
     test('the nearest go on the inner ring, and each ring keeps the order '
@@ -284,10 +429,15 @@ void main() {
         (id: 'near-left', position: _polar(-math.pi / 2 - 0.4, 210)),
         (id: 'far-right', position: _polar(-math.pi / 2 + 0.5, 950)),
       ];
-      // Two places on the first ring (r 200, 60°), the other two outside.
-      final layout = _arrange(members, innerRadius: 200, span: math.pi / 3);
+      // Two places on each of two rings (r 200 and 300, 60°).
+      final layout = _arrange(
+        members,
+        innerRadius: 200,
+        outerRadius: 300,
+        span: math.pi / 3,
+      );
 
-      expect(layout.rings, hasLength(2));
+      expect(layout.rings, [200, 300]);
       final inner = layout.rings.first;
       expect(_radius(layout.targets['near-left']!), closeTo(inner, 1e-9));
       expect(_radius(layout.targets['near-right']!), closeTo(inner, 1e-9));
@@ -303,35 +453,55 @@ void main() {
 
     test('arranging an arrangement again changes nothing', () {
       for (final span in [math.pi / 4, math.pi, 2 * math.pi]) {
-        final first = _arrange(_scatter(37), span: span, direction: 1);
-        final again = _arrange(
-          [
-            for (final MapEntry(key: id, value: position)
-                in first.targets.entries)
-              (id: id, position: position),
-          ],
-          span: span,
-          direction: 1,
-        );
-        for (final MapEntry(key: id, value: point) in first.targets.entries) {
-          expect(again.targets[id]!.x, closeTo(point.x, 1e-6), reason: id);
-          expect(again.targets[id]!.y, closeTo(point.y, 1e-6), reason: id);
+        for (final outer in [null, 320.0, 1500.0]) {
+          final first = _arrange(
+            _scatter(37),
+            span: span,
+            direction: 1,
+            outerRadius: outer,
+          );
+          final again = _arrange(
+            [
+              for (final MapEntry(key: id, value: position)
+                  in first.targets.entries)
+                (id: id, position: position),
+            ],
+            span: span,
+            direction: 1,
+            outerRadius: outer,
+          );
+          for (final MapEntry(key: id, value: point) in first.targets.entries) {
+            expect(again.targets[id]!.x, closeTo(point.x, 1e-6), reason: id);
+            expect(again.targets[id]!.y, closeTo(point.y, 1e-6), reason: id);
+          }
         }
       }
     });
 
     test('is deterministic whatever order the members come in', () {
-      final members = _scatter(25);
-      final forward = _arrange(members);
-      final backward = _arrange(members.reversed.toList());
-      expect(backward.targets, forward.targets);
+      for (final outer in [null, 320.0, 1500.0]) {
+        final members = _scatter(25);
+        final forward = _arrange(members, outerRadius: outer);
+        final backward = _arrange(
+          members.reversed.toList(),
+          outerRadius: outer,
+        );
+        expect(backward.targets, forward.targets);
+        expect(backward.rings, forward.rings);
+      }
     });
 
     test('works around any centre, not only the viewer', () {
       const centre = (x: 900.0, y: 3100.0);
-      final layout = _arrange(_scatter(9), centre: centre, innerRadius: 250);
+      final layout = _arrange(
+        _scatter(9),
+        centre: centre,
+        innerRadius: 250,
+        outerRadius: 600,
+      );
       for (final point in layout.targets.values) {
         expect(_radius(point, centre), greaterThanOrEqualTo(250 - 1e-9));
+        expect(_radius(point, centre), lessThanOrEqualTo(600 + 1e-9));
       }
     });
 
@@ -358,9 +528,10 @@ void main() {
     });
 
     test('nothing to arrange gives an empty layout', () {
-      final layout = _arrange(const []);
+      final layout = _arrange(const [], outerRadius: 500);
       expect(layout.targets, isEmpty);
       expect(layout.rings, isEmpty);
+      expect(layout.outer, 500);
     });
   });
 
