@@ -709,8 +709,18 @@ class _AuthorAdmissionFooter extends StatelessWidget {
         Row(
           children: [
             if (onAccept != null)
+              // An identifier-only Semantics forms its own unnamed node above
+              // the button's node, so the button is restated on this one node
+              // (name, tap, identifier together) and its own node excluded,
+              // as CapabilityTagChip does (#360, #617).
               Semantics(
                 identifier: TestIds.helpOfferAccept(offerUserId),
+                button: true,
+                enabled: true,
+                focusable: true,
+                label: l10n.helpOfferAdmissionAccept,
+                onTap: onAccept,
+                excludeSemantics: true,
                 child: FilledButton.tonalIcon(
                   key: TestIds.key(TestIds.helpOfferAccept(offerUserId)),
                   onPressed: onAccept,
@@ -723,6 +733,12 @@ class _AuthorAdmissionFooter extends StatelessWidget {
             if (onDecline != null)
               Semantics(
                 identifier: TestIds.helpOfferDecline(offerUserId),
+                button: true,
+                enabled: true,
+                focusable: true,
+                label: l10n.helpOfferAdmissionDecline,
+                onTap: onDecline,
+                excludeSemantics: true,
                 child: TextButton(
                   key: TestIds.key(TestIds.helpOfferDecline(offerUserId)),
                   onPressed: onDecline,

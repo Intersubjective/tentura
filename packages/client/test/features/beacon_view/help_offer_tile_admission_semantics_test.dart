@@ -15,6 +15,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/semantics_identifier.dart';
+
 class _FakePlatformRepository implements PlatformRepositoryPort {
   Uri? launchedUserLink;
 
@@ -148,12 +150,15 @@ void main() {
       );
       expect(
         find.semantics.byLabel(label).evaluate().single,
-        isSemantics(
-          label: label,
-          identifier: identifier,
-          isButton: true,
-          isFocusable: true,
-          hasTapAction: true,
+        allOf(
+          isSemantics(
+            label: label,
+            isButton: true,
+            isFocusable: true,
+            hasTapAction: true,
+          ),
+          // isSemantics ignores `identifier:` (#617); check it for real.
+          hasSemanticsIdentifier(identifier),
         ),
       );
     }
