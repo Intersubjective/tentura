@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 
 class ContextAddDialog extends StatefulWidget {
@@ -36,6 +38,12 @@ class _ContextAddDialogState extends State<ContextAddDialog>
       autofocus: true,
       controller: _controller,
       maxLength: kTitleMaxLength,
+      // Code units, as the validator and the server count the title
+      // (#356, #603): maxLength alone counts characters.
+      inputFormatters: const [
+        CodeUnitLengthLimitingTextInputFormatter(kTitleMaxLength),
+      ],
+      buildCounter: tenturaCodeUnitCounter(() => _controller.text),
       validator: (value) => titleValidator(_l10n, value),
       onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
     ),

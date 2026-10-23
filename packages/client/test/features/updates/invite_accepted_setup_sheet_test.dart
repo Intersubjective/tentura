@@ -62,8 +62,7 @@ final class _FakeSetupCase implements InviteAcceptedSetupPort {
   @override
   Future<Map<String, InviteSeedPromptState>> fetchPrompts(
     Set<String> subjectIds,
-  ) async =>
-      {};
+  ) async => {};
 }
 
 void main() {
@@ -420,6 +419,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(InviteAcceptedSetupSheet), findsOneWidget);
       expect(result, isNull);
+    });
+  });
+
+  // #603 (follow-up of #356): the private-name field counted and capped
+  // characters while the validator and the server count UTF-16 code units,
+  // so an emoji name the counter showed as 25/32 was refused on Save.
+  group('private name code-unit cap', () {
+    // 25 characters, 39 code units; its longest fitting prefix is 31 units.
+    final typed = 'Van friend ${'🚐' * 14}';
+    final fits = 'Van friend ${'🚐' * 10}';
+
+    String privateNameText(WidgetTester tester) => tester
+        .widget<TextFormField>(
+          find.byKey(TestIds.key(TestIds.inviteAcceptedSetupPrivateName)),
+        )
+        .controller!
+        .text;
+
+    testWidgets('emoji name is capped at 32 code units and saves', (
+      tester,
+    ) async {
+      await pumpAndOpen(tester);
+      selectCapability(tester);
+      await tester.pump();
+      await enableAndEnterPrivateName(tester, typed);
+      await tester.pumpAndSettle();
+
+      expect(privateNameText(tester), fits);
+      expect(find.text('31/32'), findsOneWidget);
+      expect(find.text('25/32'), findsNothing);
+
+      await tapSave(tester);
+
+      expect(find.text(l10n.displayNameTooLong), findsNothing);
+      expect(setupCase.renamedNames, [fits]);
+      expect(setupCase.answerCalls, 1);
+      expect(result?.action, InviteAcceptedSetupAction.saved);
+    });
+
+    testWidgets('a cap inside an emoji drops the whole emoji', (tester) async {
+      await pumpAndOpen(tester);
+      await enableAndEnterPrivateName(tester, '${'a' * 31}🚐');
+      await tester.pumpAndSettle();
+
+      expect(privateNameText(tester), 'a' * 31);
+      expect(find.text('31/32'), findsOneWidget);
     });
   });
 }

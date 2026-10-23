@@ -77,3 +77,42 @@ Widget? tenturaCounterNearLimit(
     ),
   );
 }
+
+/// Plain `buildCounter`: `n/max` in the muted counter style, always shown.
+Widget? tenturaCounter(
+  BuildContext context, {
+  required int currentLength,
+  required int? maxLength,
+  required bool isFocused,
+}) {
+  if (maxLength == null) return null;
+  return Text(
+    '$currentLength/$maxLength',
+    style: TenturaText.withTabular(
+      TenturaText.bodySmall(context.tt.textMuted),
+    ),
+  );
+}
+
+/// `buildCounter` that counts [text] in UTF-16 code units — the unit
+/// `CodeUnitLengthLimitingTextInputFormatter`, the validators and the server
+/// count — instead of the characters `TextField` passes in, so an emoji
+/// counts twice (#356, #603). [render] draws the counter.
+///
+/// [text] is read when the counter builds, so pass the live text (a
+/// controller's, or the cubit state the field writes to).
+InputCounterWidgetBuilder tenturaCodeUnitCounter(
+  String Function() text, {
+  InputCounterWidgetBuilder render = tenturaCounter,
+}) =>
+    (
+      context, {
+      required currentLength,
+      required isFocused,
+      required maxLength,
+    }) => render(
+      context,
+      currentLength: text().length,
+      isFocused: isFocused,
+      maxLength: maxLength,
+    );

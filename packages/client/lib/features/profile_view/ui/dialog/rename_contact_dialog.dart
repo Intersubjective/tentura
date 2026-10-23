@@ -8,6 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -123,8 +124,13 @@ class _RenameContactDialogState extends State<RenameContactDialog>
               controller: _controller,
               autofocus: true,
               maxLength: kTitleMaxLength,
-              validator: (value) =>
-                  displayNameValidator(l10n, value?.trim()),
+              // Code units, as the validator and the server count the name
+              // (#356, #603): maxLength alone counts characters.
+              inputFormatters: const [
+                CodeUnitLengthLimitingTextInputFormatter(kTitleMaxLength),
+              ],
+              buildCounter: tenturaCodeUnitCounter(() => _controller.text),
+              validator: (value) => displayNameValidator(l10n, value?.trim()),
               onFieldSubmitted: (_) => unawaited(_save()),
             ),
           ],
