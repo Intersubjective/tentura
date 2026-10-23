@@ -163,8 +163,12 @@ class TenturaDb extends _$TenturaDb {
 
   TenturaDb.auth(Env env) : this._(MainDbPool.auth(env), ownsPool: true);
 
+  /// [scopeInterceptor] is the same test hook as on the default constructor.
   @factoryMethod
-  TenturaDb.scoped(MainDbPool pool) : this._(pool);
+  TenturaDb.scoped(
+    MainDbPool pool, {
+    @ignoreParam QueryInterceptor Function()? scopeInterceptor,
+  }) : this._(pool, scopeInterceptor: scopeInterceptor);
 
   TenturaDb._(
     MainDbPool pool, {
@@ -178,7 +182,7 @@ class TenturaDb extends _$TenturaDb {
              enableMigrations: false,
              logStatements: pool.logStatements,
            ),
-         ),
+         ).interceptWith(_UnscopedPoolGuard()),
        );
 
   TenturaDb.forTest({required QueryExecutor database})
@@ -417,7 +421,9 @@ class TenturaDb extends _$TenturaDb {
   /// [deadline]). Each attempt's statements are bounded by the request budget
   /// through a transaction-local `statement_timeout`: [deadline] on the first
   /// attempt, what is left of it on a retry.
-  /// Must start outside any transaction so retries release it before sleeping.
+  /// Must start outside any transaction (whose isolation level is already
+  /// fixed) and outside a leased connection scope, so that every retry
+  /// releases its connection before sleeping. Both are refused before any SQL.
   Future<T> withMutatingRepeatableRead<T>(
     String userId,
     Future<T> Function() action, {
@@ -425,9 +431,27 @@ class TenturaDb extends _$TenturaDb {
     int maxAttempts = 3,
     Future<void> Function(Duration)? sleep,
   }) {
-    if (resolvedEngine.executor is TransactionExecutor) {
+    final engine = resolvedEngine;
+    // Any database's live lease counts, not only this pool's: a backoff would
+    // hold it all the same. Drift's exclusive and intercepted executors also
+    // run inside the scope zone, so check the zone, not the engine's type.
+    final scope = Zone.current[_connectionScopeZoneKey];
+    final leased = scope is _ScopedDatabaseUser && scope.isActive;
+    final innermost = Zone.current[_driftZoneRootUserKey];
+    if (engine.executor is TransactionExecutor ||
+        (leased &&
+            innermost is DatabaseConnectionUser &&
+            innermost.executor is TransactionExecutor)) {
       return Future.error(
         StateError('Cannot enter repeatable read inside an open transaction'),
+      );
+    }
+    if (leased) {
+      return Future.error(
+        StateError(
+          'Cannot enter repeatable read inside a leased connection scope: '
+          'a retry backoff would sleep while holding the connection',
+        ),
       );
     }
     final clock = Stopwatch()..start();
@@ -590,6 +614,30 @@ final class _ScopedDatabaseUser extends DatabaseConnectionUser {
     }
     return super.doWhenOpened(fn);
   }
+}
+
+/// The pool-backed root executor never runs SQL itself: every statement and
+/// transaction goes through a leased scope. Drift batches read the executor of
+/// whichever user they were started on, so a batch reaching the root (e.g.
+/// through a torn-off `resolvedEngine.batch`) would run statement by
+/// statement on the pool; refuse it, and a root transaction, before any SQL.
+final class _UnscopedPoolGuard extends QueryInterceptor {
+  _UnscopedPoolGuard();
+
+  static StateError _refuse(String what) => StateError(
+    '$what on the unscoped pool executor bypasses the connection lease; '
+    'use withTransaction() and individual statements instead',
+  );
+
+  @override
+  TransactionExecutor beginTransaction(QueryExecutor parent) =>
+      throw _refuse('A transaction');
+
+  @override
+  Future<void> runBatched(
+    QueryExecutor executor,
+    BatchedStatements statements,
+  ) => Future.error(_refuse('A Drift batch'));
 }
 
 /// Routes inherited Drift operations through the same admission and lease as

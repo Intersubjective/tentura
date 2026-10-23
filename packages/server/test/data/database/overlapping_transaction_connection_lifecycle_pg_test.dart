@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 @Timeout(Duration(minutes: 2))
 library;
 
@@ -55,12 +55,14 @@ Future<void> main() async {
     Future<void> Function(TenturaDb database) action, {
     Duration maxConnectionAge = _longLifetime,
     Duration maxSessionUse = _longLifetime,
+    int connections = 1,
   }) async {
     final pool = MainDbPool(
       _LifecycleEnv(
         target.databaseEnv,
         maxConnectionAge: maxConnectionAge,
         maxSessionUse: maxSessionUse,
+        connections: connections,
       ),
     );
     final database = TenturaDb.scoped(pool);
@@ -71,6 +73,128 @@ Future<void> main() async {
       await pool.close();
     }
   }
+
+  Future<bool> terminate(int pid) async {
+    final terminated = await session.writer.execute(
+      Sql.named('''
+SELECT pg_terminate_backend(pid) AS terminated
+FROM pg_stat_activity
+WHERE datname = current_database() AND pid = @pid
+'''),
+      parameters: {'pid': pid},
+    );
+    return terminated.single.single == true;
+  }
+
+  for (final connections in [1, 2]) {
+    test(
+      'an idle pooled backend terminated between transactions is replaced '
+      'for the next transaction ($connections connection(s))',
+      () async {
+        final pool = MainDbPool(
+          _LifecycleEnv(
+            target.databaseEnv,
+            maxConnectionAge: _longLifetime,
+            maxSessionUse: _longLifetime,
+            connections: connections,
+          ),
+        );
+        final database = TenturaDb.scoped(pool);
+        try {
+          final killed = await database.transaction(() => _backend(database));
+          // Take the pool's own handle on that idle connection, so the test
+          // can wait until the client has seen the server close it.
+          late Connection idle;
+          final idlePid = await pool.pool.withConnection((connection) async {
+            idle = connection;
+            final rows = await connection.execute('SELECT pg_backend_pid()');
+            return rows.single.single! as int;
+          });
+          expect(idlePid, killed.pid, reason: 'The idle connection is reused.');
+
+          expect(await terminate(killed.pid), isTrue);
+          await idle.closed.timeout(kStableStateWait);
+
+          final recovered = await database.transaction(
+            () => _backend(database),
+          );
+          expect(
+            recovered.pid,
+            isNot(killed.pid),
+            reason: 'A dead idle connection must not be handed out again.',
+          );
+        } finally {
+          await database.close();
+          await pool.close();
+        }
+      },
+    );
+  }
+
+  group(
+    'Connection recycling while transactions overlap on two connections',
+    () {
+      test(
+        'connection age rotates every connection although a transaction is '
+        'open at every moment',
+        () => withPool(
+          _expectRotationUnderSteadyOverlap,
+          maxConnectionAge: _shortLifetime,
+          connections: 2,
+        ),
+      );
+
+      test(
+        'session use rotates every connection although a transaction is '
+        'open at every moment',
+        () => withPool(
+          _expectRotationUnderSteadyOverlap,
+          maxSessionUse: _shortLifetime,
+          connections: 2,
+        ),
+      );
+
+      test(
+        'a terminated backend fails only its own transaction and is '
+        'replaced while another transaction stays open',
+        () => withPool(connections: 2, (database) async {
+          final victim = _HeldTransaction(database);
+          final bystander = _HeldTransaction(database);
+          _HeldTransaction? next;
+          try {
+            final killed = await victim.entered.future.timeout(
+              kStableStateWait,
+            );
+            final open = await bystander.entered.future.timeout(
+              kStableStateWait,
+            );
+            expect(open.pid, isNot(killed.pid));
+
+            expect(await terminate(killed.pid), isTrue);
+            await victim.finish();
+            expect(victim.error, isNotNull);
+
+            // The bystander still holds its transaction, so the open
+            // transactions never drain while the victim is replaced.
+            next = _HeldTransaction(database);
+            final recovered = await next.entered.future.timeout(
+              kStableStateWait,
+            );
+            expect(recovered.pid, isNot(anyOf(killed.pid, open.pid)));
+
+            await bystander.finish();
+            await next.finish();
+          } finally {
+            await victim.finish();
+            await bystander.finish();
+            await next?.finish();
+          }
+          bystander.checkSuccess();
+          next.checkSuccess();
+        }),
+      );
+    },
+  );
 
   group('Connection recycling with overlapping transactions', () {
     test(
@@ -168,6 +292,48 @@ WHERE datname = current_database() AND pid = @pid
   });
 }
 
+/// Two transactions overlap on two connections; each one that ends is
+/// replaced by a queued successor before the other ends, so the set of open
+/// transactions never empties. Each aged connection must still be replaced.
+Future<void> _expectRotationUnderSteadyOverlap(TenturaDb database) async {
+  final first = _HeldTransaction(database);
+  final second = _HeldTransaction(database);
+  _HeldTransaction? third;
+  _HeldTransaction? fourth;
+  try {
+    final a = await first.entered.future.timeout(kStableStateWait);
+    final b = await second.entered.future.timeout(kStableStateWait);
+    expect(b.pid, isNot(a.pid), reason: 'Both transactions are concurrent.');
+    // Age both leases before queueing successors, as in the queued case.
+    await Future<void>.delayed(_lifetimeElapsed);
+
+    third = _HeldTransaction(database);
+    expect(third.entered.isCompleted, isFalse);
+    await first.finish();
+    first.checkSuccess();
+    final c = await third.entered.future.timeout(kStableStateWait);
+    expect(c.pid, isNot(anyOf(a.pid, b.pid)));
+
+    fourth = _HeldTransaction(database);
+    expect(fourth.entered.isCompleted, isFalse);
+    await second.finish();
+    second.checkSuccess();
+    final d = await fourth.entered.future.timeout(kStableStateWait);
+    expect(
+      d.pid,
+      isNot(anyOf(a.pid, b.pid, c.pid)),
+      reason: 'The second aged connection must be replaced as well.',
+    );
+  } finally {
+    await first.finish();
+    await second.finish();
+    await third?.finish();
+    await fourth?.finish();
+  }
+  third.checkSuccess();
+  fourth.checkSuccess();
+}
+
 Future<void> _expectRotationWhileOverlapped(TenturaDb database) async {
   final first = _HeldTransaction(database);
   _HeldTransaction? next;
@@ -251,8 +417,9 @@ class _LifecycleEnv extends Env {
     Env postgres, {
     required Duration maxConnectionAge,
     required Duration maxSessionUse,
+    required int connections,
   }) : pgPoolSettings = PoolSettings(
-         maxConnectionCount: 1,
+         maxConnectionCount: connections,
          maxConnectionAge: maxConnectionAge,
          maxSessionUse: maxSessionUse,
          connectTimeout: kStableStateWait,
@@ -267,7 +434,7 @@ class _LifecycleEnv extends Env {
          pgDatabase: postgres.pgDatabase,
          pgUsername: postgres.pgUsername,
          pgPassword: postgres.pgPassword,
-         maxConnectionCount: 1,
+         maxConnectionCount: connections,
        );
 
   @override
