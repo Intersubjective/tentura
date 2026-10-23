@@ -682,11 +682,13 @@ VALUES ('$_beacon', '$u', 1, 'plumbing')
 ''');
         }
         await finalizeNow();
-        Future<int> acks(String u) async => (await rows('''
+        Future<int> acks(String u) async =>
+            (await rows('''
 SELECT count(*)::int FROM public.person_capability_event
 WHERE beacon_id = '$_beacon' AND source_type = 3 AND tag_slug = 'plumbing'
   AND deleted_at IS NULL AND (subject_user_id = '$u' OR observer_user_id = '$u')
-''')).single.single! as int;
+''')).single.single!
+                as int;
         expect(await acks(_u1), greaterThan(0));
         expect(await acks(_u2), 0);
       },
@@ -861,7 +863,6 @@ WHERE subject = '$_u1' AND object = '$_author'
       },
       skip: skipReason,
     );
-
   });
 
   group('U59 supported_colleague', () {
@@ -964,6 +965,26 @@ WHERE beacon_id = '$_beacon' AND kind = $_kSupportedColleague
     );
 
     test(
+      '#489 none for a voluntary leaver even with committed rows',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary);
+        await committedSupport(_u3, [_u1]);
+        // Guard: a voter who stayed still writes their support.
+        await committedSupport(_u1, [_u2]);
+        await finalizeNow();
+        expect(await evidenceCount(_kSupportedColleague, subject: _u3), 0);
+        expect(
+          await evidenceCountValue(_kSupportedColleague, _u1, _u2),
+          closeTo(1, 1e-9),
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
       'none for 2-member requests',
       () async {
         await seedEpoch();
@@ -1050,7 +1071,6 @@ WHERE beacon_id = '$_beacon' AND kind = $_kSupportedColleague
       },
       skip: skipReason,
     );
-
   });
 
   group('ClosureFinalizeSweepCase', () {
@@ -1150,7 +1170,9 @@ FOR EACH ROW WHEN (NEW.beacon_id = 'Bclfinbeac002')
 EXECUTE FUNCTION public.clfin_fail()
 ''');
         addTearDown(() async {
-          await sql('DROP TRIGGER IF EXISTS clfin_fail ON public.beacon_closure_result');
+          await sql(
+            'DROP TRIGGER IF EXISTS clfin_fail ON public.beacon_closure_result',
+          );
           await sql('DROP FUNCTION IF EXISTS public.clfin_fail()');
           await sql("DELETE FROM public.beacon WHERE id = 'Bclfinbeac002'");
         });

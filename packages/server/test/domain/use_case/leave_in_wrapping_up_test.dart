@@ -257,7 +257,8 @@ void main() {
 
   group('#489 helper leaves while the Request is Wrapping up', () {
     test(
-      'withdraw in reviewOpen is logged with its reason and departs the review epoch',
+      'withdraw in reviewOpen is logged with its reason, departs the review '
+      'epoch and drops the vote',
       () async {
         await seedAcceptedHelperThenWrappingUp();
 
@@ -299,9 +300,10 @@ void main() {
           (userId: _helperId, departure: Departure.voluntary),
         ]);
         expect(closureRepo.rows[_otherId]!.departure, isNull);
-        // U49: only an author removal drops a vote; a voluntary leaver
-        // still counts in the review set.
-        expect(ClosureCase.isVoter(closureRepo.rows[_helperId]!), isTrue);
+        // V1 (#489 / #621, U49 as amended): a voluntary leaver is out of
+        // the review set and has no vote; the colleague keeps theirs.
+        expect(ClosureCase.isVoter(closureRepo.rows[_helperId]!), isFalse);
+        expect(ClosureCase.isVoter(closureRepo.rows[_otherId]!), isTrue);
         // The author hears who left and why, as on an open Request.
         expect(
           attention.recorded.map((i) => i.eventType.name),

@@ -370,8 +370,10 @@ final class ClosureFinalizeCase extends UseCaseBase
     return evidence;
   }
 
+  /// Same rule as `ClosureCase.isVoter` (U49 as amended by #489): a removed
+  /// member and a voluntary leaver have no vote.
   static bool _isVoter(ClosureMemberRow m) =>
-      m.activeAtOpen && m.departure != Departure.removed;
+      m.activeAtOpen && m.departure == null;
 
   static Map<String, Set<String>> _targetsByVoter(
     List<ClosureSupportRow> rows,

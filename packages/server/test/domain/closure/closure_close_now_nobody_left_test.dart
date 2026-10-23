@@ -5,8 +5,11 @@
 // once (no 48 h grace: nobody is left who could answer the review). Pure rule:
 // `ClosureCase.canCloseNow`, used by both `closureState` and `closeNow`.
 //
-// Guards: an unjudged member still blocks; a voluntary leaver keeps the vote
-// (U49); a removal does not skip waiting on helpers who are still there.
+// Guards: an unjudged member still blocks; a removal does not skip waiting on
+// helpers who are still there.
+//
+// #489 / #621 (V1): a voluntary leaver is out of the review set: no vote, and
+// "every member answered" does not wait on them (U49 as amended).
 
 import 'package:test/test.dart';
 
@@ -110,13 +113,6 @@ void main() {
       expect(_canCloseNow([_active('h1')], outcomes: _done(['h1'])), isTrue);
     });
 
-    test('a voluntary leaver keeps the vote and still needs an outcome', () {
-      final members = [_leftVoluntarily('h1')];
-      expect(members.where(ClosureCase.isVoter), hasLength(1));
-      expect(_canCloseNow(members), isFalse);
-      expect(_canCloseNow(members, outcomes: _done(['h1'])), isTrue);
-    });
-
     test('removals do not skip waiting on a voter who is still there', () {
       final members = [
         _removedDuring('h1'),
@@ -137,6 +133,60 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('#489 a voluntary leaver is out of the review set', () {
+    test('a voluntary leaver has no vote', () {
+      expect(ClosureCase.isVoter(_leftVoluntarily('h1')), isFalse);
+      // Guard: still a voter while present; a removal still drops the vote.
+      expect(ClosureCase.isVoter(_active('h1')), isTrue);
+      expect(ClosureCase.isVoter(_removedDuring('h1')), isFalse);
+    });
+
+    test('three members, one leaves: Finish now once the other two commit', () {
+      final members = [_active('h1'), _active('h2'), _leftVoluntarily('h3')];
+      final outcomes = _done(['h1', 'h2']);
+      // Guard: the two who stayed have not answered the review yet; < 48 h.
+      expect(_canCloseNow(members, outcomes: outcomes), isFalse);
+      expect(
+        _canCloseNow(
+          members,
+          outcomes: outcomes,
+          commits: [ClosureCommitRow(voterId: 'h1', committedAt: _now)],
+        ),
+        isFalse,
+      );
+      // No 48 h wait on the leaver, and no outcome needed for them.
+      expect(
+        _canCloseNow(
+          members,
+          outcomes: outcomes,
+          commits: [
+            ClosureCommitRow(voterId: 'h1', committedAt: _now),
+            ClosureCommitRow(voterId: 'h2', committedAt: _now),
+          ],
+        ),
+        isTrue,
+      );
+    });
+
+    test('a member who stayed still needs an outcome', () {
+      final members = [_active('h1'), _active('h2'), _leftVoluntarily('h3')];
+      final commits = [
+        ClosureCommitRow(voterId: 'h1', committedAt: _now),
+        ClosureCommitRow(voterId: 'h2', committedAt: _now),
+      ];
+      expect(
+        _canCloseNow(members, outcomes: _done(['h1', 'h3']), commits: commits),
+        isFalse,
+      );
+    });
+
+    test('the only helper left: Finish now at once', () {
+      final members = [_leftVoluntarily('h1')];
+      expect(members.where(ClosureCase.isVoter), isEmpty);
+      expect(_canCloseNow(members), isTrue);
     });
   });
 }

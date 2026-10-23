@@ -174,8 +174,7 @@ Future<void> main() async {
   Future<ClosureMemberRow> row(String userId, [int epoch = 1]) async =>
       (await members(epoch)).singleWhere((m) => m.userId == userId);
 
-  bool isVoter(ClosureMemberRow m) =>
-      m.activeAtOpen && m.departure != Departure.removed;
+  bool isVoter(ClosureMemberRow m) => ClosureCase.isVoter(m);
 
   Future<void> openWith(List<String> helpers) async {
     for (final h in helpers) {
@@ -650,7 +649,7 @@ ORDER BY created_at, id
         expect(finalizer.calls, hasLength(1));
       }, skip: skipReason);
 
-      test('a voluntary leave keeps the vote', () async {
+      test('#489 a voluntary leave drops the vote', () async {
         await openWith([_aId, _bId, _cId]);
 
         await writeEvent(_cId, CommitmentEventKind.withdrawnByHelper);
@@ -658,7 +657,20 @@ ORDER BY created_at, id
         final c = await row(_cId);
         expect(c.departure, Departure.voluntary);
         expect(c.activeAtOpen, isTrue);
-        expect(isVoter(c), isTrue);
+        expect(isVoter(c), isFalse);
+      }, skip: skipReason);
+
+      test('#489 a voluntary leaver is not waited on by closeNow: the other '
+          'two committing is enough', () async {
+        await openWith([_aId, _bId, _cId]);
+        await answerAll([_aId, _bId]);
+        await writeEvent(_cId, CommitmentEventKind.withdrawnByHelper);
+        await repo.commitSupport(beaconId: _beaconId, voterId: _aId);
+        await repo.commitSupport(beaconId: _beaconId, voterId: _bId);
+
+        await closureCase.closeNow(authorId: _authorId, beaconId: _beaconId);
+
+        expect(finalizer.calls, hasLength(1));
       }, skip: skipReason);
 
       test('inactive at open, then readmitted: stays a non-voter', () async {
