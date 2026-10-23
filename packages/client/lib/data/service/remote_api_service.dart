@@ -58,6 +58,9 @@ final class RemoteApiService extends RemoteApiClient
   final RealtimeSocketFactory realtimeSocketFactory;
 
   @override
+  void onRealtimeServerReached() => reachability?.reportSuccess();
+
+  @override
   @disposeMethod
   Future<void> close() async {
     await super.close();

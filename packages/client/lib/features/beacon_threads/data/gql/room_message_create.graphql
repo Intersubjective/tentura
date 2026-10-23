@@ -11,6 +11,7 @@ mutation RoomMessageCreate(
   $explicitMentionLengths: [Int!]
   $quotedFactCardId: String
   $quotedFactRevisionSeq: Int
+  $clientMessageId: String
 ) {
   RoomMessageCreate(
     beaconId: $beaconId
@@ -23,6 +24,7 @@ mutation RoomMessageCreate(
     explicitMentionLengths: $explicitMentionLengths
     quotedFactCardId: $quotedFactCardId
     quotedFactRevisionSeq: $quotedFactRevisionSeq
+    clientMessageId: $clientMessageId
   ) {
     id
   }

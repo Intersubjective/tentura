@@ -78,6 +78,34 @@ void main() {
       );
     });
 
+    // #654: mobile has no browser online signal; a socket that (re)connects
+    // is the earliest proof the network is back.
+    test(
+      'a connected or reconnected socket reports the server reached',
+      () async {
+        final factory = _FakeRealtimeSocketFactory();
+        final client = _TestRealtimeClient(factory);
+        addTearDown(client.close);
+        await client.setAuth(
+          seed: _seed,
+          authTokenFetcher: (_, _) async => _credentials(_accountA),
+        );
+        await client.bindRealtimeAccount(_accountA);
+        final socket = factory.sockets.single
+          ..addConnection(RealtimeSocketConnectionState.connecting);
+        await _settle();
+        expect(client.serverReachedCalls, 0);
+
+        socket.addConnection(RealtimeSocketConnectionState.connected);
+        await _waitUntil(() => client.serverReachedCalls == 1);
+
+        socket
+          ..addConnection(RealtimeSocketConnectionState.disconnected)
+          ..addConnection(RealtimeSocketConnectionState.reconnected);
+        await _waitUntil(() => client.serverReachedCalls == 2);
+      },
+    );
+
     test('retries a token failure and reaches authenticated state', () async {
       final factory = _FakeRealtimeSocketFactory();
       final client = _TestRealtimeClient(factory);
@@ -338,6 +366,11 @@ final class _TestRealtimeClient extends RemoteApiClientBase
 
   @override
   int get realtimeRetryJitterMilliseconds => 0;
+
+  int serverReachedCalls = 0;
+
+  @override
+  void onRealtimeServerReached() => serverReachedCalls++;
 
   @override
   String get wsEndpointUrl => 'https://example.test/api/v2/ws';

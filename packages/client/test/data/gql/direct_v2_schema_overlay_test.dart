@@ -357,6 +357,7 @@ void main() {
           .toList();
       expect(fields, [
         'RoomMessageCreate(beaconId: String!, body: String!, '
+            'clientMessageId: String, '
             'explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], '
             'explicitMentionUserIds: [String!], file: v2_Upload, '
             'quotedFactCardId: String, quotedFactRevisionSeq: Int, '

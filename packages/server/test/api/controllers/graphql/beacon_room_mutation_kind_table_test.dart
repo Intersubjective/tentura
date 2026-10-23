@@ -227,6 +227,7 @@ class _PostRoom extends Fake implements BeaconRoomRepositoryPort {
     List<Map<String, Object?>> mentionSpans = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) async => _message;
 
   @override

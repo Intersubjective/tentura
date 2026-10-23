@@ -183,6 +183,8 @@ base class BeaconThreadsCase extends UseCaseBase {
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
+    bool isRetry = false,
   }) async {
     if (body.trim().isEmpty && uploads.isEmpty && quotedFactCardId == null) {
       return null;
@@ -202,8 +204,23 @@ base class BeaconThreadsCase extends UseCaseBase {
       explicitMentionLengths: explicitMentionLengths,
       quotedFactCardId: quotedFactCardId,
       quotedFactRevisionSeq: quotedFactRevisionSeq,
+      clientMessageId: clientMessageId,
     );
-    for (final u in extras) {
+    // A retry may find the message already saved with some of its extra
+    // attachments; add only the ones it lacks (#654). Extras keep the order
+    // they were picked in, so the saved ones are the first.
+    var alreadyAdded = 0;
+    if (isRetry && extras.isNotEmpty) {
+      final saved = await _room.fetchMessageTarget(
+        beaconId: beaconId,
+        messageId: messageId,
+      );
+      alreadyAdded = ((saved?.attachments.length ?? 1) - 1).clamp(
+        0,
+        extras.length,
+      );
+    }
+    for (final u in extras.skip(alreadyAdded)) {
       await _room.addMessageAttachment(
         beaconId: beaconId,
         messageId: messageId,

@@ -194,6 +194,12 @@ class RoomCubit extends Cubit<RoomState> {
 
   final Set<String> _pendingLocalMessageIds = {};
 
+  /// Idempotency key of the last send that failed, whatever the failure,
+  /// with what it sent. Sending the same again reuses the key, so a send the
+  /// server did save is not posted twice (#654). Reuse is always safe: the
+  /// key only matches a message that was actually saved.
+  ({String key, String content, List<RoomPendingUpload> uploads})? _unsentSend;
+
   final Map<String, RoomMessage> _deferredOwnPaintByServerId = {};
 
   _MessageRefreshOverlay? _activeMessageRefreshOverlay;
@@ -1263,6 +1269,25 @@ class RoomCubit extends Cubit<RoomState> {
           ),
     ];
     final target = state.replyTarget;
+    final sendContent = [
+      trimmed,
+      target?.id ?? '',
+      quotedFact?.factCardId ?? '',
+      '${quotedFact?.seq ?? ''}',
+      for (final mention in normalizedMentions)
+        '${mention.userId}@${mention.start}-${mention.end}',
+    ].join('\u0000');
+    final unsent = _unsentSend;
+    // The composer keeps the very upload objects of a failed send; a file
+    // picked again (even with the same name and size) is a new send.
+    final isRetry =
+        unsent != null &&
+        unsent.content == sendContent &&
+        unsent.uploads.length == uploads.length &&
+        Iterable<int>.generate(
+          uploads.length,
+        ).every((i) => identical(unsent.uploads[i], uploads[i]));
+    final sendKey = isRetry ? unsent.key : _uuid.v4();
     final localId = 'local:${_uuid.v4()}';
     final profile = GetIt.I<ProfileCubit>().state.profile;
     final localMessage = RoomMessage(
@@ -1294,10 +1319,13 @@ class RoomCubit extends Cubit<RoomState> {
           _dedupeMessages([...state.messages, localMessage]),
         ),
         sendFailedOffline: false,
+        sendUnconfirmed: false,
       ),
     );
     try {
       final serverId = await _case.createMessage(
+        clientMessageId: sendKey,
+        isRetry: isRetry,
         beaconId: state.beaconId,
         body: trimmed,
         threadItemId: state.threadItemId,
@@ -1315,6 +1343,7 @@ class RoomCubit extends Cubit<RoomState> {
         quotedFactCardId: quotedFact?.factCardId,
         quotedFactRevisionSeq: quotedFact?.seq,
       );
+      _unsentSend = null;
       _pendingLocalMessageIds.remove(localId);
       final deferred = serverId != null
           ? _deferredOwnPaintByServerId.remove(serverId)
@@ -1351,26 +1380,31 @@ class RoomCubit extends Cubit<RoomState> {
       return true;
     } on Object catch (e) {
       _pendingLocalMessageIds.remove(localId);
-      // Only a real connection failure is «offline». A timeout (the link maps
-      // it to RequestTimeoutException) may have posted the message
-      // (createMessage has no idempotency key), so it gets no Retry notice,
-      // just the snackbar (#513).
+      // Only a real connection failure is «offline» (#513). A timeout (the
+      // link maps it to RequestTimeoutException) may have posted the
+      // message; Retry sends the same idempotency key, so the server hands
+      // back that message instead of a second one (#654).
       final offline = e is ConnectionUplinkException;
+      final unconfirmed = e is RequestTimeoutException;
+      // Kept for every failure: the message may be saved even when a later
+      // step (an extra attachment, its read-back) failed.
+      _unsentSend = (key: sendKey, content: sendContent, uploads: uploads);
       emit(
         state.copyWith(
           messages: state.messages
               .where((message) => message.id != localId)
               .toList(),
-          // No connection: the composer shows «Not sent» with Retry (#513).
-          // A refusal from the server keeps the snackbar below only.
+          // The composer shows «Not sent» / «Not confirmed» with Retry. A
+          // refusal from the server keeps the snackbar below only.
           sendFailedOffline: offline,
+          sendUnconfirmed: unconfirmed,
         ),
       );
       _flushDeferredOwnPaints();
       await _requestRefresh(
         scope: _RoomRefreshScope.messages,
       );
-      if (offline) {
+      if (offline || unconfirmed) {
         // The inline notice is the feedback; no snackbar over it (#513).
         if (!isClosed) {
           emit(state.copyWith(status: const StateIsSuccess(), loadError: null));

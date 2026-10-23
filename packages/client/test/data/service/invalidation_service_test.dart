@@ -15,6 +15,7 @@ Map<String, dynamic> _entityChange({
   required String id,
   String event = 'update',
   String? actorUserId,
+  Map<String, dynamic> extra = const {},
 }) => {
   'type': 'subscription',
   'path': 'entity_changes',
@@ -23,6 +24,7 @@ Map<String, dynamic> _entityChange({
     'id': id,
     'event': event,
     'actor_user_id': ?actorUserId,
+    ...extra,
   },
 };
 
@@ -627,6 +629,57 @@ void main() {
               operation: RealtimeOperation.update,
             ),
           },
+        );
+
+        unawaited(sub.cancel());
+      });
+    });
+
+    // #654: only a next-step `beacon` hint (flagged `room_state`) reaches
+    // the room; any other request update leaves it alone.
+    test('a beacon hint reaches the room only when flagged room_state', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+
+        final changes = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(changes.add);
+
+        wsMessages
+          ..add(_entityChange(entity: 'beacon', id: 'plain'))
+          ..add(
+            _entityChange(
+              entity: 'beacon',
+              id: 'moved',
+              extra: {'room_state': true},
+            ),
+          )
+          // A later plain hint in the same batch keeps the flag.
+          ..add(_entityChange(entity: 'beacon', id: 'moved'))
+          ..add(
+            _entityChange(
+              entity: 'room_message',
+              id: 'other',
+              extra: {'room_state': true},
+            ),
+          );
+        async.elapse(const Duration(milliseconds: 200));
+
+        final byId = {for (final c in changes) c.aggregateId: c};
+        expect(byId['plain']!.roomStateChanged, isFalse);
+        expect(byId['moved']!.roomStateChanged, isTrue);
+        expect(byId['other']!.roomStateChanged, isFalse);
+        expect(
+          changes
+              .map(BeaconRoomInvalidation.fromRealtimeChange)
+              .whereType<BeaconRoomInvalidation>()
+              .where((i) => i.entityType == BeaconRoomEntityType.roomState)
+              .map((i) => i.beaconId),
+          ['moved'],
         );
 
         unawaited(sub.cancel());

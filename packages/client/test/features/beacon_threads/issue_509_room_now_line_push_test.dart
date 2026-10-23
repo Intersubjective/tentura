@@ -59,13 +59,18 @@ BeaconRoomState _line(String text, int minute) => BeaconRoomState(
   updatedBy: 'author-509',
 );
 
-/// What the server sends after `updateRoomNowLine` (another member's edit).
-RealtimeEntityChange _beaconUpdate(String beaconId) => RealtimeEntityChange(
+/// What the server sends after `updateRoomNowLine` (another member's edit):
+/// a `beacon` update flagged `room_state` (#654).
+RealtimeEntityChange _beaconUpdate(
+  String beaconId, {
+  bool roomStateChanged = true,
+}) => RealtimeEntityChange(
   kind: RealtimeEntityKind.beacon,
   aggregateId: beaconId,
   operation: RealtimeOperation.update,
   source: RealtimeChangeSource.serverInvalidation,
   actorUserId: 'author-509',
+  roomStateChanged: roomStateChanged,
 );
 
 Future<void> _pumpUntil(bool Function() done) async {
@@ -138,6 +143,22 @@ void main() {
       port.emitChange(_beaconUpdate(kRoomCubitFakeBeaconId));
       await _pumpUntil(() => cubit.state.roomState?.currentLine == 'v2');
       expect(cubit.state.roomState?.currentLine, 'v2');
+    });
+
+    // #654: any other request update (title, status, ...) does not refetch
+    // the room state.
+    test('a beacon update that did not move the next step does not refetch '
+        'the room state', () async {
+      final fetchesAfterLoad = repo.fetchRoomStateCalls;
+      repo.roomState = _line('v2', 5);
+
+      port.emitChange(
+        _beaconUpdate(kRoomCubitFakeBeaconId, roomStateChanged: false),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(repo.fetchRoomStateCalls, fetchesAfterLoad);
+      expect(cubit.state.roomState?.currentLine, 'v1');
     });
 
     test('a failed refetch after the push keeps the shown next step', () async {

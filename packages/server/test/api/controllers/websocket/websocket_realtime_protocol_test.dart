@@ -868,6 +868,49 @@ void main() {
       }
     });
 
+    // #654: a next-step edit tags its `beacon` hint with `room_state` so open
+    // rooms refetch their room state only for that, not every request update.
+    group('beacon room_state flag', () {
+      const beaconId = 'Broomstate001';
+
+      Future<Map<dynamic, dynamic>> relay(Map<String, dynamic> extra) async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(Env(), dependencies);
+        final session = _RecordingSession();
+        await dependencies.authenticate(handler, session, _affectedId);
+        session.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'beacon',
+          'id': beaconId,
+          'event': 'update',
+          'actor_user_id': _actorId,
+          'user_ids': [_affectedId],
+          ...extra,
+        });
+
+        expect(session.sent, hasLength(1));
+        return (jsonDecode(session.sent.single! as String) as Map)['payload']
+            as Map;
+      }
+
+      test('forwards room_state when the hint carries it', () async {
+        final payload = await relay({'room_state': true});
+        expect(payload['entity'], 'beacon');
+        expect(payload['room_state'], isTrue);
+      });
+
+      test('a plain beacon update carries no room_state', () async {
+        final payload = await relay({});
+        expect(payload.containsKey('room_state'), isFalse);
+      });
+
+      test('a non-true room_state is not forwarded', () async {
+        final payload = await relay({'room_state': 'yes'});
+        expect(payload.containsKey('room_state'), isFalse);
+      });
+    });
+
     group('constellation_anchor fan-out extras', () {
       const viewerId = _affectedId;
 

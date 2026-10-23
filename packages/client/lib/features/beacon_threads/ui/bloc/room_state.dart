@@ -82,6 +82,11 @@ abstract class RoomState extends StateBase with _$RoomState {
     /// The last send failed because the network was unreachable; the
     /// composer keeps the text and shows «Not sent» with Retry (#513).
     @Default(false) bool sendFailedOffline,
+
+    /// The last send timed out: it may or may not be saved. The composer keeps
+    /// the text and offers Retry, which reuses the send's idempotency key, so
+    /// it can not post the message twice (#654).
+    @Default(false) bool sendUnconfirmed,
     Object? loadError,
   }) = _RoomState;
 

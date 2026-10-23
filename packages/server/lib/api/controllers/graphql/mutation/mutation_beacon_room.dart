@@ -59,6 +59,9 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _quotedFactCardId = InputFieldString(fieldName: 'quotedFactCardId');
 
+  /// Idempotency key of one send, repeated on Retry (#654).
+  final _clientMessageId = InputFieldString(fieldName: 'clientMessageId');
+
   final _quotedFactRevisionSeq = InputFieldInt(
     fieldName: 'quotedFactRevisionSeq',
   );
@@ -97,6 +100,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
           InputFieldUpload.fieldNullable,
           _quotedFactCardId.fieldNullable,
           _quotedFactRevisionSeq.fieldNullable,
+          _clientMessageId.fieldNullable,
         ],
         resolve: (_, args) async {
           final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
@@ -126,6 +130,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
                     : null,
                 quotedFactCardId: _quotedFactCardId.fromArgs(args),
                 quotedFactRevisionSeq: _quotedFactRevisionSeq.fromArgs(args),
+                clientMessageId: _clientMessageId.fromArgs(args),
               )
               .then((m) => m);
         },

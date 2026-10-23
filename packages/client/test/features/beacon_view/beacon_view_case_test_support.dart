@@ -525,6 +525,7 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) async {
     if (createError != null) _throwTestError(createError!);
     createdMessages.add((

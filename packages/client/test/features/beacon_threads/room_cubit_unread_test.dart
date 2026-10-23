@@ -151,6 +151,7 @@ class _FakeBeaconThreadsRepository extends Fake
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) async => 'msg-created';
 
   @override

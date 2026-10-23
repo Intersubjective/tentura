@@ -73,6 +73,18 @@ final class IdDuplicateException extends ExceptionBase {
        );
 }
 
+/// The author already saved a message with this client message id (#654):
+/// the send is a retry. The use case answers with that message instead.
+final class RoomMessageClientIdTakenException extends ExceptionBase {
+  const RoomMessageClientIdTakenException()
+    : super(
+        code: const GeneralExceptionCodes(
+          GeneralExceptionCode.idDuplicateException,
+        ),
+        description: 'Room message already sent',
+      );
+}
+
 /// Upload (image or attachment) exceeds the server-side byte cap. Maps to 413.
 final class PayloadTooLargeException extends ExceptionBase {
   const PayloadTooLargeException({String? description})

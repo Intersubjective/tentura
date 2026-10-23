@@ -304,6 +304,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.composerPrefillSeq != c.composerPrefillSeq ||
             p.composerPrefill != c.composerPrefill ||
             p.sendFailedOffline != c.sendFailedOffline ||
+            p.sendUnconfirmed != c.sendUnconfirmed ||
             p.beaconStatus != c.beaconStatus ||
             p.myUserId != c.myUserId ||
             p.readWatermarksLoaded != c.readWatermarksLoaded ||
@@ -456,6 +457,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 ? l10n.postChatReadOnlyHint
                 : l10n.beaconRoomMessageReadOnlyHint,
             composerSendFailedOffline: state.sendFailedOffline,
+            composerSendUnconfirmed: state.sendUnconfirmed,
             onPickFact: canWrite
                 ? () async {
                     // #481: an empty picker hands off to the Add-fact form

@@ -231,6 +231,8 @@ class InvalidationService implements RealtimeSyncPort {
         revision: kind == RealtimeEntityKind.constellationAnchor
             ? _parseRevision(payload['revision'])
             : null,
+        roomStateChanged:
+            kind == RealtimeEntityKind.beacon && payload['room_state'] == true,
       ),
     );
   }
@@ -324,14 +326,21 @@ class InvalidationService implements RealtimeSyncPort {
           RealtimeEntityChange
         >{};
     for (final change in batch) {
-      latestByProjectionKey[(
-            change.kind,
-            change.aggregateId,
-            change.roomMessagePaint?.id,
-            change.seenPeer?.userId,
-            change.peopleSeenAt,
-          )] =
-          change;
+      final key = (
+        change.kind,
+        change.aggregateId,
+        change.roomMessagePaint?.id,
+        change.seenPeer?.userId,
+        change.peopleSeenAt,
+      );
+      // A later plain `beacon` hint must not erase an earlier next-step
+      // flag in the same batch (#654).
+      final carryRoomState =
+          !change.roomStateChanged &&
+          (latestByProjectionKey[key]?.roomStateChanged ?? false);
+      latestByProjectionKey[key] = carryRoomState
+          ? change.copyWith(roomStateChanged: true)
+          : change;
     }
     return latestByProjectionKey.values;
   }

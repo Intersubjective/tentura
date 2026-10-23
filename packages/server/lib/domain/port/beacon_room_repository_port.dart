@@ -106,6 +106,13 @@ abstract class BeaconRoomRepositoryPort {
     List<Map<String, Object?>> mentionSpans = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
+  });
+
+  /// The message [authorId] already sent with [clientMessageId] (#654).
+  Future<BeaconRoomMessageRecord?> getRoomMessageByClientId({
+    required String authorId,
+    required String clientMessageId,
   });
 
   Future<void> insertRoomMessageAttachmentFile({

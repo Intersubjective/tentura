@@ -169,6 +169,10 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
         payload[key] = data[key];
       }
     }
+    // Optional flag: this request update moved the room's next step (#654).
+    if (entity == 'beacon' && data['room_state'] == true) {
+      payload['room_state'] = true;
+    }
 
     final message = jsonEncode({
       'type': 'subscription',

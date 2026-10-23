@@ -644,6 +644,7 @@ class BeaconThreadsRepository {
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) async {
     assert(
       (quotedFactCardId == null) == (quotedFactRevisionSeq == null),
@@ -669,7 +670,8 @@ class BeaconThreadsRepository {
               ..explicitMentionOffsets = ListBuilder(explicitMentionOffsets)
               ..explicitMentionLengths = ListBuilder(explicitMentionLengths)
               ..quotedFactCardId = quotedFactCardId
-              ..quotedFactRevisionSeq = quotedFactRevisionSeq,
+              ..quotedFactRevisionSeq = quotedFactRevisionSeq
+              ..clientMessageId = clientMessageId,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);

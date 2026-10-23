@@ -672,11 +672,19 @@ class BeaconRoomCase extends UseCaseBase {
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
     Set<String> suppressMentionNotifyFor = const {},
+    String? clientMessageId,
   }) async {
     if ((quotedFactCardId == null) != (quotedFactRevisionSeq == null)) {
       throw const IdWrongException(
         description:
             'quotedFactCardId and quotedFactRevisionSeq must be set together',
+      );
+    }
+    final clientId = clientMessageId?.trim();
+    final sendKey = clientId == null || clientId.isEmpty ? null : clientId;
+    if (sendKey != null && sendKey.length > 64) {
+      throw const IdWrongException(
+        description: 'clientMessageId must be at most 64 characters',
       );
     }
     final tid = threadItemId?.trim();
@@ -737,6 +745,16 @@ class BeaconRoomCase extends UseCaseBase {
         beaconId: beaconId,
         userId: userId,
       );
+    }
+    // A retry of a send that was saved (its answer timed out) gets the saved
+    // message back instead of posting it twice (#654). Checked after access,
+    // so a retry can not outlive a block or a removal.
+    if (sendKey != null) {
+      final sent = await _room.getRoomMessageByClientId(
+        authorId: userId,
+        clientMessageId: sendKey,
+      );
+      if (sent != null) return _alreadySent(sent, beaconId: beaconId);
     }
     BeaconRoomMessageRecord? repliedMessage;
     if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
@@ -862,6 +880,7 @@ class BeaconRoomCase extends UseCaseBase {
         mentionSpans: resolvedMentions.spans,
         quotedFactCardId: quotedFactCardId,
         quotedFactRevisionSeq: quotedFactRevisionSeq,
+        clientMessageId: sendKey,
       );
       if (attachment != null) {
         await _insertUploadedAttachment(
@@ -923,17 +942,47 @@ class BeaconRoomCase extends UseCaseBase {
       return {'id': row.id, 'beaconId': row.beaconId};
     }
 
-    final result = !hasDirected && postAuthorId == null
-        ? await persist(null)
-        : await _attention!.runAction(
-            actorUserId: userId,
-            action: persist,
-          );
+    final Map<String, Object?> result;
+    try {
+      // One transaction for the message and its first attachment, so a
+      // retry that finds the message by its key never misses the attachment
+      // (#654).
+      result = !hasDirected && postAuthorId == null
+          ? await _unitOfWork.run(
+              actorUserId: userId,
+              action: () => persist(null),
+            )
+          : await _attention!.runAction(
+              actorUserId: userId,
+              action: persist,
+            );
+    } on RoomMessageClientIdTakenException {
+      // The retry raced the first send, which committed first; this one
+      // rolled back whole (#654).
+      final sent = await _room.getRoomMessageByClientId(
+        authorId: userId,
+        clientMessageId: sendKey!,
+      );
+      if (sent == null) rethrow;
+      return _alreadySent(sent, beaconId: beaconId);
+    }
     // TaskWorker commits independently, so enqueue only after message commit.
     if (!deferAttachmentHash) {
       await scheduleAttachmentHash(attachment);
     }
     return result;
+  }
+
+  static Map<String, Object?> _alreadySent(
+    BeaconRoomMessageRecord sent, {
+    required String beaconId,
+  }) {
+    if (sent.beaconId != beaconId) {
+      throw const IdWrongException(
+        description: 'clientMessageId was already used in another Request',
+      );
+    }
+    return {'id': sent.id, 'beaconId': sent.beaconId};
   }
 
   // DORMANT(item-threads): itemParticipantsOnly path for non-room item-thread viewers.

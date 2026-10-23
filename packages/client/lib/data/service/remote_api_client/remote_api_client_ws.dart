@@ -88,6 +88,12 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
     yield* _stateController.stream;
   }
 
+  /// The live socket (re)connected: the server is reachable again. Mobile has
+  /// no browser online signal, so without this the offline banner would wait
+  /// for the next HTTP answer (#654).
+  @protected
+  void onRealtimeServerReached() {}
+
   /// Starts realtime only after an auth flow has returned its authoritative ID.
   Future<void> bindRealtimeAccount(String accountId) async {
     if (accountId.isEmpty) {
@@ -189,8 +195,10 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
     if (!_isCurrentEpoch(epoch)) return;
     switch (state) {
       case RealtimeSocketConnectionState.connected:
+        onRealtimeServerReached();
         unawaited(_authenticate(epoch, cause));
       case RealtimeSocketConnectionState.reconnected:
+        onRealtimeServerReached();
         unawaited(_authenticate(epoch, RealtimeReconnectCause.network));
       case RealtimeSocketConnectionState.connecting:
       case RealtimeSocketConnectionState.reconnecting:

@@ -12,7 +12,7 @@ import 'support/room_body_harness.dart';
 
 /// One scripted answer to a send: what `sendMessage` returns and whether the
 /// cubit reports the failure as "offline".
-typedef _SendOutcome = ({bool sent, bool offline});
+typedef _SendOutcome = ({bool sent, bool offline, bool unconfirmed});
 
 /// Harness cubit whose `sendMessage` records the body and plays back
 /// scripted outcomes, the way the real cubit sets `sendFailedOffline`.
@@ -39,7 +39,12 @@ class _ScriptedSendCubit extends RoomBodyHarnessCubit {
     if (gate != null) {
       await gate.future;
     }
-    emitHarnessState(state.copyWith(sendFailedOffline: next.offline));
+    emitHarnessState(
+      state.copyWith(
+        sendFailedOffline: next.offline,
+        sendUnconfirmed: next.unconfirmed,
+      ),
+    );
     return next.sent;
   }
 }
@@ -65,8 +70,8 @@ void main() {
       final cubit = _ScriptedSendCubit(
         initial,
         [
-          (sent: false, offline: true),
-          (sent: true, offline: false),
+          (sent: false, offline: true, unconfirmed: false),
+          (sent: true, offline: false, unconfirmed: false),
         ],
         gates: {1: retryGate},
       );
@@ -106,12 +111,40 @@ void main() {
       expect(find.text(l10n.beaconRoomSendRetry), findsNothing);
     });
 
+    // #654: a timed-out send may be saved; Retry reuses its idempotency key.
+    testWidgets('a timed-out send shows Not confirmed with Retry, not the '
+        'offline line', (tester) async {
+      final initial = roomBodyState();
+      final cubit = _ScriptedSendCubit(initial, [
+        (sent: false, offline: false, unconfirmed: true),
+        (sent: true, offline: false, unconfirmed: false),
+      ]);
+      await pumpBeaconRoomBody(tester, roomState: initial, cubit: cubit);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_composerField(), 'see you at 6');
+      await tester.tap(find.byIcon(Icons.send_rounded));
+      await tester.pumpAndSettle();
+
+      expect(_composerText(tester), 'see you at 6');
+      expect(find.text(l10n.beaconRoomSendUnconfirmed), findsOneWidget);
+      expect(find.text(l10n.beaconRoomSendFailedOffline), findsNothing);
+      expect(find.byIcon(Icons.sync_problem_outlined), findsOneWidget);
+
+      await tester.tap(find.text(l10n.beaconRoomSendRetry));
+      await tester.pumpAndSettle();
+
+      expect(cubit.sentBodies, ['see you at 6', 'see you at 6']);
+      expect(find.text(l10n.beaconRoomSendUnconfirmed), findsNothing);
+      expect(_composerText(tester), isEmpty);
+    });
+
     testWidgets('editing the kept text hides the Not sent notice', (
       tester,
     ) async {
       final initial = roomBodyState();
       final cubit = _ScriptedSendCubit(initial, [
-        (sent: false, offline: true),
+        (sent: false, offline: true, unconfirmed: false),
       ]);
       await pumpBeaconRoomBody(tester, roomState: initial, cubit: cubit);
       await tester.pumpAndSettle();
@@ -136,8 +169,8 @@ void main() {
         'sends the same text once and clears the notice', (tester) async {
       final initial = roomBodyState();
       final cubit = _ScriptedSendCubit(initial, [
-        (sent: false, offline: true),
-        (sent: true, offline: false),
+        (sent: false, offline: true, unconfirmed: false),
+        (sent: true, offline: false, unconfirmed: false),
       ]);
       await pumpBeaconRoomBody(tester, roomState: initial, cubit: cubit);
       await tester.pumpAndSettle();
@@ -162,7 +195,7 @@ void main() {
     ) async {
       final initial = roomBodyState();
       final cubit = _ScriptedSendCubit(initial, [
-        (sent: false, offline: false),
+        (sent: false, offline: false, unconfirmed: false),
       ]);
       await pumpBeaconRoomBody(tester, roomState: initial, cubit: cubit);
       await tester.pumpAndSettle();

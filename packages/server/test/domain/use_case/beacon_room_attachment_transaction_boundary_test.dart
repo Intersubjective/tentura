@@ -385,6 +385,7 @@ class _Room extends Fake implements BeaconRoomRepositoryPort {
     List<Map<String, Object?>> mentionSpans = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) async {
     database.write(() => database.messages.add(_messageId));
     return BeaconRoomMessageRecord(

@@ -384,6 +384,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     List<Map<String, Object?>>? mentionSpans = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#insertRoomMessage, [], {
@@ -400,6 +401,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #mentionSpans: mentionSpans,
               #quotedFactCardId: quotedFactCardId,
               #quotedFactRevisionSeq: quotedFactRevisionSeq,
+              #clientMessageId: clientMessageId,
             }),
             returnValue: _i3.Future<_i5.BeaconRoomMessageRecord>.value(
               _i6.dummyValue<_i5.BeaconRoomMessageRecord>(
@@ -418,11 +420,26 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
                   #mentionSpans: mentionSpans,
                   #quotedFactCardId: quotedFactCardId,
                   #quotedFactRevisionSeq: quotedFactRevisionSeq,
+                  #clientMessageId: clientMessageId,
                 }),
               ),
             ),
           )
           as _i3.Future<_i5.BeaconRoomMessageRecord>);
+
+  @override
+  _i3.Future<_i5.BeaconRoomMessageRecord?> getRoomMessageByClientId({
+    required String? authorId,
+    required String? clientMessageId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getRoomMessageByClientId, [], {
+              #authorId: authorId,
+              #clientMessageId: clientMessageId,
+            }),
+            returnValue: _i3.Future<_i5.BeaconRoomMessageRecord?>.value(),
+          )
+          as _i3.Future<_i5.BeaconRoomMessageRecord?>);
 
   @override
   _i3.Future<void> insertRoomMessageAttachmentFile({

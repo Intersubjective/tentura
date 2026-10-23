@@ -2504,6 +2504,10 @@
   "@beaconRoomSendFailedOffline": {
     "context": "Room composer: inline notice when a message failed to send because there is no connection; the text stays in the field (#513)"
   },
+  "beaconRoomSendUnconfirmed": "Not confirmed — Retry won't post it twice",
+  "@beaconRoomSendUnconfirmed": {
+    "context": "Room composer: inline notice when sending timed out and the server did not confirm the message; the text stays in the field and Retry cannot post it twice (#654)"
+  },
   "beaconRoomSendRetry": "Retry",
   "@beaconRoomSendRetry": {
     "context": "Room composer: button next to the not-sent notice that sends the kept text again (#513)"

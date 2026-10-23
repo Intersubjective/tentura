@@ -48,6 +48,9 @@ class FakeBeaconThreadsRepository extends Fake
   Object? createMessageError;
   Object? addAttachmentError;
   int createMessageCalls = 0;
+
+  /// The idempotency key of each createMessage call, in order (#654).
+  final clientMessageIds = <String?>[];
   Exception? createPollError;
   int createPollCalls = 0;
   int addAttachmentCalls = 0;
@@ -234,8 +237,10 @@ class FakeBeaconThreadsRepository extends Fake
     List<int> explicitMentionLengths = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) async {
     createMessageCalls++;
+    clientMessageIds.add(clientMessageId);
     lastReplyToMessageId = replyToMessageId;
     lastQuotedFactCardId = quotedFactCardId;
     lastQuotedFactRevisionSeq = quotedFactRevisionSeq;

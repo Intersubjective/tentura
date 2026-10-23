@@ -232,6 +232,7 @@ final class _Room extends Fake implements BeaconRoomCase {
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
     Set<String> suppressMentionNotifyFor = const {},
+    String? clientMessageId,
   }) async {
     receivedAttachment = uploadedAttachment;
     receivedBytes = attachmentBytes;

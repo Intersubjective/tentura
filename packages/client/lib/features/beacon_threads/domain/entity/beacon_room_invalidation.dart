@@ -19,8 +19,9 @@ enum BeaconRoomEntityType {
   roomSeenPeer,
   helpOffer,
 
-  /// The request row itself changed (`beacon` entity: next step / NOW line,
-  /// lifecycle). Room screens refetch their room state only (#509).
+  /// The request's next step moved (a `beacon` hint flagged `room_state`).
+  /// Room screens refetch their room state only (#509); other request
+  /// updates do not reach the room (#654).
   roomState,
 }
 
@@ -65,7 +66,8 @@ final class BeaconRoomInvalidation {
       RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,
       RealtimeEntityKind.roomSeenPeer => BeaconRoomEntityType.roomSeenPeer,
       RealtimeEntityKind.helpOffer => BeaconRoomEntityType.helpOffer,
-      RealtimeEntityKind.beacon => BeaconRoomEntityType.roomState,
+      RealtimeEntityKind.beacon when change.roomStateChanged =>
+        BeaconRoomEntityType.roomState,
       _ => null,
     };
     return entityType == null

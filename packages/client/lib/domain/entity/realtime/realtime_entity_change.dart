@@ -80,15 +80,25 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
     required RealtimeOperation operation,
     required RealtimeChangeSource source,
     String? actorUserId,
-  /// Child row id from NOTIFY extras (e.g. `message_id` for room messages).
+
+    /// Child row id from NOTIFY extras (e.g. `message_id` for room messages).
     String? childId,
-  /// Validated plain-text insert paint from WS `payload.message`.
+
+    /// Validated plain-text insert paint from WS `payload.message`.
     RealtimeRoomMessagePaint? roomMessagePaint,
-  /// Peer read cursor from WS `seen_user_id` / `last_seen_at` extras.
+
+    /// Peer read cursor from WS `seen_user_id` / `last_seen_at` extras.
     RealtimeSeenPeer? seenPeer,
-  /// Author/steward People-surface watermark from WS `people_seen` `last_seen_at`.
+
+    /// Author/steward People-surface watermark from WS `people_seen` `last_seen_at`.
     DateTime? peopleSeenAt,
-  /// Commit revision from WS `constellation_anchor` `revision`; null when absent or malformed.
+
+    /// Commit revision from WS `constellation_anchor` `revision`; null when absent or malformed.
     BigInt? revision,
+
+    /// WS `room_state` on a `beacon` hint: the request's next step moved, so
+    /// open rooms refetch their room state (#654). Other request updates leave
+    /// the room alone.
+    @Default(false) bool roomStateChanged,
   }) = _RealtimeEntityChange;
 }

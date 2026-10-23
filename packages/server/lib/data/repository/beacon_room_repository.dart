@@ -635,9 +635,7 @@ JOIN public.beacon_fact_card_revision r
         // A reply to a message hidden from this viewer (Questions blocks)
         // does not reveal the hidden message's id either.
         'replyToMessageId':
-            m.replyToMessageId != null &&
-                threadItemId != null &&
-                parent == null
+            m.replyToMessageId != null && threadItemId != null && parent == null
             ? null
             : m.replyToMessageId,
         'replyToAuthorId': parent?.authorId,
@@ -971,8 +969,53 @@ ORDER BY tier, user_id
     List<Map<String, Object?>> mentionSpans = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
+    String? clientMessageId,
   }) => _db.withMutatingUser(authorId, () async {
     final id = generateId('R');
+    try {
+      return await _insertRoomMessage(
+        id: id,
+        beaconId: beaconId,
+        authorId: authorId,
+        body: body,
+        replyToMessageId: replyToMessageId,
+        threadItemId: threadItemId,
+        linkedParticipantId: linkedParticipantId,
+        linkedPollingId: linkedPollingId,
+        semanticMarker: semanticMarker,
+        systemPayload: systemPayload,
+        mentions: mentions,
+        mentionSpans: mentionSpans,
+        quotedFactCardId: quotedFactCardId,
+        quotedFactRevisionSeq: quotedFactRevisionSeq,
+        clientMessageId: clientMessageId,
+      );
+    } on UniqueViolationException catch (error) {
+      if (error.constraintName !=
+          'beacon_room_message_author_client_message_id_key') {
+        rethrow;
+      }
+      throw const RoomMessageClientIdTakenException();
+    }
+  });
+
+  Future<BeaconRoomMessageRecord> _insertRoomMessage({
+    required String id,
+    required String beaconId,
+    required String authorId,
+    required String body,
+    required String? replyToMessageId,
+    required String? threadItemId,
+    required String? linkedParticipantId,
+    required String? linkedPollingId,
+    required int? semanticMarker,
+    required Map<String, Object?>? systemPayload,
+    required List<String> mentions,
+    required List<Map<String, Object?>> mentionSpans,
+    required String? quotedFactCardId,
+    required int? quotedFactRevisionSeq,
+    required String? clientMessageId,
+  }) async {
     if (quotedFactCardId != null || quotedFactRevisionSeq != null) {
       // Plan §8.5: one insert-select; yields a row only for a live fact of the
       // same beacon with an existing revision seq, in the General scope.
@@ -983,10 +1026,10 @@ INSERT INTO public.beacon_room_message
   (id, beacon_id, author_id, body, reply_to_message_id, thread_item_id,
    linked_next_move_id, linked_polling_id, semantic_marker, system_payload,
    mentions, mention_spans, quoted_fact_card_id, quoted_fact_revision_seq,
-   created_at)
+   client_message_id, created_at)
 SELECT \$1::text, \$2::text, \$3::text, \$4::text, \$5::text, \$6::text,
        \$7::text, \$8::text, \$9::smallint, \$10::jsonb, \$11::text[],
-       \$12::jsonb, r.fact_card_id, r.seq, now()
+       \$12::jsonb, r.fact_card_id, r.seq, \$15::text, now()
 FROM public.beacon_fact_card f
 JOIN public.beacon_fact_card_revision r
   ON r.fact_card_id = f.id AND r.seq = \$14::integer
@@ -1013,6 +1056,7 @@ RETURNING *
               Variable<String>(jsonEncode(mentionSpans)),
               Variable<String>(quotedFactCardId),
               Variable<int>(quotedFactRevisionSeq),
+              Variable<String>(clientMessageId),
             ],
           )
           .get();
@@ -1040,10 +1084,11 @@ RETURNING *
         systemPayload: Value(systemPayload),
         mentions: Value(mentions),
         mentionSpans: Value(mentionSpans),
+        clientMessageId: Value(clientMessageId),
         createdAt: const Value.absent(),
       ),
     )).toRecord();
-  });
+  }
 
   /// Creates a poll room message and returns the enriched row map for the GraphQL response.
   Future<Map<String, Object?>> insertAndEnrichPollMessage({
@@ -1592,10 +1637,13 @@ RETURNING s.beacon_id
     if (written.isEmpty) return null;
     // Plan-only edits have no coordination item change to invalidate NOW.
     // Publish the existing request refresh hint atomically with the write.
+    // `room_state` tells open rooms this `beacon` hint moved the next step;
+    // they skip their room-state read on any other request update (#654).
     await _db.customStatement(
       r'''
 SELECT public.emit_realtime_entity_change(
-  'beacon', $1, 'update', public.realtime_beacon_recipients($1)
+  'beacon', $1, 'update', public.realtime_beacon_recipients($1),
+  '{"room_state": true}'::jsonb
 )
 ''',
       [beaconId],
@@ -1964,6 +2012,19 @@ RETURNING last_seen_at
     threadItemId: null,
     at: DateTime.timestamp(),
   );
+
+  @override
+  Future<BeaconRoomMessageRecord?> getRoomMessageByClientId({
+    required String authorId,
+    required String clientMessageId,
+  }) async =>
+      (await (_db.select(_db.beaconRoomMessages)..where(
+                (t) =>
+                    t.authorId.equals(authorId) &
+                    t.clientMessageId.equals(clientMessageId),
+              ))
+              .getSingleOrNull())
+          ?.toRecord();
 
   Future<BeaconRoomMessageRecord?> getRoomMessageById(String messageId) async =>
       (await _db.managers.beaconRoomMessages

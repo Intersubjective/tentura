@@ -1,6 +1,8 @@
 @Tags(['pg'])
 library;
 
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -219,6 +221,39 @@ WHERE beacon_id = @beaconId
       },
       skip: skipReason,
     );
+
+    // #654: the next-step hint is the one `beacon` update that tells open
+    // rooms to refetch their room state.
+    test('the next-step hint carries room_state', () async {
+      final listener = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      addTearDown(listener.close);
+      final hints = <Map<String, dynamic>>[];
+      await listener.execute('LISTEN entity_changes');
+      final sub = listener.channels['entity_changes'].listen(
+        (payload) => hints.add(jsonDecode(payload) as Map<String, dynamic>),
+      );
+      addTearDown(sub.cancel);
+
+      await roomCase.updateRoomNowLine(
+        beaconId: beaconId,
+        userId: authorId,
+        text: 'Van at 10:00',
+        baseRevision: 0,
+      );
+      for (var i = 0; i < 40; i++) {
+        if (hints.any((h) => h['entity'] == 'beacon')) break;
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
+
+      final beaconHints = hints
+          .where((h) => h['entity'] == 'beacon' && h['id'] == beaconId)
+          .toList();
+      expect(beaconHints, isNotEmpty);
+      expect(beaconHints.every((h) => h['room_state'] == true), isTrue);
+    }, skip: skipReason);
 
     // #528: the room is told who set the next step; a run of edits is one
     // line, and saving the same line again says nothing new.
@@ -621,6 +656,120 @@ WHERE account_id = @memberId AND status = 'pending'
       },
       skip: skipReason,
     );
+
+    // #654: room messages share this file's real room setup. A send whose
+    // answer timed out is retried with the same client message id.
+    group('room message idempotency key', () {
+      Future<int> messagesWithKey(String key) async {
+        final rows = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int FROM public.beacon_room_message
+WHERE beacon_id = @beaconId AND client_message_id = @key
+'''),
+          parameters: {'beaconId': beaconId, 'key': key},
+        );
+        return rows.single.first! as int;
+      }
+
+      test('a retry with the same key returns the saved message', () async {
+        final first = await roomCase.createMessage(
+          beaconId: beaconId,
+          userId: memberId,
+          body: 'Van booked for 10:00',
+          clientMessageId: 'send-1',
+        );
+        final retry = await roomCase.createMessage(
+          beaconId: beaconId,
+          userId: memberId,
+          body: 'Van booked for 10:00',
+          clientMessageId: 'send-1',
+        );
+
+        expect(retry['id'], first['id']);
+        expect(await messagesWithKey('send-1'), 1);
+      }, skip: skipReason);
+
+      test('keys are per author', () async {
+        final mine = await roomCase.createMessage(
+          beaconId: beaconId,
+          userId: memberId,
+          body: 'From the member',
+          clientMessageId: 'shared-key',
+        );
+        final theirs = await roomCase.createMessage(
+          beaconId: beaconId,
+          userId: authorId,
+          body: 'From the author',
+          clientMessageId: 'shared-key',
+        );
+
+        expect(theirs['id'], isNot(mine['id']));
+        expect(await messagesWithKey('shared-key'), 2);
+      }, skip: skipReason);
+
+      test('a duplicate insert that raced the first one is refused by the '
+          'index, not saved twice', () async {
+        await roomRepo.insertRoomMessage(
+          beaconId: beaconId,
+          authorId: memberId,
+          body: 'First copy',
+          clientMessageId: 'raced',
+        );
+        await expectLater(
+          roomRepo.insertRoomMessage(
+            beaconId: beaconId,
+            authorId: memberId,
+            body: 'First copy',
+            clientMessageId: 'raced',
+          ),
+          throwsA(isA<RoomMessageClientIdTakenException>()),
+        );
+        expect(await messagesWithKey('raced'), 1);
+      }, skip: skipReason);
+
+      // The message and its first attachment commit together, so a retry
+      // that finds the message by its key never finds it without the
+      // attachment (codex review of #654).
+      test('a failed attachment insert leaves no message behind', () async {
+        await expectLater(
+          roomCase.createMessage(
+            beaconId: beaconId,
+            userId: memberId,
+            body: 'Photo of the van',
+            clientMessageId: 'with-photo',
+            deferAttachmentHash: true,
+            uploadedAttachment: (
+              // No such image row: the attachment insert breaks its FK.
+              imageId: '00000000-0000-4000-8000-0000000c0de1',
+              storagePath: null,
+              mime: 'image/jpeg',
+              sizeBytes: 4,
+              displayName: 'van.jpg',
+            ),
+          ),
+          throwsA(anything),
+        );
+        expect(await messagesWithKey('with-photo'), 0);
+      }, skip: skipReason);
+
+      test('sends without a key never collide', () async {
+        for (var i = 0; i < 2; i++) {
+          await roomCase.createMessage(
+            beaconId: beaconId,
+            userId: memberId,
+            body: 'Same text',
+          );
+        }
+        final rows = await writer.execute(
+          Sql.named('''
+SELECT count(*)::int FROM public.beacon_room_message
+WHERE beacon_id = @beaconId AND body = 'Same text'
+'''),
+          parameters: {'beaconId': beaconId},
+        );
+        expect(rows.single.first, 2);
+      }, skip: skipReason);
+    });
   });
 }
 

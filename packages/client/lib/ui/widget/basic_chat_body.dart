@@ -95,6 +95,7 @@ class BasicChatBody extends StatefulWidget {
     this.composerReadOnlyHint,
     this.composerSendEnabled = true,
     this.composerSendFailedOffline = false,
+    this.composerSendUnconfirmed = false,
     this.onComposerContentChanged,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
     this.onScrollToPromoteSource,
@@ -218,6 +219,9 @@ class BasicChatBody extends StatefulWidget {
   /// The last send failed for lack of a connection (#513): the composer
   /// shows «Not sent» with Retry while it still holds that text.
   final bool composerSendFailedOffline;
+
+  /// The last send timed out unconfirmed (#654): «Not confirmed» with Retry.
+  final bool composerSendUnconfirmed;
 
   /// Reports whether the composer holds text or an attachment, on change.
   final ValueChanged<bool>? onComposerContentChanged;
@@ -815,6 +819,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         readOnlyHint: widget.composerReadOnlyHint,
                         sendEnabled: widget.composerSendEnabled,
                         sendFailedOffline: widget.composerSendFailedOffline,
+                        sendUnconfirmed: widget.composerSendUnconfirmed,
                         onContentChanged: widget.onComposerContentChanged,
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
@@ -851,6 +856,7 @@ class BeaconRoomComposer extends StatefulWidget {
     this.readOnlyHint,
     this.sendEnabled = true,
     this.sendFailedOffline = false,
+    this.sendUnconfirmed = false,
     this.onContentChanged,
     this.replyTarget,
     this.onCancelReply,
@@ -897,6 +903,11 @@ class BeaconRoomComposer extends StatefulWidget {
   /// The host's last send failed for lack of a connection (#513). Shown as
   /// «Not sent» with Retry only while the field holds the text that failed.
   final bool sendFailedOffline;
+
+  /// The host's last send timed out, so it may or may not be saved (#654).
+  /// Shown as «Not confirmed» with Retry, like [sendFailedOffline]; the host
+  /// retries with the same idempotency key.
+  final bool sendUnconfirmed;
 
   /// Called when the composer starts or stops holding text or an attachment.
   final ValueChanged<bool>? onContentChanged;
@@ -1554,7 +1565,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     final showAttach =
         widget.enableAttachments && !readOnly && !(isCompact && _hasText);
     final showUnsent =
-        widget.sendFailedOffline &&
+        (widget.sendFailedOffline || widget.sendUnconfirmed) &&
         !readOnly &&
         _unsentText != null &&
         _text.text == _unsentText;
@@ -1565,6 +1576,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
       children: [
         if (showUnsent)
           _ComposerUnsentNotice(
+            unconfirmed: !widget.sendFailedOffline,
             onRetry: busy || !widget.sendEnabled
                 ? null
                 : () => unawaited(_submit()),
@@ -1705,13 +1717,18 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   }
 }
 
-/// «Not sent — you're offline» with Retry, above the field that still holds
-/// the text (#513).
+/// «Not sent — you're offline» (#513) or, after a timeout, «Not confirmed»
+/// (#654), with Retry, above the field that still holds the text.
 class _ComposerUnsentNotice extends StatelessWidget {
-  const _ComposerUnsentNotice({required this.onRetry});
+  const _ComposerUnsentNotice({
+    required this.onRetry,
+    required this.unconfirmed,
+  });
 
   /// Null while a send is in flight.
   final VoidCallback? onRetry;
+
+  final bool unconfirmed;
 
   @override
   Widget build(BuildContext context) {
@@ -1721,11 +1738,19 @@ class _ComposerUnsentNotice extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: kSpacingSmall),
       child: Row(
         children: [
-          Icon(Icons.cloud_off_outlined, size: 18, color: tt.warn),
+          Icon(
+            unconfirmed
+                ? Icons.sync_problem_outlined
+                : Icons.cloud_off_outlined,
+            size: 18,
+            color: tt.warn,
+          ),
           SizedBox(width: tt.iconTextGap),
           Expanded(
             child: Text(
-              l10n.beaconRoomSendFailedOffline,
+              unconfirmed
+                  ? l10n.beaconRoomSendUnconfirmed
+                  : l10n.beaconRoomSendFailedOffline,
               style: TenturaText.bodySmall(tt.warn),
             ),
           ),
