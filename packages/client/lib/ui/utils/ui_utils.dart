@@ -107,7 +107,9 @@ Future<TimeOfDay?> showAppTimePicker({
   ),
 );
 
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
+/// Returns null (and shows nothing) when no [ScaffoldMessenger] is reachable:
+/// neither above [context] nor mounted under [snackbarKey] (#613).
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
   BuildContext context, {
   String? text,
   Color? color,
@@ -130,10 +132,6 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
 }) {
   duration ??= const Duration(seconds: kSnackBarDuration);
   final theme = Theme.of(context);
-  final scaffoldMessenger =
-      ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState!
-        ..clearSnackBars();
-
   // The full, untruncated message. The SnackBar may clip long text on screen,
   // so we keep the complete string for logging and for the Copy action.
   final shownText = [
@@ -150,6 +148,21 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
     }
     GetIt.I<Logger>().warning(fullText);
   }
+
+  // No messenger above the context and the app-level one is not mounted
+  // (early start-up, teardown, a detached overlay): drop the bar rather than
+  // crash on a null state (#613).
+  final scaffoldMessenger =
+      ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState;
+  if (scaffoldMessenger == null) {
+    if (GetIt.I.isRegistered<Logger>()) {
+      GetIt.I<Logger>().warning(
+        'showSnackBar: no ScaffoldMessenger: $fullText',
+      );
+    }
+    return null;
+  }
+  scaffoldMessenger.clearSnackBars();
 
   // Errors get a Copy action so the (often cryptic) server message can be
   // pasted into a bug report. Only added when the caller didn't supply its own.
