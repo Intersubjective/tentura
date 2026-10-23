@@ -34,16 +34,14 @@ class AutoLeadingWithFallback extends StatelessWidget {
     final l10n = MaterialLocalizations.of(context);
     if (context.router.canPop()) {
       if (onPressed != null || closeWhenCanPop) {
-        return Semantics(
-          button: true,
-          label: closeWhenCanPop ? l10n.closeButtonLabel : l10n.backButtonTooltip,
-          child: IconButton(
-            icon: Icon(closeWhenCanPop ? Icons.close : Icons.arrow_back),
-            tooltip: closeWhenCanPop
-                ? l10n.closeButtonLabel
-                : l10n.backButtonTooltip,
-            onPressed: onPressed ?? () => unawaited(context.router.maybePop()),
-          ),
+        // The tooltip names the button; a Semantics label on top of it was
+        // read as "Back\nBack" (#668).
+        return IconButton(
+          icon: Icon(closeWhenCanPop ? Icons.close : Icons.arrow_back),
+          tooltip: closeWhenCanPop
+              ? l10n.closeButtonLabel
+              : l10n.backButtonTooltip,
+          onPressed: onPressed ?? () => unawaited(context.router.maybePop()),
         );
       }
       // AutoLeadingButton may still render noLeading when its RouterScope
@@ -52,38 +50,38 @@ class AutoLeadingWithFallback extends StatelessWidget {
       return AutoLeadingButton.builder(
         builder: (context, leading) {
           if (leading != null) return leading;
-          return Semantics(
-            button: true,
-            label: l10n.backButtonTooltip,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                final custom = onFallback;
-                if (custom != null) {
-                  custom();
-                  return;
-                }
-                unawaited(context.router.navigatePath(fallbackPath));
-              },
+          return IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              semanticLabel: l10n.backButtonTooltip,
             ),
+            onPressed: () {
+              final custom = onFallback;
+              if (custom != null) {
+                custom();
+                return;
+              }
+              unawaited(context.router.navigatePath(fallbackPath));
+            },
           );
         },
       );
     }
-    return Semantics(
-      button: true,
-      label: l10n.backButtonTooltip,
-      child: IconButton(
-        icon: Icon(closeWhenCanPop ? Icons.close : Icons.arrow_back),
-        onPressed: () {
-          final custom = onPressed ?? onFallback;
-          if (custom != null) {
-            custom();
-            return;
-          }
-          unawaited(context.router.navigatePath(fallbackPath));
-        },
+    // No tooltip here (see class doc): the icon's own label names the
+    // button, so it is one node said once (#668).
+    return IconButton(
+      icon: Icon(
+        closeWhenCanPop ? Icons.close : Icons.arrow_back,
+        semanticLabel: l10n.backButtonTooltip,
       ),
+      onPressed: () {
+        final custom = onPressed ?? onFallback;
+        if (custom != null) {
+          custom();
+          return;
+        }
+        unawaited(context.router.navigatePath(fallbackPath));
+      },
     );
   }
 }

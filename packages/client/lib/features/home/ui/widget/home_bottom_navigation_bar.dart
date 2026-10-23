@@ -80,6 +80,10 @@ class HomeBottomNavigationBar extends StatelessWidget {
                         selectedIconTheme: selectedIconTheme,
                         unselectedIconTheme: unselectedIconTheme,
                         labelGap: tokens.tightGap,
+                        position: MaterialLocalizations.of(context).tabLabel(
+                          tabIndex: i + 1,
+                          tabCount: destinations.length,
+                        ),
                         onTap: () => onDestinationSelected(i),
                       ),
                     ),
@@ -120,6 +124,7 @@ class _HomeNavTile extends StatelessWidget {
     required this.selectedIconTheme,
     required this.unselectedIconTheme,
     required this.labelGap,
+    required this.position,
     required this.onTap,
   });
 
@@ -129,6 +134,9 @@ class _HomeNavTile extends StatelessWidget {
   final IconThemeData selectedIconTheme;
   final IconThemeData unselectedIconTheme;
   final double labelGap;
+
+  /// «Tab 1 of 5», in the rail's words (#668).
+  final String position;
   final VoidCallback onTap;
 
   @override
@@ -140,9 +148,12 @@ class _HomeNavTile extends StatelessWidget {
     );
     final tooltip = destination.tooltip ?? destination.label;
 
-    final semanticLabel = destination.label.isEmpty
+    final name = destination.label.isEmpty
         ? (destination.tooltip ?? '')
         : destination.label;
+    // Announced once, with the position, like the rail (#668): the visible
+    // label and the tooltip stay out of semantics.
+    final semanticLabel = name.isEmpty ? position : '$name\n$position';
     final icon = selected ? destination.selectedIcon : destination.icon;
     final glyph = destination.commandChrome
         ? _CommandNavDisk(
@@ -178,6 +189,7 @@ class _HomeNavTile extends StatelessWidget {
             ),
           );
     final tile = Semantics(
+      container: true,
       button: true,
       selected: selected,
       label: semanticLabel,
@@ -191,15 +203,17 @@ class _HomeNavTile extends StatelessWidget {
                   children: [
                     glyph,
                     SizedBox(height: labelGap),
-                    MediaQuery.withClampedTextScaling(
-                      maxScaleFactor: 1.3,
-                      child: Text(
-                        destination.label,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: labelStyle,
+                    ExcludeSemantics(
+                      child: MediaQuery.withClampedTextScaling(
+                        maxScaleFactor: 1.3,
+                        child: Text(
+                          destination.label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: labelStyle,
+                        ),
                       ),
                     ),
                   ],
@@ -211,7 +225,11 @@ class _HomeNavTile extends StatelessWidget {
     if (tooltip.isEmpty) {
       return tile;
     }
-    return Tooltip(message: tooltip, child: tile);
+    return Tooltip(
+      message: tooltip,
+      excludeFromSemantics: true,
+      child: tile,
+    );
   }
 }
 
