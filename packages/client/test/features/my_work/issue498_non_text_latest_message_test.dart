@@ -140,6 +140,30 @@ void main() {
     expect(find.textContaining('Photo'), findsNothing);
   });
 
+  testWidgets('#609: a poll with its question reads "📊 Lunch?"', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(_line(_vm(text: 'Lunch?', kind: 'poll')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Nina: 📊 Lunch?'), findsOneWidget);
+    expect(find.textContaining('Poll'), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp(r'^Latest message\. Nina: 📊 Lunch\?')),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('#609: a poll with a blank question still reads "📊 Poll"', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_line(_vm(text: '   ', kind: 'poll')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Nina: 📊 Poll'), findsOneWidget);
+    expect(find.textContaining('📊 📊'), findsNothing);
+  });
+
   testWidgets('guard: no text and no kind still renders nothing', (
     tester,
   ) async {

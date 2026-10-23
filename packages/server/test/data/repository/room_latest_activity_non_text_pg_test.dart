@@ -176,6 +176,33 @@ Future<void> main() async {
     });
 
     test(
+      'a poll with no text carries its question as the body (#609)',
+      () async {
+        await textFirst();
+        await writer.execute(
+          'INSERT INTO public.polling (id, author_id, question) VALUES '
+          "('Pnontext02', '$ninaId', '  Lunch   at\n noon?  ')",
+        );
+        await message(
+          'Mpoll2',
+          author: ninaId,
+          body: '',
+          at: laterAt,
+          pollingId: 'Pnontext02',
+        );
+
+        final a = (await room.latestRoomActivities([
+          beaconId,
+        ], viewerUserId: authorId))[beaconId]!;
+        expect(a.lastMessageAuthorId, ninaId);
+        // The kind stays poll, so the client can mark it "📊"; the body is
+        // the question itself (whitespace collapsed), never the older text.
+        expect(a.lastMessageKind, 'poll');
+        expect(a.lastMessageBody, 'Lunch at noon?');
+      },
+    );
+
+    test(
       'a quoted fact with no text is the latest message, kind fact',
       () async {
         await textFirst();
