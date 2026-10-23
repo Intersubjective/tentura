@@ -190,3 +190,40 @@ Inbox/My Work refetch per burst. Filed as #639.
 - **After-measurement on dev for the graph** needs a deploy (not done in this
   lane); local acceptance is by unit test.
 - Read amplification (§6), by owner decision (perf paused).
+
+## 8. Field freshness after QA3 (#672, #671, #673) — lane FR, 2026-10-23
+
+Branch `sprint/fr-field-freshness`. The 5-minute lazy FULL window
+(`kLazyFieldRefreshInterval`) and the global `constellation_field` hint are
+unchanged; no global FULL was added. `ConstellationFieldFreshnessCase` adds
+targeted paths for what one viewer can see change, and the store holds what
+they learn over any FULL that started earlier (released by the first FULL that
+started later). Nothing is read while the field is hidden (the store refreshes
+once when it is shown again).
+
+| Change | Before | Now | Extra reads per change, per open field |
+|---|---|---|---|
+| Own trust write (field panel, profile, People) | lazy FULL (≤5 min) | patched on the write's ack | 0 (1 urgent FULL only when the person is not on the field yet) |
+| Someone on the field changes trust with the viewer | lazy FULL | `relationship` hint → `user { my_vote trusts_viewer }` for the people the hint names (id, actor) that are on the field | 1 Hasura read (≤10 ids, no MeritRank) per 250 ms burst; the `user_trust_edge` second wave 1–6 s later costs one more |
+| A direct contact publishes a discoverable Request | never (no hint) | `constellation_item` hint → `constellationFieldRequests(ids)` | 1 V2 read (≤20 ids, readability set-wise, no MeritRank) per burst; server: one indexed `vote_user` lookup per publish |
+| Unpin after a reload | Request vanished until reload | kept as an ordinary Request | 0 |
+
+Known costs and limits:
+
+- The `relationship` hint goes to the endpoints' mutual friends and shared
+  Request members too, and names only one endpoint plus the actor, so a viewer
+  also reads when a field person changes trust with someone else (the read
+  then confirms nothing changed). Bounded by one small read per burst; more
+  than 20 people in one burst (a bulk recompute) is left to the lazy FULL.
+- Edges between two other people, MeritRank drift and visible-set changes
+  stay on the lazy FULL.
+- **Second-degree audience (#671, not done):** a Request of someone the
+  viewer sees only through MeritRank (Pia via Lena) still waits for the lazy
+  FULL. Addressing them would need the author's visible-to set at publish
+  time (a MeritRank query per publish, fan-out to up to the whole reachable
+  set) — an owner decision; the client side already handles the hint for any
+  author on the field.
+- The hint tells a direct contact that the author published something
+  discoverable (opaque id, time); a contact who may not read it gets nothing
+  from the follow-up read.
+- Migration `m0262` is a provisional number (renumber at merge).
