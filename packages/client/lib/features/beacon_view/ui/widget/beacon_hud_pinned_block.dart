@@ -199,7 +199,9 @@ class BeaconHudPinnedBlock extends StatelessWidget {
 
     final step = cue?.currentLine.trim() ?? '';
     final editor = step.isEmpty ? null : beaconStepEditorName(state);
+    final leaver = beaconStepLeaverName(state);
     Widget stepLine(DateTime at) => _LabeledLine(
+      warning: leaver == null ? null : l10n.beaconHudStepLeaverFlag(leaver),
       label: rowLabel,
       text: step.isNotEmpty
           ? step
@@ -247,12 +249,16 @@ class _LabeledLine extends StatelessWidget {
     required this.text,
     required this.color,
     this.subline,
+    this.warning,
   });
 
   final String label;
   final String text;
   final Color color;
   final String? subline;
+
+  /// #516: a person the line names has left since it was set.
+  final String? warning;
 
   @override
   Widget build(BuildContext context) {
@@ -284,10 +290,20 @@ class _LabeledLine extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TenturaText.bodySmall(tt.textMuted),
           ),
+        if (warning != null)
+          TenturaStatusText(
+            warning!,
+            key: beaconHudStepLeaverFlagKey,
+            tone: TenturaTone.warn,
+            maxLines: 2,
+          ),
       ],
     );
   }
 }
+
+/// The next-step row's "they left" flag (#516, tests).
+const beaconHudStepLeaverFlagKey = Key('hud-step-leaver-flag');
 
 class _HudCounters extends StatelessWidget {
   const _HudCounters({

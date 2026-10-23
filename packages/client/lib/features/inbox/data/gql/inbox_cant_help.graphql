@@ -1,0 +1,6 @@
+# #486: «Can't help» on a forwarded Request. V2 (server `ForwardCase.cantHelp`)
+# so the author is told in the same transaction; the note reaches the author
+# only. Returns false when the Request never reached the viewer.
+mutation InboxCantHelp($id: String!, $message: String) {
+  beaconCantHelp(id: $id, message: $message)
+}

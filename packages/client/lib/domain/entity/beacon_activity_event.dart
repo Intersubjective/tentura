@@ -63,6 +63,7 @@ bool isCoordinationLogEventType(int type) {
     BeaconActivityEventTypeBits.beaconLifecycleChanged => true,
     BeaconActivityEventTypeBits.factEdited => true,
     BeaconActivityEventTypeBits.factRemoved => true,
+    BeaconActivityEventTypeBits.requestEdited => true,
     _ => false,
   };
 }

@@ -483,6 +483,10 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.admittedRoomMember},
     role: _baseRole,
   ),
+  'helpWithdrawn' || 'forwardDeclined' => (
+    reasons: const {AttentionRecipientReason.authorOfBeacon},
+    role: _baseRole,
+  ),
   _ => throw StateError('No policy fixture for $eventName'),
 };
 

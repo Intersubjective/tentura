@@ -377,6 +377,25 @@ const _expectedEventTypes = <Map<String, String>>[
     'coveringTest':
         'packages/server/test/domain/use_case/plan_attention_case_pg_test.dart',
   },
+  // Who-did-what (#516, #486): docs/features/request-change-events.md.
+  {
+    'eventType': 'helpWithdrawn',
+    'producer': 'HelpOfferCase.withdraw',
+    'recipientCategory': 'author_and_stewards',
+    'destinationFamily': 'beacon_people_offer',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/help_offer_withdraw_attention_pg_test.dart',
+  },
+  {
+    'eventType': 'forwardDeclined',
+    'producer': 'ForwardCase.cantHelp',
+    'recipientCategory': 'request_author',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart',
+  },
 ];
 
 void main() {

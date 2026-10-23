@@ -67,6 +67,8 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
     'commitment_redirected' ||
     'help_offer_submitted' ||
     'offer_declined' ||
+    'help_withdrawn' ||
+    'forward_declined' ||
     'relay_received' => UpdatesFeedGlyph(
       icon: TenturaIcons.send,
       color: tt.warn,

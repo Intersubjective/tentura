@@ -270,6 +270,22 @@
       "destinationFamily": "beacon",
       "muteability": "standard_or_noisy",
       "coveringTest": "packages/server/test/domain/use_case/plan_attention_case_pg_test.dart"
+    },
+    {
+      "eventType": "helpWithdrawn",
+      "producer": "HelpOfferCase.withdraw",
+      "recipientCategory": "author_and_stewards",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/help_offer_withdraw_attention_pg_test.dart"
+    },
+    {
+      "eventType": "forwardDeclined",
+      "producer": "ForwardCase.cantHelp",
+      "recipientCategory": "request_author",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart"
     }
   ],
   "producers": [
@@ -739,6 +755,22 @@
       "destinationFamily": "beacon",
       "muteability": "standard_or_noisy",
       "coveringTest": "packages/server/test/domain/use_case/plan_attention_case_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/help_offer_case.dart",
+      "eventType": "helpWithdrawn",
+      "recipientCategory": "author_and_stewards",
+      "destinationFamily": "beacon_people_offer",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/help_offer_withdraw_attention_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/forward_case.dart",
+      "eventType": "forwardDeclined",
+      "recipientCategory": "request_author",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart"
     }
   ],
   "eventClassifications": [
@@ -2220,6 +2252,81 @@
           "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/plan_attention_case_pg_test.dart"
+          ],
+          "transitionTests": [],
+          "personal": false,
+          "stateLike": false,
+          "ownDutyReminder": false
+        }
+      ]
+    },
+    {
+      "eventType": "helpWithdrawn",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
+          "producerTests": [
+            "packages/server/test/domain/use_case/help_offer_withdraw_attention_pg_test.dart"
+          ],
+          "transitionTests": [],
+          "personal": false,
+          "stateLike": false,
+          "ownDutyReminder": false
+        },
+        {
+          "recipientPredicate": "reason:roomModeratorOrSteward",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
+          "producerTests": [
+            "packages/server/test/domain/use_case/help_offer_withdraw_attention_pg_test.dart"
+          ],
+          "transitionTests": [],
+          "personal": false,
+          "stateLike": false,
+          "ownDutyReminder": false
+        }
+      ]
+    },
+    {
+      "eventType": "forwardDeclined",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
+          "producerTests": [
+            "packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart"
           ],
           "transitionTests": [],
           "personal": false,

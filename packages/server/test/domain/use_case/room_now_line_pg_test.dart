@@ -1,13 +1,13 @@
 @Tags(['pg'])
 library;
 
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
@@ -22,6 +22,7 @@ import 'package:tentura_server/data/repository/coordination_item_repository.dart
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/request_change_log_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -115,6 +116,7 @@ Future<void> main() async {
         const ProductionDiscussionProductPolicy(),
         attentionIntents: attentionIntents,
         attention: attention,
+        changeLog: RequestChangeLogRepository(database),
         env: Env(environment: Environment.test),
         logger: Logger('room_now_line_pg_test'),
       );
@@ -123,6 +125,7 @@ Future<void> main() async {
     setUp(() async {
       await writer.execute('''
 TRUNCATE TABLE
+  public.beacon_room_message,
   public.attention_channel_delivery,
   public.attention_occurrence_recipient,
   public.attention_occurrence,
@@ -215,6 +218,36 @@ WHERE beacon_id = @beaconId
       },
       skip: skipReason,
     );
+
+    // #528: the room is told who set the next step; a run of edits is one
+    // line, and saving the same line again says nothing new.
+    test('the next step leaves one coalesced line in General', () async {
+      for (final text in [
+        'Nina: van 9:45',
+        'Nina: van 10:00',
+        'Nina: van 10:00',
+      ]) {
+        await roomCase.updateRoomNowLine(
+          beaconId: beaconId,
+          userId: authorId,
+          text: text,
+        );
+      }
+      final rows = await writer.execute(
+        Sql.named('''
+SELECT author_id, system_payload->>'field', system_payload->>'from',
+       system_payload->>'to'
+FROM public.beacon_room_message
+WHERE beacon_id = @beaconId AND system_message_kind = @kind
+'''),
+        parameters: {
+          'beaconId': beaconId,
+          'kind': BeaconRoomSystemMessageKind.requestEdited,
+        },
+      );
+      expect(rows, hasLength(1));
+      expect(rows.single, [authorId, 'nextStep', '', 'Nina: van 10:00']);
+    }, skip: skipReason);
 
     test(
       'emits coordinationChanged with beacon_room_state source event key',
@@ -543,7 +576,6 @@ WHERE account_id = @memberId AND status = 'pending'
   });
 }
 
-
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
 
@@ -563,6 +595,5 @@ class _PgFakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
     required String userId,
     required int bytes,
     required int dailyCapBytes,
-  }) async =>
-      true;
+  }) async => true;
 }

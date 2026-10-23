@@ -143,6 +143,16 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
+  // Who-did-what (#516, #486): never folded — each one names a person and
+  // their reason, which exists nowhere else on the card.
+  'helpWithdrawn': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: false,
+  ),
+  'forwardDeclined': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: false,
+  ),
   'requestStatusChanged': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,

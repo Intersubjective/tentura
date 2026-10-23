@@ -450,9 +450,11 @@ final class HelpOfferCase extends UseCaseBase {
           beaconId: beaconId,
           userId: userId,
         );
-        if (participant != null &&
+        final leftDiscussion =
+            participant != null &&
             participant.roomAccess == RoomAccessBits.admitted &&
-            participant.role != BeaconParticipantRoleBits.addressee) {
+            participant.role != BeaconParticipantRoleBits.addressee;
+        if (leftDiscussion) {
           await _roomRepository.recordParticipantLeft(
             beaconId: beaconId,
             userId: userId,
@@ -490,6 +492,14 @@ final class HelpOfferCase extends UseCaseBase {
             beaconId: beaconId,
             touchForwardOrdering: false,
           );
+          // #516: the author hears who left and why, and whether the next
+          // step still names them.
+          final nextStep = leftDiscussion
+              ? (await _roomRepository.getBeaconRoomState(
+                      beaconId,
+                    ))?.currentLine ??
+                    ''
+              : '';
           await transaction.record(
             await _attentionIntents!.helpWithdrawn(
               beaconId: beaconId,
@@ -497,6 +507,8 @@ final class HelpOfferCase extends UseCaseBase {
               sourceEventKey: 'help_withdrawn:${generateId('A')}',
               withdrawReason: withdrawReason,
               note: message,
+              leftDiscussion: leftDiscussion,
+              nextStep: nextStep,
             ),
           );
         } else {

@@ -93,6 +93,8 @@ void main() {
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     roomRepo = MockBeaconRoomRepositoryPort();
+    // #516: a leaving helper's withdrawal reads the next step.
+    when(roomRepo.getBeaconRoomState(any)).thenAnswer((_) async => null);
     coordinationRepo = MockCoordinationRepositoryPort();
     commitmentRepo = RecordingCommitmentRepository();
     attention = TestAttentionHarness();
@@ -278,8 +280,8 @@ void main() {
           touchForwardOrdering: false,
         ),
       ).called(1);
-      // Open-beacon withdrawal notifies the author/stewards.
-      expect(attention.recorded.single.eventType.name, 'promiseWithdrawn');
+      // Open-beacon withdrawal notifies the author/stewards (#516).
+      expect(attention.recorded.single.eventType.name, 'helpWithdrawn');
     });
   });
 

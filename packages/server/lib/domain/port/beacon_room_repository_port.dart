@@ -243,6 +243,12 @@ abstract class BeaconRoomRepositoryPort {
     required String userId,
   });
 
+  /// #528: locks the Request's next-step row for this transaction (creating
+  /// an empty one, revision 0, if there is none yet) and returns the line as
+  /// it stands, so the edit line records the serialised "before" value and
+  /// the #517 revision check below runs against that same locked row.
+  Future<String> lockCurrentLine(String beaconId);
+
   /// Writes the next step if its revision is still [baseRevision] (#517).
   /// Returns the saved row, or null when someone changed the line meanwhile
   /// (nothing is written then).

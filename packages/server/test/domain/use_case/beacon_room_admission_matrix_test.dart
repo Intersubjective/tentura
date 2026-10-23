@@ -181,6 +181,10 @@ void main() {
           when(
             beaconRepo.getBeaconById(beaconId: _beaconId),
           ).thenAnswer((_) async => _beacon());
+          // #516: a leaving helper's withdrawal reads the next step.
+          when(
+            room.getBeaconRoomState(_beaconId),
+          ).thenAnswer((_) async => null);
           when(
             room.isBeaconAuthor(beaconId: _beaconId, userId: _helperId),
           ).thenAnswer((_) async => false);

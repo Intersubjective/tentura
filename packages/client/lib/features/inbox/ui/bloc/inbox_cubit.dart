@@ -289,11 +289,16 @@ class InboxCubit extends Cubit<InboxState> {
     await _updateStatus(beaconId, InboxItemStatus.rejected, privateNote: note);
   }
 
+  /// «Can't help» (#486): on a Request the server tells the author, with
+  /// [message]. A Post has no author to tell (its rows keep the old write).
   Future<void> reject(String beaconId, {String message = ''}) async {
+    final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
+    final isPost = idx >= 0 && state.items[idx].beacon?.kind == BeaconKind.post;
     await _updateStatus(
       beaconId,
       InboxItemStatus.rejected,
       rejectionMessage: message,
+      cantHelp: !isPost,
     );
   }
 
@@ -368,6 +373,7 @@ class InboxCubit extends Cubit<InboxState> {
     InboxItemStatus status, {
     String rejectionMessage = '',
     String? privateNote,
+    bool cantHelp = false,
   }) async {
     final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
     if (idx < 0) return;
@@ -375,6 +381,17 @@ class InboxCubit extends Cubit<InboxState> {
     try {
       if (privateNote != null) {
         await _inboxCase.dismiss(beaconId: beaconId, privateNote: privateNote);
+      } else if (cantHelp) {
+        final declined = await _inboxCase.cantHelp(
+          beaconId: beaconId,
+          message: rejectionMessage,
+        );
+        if (!declined) {
+          // The server refused (the Request closed before you answered, or
+          // you are helping): show what is really there.
+          await fetch(showLoading: false, showError: false);
+          return;
+        }
       } else {
         await _inboxCase.setStatus(
           beaconId: beaconId,

@@ -10,6 +10,7 @@ import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import '../gql/_g/activity_offers.req.gql.dart';
 import '../gql/_g/activity_offers_hydrate.req.gql.dart';
+import '../gql/_g/inbox_cant_help.req.gql.dart';
 import '../gql/_g/inbox_dismiss.req.gql.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
 import '../gql/_g/inbox_item_fields.data.gql.dart';
@@ -50,7 +51,8 @@ class InboxRepository {
     return _mapInboxItemRows(rows, userId);
   }
 
-  Future<({List<InboxItem> page, int totalCount})> fetchActivityOffersFirstPage({
+  Future<({List<InboxItem> page, int totalCount})>
+  fetchActivityOffersFirstPage({
     required String userId,
     int limit = activityOffersPageSize,
   }) async {
@@ -238,6 +240,32 @@ class InboxRepository {
     if (!_localMutationController.isClosed) {
       _localMutationController.add(null);
     }
+  }
+
+  /// «Can't help» (#486): declines the forwarded Request with [message] and
+  /// tells its author, in one server transaction. The sender of the forward
+  /// sees the note as before; nobody else does.
+  ///
+  /// False when the server refused: the Request never reached the viewer,
+  /// closed before they answered, or they are helping.
+  Future<bool> cantHelp({
+    required String beaconId,
+    String message = '',
+  }) async {
+    final declined = await _remoteApiService
+        .request(
+          GInboxCantHelpReq(
+            (r) => r
+              ..vars.id = beaconId
+              ..vars.message = message,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconCantHelp);
+    if (!_localMutationController.isClosed) {
+      _localMutationController.add(null);
+    }
+    return declined;
   }
 
   /// Stores the note only on the viewer's inbox row. The forward edge receives

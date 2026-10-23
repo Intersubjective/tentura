@@ -10730,5 +10730,132 @@
   "bootFailureReload": "Reload",
   "@bootFailureReload": {
     "description": "Button on the startup-failure screen that reloads the web page (#674)"
+  },
+  "roomNextStepSetByActor": "{actor} set the next step: “{text}”",
+  "@roomNextStepSetByActor": {
+    "description": "Chat line (#528): a member set the next step.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "roomNextStepSetBySelf": "You set the next step: “{text}”",
+  "@roomNextStepSetBySelf": {
+    "description": "Chat line (#528): the viewer set the next step.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "roomNextStepSetByFormerMember": "A former member set the next step: “{text}”",
+  "@roomNextStepSetByFormerMember": {
+    "description": "Chat line (#528): the next step was set by an account deleted since.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "roomTitleChangedByActor": "{actor} renamed the request: “{from}” → “{to}”",
+  "@roomTitleChangedByActor": {
+    "description": "Chat line (#528): a member renamed the request.",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomTitleChangedBySelf": "You renamed the request: “{from}” → “{to}”",
+  "@roomTitleChangedBySelf": {
+    "description": "Chat line (#528): the viewer renamed the request.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "roomTitleChangedByFormerMember": "A former member renamed the request: “{from}” → “{to}”",
+  "@roomTitleChangedByFormerMember": {
+    "description": "Chat line (#528): the request was renamed by an account deleted since.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconActivityNextStepChanged": "Next step changed",
+  "@beaconActivityNextStepChanged": {
+    "description": "Request log (#528): someone changed the next step."
+  },
+  "beaconActivityTitleChanged": "Request renamed",
+  "@beaconActivityTitleChanged": {
+    "description": "Request log (#528): someone changed the request title."
+  },
+  "attentionEventOfferWithdrawn": "{name} withdrew their offer ({reason})",
+  "@attentionEventOfferWithdrawn": {
+    "description": "Author update (#516): a helper withdrew an offer that was not yet accepted. reason is the withdraw reason label.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "attentionEventNextStepNamesLeaver": "The next step mentions them — check it",
+  "@attentionEventNextStepNamesLeaver": {
+    "description": "Author update (#516): the helper who left is named in the next step."
+  },
+  "attentionEventCantHelp": "{name} can't help",
+  "@attentionEventCantHelp": {
+    "description": "Author update (#486): a recipient answered a forwarded request with «Can't help».",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesFallbackTitleHelpWithdrawn": "Help withdrawn",
+  "@updatesFallbackTitleHelpWithdrawn": {
+    "description": "Updates fallback title (#516) when the receipt carries no name."
+  },
+  "updatesFallbackBodyHelpWithdrawn": "A helper withdrew their offer.",
+  "@updatesFallbackBodyHelpWithdrawn": {
+    "description": "Updates fallback body (#516) when the receipt carries no text."
+  },
+  "updatesFallbackTitleForwardDeclined": "Can't help",
+  "@updatesFallbackTitleForwardDeclined": {
+    "description": "Updates fallback title (#486) when the receipt carries no name."
+  },
+  "updatesFallbackBodyForwardDeclined": "A recipient can't help with this request.",
+  "@updatesFallbackBodyForwardDeclined": {
+    "description": "Updates fallback body (#486) when the receipt carries no text."
+  },
+  "beaconHudStepLeaverFlag": "{name} left after this was set",
+  "@beaconHudStepLeaverFlag": {
+    "description": "Request header, under the next step (#516): a person it mentions has left since it was set.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

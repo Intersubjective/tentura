@@ -784,6 +784,19 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<String> lockCurrentLine(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockCurrentLine, [beaconId]),
+            returnValue: _i3.Future<String>.value(
+              _i6.dummyValue<String>(
+                this,
+                Invocation.method(#lockCurrentLine, [beaconId]),
+              ),
+            ),
+          )
+          as _i3.Future<String>);
+
+  @override
   _i3.Future<_i5.BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
     required String? beaconId,
     required String? text,

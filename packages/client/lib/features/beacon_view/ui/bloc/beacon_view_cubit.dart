@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invali
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -378,11 +379,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   Future<void> rejectInbox({String message = ''}) async {
     if (state.inboxStatus == null) return;
     try {
-      await _case.setInboxStatus(
+      if (state.beacon.kind == BeaconKind.post) {
+        // A Post has no author to tell: the old row write.
+        await _case.setInboxStatus(
+          beaconId: state.beacon.id,
+          status: InboxItemStatus.rejected,
+          rejectionMessage: message,
+        );
+        emit(state.copyWith(inboxStatus: InboxItemStatus.rejected));
+        return;
+      }
+      final declined = await _case.cantHelp(
         beaconId: state.beacon.id,
-        status: InboxItemStatus.rejected,
-        rejectionMessage: message,
+        message: message,
       );
+      // Refused (closed before you answered, or you are helping): keep the
+      // state the server has.
+      if (!declined) return;
       emit(state.copyWith(inboxStatus: InboxItemStatus.rejected));
     } catch (e) {
       _showSnackError(e);

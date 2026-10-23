@@ -116,6 +116,19 @@ class InboxRepository implements InboxRepositoryPort {
   }
 
   @override
+  Future<int?> lockStatus({
+    required String userId,
+    required String beaconId,
+  }) => _database
+      .customSelect(
+        'SELECT status FROM public.inbox_item '
+        r'WHERE user_id = $1 AND beacon_id = $2 FOR UPDATE',
+        variables: [Variable<String>(userId), Variable<String>(beaconId)],
+      )
+      .getSingleOrNull()
+      .then((row) => row?.read<int>('status'));
+
+  @override
   Future<void> setStatus({
     required String userId,
     required String beaconId,

@@ -7307,5 +7307,21 @@
   "bootFailureTitle": "Не удалось запустить Tentura",
   "bootFailureBodyWeb": "При запуске приложения что-то пошло не так. Обычно помогает перезагрузка страницы.",
   "bootFailureBodyNative": "При запуске приложения что-то пошло не так. Закройте приложение и откройте его снова.",
-  "bootFailureReload": "Перезагрузить"
+  "bootFailureReload": "Перезагрузить",
+  "roomNextStepSetByActor": "{actor} задал(а) следующий шаг: «{text}»",
+  "roomNextStepSetBySelf": "Вы задали следующий шаг: «{text}»",
+  "roomNextStepSetByFormerMember": "Бывший участник задал следующий шаг: «{text}»",
+  "roomTitleChangedByActor": "{actor} переименовал(а) запрос: «{from}» → «{to}»",
+  "roomTitleChangedBySelf": "Вы переименовали запрос: «{from}» → «{to}»",
+  "roomTitleChangedByFormerMember": "Бывший участник переименовал запрос: «{from}» → «{to}»",
+  "beaconActivityNextStepChanged": "Следующий шаг изменён",
+  "beaconActivityTitleChanged": "Запрос переименован",
+  "attentionEventOfferWithdrawn": "{name} отозвал(а) предложение помощи ({reason})",
+  "attentionEventNextStepNamesLeaver": "Следующий шаг упоминает этого человека — проверьте его",
+  "attentionEventCantHelp": "{name} не может помочь",
+  "updatesFallbackTitleHelpWithdrawn": "Помощь отозвана",
+  "updatesFallbackBodyHelpWithdrawn": "Помощник отозвал предложение помощи.",
+  "updatesFallbackTitleForwardDeclined": "Не может помочь",
+  "updatesFallbackBodyForwardDeclined": "Получатель не может помочь с этим запросом.",
+  "beaconHudStepLeaverFlag": "{name} покинул(а) запрос после того, как шаг был задан"
 }

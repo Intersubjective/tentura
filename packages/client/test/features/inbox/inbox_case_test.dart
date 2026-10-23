@@ -768,6 +768,19 @@ class FakeInboxRepository implements InboxRepository {
   }
 
   @override
+  Future<bool> cantHelp({
+    required String beaconId,
+    String message = '',
+  }) async {
+    await setStatus(
+      beaconId: beaconId,
+      status: InboxItemStatus.rejected,
+      rejectionMessage: message,
+    );
+    return true;
+  }
+
+  @override
   Future<void> dismissTombstone({
     required String beaconId,
     DateTime? dismissedAt,

@@ -6,6 +6,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
+    show withdrawReasonLabel;
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/withdraw_reason_label.dart';
@@ -131,6 +133,19 @@ String? helperLeftEventLine({
 BeaconStatus? toStatusFromPresentationPayload(String presentationPayloadJson) {
   final name = _payloadString(presentationPayloadJson, 'toStatus');
   return name == null ? null : BeaconStatus.values.asNameMap()[name];
+}
+
+bool? _payloadBool(String presentationPayloadJson, String key) {
+  final trimmed = presentationPayloadJson.trim();
+  if (trimmed.isEmpty || trimmed == '{}') return null;
+  try {
+    final decoded = jsonDecode(trimmed);
+    if (decoded is! Map) return null;
+    final value = decoded[key];
+    return value is bool ? value : null;
+  } on Object {
+    return null;
+  }
 }
 
 String? _payloadString(String presentationPayloadJson, String key) {
@@ -274,6 +289,8 @@ String _fallbackTitle(
   'blocker_resolved' => l10n.updatesFallbackTitleBlockerResolved,
   'promise_made' => l10n.updatesFallbackTitlePromiseMade,
   'promise_withdrawn' => l10n.updatesFallbackTitlePromiseWithdrawn,
+  'help_withdrawn' => l10n.updatesFallbackTitleHelpWithdrawn,
+  'forward_declined' => l10n.updatesFallbackTitleForwardDeclined,
   'coordination_changed' => l10n.updatesFallbackTitleCoordinationChanged,
   'deadline_changed' => l10n.updatesFallbackTitleDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackTitleDeadlineReminder,
@@ -310,6 +327,8 @@ String _fallbackBody(
   'blocker_resolved' => l10n.updatesFallbackBodyBlockerResolved,
   'promise_made' => l10n.updatesFallbackBodyPromiseMade,
   'promise_withdrawn' => l10n.updatesFallbackBodyPromiseWithdrawn,
+  'help_withdrawn' => l10n.updatesFallbackBodyHelpWithdrawn,
+  'forward_declined' => l10n.updatesFallbackBodyForwardDeclined,
   'coordination_changed' => l10n.updatesFallbackBodyCoordinationChanged,
   'deadline_changed' => l10n.updatesFallbackBodyDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackBodyDeadlineReminder,
@@ -370,6 +389,69 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
   };
 }
 
+/// Who-did-what receipt copy (#516, #486; `docs/features/request-change-events.md`):
+/// the person and what they did, in the viewer's locale, with their own
+/// words as the body.
+///
+/// * `help_withdrawn` — «Omar left the request (Timing changed)» when they
+///   were in the discussion, «… withdrew their offer (…)» otherwise; the
+///   body is their note, and says so when the next step still names them.
+/// * `forward_declined` — «Nina can't help»; the body is her note, which
+///   only the author ever receives.
+///
+/// The name is [actorName] when the caller knows the person, else the
+/// receipt [title] (the server writes the actor's name there). Null for any
+/// other receipt.
+UpdatesFeedRowCopy? whoDidWhatReceiptDisplayCopy({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson);
+  final known = actorName?.trim() ?? '';
+  final name = known.isNotEmpty ? known : title.trim();
+  final excerpt = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  switch (type ?? presentationKey) {
+    case 'helpWithdrawn' || 'help_withdrawn':
+      if (name.isEmpty) {
+        return UpdatesFeedRowCopy(
+          headline: l10n.updatesFallbackTitleHelpWithdrawn,
+          body: excerpt,
+        );
+      }
+      final reason =
+          withdrawReasonLabel(
+            l10n,
+            _payloadString(presentationPayloadJson, 'withdrawReason'),
+          ) ??
+          l10n.withdrawOther;
+      final left =
+          _payloadBool(presentationPayloadJson, 'leftDiscussion') ?? false;
+      final flagged =
+          _payloadBool(presentationPayloadJson, 'nextStepMentionsActor') ??
+          false;
+      return UpdatesFeedRowCopy(
+        headline: left
+            ? l10n.beaconRoomParticipantLeft(name, reason)
+            : l10n.attentionEventOfferWithdrawn(name, reason),
+        body: [
+          if (excerpt.isNotEmpty) excerpt,
+          if (flagged) l10n.attentionEventNextStepNamesLeaver,
+        ].join('\n'),
+      );
+    case 'forwardDeclined' || 'forward_declined':
+      return UpdatesFeedRowCopy(
+        headline: name.isEmpty
+            ? l10n.updatesFallbackTitleForwardDeclined
+            : l10n.attentionEventCantHelp(name),
+        body: excerpt,
+      );
+  }
+  return null;
+}
+
 /// Plan receipt copy: the event in the viewer's locale, and the step title
 /// the server carries as `excerpt`. No clock times (plan K16): the row's own
 /// age label is the only time shown. The actor's name is left to the row's
@@ -421,6 +503,22 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     actorName: actorName,
   );
   if (baton != null) return baton;
+  final whoDidWhat = whoDidWhatReceiptDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+  );
+  if (whoDidWhat != null) {
+    final override = headlineOverride?.trim();
+    return UpdatesFeedRowCopy(
+      headline: override != null && override.isNotEmpty
+          ? override
+          : whoDidWhat.headline,
+      body: whoDidWhat.body,
+    );
+  }
   final plan = planReceiptDisplayCopy(
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
@@ -638,6 +736,19 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   if (baton != null) {
     return RequestScopedEventCopy(event: baton.headline, excerpt: baton.body);
+  }
+  final whoDidWhat = whoDidWhatReceiptDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+  );
+  if (whoDidWhat != null) {
+    return RequestScopedEventCopy(
+      event: whoDidWhat.headline,
+      excerpt: whoDidWhat.body,
+    );
   }
   final plan = planReceiptDisplayCopy(
     presentationKey: presentationKey,

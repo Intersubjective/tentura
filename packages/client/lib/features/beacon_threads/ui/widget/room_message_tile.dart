@@ -22,6 +22,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/domain/entity/room_request_edit.dart';
 import 'package:tentura/domain/entity/room_status_change.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
@@ -254,6 +255,30 @@ class RoomMessageTile extends StatelessWidget {
       return null;
     }
   }
+
+  /// The words of a `requestEdited` line (#528): who set the next step or
+  /// renamed the Request, and to what. [isSelf] reads «You …»; an empty
+  /// [actorName] is an account deleted since.
+  @visibleForTesting
+  static String requestEditLine(
+    L10n l10n,
+    RoomRequestEdit edit, {
+    required String actorName,
+    required bool isSelf,
+  }) => switch (edit.field) {
+    RoomRequestEditField.nextStep =>
+      isSelf
+          ? l10n.roomNextStepSetBySelf(edit.to)
+          : actorName.isNotEmpty
+          ? l10n.roomNextStepSetByActor(actorName, edit.to)
+          : l10n.roomNextStepSetByFormerMember(edit.to),
+    RoomRequestEditField.title =>
+      isSelf
+          ? l10n.roomTitleChangedBySelf(edit.from, edit.to)
+          : actorName.isNotEmpty
+          ? l10n.roomTitleChangedByActor(actorName, edit.from, edit.to)
+          : l10n.roomTitleChangedByFormerMember(edit.from, edit.to),
+  };
 
   /// `participantLeft` system payload (server contract, B084):
   /// `leftUserId`, `withdrawReason` (key) and an optional `note`.
@@ -731,6 +756,35 @@ class RoomMessageTile extends StatelessWidget {
             ? l10n.roomStatusChangedAutomatic(from, to)
             // No author on a person's change: their account was deleted.
             : l10n.roomStatusChangedByFormerMember(from, to),
+      );
+    }
+
+    if (message.systemMessageKind ==
+        BeaconRoomSystemMessageKind.requestEdited) {
+      final edit = RoomRequestEdit.fromMessage(message);
+      if (edit == null) return const SizedBox.shrink();
+      final shown = message.authorId.isEmpty
+          ? ''
+          : SelfUserHighlight.displayName(
+              l10n,
+              message.author,
+              myProfile.id,
+            ).trim();
+      return _CenteredSystemNotice(
+        text: requestEditLine(
+          l10n,
+          edit,
+          actorName: shown.isNotEmpty || message.authorId.isEmpty
+              ? shown
+              : _participantDisplayName(
+                  participants: participants,
+                  userId: message.authorId,
+                  viewer: myProfile,
+                  l10n: l10n,
+                ),
+          isSelf:
+              message.authorId.isNotEmpty && message.authorId == myProfile.id,
+        ),
       );
     }
 

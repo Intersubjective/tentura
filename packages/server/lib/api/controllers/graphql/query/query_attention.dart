@@ -429,15 +429,25 @@ final class QueryAttention extends GqlNodeBase {
     'roleLabel',
   };
 
-  /// #189 — the one allowed key whose value is a bool, not a String.
+  /// #189 — the «вам» flag, a bool rather than a String.
   static const attentionPresentationPayloadPersonalKey = 'personal';
+
+  /// The allowed keys whose value is a bool, not a String: the «вам» flag
+  /// (#189) and a helper withdrawal's facts (#516: whether they left the
+  /// discussion, whether the next step names them).
+  @visibleForTesting
+  static const attentionPresentationPayloadBoolKeys = {
+    attentionPresentationPayloadPersonalKey,
+    'leftDiscussion',
+    'nextStepMentionsActor',
+  };
 
   @visibleForTesting
   static void validateAttentionPresentationPayload(
     Map<String, Object?> payload,
   ) {
     bool allowed(MapEntry<String, Object?> entry) =>
-        entry.key == attentionPresentationPayloadPersonalKey
+        attentionPresentationPayloadBoolKeys.contains(entry.key)
         ? entry.value is bool
         : attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
               entry.value is String;
@@ -458,9 +468,10 @@ final class QueryAttention extends GqlNodeBase {
         if (attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
             entry.value is String)
           entry.key: entry.value! as String
-        // #189 — the «вам» zone's flag is the one non-String field the client
-        // reads (`attentionReceiptIsPersonal`); stripping it hid the zone.
-        else if (entry.key == attentionPresentationPayloadPersonalKey &&
+        // #189 — the «вам» zone's flag (`attentionReceiptIsPersonal`;
+        // stripping it hid the zone) and #516's withdrawal facts are the
+        // non-String fields the client reads.
+        else if (attentionPresentationPayloadBoolKeys.contains(entry.key) &&
             entry.value is bool)
           entry.key: entry.value! as bool,
     };

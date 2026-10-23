@@ -34,10 +34,10 @@ import '../../support/test_attention_harness.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
 // #516 residual (option A, Vadim 2026-10-22): when a helper withdraws, the
-// author's attention item says who withdrew and why. The `promiseWithdrawn`
-// receipt from `AttentionIntentCase.helpWithdrawn` already reaches the author,
-// but it carries neither the withdraw reason nor the helper's note, so the
-// author's Request card can only say «Items updated».
+// author's attention item says who withdrew and why. The `helpWithdrawn`
+// receipt from `AttentionIntentCase.helpWithdrawn` (7.46.0: its own event
+// type, no longer `promiseWithdrawn`) carries the withdraw reason and the
+// helper's note, so the author's Request card names who left and why.
 //
 // Pinned shape: `helpWithdrawn(withdrawReason:, note:)`; the helper's note is
 // the receipt excerpt, the reason key rides the presentation payload as
@@ -220,7 +220,7 @@ void main() {
         note: _note,
       );
 
-      expect(intent.eventType, AttentionEventType.promiseWithdrawn);
+      expect(intent.eventType, AttentionEventType.helpWithdrawn);
       expect(_recipientIds(intent), contains(_author));
       expect(_recipientIds(intent), isNot(contains(_helper)));
       final payload = _payloadFor(intent, _author);
@@ -285,7 +285,7 @@ void main() {
       );
 
       final intent = harness.recorded.single;
-      expect(intent.eventType, AttentionEventType.promiseWithdrawn);
+      expect(intent.eventType, AttentionEventType.helpWithdrawn);
       expect(_recipientIds(intent), contains(_author));
       expect(_recipientIds(intent), isNot(contains(_helper)));
       final payload = _payloadFor(intent, _author);

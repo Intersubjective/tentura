@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
+import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -178,6 +179,74 @@ final class ForwardCase extends UseCaseBase {
       },
     );
   }
+
+  /// #486 — the recipient's «Can't help» answer to a forwarded Request.
+  ///
+  /// Sets the viewer's Activity row to declined with their [message] (the
+  /// forward edge's sender sees it, as before), and tells the author in the
+  /// same transaction — the author is the one who has to find someone else.
+  /// The note goes to the author's receipt and nowhere public. Only the
+  /// first decline tells the author; re-saving the note does not repeat it.
+  ///
+  /// Returns false when the Request never reached the viewer, their row is
+  /// already a closed-before-you-answered tombstone, or they hold an active
+  /// help offer (they leave by withdrawing).
+  Future<bool> cantHelp({
+    required String beaconId,
+    required String userId,
+    String message = '',
+  }) async {
+    var note = message.trim();
+    if (note.length > kInboxRejectionMessageMaxLength) {
+      note = note.substring(0, kInboxRejectionMessageMaxLength);
+    }
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    BeaconKindPolicy.requireRequest(beacon);
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final previous = await _inboxRepository.lockStatus(
+          userId: userId,
+          beaconId: beaconId,
+        );
+        if (previous == null ||
+            previous == _inboxClosedBeforeResponse ||
+            previous == _inboxDeletedBeforeResponse) {
+          return false;
+        }
+        // Someone helping answers by withdrawing, not by «Can't help».
+        if (await _helpOfferRepository.hasActiveHelpOffer(
+          beaconId: beaconId,
+          userId: userId,
+        )) {
+          return false;
+        }
+        await _inboxRepository.setStatus(
+          userId: userId,
+          beaconId: beaconId,
+          status: _inboxRejected,
+          rejectionMessage: note,
+        );
+        if (previous != _inboxRejected) {
+          await transaction.record(
+            await _attentionIntents!.forwardDeclined(
+              beaconId: beaconId,
+              declinerUserId: userId,
+              authorId: beacon.author.id,
+              note: note,
+              sourceEventKey: 'forward_declined:${generateId('A')}',
+            ),
+          );
+        }
+        return true;
+      },
+    );
+  }
+
+  /// `inbox_item.status` values this case reads (client `InboxItemStatus`).
+  static const _inboxRejected = 2;
+  static const _inboxClosedBeforeResponse = 3;
+  static const _inboxDeletedBeforeResponse = 4;
 
   /// Forward a beacon to one or more recipients atomically.
   ///

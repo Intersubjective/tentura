@@ -117,8 +117,9 @@ class AttentionPolicy {
     AttentionEventType.batonAllAnswered ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
-    AttentionEventType.authorInviteDeclined =>
-      AttentionSuppressionClass.standard,
+    AttentionEventType.authorInviteDeclined ||
+    AttentionEventType.helpWithdrawn ||
+    AttentionEventType.forwardDeclined => AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected =>
       AttentionSuppressionClass.mandatory,
     AttentionEventType.planStepDue ||
@@ -173,8 +174,9 @@ class AttentionPolicy {
     AttentionEventType.batonAllAnswered ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
-    AttentionEventType.authorInviteDeclined =>
-      NotificationCategory.coordination,
+    AttentionEventType.authorInviteDeclined ||
+    AttentionEventType.helpWithdrawn ||
+    AttentionEventType.forwardDeclined => NotificationCategory.coordination,
     AttentionEventType.deadlineChanged => NotificationCategory.coordination,
     AttentionEventType.deadlineReminder ||
     AttentionEventType.closureOpened ||
@@ -230,8 +232,9 @@ class AttentionPolicy {
     AttentionEventType.batonAllAnswered ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
-    AttentionEventType.authorInviteDeclined =>
-      AttentionAccessPolicy.beaconContent,
+    AttentionEventType.authorInviteDeclined ||
+    AttentionEventType.helpWithdrawn ||
+    AttentionEventType.forwardDeclined => AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
     AttentionEventType.closureDraftReminder ||
@@ -268,7 +271,8 @@ class AttentionPolicy {
     return switch (eventType) {
       AttentionEventType.relayReceived ||
       AttentionEventType.requestStatusChanged ||
-      AttentionEventType.authorInviteReceived => AttentionDestination(
+      AttentionEventType.authorInviteReceived ||
+      AttentionEventType.forwardDeclined => AttentionDestination(
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
@@ -277,7 +281,8 @@ class AttentionPolicy {
       AttentionEventType.offerRemoved ||
       AttentionEventType.commitmentReleased ||
       AttentionEventType.authorInviteAccepted ||
-      AttentionEventType.authorInviteDeclined => AttentionDestination(
+      AttentionEventType.authorInviteDeclined ||
+      AttentionEventType.helpWithdrawn => AttentionDestination(
         kind: AttentionDestinationKind.beaconPeopleOffer,
         targetEntityId: role.targetEntityId,
       ),
@@ -413,6 +418,8 @@ class AttentionPolicy {
     AttentionEventType.planStepUnassigned => false,
     AttentionEventType.planEdited => false,
     AttentionEventType.planStepDone => false,
+    AttentionEventType.helpWithdrawn => false,
+    AttentionEventType.forwardDeclined => false,
   };
 
   /// U11 / D16 — the placement of a receipt, decided by the producer.
@@ -508,7 +515,11 @@ class AttentionPolicy {
     AttentionEventType.planCantMake ||
     AttentionEventType.planStepUnassigned ||
     AttentionEventType.planEdited ||
-    AttentionEventType.planStepDone => false,
+    AttentionEventType.planStepDone ||
+    // Who-did-what updates tell the author what happened to their Request;
+    // nobody addressed them by name.
+    AttentionEventType.helpWithdrawn ||
+    AttentionEventType.forwardDeclined => false,
   };
 
   /// #189 — personal = a human actor other than the recipient, an event type
@@ -700,6 +711,8 @@ class AttentionPolicy {
     AttentionEventType.planStepUnassigned => 'plan_step_unassigned',
     AttentionEventType.planEdited => 'plan_edited',
     AttentionEventType.planStepDone => 'plan_step_done',
+    AttentionEventType.helpWithdrawn => 'help_withdrawn',
+    AttentionEventType.forwardDeclined => 'forward_declined',
   };
 
   Map<String, Object?> _presentationPayload(
@@ -725,14 +738,17 @@ class AttentionPolicy {
           : null,
       'inviteOrigin': _safeInviteOrigin(role.inviteOrigin),
       'toStatus': _safeStatusName(role.toStatus),
-      'withdrawReason': isAllowedWithdrawReason(role.withdrawReason)
-          ? role.withdrawReason
-          : null,
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {
         payload[key] = value;
       }
+    }
+    if (role.leftDiscussion != null) {
+      payload['leftDiscussion'] = role.leftDiscussion;
+    }
+    if (role.nextStepMentionsActor != null) {
+      payload['nextStepMentionsActor'] = role.nextStepMentionsActor;
     }
     // Always present, so a client can tell "this event carries no words" from
     // a receipt written before the field existed. Gated like the title: an
@@ -741,6 +757,12 @@ class AttentionPolicy {
     payload['excerpt'] = contentReadable
         ? _safeExcerpt(role.excerpt) ?? ''
         : '';
+    // #516: why a helper withdrew, gated like the words — only a known key
+    // (`kAllowedWithdrawReasonKeys`), never free text.
+    final withdrawReason = role.withdrawReason?.trim();
+    if (contentReadable && isAllowedWithdrawReason(withdrawReason)) {
+      payload['withdrawReason'] = withdrawReason;
+    }
     return payload;
   }
 
