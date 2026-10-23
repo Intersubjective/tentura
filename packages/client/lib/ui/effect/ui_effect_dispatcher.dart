@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
@@ -87,6 +88,11 @@ void dispatchUiEffect(
             context,
             isError: true,
             text: e.toL10n(localeName),
+            // Plain copy for a server code (#683): the server's own text
+            // still goes to "Copy details".
+            detail: e is RemoteApiException && e.hasPlainCopy
+                ? e.message
+                : null,
             error: error is AuthSessionLostException ? null : error,
           );
         default:

@@ -95,6 +95,10 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
           loadingOlder: false,
         ),
       );
+    } on BeaconLobbyUnavailableException {
+      if (isClosed) return;
+      emit(state.copyWith(loadingOlder: false));
+      _showUnavailable();
     } catch (e) {
       if (isClosed) return;
       emit(state.copyWith(loadingOlder: false));
@@ -113,10 +117,20 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
       await _case.post(beaconId: beaconId, lobbyId: info.lobbyId, body: body);
       if (isClosed) return;
       emit(state.copyWith(sending: false, postedCount: state.postedCount + 1));
+    } on BeaconLobbyUnavailableException {
+      // Removed (or the Request changed) while the screen was open: the
+      // screen says why instead of an error bar (#683).
+      if (isClosed) return;
+      emit(state.copyWith(sending: false));
+      _showUnavailable();
+      return;
     } catch (e) {
       if (isClosed) return;
       emit(state.copyWith(sending: false));
       _effects.emit(ShowError(e));
+      // A refusal may mean the viewer's standing changed: re-read it so the
+      // composer gives way to the read-only note when it did.
+      unawaited(_refresh(reopen: true));
       return;
     }
     await _refresh(reopen: false);

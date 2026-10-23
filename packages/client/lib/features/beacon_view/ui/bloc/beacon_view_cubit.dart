@@ -608,6 +608,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       }
     } catch (e) {
       _showSnackError(e);
+      // The offer may have raced the author (final check, close): show the
+      // Request as it is now, so the page matches the message (#683).
+      if (!isClosed) await _fetchBeaconByIdWithTimeline(background: true);
     }
   }
 
