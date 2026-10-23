@@ -7289,5 +7289,16 @@
   "beaconLobbyReadOnlyDeclined": "Автор отклонил ваше предложение помощи, поэтому вы можете только читать.",
   "beaconLobbyUnavailableRemoved": "Автор закрыл вам доступ к вопросам по этому запросу.",
   "beaconLobbyAuthorBadge": "Автор",
-  "updatesQuestionsMessage": "Новое сообщение в вопросах"
+  "updatesQuestionsMessage": "Новое сообщение в вопросах",
+  "attentionEventHelpWithdrawn": "{name}: предложение помощи отозвано",
+  "updatesFallbackTitleHelpWithdrawn": "Предложение помощи отозвано",
+  "updatesFallbackBodyHelpWithdrawn": "Кто-то отозвал своё предложение помощи.",
+  "beaconShowcaseTeamLabelClosed": "ПОМОГЛИ",
+  "beaconShowcaseTeamNoAcquaintancesClosed": "{count, plural, =1{Помог 1 человек} few{Помогли {count} человека} other{Помогли {count} человек}}",
+  "beaconShowcaseTeamEmptyClosed": "Никто не присоединился к помощи",
+  "beaconShowcaseTeamSheetTitleClosed": "Помогли",
+  "beaconShowcaseOfferUnansweredClosed": "Запрос закрыт до того, как автор ответил на ваше предложение.",
+  "beaconShowcaseBackupOfferUnneededClosed": "Запрос закрыт до того, как понадобилось ваше запасное предложение.",
+  "beaconShowcaseOfferUnansweredCancelled": "Запрос отменён до того, как автор ответил на ваше предложение.",
+  "beaconLobbyRemoveConfirmBody": "Этот человек не сможет читать и писать в вопросах, пока вы не вернёте ему доступ. На его предложение помощи, если оно было, это не повлияет."
 }

@@ -10692,5 +10692,70 @@
   "@updatesQuestionsMessage": {
     "description": "Update row / timeline / Updates feed for a message in a Request's Questions; follows the sender's name (#656)",
     "context": "Request Questions"
+  },
+  "attentionEventHelpWithdrawn": "{name} withdrew their help offer",
+  "@attentionEventHelpWithdrawn": {
+    "description": "Request card / Updates line for the author or a steward: a helper withdrew their help offer (#685)",
+    "context": "Attention",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesFallbackTitleHelpWithdrawn": "Help offer withdrawn",
+  "@updatesFallbackTitleHelpWithdrawn": {
+    "description": "Update title when a helper withdrew their help offer and no name is known (#685)",
+    "context": "Attention"
+  },
+  "updatesFallbackBodyHelpWithdrawn": "Someone withdrew their help offer.",
+  "@updatesFallbackBodyHelpWithdrawn": {
+    "description": "Update body when a helper withdrew their help offer and no name is known (#685)",
+    "context": "Attention"
+  },
+  "beaconShowcaseTeamLabelClosed": "HELPED",
+  "@beaconShowcaseTeamLabelClosed": {
+    "description": "Team strip label on a closed or cancelled Request, past tense of HELPING (#686)",
+    "context": "Request showcase"
+  },
+  "beaconShowcaseTeamNoAcquaintancesClosed": "{count, plural, =1{1 person helped} other{{count} people helped}}",
+  "@beaconShowcaseTeamNoAcquaintancesClosed": {
+    "description": "Team strip caption on a closed or cancelled Request (#686)",
+    "context": "Request showcase",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconShowcaseTeamEmptyClosed": "Nobody joined to help",
+  "@beaconShowcaseTeamEmptyClosed": {
+    "description": "Team strip caption on a closed or cancelled Request nobody joined (#686)",
+    "context": "Request showcase"
+  },
+  "beaconShowcaseTeamSheetTitleClosed": "Helped",
+  "@beaconShowcaseTeamSheetTitleClosed": {
+    "description": "Team sheet title on a closed or cancelled Request (#686)",
+    "context": "Request showcase"
+  },
+  "beaconShowcaseOfferUnansweredClosed": "This request closed before your offer was answered.",
+  "@beaconShowcaseOfferUnansweredClosed": {
+    "description": "Shown to someone whose help offer was never answered, once the Request is closed (#686)",
+    "context": "Request showcase"
+  },
+  "beaconShowcaseBackupOfferUnneededClosed": "This request closed before your backup offer was needed.",
+  "@beaconShowcaseBackupOfferUnneededClosed": {
+    "description": "Shown to someone with a backup offer, once the Request is closed (#686)",
+    "context": "Request showcase"
+  },
+  "beaconShowcaseOfferUnansweredCancelled": "This request was cancelled before your offer was answered.",
+  "@beaconShowcaseOfferUnansweredCancelled": {
+    "description": "Shown to someone with an unanswered or backup offer, once the Request is cancelled (#686)",
+    "context": "Request showcase"
+  },
+  "beaconLobbyRemoveConfirmBody": "They won't be able to read or write in Questions until you let them back in. This doesn't touch a help offer they made.",
+  "@beaconLobbyRemoveConfirmBody": {
+    "description": "Request Questions: confirmation before the author removes someone; true whether or not they offered help (#657)",
+    "context": "Request Questions"
   }
 }

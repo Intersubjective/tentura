@@ -602,9 +602,13 @@ class RequestAttentionCard extends StatelessWidget {
         l10n.attentionCardChangeCommitmentReleased(words),
       'helpOfferSubmitted' when name.isNotEmpty =>
         l10n.attentionCardChangeHelpOffered(name),
+      // Who withdrew, and why (#685).
+      'promiseWithdrawn' =>
+        scoped.excerpt.isEmpty
+            ? scoped.event
+            : '${scoped.event} · ${scoped.excerpt}',
       'coordinationChanged' ||
       'promiseMade' ||
-      'promiseWithdrawn' ||
       'commitmentAccepted' ||
       'commitmentResolved' ||
       'commitmentCancelled' ||

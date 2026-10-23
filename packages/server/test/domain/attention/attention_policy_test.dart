@@ -178,6 +178,7 @@ void main() {
               'inviteOrigin',
               'excerpt',
               'toStatus',
+              'withdrawReason',
             }),
           ),
         );
@@ -239,6 +240,33 @@ void main() {
 
       expect(payload('reviewOpen')['toStatus'], 'reviewOpen');
       expect(payload('bogus').containsKey('toStatus'), isFalse);
+    });
+
+    test('a withdrawal carries the reason key only, and only when the '
+        'Request is readable (#685)', () {
+      Map<String, Object?> payload(String? reason, {bool readable = true}) =>
+          policy
+              .project(
+                eventType: AttentionEventType.promiseWithdrawn,
+                recipientId: 'r',
+                recipientReasons: const {
+                  AttentionRecipientReason.authorOfBeacon,
+                },
+                role: _baseRole.copyWith(
+                  canReadBeaconContent: readable,
+                  withdrawReason: reason,
+                ),
+              )
+              .presentationPayload;
+
+      expect(payload('timing')['withdrawReason'], 'timing');
+      expect(payload(' wrong_fit ')['withdrawReason'], 'wrong_fit');
+      expect(payload('free text').containsKey('withdrawReason'), isFalse);
+      expect(payload(null).containsKey('withdrawReason'), isFalse);
+      expect(
+        payload('timing', readable: false).containsKey('withdrawReason'),
+        isFalse,
+      );
     });
   });
 

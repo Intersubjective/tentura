@@ -1,6 +1,7 @@
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 
 /// Recipient-specific projection policy. Every output is persisted so reads do
@@ -737,6 +738,12 @@ class AttentionPolicy {
     payload['excerpt'] = contentReadable
         ? _safeExcerpt(role.excerpt) ?? ''
         : '';
+    // A helper's reason for withdrawing (#685), gated like the words: only
+    // a known key, never free text.
+    final withdrawReason = _safeWithdrawReason(role.withdrawReason);
+    if (contentReadable && withdrawReason != null) {
+      payload['withdrawReason'] = withdrawReason;
+    }
     return payload;
   }
 
@@ -744,6 +751,11 @@ class AttentionPolicy {
     final trimmed = value?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
     return trimmed.length > 512 ? trimmed.substring(0, 512) : trimmed;
+  }
+
+  String? _safeWithdrawReason(String? value) {
+    final trimmed = value?.trim();
+    return isAllowedWithdrawReason(trimmed) ? trimmed : null;
   }
 
   String? _safeStatusName(String? value) {

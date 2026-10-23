@@ -6,6 +6,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
+    show withdrawReasonLabel;
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -137,6 +139,43 @@ bool isQuestionsAttentionReceipt(AttentionReceipt receipt) =>
     (receipt.presentationKey == 'room_message_posted' &&
         (receipt.coordinationItemId?.trim().isNotEmpty ?? false));
 
+/// A helper withdrew their help offer (`promise_withdrawn`, sent to the
+/// author and stewards): who, and the reason they chose (#685). The name is
+/// the actor's profile when the surface has it, else the server's title,
+/// which for this event is the helper's name.
+UpdatesFeedRowCopy? helpWithdrawnDisplayCopy({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+  Set<String> requestTitles = const {},
+}) {
+  if (presentationKey != 'promise_withdrawn') return null;
+  final t = title.trim();
+  final fromTitle =
+      t.isEmpty ||
+          requestTitles.contains(t) ||
+          _serverHelpWithdrawnTitles.contains(t) ||
+          _isServerCannedTitle(t)
+      ? null
+      : t;
+  final name = _nonBlank(actorName) ?? fromTitle;
+  final reason = withdrawReasonLabel(
+    l10n,
+    _payloadString(presentationPayloadJson, 'withdrawReason'),
+  );
+  return UpdatesFeedRowCopy(
+    headline: name == null
+        ? l10n.updatesFallbackTitleHelpWithdrawn
+        : l10n.attentionEventHelpWithdrawn(name),
+    body: reason ?? '',
+  );
+}
+
+/// What the server titles a withdrawal with when the helper has no name.
+const _serverHelpWithdrawnTitles = {'Someone', 'Promise withdrawn'};
+
 /// English titles the server writes on a Questions notice with no actor
 /// name.
 const _serverQuestionsTitles = {
@@ -239,7 +278,7 @@ String _fallbackTitle(
   'blocker_opened' => l10n.updatesFallbackTitleBlockerOpened,
   'blocker_resolved' => l10n.updatesFallbackTitleBlockerResolved,
   'promise_made' => l10n.updatesFallbackTitlePromiseMade,
-  'promise_withdrawn' => l10n.updatesFallbackTitlePromiseWithdrawn,
+  'promise_withdrawn' => l10n.updatesFallbackTitleHelpWithdrawn,
   'coordination_changed' => l10n.updatesFallbackTitleCoordinationChanged,
   'deadline_changed' => l10n.updatesFallbackTitleDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackTitleDeadlineReminder,
@@ -275,7 +314,7 @@ String _fallbackBody(
   'blocker_opened' => l10n.updatesFallbackBodyBlockerOpened,
   'blocker_resolved' => l10n.updatesFallbackBodyBlockerResolved,
   'promise_made' => l10n.updatesFallbackBodyPromiseMade,
-  'promise_withdrawn' => l10n.updatesFallbackBodyPromiseWithdrawn,
+  'promise_withdrawn' => l10n.updatesFallbackBodyHelpWithdrawn,
   'coordination_changed' => l10n.updatesFallbackBodyCoordinationChanged,
   'deadline_changed' => l10n.updatesFallbackBodyDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackBodyDeadlineReminder,
@@ -418,6 +457,29 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
             headline: name,
             body: l10n.updatesQuestionsMessage,
           );
+  }
+  final withdrawnRequestTitle = beaconTitleFromPresentationPayload(
+    presentationPayloadJson,
+  );
+  final withdrawn = helpWithdrawnDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+    requestTitles: {?withdrawnRequestTitle},
+  );
+  if (withdrawn != null) {
+    final override = headlineOverride?.trim();
+    // The reason, else the Request it is about.
+    return UpdatesFeedRowCopy(
+      headline: override != null && override.isNotEmpty
+          ? override
+          : withdrawn.headline,
+      body: withdrawn.body.isNotEmpty
+          ? withdrawn.body
+          : withdrawnRequestTitle ?? '',
+    );
   }
   final fallback = resolveUpdatesReceiptDisplayCopy(
     title: title,
@@ -627,6 +689,20 @@ RequestScopedEventCopy requestScopedEventCopy({
     ?_nonBlank(requestTitle),
     ?beaconTitleFromPresentationPayload(presentationPayloadJson),
   };
+  final withdrawn = helpWithdrawnDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+    requestTitles: requestTitles,
+  );
+  if (withdrawn != null) {
+    return RequestScopedEventCopy(
+      event: withdrawn.headline,
+      excerpt: withdrawn.body,
+    );
+  }
   final t = title.trim();
   final canned = cannedAttentionEventLine(
     title: title,

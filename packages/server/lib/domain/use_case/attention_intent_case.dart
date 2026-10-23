@@ -106,10 +106,13 @@ class AttentionIntentCase {
     targetEntityId: helpOffererId,
   );
 
+  /// [withdrawReason] is the key the helper chose; the author's card names
+  /// it beside the helper (#685).
   Future<AttentionDispatchIntent> helpWithdrawn({
     required String beaconId,
     required String withdrawerUserId,
     required String sourceEventKey,
+    String? withdrawReason,
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.commitmentEvent,
@@ -120,6 +123,7 @@ class AttentionIntentCase {
     ),
     eventType: AttentionEventType.promiseWithdrawn,
     sourceEventKey: sourceEventKey,
+    withdrawReason: withdrawReason,
   );
 
   Future<AttentionDispatchIntent> offerAccepted({
@@ -1110,6 +1114,7 @@ class AttentionIntentCase {
     String? collapseKey,
     String? targetEntityId,
     bool resolveContext = true,
+    String? withdrawReason,
   }) async {
     final context = resolveContext
         ? await _context.loadContextForBeacon(notification.beaconId)
@@ -1163,6 +1168,7 @@ class AttentionIntentCase {
                   ? null
                   : notification.beaconTitle.trim(),
               excerpt: copy.excerpt,
+              withdrawReason: withdrawReason,
             ),
           ),
       ],

@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -95,7 +96,10 @@ void main() {
     roomRepo = MockBeaconRoomRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
     commitmentRepo = RecordingCommitmentRepository();
-    attention = TestAttentionHarness();
+    // An author to notify, so recorded intents carry a recipient (#685).
+    attention = TestAttentionHarness(
+      context: const BeaconNotificationContext(beaconAuthorId: 'Uauthor'),
+    );
     capabilityCase = CapabilityCase(
       capabilityRepo,
       env: Env(environment: Environment.test),
@@ -280,6 +284,11 @@ void main() {
       ).called(1);
       // Open-beacon withdrawal notifies the author/stewards.
       expect(attention.recorded.single.eventType.name, 'promiseWithdrawn');
+      // ...with the helper's reason, for the author's card (#685).
+      expect(
+        attention.recorded.single.recipients.map((r) => r.role.withdrawReason),
+        allOf(isNotEmpty, everyElement('other')),
+      );
     });
   });
 

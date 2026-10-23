@@ -133,6 +133,7 @@ enum AttentionEventType {
   authorInviteReceived,
   authorInviteAccepted,
   authorInviteDeclined,
+
   /// Request plan («либретто», #220) — `plan-implementation.md` §4.6.
   ///
   /// Obligations of a step's assignee (`requiresAction`): the step started
@@ -198,6 +199,7 @@ enum AttentionRecipientReason {
 
   /// The person who sent an author invitation, told the invitee's answer.
   authorInviter,
+
   /// The assignee of a Request plan step.
   planStepAssignee,
 }
@@ -382,6 +384,11 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
 
     /// [BeaconStatus] name the Request moved to, on status-change events.
     String? toStatus,
+
+    /// The withdraw reason key (`kAllowedWithdrawReasonKeys`) a helper chose,
+    /// on `promiseWithdrawn` (#685). Only the author and stewards receive
+    /// that event, and they already see the reason on the People tab.
+    String? withdrawReason,
   }) = _AttentionRecipientRoleFacts;
 }
 
