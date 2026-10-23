@@ -869,6 +869,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     _scheduleAutosave();
   }
 
+  /// Puts the schedule (dates and the kind-switch caches) back to [snapshot]'s,
+  /// e.g. when the When? sheet is closed without OK (#607).
+  void restoreTiming(BeaconCreateState snapshot) {
+    emit(
+      state.copyWith(
+        startAt: snapshot.startAt,
+        endAt: snapshot.endAt,
+        cachedDeadlineAt: snapshot.cachedDeadlineAt,
+        cachedEventStartAt: snapshot.cachedEventStartAt,
+        cachedEventEndAt: snapshot.cachedEventEndAt,
+      ),
+    );
+    _scheduleAutosave();
+  }
+
   /// Clears all schedule dates (flexible / no date).
   void clearTiming() {
     emit(state.copyWith(startAt: null, endAt: null));
