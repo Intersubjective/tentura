@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -12,6 +10,7 @@ import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 const _kMyWorkLastEventAvatarSize = 18.0;
@@ -27,8 +26,7 @@ bool myWorkLastEventIsNowRowAttribution(int eventType) =>
 bool myWorkLastEventMetadataVisible({
   required Beacon beacon,
   required MyWorkCardViewModel viewModel,
-}) =>
-    viewModel.lastActivityEvent != null || beaconHasRealUpdate(beacon);
+}) => viewModel.lastActivityEvent != null || beaconHasRealUpdate(beacon);
 
 /// Last meaningful beacon event body for My Work metadata table rows.
 class MyWorkLastEventBody extends StatefulWidget {
@@ -56,28 +54,17 @@ class MyWorkLastEventBody extends StatefulWidget {
 }
 
 class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
-  Timer? _timer;
-
+  // The line is the age: it follows the shared clock, so every card's age
+  // moves in the same frame instead of on its own per-card timer (#532).
   @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
+  Widget build(BuildContext context) =>
+      RelativeTimestampTicker(builder: _buildLine);
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildLine(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final now = DateTime.now();
+    final now = RelativeTimestampTicker.now();
     final last = widget.viewModel.lastActivityEvent;
 
     if (last == null) {

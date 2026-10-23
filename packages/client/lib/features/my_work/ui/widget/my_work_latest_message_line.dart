@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// U087 — one "latest" line per Request card: who wrote last, what, how long
 /// ago, and how many messages are unread ("Nina: Parking sorted? · 1m",
@@ -20,11 +21,23 @@ class MyWorkLatestMessageLine extends StatelessWidget {
   final MyWorkCardViewModel vm;
   final String currentUserId;
 
-  /// Fixed clock for tests; the card passes none and reads the wall clock.
+  /// Fixed clock for tests; the card passes none and follows the shared
+  /// relative-time clock.
   final DateTime? now;
 
+  // Without a fixed clock the line follows the shared one, so «· 1m» keeps
+  // counting while the card stays open (#532). The line is the age's own
+  // widget: one Text and its spoken label.
   @override
   Widget build(BuildContext context) {
+    final fixed = now;
+    if (fixed != null) return _buildLine(context, fixed);
+    return RelativeTimestampTicker(
+      builder: (c) => _buildLine(c, RelativeTimestampTicker.now()),
+    );
+  }
+
+  Widget _buildLine(BuildContext context, DateTime clock) {
     final l10n = L10n.of(context)!;
     final caption = vm.roomLatestMessageText.trim();
     final text = caption.isNotEmpty
@@ -51,13 +64,12 @@ class MyWorkLatestMessageLine extends StatelessWidget {
     final at = vm.roomLatestMessageAt;
     final age = at == null
         ? ''
-        : ' · ${cardRelativeAge(when: at, now: now ?? DateTime.now(), l10n: l10n)}';
+        : ' · ${cardRelativeAge(when: at, now: clock, l10n: l10n)}';
     final unread = vm.roomUnreadCount;
     // One spoken sentence for the whole line (#541 review): the visible
     // text uses abbreviations ("1m") meant for the eye.
     final details = [
-      if (at != null)
-        cardRelativeAgeSpoken(when: at, now: now ?? DateTime.now(), l10n: l10n),
+      if (at != null) cardRelativeAgeSpoken(when: at, now: clock, l10n: l10n),
       if (unread > 0) l10n.myWorkUnreadCount(unread),
     ].join(', ');
     // A message that already ends a sentence gets no second full stop.

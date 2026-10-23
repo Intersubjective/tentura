@@ -5,6 +5,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// Shared bounded offer-card chrome (design §5.1): avatar, headline, why, age, ✕.
 class ActivityOfferBoundedShell extends StatelessWidget {
@@ -35,14 +36,8 @@ class ActivityOfferBoundedShell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
     final localCreatedAt = createdAt.toLocal();
-    // #476: the card's short age («1d»), as every other Activity row reads.
-    final now = DateTime.now();
-    final ageLabel = cardRelativeAge(when: createdAt, now: now, l10n: l10n);
-    final ageSpoken = cardRelativeAgeSpoken(
-      when: createdAt,
-      now: now,
-      l10n: l10n,
-    );
+    // #476: the card's short age («1d»), as every other Activity row reads;
+    // it follows the shared clock, so it keeps counting (#532).
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
 
@@ -132,12 +127,25 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                               SizedBox(width: tt.iconTextGap),
                               Tooltip(
                                 message: absoluteTime,
-                                child: Text(
-                                  ageLabel,
-                                  style: TenturaText.withTabular(
-                                    TenturaText.bodySmall(tt.textFaint),
-                                  ),
-                                  semanticsLabel: ageSpoken,
+                                child: RelativeTimestampTicker(
+                                  builder: (_) {
+                                    final now = RelativeTimestampTicker.now();
+                                    return Text(
+                                      cardRelativeAge(
+                                        when: createdAt,
+                                        now: now,
+                                        l10n: l10n,
+                                      ),
+                                      style: TenturaText.withTabular(
+                                        TenturaText.bodySmall(tt.textFaint),
+                                      ),
+                                      semanticsLabel: cardRelativeAgeSpoken(
+                                        when: createdAt,
+                                        now: now,
+                                        l10n: l10n,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],
