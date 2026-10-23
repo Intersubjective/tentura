@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/complaint_cubit.dart';
@@ -103,158 +104,173 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
         builder: (context, fixedType) {
           final isAccountDeletionRequest =
               fixedType == ComplaintType.accountDeletionRequest;
-          return Scaffold(
-            appBar: TenturaTopBar.of(
-              context,
-              title: Text(
-                isAccountDeletionRequest
-                    ? l10n.submitAccountDeletionRequest
-                    : l10n.submitComplaint,
+          // An in-shell page: Home's rail stays beside the form on regular
+          // and expanded windows (#611); compact keeps the full screen.
+          return HomeRailFrame(
+            selectedTab: isAccountDeletionRequest
+                ? HomeTab.me
+                : widget.id.startsWith('U')
+                ? HomeTab.network
+                : HomeTab.work,
+            child: Scaffold(
+              appBar: TenturaTopBar.of(
+                context,
+                title: Text(
+                  isAccountDeletionRequest
+                      ? l10n.submitAccountDeletionRequest
+                      : l10n.submitComplaint,
+                ),
+                leading: const AutoLeadingButton(),
+                progress: BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                  selector: (state) => state.isLoading,
+                  builder: TenturaTopBar.loadingBar,
+                ),
               ),
-              leading: const AutoLeadingButton(),
-              progress: BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                selector: (state) => state.isLoading,
-                builder: TenturaTopBar.loadingBar,
-              ),
-            ),
-            body: SafeArea(
-              child: TenturaContentColumn(
-                child: Form(
-                  key: _formKey,
-                  child: ListView(
-                    padding: EdgeInsets.all(tt.screenHPadding),
-                    children: [
-                      BlocSelector<
-                        ComplaintCubit,
-                        ComplaintState,
-                        (String, String)
-                      >(
-                        selector: (state) => (state.title, state.author),
-                        builder: (_, item) {
-                          final (title, author) = item;
-                          if (title.isEmpty && author.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: tt.sectionGap),
-                            child: _ReportedItem(title: title, author: author),
-                          );
-                        },
-                      ),
-
-                      if (fixedType == null)
+              body: SafeArea(
+                child: TenturaContentColumn(
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      padding: EdgeInsets.all(tt.screenHPadding),
+                      children: [
                         BlocSelector<
                           ComplaintCubit,
                           ComplaintState,
-                          (ComplaintType?, bool)
+                          (String, String)
                         >(
-                          selector: (state) => (state.type, state.isLoading),
-                          builder: (_, state) {
-                            final (type, isLoading) = state;
-                            return DropdownButtonFormField<ComplaintType>(
-                              initialValue: type,
-                              items: [
-                                DropdownMenuItem(
-                                  value: ComplaintType.violatesCsaePolicy,
-                                  child: Text(l10n.violatesCSAE),
-                                ),
-                                DropdownMenuItem(
-                                  value: ComplaintType.violatesPlatformRules,
-                                  child: Text(l10n.violatesPlatformRules),
-                                ),
-                              ],
-                              onChanged: isLoading ? null : cubit.setType,
-                              hint: Text(l10n.complaintTypeHint),
-                              validator: (v) =>
-                                  v == null ? l10n.complaintTypeRequired : null,
-                              decoration: InputDecoration(
-                                labelText: l10n.labelComplaintType,
-                                border: const OutlineInputBorder(),
+                          selector: (state) => (state.title, state.author),
+                          builder: (_, item) {
+                            final (title, author) = item;
+                            if (title.isEmpty && author.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: tt.sectionGap),
+                              child: _ReportedItem(
+                                title: title,
+                                author: author,
                               ),
                             );
                           },
                         ),
 
-                      if (fixedType == null) SizedBox(height: tt.sectionGap),
+                        if (fixedType == null)
+                          BlocSelector<
+                            ComplaintCubit,
+                            ComplaintState,
+                            (ComplaintType?, bool)
+                          >(
+                            selector: (state) => (state.type, state.isLoading),
+                            builder: (_, state) {
+                              final (type, isLoading) = state;
+                              return DropdownButtonFormField<ComplaintType>(
+                                initialValue: type,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: ComplaintType.violatesCsaePolicy,
+                                    child: Text(l10n.violatesCSAE),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: ComplaintType.violatesPlatformRules,
+                                    child: Text(l10n.violatesPlatformRules),
+                                  ),
+                                ],
+                                onChanged: isLoading ? null : cubit.setType,
+                                hint: Text(l10n.complaintTypeHint),
+                                validator: (v) => v == null
+                                    ? l10n.complaintTypeRequired
+                                    : null,
+                                decoration: InputDecoration(
+                                  labelText: l10n.labelComplaintType,
+                                  border: const OutlineInputBorder(),
+                                ),
+                              );
+                            },
+                          ),
 
-                      // Details
-                      BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                        selector: (state) => state.isLoading,
-                        builder: (_, isLoading) => TextFormField(
-                          controller: _detailsController,
-                          maxLines: 5,
-                          autofocus: true,
-                          enabled: !isLoading,
-                          decoration: InputDecoration(
-                            labelText: l10n.detailsRequired(
-                              kComplaintDetailsMinLength,
+                        if (fixedType == null) SizedBox(height: tt.sectionGap),
+
+                        // Details
+                        BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                          selector: (state) => state.isLoading,
+                          builder: (_, isLoading) => TextFormField(
+                            controller: _detailsController,
+                            maxLines: 5,
+                            autofocus: true,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              labelText: l10n.detailsRequired(
+                                kComplaintDetailsMinLength,
+                              ),
+                              border: const OutlineInputBorder(),
+                              alignLabelWithHint: true,
                             ),
-                            border: const OutlineInputBorder(),
-                            alignLabelWithHint: true,
+                            validator: (v) => validateComplaintDetails(
+                              v,
+                              l10n.complaintDetailsTooShort(
+                                kComplaintDetailsMinLength,
+                              ),
+                            ),
+                            onTapOutside: (_) =>
+                                FocusScope.of(context).unfocus(),
+                            onChanged: cubit.setDetails,
                           ),
-                          validator: (v) => validateComplaintDetails(
-                            v,
-                            l10n.complaintDetailsTooShort(
-                              kComplaintDetailsMinLength,
+                        ),
+
+                        SizedBox(height: tt.sectionGap),
+
+                        // Email
+                        BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                          selector: (state) => state.isLoading,
+                          builder: (_, isLoading) => TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.done,
+                            enabled: !isLoading,
+                            decoration: InputDecoration(
+                              labelText: l10n.feedbackEmail,
+                              helperText: fixedType == null
+                                  ? l10n.complaintEmailUse
+                                  : null,
+                              border: const OutlineInputBorder(),
+                            ),
+                            validator: (v) =>
+                                _validateEmail(v, l10n.emailValidationError),
+                            onTapOutside: (_) =>
+                                FocusScope.of(context).unfocus(),
+                            onChanged: cubit.setEmail,
+                            onFieldSubmitted: (_) {
+                              if (_formKey.currentState?.validate() ?? false) {
+                                unawaited(cubit.submit());
+                              }
+                            },
+                          ),
+                        ),
+
+                        SizedBox(height: tt.sectionGap),
+
+                        // Submit
+                        BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                          selector: (state) => state.isLoading,
+                          builder: (_, isLoading) => FilledButton(
+                            style: submitButtonStyle,
+                            onPressed: isLoading
+                                ? null
+                                : () async {
+                                    if (_formKey.currentState?.validate() ??
+                                        false) {
+                                      await cubit.submit();
+                                    }
+                                  },
+                            child: Text(
+                              isAccountDeletionRequest
+                                  ? l10n.buttonSubmitAccountDeletionRequest
+                                  : l10n.buttonSubmitComplaint,
                             ),
                           ),
-                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          onChanged: cubit.setDetails,
                         ),
-                      ),
-
-                      SizedBox(height: tt.sectionGap),
-
-                      // Email
-                      BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                        selector: (state) => state.isLoading,
-                        builder: (_, isLoading) => TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.done,
-                          enabled: !isLoading,
-                          decoration: InputDecoration(
-                            labelText: l10n.feedbackEmail,
-                            helperText: fixedType == null
-                                ? l10n.complaintEmailUse
-                                : null,
-                            border: const OutlineInputBorder(),
-                          ),
-                          validator: (v) =>
-                              _validateEmail(v, l10n.emailValidationError),
-                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          onChanged: cubit.setEmail,
-                          onFieldSubmitted: (_) {
-                            if (_formKey.currentState?.validate() ?? false) {
-                              unawaited(cubit.submit());
-                            }
-                          },
-                        ),
-                      ),
-
-                      SizedBox(height: tt.sectionGap),
-
-                      // Submit
-                      BlocSelector<ComplaintCubit, ComplaintState, bool>(
-                        selector: (state) => state.isLoading,
-                        builder: (_, isLoading) => FilledButton(
-                          style: submitButtonStyle,
-                          onPressed: isLoading
-                              ? null
-                              : () async {
-                                  if (_formKey.currentState?.validate() ??
-                                      false) {
-                                    await cubit.submit();
-                                  }
-                                },
-                          child: Text(
-                            isAccountDeletionRequest
-                                ? l10n.buttonSubmitAccountDeletionRequest
-                                : l10n.buttonSubmitComplaint,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
