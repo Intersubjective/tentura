@@ -227,6 +227,45 @@ void main() {
     });
   });
 
+  group('ConstellationSectorDraft.outerRadius', () {
+    const draft = ConstellationSectorDraft(
+      centre: (x: 0, y: 0),
+      radius: 100,
+      direction: 0,
+      outerRadius: 400,
+    );
+
+    test('is never less than the inner radius: one ring when unset', () {
+      const unset = ConstellationSectorDraft(
+        centre: (x: 0, y: 0),
+        radius: 100,
+        direction: 0,
+      );
+      expect(unset.outerRadius, 100);
+      expect(draft.copyWith(outerRadius: 50).outerRadius, 100);
+      expect(draft.copyWith(outerRadius: 700).outerRadius, 700);
+    });
+
+    test('an inner radius dragged past it pushes it along, and leaves it '
+        'there when it comes back', () {
+      final pushed = draft.copyWith(radius: 550);
+      expect(pushed.radius, 550);
+      expect(pushed.outerRadius, 550);
+      final back = pushed.copyWith(radius: 200);
+      expect(back.outerRadius, 550);
+      expect(draft.copyWith(radius: 250).outerRadius, 400);
+    });
+
+    test('the other edits keep it, and it counts for equality', () {
+      final turned = draft
+          .copyWith(direction: 1, span: 1)
+          .withEdgeMoved(ConstellationSectorEdge.end, 0.2);
+      expect(turned.outerRadius, 400);
+      expect(draft.copyWith(outerRadius: 401), isNot(draft));
+      expect(draft.copyWith(), draft);
+    });
+  });
+
   group('dragGroupFor (group drag)', () {
     test('a selected node takes the rest of the selection along', () {
       cubit

@@ -33,8 +33,8 @@ enum ConstellationSectorEdge {
 }
 
 /// The sector the user is editing before the arrangement is written (#644):
-/// a centre anywhere on the field, the radius of the first ring, and the
-/// sector's direction and width.
+/// a centre anywhere on the field, the inner and outer radius of the band the
+/// nodes go in, and the sector's direction and width.
 @immutable
 final class ConstellationSectorDraft {
   const ConstellationSectorDraft({
@@ -42,13 +42,22 @@ final class ConstellationSectorDraft {
     required this.radius,
     required this.direction,
     this.span = kConstellationSectorDefaultSpan,
-  });
+    double outerRadius = 0,
+    // A private field cannot be a named initializing formal.
+    // ignore: prefer_initializing_formals
+  }) : _outerRadius = outerRadius;
 
   /// Scene coordinates.
   final LPoint centre;
 
-  /// Radius of the first ring, in scene units.
+  /// Inner radius of the band: the first ring, in scene units.
   final double radius;
+
+  final double _outerRadius;
+
+  /// Outer radius of the band: the last ring, in scene units; never less
+  /// than [radius] (one ring when they are equal).
+  double get outerRadius => math.max(_outerRadius, radius);
 
   /// The sector's bisector: radians, scene coordinates (y down; 0 points
   /// right).
@@ -68,17 +77,23 @@ final class ConstellationSectorDraft {
   ConstellationSectorDraft copyWith({
     LPoint? centre,
     double? radius,
+    double? outerRadius,
     double? direction,
     double? span,
-  }) => ConstellationSectorDraft(
-    centre: centre ?? this.centre,
-    radius: math.max(0, radius ?? this.radius),
-    direction: _normalize(direction ?? this.direction),
-    span: (span ?? this.span).clamp(
-      kConstellationSectorMinSpan,
-      kConstellationSectorMaxSpan,
-    ),
-  );
+  }) {
+    final inner = math.max(0, radius ?? this.radius).toDouble();
+    return ConstellationSectorDraft(
+      centre: centre ?? this.centre,
+      radius: inner,
+      // An inner radius dragged past the outer one pushes it along.
+      outerRadius: math.max(outerRadius ?? this.outerRadius, inner),
+      direction: _normalize(direction ?? this.direction),
+      span: (span ?? this.span).clamp(
+        kConstellationSectorMinSpan,
+        kConstellationSectorMaxSpan,
+      ),
+    );
+  }
 
   /// [edge] turned by [delta] radians while the other edge stays put, as
   /// when dragging one side of a pie slice. The width stops at its limits.
@@ -101,11 +116,12 @@ final class ConstellationSectorDraft {
       other is ConstellationSectorDraft &&
       other.centre == centre &&
       other.radius == radius &&
+      other.outerRadius == outerRadius &&
       other.direction == direction &&
       other.span == span;
 
   @override
-  int get hashCode => Object.hash(centre, radius, direction, span);
+  int get hashCode => Object.hash(centre, radius, outerRadius, direction, span);
 }
 
 double _clampSpan(double span) =>

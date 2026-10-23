@@ -10686,7 +10686,7 @@
       }
     }
   },
-  "constellationArrangeEditHint": "Drag the sector or its centre to move it, the inner dot to change the radius, the outer dots to turn and widen it.",
+  "constellationArrangeEditHint": "Drag the sector or its centre to move it, the arrows on its inner and outer edge to set its radii, the corners to widen it and the outermost dot to turn it.",
   "@constellationArrangeEditHint": {
     "context": "Field map: instruction while editing «Arrange in a sector»; the handles are drawn on the map (#644)"
   },
@@ -10709,7 +10709,11 @@
   },
   "constellationArrangeRadius": "Inner radius",
   "@constellationArrangeRadius": {
-    "context": "Field map: accessibility label of the handle that sets the radius of the first ring of «Arrange in a sector» (#644)"
+    "context": "Field map: accessibility label of the handle on the inner arc that sets the radius of the first (innermost) ring of «Arrange in a sector» (#644)"
+  },
+  "constellationArrangeOuterRadius": "Outer radius",
+  "@constellationArrangeOuterRadius": {
+    "context": "Field map: accessibility label of the handle on the outer arc that sets how far out «Arrange in a sector» reaches: the radius of its last (outermost) ring (#644)"
   },
   "constellationArrangeStartEdge": "Sector start edge",
   "@constellationArrangeStartEdge": {

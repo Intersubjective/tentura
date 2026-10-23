@@ -17,6 +17,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/domain/constellation_sector_arrangement.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
@@ -867,11 +868,35 @@ void main() {
       h.selection.toggle(_ann);
       await _frames(tester);
       final button = find.byKey(const Key('constellation.selection.arrange'));
-      expect(tester.widget<TextButton>(button).onPressed, isNull);
+      expect(tester.widget<FilledButton>(button).onPressed, isNull);
+      expect(
+        find.descendant(
+          of: button,
+          matching: find.byIcon(Icons.pie_chart_outline),
+        ),
+        findsOneWidget,
+        reason: 'the button shows a sector icon',
+      );
 
       h.selection.toggle(postA);
       await _frames(tester);
-      expect(tester.widget<TextButton>(button).onPressed, isNotNull);
+      expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
+    });
+
+    testWidgets('the button keeps its icon at phone width', (tester) async {
+      final h = await _mount(tester);
+      await tester.binding.setSurfaceSize(const Size(320, 640));
+      h.selection.addAll([_ann, _bob]);
+      await _frames(tester);
+      final button = find.byKey(const Key('constellation.selection.arrange'));
+      expect(tester.takeException(), isNull, reason: 'no overflow');
+      final icon = find.descendant(
+        of: button,
+        matching: find.byIcon(Icons.pie_chart_outline),
+      );
+      expect(icon, findsOneWidget);
+      expect(tester.getRect(icon).right, lessThanOrEqualTo(320));
+      expect(tester.getSize(button).height, greaterThanOrEqualTo(40));
     });
 
     testWidgets('starts around the viewer, with a preview and every '
@@ -884,7 +909,7 @@ void main() {
         tester.getCenter(handle('centre')),
         offsetMoreOrLessEquals(ego, epsilon: 1),
       );
-      for (final name in ['radius', 'start', 'end', 'direction']) {
+      for (final name in ['radius', 'outer', 'start', 'end', 'direction']) {
         expect(handle(name), findsOneWidget, reason: name);
         final size = tester.getSize(handle(name));
         expect(size.width, greaterThanOrEqualTo(kMinInteractiveDimension));
@@ -892,6 +917,28 @@ void main() {
       expect(find.byKey(const Key('constellation.sector.shape')), findsOne);
       expect(preview(tester, h).keys, unorderedEquals([_ann, _bob]));
       expect(h.server.applies, isEmpty, reason: 'nothing written yet');
+      // The band starts as compact as holds them without overlaps.
+      final sector = h.selection.state.sector!;
+      final context = tester.element(
+        find.byKey(const Key('constellation.selection.sector_editor')),
+      );
+      final items = constellationSectorItems(h.cubit, h.selection.state);
+      expect(
+        sector.outerRadius,
+        closeTo(
+          constellationSectorCompactOuterRadius(
+            innerRadius: sector.radius,
+            span: sector.span,
+            count: 2,
+            minSpacing: constellationSectorSpacing(
+              context,
+              h.cubit,
+              items.targets.values,
+            ),
+          ),
+          1e-9,
+        ),
+      );
     });
 
     testWidgets('dragging the centre handle moves the sector anywhere', (
@@ -927,13 +974,13 @@ void main() {
       await open(tester, h, [_ann, _bob]);
       final before = h.selection.state.sector!;
       final centre = tester.getCenter(handle('centre'));
-      // On the first ring, half way between the edges.
-      final towards = tester.getCenter(handle('direction')) - centre;
-      final inside =
-          centre +
-          towards /
-              towards.distance *
-              (tester.getCenter(handle('radius')) - centre).distance;
+      // On the first ring, a quarter of the way from the middle line (where
+      // the radius handles are) to the end edge.
+      final inside = turned(
+        tester.getCenter(handle('radius')),
+        centre,
+        before.span / 4,
+      );
 
       await _drag(tester, inside, inside + const Offset(-50, 30));
 
@@ -942,7 +989,9 @@ void main() {
       expect(after.direction, closeTo(before.direction, 1e-9));
     });
 
-    testWidgets('the rim handle changes the radius', (tester) async {
+    testWidgets('the inner arc handle changes the inner radius', (
+      tester,
+    ) async {
       final h = await _mount(tester);
       await open(tester, h, [_ann, _bob]);
       final before = h.selection.state.sector!;
@@ -962,6 +1011,120 @@ void main() {
           greaterThanOrEqualTo(after.radius - 1e-6),
         );
       }
+    });
+
+    testWidgets('the outer arc handle sets how far out the sector reaches, '
+        'and the nodes spread over it', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final before = h.selection.state.sector!;
+      final scale = h.cubit.graphController.cameraScale;
+      final centre = tester.getCenter(handle('centre'));
+      final from = tester.getCenter(handle('outer'));
+      final outward = (from - centre) / (from - centre).distance;
+
+      await _drag(tester, from, from + outward * 150);
+
+      final after = h.selection.state.sector!;
+      expect(after.outerRadius - before.outerRadius, closeTo(150 / scale, 3));
+      expect(after.radius, before.radius, reason: 'the inner edge stays');
+      expect(after.centre, before.centre);
+      expect(
+        tester.getCenter(handle('outer')),
+        offsetMoreOrLessEquals(from + outward * 150, epsilon: 3),
+        reason: 'the handle follows the pointer',
+      );
+      for (final point in preview(tester, h).values) {
+        final distance = (point - after.centre.offset).distance;
+        expect(distance, greaterThanOrEqualTo(after.radius - 1e-6));
+        expect(distance, lessThanOrEqualTo(after.outerRadius + 1e-6));
+      }
+    });
+
+    testWidgets('the outer arc handle stops at the inner radius, however '
+        'tight', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final centre = tester.getCenter(handle('centre'));
+      // Widen the band first, then pull it all the way in.
+      var from = tester.getCenter(handle('outer'));
+      var outward = (from - centre) / (from - centre).distance;
+      await _drag(tester, from, from + outward * 150);
+      from = tester.getCenter(handle('outer'));
+      outward = (from - centre) / (from - centre).distance;
+      await _drag(tester, from, from - outward * 400);
+
+      final after = h.selection.state.sector!;
+      expect(after.outerRadius, after.radius, reason: 'one ring');
+      for (final point in preview(tester, h).values) {
+        expect(
+          (point - after.centre.offset).distance,
+          closeTo(after.radius, 1e-6),
+        );
+      }
+    });
+
+    testWidgets('the inner arc handle dragged past the outer one pushes it '
+        'along', (tester) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final before = h.selection.state.sector!;
+      final scale = h.cubit.graphController.cameraScale;
+      final centre = tester.getCenter(handle('centre'));
+      final from = tester.getCenter(handle('radius'));
+      final outward = (from - centre) / (from - centre).distance;
+      final push = (before.outerRadius - before.radius) * scale + 80;
+
+      await _drag(tester, from, from + outward * push);
+
+      final after = h.selection.state.sector!;
+      expect(after.radius, greaterThan(before.outerRadius));
+      expect(after.outerRadius, after.radius);
+    });
+
+    testWidgets('no two handles overlap, at any width or zoom', (
+      tester,
+    ) async {
+      final h = await _mount(tester);
+      await open(tester, h, [_ann, _bob]);
+      final controller = h.cubit.graphController;
+      final scales = <double>{};
+      // As drawn, then zoomed out, then zoomed in (zoomBy multiplies).
+      for (final zoom in [1.0, 0.25, 16.0]) {
+        controller.zoomBy(zoom);
+        await _frames(tester);
+        scales.add(controller.cameraScale);
+        for (final degrees in [15, 30, 90, 180, 270, 330, 345, 360]) {
+          h.selection.aimSector(span: degrees * math.pi / 180);
+          await _frames(tester);
+          final names = [
+            'centre',
+            'radius',
+            'outer',
+            'direction',
+            'end',
+            if (degrees < 360) 'start',
+          ];
+          final at = {for (final name in names) name: handle(name)};
+          for (final MapEntry(key: name, value: finder) in at.entries) {
+            expect(finder, findsOneWidget, reason: name);
+          }
+          for (var i = 0; i < names.length; i++) {
+            for (var j = i + 1; j < names.length; j++) {
+              final a = tester.getCenter(at[names[i]]!);
+              final b = tester.getCenter(at[names[j]]!);
+              expect(
+                (a - b).distance,
+                greaterThanOrEqualTo(kMinInteractiveDimension - 1e-6),
+                reason:
+                    '${names[i]} and ${names[j]} at $degrees°, zoom '
+                    '${controller.cameraScale}',
+              );
+            }
+          }
+        }
+      }
+      expect(scales, hasLength(3), reason: 'three zoom levels tried');
     });
 
     testWidgets('the edge handles set the width from either side and the '
@@ -1017,11 +1180,35 @@ void main() {
     ) async {
       final h = await _mount(tester);
       await open(tester, h, [_ann, _bob]);
+      // The end handle goes all the way round: keep the sector small and in
+      // the middle of the map above the bar, whatever the bar's height, so
+      // the handle is never under the bar where a press would miss it.
+      final barTop = tester
+          .getTopLeft(find.byKey(const Key('constellation.selection.bar')))
+          .dy;
+      final controller = h.cubit.graphController;
+      final middle = Offset(_size.width / 2, barTop / 2);
+      final sector = h.selection.state.sector!;
+      h.selection.editSector(
+        sector.copyWith(
+          centre: controller.viewportLocalToScene(middle).lPoint,
+          radius: 0,
+          outerRadius: 0,
+        ),
+      );
+      await _frames(tester);
       final centre = tester.getCenter(handle('centre'));
 
       // Well past the whole circle, in steps.
       for (var i = 0; i < 4; i++) {
-        await arc(tester, tester.getCenter(handle('end')), centre, 1.5);
+        final from = tester.getCenter(handle('end'));
+        expect(
+          from.dy + kMinInteractiveDimension / 2,
+          lessThan(barTop),
+          reason: 'the test needs the end handle clear of the bar',
+        );
+        expect(from.dy, greaterThan(kMinInteractiveDimension / 2));
+        await arc(tester, from, centre, 1.5);
       }
 
       expect(h.selection.state.sector!.isFullCircle, isTrue);
