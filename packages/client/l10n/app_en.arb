@@ -10714,5 +10714,21 @@
   "@updatesQuestionsMessage": {
     "description": "Update row / timeline / Updates feed for a message in a Request's Questions; follows the sender's name (#656)",
     "context": "Request Questions"
+  },
+  "bootFailureTitle": "Tentura couldn’t start",
+  "@bootFailureTitle": {
+    "description": "Title of the screen shown instead of an endless splash when app startup failed, e.g. the local database could not be opened (#674)"
+  },
+  "bootFailureBodyWeb": "Something went wrong while opening the app. Reloading the page usually fixes it.",
+  "@bootFailureBodyWeb": {
+    "description": "Web: explanation under bootFailureTitle; the Reload button follows (#674)"
+  },
+  "bootFailureBodyNative": "Something went wrong while opening the app. Close the app and open it again.",
+  "@bootFailureBodyNative": {
+    "description": "Native apps: explanation under bootFailureTitle; there is no reload button (#674)"
+  },
+  "bootFailureReload": "Reload",
+  "@bootFailureReload": {
+    "description": "Button on the startup-failure screen that reloads the web page (#674)"
   }
 }

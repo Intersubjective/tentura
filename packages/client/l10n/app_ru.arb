@@ -7303,5 +7303,9 @@
   "beaconLobbyReadOnlyDeclined": "Автор отклонил ваше предложение помощи, поэтому вы можете только читать.",
   "beaconLobbyUnavailableRemoved": "Автор закрыл вам доступ к вопросам по этому запросу.",
   "beaconLobbyAuthorBadge": "Автор",
-  "updatesQuestionsMessage": "Новое сообщение в вопросах"
+  "updatesQuestionsMessage": "Новое сообщение в вопросах",
+  "bootFailureTitle": "Не удалось запустить Tentura",
+  "bootFailureBodyWeb": "При запуске приложения что-то пошло не так. Обычно помогает перезагрузка страницы.",
+  "bootFailureBodyNative": "При запуске приложения что-то пошло не так. Закройте приложение и откройте его снова.",
+  "bootFailureReload": "Перезагрузить"
 }

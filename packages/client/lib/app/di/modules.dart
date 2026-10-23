@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 import 'package:sentry_drift/sentry_drift.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+
+import 'package:tentura/data/database/reopening_query_executor.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/data/service/network_reachability.dart';
@@ -54,15 +59,53 @@ abstract class RegisterModule {
   @singleton
   Logger get logger => Logger.root;
 
+  /// The local database. A failed open is retried on a fresh connection
+  /// (web: the previous page may still hold the OPFS file, #674).
   @singleton
-  QueryExecutor get database => driftDatabase(
-    name: _mainDbName,
-    native: const DriftNativeOptions(shareAcrossIsolates: true),
-    web: DriftWebOptions(
-      sqlite3Wasm: Uri.parse('/assets/packages/sqlite3.wasm'),
-      driftWorker: Uri.parse('/assets/packages/drift_worker.js'),
-    ),
-  ).interceptWith(SentryQueryInterceptor(databaseName: _mainDbName));
+  QueryExecutor get database {
+    DatabaseConnection open() => driftDatabase(
+      name: _mainDbName,
+      native: const DriftNativeOptions(shareAcrossIsolates: true),
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('/assets/packages/sqlite3.wasm'),
+        driftWorker: Uri.parse('/assets/packages/drift_worker.js'),
+      ),
+    );
+    // A plain, connection-independent stream store on purpose: drift's
+    // per-connection stores (cross-tab / cross-isolate relays) stay bound to
+    // the connection that made them, which a reopen abandons. Nothing here
+    // watches local tables, so nothing needs cross-tab updates; a future
+    // `.watch()` still updates for writes made by this tab.
+    return DatabaseConnection(
+      ReopeningQueryExecutor(open, onRetry: _reportDatabaseReopen),
+    ).interceptWith(SentryQueryInterceptor(databaseName: _mainDbName));
+  }
+
+  static void _reportDatabaseReopen(
+    int attempt,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    _databaseLogger.warning(
+      'Opening the local database failed (attempt $attempt), reopening',
+      error,
+      stackTrace,
+    );
+    // The Logger → Sentry bridge is installed only after DI is configured,
+    // so leave the breadcrumb directly.
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          category: 'local_db',
+          level: SentryLevel.warning,
+          message: 'local_db:open_failed',
+          data: {'attempt': attempt, 'error': error.toString()},
+        ),
+      ),
+    );
+  }
+
+  static final _databaseLogger = Logger('LocalDatabase');
 
   static const _mainDbName = 'main_db';
 }
