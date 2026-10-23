@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:logging/logging.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:uuid/uuid.dart';
 
@@ -15,10 +16,13 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../data/repository/geo_repository.dart';
 import '../../data/service/google_geocoding_service.dart';
+import '../../data/service/google_maps_errors.dart';
 import '../../data/service/google_places_service.dart';
 import '../../domain/entity/location.dart';
 import '../../domain/entity/place.dart';
 import '../util/google_maps_js_ready.dart';
+
+final _log = Logger('ChooseLocationDialog');
 
 typedef ChooseLocationCoordinateSelector =
     Future<void> Function(
@@ -382,30 +386,43 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
           _isSearching = false;
           _searchError = null;
         });
-      } on Object catch (e) {
+      } on Object catch (e, st) {
+        _log.warning('Address autocomplete failed', e, st);
         if (!mounted) return;
-        // A StateError is the service refusing the request; its text is
-        // Google's, not the user's (#432).
-        final message = e is StateError ? e.message : null;
         setState(() {
           _predictions = const [];
           _isSearching = false;
-          _searchError = message == null
-              ? l10n.chooseLocationSearchFailed
-              : message.contains('GOOGLE_MAPS_API_KEY is not configured')
-              ? l10n.chooseLocationMapsKeyMissing
-              : l10n.chooseLocationSearchUnavailable;
+          _searchError = _searchErrorMessage(e, l10n);
         });
       }
     });
   }
 
+  /// The user-facing text for a failed search call. A [StateError] is the
+  /// service refusing the request; its text is Google's, not the user's
+  /// (#432), so only its type is read, never its message.
+  static String _searchErrorMessage(Object error, L10n l10n) => switch (error) {
+    GoogleMapsKeyMissingError() => l10n.chooseLocationMapsKeyMissing,
+    StateError() => l10n.chooseLocationSearchUnavailable,
+    _ => l10n.chooseLocationSearchFailed,
+  };
+
   Future<void> _selectPrediction(GooglePlacePrediction prediction) async {
+    final l10n = L10n.of(context)!;
     final token = _ensureSessionToken();
-    final place = await _placesService.details(
-      placeId: prediction.placeId,
-      sessionToken: token,
-    );
+    final GoogleResolvedPlace place;
+    try {
+      place = await _placesService.details(
+        placeId: prediction.placeId,
+        sessionToken: token,
+      );
+    } on Object catch (e, st) {
+      _log.warning('Place details lookup failed', e, st);
+      if (!mounted) return;
+      setState(() => _searchError = _searchErrorMessage(e, l10n));
+      return;
+    }
+    if (!mounted) return;
     _sessionToken = null;
     await _setSelectedLocation(
       coordinates: place.coordinates,
@@ -431,7 +448,8 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
         _addressLabel = label;
         _isResolvingAddress = false;
       });
-    } catch (_) {
+    } on Object catch (e, st) {
+      _log.fine('Reverse geocoding failed', e, st);
       if (!mounted) return;
       setState(() => _isResolvingAddress = false);
     }
@@ -499,6 +517,7 @@ class _LocationSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final showSuggestions = isSearching || predictions.isNotEmpty;
     final showSearchError = searchError != null && searchError!.isNotEmpty;
@@ -508,7 +527,7 @@ class _LocationSearchBar extends StatelessWidget {
       children: [
         SearchBar(
           leading: const Icon(Icons.search),
-          hintText: 'Search address',
+          hintText: l10n.chooseLocationSearchHint,
           enabled: mapsEnabled,
           onChanged: onQueryChanged,
         ),
@@ -541,12 +560,12 @@ class _LocationSearchBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(tt.cardRadius),
             clipBehavior: Clip.antiAlias,
             child: isSearching
-                ? const ListTile(
-                    leading: SizedBox.square(
+                ? ListTile(
+                    leading: const SizedBox.square(
                       dimension: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    title: Text('Searching...'),
+                    title: Text(l10n.chooseLocationSearching),
                   )
                 : Column(
                     mainAxisSize: MainAxisSize.min,
@@ -587,9 +606,9 @@ class _LocationConfirmBar extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final selected = this.selected;
     final label = selected == null
-        ? 'Choose a location'
+        ? l10n.chooseLocationNoneSelected
         : isResolvingAddress
-        ? 'Resolving address...'
+        ? l10n.chooseLocationResolvingAddress
         : (addressLabel?.trim().isNotEmpty ?? false)
         ? addressLabel!.trim()
         : l10n.locationNameUnavailable;
@@ -616,7 +635,7 @@ class _LocationConfirmBar extends StatelessWidget {
                 // handling below), even though this bar looks settled.
                 onPressed: isResolvingAddress ? null : onConfirm,
                 icon: const Icon(Icons.check),
-                label: const Text('Use this location'),
+                label: Text(l10n.chooseLocationConfirm),
               ),
             ],
           ),

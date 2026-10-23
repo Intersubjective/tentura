@@ -1093,6 +1093,26 @@
   "@chooseLocationSearchUnavailable": {
     "context": "ChooseLocationDialog"
   },
+  "chooseLocationSearchHint": "Поиск адреса",
+  "@chooseLocationSearchHint": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationSearching": "Идёт поиск…",
+  "@chooseLocationSearching": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationNoneSelected": "Выберите место",
+  "@chooseLocationNoneSelected": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationResolvingAddress": "Определяем адрес…",
+  "@chooseLocationResolvingAddress": {
+    "context": "ChooseLocationDialog"
+  },
+  "chooseLocationConfirm": "Выбрать это место",
+  "@chooseLocationConfirm": {
+    "context": "ChooseLocationDialog"
+  },
   "goToEgo": "Перейти к Эго",
   "@goToEgo": {
     "context": "GraphScreen"
