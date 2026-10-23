@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -12,14 +11,10 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_host.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
-
-String threadGeneralAppBarTitle(L10n l10n, Beacon beacon) =>
-    beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
 
 String _threadItemKindLabel(L10n l10n, CoordinationItem item) =>
     switch (item.kind) {
@@ -191,60 +186,6 @@ class ThreadDetailAppBarTitle extends StatelessWidget {
           ?trailing,
         ],
       ),
-    );
-  }
-}
-
-/// Two-row app-bar title for General: request title plus involved-people pile.
-class ThreadDetailGeneralTitle extends StatelessWidget {
-  const ThreadDetailGeneralTitle({
-    required this.title,
-    required this.beacon,
-    required this.involvedProfiles,
-    required this.currentUserId,
-    this.helperCount,
-    this.onFacePileTap,
-    this.trailing,
-    this.padding = EdgeInsetsDirectional.zero,
-    super.key,
-  });
-
-  final String title;
-  final Beacon beacon;
-  final List<Profile> involvedProfiles;
-
-  /// Total admitted helpers (excluding author). When set, overflow uses
-  /// author + helpers − visible instead of `involvedProfiles.length`.
-  final int? helperCount;
-  final String currentUserId;
-  final VoidCallback? onFacePileTap;
-  final Widget? trailing;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    Widget pile = BeaconInvolvedPeopleFacePile(
-      beacon: beacon,
-      involvedProfiles: involvedProfiles,
-      currentUserId: currentUserId,
-      helperCount: helperCount,
-      onTap: onFacePileTap,
-    );
-    if (onFacePileTap != null) {
-      pile = Semantics(
-        button: true,
-        label: l10n.beaconHudPeopleRowSemantics,
-        onTap: onFacePileTap,
-        child: ExcludeSemantics(child: pile),
-      );
-    }
-
-    return ThreadDetailAppBarTitle(
-      title: title,
-      subtitle: pile,
-      trailing: trailing,
-      padding: padding,
     );
   }
 }
