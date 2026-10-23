@@ -756,19 +756,55 @@ class ConstellationSceneController {
       );
     }
 
-    final previousNodeIds = graphController
-        .renderSnapshot
-        .topology
-        .nodesById
-        .keys
-        .toSet();
+    final previous = graphController.renderSnapshot;
+    final previousNodeIds = previous.topology.nodesById.keys.toSet();
     graphController.reconcileTopology(
       nodes,
       edges,
       requestLayout: false,
       layoutOnTopologyChange: false,
+      // The graph view paints them beneath every other node until they
+      // reach their place, so they spring out from under the author.
+      initialPositions: beaconSpawnPositions(
+        nodes: nodes,
+        previous: previous,
+        // Before the first layout the view may not know its canvas yet;
+        // nothing is seeded then, and the first load lands as before.
+        canvasCentre: graphController.canLayout
+            ? graphController.canvasSize.center(Offset.zero)
+            : null,
+      ),
     );
     return (nodes: nodes, previousNodeIds: previousNodeIds);
+  }
+
+  /// Where each Request or Post new to the field starts: on its author's
+  /// displayed position, so the layout transition carries it out from under
+  /// the author. A beacon whose author is not on the field yet (arriving in
+  /// the same build) starts at [canvasCentre], where that new author starts
+  /// too; with no [canvasCentre] it gets no entry.
+  static Map<GraphNodeId, Offset> beaconSpawnPositions({
+    required Set<NodeDetails> nodes,
+    required GraphSceneSnapshot<NodeDetails, EdgeDetails> previous,
+    Offset? canvasCentre,
+  }) {
+    final present = previous.topology.nodesById;
+    final positions = <GraphNodeId, Offset>{};
+    for (final node in nodes) {
+      if (node is! FieldBeaconNode) {
+        continue;
+      }
+      final graphId = node.graphNodeId;
+      if (present.containsKey(graphId)) {
+        continue;
+      }
+      final author = previous.resolvePosition('fp:${node.userId}');
+      final start = author == null ? canvasCentre : Offset(author.x, author.y);
+      if (start != null) {
+        positions[graphId] = start;
+      }
+    }
+    return positions;
   }
 
   // Camera.

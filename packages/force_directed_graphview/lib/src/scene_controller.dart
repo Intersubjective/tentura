@@ -165,6 +165,21 @@ class GraphSceneController<N, E> with ChangeNotifier {
     }
     _seedPositions = seeds;
 
+    // A node that left mid-transition must not come back at the point its
+    // interrupted tween had reached: that would hide its new seed.
+    final transition = _transition;
+    if (transition != null &&
+        transition.positions.keys
+            .any((id) => !nextIds.contains(id) || addedIds.contains(id))) {
+      _transition = SceneTransition(
+        positions: {
+          for (final entry in transition.positions.entries)
+            if (nextIds.contains(entry.key) && !addedIds.contains(entry.key))
+              entry.key: entry.value,
+        },
+      );
+    }
+
     _presentation = ScenePresentation(
       overrides: overrides,
       paintOrder: paintOrder,
