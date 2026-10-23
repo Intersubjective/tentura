@@ -18,6 +18,7 @@ import {
   inviteLandingCopy,
   RECOVER_SEED_LINK_LABEL,
   authErrorMessage,
+  urlWithoutAuthError,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -598,6 +599,18 @@ function isSignedInReturn() {
   return new URLSearchParams(location.search).get('signed_in') === '1';
 }
 
+// #601: the `?auth_error=` banner is shown once; drop the flag from the
+// address bar after rendering so a reload does not show it again.
+function clearAuthErrorFromUrl() {
+  const clean = urlWithoutAuthError(location);
+  if (clean == null) return;
+  try {
+    history.replaceState(history.state, '', clean);
+  } catch (_) {
+    /* sandboxed or old browser: the banner just shows again on reload */
+  }
+}
+
 function signedInFlash() {
   if (!isSignedInReturn()) return null;
   return el(
@@ -731,12 +744,16 @@ function renderAnonymous(p) {
     isPost: p.beacon?.kind === 'post',
     inApp: env.inApp,
   });
+  // #601: a failed Google sign-in started here comes back to this invite
+  // page with `?auth_error=`.
+  const authError = isSignedInReturn() ? null : authErrorMessage(location.search);
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
     signedInFlash(),
     el('h1', {}, `${inviterName(p)} invited you to Tentura`),
+    authError ? el('p', { class: 'error', role: 'alert' }, authError) : null,
     el('p', { class: 'invite-about' }, copy.about),
     el('p', {}, copy.why),
     copy.signUp ? el('p', {}, copy.signUp) : null,
@@ -897,6 +914,7 @@ async function main() {
 
     if (!code) {
       renderNoInvite();
+      clearAuthErrorFromUrl();
       return;
     }
     try {
@@ -911,6 +929,7 @@ async function main() {
       trackError('preview_error', e);
       renderError();
     }
+    clearAuthErrorFromUrl();
   } catch (e) {
     const Sentry = window.Sentry;
     if (Sentry) Sentry.captureException(e);

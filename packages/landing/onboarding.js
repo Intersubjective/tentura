@@ -113,6 +113,20 @@ export function authErrorMessage(search) {
   return null;
 }
 
+/**
+ * #601: the current address (path + search + hash) with `auth_error` taken
+ * out of the query, so a reload does not show the failed sign-in banner
+ * again. Other params and the hash stay as they were. Returns null when there
+ * is no `auth_error` param (nothing to rewrite).
+ */
+export function urlWithoutAuthError({ pathname = '/', search = '', hash = '' } = {}) {
+  const params = new URLSearchParams(search || '');
+  if (!params.has('auth_error')) return null;
+  params.delete('auth_error');
+  const rest = params.toString();
+  return `${pathname || '/'}${rest ? `?${rest}` : ''}${hash || ''}`;
+}
+
 /** `?signed_in=1&new=1` — fresh account just created by email/Google auth. */
 export function isNewSignupReturn(search) {
   const params = new URLSearchParams(search || '');
