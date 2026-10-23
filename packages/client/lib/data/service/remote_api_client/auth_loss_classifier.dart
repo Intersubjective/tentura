@@ -234,7 +234,8 @@ Exception? _mapServerException(gql.ServerException error) {
     }
     final joined = errors.map((e) => e.message.trim()).join('; ');
     final detail = status == null ? joined : 'HTTP $status: $joined';
-    return _retryLater(errors) ?? _remoteApiOrUnknown(detail);
+    return _retryLater(errors) ??
+        _remoteApiOrUnknown(detail, code: errors.first.extensions?['code']);
   }
 
   // No GraphQL errors, but the server answered with a status code.

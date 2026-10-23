@@ -7319,9 +7319,18 @@
   "attentionEventOfferWithdrawn": "{name} отозвал(а) предложение помощи ({reason})",
   "attentionEventNextStepNamesLeaver": "Следующий шаг упоминает этого человека — проверьте его",
   "attentionEventCantHelp": "{name} не может помочь",
-  "updatesFallbackTitleHelpWithdrawn": "Помощь отозвана",
-  "updatesFallbackBodyHelpWithdrawn": "Помощник отозвал предложение помощи.",
+  "updatesFallbackTitleHelpWithdrawn": "Предложение помощи отозвано",
+  "updatesFallbackBodyHelpWithdrawn": "Кто-то отозвал своё предложение помощи.",
   "updatesFallbackTitleForwardDeclined": "Не может помочь",
   "updatesFallbackBodyForwardDeclined": "Получатель не может помочь с этим запросом.",
-  "beaconHudStepLeaverFlag": "{name} покинул(а) запрос после того, как шаг был задан"
+  "beaconHudStepLeaverFlag": "{name} покинул(а) запрос после того, как шаг был задан",
+  "attentionEventHelpWithdrawn": "{name}: предложение помощи отозвано",
+  "beaconShowcaseTeamLabelClosed": "ПОМОГЛИ",
+  "beaconShowcaseTeamNoAcquaintancesClosed": "{count, plural, =1{Помог 1 человек} one{Помог {count} человек} few{Помогли {count} человека} other{Помогли {count} человек}}",
+  "beaconShowcaseTeamEmptyClosed": "Никто не присоединился к помощи",
+  "beaconShowcaseTeamSheetTitleClosed": "Помогли",
+  "beaconShowcaseOfferUnansweredClosed": "Запрос закрыт до того, как автор ответил на ваше предложение.",
+  "beaconShowcaseBackupOfferUnneededClosed": "Запрос закрыт до того, как понадобилось ваше запасное предложение.",
+  "beaconShowcaseOfferUnansweredCancelled": "Запрос отменён до того, как автор ответил на ваше предложение.",
+  "beaconLobbyRemoveConfirmBody": "Этот человек не сможет читать и писать в вопросах, пока вы не вернёте ему доступ. На его предложение помощи, если оно было, это не повлияет."
 }

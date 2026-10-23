@@ -16,6 +16,11 @@ import 'tentura_modal_bottom_sheet_route.dart';
 /// route), unless [isDismissible] is false. On close, keyboard focus returns to
 /// the control that opened the sheet; a text field that held focus is not
 /// refocused (#403).
+///
+/// While the sheet animates away the route no longer takes taps, so the
+/// second tap of a double tap on its last button would land on the page
+/// underneath (#684). For [kTenturaSheetCloseTapShield] after it closes a
+/// transparent layer swallows taps on the page.
 Future<T?> showTenturaAdaptiveSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -30,9 +35,9 @@ Future<T?> showTenturaAdaptiveSheet<T>({
 }) async {
   final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
   final trigger = FocusManager.instance.primaryFocus;
+  final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
   final T? result;
   if (windowClass == WindowClass.compact) {
-    final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
     final localizations = MaterialLocalizations.of(context);
     result = await navigator.push<T>(
       TenturaModalBottomSheetRoute<T>(
@@ -78,8 +83,78 @@ Future<T?> showTenturaAdaptiveSheet<T>({
       },
     );
   }
+  _shieldTapsAfterClose(navigator);
   _restoreFocusAfterSheet(trigger);
   return result;
+}
+
+/// How long taps on the page are swallowed after a sheet closes: its exit
+/// animation plus the gap of a quick double tap or double click (#684).
+const kTenturaSheetCloseTapShield = Duration(milliseconds: 400);
+
+/// Puts a transparent, tap-swallowing layer over [navigator]'s overlay for
+/// [kTenturaSheetCloseTapShield].
+void _shieldTapsAfterClose(NavigatorState navigator) {
+  final overlay = navigator.mounted ? navigator.overlay : null;
+  if (overlay == null || !overlay.mounted) return;
+  late final OverlayEntry entry;
+  var removed = false;
+  void remove() {
+    if (removed) return;
+    removed = true;
+    entry
+      ..remove()
+      ..dispose();
+  }
+
+  entry = OverlayEntry(builder: (_) => _TapShield(onDone: remove));
+  overlay.insert(entry);
+}
+
+/// Swallows pointer events for [kTenturaSheetCloseTapShield], then calls
+/// [onDone]. Timed by a ticker, not a timer, so it ends with the frames
+/// (and never outlives a widget test as a pending timer). Taken out of the
+/// tree early (its overlay rebuilt without it), it calls [onDone] too, so
+/// the entry never comes back as a fresh shield.
+class _TapShield extends StatefulWidget {
+  const _TapShield({required this.onDone});
+
+  final VoidCallback onDone;
+
+  @override
+  State<_TapShield> createState() => _TapShieldState();
+}
+
+class _TapShieldState extends State<_TapShield>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _clock = AnimationController(
+    vsync: this,
+    duration: kTenturaSheetCloseTapShield,
+  );
+
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock.forward().whenCompleteOrCancel(() {
+      if (!_disposed && mounted) widget.onDone();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _clock.dispose();
+    widget.onDone();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const AbsorbPointer(
+    key: Key('tenturaSheetCloseTapShield'),
+    child: SizedBox.expand(),
+  );
 }
 
 /// Returns keyboard focus to [trigger] when it is a still-mounted control;

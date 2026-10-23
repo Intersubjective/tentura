@@ -14,12 +14,13 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 // #516 residual (option A, Vadim 2026-10-22): when a helper withdraws, the
 // author's Request card says who left and why. The server's helper-withdrawal
-// receipt is `promiseWithdrawn` with `withdrawReason` (the reason key) in its
-// payload and the helper's note as `excerpt`; today the change line maps every
-// `promiseWithdrawn` to «Items updated», so the author learns nothing.
+// receipt is `helpWithdrawn` (7.46.0) with `withdrawReason` (the reason key)
+// and `leftDiscussion` in its payload and the helper's note as `excerpt`; a
+// coordination promise's `promiseWithdrawn` still reads «Items updated».
 //
-// Pinned copy: the room line's own strings, `beaconRoomParticipantLeft` /
-// `beaconRoomParticipantLeftWithNote`, with `withdrawReasonLabel` for the key.
+// Pinned copy: the room line's own string, `beaconRoomParticipantLeft`, with
+// `withdrawReasonLabel` for the key, then the note
+// (`whoDidWhatReceiptDisplayCopy`).
 
 const _note = 'Sorry, Saturday morning fell through';
 const _requestTitle = 'Move a sofa';
@@ -50,9 +51,14 @@ AttentionReceipt _withdrawn({
   actionUrl: '/#/',
   createdAt: DateTime.now().toUtc().subtract(const Duration(minutes: 5)),
   collapsedCount: 1,
-  presentationKey: 'promise_withdrawn',
+  presentationKey: coordinationItemId == null
+      ? 'help_withdrawn'
+      : 'promise_withdrawn',
   presentationPayloadJson: jsonEncode({
-    'eventType': 'promiseWithdrawn',
+    'eventType': coordinationItemId == null
+        ? 'helpWithdrawn'
+        : 'promiseWithdrawn',
+    if (coordinationItemId == null) 'leftDiscussion': true,
     'personal': false,
     'actorUserId': 'h1',
     'beaconId': 'b1',
@@ -118,8 +124,8 @@ void main() {
       expect(
         _onChangeLine(
           find.text(
-            'Nina Mover left the request (Timing no longer works): '
-            '\u201c$_note\u201d',
+            'Nina Mover left the request (Timing no longer works) · '
+            '$_note',
           ),
         ),
         findsOneWidget,
@@ -136,8 +142,8 @@ void main() {
       expect(
         _onChangeLine(
           find.text(
-            'Nina Mover покинул(а) запрос (Не сходится по времени): '
-            '\u00ab$_note\u00bb',
+            'Nina Mover покинул(а) запрос (Не сходится по времени) · '
+            '$_note',
           ),
         ),
         findsOneWidget,

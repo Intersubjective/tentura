@@ -7,6 +7,7 @@ import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
@@ -222,16 +223,19 @@ WHERE beacon_id = @beaconId
     // #528: the room is told who set the next step; a run of edits is one
     // line, and saving the same line again says nothing new.
     test('the next step leaves one coalesced line in General', () async {
+      var revision = 0;
       for (final text in [
         'Nina: van 9:45',
         'Nina: van 10:00',
         'Nina: van 10:00',
       ]) {
-        await roomCase.updateRoomNowLine(
+        final row = await roomCase.updateRoomNowLine(
           beaconId: beaconId,
           userId: authorId,
           text: text,
+          baseRevision: revision,
         );
+        revision = row['currentLineRevision']! as int;
       }
       final rows = await writer.execute(
         Sql.named('''
@@ -247,6 +251,50 @@ WHERE beacon_id = @beaconId AND system_message_kind = @kind
       );
       expect(rows, hasLength(1));
       expect(rows.single, [authorId, 'nextStep', '', 'Nina: van 10:00']);
+    }, skip: skipReason);
+
+    // #517 + #528: the revision check and the edit line share one unit of
+    // work, so a refused stale save leaves no edit line behind.
+    test('a stale save is refused and writes no edit line', () async {
+      await roomCase.updateRoomNowLine(
+        beaconId: beaconId,
+        userId: authorId,
+        text: 'Nina: van 9:45',
+        baseRevision: 0,
+      );
+      await expectLater(
+        roomCase.updateRoomNowLine(
+          beaconId: beaconId,
+          userId: authorId,
+          text: 'Omar: van 11:00',
+          baseRevision: 0,
+        ),
+        throwsA(isA<BeaconRoomNowLineConflictException>()),
+      );
+      final rows = await writer.execute(
+        Sql.named('''
+SELECT system_payload->>'to'
+FROM public.beacon_room_message
+WHERE beacon_id = @beaconId AND system_message_kind = @kind
+'''),
+        parameters: {
+          'beaconId': beaconId,
+          'kind': BeaconRoomSystemMessageKind.requestEdited,
+        },
+      );
+      expect(rows, hasLength(1));
+      expect(rows.single.single, 'Nina: van 9:45');
+      final events = await writer.execute(
+        Sql.named('''
+SELECT count(*)::int FROM public.beacon_activity_event
+WHERE beacon_id = @beaconId AND type = @type
+'''),
+        parameters: {
+          'beaconId': beaconId,
+          'type': BeaconActivityEventTypeBits.requestEdited,
+        },
+      );
+      expect(events.single.single, 1);
     }, skip: skipReason);
 
     test(

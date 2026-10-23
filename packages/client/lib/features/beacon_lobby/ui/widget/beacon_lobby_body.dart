@@ -40,7 +40,8 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
       title: l10n.beaconLobbyBanConfirmTitle(
         name.isEmpty ? l10n.beaconLobbySomeone : name,
       ),
-      content: l10n.beaconLobbyBanConfirmBody,
+      // True whether or not they offered help (#657).
+      content: l10n.beaconLobbyRemoveConfirmBody,
       confirmLabel: l10n.beaconLobbyBanAction,
     );
     if (ok ?? false) await cubit.ban(userId);
@@ -131,8 +132,12 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                               byAuthor:
                                   state.authorId.isNotEmpty &&
                                   m.authorId == state.authorId,
+                              // Nobody asks on a closed Request, so
+                              // there is no one to remove (#657).
                               canBan:
                                   state.isAuthor &&
+                                  state.readOnlyReason !=
+                                      BeaconLobbyLimitReason.closed &&
                                   m.authorId != widget.myUserId &&
                                   !state.isBanned(m.authorId),
                               onBan: () => unawaited(

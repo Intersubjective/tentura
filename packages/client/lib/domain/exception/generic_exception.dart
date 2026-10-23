@@ -1,5 +1,7 @@
 import 'package:tentura_root/domain/entity/localizable.dart';
 
+import 'server_error_copy.dart';
+
 sealed class GenericException extends LocalizableException {
   const GenericException();
 }
@@ -37,20 +39,31 @@ final class ConnectionUplinkException extends GenericException {
 /// An error reported by the server (GraphQL/API error with a message).
 /// Unlike [ConnectionUplinkException] the server DID answer — surfacing its
 /// message beats a misleading "no internet". Server messages are not
-/// localized, so both locales show the same text.
+/// localized: a [code] listed in [kServerErrorCopy] shows plain words in the
+/// locale instead (#683), any other shows the server's text in both.
 final class RemoteApiException extends GenericException {
   const RemoteApiException(this.message, {this.code});
 
+  /// The server's own text. Kept for logs and "Copy details" even when the
+  /// person is shown [toEn] / [toRu].
   final String message;
 
   /// The server's error code (`extensions.code`), when it sent one.
   final String? code;
 
-  @override
-  String get toEn => message;
+  /// Plain copy replaces the server's [message] for this [code].
+  bool get hasPlainCopy => serverErrorCopyFor(code) != null;
 
   @override
-  String get toRu => message;
+  String get toEn => serverErrorCopyFor(code)?.en ?? message;
+
+  @override
+  String get toRu => serverErrorCopyFor(code)?.ru ?? message;
+
+  /// The server's text, as before: logs, Sentry and the callers that match
+  /// on it read this, not the plain copy.
+  @override
+  String toString() => message;
 }
 
 /// Server admission backoff, preserved across the transport boundary.

@@ -1,15 +1,20 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 
 import '../../domain/entity/beacon_lobby.dart';
+import '../model/beacon_lobby_error_mapper.dart';
 import '../../domain/port/beacon_lobby_port.dart';
 import '../gql/_g/beacon_lobby.req.gql.dart';
 
 /// Request Questions (internally the lobby, U088) over the existing
 /// item-thread room API (`RoomMessageList` / `RoomMessageCreate` /
 /// `MarkThreadSeen` with the Questions scope id). A denial arrives as
-/// `BeaconLobbyUnavailableException` (error link, 1347).
+/// `BeaconLobbyUnavailableException` (error link, 1347); so does the room
+/// API's own refusal of a Questions read (1102, e.g. the author removed the
+/// viewer while the screen was open, #683). A refused post (1102) is
+/// `BeaconLobbyPostDeniedException`: the viewer may still read.
 @LazySingleton(as: BeaconLobbyPort, env: [Environment.dev, Environment.prod])
 class BeaconLobbyRepository implements BeaconLobbyPort {
   BeaconLobbyRepository(this._remoteApiService);
@@ -56,7 +61,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
     required String beaconId,
     required String lobbyId,
     DateTime? before,
-  }) async {
+  }) => _inQuestions(() async {
     final r = await _remoteApiService
         .request(
           GBeaconLobbyMessagesReq(
@@ -86,14 +91,14 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
       if (at == null || bt == null) return 0;
       return at.compareTo(bt);
     });
-  }
+  });
 
   @override
   Future<void> post({
     required String beaconId,
     required String lobbyId,
     required String body,
-  }) async {
+  }) => _inQuestions(write: true, () async {
     final r = await _remoteApiService
         .request(
           GBeaconLobbyPostReq(
@@ -105,6 +110,22 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
     r.dataOrThrow(label: 'BeaconLobbyPost');
+  });
+
+  /// The room API answers a Questions-scope read or write it refuses with
+  /// its generic access code: here that can only mean Questions is closed
+  /// to the viewer.
+  static Future<T> _inQuestions<T>(
+    Future<T> Function() run, {
+    bool write = false,
+  }) async {
+    try {
+      return await run();
+    } on RemoteApiException catch (e) {
+      final mapped = beaconLobbyScopeError(e, write: write);
+      if (identical(mapped, e)) rethrow;
+      throw mapped;
+    }
   }
 
   @override

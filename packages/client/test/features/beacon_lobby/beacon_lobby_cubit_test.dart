@@ -81,6 +81,53 @@ void main() {
     await c.close();
   });
 
+  test('removed while the screen is open: sending shows "the author removed '
+      'you", not an error bar (#683)', () async {
+    final port = FakeLobbyPort(viewerId: 'Unina');
+    final c = cubitFor(port);
+    await c.load();
+    expect(c.state.canPost, isTrue);
+    port
+      ..banned.add('Unina')
+      ..limitReason = BeaconLobbyLimitReason.removed;
+    await c.post('Still there?');
+    await settle();
+    expect(effects.emitted, isEmpty);
+    expect(c.state.sending, isFalse);
+    expect(c.state.unavailable, isTrue);
+    expect(c.state.messages, isEmpty);
+    expect(c.state.unavailableReason, BeaconLobbyLimitReason.removed);
+    await c.close();
+  });
+
+  test('no longer allowed to ask while the screen is open (offer declined): '
+      'the thread stays readable with the read-only note, no error bar '
+      '(#683)', () async {
+    final port = FakeLobbyPort(viewerId: 'Unina')
+      ..messagesList.add(
+        const BeaconLobbyMessage(
+          id: 'M1',
+          authorId: 'Uauthor',
+          authorName: 'Anna',
+          body: 'The 18th',
+        ),
+      );
+    final c = cubitFor(port);
+    await c.load();
+    expect(c.state.canPost, isTrue);
+    port
+      ..canPost = false
+      ..limitReason = BeaconLobbyLimitReason.declined;
+    await c.post('Still there?');
+    await settle();
+    expect(effects.emitted, isEmpty);
+    expect(c.state.unavailable, isFalse);
+    expect(c.state.canPost, isFalse);
+    expect(c.state.readOnlyReason, BeaconLobbyLimitReason.declined);
+    expect([for (final m in c.state.messages) m.body], ['The 18th']);
+    await c.close();
+  });
+
   test('no posting once the Request is closed (canPost false)', () async {
     final port = FakeLobbyPort(viewerId: 'Unina')..canPost = false;
     final c = cubitFor(port);

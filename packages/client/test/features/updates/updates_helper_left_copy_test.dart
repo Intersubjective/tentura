@@ -8,12 +8,11 @@ import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 // #516 residual (option A, Vadim 2026-10-22): a helper withdrawal reaches the
-// author as a `promiseWithdrawn` receipt whose payload carries the reason key
-// (`withdrawReason`) and the helper's note (`excerpt`). Under a Request header
-// (Timeline, mini-cards) it reads today as «Promise withdrawn» /
-// «Обещание отозвано»: neither who left nor why. Pinned: the room line's own
-// copy, `beaconRoomParticipantLeft(name, withdrawReasonLabel(key))`, with the
-// note as the excerpt.
+// author as a `helpWithdrawn` receipt (7.46.0; `promiseWithdrawn` before)
+// whose payload carries the reason key (`withdrawReason`), whether they left
+// the discussion and the helper's note (`excerpt`). Pinned: the room line's
+// own copy, `beaconRoomParticipantLeft(name, withdrawReasonLabel(key))`, with
+// the note as the excerpt; a coordination promise keeps its own copy.
 
 const _note = 'Sorry, Saturday morning fell through';
 const _requestTitle = 'Move a sofa';
@@ -26,9 +25,14 @@ RequestScopedEventCopy _copy(
 }) => requestScopedEventCopy(
   title: 'Nina Mover',
   body: excerpt.isEmpty ? 'Nina Mover withdrew their help' : excerpt,
-  presentationKey: 'promise_withdrawn',
+  presentationKey: coordinationItemId == null
+      ? 'help_withdrawn'
+      : 'promise_withdrawn',
   presentationPayloadJson: jsonEncode({
-    'eventType': 'promiseWithdrawn',
+    'eventType': coordinationItemId == null
+        ? 'helpWithdrawn'
+        : 'promiseWithdrawn',
+    if (coordinationItemId == null) 'leftDiscussion': true,
     'personal': false,
     'actorUserId': 'h1',
     'beaconId': 'b1',
@@ -51,7 +55,10 @@ void main() {
     test('en: the event names the helper and the reason, the note is the '
         'excerpt', () {
       final copy = _copy(en);
-      expect(copy.event, 'Nina Mover left the request (Timing no longer works)');
+      expect(
+        copy.event,
+        'Nina Mover left the request (Timing no longer works)',
+      );
       expect(copy.excerpt, _note);
     });
 

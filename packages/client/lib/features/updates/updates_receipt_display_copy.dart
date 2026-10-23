@@ -6,8 +6,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart'
-    show withdrawReasonLabel;
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/withdraw_reason_label.dart';
@@ -95,39 +93,6 @@ String? beaconTitleFromPresentationPayload(String presentationPayloadJson) {
 /// receipt predates the field — only then is `body` worth parsing.
 String? excerptFromPresentationPayload(String presentationPayloadJson) =>
     _payloadString(presentationPayloadJson, 'excerpt');
-
-/// Why a helper left the Request (#516): the withdraw reason key a helper
-/// withdrawal's `promiseWithdrawn` carries. Null on a withdrawn promise.
-String? withdrawReasonFromPresentationPayload(String presentationPayloadJson) =>
-    switch (_payloadString(presentationPayloadJson, 'withdrawReason')) {
-      final key? when key.isNotEmpty => key,
-      _ => null,
-    };
-
-/// «Nina left the request (Timing no longer works)» for a helper's
-/// withdrawal (#516), with the note quoted when [note] is given; null for any
-/// other event (a withdrawn promise keeps its own copy) or without a name.
-String? helperLeftEventLine({
-  required String presentationPayloadJson,
-  required String? actorName,
-  required L10n l10n,
-  String note = '',
-}) {
-  final name = actorName?.trim() ?? '';
-  if (name.isEmpty) return null;
-  if (attentionEventTypeOf(presentationPayloadJson) != 'promiseWithdrawn') {
-    return null;
-  }
-  final reason = withdrawReasonLabel(
-    l10n,
-    withdrawReasonFromPresentationPayload(presentationPayloadJson),
-  );
-  if (reason == null) return null;
-  final words = note.trim();
-  return words.isEmpty
-      ? l10n.beaconRoomParticipantLeft(name, reason)
-      : l10n.beaconRoomParticipantLeftWithNote(name, reason, words);
-}
 
 /// The [BeaconStatus] a status-change event moved the Request to.
 BeaconStatus? toStatusFromPresentationPayload(String presentationPayloadJson) {
@@ -389,18 +354,22 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
   };
 }
 
-/// Who-did-what receipt copy (#516, #486; `docs/features/request-change-events.md`):
-/// the person and what they did, in the viewer's locale, with their own
-/// words as the body.
+/// Who-did-what receipt copy (#516, #685, #486;
+/// `docs/features/request-change-events.md`): the person and what they did,
+/// in the viewer's locale, with their own words as the body. The one place
+/// the author's Request card, its change line and Updates read a helper's
+/// withdrawal from.
 ///
 /// * `help_withdrawn` — «Omar left the request (Timing changed)» when they
-///   were in the discussion, «… withdrew their offer (…)» otherwise; the
-///   body is their note, and says so when the next step still names them.
+///   were in the discussion, «… withdrew their help offer (…)» otherwise,
+///   «… withdrew their help offer» when the reason is not readable; the body
+///   is their note, and says so when the next step still names them.
 /// * `forward_declined` — «Nina can't help»; the body is her note, which
 ///   only the author ever receives.
 ///
 /// The name is [actorName] when the caller knows the person, else the
-/// receipt [title] (the server writes the actor's name there). Null for any
+/// receipt [title] (the server writes the actor's name there) unless that is
+/// a Request title in [requestTitles] or a server placeholder. Null for any
 /// other receipt.
 UpdatesFeedRowCopy? whoDidWhatReceiptDisplayCopy({
   required String title,
@@ -408,49 +377,88 @@ UpdatesFeedRowCopy? whoDidWhatReceiptDisplayCopy({
   required String presentationPayloadJson,
   required L10n l10n,
   String? actorName,
+  Set<String> requestTitles = const {},
 }) {
-  final type = attentionEventTypeOf(presentationPayloadJson);
-  final known = actorName?.trim() ?? '';
-  final name = known.isNotEmpty ? known : title.trim();
-  final excerpt = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
-  switch (type ?? presentationKey) {
-    case 'helpWithdrawn' || 'help_withdrawn':
-      if (name.isEmpty) {
-        return UpdatesFeedRowCopy(
-          headline: l10n.updatesFallbackTitleHelpWithdrawn,
-          body: excerpt,
-        );
-      }
-      final reason =
-          withdrawReasonLabel(
-            l10n,
-            _payloadString(presentationPayloadJson, 'withdrawReason'),
-          ) ??
-          l10n.withdrawOther;
-      final left =
-          _payloadBool(presentationPayloadJson, 'leftDiscussion') ?? false;
-      final flagged =
-          _payloadBool(presentationPayloadJson, 'nextStepMentionsActor') ??
-          false;
-      return UpdatesFeedRowCopy(
-        headline: left
-            ? l10n.beaconRoomParticipantLeft(name, reason)
-            : l10n.attentionEventOfferWithdrawn(name, reason),
-        body: [
-          if (excerpt.isNotEmpty) excerpt,
-          if (flagged) l10n.attentionEventNextStepNamesLeaver,
-        ].join('\n'),
-      );
-    case 'forwardDeclined' || 'forward_declined':
-      return UpdatesFeedRowCopy(
-        headline: name.isEmpty
-            ? l10n.updatesFallbackTitleForwardDeclined
-            : l10n.attentionEventCantHelp(name),
-        body: excerpt,
-      );
-  }
-  return null;
+  final words = _whoDidWhatWords(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+    requestTitles: requestTitles,
+  );
+  if (words == null) return null;
+  return UpdatesFeedRowCopy(
+    headline: words.headline,
+    body: [
+      if (words.note.isNotEmpty) words.note,
+      if (words.flag.isNotEmpty) words.flag,
+    ].join('\n'),
+  );
 }
+
+typedef _WhoDidWhatWords = ({String headline, String note, String flag});
+
+_WhoDidWhatWords? _whoDidWhatWords({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+  Set<String> requestTitles = const {},
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
+  final isWithdrawal = type == 'helpWithdrawn' || type == 'help_withdrawn';
+  final isDecline = type == 'forwardDeclined' || type == 'forward_declined';
+  if (!isWithdrawal && !isDecline) return null;
+  final t = title.trim();
+  final fromTitle =
+      t.isEmpty ||
+          requestTitles.contains(t) ||
+          _serverWhoDidWhatTitles.contains(t) ||
+          _isServerCannedTitle(t)
+      ? null
+      : t;
+  final name = _nonBlank(actorName) ?? fromTitle;
+  final note = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  if (isDecline) {
+    return (
+      headline: name == null
+          ? l10n.updatesFallbackTitleForwardDeclined
+          : l10n.attentionEventCantHelp(name),
+      note: note,
+      flag: '',
+    );
+  }
+  final flagged =
+      _payloadBool(presentationPayloadJson, 'nextStepMentionsActor') ?? false;
+  final flag = flagged ? l10n.attentionEventNextStepNamesLeaver : '';
+  if (name == null) {
+    return (
+      headline: l10n.updatesFallbackTitleHelpWithdrawn,
+      note: note,
+      flag: flag,
+    );
+  }
+  final reason = withdrawReasonLabel(
+    l10n,
+    _payloadString(presentationPayloadJson, 'withdrawReason'),
+  );
+  final left = _payloadBool(presentationPayloadJson, 'leftDiscussion') ?? false;
+  return (
+    headline: reason == null
+        ? l10n.attentionEventHelpWithdrawn(name)
+        : left
+        ? l10n.beaconRoomParticipantLeft(name, reason)
+        : l10n.attentionEventOfferWithdrawn(name, reason),
+    note: note,
+    flag: flag,
+  );
+}
+
+/// What the server titles a who-did-what receipt with when the person has
+/// no name (`BeaconNotificationCopyBuilder`, `forwardDeclined`).
+const _serverWhoDidWhatTitles = {'Someone', "Can't help"};
 
 /// Plan receipt copy: the event in the viewer's locale, and the step title
 /// the server carries as `excerpt`. No clock times (plan K16): the row's own
@@ -503,20 +511,34 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     actorName: actorName,
   );
   if (baton != null) return baton;
-  final whoDidWhat = whoDidWhatReceiptDisplayCopy(
+  final whoDidWhatRequestTitle = beaconTitleFromPresentationPayload(
+    presentationPayloadJson,
+  );
+  final whoDidWhat = _whoDidWhatWords(
     title: title,
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
     actorName: actorName,
+    requestTitles: {?whoDidWhatRequestTitle},
   );
   if (whoDidWhat != null) {
     final override = headlineOverride?.trim();
+    // A feed row names the Request it is about, then the person's words.
+    final request = whoDidWhatRequestTitle ?? '';
+    final subject = request.isEmpty
+        ? whoDidWhat.note
+        : whoDidWhat.note.isEmpty
+        ? request
+        : l10n.updatesOfferDeclinedBody(request, whoDidWhat.note);
     return UpdatesFeedRowCopy(
       headline: override != null && override.isNotEmpty
           ? override
           : whoDidWhat.headline,
-      body: whoDidWhat.body,
+      body: [
+        if (subject.isNotEmpty) subject,
+        if (whoDidWhat.flag.isNotEmpty) whoDidWhat.flag,
+      ].join(' · '),
     );
   }
   final plan = planReceiptDisplayCopy(
@@ -737,12 +759,17 @@ RequestScopedEventCopy requestScopedEventCopy({
   if (baton != null) {
     return RequestScopedEventCopy(event: baton.headline, excerpt: baton.body);
   }
+  final requestTitles = {
+    ?_nonBlank(requestTitle),
+    ?beaconTitleFromPresentationPayload(presentationPayloadJson),
+  };
   final whoDidWhat = whoDidWhatReceiptDisplayCopy(
     title: title,
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
     actorName: actorName,
+    requestTitles: requestTitles,
   );
   if (whoDidWhat != null) {
     return RequestScopedEventCopy(
@@ -768,10 +795,6 @@ RequestScopedEventCopy requestScopedEventCopy({
       excerpt: '',
     );
   }
-  final requestTitles = {
-    ?_nonBlank(requestTitle),
-    ?beaconTitleFromPresentationPayload(presentationPayloadJson),
-  };
   final t = title.trim();
   final canned = cannedAttentionEventLine(
     title: title,
@@ -782,15 +805,8 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   final localized = _fallbackTitle(presentationKey, l10n);
   final isKnownKey = localized != l10n.updatesFallbackTitleGeneric;
-  final helperLeft = helperLeftEventLine(
-    presentationPayloadJson: presentationPayloadJson,
-    actorName: actorName,
-    l10n: l10n,
-  );
   final String event;
-  if (helperLeft != null) {
-    event = helperLeft;
-  } else if (canned != null) {
+  if (canned != null) {
     event = canned;
   } else if (isKnownKey) {
     event = localized;

@@ -590,13 +590,6 @@ class RequestAttentionCard extends StatelessWidget {
       actorName: name,
       l10n: l10n,
     );
-    final helperLeft = helperLeftEventLine(
-      presentationPayloadJson: payload,
-      actorName: name,
-      l10n: l10n,
-      note: words == beacon.title ? '' : words,
-    );
-    if (helperLeft != null) return helperLeft;
     return switch (attentionEventTypeOf(payload)) {
       'blockerOpened' when words.isNotEmpty => l10n.attentionCardChangeBlocker(
         words,
@@ -609,6 +602,12 @@ class RequestAttentionCard extends StatelessWidget {
         l10n.attentionCardChangeCommitmentReleased(words),
       'helpOfferSubmitted' when name.isNotEmpty =>
         l10n.attentionCardChangeHelpOffered(name),
+      // Who withdrew or can't help, and why, with their note and the
+      // next-step flag (#516, #685, #486): `whoDidWhatReceiptDisplayCopy`.
+      'helpWithdrawn' || 'forwardDeclined' =>
+        scoped.excerpt.isEmpty
+            ? scoped.event
+            : '${scoped.event} · ${scoped.excerpt.replaceAll('\n', ' · ')}',
       'coordinationChanged' ||
       'promiseMade' ||
       'promiseWithdrawn' ||
@@ -624,13 +623,17 @@ class RequestAttentionCard extends StatelessWidget {
   /// reason), so it wraps instead of cutting the reason off at one line.
   bool _changeCarriesReason(AttentionReceipt receipt) {
     final payload = receipt.presentationPayloadJson;
+    // A withdrawal or «Can't help» line names the person and their reason.
+    if (const {
+      'helpWithdrawn',
+      'forwardDeclined',
+    }.contains(attentionEventTypeOf(payload))) {
+      return true;
+    }
     final words = excerptFromPresentationPayload(payload) ?? '';
     if (words.isEmpty || words == beacon.title) return false;
     return switch (attentionEventTypeOf(payload)) {
       'offerDeclined' || 'offerRemoved' || 'commitmentReleased' => true,
-      // #516: a helper's withdrawal note.
-      'promiseWithdrawn' =>
-        withdrawReasonFromPresentationPayload(payload) != null,
       _ => false,
     };
   }

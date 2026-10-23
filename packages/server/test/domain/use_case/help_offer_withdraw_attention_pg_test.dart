@@ -96,12 +96,17 @@ Future<void> main() async {
       );
     }
 
-    Future<void> setNextStep(String text) =>
-        BeaconRoomRepository(database).setBeaconRoomCurrentLine(
-          beaconId: _beaconId,
-          text: text,
-          updatedBy: _authorId,
-        );
+    Future<void> setNextStep(String text) async {
+      final repo = BeaconRoomRepository(database);
+      await repo.setBeaconRoomCurrentLine(
+        beaconId: _beaconId,
+        text: text,
+        updatedBy: _authorId,
+        baseRevision:
+            (await repo.getBeaconRoomState(_beaconId))?.currentLineRevision ??
+            0,
+      );
+    }
 
     test(
       'an admitted helper named in the next step: left, flagged, with '

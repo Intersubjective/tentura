@@ -95,6 +95,10 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
           loadingOlder: false,
         ),
       );
+    } on BeaconLobbyUnavailableException {
+      if (isClosed) return;
+      emit(state.copyWith(loadingOlder: false));
+      _showUnavailable();
     } catch (e) {
       if (isClosed) return;
       emit(state.copyWith(loadingOlder: false));
@@ -113,10 +117,26 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
       await _case.post(beaconId: beaconId, lobbyId: info.lobbyId, body: body);
       if (isClosed) return;
       emit(state.copyWith(sending: false, postedCount: state.postedCount + 1));
+    } on BeaconLobbyPostDeniedException {
+      // Removed, or no longer allowed to ask, while the screen was open: a
+      // fresh read of access says which (the "removed" screen or the
+      // read-only note), instead of an error bar (#683).
+      if (isClosed) return;
+      emit(state.copyWith(sending: false));
+      await _refresh(reopen: true);
+      return;
+    } on BeaconLobbyUnavailableException {
+      if (isClosed) return;
+      emit(state.copyWith(sending: false));
+      _showUnavailable();
+      return;
     } catch (e) {
       if (isClosed) return;
       emit(state.copyWith(sending: false));
       _effects.emit(ShowError(e));
+      // A refusal may mean the viewer's standing changed: re-read it so the
+      // composer gives way to the read-only note when it did.
+      unawaited(_refresh(reopen: true));
       return;
     }
     await _refresh(reopen: false);

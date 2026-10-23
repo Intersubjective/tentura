@@ -446,6 +446,26 @@ void main() {
     },
   );
 
+  test('a help withdrawal tells the author and stewards the reason key '
+      '(#685)', () async {
+    final intent = await harness.intents.helpWithdrawn(
+      beaconId: beacon,
+      withdrawerUserId: actor,
+      sourceEventKey: eventKey,
+      withdrawReason: 'timing',
+    );
+
+    expect(intent.eventType, AttentionEventType.helpWithdrawn);
+    expect(
+      {for (final r in intent.recipients) r.recipientId},
+      containsAll(<String>{author, 'steward'}),
+    );
+    expect(
+      intent.recipients.map((r) => r.role.withdrawReason),
+      everyElement('timing'),
+    );
+  });
+
   test('actor-null status transition keeps a null receipt actor', () async {
     final intent = await harness.intents.requestStatusChanged(
       beaconId: beacon,
