@@ -7,6 +7,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 
+import '../../domain/constellation_trust_chain.dart';
 import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import 'constellation_node_ring_layer.dart';
@@ -136,11 +137,16 @@ class ConstellationPresenceHaloLayer extends StatefulWidget {
     required this.onlineGraphIds,
     required this.trustGraphIds,
     required this.viewport,
+    this.dimmedGraphIds = const {},
     super.key,
   });
 
   final ConstellationPresentationFrame frame;
   final Set<GraphNodeId> onlineGraphIds;
+
+  /// Nodes off the selected person's trust chain (#641): their halo fades
+  /// with them.
+  final Set<GraphNodeId> dimmedGraphIds;
 
   /// People drawn with a trust ring (at normal detail): their halo goes
   /// outside it.
@@ -234,6 +240,7 @@ class _ConstellationPresenceHaloLayerState
             frame: widget.frame,
             onlineGraphIds: widget.onlineGraphIds,
             trustGraphIds: widget.trustGraphIds,
+            dimmedGraphIds: widget.dimmedGraphIds,
             color: tt.good,
             trustGap: _trustGap,
             minTrustRadius: _minTrustRadius,
@@ -257,6 +264,7 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
     required this.color,
     required this.trustGap,
     required this.minTrustRadius,
+    this.dimmedGraphIds = const {},
     this.pulse,
   }) : super(repaint: pulse);
 
@@ -266,6 +274,7 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
   final Color color;
   final double trustGap;
   final double minTrustRadius;
+  final Set<GraphNodeId> dimmedGraphIds;
   final Animation<double>? pulse;
 
   /// The halo of the node [id] at this frame, or null when it has none.
@@ -285,19 +294,24 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final t = pulse?.value ?? 1.0;
     final viewport = Offset.zero & size;
+    final coreAlpha = 0.5 + 0.4 * t;
+    final glowAlpha = 0.12 + 0.18 * t;
     final core = Paint()
       ..style = PaintingStyle.stroke
-      ..isAntiAlias = true
-      ..color = color.withValues(alpha: 0.5 + 0.4 * t);
+      ..isAntiAlias = true;
     final glow = Paint()
       ..style = PaintingStyle.stroke
-      ..isAntiAlias = true
-      ..color = color.withValues(alpha: 0.12 + 0.18 * t);
+      ..isAntiAlias = true;
     for (final id in onlineGraphIds) {
       final g = geometryOf(id);
       if (g == null || !constellationPresenceHaloVisible(g, viewport)) {
         continue;
       }
+      final fade = dimmedGraphIds.contains(id)
+          ? kConstellationTrustChainDimOpacity
+          : 1.0;
+      core.color = color.withValues(alpha: coreAlpha * fade);
+      glow.color = color.withValues(alpha: glowAlpha * fade);
       // Core: 40-60 % of the band from the inner edge; glow: the rest of the
       // band out to 60-100 %.
       final coreWidth = g.width * (0.4 + 0.2 * t);
@@ -319,6 +333,7 @@ class ConstellationPresenceHaloPainter extends CustomPainter {
       !identical(old.frame, frame) ||
       !setEquals(old.onlineGraphIds, onlineGraphIds) ||
       !setEquals(old.trustGraphIds, trustGraphIds) ||
+      !setEquals(old.dimmedGraphIds, dimmedGraphIds) ||
       old.color != color ||
       old.trustGap != trustGap ||
       old.minTrustRadius != minTrustRadius ||

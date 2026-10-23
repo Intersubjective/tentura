@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/domain/constellation_trust_chain.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
@@ -311,6 +312,7 @@ void main() {
       required ConstellationPresentationFrame frame,
       Map<GraphNodeId, ConstellationTrustBadge> trust = const {},
       GraphNodeId? selected,
+      Set<GraphNodeId> dimmed = const {},
     }) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -323,6 +325,7 @@ void main() {
                 frame: frame,
                 trustByGraphId: trust,
                 selectedGraphId: selected,
+                dimmedGraphIds: dimmed,
               ),
             ),
           ),
@@ -439,6 +442,67 @@ void main() {
         expect(rings(), paintsNothing);
       });
     }
+
+    testWidgets('off the selected trust chain the trust marks fade', (
+      tester,
+    ) async {
+      final frame = frameOf([
+        ('on', const Offset(100, 200), 40),
+        ('off1', const Offset(200, 300), 40),
+        ('off2', const Offset(300, 200), 40),
+      ], detail: ConstellationDetailLevel.normal);
+      const trust = {
+        'on': ConstellationTrustBadge.mutual,
+        'off1': ConstellationTrustBadge.mutual,
+        'off2': ConstellationTrustBadge.mutual,
+      };
+      await pumpLayer(tester, frame: frame, trust: trust);
+      expect(
+        rings(),
+        isNot(paints..something((name, _) => name == #saveLayer)),
+        reason: 'no chain selected: nothing fades',
+      );
+
+      // Same frame, new dimmed set: the layer repaints.
+      await pumpLayer(
+        tester,
+        frame: frame,
+        trust: trust,
+        dimmed: {'off1', 'off2'},
+      );
+      var layers = 0;
+      // The kept mark first, then both faded ones inside ONE translucent
+      // layer at the chain's dim opacity.
+      expect(
+        rings(),
+        paints
+          ..circle(x: 100, y: 200)
+          ..something((name, args) {
+            if (name != #saveLayer) return false;
+            layers++;
+            final paint = args[1] as Paint;
+            expect(
+              paint.color.a,
+              moreOrLessEquals(
+                kConstellationTrustChainDimOpacity,
+                epsilon: 0.01,
+              ),
+            );
+            return true;
+          })
+          // Each mark: its ring, then the glyph disc (fill, stroke, glyph).
+          ..circle(x: 200, y: 300)
+          ..circle()
+          ..circle()
+          ..paragraph()
+          ..circle(x: 300, y: 200)
+          ..circle()
+          ..circle()
+          ..paragraph()
+          ..restore(),
+      );
+      expect(layers, 1);
+    });
 
     // Trust marks keep a fixed on-screen size, so zoomed out they covered the
     // node whole; like the pin badge they show only at normal detail.

@@ -318,6 +318,15 @@ class _ConstellationViewportOverlayState
               selectedRequestId: selectedRequestId,
             );
             final trustGraphIds = rings.trust.keys.toSet();
+            // Off the selected person's trust chain (#641) the node fades,
+            // and its trust marks and presence halo with it.
+            final dimmedGraphIds =
+                widget.cubit.selectedTrustChain is ConstellationTrustChainFound
+                ? <GraphNodeId>{
+                    for (final MapEntry(:key, :value) in nodeByGraphId.entries)
+                      if (widget.cubit.isDimmedByTrustChain(value)) key,
+                  }
+                : const <GraphNodeId>{};
 
             final inputs = <ConstellationFrameNodeInput>[];
             final labelTexts = <String>[];
@@ -751,6 +760,7 @@ class _ConstellationViewportOverlayState
                                       isOnMap: nodeByGraphId.containsKey,
                                     ),
                                     trustGraphIds: trustGraphIds,
+                                    dimmedGraphIds: dimmedGraphIds,
                                     viewport: viewport,
                                   ),
                             ),
@@ -760,6 +770,7 @@ class _ConstellationViewportOverlayState
                         frame: frame,
                         trustByGraphId: rings.trust,
                         selectedGraphId: rings.selected,
+                        dimmedGraphIds: dimmedGraphIds,
                       ),
                     ),
                     Transform.translate(

@@ -11,6 +11,7 @@ import 'package:tentura/data/service/remote_api_service.dart'
 import 'package:tentura/data/service/user_presence_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/domain/constellation_presence.dart';
+import 'package:tentura/features/constellation/domain/constellation_trust_chain.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_presence_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
@@ -240,6 +241,28 @@ void main() {
       expect(harness.sent.last, isEmpty);
     });
 
+    test('a hidden field watches nobody; shown again, its people', () async {
+      harness.repository.watch('friends', {'z'});
+      final cubit = make(initial: {'m'});
+      addTearDown(cubit.close);
+      harness.push({'m': 'online'});
+      await pumpEventQueue();
+      expect(cubit.state, {'m'});
+
+      cubit.setVisible(false);
+      expect(harness.sent.last, {'z'}, reason: 'only the field watch drops');
+      expect(cubit.state, isEmpty);
+
+      // People arriving while hidden are watched once it shows again.
+      watchIds.add({'m', 'y'});
+      await pumpEventQueue();
+      expect(harness.sent.last, {'z'});
+
+      cubit.setVisible(true);
+      expect(harness.sent.last, {'z', 'm', 'y'});
+      expect(cubit.state, {'m'});
+    });
+
     test('an emptied field drops its watch', () async {
       harness.repository.watch('friends', {'z'});
       final cubit = make(initial: {'m'});
@@ -288,6 +311,7 @@ void main() {
       required ConstellationPresentationFrame frame,
       required Set<GraphNodeId> online,
       Set<GraphNodeId> trust = const {},
+      Set<GraphNodeId> dimmed = const {},
       bool disableAnimations = false,
       bool tickersEnabled = true,
     }) async {
@@ -311,6 +335,7 @@ void main() {
                       frame: frame,
                       onlineGraphIds: online,
                       trustGraphIds: trust,
+                      dimmedGraphIds: dimmed,
                       viewport: const Size(400, 400),
                     ),
                   ),
@@ -359,6 +384,64 @@ void main() {
           ),
       );
       expect(painterOf(tester).color, tt.good);
+    });
+
+    testWidgets('off the selected trust chain the halo fades', (tester) async {
+      final frame = _frameOf([
+        ('on', const Offset(100, 200), 40),
+        ('off', const Offset(300, 200), 40),
+      ]);
+      await pumpLayer(
+        tester,
+        frame: frame,
+        online: {'on', 'off'},
+        dimmed: {'off'},
+        disableAnimations: true,
+      );
+      final good = tester.element(halos()).tt.good;
+      // Same frame, nothing dimmed: both full.
+      await pumpLayer(
+        tester,
+        frame: frame,
+        online: {'on', 'off'},
+        disableAnimations: true,
+      );
+      expect(
+        halos(),
+        paints
+          ..circle(x: 100, y: 200, color: good.withValues(alpha: 0.9))
+          ..circle(x: 100, y: 200, color: good.withValues(alpha: 0.3))
+          ..circle(x: 300, y: 200, color: good.withValues(alpha: 0.9)),
+      );
+
+      // The chain selected: the halo off it repaints faded.
+      await pumpLayer(
+        tester,
+        frame: frame,
+        online: {'on', 'off'},
+        dimmed: {'off'},
+        disableAnimations: true,
+      );
+      expect(
+        halos(),
+        paints
+          ..circle(x: 100, y: 200, color: good.withValues(alpha: 0.9))
+          ..circle(x: 100, y: 200, color: good.withValues(alpha: 0.3))
+          ..circle(
+            x: 300,
+            y: 200,
+            color: good.withValues(
+              alpha: 0.9 * kConstellationTrustChainDimOpacity,
+            ),
+          )
+          ..circle(
+            x: 300,
+            y: 200,
+            color: good.withValues(
+              alpha: 0.3 * kConstellationTrustChainDimOpacity,
+            ),
+          ),
+      );
     });
 
     testWidgets('the halo scales with the body on screen', (tester) async {

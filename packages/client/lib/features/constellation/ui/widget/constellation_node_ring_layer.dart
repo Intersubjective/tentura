@@ -9,6 +9,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/constellation_trust_badge.dart';
+import '../../domain/constellation_trust_chain.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 
@@ -233,12 +234,17 @@ class ConstellationNodeRingLayer extends StatefulWidget {
     required this.frame,
     required this.trustByGraphId,
     required this.selectedGraphId,
+    this.dimmedGraphIds = const {},
     super.key,
   });
 
   final ConstellationPresentationFrame frame;
   final Map<GraphNodeId, ConstellationTrustBadge> trustByGraphId;
   final GraphNodeId? selectedGraphId;
+
+  /// Nodes off the selected person's trust chain (#641): their trust marks
+  /// fade with them.
+  final Set<GraphNodeId> dimmedGraphIds;
 
   @override
   State<ConstellationNodeRingLayer> createState() =>
@@ -274,6 +280,7 @@ class _ConstellationNodeRingLayerState
             frame: widget.frame,
             trustByGraphId: widget.trustByGraphId,
             selectedGraphId: widget.selectedGraphId,
+            dimmedGraphIds: widget.dimmedGraphIds,
             hover: _hover,
             minTarget: kMinInteractiveDimension,
             gap: tt.tightGap,
@@ -296,6 +303,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
     required this.trustByGraphId,
     required this.selectedGraphId,
     required this.hover,
+    this.dimmedGraphIds = const {},
     required this.minTarget,
     required this.gap,
     required this.minTrustRadius,
@@ -309,6 +317,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
   final ConstellationPresentationFrame frame;
   final Map<GraphNodeId, ConstellationTrustBadge> trustByGraphId;
   final GraphNodeId? selectedGraphId;
+  final Set<GraphNodeId> dimmedGraphIds;
   final ValueListenable<Offset?> hover;
   final double minTarget;
   final double gap;
@@ -340,6 +349,36 @@ class ConstellationNodeRingPainter extends CustomPainter {
         rtl: rtl,
       );
 
+  void _paintTrustMark(
+    Canvas canvas,
+    Paint ring,
+    ConstellationTrustGlyphCache glyphCache,
+    ConstellationTrustBadge badge,
+    Rect body,
+  ) {
+    final g = _geometry(body, true);
+    final style = constellationTrustBadgeStyle(badge, scheme, rtl: rtl);
+    ring.color = style.color;
+    if (style.dash <= 0) {
+      canvas.drawCircle(g.centre, g.trustRadius, ring);
+    } else {
+      canvas.drawPath(
+        _dashedCircle(g.centre, g.trustRadius, style.dash, style.gap),
+        ring,
+      );
+    }
+    _paintBadge(
+      canvas,
+      g,
+      style,
+      glyphCache.painterFor(
+        style,
+        size: badgeDiameter * 0.7,
+        textDirection: textDirection,
+      ),
+    );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final visible = (Offset.zero & size).inflate(minTarget);
@@ -356,33 +395,40 @@ class ConstellationNodeRingPainter extends CustomPainter {
         ? this.trustByGraphId
         : const <GraphNodeId, ConstellationTrustBadge>{};
 
-    for (final id in frame.paintOrder) {
-      final badge = trustByGraphId[id];
-      final body = frame.bodies[id];
-      if (badge == null || body == null || !visible.overlaps(body)) {
+    // Marks off the trust chain go through one translucent layer, so the
+    // glyph disc fades as a whole.
+    final shown = [
+      for (final id in frame.paintOrder)
+        if (trustByGraphId[id] case final badge?)
+          if (frame.bodies[id] case final body? when visible.overlaps(body))
+            (id, badge, body),
+    ];
+    final faded = shown.where((e) => dimmedGraphIds.contains(e.$1)).toList();
+    final full = faded.isEmpty
+        ? shown
+        : shown.where((e) => !dimmedGraphIds.contains(e.$1)).toList();
+    for (final (pass, isFaded) in [(full, false), (faded, true)]) {
+      if (pass.isEmpty) {
         continue;
       }
-      final g = _geometry(body, true);
-      final style = constellationTrustBadgeStyle(badge, scheme, rtl: rtl);
-      ring.color = style.color;
-      if (style.dash <= 0) {
-        canvas.drawCircle(g.centre, g.trustRadius, ring);
-      } else {
-        canvas.drawPath(
-          _dashedCircle(g.centre, g.trustRadius, style.dash, style.gap),
-          ring,
+      if (isFaded) {
+        canvas.saveLayer(
+          null,
+          Paint()
+            ..color = Color.fromRGBO(
+              0,
+              0,
+              0,
+              kConstellationTrustChainDimOpacity,
+            ),
         );
       }
-      _paintBadge(
-        canvas,
-        g,
-        style,
-        glyphCache.painterFor(
-          style,
-          size: badgeDiameter * 0.7,
-          textDirection: textDirection,
-        ),
-      );
+      for (final (_, badge, body) in pass) {
+        _paintTrustMark(canvas, ring, glyphCache, badge, body);
+      }
+      if (isFaded) {
+        canvas.restore();
+      }
     }
     ownGlyphs?.dispose();
 
@@ -459,6 +505,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
       !identical(old.frame, frame) ||
       !mapEquals(old.trustByGraphId, trustByGraphId) ||
       old.selectedGraphId != selectedGraphId ||
+      !setEquals(old.dimmedGraphIds, dimmedGraphIds) ||
       old.hover != hover ||
       old.minTarget != minTarget ||
       old.gap != gap ||

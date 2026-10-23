@@ -196,7 +196,8 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   }
 
   /// The field is visible while the Constellation tab is active and no root
-  /// route (a Request, a profile, …) covers Home. Hidden, it stops fetching.
+  /// route (a Request, a profile, …) covers Home. Hidden, it stops fetching
+  /// and watching presence.
   void _syncVisibility() {
     if (!mounted) return;
     final tabs = _homeTabs;
@@ -205,7 +206,10 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         tabs == null ||
         tabs.activeIndex == HomeTabSpec.forTab(HomeTab.constellation).index;
     final homeOnTop = root == null || root.current.name == HomeRoute.name;
-    context.read<ConstellationCubit>().setVisible(tabActive && homeOnTop);
+    final visible = tabActive && homeOnTop;
+    context.read<ConstellationCubit>().setVisible(visible);
+    // Hidden, the field asks for nobody's presence either.
+    context.read<ConstellationPresenceCubit?>()?.setVisible(visible);
   }
 
   void _syncComposerPersonPositions() {
