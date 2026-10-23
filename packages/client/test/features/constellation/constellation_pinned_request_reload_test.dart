@@ -180,6 +180,22 @@ void main() {
     expect(requestIds(), ['req-ladder']);
   });
 
+  test('a pinned Request of someone outside the visible set leaves with its '
+      'pin', () async {
+    server = _Server()
+      ..full = _afterReload().copyWith(
+        peers: const [ConstellationPerson(id: 'max', contactOnly: true)],
+      );
+    fixture = ConstellationStoreFixture(server, accountId: _viewer.id);
+    await fixture.ready();
+    fixture.store.lease();
+    await fixture.store.requestRefresh(ConstellationRefreshReason.load);
+
+    fixture.store.settle(_unpinAck(), () {});
+
+    expect(requestIds(), isEmpty);
+  });
+
   test('the person panel still lists it after the unpin', () async {
     await loaded();
     final cubit = fixture.createCubit(viewer: _viewer);

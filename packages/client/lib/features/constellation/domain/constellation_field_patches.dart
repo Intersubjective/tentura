@@ -246,7 +246,8 @@ ConstellationField addFieldRequests(
 ///
 /// A FULL read carries a pinned Request only in the anchor projection, so the
 /// projection is its only copy on the field: unpinning must hand it back to
-/// the automatic layer instead of dropping it until the next FULL.
+/// the automatic layer instead of dropping it until the next FULL. (Whether
+/// it is still discoverable is not known here; the next FULL decides.)
 ConstellationField keepUnpinnedRequests(
   ConstellationField field, {
   required Iterable<ConstellationRequest> before,
@@ -259,9 +260,15 @@ ConstellationField keepUnpinnedRequests(
         anchor.target.id,
     ...projection.serverFilteredBeaconIds,
   };
+  // Only a Request the automatic layer could hold: the viewer's own, or one
+  // whose author is on the field inside the visible set. Anything else (a
+  // pinned Request of someone outside it) leaves with its pin.
   return addFieldRequests(field, [
     for (final request in before)
-      if (!stillAnchored.contains(request.id)) request,
+      if (!stillAnchored.contains(request.id) &&
+          (request.isMine ||
+              constellationFieldHasVisiblePerson(field, request.authorId)))
+        request,
   ]);
 }
 

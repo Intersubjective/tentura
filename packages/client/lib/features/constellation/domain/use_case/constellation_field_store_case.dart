@@ -156,6 +156,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   final _heldRequests = <String, _HeldRequest>{};
   var _relationTick = 0;
 
+  /// Most Requests added between two FULLs (#671); more wait for the FULL.
+  static const maxHeldRequests = 50;
+
   /// Pending account-owned replays a catch-up read must wait for, if any.
   Future<void>? Function()? _catchUpHold;
 
@@ -351,18 +354,25 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   }
 
   /// Requests read for [mark] (#671): added to the field until a FULL that
-  /// started after [mark] lands. Ignored for an obsolete params binding.
+  /// started after [mark] lands. Ignored for an obsolete params binding, and
+  /// when the field is at its Request cap (a FULL would not add them either)
+  /// or already holds [maxHeldRequests] of them.
   void addRequests(
     Iterable<ConstellationRequest> requests,
     ConstellationFieldReadMark mark,
   ) {
     if (mark.generation != _state.generation ||
         mark.paramsGeneration != _paramsGeneration ||
-        _lastAppliedReadSeq > mark.fullReadSeq) {
+        _lastAppliedReadSeq > mark.fullReadSeq ||
+        (_state.field?.requestsCapped ?? false)) {
       return;
     }
     var changed = false;
     for (final request in requests) {
+      if (_heldRequests.length >= maxHeldRequests &&
+          !_heldRequests.containsKey(request.id)) {
+        break;
+      }
       _heldRequests[request.id] = _HeldRequest(request, mark.fullReadSeq);
       changed = true;
     }

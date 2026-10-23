@@ -191,6 +191,7 @@ void main() {
       trustWrites,
       sync.case_,
       wakeUp,
+      clock,
       env: const Env.fromEnvironment(),
       logger: Logger('FreshnessTest'),
     );
@@ -339,6 +340,25 @@ void main() {
       expect(badges(), isNot(contains('omar')));
     });
 
+    test("the viewer's own change made in another session (the hint names "
+        'only the viewer) asks for one FULL', () async {
+      hint(RealtimeEntityKind.relationship, _me, actor: _me);
+      await advance(const Duration(seconds: 3));
+
+      expect(reads.relationCalls, isEmpty);
+      expect(server.fullReads, 2);
+    });
+
+    test("this session's own write echoed back reads nothing more", () async {
+      trustWrites.controller.add((personId: 'omar', amount: 1));
+      hint(RealtimeEntityKind.relationship, _me, actor: _me);
+      await advance(const Duration(seconds: 3));
+
+      expect(reads.relationCalls, isEmpty);
+      expect(server.fullReads, 1);
+      expect(badges()['omar'], ConstellationTrustBadge.mutual);
+    });
+
     test('a hint about nobody on the field reads nothing', () async {
       hint(RealtimeEntityKind.relationship, 'x', actor: 'y');
       await advance(const Duration(seconds: 1));
@@ -402,6 +422,23 @@ void main() {
       expect(reads.requestCalls, [
         {'req-secret'},
       ]);
+      expect(store.current.field!.requests, isEmpty);
+    });
+
+    test('a field at its Request cap takes no additions', () async {
+      server.field = _field().copyWith(requestsCapped: true);
+      await store.requestRefresh(ConstellationRefreshReason.load);
+      await settle();
+      reads.requests = [_request('req-new', 'lena')];
+
+      hint(
+        RealtimeEntityKind.constellationItem,
+        'req-new',
+        actor: 'lena',
+        operation: RealtimeOperation.insert,
+      );
+      await advance(const Duration(milliseconds: 500));
+
       expect(store.current.field!.requests, isEmpty);
     });
 

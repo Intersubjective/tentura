@@ -10,10 +10,11 @@ import 'package:test/test.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// #671: a Request that becomes discoverable emits ONE `constellation_item`
-/// hint (id = the Request, event `insert`) to its author's direct contacts —
-/// everyone who trusts the author or whom the author trusts — and to no one
-/// else. The hint carries no content; later edits emit nothing. (A Post can
-/// never be discoverable: `beacon_post_shape_ck`.)
+/// hint (id = the Request, event `insert`) to everyone whose field has the
+/// author as a direct contact — the people who trust the author — and to no
+/// one else (not someone only the author trusts, not a blocked one). The hint
+/// carries no content; later edits emit nothing. (A Post can never be
+/// discoverable: `beacon_post_shape_ck`.)
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_CONSTELLATION_ITEM_HINT_TEST_DB',
@@ -112,8 +113,8 @@ VALUES ('$author', '$blocked', '$author')
       await tearDownDisposablePgWriter(session: session);
     });
 
-    test('publishing a discoverable Request addresses the direct contacts '
-        'only, with no content', () async {
+    test('publishing a discoverable Request addresses the people who trust '
+        'the author only, with no content', () async {
       await insertBeacon('Bcihint0001');
       await settle();
 
@@ -124,7 +125,7 @@ VALUES ('$author', '$blocked', '$author')
       expect(hint['event'], 'insert');
       expect(
         (hint['user_ids'] as List).cast<String>(),
-        unorderedEquals([truster, trusted]),
+        [truster],
       );
       final wire = jsonEncode(hint);
       expect(wire, isNot(contains('secret')));

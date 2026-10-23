@@ -3,7 +3,9 @@ import '../entity/constellation_anchor_projection.dart';
 import '../entity/constellation_field.dart';
 
 /// Small authorized reads that keep an open field fresh between FULL reads
-/// (#672, #671). Neither reads MeritRank scores or the visible set.
+/// (#672, #671). The relation read touches only `vote_user` and blocks; the
+/// Request read decides readability like any other Request read (which can
+/// compute the viewer's visible set on a cache miss).
 abstract interface class ConstellationTargetedReadPort {
   /// At most this many people per [readViewerRelations] call.
   static const maxRelationIds = 10;

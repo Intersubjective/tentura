@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -21,7 +22,7 @@ import 'constellation_field_store_case.dart';
 ///   read;
 /// * a `relationship` hint naming someone on the field reads the viewer's
 ///   explicit trust to and from just those people (one small read per burst,
-///   no MeritRank) and patches it in;
+///   only `vote_user`) and patches it in;
 /// * a `constellation_item` hint (a direct contact published a discoverable
 ///   Request) fetches just that Request through the authorized read and adds
 ///   it when its author is on the field inside the visible set.
@@ -36,7 +37,8 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
     this._reads,
     PersonTrustWritesPort trustWrites,
     RealtimeSyncCase realtime,
-    this._wakeUp, {
+    this._wakeUp,
+    this._clock, {
     required super.env,
     required super.logger,
   }) {
@@ -54,6 +56,7 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
   final ConstellationFieldStoreCase _store;
   final ConstellationTargetedReadPort _reads;
   final WakeUpPort _wakeUp;
+  final ClockPort _clock;
   late final List<StreamSubscription<Object?>> _subscriptions;
 
   /// Hints of one burst share a read; a steady stream cannot postpone it.
@@ -64,7 +67,13 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
   static const maxRelationIdsPerBurst =
       2 * ConstellationTargetedReadPort.maxRelationIds;
 
+  /// An own write acknowledged this recently explains a hint about the
+  /// viewer's own trust change; an older one means another session made it.
+  static const ownEchoWindow = Duration(seconds: 5);
+
   final _pendingRelationIds = <String>{};
+  var _ownChangeElsewhere = false;
+  DateTime? _lastOwnAckAt;
   final _pendingRequestIds = <String>{};
   WakeUpHandle? _timer;
   Future<void>? _inFlight;
@@ -77,8 +86,10 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
     }
   }
 
-  void _onOwnTrust(PersonTrustWrite write) =>
-      _store.applyOwnTrust(write.personId, trusts: write.amount > 0);
+  void _onOwnTrust(PersonTrustWrite write) {
+    _lastOwnAckAt = _clock.now();
+    _store.applyOwnTrust(write.personId, trusts: write.amount > 0);
+  }
 
   void _onRelationship(RealtimeEntityChange change) {
     final viewerId = _store.accountId;
@@ -87,6 +98,16 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
     // The hint names one endpoint and the account that made the change; an
     // edge to the viewer has the viewer as the other endpoint.
     final named = {change.aggregateId, ?change.actorUserId}..remove(viewerId);
+    if (named.isEmpty) {
+      // The viewer changed trust toward someone who sorts after them: the
+      // hint names only the viewer. This session's own writes are patched on
+      // their acknowledgement; one made in another session needs a read.
+      if (change.actorUserId == viewerId) {
+        _ownChangeElsewhere = true;
+        _schedule();
+      }
+      return;
+    }
     final onField = [
       for (final id in named)
         if (constellationFieldHasPerson(field, id)) id,
@@ -132,7 +153,9 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
       unawaited(
         _inFlight = _drain().whenComplete(() {
           _inFlight = null;
-          if (_pendingRelationIds.isNotEmpty || _pendingRequestIds.isNotEmpty) {
+          if (_pendingRelationIds.isNotEmpty ||
+              _pendingRequestIds.isNotEmpty ||
+              _ownChangeElsewhere) {
             _schedule();
           }
         }),
@@ -141,10 +164,24 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
   }
 
   Future<void> _drain() async {
+    if (_ownChangeElsewhere) {
+      _ownChangeElsewhere = false;
+      final lastAck = _lastOwnAckAt;
+      final echo =
+          lastAck != null &&
+          _clock.now().difference(lastAck).abs() <= ownEchoWindow;
+      if (!echo) {
+        // Who it was is unknown: one FULL for this viewer, as after a write
+        // to someone not on the field.
+        unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
+      }
+    }
     if (!_store.canFetch) {
+      if (_pendingRelationIds.isNotEmpty || _pendingRequestIds.isNotEmpty) {
+        unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
+      }
       _pendingRelationIds.clear();
       _pendingRequestIds.clear();
-      unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
       return;
     }
     if (_pendingRelationIds.isNotEmpty) {

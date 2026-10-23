@@ -205,7 +205,7 @@ once when it is shown again).
 |---|---|---|---|
 | Own trust write (field panel, profile, People) | lazy FULL (≤5 min) | patched on the write's ack | 0 (1 urgent FULL only when the person is not on the field yet) |
 | Someone on the field changes trust with the viewer | lazy FULL | `relationship` hint → `user { my_vote trusts_viewer }` for the people the hint names (id, actor) that are on the field | 1 Hasura read (≤10 ids, no MeritRank) per 250 ms burst; the `user_trust_edge` second wave 1–6 s later costs one more |
-| A direct contact publishes a discoverable Request | never (no hint) | `constellation_item` hint → `constellationFieldRequests(ids)` | 1 V2 read (≤20 ids, readability set-wise, no MeritRank) per burst; server: one indexed `vote_user` lookup per publish |
+| A direct contact publishes a discoverable Request | never (no hint) | `constellation_item` hint → `constellationFieldRequests(ids)` | 1 V2 read (≤20 ids, readability set-wise; the viewer's visible set comes from the m0235 cache, one MeritRank call on a miss — the cache is invalidated by any trust change, so misses are common under load) per burst; server: one indexed `vote_user` lookup per publish |
 | Unpin after a reload | Request vanished until reload | kept as an ordinary Request | 0 |
 
 Known costs and limits:
@@ -223,7 +223,10 @@ Known costs and limits:
   time (a MeritRank query per publish, fan-out to up to the whole reachable
   set) — an owner decision; the client side already handles the hint for any
   author on the field.
-- The hint tells a direct contact that the author published something
-  discoverable (opaque id, time); a contact who may not read it gets nothing
-  from the follow-up read.
+- The hint goes to the people who trust the author (the author is a direct
+  contact on their field), at most 1000, minus blocks. It tells them, by an
+  opaque id, that the author published something findable, even when they
+  may not read it; the follow-up read then returns nothing. Gating recipients
+  by readability would need a visibility check per recipient at write time.
+  Whether this metadata is acceptable is an owner call.
 - Migration `m0262` is a provisional number (renumber at merge).

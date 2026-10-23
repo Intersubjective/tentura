@@ -6,9 +6,12 @@ import 'package:tentura_server/domain/port/constellation_field_requests_port.dar
 
 import '_use_case_base.dart';
 
-/// Targeted Request read for an open field (#671). It never joins the
-/// viewer's visible set (no MeritRank call): readability is the gate, and
-/// the client places a Request only when its author is already on the field.
+/// Targeted Request read for an open field (#671). It does not scan the
+/// viewer's visible set for authors: readability (`beacon_readable_ids`) is
+/// the gate, and the client places a Request only when its author is already
+/// on the field. Readability itself serves the viewer's visible set from the
+/// cross-request cache (m0235) and computes it (one MeritRank call) on a miss,
+/// as any Request read does.
 @Singleton(order: 2)
 final class ConstellationFieldRequestsCase extends UseCaseBase {
   ConstellationFieldRequestsCase(
