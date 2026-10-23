@@ -53,7 +53,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     this._forkPlanStepTimes,
     this._forkTitle,
     UiEffectPort? effects,
+    DateTime Function()? clock,
   }) : _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
+       _clock = clock ?? DateTime.now,
        _hierarchyCase =
            hierarchyCase ??
            (childCreationContext != null
@@ -132,6 +134,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   /// Localized «Copy of …» title for the copy.
   final String Function(String sourceTitle)? _forkTitle;
+
+  /// Today for «Create from this request»; injectable for tests.
+  final DateTime Function() _clock;
 
   /// The copy as it opened; while the form still matches it nothing is
   /// saved, so opening and leaving an untouched copy leaves no draft.
@@ -570,6 +575,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         kBeaconTitleMaxLength,
       );
       _forkSourceId = source.id;
+      // A When? that is already over is not copied: the copy opens as
+      // Anytime. Dates are compared by calendar day, so today still counts.
+      final last = source.endAt ?? source.startAt;
+      final today = _calendarDay(_clock());
+      final keepWhen = last == null || !_calendarDay(last).isBefore(today);
+      final startAt = keepWhen ? source.startAt : null;
+      final endAt = keepWhen ? source.endAt : null;
       // The source's images are re-uploaded by the fork; until then the copy
       // shows none rather than pointing at the source's.
       emit(
@@ -581,9 +593,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           coverKey: null,
           coverThumb: null,
           initialServerImageIds: const {},
-          cachedDeadlineAt: source.startAt == null ? source.endAt : null,
-          cachedEventStartAt: source.startAt,
-          cachedEventEndAt: source.startAt != null ? source.endAt : null,
+          startAt: startAt,
+          endAt: endAt,
+          cachedDeadlineAt: startAt == null ? endAt : null,
+          cachedEventStartAt: startAt,
+          cachedEventEndAt: startAt != null ? endAt : null,
         ),
       );
       validate();
@@ -611,6 +625,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     canTryToPublish: false,
     status: const StateIsSuccess(),
   );
+
+  static DateTime _calendarDay(DateTime value) {
+    final local = value.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
 
   /// [s] cut to at most [max] UTF-16 code units (the unit the server checks),
   /// never between the two halves of a surrogate pair.
