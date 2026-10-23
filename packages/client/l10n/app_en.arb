@@ -8372,6 +8372,18 @@
   "@batonCreateTiersHint": {
     "description": "Subtitle under the «Set priority» switch in the create-baton sheet: everyone is asked at once; priority only steers «Pick for me»."
   },
+  "batonCreateTierSemantics": "{name}: priority {tier}",
+  "@batonCreateTierSemantics": {
+    "description": "Screen-reader label of one 1/2/3 priority segment in the create-baton sheet: whose priority it sets and to what.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "tier": {
+        "type": "int"
+      }
+    }
+  },
   "batonCreateSubmit": "Ask",
   "@batonCreateSubmit": {
     "description": "Button that sends the «Who'll take it?» question to the picked people."
