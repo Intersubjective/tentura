@@ -33,6 +33,11 @@ Future<void> showBeaconViewUpdateStatusSheet(
   if (lifecycle == BeaconStatus.deleted) return;
 
   final l10n = L10n.of(context)!;
+  // Row actions outlive the sheet: each row pops it before its action runs,
+  // and an action that awaits the server (Enough help → «Decline remaining
+  // offers», #682) must still have a mounted context afterwards. The page's
+  // context stays; the sheet's does not.
+  final pageContext = context;
   final closure = state.closureState;
   final menuInput = BeaconStatusMenuInput(
     beacon: state.beacon,
@@ -117,7 +122,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
                     onTap: row.isEnabled && !isLoading
                         ? () => unawaited(
                             beaconViewDispatchStatusMenuAction(
-                              ctx,
+                              pageContext,
                               action: row.action,
                               state: liveState,
                               cubit: beaconViewCubit,
@@ -134,7 +139,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
                             !isLoading
                         ? () => unawaited(
                             beaconViewDispatchStatusMenuAction(
-                              ctx,
+                              pageContext,
                               action: row.secondaryAction,
                               state: liveState,
                               cubit: beaconViewCubit,
