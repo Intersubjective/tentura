@@ -841,6 +841,31 @@ void main() {
       semantics.dispose();
     });
 
+    // V8c: the avatar shows initials («BD») when there is no picture; they
+    // must not be read out as part of the person's name.
+    testWidgets('a candidate checkbox is named by the person alone', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+
+      for (final name in ['Boris Driver', 'Clara Helper']) {
+        final checkboxes = node(
+          (d) =>
+              d.flagsCollection.isChecked != CheckedState.none &&
+              d.label.contains(name),
+        );
+        expect(checkboxes, findsOneWidget, reason: name);
+        expect(
+          checkboxes.evaluate().single.getSemanticsData().label,
+          name,
+          reason: 'no avatar initials before the name',
+        );
+      }
+      semantics.dispose();
+    });
+
     testWidgets('is a container named after the sheet', (tester) async {
       final semantics = tester.ensureSemantics();
       await pumpRoom(tester);

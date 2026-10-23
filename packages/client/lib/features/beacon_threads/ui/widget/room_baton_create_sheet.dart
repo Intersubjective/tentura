@@ -208,7 +208,11 @@ class _CreateSheetState extends State<_CreateSheet> {
                           _tiers.remove(p.userId);
                         }
                       }),
-                      secondary: coordinationLogParticipantAvatar(p),
+                      // The name is in the title; the avatar's initials
+                      // would be read out before it («BD Boris Driver»).
+                      secondary: ExcludeSemantics(
+                        child: coordinationLogParticipantAvatar(p),
+                      ),
                       title: Text(p.displayLabel(l10n.unknownPerson)),
                     ),
                     // Kept outside the tile: CheckboxListTile merges its
