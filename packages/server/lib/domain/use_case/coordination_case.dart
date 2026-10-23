@@ -819,6 +819,17 @@ final class CoordinationCase extends UseCaseBase {
       actorUserId: authorUserId,
       action: (transaction) async {
         await _hierarchyRepository.lockMutationScope();
+        // Re-read the status under the lock too (#634): the author's Close
+        // may have committed since the gate above; a final request takes no
+        // release.
+        final lockedStatus = await _coordinationRepository.beaconStatusSnapshot(
+          beaconId,
+        );
+        if (!lockedStatus.status.allowsCoordination) {
+          throw HelpOfferCoordinationException(
+            coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
+          );
+        }
         // Re-read under the lock (PR #633 review): a concurrent release may
         // have committed since the check above; it then ends here unchanged.
         final lockedStake = currentStakeState(
