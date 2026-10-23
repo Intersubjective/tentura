@@ -33,6 +33,17 @@ void main() {
       );
     });
 
+    test('a handle counts only as an @mention', () {
+      expect(
+        nextStepMentionsPerson(
+          'Nina: van 9:45',
+          displayName: 'Omar',
+          handle: 'van',
+        ),
+        isFalse,
+      );
+    });
+
     test('Cyrillic names', () {
       expect(
         nextStepMentionsPerson('Ольга везёт коробки', displayName: 'Ольга П.'),

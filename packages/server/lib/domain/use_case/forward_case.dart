@@ -188,8 +188,9 @@ final class ForwardCase extends UseCaseBase {
   /// The note goes to the author's receipt and nowhere public. Only the
   /// first decline tells the author; re-saving the note does not repeat it.
   ///
-  /// Returns false when the Request never reached the viewer, or their row
-  /// is already a closed-before-you-answered tombstone.
+  /// Returns false when the Request never reached the viewer, their row is
+  /// already a closed-before-you-answered tombstone, or they hold an active
+  /// help offer (they leave by withdrawing).
   Future<bool> cantHelp({
     required String beaconId,
     required String userId,
@@ -204,13 +205,20 @@ final class ForwardCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: userId,
       action: (transaction) async {
-        final previous = await _inboxRepository.findStatus(
+        final previous = await _inboxRepository.lockStatus(
           userId: userId,
           beaconId: beaconId,
         );
         if (previous == null ||
             previous == _inboxClosedBeforeResponse ||
             previous == _inboxDeletedBeforeResponse) {
+          return false;
+        }
+        // Someone helping answers by withdrawing, not by «Can't help».
+        if (await _helpOfferRepository.hasActiveHelpOffer(
+          beaconId: beaconId,
+          userId: userId,
+        )) {
           return false;
         }
         await _inboxRepository.setStatus(

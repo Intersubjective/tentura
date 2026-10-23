@@ -1623,12 +1623,12 @@ class MockInboxRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<int?> findStatus({
+  _i3.Future<int?> lockStatus({
     required String? userId,
     required String? beaconId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#findStatus, [], {
+            Invocation.method(#lockStatus, [], {
               #userId: userId,
               #beaconId: beaconId,
             }),
@@ -2566,6 +2566,19 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+
+  @override
+  _i3.Future<String> lockCurrentLine(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockCurrentLine, [beaconId]),
+            returnValue: _i3.Future<String>.value(
+              _i12.dummyValue<String>(
+                this,
+                Invocation.method(#lockCurrentLine, [beaconId]),
+              ),
+            ),
+          )
+          as _i3.Future<String>);
 
   @override
   _i3.Future<void> setBeaconRoomCurrentLine({

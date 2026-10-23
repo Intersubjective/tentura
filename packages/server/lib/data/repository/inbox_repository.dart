@@ -116,13 +116,17 @@ class InboxRepository implements InboxRepositoryPort {
   }
 
   @override
-  Future<int?> findStatus({
+  Future<int?> lockStatus({
     required String userId,
     required String beaconId,
-  }) => _database.managers.inboxItems
-      .filter((e) => e.userId.id(userId) & e.beaconId.id(beaconId))
-      .get(limit: 1)
-      .then((rows) => rows.isEmpty ? null : rows.first.status);
+  }) => _database
+      .customSelect(
+        'SELECT status FROM public.inbox_item '
+        r'WHERE user_id = $1 AND beacon_id = $2 FOR UPDATE',
+        variables: [Variable<String>(userId), Variable<String>(beaconId)],
+      )
+      .getSingleOrNull()
+      .then((row) => row?.read<int>('status'));
 
   @override
   Future<void> setStatus({

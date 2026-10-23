@@ -124,8 +124,9 @@ final class InboxCase extends UseCaseBase {
     rejectionMessage: rejectionMessage,
   );
 
-  /// «Can't help» (#486): the author is told, with [message].
-  Future<void> cantHelp({required String beaconId, String message = ''}) =>
+  /// «Can't help» (#486): the author is told, with [message]. False when
+  /// the server refused (nothing to answer any more).
+  Future<bool> cantHelp({required String beaconId, String message = ''}) =>
       _repository.cantHelp(beaconId: beaconId, message: message);
 
   Future<void> dismiss({required String beaconId, String privateNote = ''}) =>

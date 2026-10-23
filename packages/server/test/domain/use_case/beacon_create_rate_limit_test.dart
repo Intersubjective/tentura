@@ -90,6 +90,13 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
   );
 
   @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) async => fn(await getBeaconById(beaconId: beaconId));
+
+  @override
   Future<BeaconEntity> updateBeacon({
     required String beaconId,
     required String userId,

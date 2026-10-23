@@ -121,7 +121,7 @@ final class BeaconViewCase extends UseCaseBase {
       _beaconRoomCase.beaconRoomInvalidations;
 
   /// «Can't help» (#486): declines and tells the author, with [message].
-  Future<void> cantHelp({required String beaconId, String message = ''}) =>
+  Future<bool> cantHelp({required String beaconId, String message = ''}) =>
       _inboxRepository.cantHelp(beaconId: beaconId, message: message);
 
   Future<void> setInboxStatus({

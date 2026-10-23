@@ -195,6 +195,19 @@ WHERE user_id = '$_recipientId' AND beacon_id = '$_beaconId'
       expect(await receipts(_authorId), hasLength(1));
     }, skip: skipReason);
 
+    test('someone with an active help offer is refused', () async {
+      await writer.execute('''
+INSERT INTO public.beacon_help_offer (beacon_id, user_id, message)
+VALUES ('$_beaconId', '$_recipientId', 'I can help')
+''');
+      expect(
+        await forwardCase.cantHelp(beaconId: _beaconId, userId: _recipientId),
+        isFalse,
+      );
+      expect((await inboxRow()).$1, 0);
+      expect(await receipts(_authorId), isEmpty);
+    }, skip: skipReason);
+
     test('a Request that never reached the viewer is refused', () async {
       expect(
         await forwardCase.cantHelp(beaconId: _beaconId, userId: _strangerId),

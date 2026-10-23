@@ -40,7 +40,7 @@ class InboxRepositoryMock implements InboxRepositoryPort {
   }) => Future.value();
 
   @override
-  Future<int?> findStatus({
+  Future<int?> lockStatus({
     required String userId,
     required String beaconId,
   }) => Future.value();

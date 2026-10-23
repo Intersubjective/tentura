@@ -241,6 +241,11 @@ abstract class BeaconRoomRepositoryPort {
     required String userId,
   });
 
+  /// #528: locks the Request's next-step row for this transaction (creating
+  /// an empty one if there is none yet) and returns the line as it stands,
+  /// so the edit line records the serialised "before" value.
+  Future<String> lockCurrentLine(String beaconId);
+
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

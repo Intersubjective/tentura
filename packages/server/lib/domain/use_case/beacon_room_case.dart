@@ -1082,8 +1082,8 @@ class BeaconRoomCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: userId,
       action: (transaction) async {
-        final previousLine =
-            (await _room.getBeaconRoomState(beaconId))?.currentLine ?? '';
+        // Locked, so overlapping edits each see the other's line (#528).
+        final previousLine = await _room.lockCurrentLine(beaconId);
         await _room.setBeaconRoomCurrentLine(
           beaconId: beaconId,
           text: trimmed,

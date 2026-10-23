@@ -1538,6 +1538,26 @@ RETURNING *
   }
 
   @override
+  Future<String> lockCurrentLine(String beaconId) =>
+      _db.withJoinedTransaction(() async {
+        // A missing row is created first so that two first edits also
+        // serialise on it; the caller's upsert overwrites it right after.
+        await _db.customStatement(
+          r'INSERT INTO public.beacon_room_state (beacon_id) VALUES ($1) '
+          'ON CONFLICT (beacon_id) DO NOTHING',
+          [beaconId],
+        );
+        final row = await _db
+            .customSelect(
+              'SELECT current_line FROM public.beacon_room_state '
+              r'WHERE beacon_id = $1 FOR UPDATE',
+              variables: [Variable<String>(beaconId)],
+            )
+            .getSingle();
+        return row.read<String>('current_line');
+      });
+
+  @override
   Future<void> setBeaconRoomCurrentLine({
     required String beaconId,
     required String text,

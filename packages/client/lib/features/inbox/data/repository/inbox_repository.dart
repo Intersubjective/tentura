@@ -245,11 +245,14 @@ class InboxRepository {
   /// «Can't help» (#486): declines the forwarded Request with [message] and
   /// tells its author, in one server transaction. The sender of the forward
   /// sees the note as before; nobody else does.
-  Future<void> cantHelp({
+  ///
+  /// False when the server refused: the Request never reached the viewer,
+  /// closed before they answered, or they are helping.
+  Future<bool> cantHelp({
     required String beaconId,
     String message = '',
   }) async {
-    await _remoteApiService
+    final declined = await _remoteApiService
         .request(
           GInboxCantHelpReq(
             (r) => r
@@ -258,10 +261,11 @@ class InboxRepository {
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label));
+        .then((r) => r.dataOrThrow(label: _label).beaconCantHelp);
     if (!_localMutationController.isClosed) {
       _localMutationController.add(null);
     }
+    return declined;
   }
 
   /// Stores the note only on the viewer's inbox row. The forward edge receives

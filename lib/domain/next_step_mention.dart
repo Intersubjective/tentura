@@ -21,7 +21,8 @@ bool nextStepMentionsPerson(
   final candidates = <String>{
     if (name.isNotEmpty) name,
     if (_letterCount(first) >= 2) first,
-    if (bareHandle.isNotEmpty) bareHandle,
+    // Only as a mention: a handle like `van` is also an ordinary word.
+    if (bareHandle.isNotEmpty) '@$bareHandle',
   };
   for (final candidate in candidates) {
     final pattern = RegExp(

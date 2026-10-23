@@ -1526,12 +1526,12 @@ class MockInboxRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<int?> findStatus({
+  _i3.Future<int?> lockStatus({
     required String? userId,
     required String? beaconId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#findStatus, [], {
+            Invocation.method(#lockStatus, [], {
               #userId: userId,
               #beaconId: beaconId,
             }),

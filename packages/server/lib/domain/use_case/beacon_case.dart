@@ -447,59 +447,66 @@ final class BeaconCase extends UseCaseBase {
       primaryNeedSlug: primaryNeedSlug,
       primaryNeedSlugProvided: primaryNeedSlugProvided,
     );
-    // The repository locks before loading, and this enclosing transaction also
-    // commits the occurrence/receipts/channel work.  Keeping comparison here
-    // means the observed old value is the serialised value, not a stale read.
+    // The row is locked before the old values are read, and this enclosing
+    // transaction also commits the occurrence/receipts/channel work and the
+    // title line (#528): the observed old title and deadline are the
+    // serialised values, so two overlapping edits cannot both read the same
+    // "before".
     return _attention!.runAction(
       actorUserId: userId,
-      action: (transaction) async {
-        final before = await _beaconRepository.getBeaconById(
-          beaconId: beaconId,
-          filterByUserId: userId,
-        );
-        final updated = await _beaconRepository.updateBeacon(
-          beaconId: beaconId,
-          userId: userId,
-          title: title,
-          description: desc,
-          context: context,
-          tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
-          needs: normalizedNeeds,
-          primaryNeedSlug: resolvedPrimary,
-          latitude: coordinates?.lat,
-          longitude: coordinates?.long,
-          startAt: startAt,
-          endAt: endAt,
-          addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
-          isDiscoverable: isDiscoverable,
-          isDiscoverableProvided: isDiscoverableProvided,
-        );
-        // #528: a renamed Request says so in its discussion, so a member
-        // coming back is not left with a header that silently changed.
-        await _changeLog?.recordEdit(
-          beaconId: beaconId,
-          actorId: userId,
-          field: RequestEditField.title,
-          from: before.title,
-          to: updated.title,
-        );
-        if (before.endAt != updated.endAt) {
-          final recipients = await _commitmentQueryCase.currentCommitterUserIds(
-            beaconId,
+      action: (transaction) => _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (_) async {
+          final before = await _beaconRepository.getBeaconById(
+            beaconId: beaconId,
+            filterByUserId: userId,
           );
-          await transaction.record(
-            await _attentionIntents!.deadlineChanged(
-              beaconId: beaconId,
-              actorUserId: userId,
-              participantUserIds: recipients,
-              oldEndAt: before.endAt,
-              newEndAt: updated.endAt,
-              sourceEventKey: 'deadline_changed:${generateId('A')}',
-            ),
+          final updated = await _beaconRepository.updateBeacon(
+            beaconId: beaconId,
+            userId: userId,
+            title: title,
+            description: desc,
+            context: context,
+            tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+            needs: normalizedNeeds,
+            primaryNeedSlug: resolvedPrimary,
+            latitude: coordinates?.lat,
+            longitude: coordinates?.long,
+            startAt: startAt,
+            endAt: endAt,
+            addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
+            isDiscoverable: isDiscoverable,
+            isDiscoverableProvided: isDiscoverableProvided,
           );
-        }
-        return updated;
-      },
+          // #528: a renamed Request says so in its discussion, so a member
+          // coming back is not left with a header that silently changed.
+          await _changeLog?.recordEdit(
+            beaconId: beaconId,
+            actorId: userId,
+            field: RequestEditField.title,
+            from: before.title,
+            to: updated.title,
+          );
+          if (before.endAt != updated.endAt) {
+            final recipients = await _commitmentQueryCase
+                .currentCommitterUserIds(
+                  beaconId,
+                );
+            await transaction.record(
+              await _attentionIntents!.deadlineChanged(
+                beaconId: beaconId,
+                actorUserId: userId,
+                participantUserIds: recipients,
+                oldEndAt: before.endAt,
+                newEndAt: updated.endAt,
+                sourceEventKey: 'deadline_changed:${generateId('A')}',
+              ),
+            );
+          }
+          return updated;
+        },
+      ),
     );
   }
 
