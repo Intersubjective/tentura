@@ -1,6 +1,6 @@
 # People tags, Field arrangement and semantic zoom — plan
 
-**Status:** rev 1 (2026-10-23), draft.
+**Status:** rev 2 (2026-10-24) — review fixes (see the work plan §7).
 **Source of truth for product behaviour:** GitHub issue
 [#699](https://github.com/Intersubjective/tentura/issues/699) — the summary, the owner decisions of
 2026-10-23 and the collapsed "Full specification (EN)" (§0–§17). Mockups A/B/C live on branch
@@ -43,9 +43,9 @@ behaviour and are listed for owner review in the handoff.**
 |---|---|---|---|
 | P1 | "Helped me" / "I helped": "reached `reviewOpen` or `closed`" — current status or ever? | current `status IN (5, 6)` | No status-history read at query time; a reopened Request (review → open) loses the tag until it closes again. Cancelled never qualifies. |
 | P2 | "Worked together": "any status except deleted" | `beacon_member` on Requests with `status <> 2`; drafts have no members | — |
-| P3 | Where "first seen" is written (the snapshot runs `REPEATABLE READ READ ONLY`) | after the snapshot read, a separate short mutating transaction `INSERT … ON CONFLICT DO NOTHING` for the people in the returned snapshot | Same pattern as the visibility-cache fill before the snapshot (`constellation_field_repository.dart:110`). A first ever read marks everyone as seen now; "New" then appears only for people who arrive later — acceptable. |
+| P3 | Where "first seen" is written (the snapshot runs `REPEATABLE READ READ ONLY`) | missing ids computed inside the snapshot; only if any, a short mutating transaction inserts them; a viewer's very first batch gets `first_seen_at = '-infinity'` | Nobody is "New" right after deploy; refetches without new people write nothing. |
 | P4 | Client render cap 120 → 400 in phase 1? | **No.** Phase 1 raises the server cap to 400 and applies the spec's priority order client-side to pick the 120 rendered; the render cap goes to 400 in phase 3 together with semantic zoom | Spec §3.4 itself: "without zoom 120 is the readability ceiling". |
-| P5 | Tidy up moves unpinned people — are results pins? | **No.** Tidy up writes layout prior hints (client-local, like `rearrangeFreeNodes`), not pins; it is undoable in-session. Gather pins (spec says so). | Spec §8.2 scopes Tidy up to "unpinned"; pinning them would silently turn auto people into pinned ones. |
+| P5 | Tidy up moves unpinned people — are results pins? | **No.** Tidy up writes a post-layout offset layer (per person, applied after every layout pass, persisted locally per device, cleared on Undo / pin / leaving the Field / Rearrange / Reset), not pins. Gather pins (spec says so). | Spec §8.2 scopes Tidy up to "unpinned"; prior hints alone would not survive the next re-layout (review #11). |
 | P6 | "Rearrange everyone, including pinned" — what is written? | one history snapshot, then a single batch that upserts every currently pinned target to its new position; unpinned people are re-laid out locally | Keeps pins pinned (they move, they do not become auto). |
 | P7 | Suggestion frequency state (3× "Not now" → 30 days, "Don't suggest again") | server-side, per owner (`person_tag_suggestion_state`) | Survives devices; re-enable lives on the People tags screen. |
 | P8 | Ordering of the 400 server peers "by path depth" | BFS depth from the viewer over the already-memoised trust edges of the visible graph (`_allTrustEdges`), ties by id | Server has the edges; no MeritRank calls. |
@@ -53,6 +53,9 @@ behaviour and are listed for owner review in the handoff.**
 | P10 | Tag colours | new ThemeExtension `TenturaTagColors` with 8 light/dark swatches, contrast-tested like `TenturaCapabilityColors` | Spec: design-system tokens, never literals. |
 | P11 | Auto-tag kinds as wire values | smallint enum shared in the root package (`lib/domain/entity/person_auto_tag_kind.dart`); "Invited me / I invited" is one kind with a direction field | Spec §5 shows it as one tag with the actual direction in the panel. |
 | P12 | "Trusts me" discloses `vote_user(p → ego)` | allowed — the spec lists it and the profile already shows mutual / one-way trust lines | Recorded so a reviewer does not flag it as a leak. |
+| P13 | Field presence precedence when categories overlap | `visible > bond > temporary > contactOnly > pinnedOnly`; only `contactOnly` strips content | Spec §3.2 draws B and T like V. |
+| P14 | Temporary visibility for the author's side (spec §3.3 symmetry) | direction 2 in the same SQL; if authors cannot already see rejections, it ends only when R ends | Avoids disclosing a rejection through a vanishing node. |
+| P15 | Phase-1 Field changes before R1 | gated by `kFieldMembershipV2Enabled` (D9 removal, presence rendering) | Server units ship ungated; the client must not change the Field mid-phase. |
 
 Open questions Q1–Q4 of the spec keep their defaults (T = Requests only; caps 400/400/400; keep the
 "Outside the tag" hint; trust graph = panel only in phase 1).
@@ -148,10 +151,10 @@ The spec's phases are kept; inside them work runs in lanes that only meet where 
 | Server Field | A7a T + B presence → A7b caps, priority, tags-in-snapshot, first seen | A7a at once; A7b after A3, A5 |
 | Client foundation | B2 tag colours + chips (no server dependency) | at once |
 | Client tags | B1 store → B3 sheet/editor → B4 panel/profile, B5a/b menus, B6a/b People tags screen, B12 suggestions | after A2–A5, A8 |
-| Client Field | B7 membership + presence → B8a tag row + lens → B8b hull + bottom panel, B9 node glyphs, B10 list grouping | after A7b, B1 |
-| Forward / compose | B11 tag chips in pickers | after B1, B2 |
+| Client Field | B7a membership (gated) → B7b presence; B8a tag row + lens → B8b hull + bottom panel, B9 node glyphs, B10 list grouping | after A7b, B1 |
+| Forward / compose | B11a forward picker → B11b constellation composer | after B1, B2 |
 | Arrangement | C2 batch cap → C1 snapshots → D1 undo → D2 Arrange menu, D3 Tidy up, D5 preview, D6 history | C2 at once |
-| Tag view | D7a layout → D7b mode + animations | after B8a |
+| Tag view | D7a layout (after B1) → D7b mode + animations (after B8b) | after B1 |
 | Zoom & scale | E8 search 200 (independent), E1 level owner → E2a overview dots/hits, E2b cluster labels, E3 district, E6 minimap → E4 render cap 400 → E5a/b community layout; E7a/b bulk + cluster drag; E9a/b magnets | E1 and E8 at once |
 
 **Order optimisation for a one-at-a-time scheduler (Alloy):**
@@ -162,7 +165,7 @@ The spec's phases are kept; inside them work runs in lanes that only meet where 
 4. Phase 3 rendering last; manual performance gates (server snapshot at 400 on `tentura_perfsynth`,
    client wasm bench at N = 400) sit before the render-cap raise is considered done.
 
-Critical path: A1 → A2 → A3 → A7b → B7 → B8a → D7a → D7b (tag view), with B1 → B3 → B12 a close
+Critical path: A1 → A2 → A3 → A7b → B7a → B8a → B8b → D7b (tag view), with B1 → B3 → B12 a close
 second.
 
 ## 6. Risks

@@ -1,6 +1,7 @@
 # People tags, Field arrangement and semantic zoom — implementation plan
 
-**Status:** rev 1 (2026-10-23), draft.
+**Status:** rev 2 (2026-10-24). Rev 2 applies an independent review (Opus subagent standing in for
+Astra, codex quota exhausted; 26 findings, §7).
 **Baseline:** `main` @ `777680fca` (latest migration `m0260`; the post-lifetime epic `tentura-lkkq`
 adds `m0261+` — always take the next free number). Client `7.49.0`.
 **For:** an implementer (human or model) who follows units literally, test-first, one unit at a time.
@@ -103,12 +104,12 @@ beads (P1 first): critical path and risk first, then unblockers, then the rest.
 | A1 | Schema: tags, members, prefs, first seen, suggestion state, op log | M | — | P1 |
 | A2 | Own tag CRUD + restore (V2) | C | A1 | P1 |
 | A3 | Membership apply + `personTagsOf` own part (V2) | M | A2 | P1 |
-| A4 | Realtime kind `person_tag` | M | A1 | P2 |
+| A4 | Realtime kind `person_tag` (server + websocket + client enum) | M | A1 | P1 |
 | A5 | Automatic tags SQL + V2 (`personAutoTags`, prefs, `personTagsOf` auto part) | C | A1 | P1 |
 | A6 | Tag creation from an automatic tag / from a Request | M | A3, A5 | P2 |
 | A7a | Field membership: T predicate, B and T in the snapshot, `presence` | C | — | P1 |
 | A7b | Field caps 400, priority order, tags + first seen in the snapshot | C | A3, A5, A7a | P1 |
-| A8 | Suggestion state (V2) | M | A1 | P2 |
+| A8 | Suggestion state (V2) | M | A1 | P1 |
 | A9 | Privacy behaviour suite | M | A4, A6, A7b, A8 | P2 |
 | G1 | Manual: server snapshot perf at 400 on `tentura_perfsynth` | manual | A7b | P2 |
 | **Phase 1 — client** |
@@ -120,14 +121,16 @@ beads (P1 first): critical path and risk first, then unblockers, then the rest.
 | B5b | Person menus: Request People, Post participants, forward rows, chat author | M | B3 | P3 |
 | B6a | People tags screen: lists, reorder, delete + Undo, auto switches | C | B3 | P2 |
 | B6b | Tag detail and automatic-tag detail screens | M | B6a, A6 | P2 |
-| B7 | Field: membership without D9, presence rendering, field tag data | C | A7b, B1 | P1 |
-| B8a | Field tag row + filter + lens dim | C | B7, B2 | P1 |
-| B8b | Lens hull + bottom panel + drag node onto chip | M | B8a, B3 | P2 |
-| B9 | Own-tag glyphs on nodes + screen-reader label | M | B7, B2 | P2 |
-| B10 | List view grouped by tags | M | B7 | P3 |
-| B11 | Tag chips in forward and compose pickers | C | B1, B2 | P2 |
+| B7a | Field: membership without D9, tag data, cap priority (gated) | C | A7b, B1 | P1 |
+| B7b | Field: presence rendering (temporary, bond) | M | B7a | P2 |
+| B8a | Field tag row + filter + lens dim | C | B7a, B2 | P1 |
+| B8b | Lens hull + bottom panel + drag node onto chip | M | B8a, B3, B11a | P2 |
+| B9 | Own-tag glyphs on nodes + screen-reader label | M | B7a, B2 | P2 |
+| B10 | List view grouped by tags | M | B8a | P3 |
+| B11a | Tag chips in the forward picker (forward + compose) | C | B1, B2 | P2 |
+| B11b | Tag chips in the constellation composer | M | B11a | P3 |
 | B12 | "Tag them?" suggestions | C | B3, A6, A8 | P2 |
-| R1 | Ship phase 1 | S | B4–B12, A9 | P2 |
+| R1 | Ship phase 1 | S | A9, G1, B4–B12 (incl. B7b, B11b) | P2 |
 | M1 | Manual: phase 1 local-stack check | manual | R1 | P2 |
 | **Phase 2 — arrangement** |
 | C2 | Anchor batch cap 64 → 400 (server + client) | M | — | P2 |
@@ -137,7 +140,7 @@ beads (P1 first): critical path and risk first, then unblockers, then the rest.
 | D3 | Tidy up + move trails | C | D1 | P2 |
 | D5 | Rearrange everyone incl. pinned (preview) | M | D2 | P3 |
 | D6 | Layout history sheet + favourite + auto history | C | D2 | P3 |
-| D7a | Tag view layout algorithm | C | B8a | P2 |
+| D7a | Tag view layout algorithm | C | B1 | P2 |
 | D7b | Tag view mode, others mode, animations, search, forward | C | D7a, B8b | P2 |
 | R2 | Ship phase 2 | S | D3, D5, D6, D7b | P3 |
 | **Phase 3 — scale and magnets** |
@@ -153,11 +156,11 @@ beads (P1 first): critical path and risk first, then unblockers, then the rest.
 | E7b | Drag a cluster at Overview | M | E7a, E2b | P3 |
 | E4 | Render cap 400 | M | E2b, E3, E5b | P3 |
 | G2 | Manual: wasm bench at N = 400 (I4) | manual | E4 | P3 |
-| E9a | Magnets: server | M | A2, C2 | P4 |
+| E9a | Magnets: server | M | A2, A4, C2 | P4 |
 | E9b | Magnets: client | C | E9a, E4 | P4 |
 | R3 | Ship phase 3 | S | E4, E6, E7b, E9b, G2 | P3 |
 
-Critical path: A1 → A2 → A3 → A7b → B7 → B8a → D7a → D7b. Independent early leaves: A7a, B2, C2,
+Critical path: A1 → A2 → A3 → A7b → B7a → B8a → B8b → D7b. Independent early leaves: A7a, B2, C2,
 E1, E8, E5a.
 
 ---
@@ -176,17 +179,20 @@ architecture test (or add `test/architecture/hasura_metadata_people_tags_untrack
 **SQL (one statement per entry):**
 - `person_tag(id text PK, owner_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE, name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 32), glyph text NOT NULL CHECK (char_length(glyph) BETWEEN 1 AND 8), color smallint NOT NULL CHECK (color BETWEEN 0 AND 7), ord integer NOT NULL, created_at, updated_at timestamptz NOT NULL DEFAULT now())`;
   `CREATE UNIQUE INDEX person_tag_owner_name_uq ON person_tag (owner_id, lower(name))`;
-  index `(owner_id, ord)`.
-- `person_tag_member(tag_id text REFERENCES person_tag ON DELETE CASCADE, owner_id text NOT NULL REFERENCES "user" ON DELETE CASCADE, person_id text NOT NULL REFERENCES "user" ON DELETE CASCADE, source smallint NOT NULL CHECK (source BETWEEN 0 AND 4), added_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (tag_id, person_id))`;
-  index `(owner_id, person_id)`; CHECK `owner_id <> person_id`.
+  `UNIQUE (id, owner_id)`; index `(owner_id, ord)`.
+- `person_tag_member(tag_id text NOT NULL, owner_id text NOT NULL REFERENCES "user" ON DELETE CASCADE, person_id text NOT NULL REFERENCES "user" ON DELETE CASCADE, source smallint NOT NULL CHECK (source BETWEEN 0 AND 4), added_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (tag_id, person_id))`;
+  composite FK `(tag_id, owner_id) REFERENCES person_tag (id, owner_id) ON DELETE CASCADE` (a member
+  can never sit under another owner's tag); index `(owner_id, person_id)`; CHECK `owner_id <> person_id`.
 - `person_auto_tag_pref(owner_id … CASCADE, kind smallint, show_in_filters boolean NOT NULL, PRIMARY KEY (owner_id, kind))`.
 - `person_field_first_seen(viewer_id … CASCADE, peer_id … CASCADE, first_seen_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (viewer_id, peer_id))`.
 - `person_tag_suggestion_state(owner_id PK … CASCADE, consecutive_skips smallint NOT NULL DEFAULT 0, silenced_until timestamptz, disabled boolean NOT NULL DEFAULT false, updated_at)`.
 - `person_tag_op_log(owner_id … CASCADE, client_op_id text, fingerprint text NOT NULL, result jsonb NOT NULL, created_at, PRIMARY KEY (owner_id, client_op_id))`.
-- `person_tag_revision(owner_id PK … CASCADE, revision bigint NOT NULL DEFAULT 0)` — bumped by A4.
+- `person_tag_revision(owner_id PK … CASCADE, revision bigint NOT NULL DEFAULT 0)` — created together
+  with the owner's first tag (A2), bumped by A4 with `UPDATE … RETURNING` only.
 
 **Tests (write first, pg, upgrade path from the previous version):** each CHECK rejects a bad row;
-duplicate name differing only in case → unique violation; deleting the owner removes all owner rows;
+duplicate name differing only in case → unique violation; a member row whose `owner_id` differs from
+its tag's owner → FK violation; deleting the owner removes all owner rows;
 deleting a tagged person removes their member rows; deleting a tag removes its members; Hasura
 metadata tracks none of the new tables.
 
@@ -204,12 +210,14 @@ exception code space 1900 in `S/domain/exception_codes.dart` + classes in `S/dom
 tests `test/domain/use_case/people_tags_case_pg_test.dart`,
 `test/api/controllers/graphql/people_tags_graphql_pg_test.dart`.
 
-**Rules:** name trimmed, 1–32 chars, unique per owner case-insensitive → `tagNameTaken`; 50 tags →
-`tagLimitReached`; glyph = exactly one grapheme cluster that is a letter or an emoji (default: first
+**Rules:** the first tag of an owner also inserts their `person_tag_revision` row; name trimmed, 1–32 chars, unique per owner case-insensitive → `tagNameTaken`; 50 tags →
+`tagLimitReached`; glyph: the server checks 1–8 UTF-16 code units and no whitespace (the server has no `characters`
+package; the client enforces exactly one grapheme that is a letter or an emoji; default: first
 grapheme of the name, upper-cased); colour 0–7 (default: `count(own tags) % 8`); new tag `ord = max + 1`;
 `ord` updates renumber densely; delete returns the deleted snapshot `{tag, memberIds, sources}`;
 restore recreates with the **same id** (P9) and fails with `tagNameTaken` if the name was reused;
-all four mutations idempotent by `clientOpId` (§0).
+all four mutations idempotent by `clientOpId` (§0); exception descriptions and log lines never
+contain a tag name or glyph (they reach error reporting).
 
 **Tests (write first):** create / rename / recolour / reorder / delete / restore round trip; limits and
 validation errors; idempotent replay returns the stored result, a changed payload with the same
@@ -227,36 +235,56 @@ else's tag id → `tagNotFound`.
 **Rules:** ops `{tagId, personId, op: add|remove, source}` ≤ 400 per call, applied in one
 transaction, tag ownership checked per op; add is a no-op if present; 1000 people per tag →
 `memberLimitReached` (whole call fails); the person must exist; tagging yourself is refused
-(`invalidTag`); a person currently blocked either way (`block_hides`) can be removed but not added;
+(`invalidTag`); adding a person currently blocked either way (`block_hides`) is **silently skipped**
+and the result is identical to a successful add (no block oracle); removing works;
 `PersonTag.count` = members not hidden by `block_hides`; `countOffField` = members not in
 `person_visible_peer_ids_tx(owner)` and not bond / contact / pinned (use the same membership sets the
 snapshot reader uses — expose a small SQL helper, no MR call beyond the memoised visible set).
-`personTagsOf(personId)` returns `own: [tag ids]` (auto part in A5).
+`personTagsOf(personId)` returns `own: [tag ids]` (auto part in A5). New owner-only query
+`personTagMemberships: [{tagId, personIds}]` (all own tags, blocked people hidden) — the client
+store's membership index (B1), the tag screens and the forward chips read it.
 
-**Tests (write first):** add/remove/batch; idempotency; limit; blocked person excluded from counts
-and from `personTagsOf`; off-field count for a member who lost visibility; another user's id in ops
+**Tests (write first):** add/remove/batch; idempotency; limit; adding a blocked person returns the
+same result as a normal add but writes nothing; blocked person excluded from counts,
+`personTagsOf` and `personTagMemberships`; off-field count for a member who lost visibility; another user's id in ops
 → `tagNotFound`, nothing written.
 
 **Done when:** tests green.
 
 ### A4 — Realtime kind `person_tag`
 
-**Goal:** spec §11.4.
+**Goal:** spec §11.4, end to end (server publish → websocket fan-out → client enum), so the unit is
+green on its own (the client contract test reads the shared manifest).
 
-**Files:** new migration: `person_tag_revision` bump + deferred constraint trigger
-`notify_person_tag_change` on `person_tag`, `person_tag_member`, `person_auto_tag_pref`,
-`person_tag_suggestion_state` (pattern `notify_constellation_anchor_change`, m0229: at most once per
-owner per transaction, `emit_realtime_entity_change_strict('person_tag', owner, 'update', ARRAY[owner], jsonb_build_object('revision', …))`);
-`S/consts/realtime_consts.dart` (`kRealtimeAlwaysEchoKinds` += `person_tag`);
-`websocket_path_entity_changes.dart` `_forwardedExtrasByKind` (`'person_tag': {'revision'}`);
-`docs/contracts/realtime-entity-contract.json`; `test/architecture/realtime_entity_contract_test.dart`
-(publisher list). Client enum mirror is B1's.
+**Files**
+- new migration: deferred constraint trigger `notify_person_tag_change` on `person_tag`,
+  `person_tag_member`, `person_auto_tag_pref`, `person_tag_suggestion_state` (pattern
+  `notify_constellation_anchor_change`, m0229: at most once per owner per transaction). The bump is
+  `UPDATE person_tag_revision SET revision = revision + 1 WHERE owner_id = … RETURNING revision` —
+  **never an insert**; when no row is found (owner erased, or no tag yet) emit nothing. Emit via
+  `emit_realtime_entity_change_strict('person_tag', owner, 'update', ARRAY[owner], jsonb_build_object('revision', …))`.
+- `S/consts/realtime_consts.dart`: `kRealtimeAlwaysEchoKinds` += `person_tag`.
+- `S/api/controllers/websocket/path_handler/websocket_path_entity_changes.dart:~89-108`: today every
+  kind except `constellation_anchor` goes to the branch that requires `last_seen_at` and drops the
+  rest as `malformed_payload`. Change the condition to "the kind's forwarded extras contain
+  `revision`" → validate a decimal revision; add `'person_tag': {'revision'}` to `_forwardedExtrasByKind`.
+- `docs/contracts/realtime-entity-contract.json`; server `test/architecture/realtime_entity_contract_test.dart`
+  (publisher list).
+- client: `C/domain/entity/realtime/realtime_entity_change.dart` (`RealtimeEntityKind.personTag`,
+  `fromWire('person_tag')`), revision parse in `C/data/service/invalidation_service.dart:~231`, one
+  client evidence test (invalidation-service parse) named in the manifest; client contract tests
+  (`packages/client/test/architecture/realtime_entity_contract{,_impacts}_test.dart`).
 
-**Tests (write first, pg):** one membership batch → exactly one notification for the owner only,
-payload has `revision` and no tag name / glyph; a transaction touching two owners notifies each once;
-the contract test passes.
+**Tests (write first):**
+- pg: one membership batch → exactly one notification, owner only, payload `revision` and no name /
+  glyph; two owners in one transaction → one each;
+- pg: erasing a tag owner (`UserErasureCase`) commits and emits nothing for them; erasing a tagged
+  person commits and notifies each surviving owner once;
+- websocket fan-out unit test: a `person_tag` envelope with a revision reaches the owner's other
+  session and is not dropped as malformed; an envelope with a non-numeric revision is dropped;
+- client: `fromWire('person_tag')` and the revision parse; both contract tests pass.
 
-**Done when:** tests green.
+**Done when:** server and client tests above green.
 
 ### A5 — Automatic tags
 
@@ -276,12 +304,14 @@ the contract test passes.
 `person_field_first_seen.first_seen_at > now() - 7 days` (rows come from A7b); "Mutual contact" /
 "I trust" / "Trusts me" from `vote_user.amount > 0` (mutually exclusive by construction).
 `personAutoTags` = `[{kind, count, showInFilters}]` over `p_peers = NULL`; `personAutoTagPrefSet`
-upserts `person_auto_tag_pref`; `personTagsOf.auto = [{kind, n, direction}]`.
+upserts `person_auto_tag_pref`; `personTagsOf.auto = [{kind, n, direction}]`; owner-only
+`personAutoTagMembers(kind): [peerId]` (from `person_auto_tags(viewer, NULL)`). "Worked together · N"
+counts `DISTINCT beacon_id` (`beacon_member` is a `UNION ALL`; an author can also be a steward).
 
 **Tests (write first):** one fixture per kind (positive + nearest negative): reciprocal vs one-way
 trust; helper of a Request in review (status 5) → "Helped me" for the author and "I helped" for the
 helper; same Request cancelled → neither; reopened (5 → 0) → neither (P1); co-members of two Requests
-→ `workedTogether` n = 2; deleted Request not counted; accepted invitation both directions →
+→ `workedTogether` n = 2 (and n = 1 when the peer is both author and steward of one Request); deleted Request not counted; accepted invitation both directions →
 direction 3; forward edge either way; first seen 3 days ago → New, 8 days → not; blocked peer → no
 rows; `p_peers` restricts output; there is no mutation that removes an automatic tag (assert the
 schema has none and the membership mutation rejects auto kinds — it only takes own tag ids).
@@ -295,12 +325,14 @@ schema has none and the membership mutation rejects auto kinds — it only takes
 **Files:** A2/A3 files: `personTagCreate(…, fromAutoKind?, fromBeaconId?)`.
 
 **Rules:** `fromAutoKind` copies the current people of that automatic tag (snapshot, `source = 2`);
-`fromBeaconId` requires the viewer to be a `beacon_member` of the Request and copies the other
-members (`source = 3`), skipping blocked people; both respect the 1000 limit; both in the creating
+`fromBeaconId` requires a **Request** (`kind = 0`; Posts are refused — their members outside the
+viewer's visible set are shown only as counts) and the viewer to be a `beacon_member` of it, and
+copies the other members (`source = 3`), skipping blocked people; both respect the 1000 limit; both in the creating
 transaction.
 
 **Tests (write first):** make-mine snapshot equals the auto-tag set at that moment and does not follow
 later fact changes; from-Request by a member copies members minus self; by a non-member → refused;
+from a Post id → refused;
 blocked member skipped.
 
 **Done when:** tests green.
@@ -309,23 +341,37 @@ blocked member skipped.
 
 **Goal:** spec §3.1–3.3 (server side), plan §1 D9 row.
 
-**Files:** new migration: `public.person_temporary_forward_visible(p_viewer text, p_peer text)` and
-`public.person_temporary_forward_peers(p_viewer text) RETURNS TABLE(peer_id text, beacon_id text)`:
-R authored by peer, `kind = 0`, `status IN (0, 7, 8)`, a `beacon_forward_edge` to the viewer for R
-with `cancelled_at IS NULL`, and (the viewer's `inbox_item` for R has `status IN (0, 1)` **or** an
-active `beacon_help_offer` (status 0) by the viewer on R), `NOT block_hides`;
-`S/data/repository/constellation_field_snapshot_reader.dart` (`read()` :31): add B
-(`person_bond_peers`) and T to the people set (inside the reserved-or-graph split, see A7b for caps);
-`ConstellationPeerRecord` (`S/domain/entity/constellation_field.dart:83`) + GQL `ConstellationPeer`
-(`custom_types.dart:934`) gain `presence` (`visible | bond | temporary | contactOnly | pinnedOnly`) and
-`temporaryBeaconId` / `bondBeaconIds` (ids only, for the panel lines); tests
-`test/data/database/person_temporary_forward_visible_pg_test.dart`, extend the snapshot reader pg test.
+**Files**
+- new migration: `public.person_temporary_forward_peers(p_viewer text) RETURNS TABLE(peer_id text, beacon_id text, direction smallint)`
+  and the scalar `person_temporary_forward_visible(p_viewer, p_peer)` on top of it. R is a Request
+  (`kind = 0`) in `status IN (0, 7, 8)`, `NOT block_hides`, and either
+  - **direction 1 (recipient sees author):** R authored by peer, a `beacon_forward_edge` to the viewer
+    for R with `cancelled_at IS NULL`, and the viewer holds R (`inbox_item.status IN (0, 1)` or an
+    active `beacon_help_offer`, status 0, by the viewer on R); or
+  - **direction 2 (author sees recipient, spec §3.3 symmetry):** R authored by the viewer, a live
+    forward edge to peer, and peer holds R by the same rule. First check whether an author can
+    already see a recipient's rejection today (forward involvement / `recipient_rejected`); if not,
+    direction 2 must **not** end on rejection (it ends when R ends) so the node vanishing does not
+    disclose it — record which rule applies in the journal.
+- `S/data/repository/constellation_field_snapshot_reader.dart` (`read()` :31): add B
+  (`person_bond_peers`) and T to the people set; add **each `temporaryBeaconId` Request** to
+  `requests` through `beacon_readable_ids` (only those; `_discoverableRequests` would never return
+  them — it scans visible authors and `is_discoverable`, `:~546-551`).
+- `ConstellationPeerRecord` (`S/domain/entity/constellation_field.dart:83`) + GQL `ConstellationPeer`
+  (`custom_types.dart:934`): `presence` (`visible | bond | temporary | contactOnly | pinnedOnly`),
+  `temporaryBeaconId`, `bondContexts: [{beaconId, title}]` (titles from `person_shared_contexts`,
+  m0210). **Precedence** when categories overlap: `visible > bond > temporary > contactOnly > pinnedOnly`;
+  only `contactOnly` strips content (`asContactOnly()`, `:~181`).
+- tests `test/data/database/person_temporary_forward_visible_pg_test.dart`, extend the snapshot
+  reader pg test.
 
-**Tests (write first):** T true while the viewer holds R (needs_me, watching, active offer); false
-after reject (status 2), after R closes / is cancelled / deleted, after the forward edge is cancelled,
-for a Post (Q1 default), and when blocked; snapshot contains a mutually visible peer with no Requests
-(acceptance 1); a bond peer has `presence = bond`; a T peer has `presence = temporary` and
-`temporaryBeaconId`; T grants nothing else (the author's other Requests stay absent from the snapshot).
+**Tests (write first):** direction 1 true while the viewer holds R (needs_me, watching, active offer),
+false after reject, R closed / cancelled / deleted, forward cancelled, for a Post (Q1), and when
+blocked; direction 2 mirrors it for the author (with the rejection rule found above); the snapshot
+contains a mutually visible peer with no Requests (acceptance 1); a bond peer has `presence = bond`
+and a titled `bondContexts`; a T peer has `presence = temporary`, `temporaryBeaconId`, and R is in
+`requests`; the T author's **other** Requests stay absent; a direct contact who is also a bond peer
+has `presence = bond` with full content.
 
 **Done when:** tests green; existing constellation snapshot tests green.
 
@@ -335,16 +381,21 @@ for a Post (Q1 default), and when blocked; snapshot contains a mutually visible 
 
 **Files:** `S/consts/constellation_consts.dart` (`kConstellationPeerCap = 400`); snapshot reader:
 over-cap ordering — reserved (pinned, contact-only, support) outside the cap as today → people with
-own tags → direct contacts → B and T → BFS depth over the memoised trust edges from the viewer → id;
+own tags → direct contacts → B and T → BFS depth over the trust edges of the visible graph (note:
+`_allTrustEdges` is lazy and often not loaded, `:~268-285`; ordering forces one visible-set edge query,
+~20 ms at V ≈ 1000 per m0231 — include it in G1) → id;
 per person `ownTagIds` (owner = viewer) and `autoTagKinds` (from `person_auto_tags(viewer, people)`),
-`firstSeenAt`; after the read-only snapshot, one short mutating transaction inserts
-`person_field_first_seen` rows for the returned people (`ON CONFLICT DO NOTHING`), registered as a
-transaction root; GQL `ConstellationPeer` fields; tests extend the reader pg test.
+`firstSeenAt`; inside the read snapshot compute which returned people have no
+`person_field_first_seen` row; only if there are any, open one short mutating transaction that inserts
+them (`ON CONFLICT DO NOTHING`), registered as a transaction root. **Backfill rule:** when the viewer
+has no first-seen rows at all, insert the first batch with `first_seen_at = '-infinity'`, so nobody is
+"New" right after deploy. GQL `ConstellationPeer` fields; tests extend the reader pg test.
 
 **Tests (write first):** with 450 visible candidates the 400 kept follow the priority order (tagged
 ones survive over untagged deeper ones); `ownTagIds` only ever contains the viewer's own tags
 (another user's tags on the same person never appear); `autoTagKinds` matches A5 for those people;
-first read inserts first-seen rows, second read inserts none; the snapshot transaction is still
+first ever read inserts rows with `-infinity` and a second read shows nobody as New; a person
+arriving later gets `now()` and is New; a refetch with no new people opens no write transaction; the snapshot transaction is still
 `REPEATABLE READ READ ONLY`.
 
 **Done when:** tests green; G1 can run.
@@ -373,9 +424,10 @@ test expiry); accept between skips resets; disable / enable.
 
 **Tests (write first):** A tags B ("Secret-Name-123"), adds, removes, renames, deletes, restores,
 creates from a Request where B is a member, and B is on A's Field. Then as B: `personTags`,
-`personTagsOf(A)`, `personAutoTags`, `constellationField`, profile and Request queries contain no tag
+`personTagsOf(A)`, `personAutoTags`, `personTagMemberships`, `personAutoTagMembers`, `constellationField`, profile and Request queries contain no tag
 id or name of A; no `notification_outbox`, `attention_occurrence` or `beacon_activity_event` row
-created during the run contains the name; every captured `entity_changes` payload of kind
+created during the run contains the name; a refused / failing tag mutation's error description
+contains no name; every captured `entity_changes` payload of kind
 `person_tag` goes to A only and has no name / glyph; the server log capture (if the test harness
 exposes one; otherwise skip that assertion and say so) has no tag name.
 
@@ -385,8 +437,10 @@ exposes one; otherwise skip that assertion and say so) has no tag name.
 
 Host-only (never on dev): run the server against `tentura_perfsynth` (`scripts/perf/run_server_db.sh`),
 bench `constellationField` FULL with `scripts/perf/constellation_gql_bench.py` before and after A7b;
-record p50/p95 in `docs/plans/people-tags-implementation-journal.md`. Acceptance: p95 within 1.5× of
-the pre-A7b baseline, no `mr_*` call count increase. Owner decides on a miss.
+record p50/p95 in `docs/plans/people-tags-implementation-journal.md`. Includes the BFS edge query of A7b
+and the first-seen write path. Acceptance: p95 within 1.5× of the pre-A7b baseline, no `mr_*` call
+count increase. Owner decides on a miss. Run it **before the first push that contains A7b** (server
+units ship ungated).
 
 ---
 
@@ -410,12 +464,14 @@ when `enabled == false`; semantics labels "Neighbour, tag" / "Mutual contact, au
 port, `PeopleTagsCase` singleton store with streams: tags, membership index `personId → Set<tagId>`,
 auto counts + prefs, suggestion state), data (`.graphql` documents for every A2–A8 operation,
 repository, mappers), exception mirror; `C/domain/entity/realtime/realtime_entity_change.dart`
-(`RealtimeEntityKind.personTag`, `fromWire('person_tag')`); `invalidation_service.dart` revision parse;
-client realtime contract tests; schema per shared §0.
+— the realtime enum, parse and contract tests are A4's; B1 subscribes the store to
+`RealtimeSyncCase.changesFor({personTag})`; the membership index is seeded from
+`personTagMemberships` and is the **single source** for own tags on every surface (the Field's
+snapshot `ownTagIds` only seed it before the store has loaded); schema per shared §0.
 
 **Tests (write first):** mapper round trips; store applies optimistic add/remove and rolls back on
 error; a `personTag` change triggers one refetch (debounced) and ignores stale revisions;
-`clientOpId` is stable across a retry; contract tests pass.
+`clientOpId` is stable across a retry; the index answers "people in tag X" and "tags of person Y".
 
 ### B3 — "Add to tag…" sheet, tag editor, Undo snackbar helper
 
@@ -423,10 +479,10 @@ error; a `personTag` change triggers one refetch (debounced) and ignores stale r
 "+ New tag" inline → editor → created tag pre-checked; applies one `personTagMembersApply` on close;
 "Only you see tags" footer), `tag_editor_dialog.dart` (name, glyph = letter or emoji picker of the
 platform keyboard, 8 colour swatches with names for screen readers), `C/ui/widget/undo_snack_bar.dart`
-(`showUndoSnackBar(context, text, onUndo)`, persists ≥ 8 s, used by later units).
+(`showUndoSnackBar(context, text, onUndo, duration)`, default 10 s as spec §4.2, used by later units).
 
 **Tests (write first):** toggling two tags then closing sends one batch with two ops; creating a tag
-from the sheet adds the person to it; name-taken error shown inline; Undo invokes the callback once.
+from the sheet adds the person to it; name-taken error shown inline; Undo invokes the callback once and the bar stays 10 s.
 
 ### B4 — Tags block in the person panel and the profile
 
@@ -435,7 +491,7 @@ B3 sheet, "Automatic" with counts/direction, "Only you see tags"); inserted in
 `C/features/graph/ui/widget/graph_person_context_panel.dart` (after `_VisibilitySection`, before
 `_DiscoverableRequestsSection`; used by both Field and trust graph) and in
 `C/features/profile_view/ui/widget/profile_view_body.dart` right after `_ProfileCapabilitySection`
-(other people only). B-presence lines ("Working together on «…»", temporary) are B7's.
+(other people only). B-presence lines ("Working together on «…»", temporary) are B7b's.
 
 **Tests (write first):** block lists own tags with × and auto tags without ×; × removes; the word
 "tag"/«тег» never appears inside the capability section; hidden when `kPeopleTagsEnabled` is false;
@@ -482,30 +538,46 @@ list, "Make it my tag" → A6 `fromAutoKind`).
 **Tests (write first):** removing a person updates the count; Add people adds the picked set in one
 batch; Make it my tag creates a tag with those people and navigates to it.
 
-### B7 — Field: membership without D9, presence
+### B7a — Field: membership without D9, field tag data, cap priority (gated)
 
-**Files:** `F/domain/entity/constellation_field.dart` (`ConstellationPerson.presence`, `ownTagIds`,
-`autoTagKinds`, `firstSeenAt`, `temporaryBeaconId`, `bondBeaconIds`) + mapper + `constellation_field_fetch.graphql`;
-`F/domain/constellation_anchor_composition.dart:279-287` — every person with presence `visible`,
-`bond` or `temporary` joins `holderIds`; client priority for the 120 rendered (P4): pinned / contact
-(exempt as today) → own-tagged → direct contacts → bond/temporary → path depth;
-`F/ui/widget/…` node: dashed outline for `temporary` (new `constellationDashedCirclePath` next to
-`constellationEdgeDashPath`), thin dashed link to the Request; panel lines (B: "Working together on
-«…»", T: `peopleTagsTemporary`) via the panel's `subtitle` slot.
+**Files:** `C/consts.dart`: `kFieldMembershipV2Enabled = false` (flipped in R1);
+`F/domain/entity/constellation_field.dart`: `ConstellationPerson.fieldMembership` (wire name
+`presence`; the client name avoids the online-presence code — `ConstellationPresenceCubit`,
+`constellationPresenceWatchIds`), `ownTagIds` (seed only, see B1), `autoTagKinds`, `firstSeenAt`,
+`temporaryBeaconId`, `bondContexts` + mapper + `constellation_field_fetch.graphql`;
+`F/domain/constellation_anchor_composition.dart:279-287`: **with the gate on**, every person with
+membership `visible`, `bond` or `temporary` joins `holderIds`; with it off, today's holder rule;
+`F/domain/constellation_cap_policy.dart` (orders by id today, `:~40-76`): with the gate on, priority
+pinned / contact (exempt as today) → own-tagged → direct contacts → bond/temporary → path depth → id;
+`F/domain/constellation_field_patches.dart`: `_patchOne` (`:~158-168`) keeps a node whose membership
+is not only `contactOnly` when the viewer untrusts them, and recomputes the trust kinds
+(`mutualContact`, `iTrust`, `trustsMe`) of `autoTagKinds` from the patched relation.
 
-**Tests (write first):** a visible person with no Requests is kept (acceptance 1) — update the
-existing "[D9]" test in `constellation_cap_policy_test.dart` to the new rule rather than deleting it;
-temporary person drawn dashed with a link and disappears when the field no longer has them
-(acceptance 2); with 300 candidates the 120 kept follow the priority; existing positional-stability
-tests (A3) green.
+**Tests (write first):** gate off: the existing "[D9]" test in `constellation_cap_policy_test.dart`
+still passes; gate on: a visible person with no Requests is kept (a new test next to it), and with
+300 candidates the 120 kept follow the priority; untrusting a bond peer keeps the node and drops
+"I trust"; positional-stability tests (A3) green in both gate states.
+
+### B7b — Field: presence rendering (temporary, bond)
+
+**Files:** node: dashed outline for `temporary` (new `constellationDashedCirclePath` next to
+`constellationEdgeDashPath`, `F/ui/utils/constellation_edge_style.dart:34`) and a thin dashed link to
+`temporaryBeaconId`'s Request (now in the snapshot, A7a); panel lines via the panel `subtitle` slot:
+bond → `peopleTagsWorkingTogether` with the first `bondContexts` title, temporary →
+`peopleTagsTemporary`. Gated by `kFieldMembershipV2Enabled`.
+
+**Tests (write first):** temporary person drawn dashed with a link and gone after a field update
+without them (acceptance 2); panel lines show the right titles; gate off → no dashed nodes.
 
 ### B8a — Field tag row, filter, lens dim
 
 **Files:** `F/domain/constellation_tag_filter.dart` (`selectedOwn`, `selectedAuto`, `mode: or|and`;
 `matches(person)`; combined with `ConstellationFilters` by "and"); `F/ui/widget/constellation_tag_row.dart`
 (row 1 own tags + "More N", row 2 auto tags with `showInFilters`, and/or toggle when ≥ 2 selected,
-result line `peopleTagsLensResult`, quiet "+ Tag" when there are no own tags); cubit holds the filter
-(no recompose, no camera move); dim people outside the selection and their Requests/Posts to 25 %
+result line `peopleTagsLensResult`, quiet "+ Tag" when there are no own tags); the filter lives in
+a **screen-scoped `ConstellationTagLensCubit`** (like `ConstellationSelectionCubit`: selecting never
+recomposes the field or moves the camera), not in `ConstellationCubit` state; automatic tags match
+through `autoTagKinds`, own tags through the B1 store index; dim people outside the selection and their Requests/Posts to 25 %
 (reuse the `isDimmedByTrustChain` opacity path, new constant 0.25).
 
 **Tests (write first):** "Neighbour and Helped me" leaves exactly the intersection bright, "or" the
@@ -517,7 +589,7 @@ camera before/after); Request filter + tag filter combine by "and"; no row 1 cou
 **Files:** `F/ui/widget/constellation_tag_hull_layer.dart` (soft hull per selected tag: padded convex
 hull / union of node circles in the tag colour, painted between edges and nodes); bottom panel
 ("{tags} · N people · M Requests", "Open tag view" — hidden until D7b, "Forward a request…" → pick one
-of the viewer's open Requests → forward screen with the tag preselected via B11); dropping a dragged
+of the viewer's open Requests → forward screen with the tag preselected via B11a); dropping a dragged
 person node on a tag chip adds the tag (snackbar `peopleTagsDroppedOnChip` + Undo) instead of pinning.
 
 **Tests (write first):** hull present only for selected own tags; panel counts; drop on chip calls
@@ -532,7 +604,7 @@ order at the top-end corner + "+N"; the existing pin badge moves to sit left of 
 **Tests (write first):** 0/1/2/3 tags render 0/1/2 glyphs + "+1"; automatic tags never drawn; pin
 badge still findable by its key; semantics label text.
 
-### B10 — List view grouped by tags
+### B10 — List view grouped by tags (after B8a)
 
 **Files:** `F/ui/widget/constellation_text_view.dart`: "Group by tags" toggle; sections per own tag
 (ord) with counts, a person in each of their sections, "Without own tags" last; automatic tags act
@@ -541,19 +613,31 @@ as the B8a filter, not sections.
 **Tests (write first):** a person with two tags appears in both sections; section counts; filter row
 selections narrow the list.
 
-### B11 — Tag chips in forward and compose
+### B11a — Tag chips in the forward picker (forward screen and compose)
 
-**Files:** `F/domain/radius_recipient_selection.dart` (`addByTag(tagId, ids)` recording
-`addedByTag[tagId]`; `removeByTag(tagId)` removes only ids it added that were not added individually);
-`C/features/forward/ui/widget/forward_recipient_picker.dart` (chip row above the list: own tags, then
-auto `helpedMe`, `workedTogether`; ineligible members greyed with the existing reason labels;
-"Outside the tag, could help" up to 3 eligible non-members ranked by matching capability labels of
-the Request; note `peopleTagsForwardNote` under the button); composer path through
-`ConstellationComposerCubit` / `recipients_tab.dart`.
+The forward screen, `post_create_screen` and `recipients_tab.dart` use `ForwardRecipientPicker` on
+`ForwardState.selectedIds` (a flat set, `forward_state.dart:112`), **not** `RadiusRecipientSelection`.
 
-**Tests (write first):** tapping a tag selects only eligible members (acceptance 7); tapping again
-removes only tag-added ones, keeping an individually added member; hint shows ≤ 3 non-members; the
-note is visible; the sent forward payload contains no tag data.
+**Files:** `C/features/forward/ui/bloc/forward_cubit.dart` + `forward_state.dart`: `addedByTag:
+Map<tagId, Set<personId>>`, `individuallyAdded`; `toggleTag(tagId, memberIds)` selects eligible
+members not yet selected and records them; a second tap removes only those it added that were not
+added individually; `forward_recipient_picker.dart`: chip row above the list (own tags, then automatic
+`helpedMe`, `workedTogether` via `personAutoTagMembers`), ineligible members greyed with the existing
+reason labels (`forwardRecipientRelationLabel`), "Outside the tag, could help" ≤ 3 eligible non-members
+ranked by the Request's capability labels, note `peopleTagsForwardNote` under the button.
+
+**Tests (write first):** acceptance 7 on the forward screen; second tap keeps an individually added
+member; hint ≤ 3; note visible; the forward mutation variables contain no tag data; same behaviour
+in the Post composer's recipients step.
+
+### B11b — Tag chips in the constellation composer
+
+**Files:** `F/domain/radius_recipient_selection.dart` (`addByTag` / `removeByTag` with the same
+"remove only tag-added" rule), `ConstellationComposerCubit`, composer sheet chip row (reuse B11a's
+widget).
+
+**Tests (write first):** tag add/remove with radius and manual edits combined: `(inRadius ∪
+manualAdded ∪ tagAdded) \ manualRemoved`; removing a tag keeps people inside the radius.
 
 ### B12 — "Tag them?" suggestions
 
@@ -562,7 +646,8 @@ note is visible; the sent forward payload contains no tag data.
 "Only you see tags. They won't be notified."); placements: closure author view (members without own
 tags), `OfferAcceptedEventSubcard` author side (the helper), forward sent message action
 "Add to tag…" when ≥ 2 recipients, other profile after the trust write turns `isMutualFriend` true,
-"Tag from participants" button on the Request People tab (always; A6 `fromBeaconId`). Every card
+"Tag from participants" button on the Request People tab (Requests only, shown only when the viewer
+is a member; A6 `fromBeaconId`). Every card
 checks `canSuggest` (A8) and records `accepted / skipped / disabled`.
 
 **Tests (write first):** card shown once per event and only when `canSuggest`; Not now records
@@ -571,7 +656,7 @@ notification (assert no attention / inbox calls).
 
 ### R1 — Ship phase 1
 
-Flip `kPeopleTagsEnabled`; client version bump (pubspec + `web/index.html`); update
+Requires G1 recorded. Flip `kPeopleTagsEnabled` and `kFieldMembershipV2Enabled`; client version bump (pubspec + `web/index.html`); update
 `docs/features/constellation.md` (membership, D9 gone) and `docs/plans/constellation-edge-semantics.md`
 (D9 superseded); full wrapped suites serially + custom lints. Commit body `Closes #254`.
 
@@ -602,17 +687,24 @@ history keeps the newest 20 — delete older in the same transaction; favourite 
 `constellationLayoutSnapshotRestore(snapshotId, clientOpId)` (one transaction through the existing
 anchor apply path: upsert snapshot anchors whose target still exists, unpin current anchors absent
 from the snapshot, writes a `restore` history snapshot first; emits the existing `constellation_anchor`
-realtime once); exceptions `snapshotNotFound`; Hasura-untracked test.
+realtime once); `constellationAnchorsReset` gains an optional `saveHistory: true` that writes the
+`reset` history snapshot **in the same transaction** as the reset (D2 uses it, so a failed save can
+never leave an un-undoable reset); exceptions `snapshotNotFound`; Hasura-untracked test.
 
 **Tests (write first):** save → list; 21st history drops the oldest; favourite single; restore result
 equals the snapshot for present targets, keeps stored positions for absent people (they return when
-visible), leaves people newer than the snapshot unpinned; another viewer's snapshot id →
+visible), leaves people newer than the snapshot unpinned; reset with `saveHistory` writes exactly one `reset`
+snapshot atomically (a forced failure in the snapshot insert leaves anchors untouched); another
+viewer's snapshot id →
 `snapshotNotFound`; idempotent replay.
 
 ### D1 — Arrangement history (undo / redo)
 
 **Files:** `F/domain/use_case/constellation_arrangement_history.dart` (screen-session stack, 50
-entries; entry = `AnchorBatchEntry(forward ops, inverse ops)` or `LocalLayoutEntry(before hints, after hints)`);
+entries; entry = `AnchorBatchEntry(forward ops, inverse ops)`, `LocalLayoutEntry(before, after)` or
+`SnapshotRestoreEntry(snapshotId)` — the undo of a reset / restore is "restore the snapshot written
+before it"); before any bulk action that saves a server snapshot, flush the placement outbox and wait
+for its acknowledgements so the snapshot contains the latest drags;
 wired into `ConstellationPlacementCase.place/unpin/resetAll` and `ConstellationCubit`
 (`_dropNode`, `placeArrangement`, `rearrangeFreeNodes`); a user action spanning several server
 batches is one entry; a failed batch marks its entry non-undoable.
@@ -627,26 +719,29 @@ hints; 51st entry drops the oldest; redo cleared by a new action.
 (mockup B1: undo/redo always visible, Tidy up (D3), Rearrange, Arrange in sector (disabled without
 selection), Restore favourite / Save as favourite / Layout history (D6), Reset positions); replaces
 the Rearrange/Reset buttons in `constellation_camera_controls.dart` when the gate is on; Reset: no
-confirm dialog, writes a `reset` history snapshot (C1) then resets; Undo = restore that snapshot;
+confirm dialog, one `constellationAnchorsReset(saveHistory: true)` call (C1); Undo = restore that snapshot;
 `constellationResetPositionsBody` loses "This can't be undone"; desktop shortcuts Ctrl/Cmd+Z,
-Ctrl/Cmd+Shift+Z; not shown in the tag view.
+Ctrl/Cmd+Shift+Z; not shown in the tag view; spec §8.4: while dragging, the nearest ring is
+highlighted with a "{n} steps" caption.
 
 **Tests (write first):** reset then undo restores every anchor (acceptance 10); shortcuts call
-undo/redo; sheet hidden in tag view mode.
+undo/redo; sheet hidden in tag view mode; dragging shows the nearest-ring caption.
 
 ### D3 — Tidy up + move trails
 
 **Files:** `F/domain/constellation_tidy_up.dart` (pure: input = positions, radii, label boxes, pinned
 set, ego, optional selection or visible rect; output = moves; resolves node and label overlaps with
 minimal moves, keeps each person's ring and angular order, max move 1.5 node diameters, never moves
-pinned, deterministic; frame-sliced if > 16 ms at 400); result applied as local prior hints (P5) +
-history entry + `constellationTidied` Undo snackbar; move trails layer fading over 1.5 s (reduced
+pinned, deterministic; frame-sliced if > 16 ms at 400); result stored as a **post-layout offset layer**
+(P5 rev 2): `Map<personId, Offset>` applied after every layout pass, kept in the client store for the
+session and persisted locally per device, cleared for a person on Undo, when they get pinned or leave
+the Field, and wholesale on Rearrange / Reset; + history entry + `constellationTidied` Undo snackbar; move trails layer fading over 1.5 s (reduced
 motion: trails only).
 
 **Tests (write first):** overlapping fixture → no overlaps after, every move ≤ 1.5 diameters, pinned
 unchanged, ring index and angular order unchanged (acceptance 11); same input → same output; only
-the visible rect / the selection is touched; 400-node fixture under the budget (bench test, not a
-gate assertion on timing in CI).
+the visible rect / the selection is touched; **a data refresh (new layout pass) keeps the tidied
+positions**; 400-node fixture under the budget (bench test, not a gate assertion on timing in CI).
 
 ### D5 — Rearrange everyone including pinned (preview)
 
@@ -666,8 +761,8 @@ Restore favourite, Reset, restore; during manual drags at most once per 10 min (
 "Save as favourite" undoable (undo restores the previous favourite).
 
 **Tests (write first):** each bulk action triggers exactly one save before it applies; drags save at
-most once per 10 min (fake clock); preview then restore on "device 2" (second cubit) gives the same
-anchors (acceptance 13).
+most once per 10 min (fake clock); restoring clears session prior hints and the Tidy offset layer, so preview then restore on
+"device 2" (second cubit) gives the same **composed positions** (acceptance 13).
 
 ### D7a — Tag view layout algorithm
 
@@ -682,13 +777,17 @@ clusters; wrapped as a `SceneLayoutAlgorithm` without pins.
 
 ### D7b — Tag view mode
 
-**Files:** `ConstellationCubit` `viewMode.tagView(tagIds)`; header in the tag colour "Neighbour · 5"
+**Files:** `ConstellationCubit` `viewMode.tagView(ownTagIds, autoKinds)` (automatic tags too,
+spec §6.5), run as a **separate scene** (its own `GraphController` / layout) or with the main Field's
+prior hints, Tidy offsets and camera saved on entry and restored on exit — the main Field must not
+re-layout; header in the tag colour "Neighbour · 5"
 + Exit; others switch hide / as dots / as is (default dots); dragging does not pin (drop = no-op
 snap back); tap opens the panel; "Find in tag"; "Forward a request…" (B8b flow); no Arrange menu;
 enter/exit animation 400–500 ms from/to Field places (reduced motion: instant); B8b's "Open tag view"
-becomes visible.
+becomes visible only when both `kPeopleTagsEnabled` and `kFieldArrangeV2Enabled` are on.
 
-**Tests (write first):** entering and leaving changes no main-Field position and writes no anchors;
+**Tests (write first):** entering and leaving changes no main-Field position (composed positions
+compared, not only anchors) and writes no anchors; an automatic-tag view works;
 re-entering gives the same layout (acceptance 12); drag in tag view writes nothing; others modes.
 
 ### R2 — Ship phase 2
@@ -724,8 +823,7 @@ regardless of zoom direction; overlay and body always agree on the level.
 **Files:** frame + node builder: at overview (gate on) 5 pt dots coloured by the first own tag (grey
 without tags), no person / Request labels, no "+N" chips, no forced labels; tap targets ≥
 `kMinInteractiveDimension`, overlapping targets resolve to the nearest node
-(`resolveConstellationTap`). Commit body `Closes #595`, `Closes #640` (when R3 ships; mention in R3
-if the gate is still off).
+(`resolveConstellationTap`). No `Closes` trailer here (the gate is still off); R3 closes #595 / #640.
 
 **Tests (write first):** at 0.4 with 400 people no label and no chip in the frame; a tap between two
 dots selects the nearer; dot colour = first own tag.
@@ -822,13 +920,13 @@ Flip `kFieldSemanticZoomEnabled`; version bump; docs; suites + lints; commit bod
 
 | Spec acceptance | Units |
 |---|---|
-| 1 person without Requests on the Field | A7a, B7 |
-| 2 temporary author, disappears after close | A7a, B7 |
+| 1 person without Requests on the Field | A7a, B7a |
+| 2 temporary author, disappears after close | A7a, B7b |
 | 3 cross-device tag sync | A4, B1, M1 |
 | 4 no leak to the tagged person | A9 |
 | 5 "I helped" on review, never on cancel | A5 |
 | 6 and/or lens, camera fixed | B8a |
-| 7 tag in forwarding selects eligible only | B11 |
+| 7 tag in forwarding selects eligible only | B11a, B11b |
 | 8 3× Not now → 30 days | A8, B12 |
 | 9 automatic tags not removable; hiding keeps them in panels | A5, B4, B6a |
 | 10 one Undo per bulk action incl. reset | D1, D2, D5, D6, E7a |
@@ -838,3 +936,41 @@ Flip `kFieldSemanticZoomEnabled`; version bump; docs; suites + lints; commit bod
 | 14 overview: no labels/chips, hit targets, #595 criteria | E1, E2a, E2b |
 | 15 community layout deterministic, no trace | E5a, E5b |
 | 16 cluster drag = one batch, one undo | E7b |
+
+---
+
+## 7. Review rev 1 → rev 2 — disposition
+
+Reviewer: independent Opus subagent (codex quota exhausted), read-only, 2026-10-24. Verdict on rev 1:
+ready after fixes. All file / line / symbol references it checked were correct; the findings are about
+behaviour.
+
+| # | Sev. | Unit | Finding | Disposition |
+|---|---|---|---|---|
+| 1 | major | A4 | websocket fan-out drops every non-anchor kind without `last_seen_at` | A4 changes the revision branch condition + fan-out test |
+| 2 | major | A4 | client contract test reads the shared manifest → A4 red without the client enum | client enum, parse and evidence test moved into A4 |
+| 3 | major | A1/A4 | revision upsert at commit after erasure → FK violation rolls back erasure | revision row created with the first tag; bump is `UPDATE … RETURNING` only; erasure tests |
+| 4 | major | A7b | everyone "New" for 7 days after deploy; upsert on every refetch | `-infinity` backfill; write tx only when new people |
+| 5 | major | A7a | T Request not in snapshot; author-side T missing; bond titles missing | Request added via `beacon_readable_ids`; direction 2 with rejection rule; `bondContexts` with titles |
+| 6 | major | A3/A5/B1 | no API returns member lists | `personTagMemberships`, `personAutoTagMembers` |
+| 7 | major | B11 | forward screen uses `ForwardState.selectedIds`, not radius selection | split into B11a (ForwardCubit) / B11b (composer) |
+| 8 | major | A6 | from-Post copies hidden Post members | Requests only |
+| 9 | major | B7 | D9 removal ungated | `kFieldMembershipV2Enabled`; split B7a / B7b |
+| 10 | major | B7/A7a | overlapping categories; field patches drop bond nodes; stale trust kinds; double source of own tags | precedence rule; `_patchOne` fix; store is the single source |
+| 11 | major | D3/P5 | prior hints do not survive a re-layout | post-layout offset layer (P5 rev 2), refresh test |
+| 12 | minor | prio | B1 starved by P2 deps; D7a needs only B1 | A4, A8 → P1; D7a after B1 |
+| 13 | minor | deps | B10→B8a, B8b→B11a, E9a→A4, R1→G1 | added |
+| 14 | minor | D7b | tag view visible with phase-1 gate only; automatic kinds | both gates; automatic kinds |
+| 15 | minor | D7b | switching algorithm overwrites main prior hints | separate scene or save/restore |
+| 16 | minor | D2 | spec §8.4 ring caption uncovered | added to D2 |
+| 17 | minor | D6 | "same anchors" ≠ "same layout" | clear hints/offsets; compare composed positions |
+| 18 | minor | D2/C1 | save-then-reset not atomic | `constellationAnchorsReset(saveHistory)` in one tx; `SnapshotRestoreEntry` |
+| 19 | minor | C1/D1 | snapshot misses outbox drags | flush outbox before bulk saves |
+| 20 | minor | A3 | block oracle on add | silent skip, identical result |
+| 21 | minor | A1 | member owner not tied to tag owner | composite FK |
+| 22 | minor | A7b/A5 | BFS edge query cost; `UNION ALL` double count | noted for G1; `DISTINCT beacon_id` |
+| 23 | minor | A2 | no `characters` on server; names in exception text | server length check; no names in errors |
+| 24 | minor | B3 | Undo 10 s | fixed |
+| 25 | minor | B7/B8a | `presence` name collision; lens state placement | client `fieldMembership`; `ConstellationTagLensCubit` |
+| 26 | minor | E2a | `Closes` while gated | only in R3 |
+
