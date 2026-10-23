@@ -95,7 +95,7 @@ class TombstoneRow extends StatelessWidget {
     );
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
-        '${timeFormatHm(localCreatedAt)}';
+        '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';
 
     return Semantics(
       // The whole sentence, so the outcome is never carried by chrome alone

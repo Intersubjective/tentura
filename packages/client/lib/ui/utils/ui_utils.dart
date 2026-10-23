@@ -50,7 +50,7 @@ const kPaddingSmallV = EdgeInsets.symmetric(vertical: kSpacingSmall);
 const kBorderRadius = 8.0;
 
 final _fmtYMdByLocale = <String?, DateFormat>{};
-final _fmtHm = DateFormat.Hm();
+final _fmtHmByLocale = <String?, DateFormat>{};
 
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
     GlobalKey<ScaffoldMessengerState>();
@@ -97,8 +97,13 @@ String dateFormatYMD(DateTime? dateTime, {String? locale}) => dateTime == null
           .putIfAbsent(locale, () => DateFormat.yMd(locale))
           .format(dateTime.toLocal());
 
-String timeFormatHm(DateTime? dateTime) =>
-    dateTime == null ? '' : _fmtHm.format(dateTime.toLocal());
+/// Time as `Hm` in [locale] (pass `L10n.localeName`, #670); null keeps the
+/// process default locale.
+String timeFormatHm(DateTime? dateTime, {String? locale}) => dateTime == null
+    ? ''
+    : _fmtHmByLocale
+          .putIfAbsent(locale, () => DateFormat.Hm(locale))
+          .format(dateTime.toLocal());
 
 /// [showTimePicker] on the 24-hour dial: the app shows every time as `Hm`,
 /// so the 12-hour AM/PM dial did not match what the person then sees (#446).

@@ -40,7 +40,7 @@ class ActivityOfferBoundedShell extends StatelessWidget {
     // it follows the shared clock, so it keeps counting (#532).
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
-        '${timeFormatHm(localCreatedAt)}';
+        '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';
 
     return Material(
       color: scheme.surfaceContainerLow,

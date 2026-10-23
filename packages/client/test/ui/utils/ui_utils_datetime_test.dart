@@ -42,4 +42,26 @@ void main() {
       expect(dateFormatYMD(day, locale: 'en'), '10/5/2026');
     });
   });
+
+  group('#670 timeFormatHm follows the app locale', () {
+    final day = DateTime(2026, 10, 5, 8, 40);
+
+    setUpAll(() async {
+      await initializeDateFormatting('da');
+    });
+
+    test('ru reads HH:mm', () {
+      expect(timeFormatHm(day, locale: 'ru'), '08:40');
+    });
+
+    test('the pattern comes from the given locale, not the default', () {
+      final saved = Intl.defaultLocale;
+      addTearDown(() => Intl.defaultLocale = saved);
+      Intl.defaultLocale = 'en';
+      // Danish writes the time with a dot; en and ru both use a colon.
+      expect(timeFormatHm(day, locale: 'da'), '08.40');
+      expect(timeFormatHm(day, locale: 'ru'), '08:40');
+      expect(timeFormatHm(null, locale: 'ru'), '');
+    });
+  });
 }

@@ -217,7 +217,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         : null;
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
-        '${timeFormatHm(localCreatedAt)}';
+        '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';
     final rowAction =
         widget.action ??
         (widget.receipt.isUserSettleable && widget.onSettle != null
