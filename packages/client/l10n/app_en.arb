@@ -2772,7 +2772,7 @@
   "@timelineDeclined": {
     "context": "BeaconViewScreen"
   },
-  "forwardDeclined": "Declined this request",
+  "forwardDeclined": "Dismissed this request",
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
   },
@@ -3972,7 +3972,7 @@
   "@activityForwardOutcomeWatching": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeNotInterested": "You declined",
+  "activityForwardOutcomeNotInterested": "You dismissed it",
   "@activityForwardOutcomeNotInterested": {
     "context": "InboxScreen"
   },
@@ -4505,12 +4505,12 @@
     "context": "BeaconViewScreen",
     "description": "Subsection header in the Forwards tab showing who the current user forwarded to"
   },
-  "myForwardDeclined": "Declined",
+  "myForwardDeclined": "Dismissed",
   "@myForwardDeclined": {
     "context": "BeaconViewScreen",
     "description": "Reaction label when a forward recipient declined the beacon"
   },
-  "myForwardDeclinedWithReason": "Declined: {reason}",
+  "myForwardDeclinedWithReason": "Dismissed: {reason}",
   "@myForwardDeclinedWithReason": {
     "context": "BeaconViewScreen",
     "description": "Reaction label with reason when a forward recipient declined the beacon",
