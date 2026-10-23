@@ -5,8 +5,14 @@
 //
 // Spec: the field is controlled by the cubit's search filter — clearing the
 // filter empties the field; typing still filters.
+//
+// Follow-up (QA 7.46.1): on web, a mouse click on ✕ counted as a tap outside
+// the field and dropped its focus, and the first click back on the field did
+// not focus it, so the next keys were lost. Spec: Close keeps the caret in
+// the field, so typing goes on with no extra click.
 
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -100,6 +106,9 @@ Future<_RatingCubitFake> _pumpRating(
 String _fieldText(WidgetTester tester) =>
     tester.widget<EditableText>(find.byType(EditableText)).controller.text;
 
+bool _fieldHasFocus(WidgetTester tester) =>
+    tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus;
+
 void main() {
   group('#603 Rating search field', () {
     testWidgets('guard: typing filters the list and shows the text', (
@@ -178,5 +187,67 @@ void main() {
       expect(find.text('Mutual Mia'), findsOneWidget);
       expect(find.text('Jasper'), findsNothing);
     });
+  });
+
+  group('#603 Rating search: Close by mouse keeps typing in the field', () {
+    testWidgets(
+      'after Close the field keeps focus and the next keys land in it',
+      (tester) async {
+        final cubit = await _pumpRating(tester);
+
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+        expect(_fieldHasFocus(tester), isTrue);
+
+        await tester.tap(
+          find.byIcon(Icons.clear_rounded),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+
+        expect(cubit.state.searchFilter, isEmpty);
+        // Before the fix the mouse click on ✕ unfocused the field.
+        expect(_fieldHasFocus(tester), isTrue);
+
+        // Keys typed straight after Close, with no extra click.
+        tester.testTextInput.enterText('mi');
+        await tester.pump();
+
+        expect(_fieldText(tester), 'mi');
+        expect(cubit.state.searchFilter, 'mi');
+        expect(find.text('Mutual Mia'), findsOneWidget);
+        expect(find.text('Jasper'), findsNothing);
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+
+    testWidgets(
+      'one click on the field after Close is enough to type',
+      (tester) async {
+        final cubit = await _pumpRating(tester);
+
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+        await tester.tap(
+          find.byIcon(Icons.clear_rounded),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+
+        await tester.tap(
+          find.byType(TextField),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+
+        expect(_fieldHasFocus(tester), isTrue);
+        tester.testTextInput.enterText('al');
+        await tester.pump();
+
+        expect(_fieldText(tester), 'al');
+        expect(cubit.state.searchFilter, 'al');
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
   });
 }
