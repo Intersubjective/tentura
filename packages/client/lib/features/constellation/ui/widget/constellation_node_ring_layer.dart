@@ -165,6 +165,76 @@ double constellationTrustBadgeDiameter(TenturaTokens tt) => tt.iconSize * 0.75;
 /// The smallest circle a trust glyph disc sits on, around a small node.
 double constellationTrustMinRadius(TenturaTokens tt) => tt.avatarTinySize / 2;
 
+/// Zoomed out (overview / bare detail) the glyph disc gives way to a rim on
+/// the node's own edge. Its width scales with the node, so it never covers
+/// it; its colour is a muted tone of the badge colour.
+typedef ConstellationTrustRim = ({Color color, double width});
+
+/// The rim for [badge] around [body], or null for a contact without
+/// content (no relation colour to show). Mutual trust gets the full width,
+/// one-way trust a thinner rim; «they trust you» keeps its own colour.
+ConstellationTrustRim? constellationTrustRimOf(
+  ConstellationTrustBadge badge,
+  Rect body,
+  ColorScheme scheme,
+) {
+  final full = (body.shortestSide / 2 * 0.16).clamp(1, 3).toDouble();
+  final (width, base) = switch (badge) {
+    ConstellationTrustBadge.mutual => (full, scheme.primary),
+    ConstellationTrustBadge.youTrust => (
+      math.max<double>(1, full * 0.6),
+      scheme.primary,
+    ),
+    ConstellationTrustBadge.theyTrust => (
+      math.max<double>(1, full * 0.6),
+      scheme.tertiary,
+    ),
+    ConstellationTrustBadge.contactOnly => (0.0, null),
+  };
+  if (base == null) {
+    return null;
+  }
+  return (
+    color: constellationMutedRimColor(base, scheme.surface),
+    width: width,
+  );
+}
+
+/// Contrast a rim keeps against the field (WCAG 1.4.11, graphical objects).
+const kConstellationTrustRimMinContrast = 3.0;
+
+final _mutedRimColors = <(Color, Color), Color>{};
+
+/// [base] desaturated, then darkened on a light [background] or lightened
+/// on a dark one until it keeps [kConstellationTrustRimMinContrast]
+/// against it: muted, yet readable in both themes.
+Color constellationMutedRimColor(Color base, Color background) =>
+    _mutedRimColors[(base, background)] ??= () {
+      final bg = background.computeLuminance();
+      final light = bg > 0.5;
+      var hsl = HSLColor.fromColor(base);
+      hsl = hsl.withSaturation(hsl.saturation * 0.55);
+      double contrast(Color c) {
+        final l = c.computeLuminance();
+        final (hi, lo) = l > bg ? (l, bg) : (bg, l);
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      for (var i = 0; i < 40; i++) {
+        if (contrast(hsl.toColor()) >= kConstellationTrustRimMinContrast) {
+          break;
+        }
+        final next = (hsl.lightness + (light ? -0.025 : 0.025))
+            .clamp(0, 1)
+            .toDouble();
+        if (next == hsl.lightness) {
+          break;
+        }
+        hsl = hsl.withLightness(next);
+      }
+      return hsl.toColor();
+    }();
+
 /// How far a node's decorations reach past its body at the top and sides,
 /// for label and chip placement: [base] (pin / status badges) or, for a
 /// person with a trust badge, its glyph disc if that reaches further, so no
@@ -202,10 +272,11 @@ double constellationNodeBadgeOverhang({
 /// Viewport-space rings drawn over the field's nodes (#640, #643):
 ///
 /// * every person with a trust relation to the viewer gets a glyph disc on
-///   their top start corner, at a fixed on-screen size, shown only at normal
-///   detail (as the pin badge) so it never covers a zoomed-out node. There
-///   is no ring around the person: it repeated the disc and cluttered a busy
-///   field;
+///   their top start corner, at a fixed on-screen size, at normal detail (as
+///   the pin badge); zoomed out, where the disc would cover the node, a
+///   muted rim on the node's own edge instead (no rim for a contact without
+///   content). There is no ring around the person: it repeated the disc and
+///   cluttered a busy field;
 /// * a node smaller than a tap target gets a hover ring (mouse) and, when
 ///   selected, a selection ring at the tap target's size — larger than the
 ///   node, matching what a tap there resolves to.
@@ -285,7 +356,6 @@ class ConstellationNodeRingPainter extends CustomPainter {
     required this.trustByGraphId,
     required this.selectedGraphId,
     required this.hover,
-    this.dimmedGraphIds = const {},
     required this.minTarget,
     required this.gap,
     required this.minTrustRadius,
@@ -293,6 +363,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
     required this.scheme,
     required this.textDirection,
     required this.rtl,
+    this.dimmedGraphIds = const {},
     this.glyphs,
   }) : super(repaint: hover);
 
@@ -336,6 +407,22 @@ class ConstellationNodeRingPainter extends CustomPainter {
     ConstellationTrustBadge badge,
     Rect body,
   ) {
+    if (frame.detail != ConstellationDetailLevel.normal) {
+      // Zoomed out the fixed-size disc would cover the node: a muted rim on
+      // the node's own edge, scaling with it, says the same quietly.
+      if (constellationTrustRimOf(badge, body, scheme) case final rim?) {
+        canvas.drawCircle(
+          body.center,
+          body.shortestSide / 2 - rim.width / 2,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = rim.width
+            ..isAntiAlias = true
+            ..color = rim.color,
+        );
+      }
+      return;
+    }
     final g = _geometry(body);
     final style = constellationTrustBadgeStyle(badge, scheme, rtl: rtl);
     _paintBadge(
@@ -355,12 +442,6 @@ class ConstellationNodeRingPainter extends CustomPainter {
     final visible = (Offset.zero & size).inflate(minTarget);
     final ownGlyphs = glyphs == null ? ConstellationTrustGlyphCache() : null;
     final glyphCache = glyphs ?? ownGlyphs!;
-    // Fixed-size trust marks would cover a zoomed-out node whole: like the
-    // pin badge, they show only at normal detail.
-    final trustByGraphId = frame.detail == ConstellationDetailLevel.normal
-        ? this.trustByGraphId
-        : const <GraphNodeId, ConstellationTrustBadge>{};
-
     // Marks off the trust chain go through one translucent layer, so the
     // glyph disc fades as a whole.
     final shown = [
@@ -381,7 +462,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
         canvas.saveLayer(
           null,
           Paint()
-            ..color = Color.fromRGBO(
+            ..color = const Color.fromRGBO(
               0,
               0,
               0,

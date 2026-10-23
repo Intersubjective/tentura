@@ -493,36 +493,119 @@ void main() {
       expect(layers, 1);
     });
 
-    // Trust marks keep a fixed on-screen size, so zoomed out they covered the
-    // node whole; like the pin badge they show only at normal detail.
+    // Zoomed out the fixed-size disc would cover the node: a muted rim on
+    // the node's own edge shows the relation instead, scaling with it.
     for (final detail in const [
       ConstellationDetailLevel.overview,
       ConstellationDetailLevel.bare,
     ]) {
-      testWidgets('at ${detail.name} detail no trust ring or disc', (
+      testWidgets('at ${detail.name} detail a muted rim, no disc', (
         tester,
       ) async {
         final frame = frameOf([
-          ('p', const Offset(200, 200), lowZoomBody),
+          // 25 px: a 2 px rim, exact in the canvas's float32 stroke width.
+          ('p', const Offset(200, 200), 25),
         ], detail: detail);
         await pumpLayer(
           tester,
           frame: frame,
           trust: {'p': ConstellationTrustBadge.mutual},
         );
-        expect(rings(), paintsNothing);
+        final scheme = Theme.of(tester.element(rings())).colorScheme;
+        final rim = constellationTrustRimOf(
+          ConstellationTrustBadge.mutual,
+          frame.bodies['p']!,
+          scheme,
+        )!;
+        expect(
+          rings(),
+          paints..circle(
+            x: 200,
+            y: 200,
+            radius: 12.5 - rim.width / 2,
+            strokeWidth: rim.width,
+            color: rim.color,
+            style: PaintingStyle.stroke,
+          ),
+        );
+        expect(rings(), isNot(paints..paragraph()), reason: 'no glyph disc');
 
-        // Selected, it gets the plain target-size ring.
+        // A contact without content has no relation colour: nothing.
         await pumpLayer(
           tester,
           frame: frame,
+          trust: {'p': ConstellationTrustBadge.contactOnly},
+        );
+        expect(rings(), paintsNothing);
+
+        // Selected, it also gets the plain target-size ring, after the rim.
+        await pumpLayer(
+          tester,
+          frame: frameOf([
+            ('p', const Offset(200, 200), lowZoomBody),
+          ], detail: detail),
           trust: {'p': ConstellationTrustBadge.mutual},
           selected: 'p',
         );
         expect(
           rings(),
-          paints..circle(x: 200, y: 200, radius: minTarget / 2),
+          paints
+            ..circle(x: 200, y: 200, radius: lowZoomBody / 2 - 0.5)
+            ..circle(x: 200, y: 200, radius: minTarget / 2),
         );
+      });
+    }
+
+    test('the rim stays inside the node and scales with it', () {
+      final scheme = TenturaTheme.light().colorScheme;
+      Rect body(double d) =>
+          Rect.fromCircle(center: Offset.zero, radius: d / 2);
+      final small = constellationTrustRimOf(
+        ConstellationTrustBadge.mutual,
+        body(8),
+        scheme,
+      )!;
+      final large = constellationTrustRimOf(
+        ConstellationTrustBadge.mutual,
+        body(30),
+        scheme,
+      )!;
+      expect(small.width, 1, reason: 'a floor so it stays visible');
+      expect(large.width, greaterThan(small.width));
+      expect(large.width, lessThan(15 / 2), reason: 'never fills the node');
+      final oneWay = constellationTrustRimOf(
+        ConstellationTrustBadge.youTrust,
+        body(30),
+        scheme,
+      )!;
+      expect(oneWay.width, lessThan(large.width), reason: 'one-way is thinner');
+    });
+
+    for (final (name, theme) in [
+      ('light', TenturaTheme.light()),
+      ('dark', TenturaTheme.dark()),
+    ]) {
+      test('rim colours are muted yet keep 3:1 on the $name field', () {
+        final scheme = theme.colorScheme;
+        double contrast(Color a, Color b) {
+          final la = a.computeLuminance();
+          final lb = b.computeLuminance();
+          final (hi, lo) = la > lb ? (la, lb) : (lb, la);
+          return (hi + 0.05) / (lo + 0.05);
+        }
+
+        for (final base in [scheme.primary, scheme.tertiary]) {
+          final muted = constellationMutedRimColor(base, scheme.surface);
+          expect(
+            contrast(muted, scheme.surface),
+            greaterThanOrEqualTo(kConstellationTrustRimMinContrast),
+          );
+          expect(
+            HSLColor.fromColor(muted).saturation,
+            lessThan(HSLColor.fromColor(base).saturation),
+            reason: 'muted',
+          );
+        }
       });
     }
 
