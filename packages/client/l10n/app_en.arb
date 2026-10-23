@@ -3251,7 +3251,7 @@
       }
     }
   },
-  "forwardRecipientNoteHint": "Note for {name}",
+  "forwardRecipientNoteHint": "Add a note for {name} (optional)",
   "@forwardRecipientNoteHint": {
     "context": "ForwardBeaconScreen",
     "placeholders": {
