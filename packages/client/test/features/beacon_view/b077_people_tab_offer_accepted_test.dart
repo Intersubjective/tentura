@@ -148,6 +148,7 @@ BeaconViewState _acceptedBy(
       withdrawReason: null,
       createdAt: _t,
       updatedAt: _t,
+      editedAt: null,
       responseType: CoordinationResponseType.useful.index,
       responseUpdatedAt: _t,
       responseAuthorUserId: acceptorId,
