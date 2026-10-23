@@ -14,6 +14,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 class UpdatesFeedGlyph {
   const UpdatesFeedGlyph({required this.icon, required this.color});
@@ -189,19 +190,28 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
-    final now = DateTime.now();
-    final ageLabel = widget.activityRow
-        ? cardRelativeAge(when: widget.receipt.createdAt, now: now, l10n: l10n)
-        : compactRelativeTimeAgo(
-            when: widget.receipt.createdAt,
-            now: now,
-            l10n: l10n,
-          );
+    // The age follows the shared clock, so "2m ago" keeps counting while the
+    // feed stays open (#532); only the age label rebuilds on a tick.
+    String ageLabel() {
+      final now = RelativeTimestampTicker.now();
+      return widget.activityRow
+          ? cardRelativeAge(
+              when: widget.receipt.createdAt,
+              now: now,
+              l10n: l10n,
+            )
+          : compactRelativeTimeAgo(
+              when: widget.receipt.createdAt,
+              now: now,
+              l10n: l10n,
+            );
+    }
+
     // The abbreviations are for the eye; a screen reader hears the words.
-    final ageSpoken = widget.activityRow
+    String? ageSpoken() => widget.activityRow
         ? cardRelativeAgeSpoken(
             when: widget.receipt.createdAt,
-            now: now,
+            now: RelativeTimestampTicker.now(),
             l10n: l10n,
           )
         : null;
@@ -280,12 +290,14 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
             SizedBox(width: tt.iconTextGap),
             Tooltip(
               message: absoluteTime,
-              child: Text(
-                ageLabel,
-                style: TenturaText.withTabular(
-                  TenturaText.bodySmall(tt.textMuted),
+              child: RelativeTimestampTicker(
+                builder: (_) => Text(
+                  ageLabel(),
+                  style: TenturaText.withTabular(
+                    TenturaText.bodySmall(tt.textMuted),
+                  ),
+                  semanticsLabel: ageSpoken(),
                 ),
-                semanticsLabel: ageSpoken,
               ),
             ),
           ],

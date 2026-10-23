@@ -18,6 +18,7 @@ import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 
@@ -962,11 +963,17 @@ class _ChangeLine extends StatelessWidget {
   final bool carriesReason;
   final VoidCallback? onTap;
 
+  // The age, and the spoken line carrying it, follow the shared clock, so
+  // "2m ago" keeps counting while the card stays open (#532). The line is
+  // small: rebuilding it on a tick is cheaper than splitting it.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      RelativeTimestampTicker(builder: _buildLine);
+
+  Widget _buildLine(BuildContext context) {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
-    final now = DateTime.now();
+    final now = RelativeTimestampTicker.now();
     final age = cardRelativeAge(when: receipt.createdAt, now: now, l10n: l10n);
     final spoken = cardRelativeAgeSpoken(
       when: receipt.createdAt,

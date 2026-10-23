@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import 'beacon_hud_action_button.dart';
 
@@ -349,14 +350,23 @@ class _PendingBody extends StatelessWidget {
             for (final id in pending.actorIds) data.people.nameOf(id, l10n),
           ].join(', ');
     final editedAt = plan.lastEditedAt;
-    final when = editedAt == null
-        ? ''
-        : compactRelativeTimeAgo(when: editedAt, now: data.now, l10n: l10n);
     final changedStepIds = plan.viewerPendingStepIds;
-    final String text;
-    if (changedStepIds.length == 1) {
+    // The age follows the shared clock, so «2m ago» keeps counting while the
+    // HUD stays open (#532); the plan's own boundary clock moves only at step
+    // edges.
+    String text() {
+      final when = editedAt == null
+          ? ''
+          : compactRelativeTimeAgo(
+              when: editedAt,
+              now: RelativeTimestampTicker.now(),
+              l10n: l10n,
+            );
+      if (changedStepIds.length != 1) {
+        return l10n.planChangeMany(actor, when, changedStepIds.length);
+      }
       final change = pending.changes.first.change;
-      text = l10n.planChangeOne(
+      return l10n.planChangeOne(
         actor,
         when,
         change.title,
@@ -367,8 +377,6 @@ class _PendingBody extends StatelessWidget {
           l10n,
         ),
       );
-    } else {
-      text = l10n.planChangeMany(actor, when, changedStepIds.length);
     }
 
     // «Не успеваю» is offered on a live, open step of the viewer the
@@ -387,18 +395,20 @@ class _PendingBody extends StatelessWidget {
     final onCantMake = data.onCantMake;
     final tickStep = slot.canTick && current != null ? current : null;
     return _PlanRowFrame(
-      head: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: '$label  ',
-              style: TenturaText.typeLabel(tt.textMuted),
-            ),
-            TextSpan(text: text, style: TenturaText.hudBodySmall(tt.info)),
-          ],
+      head: RelativeTimestampTicker(
+        builder: (_) => Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$label  ',
+                style: TenturaText.typeLabel(tt.textMuted),
+              ),
+              TextSpan(text: text(), style: TenturaText.hudBodySmall(tt.info)),
+            ],
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
         ),
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
       ),
       actions: [
         if (onAck != null)
