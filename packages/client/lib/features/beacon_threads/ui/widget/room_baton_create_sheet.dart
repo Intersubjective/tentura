@@ -130,129 +130,153 @@ class _CreateSheetState extends State<_CreateSheet> {
     final tt = context.tt;
     final replyTo = widget.replyTo;
     final hPad = EdgeInsets.symmetric(horizontal: tt.screenHPadding);
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: hPad,
-            child: Text(
-              l10n.batonCreateTitle,
-              style: Theme.of(context).textTheme.titleMedium,
+    // A labelled container: without it a screen reader only hears a bare
+    // «Dialog» for the sheet and has no name for the group of its controls.
+    return Semantics(
+      container: true,
+      namesRoute: true,
+      explicitChildNodes: true,
+      label: l10n.batonCreateTitle,
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: hPad,
+              child: Semantics(
+                header: true,
+                child: Text(
+                  l10n.batonCreateTitle,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
             ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: tt.screenHPadding,
-              vertical: tt.rowGap,
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: tt.screenHPadding,
+                vertical: tt.rowGap,
+              ),
+              child: Text(
+                l10n.batonCreateHint,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
             ),
-            child: Text(
-              l10n.batonCreateHint,
-              style: TenturaText.bodySmall(tt.textMuted),
+            if (replyTo != null)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding,
+                  right: tt.screenHPadding,
+                  bottom: tt.rowGap,
+                ),
+                child: RoomMessageReplyQuote(
+                  authorName: replyTo.authorName,
+                  excerpt: replyTo.excerpt,
+                  unavailable: false,
+                ),
+              ),
+            Padding(
+              padding: hPad,
+              child: TextField(
+                controller: _text,
+                autofocus: replyTo == null && widget.initial == null,
+                minLines: 1,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: l10n.batonCreateTextLabel,
+                  helperText: replyTo == null
+                      ? null
+                      : l10n.batonCreateTextReplyHint,
+                ),
+              ),
             ),
-          ),
-          if (replyTo != null)
+            SizedBox(height: tt.rowGap),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final p in widget.participants) ...[
+                    // Avatar first, checkbox at the end of the row.
+                    CheckboxListTile(
+                      controlAffinity: ListTileControlAffinity.trailing,
+                      value: _tiers.containsKey(p.userId),
+                      onChanged: (picked) => setState(() {
+                        if (picked ?? false) {
+                          _tiers[p.userId] = 1;
+                        } else {
+                          _tiers.remove(p.userId);
+                        }
+                      }),
+                      secondary: coordinationLogParticipantAvatar(p),
+                      title: Text(p.displayLabel(l10n.unknownPerson)),
+                    ),
+                    // Kept outside the tile: CheckboxListTile merges its
+                    // semantics, so a control in its subtitle would receive the
+                    // row's tap (unpicking the person) instead of its own.
+                    if (_canOrder &&
+                        _setPriority &&
+                        _tiers.containsKey(p.userId))
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: tt.screenHPadding,
+                          right: tt.screenHPadding,
+                          bottom: tt.rowGap,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: SegmentedButton<int>(
+                            showSelectedIcon: false,
+                            // Each segment says whose priority it sets: a bare
+                            // «2» means nothing to a screen reader.
+                            segments: [
+                              for (final tier in const [1, 2, 3])
+                                ButtonSegment(
+                                  value: tier,
+                                  label: Text(
+                                    '$tier',
+                                    semanticsLabel: l10n
+                                        .batonCreateTierSemantics(
+                                          p.displayLabel(l10n.unknownPerson),
+                                          tier,
+                                        ),
+                                  ),
+                                ),
+                            ],
+                            selected: {_tiers[p.userId]!},
+                            onSelectionChanged: (s) =>
+                                setState(() => _tiers[p.userId] = s.first),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            if (_canOrder)
+              SwitchListTile(
+                value: _setPriority,
+                onChanged: (v) => setState(() => _setPriority = v),
+                title: Text(l10n.batonCreateTiersToggle),
+                subtitle: Text(l10n.batonCreateTiersHint),
+              ),
             Padding(
               padding: EdgeInsets.only(
                 left: tt.screenHPadding,
                 right: tt.screenHPadding,
                 bottom: tt.rowGap,
               ),
-              child: RoomMessageReplyQuote(
-                authorName: replyTo.authorName,
-                excerpt: replyTo.excerpt,
-                unavailable: false,
+              child: FilledButton(
+                onPressed: _canAsk ? _ask : null,
+                child: Text(
+                  widget.initial == null
+                      ? l10n.batonCreateSubmit
+                      : l10n.batonEditSubmit,
+                ),
               ),
             ),
-          Padding(
-            padding: hPad,
-            child: TextField(
-              controller: _text,
-              autofocus: replyTo == null && widget.initial == null,
-              minLines: 1,
-              maxLines: 4,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: l10n.batonCreateTextLabel,
-                helperText: replyTo == null
-                    ? null
-                    : l10n.batonCreateTextReplyHint,
-              ),
-            ),
-          ),
-          SizedBox(height: tt.rowGap),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final p in widget.participants) ...[
-                  // Avatar first, checkbox at the end of the row.
-                  CheckboxListTile(
-                    controlAffinity: ListTileControlAffinity.trailing,
-                    value: _tiers.containsKey(p.userId),
-                    onChanged: (picked) => setState(() {
-                      if (picked ?? false) {
-                        _tiers[p.userId] = 1;
-                      } else {
-                        _tiers.remove(p.userId);
-                      }
-                    }),
-                    secondary: coordinationLogParticipantAvatar(p),
-                    title: Text(p.displayLabel(l10n.unknownPerson)),
-                  ),
-                  // Kept outside the tile: CheckboxListTile merges its
-                  // semantics, so a control in its subtitle would receive the
-                  // row's tap (unpicking the person) instead of its own.
-                  if (_canOrder && _setPriority && _tiers.containsKey(p.userId))
-                    Padding(
-                      padding: EdgeInsets.only(
-                        left: tt.screenHPadding,
-                        right: tt.screenHPadding,
-                        bottom: tt.rowGap,
-                      ),
-                      child: Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: SegmentedButton<int>(
-                          showSelectedIcon: false,
-                          segments: const [
-                            ButtonSegment(value: 1, label: Text('1')),
-                            ButtonSegment(value: 2, label: Text('2')),
-                            ButtonSegment(value: 3, label: Text('3')),
-                          ],
-                          selected: {_tiers[p.userId]!},
-                          onSelectionChanged: (s) =>
-                              setState(() => _tiers[p.userId] = s.first),
-                        ),
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-          if (_canOrder)
-            SwitchListTile(
-              value: _setPriority,
-              onChanged: (v) => setState(() => _setPriority = v),
-              title: Text(l10n.batonCreateTiersToggle),
-              subtitle: Text(l10n.batonCreateTiersHint),
-            ),
-          Padding(
-            padding: EdgeInsets.only(
-              left: tt.screenHPadding,
-              right: tt.screenHPadding,
-              bottom: tt.rowGap,
-            ),
-            child: FilledButton(
-              onPressed: _canAsk ? _ask : null,
-              child: Text(
-                widget.initial == null
-                    ? l10n.batonCreateSubmit
-                    : l10n.batonEditSubmit,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

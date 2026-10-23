@@ -15,6 +15,8 @@
 //    priority does, a single picked person is always sent at priority 1, and
 //    «Ask» keeps a gap above the bottom edge of the screen.
 
+import 'dart:ui' show CheckedState;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -38,8 +40,6 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 typedef _Candidate = ({String userId, int tier});
@@ -648,14 +648,14 @@ void main() {
 
       tester.semantics.tap(
         // A node the engine actually receives: not merged up, with the
-        // segment's label and tap after merging its own children. The first
-        // one in traversal order is Boris's (he is listed first).
+        // segment's label and tap after merging its own children. The label
+        // names whose priority it sets (#611).
         find.semantics.byPredicate((node) {
           final data = node.getSemanticsData();
           return !node.isMergedIntoParent &&
-              data.label == '2' &&
+              data.label == 'Boris Driver: priority 2' &&
               data.hasAction(SemanticsAction.tap);
-        }).first,
+        }),
       );
       await tester.pumpAndSettle();
 
@@ -797,6 +797,98 @@ void main() {
         sheet.bottom - ask.bottom,
         greaterThanOrEqualTo(TenturaSpacing.row),
       );
+    });
+  });
+
+  // Issue #611 (the #480 a11y point): the sheet's content is in the
+  // semantics tree, under a container named after the sheet, and every
+  // control carries a label that makes sense on its own.
+  group('create sheet semantics (#611)', () {
+    final l10n = lookupL10n(const Locale('en'));
+
+    // Nodes the engine actually receives (not merged into a parent).
+    SemanticsFinder node(bool Function(SemanticsData data) test) =>
+        find.semantics.byPredicate(
+          (n) => !n.isMergedIntoParent && test(n.getSemanticsData()),
+        );
+
+    testWidgets('its controls are in the tree with their labels', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+
+      expect(
+        node((d) => d.label.contains(l10n.batonCreateTextLabel)),
+        findsWidgets,
+      );
+      expect(
+        node(
+          (d) =>
+              d.label.contains('Boris Driver') &&
+              d.flagsCollection.isChecked != CheckedState.none,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        node(
+          (d) =>
+              d.label == l10n.batonCreateSubmit && d.flagsCollection.isButton,
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('is a container named after the sheet', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+
+      expect(
+        node(
+          (d) =>
+              d.flagsCollection.namesRoute && d.label == l10n.batonCreateTitle,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        node(
+          (d) => d.flagsCollection.isHeader && d.label == l10n.batonCreateTitle,
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('each priority segment says whose priority it sets', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpRoom(tester);
+      await openCreateSheet(tester);
+      await pick(tester, 'Boris Driver');
+      await pick(tester, 'Clara Helper');
+      await tester.tap(find.text(l10n.batonCreateTiersToggle));
+      await tester.pumpAndSettle();
+
+      for (final name in ['Boris Driver', 'Clara Helper']) {
+        for (final tier in [1, 2, 3]) {
+          expect(
+            node(
+              (d) =>
+                  d.label == '$name: priority $tier' &&
+                  d.hasAction(SemanticsAction.tap),
+            ),
+            findsOneWidget,
+            reason: '$name, priority $tier',
+          );
+        }
+      }
+      // No bare «1» / «2» / «3» is left for a screen reader.
+      expect(node((d) => d.label == '2'), findsNothing);
+      semantics.dispose();
     });
   });
 
