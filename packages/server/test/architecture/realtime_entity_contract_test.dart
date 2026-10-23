@@ -68,6 +68,7 @@ void main() {
         'notify_constellation_anchor_change',
         'notify_constellation_field_global',
         'notify_constellation_field_block',
+        'notify_constellation_item_discoverable',
         'notify_invite_seed_prompt_state_change',
         'notify_notification_outbox_delete',
         'notify_notification_outbox_insert',
