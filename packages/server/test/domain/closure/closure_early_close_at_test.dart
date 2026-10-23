@@ -32,6 +32,12 @@ ClosureMemberRow _removed(String id) => ClosureMemberRow(
   departure: Departure.removed,
 );
 
+ClosureMemberRow _left(String id) => ClosureMemberRow(
+  userId: id,
+  activeAtOpen: true,
+  departure: Departure.voluntary,
+);
+
 DateTime? _earlyCloseAt(List<ClosureMemberRow> members) =>
     ClosureCase.earlyCloseAt(epoch: _epoch(), members: members);
 
@@ -59,6 +65,14 @@ void main() {
         isNull,
       );
     });
+
+    test('#489 everyone left on their own: no voter, no date', () {
+      expect(_earlyCloseAt([_left('h1'), _left('h2'), _left('h3')]), isNull);
+      expect(
+        _earlyCloseAt([_active('h1'), _left('h2'), _left('h3')]),
+        _opened.add(const Duration(hours: 48)),
+      );
+    });
   });
 
   // Guard: the date is sent exactly when Finish now can still be waiting on
@@ -70,6 +84,8 @@ void main() {
       [_active('h1'), _active('h2')],
       [_active('h1'), _active('h2'), _active('h3')],
       [_removed('h1'), _removed('h2'), _removed('h3')],
+      [_active('h1'), _active('h2'), _left('h3')],
+      [_left('h1'), _left('h2'), _left('h3')],
     ];
     for (final members in shapes) {
       final canCloseNow = ClosureCase.canCloseNow(

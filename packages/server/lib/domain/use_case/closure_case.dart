@@ -363,7 +363,8 @@ final class ClosureCase extends UseCaseBase {
   );
 
   /// Every member has an outcome and (≤ 2 members, or every voter committed,
-  /// or 48 h since the epoch opened).
+  /// or 48 h since the epoch opened). A voluntary leaver is out of the review
+  /// set (#489): no outcome is waited on and no vote (see [isVoter]).
   static bool canCloseNow({
     required ClosureEpoch epoch,
     required List<ClosureMemberRow> members,
@@ -375,7 +376,11 @@ final class ClosureCase extends UseCaseBase {
       for (final o in outcomes)
         if (o.outcome != null) o.helperId,
     };
-    if (!members.every((m) => answered.contains(m.userId))) return false;
+    if (!members.every(
+      (m) => m.departure == Departure.voluntary || answered.contains(m.userId),
+    )) {
+      return false;
+    }
     if (members.length <= _smallEpisodeSize) return true;
     final committed = {for (final c in commits) c.voterId};
     final voters = members.where(isVoter).map((m) => m.userId);
@@ -394,9 +399,10 @@ final class ClosureCase extends UseCaseBase {
       ? epoch.openedAt.add(_closeNowGrace)
       : null;
 
-  /// `voter = active_at_open && departure != removed` (U49).
+  /// `voter = active_at_open && departure == null` (U49 as amended by #489):
+  /// an author removal and a voluntary leave both drop the vote.
   static bool isVoter(ClosureMemberRow m) =>
-      m.activeAtOpen && m.departure != Departure.removed;
+      m.activeAtOpen && m.departure == null;
 
   /// Evaluating and no earlier cancelled epoch.
   static bool canReopen({
@@ -752,9 +758,9 @@ final class ClosureCase extends UseCaseBase {
         : !rows.any((m) => m.userId == viewerId) || blocked.contains(viewerId)
         ? throw IdNotFoundException(id: beaconId)
         : rows.any(
-            // A departed member (voluntary or removed) reads as a member.
-            (m) =>
-                m.userId == viewerId && m.activeAtOpen && m.departure == null,
+            // A departed member (voluntary or removed) reads as a member:
+            // the same rule as [isVoter] (#489).
+            (m) => m.userId == viewerId && isVoter(m),
           )
         ? ClosureRole.voter
         : ClosureRole.member;

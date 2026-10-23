@@ -21,8 +21,8 @@ class ClosureReminderRepository implements ClosureReminderSweepPort {
   requires_action, placement''';
 
   @override
-  Future<int> writeDraftReminders({required DateTime now}) => _database
-      .customUpdate(
+  Future<int> writeDraftReminders({required DateTime now}) =>
+      _database.customUpdate(
         '''
 INSERT INTO public.notification_outbox ($_insertColumns)
 SELECT gen_random_uuid()::text, m.user_id, 'asksOfMe', 'staleRemind', 'high',
@@ -38,7 +38,7 @@ SELECT gen_random_uuid()::text, m.user_id, 'asksOfMe', 'staleRemind', 'high',
 FROM public.beacon_closure c
 JOIN public.beacon_closure_member m
   ON m.beacon_id = c.beacon_id AND m.epoch = c.epoch
- AND m.active_at_open AND m.departure IS DISTINCT FROM 2,
+ AND m.active_at_open AND m.departure IS NULL,
 LATERAL (SELECT 'closure_draft_reminder:' || c.beacon_id || ':' || c.epoch
     || ':' || m.user_id AS skey) k,
 LATERAL (
