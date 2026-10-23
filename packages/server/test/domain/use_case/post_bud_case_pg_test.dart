@@ -338,10 +338,20 @@ Future<void> main() async {
 
     test('replay works after closePost', () async {
       const invitees = [PostBudInvitee(userId: _warm)];
-      final first = await bud(invitees: invitees, closePost: true);
+      final first = await bud(
+        actor: _author,
+        source: _rootMsg,
+        invitees: invitees,
+        closePost: true,
+      );
       expect(await _postStatus(writer), BeaconStatus.closed.smallintValue);
 
-      final second = await bud(invitees: invitees, closePost: true);
+      final second = await bud(
+        actor: _author,
+        source: _rootMsg,
+        invitees: invitees,
+        closePost: true,
+      );
 
       expect(second.childBeaconId, first.childBeaconId);
       expect(outcomes(second), outcomes(first));
@@ -350,7 +360,11 @@ Future<void> main() async {
     test(
       'closePost closes the Post with a notice pointing at the child',
       () async {
-        final result = await bud(closePost: true);
+        final result = await bud(
+          actor: _author,
+          source: _rootMsg,
+          closePost: true,
+        );
         expect(await _postStatus(writer), BeaconStatus.closed.smallintValue);
         final closed = await writer.execute(
           Sql.named(
@@ -364,6 +378,40 @@ Future<void> main() async {
         expect(await _childCreatedNotices(writer), hasLength(1));
       },
     );
+
+    // #666: the two notices of one bud share the transaction's now(); the
+    // «closed» one must still come after «made the request».
+    test('the closed notice comes after the made-the-request notice', () async {
+      await bud(actor: _author, source: _rootMsg, closePost: true);
+      final rows = await writer.execute(
+        Sql.named(
+          'SELECT system_message_kind FROM public.beacon_room_message '
+          'WHERE beacon_id = @p AND system_message_kind IS NOT NULL '
+          'ORDER BY created_at DESC, id DESC LIMIT 2',
+        ),
+        parameters: {'p': _post},
+      );
+      // Newest first: the close notice (kind 5), then the bud notice.
+      expect(rows.first[0], 5);
+      expect(rows.last[0], isNot(5));
+    });
+
+    // #666: a member who did not start the Post cannot close it; the whole
+    // bud is refused, so no Request is left behind either.
+    test('a member who is not the Post author cannot close it', () async {
+      final before = await _rowCounts(writer);
+      await expectLater(
+        bud(closePost: true),
+        throwsA(isA<BeaconChildCreateForbiddenException>()),
+      );
+      expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
+      expect(await _rowCounts(writer), before);
+
+      // The same member may still bud without closing it.
+      final result = await bud(commandId: 'cmd-c3-2');
+      expect(result.childBeaconId, isNotNull);
+      expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
+    });
 
     test(
       'a different input under the same clientCommandId conflicts',

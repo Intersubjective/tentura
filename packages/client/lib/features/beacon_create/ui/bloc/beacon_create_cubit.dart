@@ -254,6 +254,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           clientCommandId: _postBudCase.newClientCommandId(),
           postForwardingClosed:
               post.forwardPolicy == BeaconForwardPolicyValue.closed,
+          postAuthorId: post.author.id,
         ),
         status: const StateIsSuccess(),
       ),

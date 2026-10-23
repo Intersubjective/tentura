@@ -612,8 +612,12 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
   }) => _database.customInsert(
     r'''
 INSERT INTO public.beacon_room_message
-  (beacon_id, body, system_message_kind, system_payload)
-VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::text))
+  (beacon_id, body, system_message_kind, system_payload, created_at)
+VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::text),
+  -- After the bud's «made the request» notice of the same transaction
+  -- (whose default is now(), the transaction start): equal stamps would
+  -- order the two by random id (#666).
+  clock_timestamp())
 ''',
     variables: [
       Variable<String>(postId),

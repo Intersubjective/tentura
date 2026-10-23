@@ -21,6 +21,9 @@ abstract class PostBudForm with _$PostBudForm {
     /// The Post kept forwarding off; the Request will be forwardable.
     @Default(false) bool postForwardingClosed,
 
+    /// Who started the Post: only they may close it (#666).
+    @Default('') String postAuthorId,
+
     @Default(false) bool candidatesLoaded,
 
     /// The last members load failed; cleared while a retry runs.
@@ -62,16 +65,25 @@ abstract class PostBudForm with _$PostBudForm {
   /// Size of `E(P)`: the candidates plus the budder.
   int get memberCount => candidates.length + 1;
 
+  /// Only the Post's author may close it (#666). The candidates are every
+  /// member but the budder, so the author is among them exactly when the
+  /// budder is someone else. Unknown (false) until they load; the server
+  /// refuses a close from anyone else either way.
+  bool get canClosePost =>
+      candidatesLoaded &&
+      postAuthorId.isNotEmpty &&
+      !candidates.any((c) => c.userId == postAuthorId);
+
   /// «Закрыть пост…» is on by default when the Post has at most two members
   /// or every member is ticked (one who cannot be invited never is). Off while
-  /// the membership is unknown.
+  /// the membership is unknown, and never offered to anyone but the author.
   bool get closePostByDefault {
-    if (!candidatesLoaded) return false;
+    if (!canClosePost) return false;
     if (memberCount <= 2) return true;
     return candidates.every((c) => selectedIds.contains(c.userId));
   }
 
-  bool get closePost => closePostChoice ?? closePostByDefault;
+  bool get closePost => canClosePost && (closePostChoice ?? closePostByDefault);
 
   /// Above [kPostBudInviteWarningAbove] ticked members the step warns that
   /// each of them gets a request.

@@ -86,18 +86,21 @@ class PostBudInviteStep extends StatelessWidget {
                 onNoteChanged: (value) =>
                     cubit.setBudInviteeNote(candidate.userId, value),
               ),
-            if (invitable.isNotEmpty) const TenturaHairlineDivider(),
-            CheckboxListTile(
-              key: const Key('PostBud.ClosePost'),
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: bud.closePost,
-              onChanged: (value) => cubit.setBudClosePost(value ?? false),
-              title: Text(
-                l10n.postBudClosePost,
-                style: TenturaText.bodyMedium(tt.text),
+            if (invitable.isNotEmpty && bud.canClosePost)
+              const TenturaHairlineDivider(),
+            // Only the Post's author may close it (#666).
+            if (bud.canClosePost)
+              CheckboxListTile(
+                key: const Key('PostBud.ClosePost'),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: bud.closePost,
+                onChanged: (value) => cubit.setBudClosePost(value ?? false),
+                title: Text(
+                  l10n.postBudClosePost,
+                  style: TenturaText.bodyMedium(tt.text),
+                ),
               ),
-            ),
             SizedBox(height: tt.sectionGap),
           ],
         );

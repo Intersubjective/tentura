@@ -148,12 +148,16 @@ class FakeBudProfiles extends Mock implements ProfileRepositoryPort {
   ];
 }
 
+/// The Post the bud starts from; by default the budder (`me`) started it,
+/// so they may close it (#666).
 Beacon budPost({
   BeaconForwardPolicyValue forwardPolicy = BeaconForwardPolicyValue.open,
+  String authorId = 'me',
 }) => Beacon.empty.copyWith(
   id: kBudPostId,
   kind: BeaconKind.post,
   forwardPolicy: forwardPolicy,
+  author: Profile(id: authorId),
 );
 
 /// Everything a bud-mode [BeaconCreateCubit] reads, with fakes.

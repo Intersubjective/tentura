@@ -73,6 +73,29 @@ void main() {
     });
   });
 
+  // #666: only the Post's author may close it. A member who did not start
+  // the Post sees the author among the candidates and never gets the choice.
+  group('a member who is not the Post author', () {
+    test('is never offered «Закрыть пост…» and never sends it', () async {
+      final h = BudHarness(parent: budPost(authorId: 'a'));
+      h.port.candidates = [
+        budCandidate('a', pretick: true),
+        budCandidate('b', pretick: true),
+      ];
+      final cubit = await _openLoaded(h);
+
+      final bud = cubit.state.postBud!;
+      expect(bud.canClosePost, isFalse);
+      expect(bud.closePost, isFalse, reason: 'every member ticked, still off');
+
+      cubit.setBudClosePost(true);
+      expect(cubit.state.postBud!.closePost, isFalse);
+
+      await cubit.submitBud(context: '');
+      expect(h.port.calls.single.closePost, isFalse);
+    });
+  });
+
   group('bud before the invite candidates are known', () {
     test(
       'close-Post stays off and submit sends nothing while loading',

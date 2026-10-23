@@ -102,15 +102,17 @@ Future<void> main() async {
     await tearDownDisposablePgWriter(session: session, drift: database);
   });
 
-  Future<void> closePost({String postId = _post}) => harness.uow.run(
-    actorUserId: _member,
-    action: () => harness.close.closeForBud(
-      postId: postId,
-      childBeaconId: _child,
-      title: 'Fix the fence',
-      actorId: _member,
-    ),
-  );
+  // Only the Post's author may close it (#666).
+  Future<void> closePost({String postId = _post, String actor = _author}) =>
+      harness.uow.run(
+        actorUserId: actor,
+        action: () => harness.close.closeForBud(
+          postId: postId,
+          childBeaconId: _child,
+          title: 'Fix the fence',
+          actorId: actor,
+        ),
+      );
 
   Future<int> status(String beaconId) async =>
       (await writer.execute(
@@ -133,8 +135,19 @@ WHERE beacon_id = '$_post' ORDER BY created_at
       final diff = _json(events.last[0]);
       expect(diff['fromStatus'], 0);
       expect(diff['toStatus'], 6);
-      expect(events.last[1], _member);
+      expect(events.last[1], _author);
     });
+
+    test(
+      'a member who is not the author cannot close the Post (#666)',
+      () async {
+        await expectLater(
+          closePost(actor: _member),
+          throwsA(isA<BeaconChildCreateForbiddenException>()),
+        );
+        expect(await status(_post), 0, reason: 'still open');
+      },
+    );
 
     test(
       'inserts one postClosed notice with the child and the title',

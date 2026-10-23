@@ -478,7 +478,14 @@ Future<void> main() async {
       await race<void>(
         setUpRound: () async {},
         sides: [
-          (_) => bud(a, invitees: const [_invitee], closePost: true),
+          // Only the Post's author may close it (#666).
+          (_) => bud(
+            a,
+            actor: _postAuthor,
+            source: _rootMsg,
+            invitees: const [_invitee],
+            closePost: true,
+          ),
           (_) => bud(
             b,
             actor: _budder2,

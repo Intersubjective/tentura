@@ -16,6 +16,10 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 ///
 /// It runs inside the caller's mutating unit, after the caller took the Post
 /// lock (Arch §4.1); it re-checks that the Post is still an open Post.
+///
+/// Only the Post's author may close it (#666): a member who buds a Request
+/// cannot end the author's conversation for everyone. A close asked for by
+/// anyone else fails the whole bud, so nothing is half-applied.
 @Singleton(order: 2)
 final class PostCloseOperation {
   const PostCloseOperation(this._beacons);
@@ -38,6 +42,11 @@ final class PostCloseOperation {
     final post = await _beacons.getBeaconById(beaconId: postId);
     if (post.kind != BeaconKind.post || post.status != BeaconStatus.open) {
       throw const PostNotOpenException();
+    }
+    if (post.author.id != actorId) {
+      throw const BeaconChildCreateForbiddenException(
+        description: 'Only the author of the Post can close it',
+      );
     }
     final verdict = validateBeaconStatusTransition(
       from: post.status,
