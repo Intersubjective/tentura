@@ -1216,28 +1216,37 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
           );
     _removeOverlay();
     if (inserted) {
-      if (pointerKind != null &&
-          (kIsWeb || pointerKind != PointerDeviceKind.touch)) {
-        // A click on the list takes the browser's focus off the field while
-        // the field still counts as focused, so the next words went nowhere
-        // (#624). Re-attach the field, as clicking into it does. Native touch
-        // keeps focus as is, so the soft keyboard does not flicker.
-        _composerFocus.unfocus();
-        requestComposerFocus();
-      } else if (!_composerFocus.hasFocus) {
-        _composerFocus.requestFocus();
-      }
+      _refocusAfterSuggestionPick(pointerKind);
     }
     return inserted;
   }
 
-  bool _acceptEmojiSuggestion(EmojiMatch match) {
+  bool _acceptEmojiSuggestion(
+    EmojiMatch match, {
+    PointerDeviceKind? pointerKind,
+  }) {
     final inserted = _text.insertEmoji(match.entry.emoji);
     _removeOverlay();
-    if (inserted && !_composerFocus.hasFocus) {
-      _composerFocus.requestFocus();
+    if (inserted) {
+      _refocusAfterSuggestionPick(pointerKind);
     }
     return inserted;
+  }
+
+  /// Keeps typing in the field after a suggestion was picked; [pointerKind]
+  /// is null for a keyboard pick.
+  void _refocusAfterSuggestionPick(PointerDeviceKind? pointerKind) {
+    if (pointerKind != null &&
+        (kIsWeb || pointerKind != PointerDeviceKind.touch)) {
+      // A click on the list takes the browser's focus off the field while
+      // the field still counts as focused, so the next words went nowhere
+      // (#624, #630). Re-attach the field, as clicking into it does. Native
+      // touch keeps focus as is, so the soft keyboard does not flicker.
+      _composerFocus.unfocus();
+      requestComposerFocus();
+    } else if (!_composerFocus.hasFocus) {
+      _composerFocus.requestFocus();
+    }
   }
 
   bool _acceptSelectedSuggestion() {
