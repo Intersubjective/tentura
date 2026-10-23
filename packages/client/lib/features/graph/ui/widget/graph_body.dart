@@ -306,79 +306,89 @@ class GraphBodyState extends State<GraphBody>
     ].join('; ');
   }
 
-  Widget _buildGraphView(GraphState graphState) =>
-      GraphView<NodeDetails, EdgeDetails>(
-        controller: _graphCubit.graphController,
-        canvasSize: widget.canvasSize,
-        minScale: widget.scaleRange.dx,
-        maxScale: widget.scaleRange.dy,
-        layoutAlgorithm: _layoutAlgorithm,
-        layoutTransitionDuration: const Duration(milliseconds: 350),
-        edgePainter: AnimatedHighlightedEdgePainter(
-          animation: CurvedAnimation(
-            parent: _animationController,
-            curve: const EaseInOutReynolds(),
+  /// The viewer's own live-user node (the cubit's "Me" ego projection).
+  bool _isViewerNode(NodeDetails node) =>
+      node is UserNode && node.id == _graphCubit.state.me.id;
+
+  Widget _buildGraphView(
+    GraphState graphState,
+  ) => GraphView<NodeDetails, EdgeDetails>(
+    controller: _graphCubit.graphController,
+    canvasSize: widget.canvasSize,
+    minScale: widget.scaleRange.dx,
+    maxScale: widget.scaleRange.dy,
+    layoutAlgorithm: _layoutAlgorithm,
+    layoutTransitionDuration: const Duration(milliseconds: 350),
+    edgePainter: AnimatedHighlightedEdgePainter(
+      animation: CurvedAnimation(
+        parent: _animationController,
+        curve: const EaseInOutReynolds(),
+      ),
+      highlightRadius: 0.15,
+      isAnimated: _graphCubit.state.isAnimated,
+    ),
+    labelBuilder: widget.isLabeled
+        ? BottomLabelBuilder(
+            labelSize: widget.labelSize,
+            // The name under a marker is visual only: the node button
+            // already announces it, so a screen reader read every
+            // person twice (#601).
+            builder: (_, node) => ExcludeSemantics(
+              child: switch (node) {
+                final UserNode node => Text(
+                  key: ValueKey(node),
+                  _isViewerNode(node) ? L10n.of(context)!.labelMe : node.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.labelSmall(
+                    Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                final GenealogyUserNode node => Text(
+                  key: ValueKey(node),
+                  node.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.labelSmall(
+                    Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                final GenealogyDeletedNode node => Text(
+                  key: ValueKey(node),
+                  node.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.labelSmall(
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                _ => const SizedBox.shrink(),
+              },
+            ),
+          )
+        : null,
+    nodeBuilder: (_, node) => GraphNodeWidget(
+      key: TestIds.key(TestIds.graphNode(node.id)),
+      nodeDetails: node,
+      withRating:
+          node is GenealogyUserNode ||
+          graphNodeShowsMeritRankRating(
+            nodeId: node.id,
+            viewerId: _graphCubit.state.me.id,
           ),
-          highlightRadius: 0.15,
-          isAnimated: _graphCubit.state.isAnimated,
-        ),
-        labelBuilder: widget.isLabeled
-            ? BottomLabelBuilder(
-                labelSize: widget.labelSize,
-                builder: (_, node) => switch (node) {
-                  final UserNode node => Text(
-                    key: ValueKey(node),
-                    node.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelSmall(
-                      Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  final GenealogyUserNode node => Text(
-                    key: ValueKey(node),
-                    node.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelSmall(
-                      Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  final GenealogyDeletedNode node => Text(
-                    key: ValueKey(node),
-                    node.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelSmall(
-                      Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  _ => const SizedBox.shrink(),
-                },
-              )
-            : null,
-        nodeBuilder: (_, node) => GraphNodeWidget(
-          key: TestIds.key(TestIds.graphNode(node.id)),
-          nodeDetails: node,
-          withRating:
-              node is GenealogyUserNode ||
-              graphNodeShowsMeritRankRating(
-                nodeId: node.id,
-                viewerId: _graphCubit.state.me.id,
-              ),
-          isSelf:
-              node is GenealogyUserNode &&
-              node.id == _graphCubit.state.egoNodeId,
-          isOrigin: node.id == _graphCubit.originNodeId,
-          isFocused: graphState.focus.isNotEmpty && node.id == graphState.focus,
-          hiddenNeighborCount: graphState.hiddenNeighborCounts[node.id],
-          connectionSemantics: node.id == graphState.focus
-              ? _viewerConnectionSemantics(node)
-              : null,
-          onTap: () => _onNodeTap(node),
-        ),
-      );
+      isSelf:
+          node is GenealogyUserNode && node.id == _graphCubit.state.egoNodeId,
+      isViewer: _isViewerNode(node),
+      isOrigin: node.id == _graphCubit.originNodeId,
+      isFocused: graphState.focus.isNotEmpty && node.id == graphState.focus,
+      hiddenNeighborCount: graphState.hiddenNeighborCounts[node.id],
+      connectionSemantics: node.id == graphState.focus
+          ? _viewerConnectionSemantics(node)
+          : null,
+      onTap: () => _onNodeTap(node),
+    ),
+  );
 }

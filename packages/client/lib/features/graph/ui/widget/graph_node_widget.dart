@@ -18,6 +18,7 @@ class GraphNodeWidget extends StatelessWidget {
     required this.nodeDetails,
     this.withRating = false,
     this.isSelf = false,
+    this.isViewer = false,
     this.isOrigin = false,
     this.isFocused = false,
     this.hiddenNeighborCount,
@@ -31,6 +32,10 @@ class GraphNodeWidget extends StatelessWidget {
 
   final bool withRating;
   final bool isSelf;
+
+  /// The viewer's own live-user node (ego projection, displayName "Me"):
+  /// announced with the localized [L10n.labelMe] (#601).
+  final bool isViewer;
   final bool isOrigin;
   final bool isFocused;
   final int? hiddenNeighborCount;
@@ -41,7 +46,14 @@ class GraphNodeWidget extends StatelessWidget {
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
-  static String semanticLabel(L10n l10n, NodeDetails details) {
+  static String semanticLabel(
+    L10n l10n,
+    NodeDetails details, {
+    bool isViewer = false,
+  }) {
+    if (isViewer && details is UserNode) {
+      return l10n.labelMe;
+    }
     return switch (details) {
       UserNode(:final user) => user.displayLabel(l10n.unknownPerson),
       GenealogyUserNode(:final user) => user.displayLabel(l10n.unknownPerson),
@@ -202,7 +214,7 @@ class GraphNodeWidget extends StatelessWidget {
       container: true,
       button: true,
       selected: isFocused,
-      label: semanticLabel(l10n, nodeDetails),
+      label: semanticLabel(l10n, nodeDetails, isViewer: isViewer),
       value: connectionSemantics,
       onTap: onTap,
       child: FocusableActionDetector(
