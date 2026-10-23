@@ -403,6 +403,14 @@
   "@friendsInvitesEmptyTitle": {
     "context": "FriendsScreen"
   },
+  "friendsInvitesPendingEmptyTitle": "No pending invitations",
+  "@friendsInvitesPendingEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesPendingEmptyBody": "Create an invitation to bring in someone you trust.",
+  "@friendsInvitesPendingEmptyBody": {
+    "context": "FriendsScreen"
+  },
   "friendsInvitesPeopleSection": "People",
   "@friendsInvitesPeopleSection": {
     "context": "FriendsScreen"
