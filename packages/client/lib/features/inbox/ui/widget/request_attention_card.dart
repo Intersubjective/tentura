@@ -981,7 +981,10 @@ class _ChangeLine extends StatelessWidget {
       l10n: l10n,
     );
     final style = TenturaText.bodySmall(tt.textMuted);
+    // Its own node (#694): without `container`, a line with no tap handler
+    // was folded into the card's labelled node and screen readers skipped it.
     return Semantics(
+      container: true,
       button: onTap != null,
       label: '$text · $spoken',
       excludeSemantics: true,
