@@ -30,6 +30,8 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'package:tentura/ui/widget/tab_attention_scope.dart';
 
+import 'boot_dependencies.dart';
+import 'boot_failure_app.dart';
 import 'di/di.dart';
 import 'di/globals.dart';
 import 'platform/emoji_font_warmup.dart';
@@ -52,10 +54,24 @@ class App extends StatelessWidget {
     assertWebBuildConfig();
     // Portrait on phone-sized native windows; PWA uses manifest.json. See docs/tentura-design-system.md § Orientation policy.
     await applyInitialOrientationPolicy();
-    await configureDependencies();
-    // Start global FCM registration (permission, token, server upload).
-    GetIt.I<FcmCubit>();
-    fcmLog('App: FcmCubit resolved at startup');
+    if (!await bootDependencies(
+      configure: configureDependencies,
+      // Start global FCM registration (permission, token, server upload).
+      afterConfigure: () {
+        GetIt.I<FcmCubit>();
+        fcmLog('App: FcmCubit resolved at startup');
+      },
+    )) {
+      // Startup failed: say so with a Reload action instead of leaving the
+      // splash up forever (#674).
+      FlutterNativeSplash.remove();
+      _runAppWithErrorHandling(
+        useSentryWidget
+            ? SentryWidget(child: const BootFailureApp())
+            : const BootFailureApp(),
+      );
+      return;
+    }
     FlutterNativeSplash.remove();
     // Web (non-prod): defer ensureSemantics() until after layout is stable. A single
     // post-frame tick can still race deep-link / first-frame pointer delivery; two

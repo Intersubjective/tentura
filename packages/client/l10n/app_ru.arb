@@ -7279,5 +7279,9 @@
   "@helpOfferYouJoinedViaNetworkHint": {
     "description": "Подсказка под автоматическим допуском на собственной карточке помощника, когда автор не пересылал ему запрос напрямую (#496)"
   },
-  "beaconCurrentLineKeepTheirs": "Оставить их вариант"
+  "beaconCurrentLineKeepTheirs": "Оставить их вариант",
+  "bootFailureTitle": "Не удалось запустить Tentura",
+  "bootFailureBodyWeb": "При запуске приложения что-то пошло не так. Обычно помогает перезагрузка страницы.",
+  "bootFailureBodyNative": "При запуске приложения что-то пошло не так. Закройте приложение и откройте его снова.",
+  "bootFailureReload": "Перезагрузить"
 }
