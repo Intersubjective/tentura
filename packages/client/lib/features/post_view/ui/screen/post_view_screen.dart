@@ -426,7 +426,11 @@ class _Overflow extends StatelessWidget {
             summary!.mutedForever
                 ? l10n.postMenuUnmuteForever
                 : l10n.postMenuUnmuteUntil(
-                    postMuteUntilTime(summary.mutedUntil!, now),
+                    postMuteUntilTime(
+                      summary.mutedUntil!,
+                      now,
+                      locale: l10n.localeName,
+                    ),
                   ),
           )
         else

@@ -49,7 +49,7 @@ const kPaddingSmallV = EdgeInsets.symmetric(vertical: kSpacingSmall);
 
 const kBorderRadius = 8.0;
 
-final _fmtYMd = DateFormat.yMd();
+final _fmtYMdByLocale = <String?, DateFormat>{};
 final _fmtHm = DateFormat.Hm();
 
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
@@ -87,8 +87,15 @@ class ClearSnackBarsOnPushObserver extends AutoRouterObserver {
 /// (`.toLocal()` on an already-local value is a no-op). Do not bypass these
 /// with a raw `DateFormat` call on an unconverted `DateTime` — that was the
 /// bug behind issue #112's beacon_tile/inbox_item_tile/HUD-composer leaks.
-String dateFormatYMD(DateTime? dateTime) =>
-    dateTime == null ? '' : _fmtYMd.format(dateTime.toLocal());
+///
+/// Pass the app's [locale] (`L10n.localeName`): without it the date follows
+/// the process default (US `M/d/y`), not the language the person chose
+/// (#609: «05.10.2026» in Russian).
+String dateFormatYMD(DateTime? dateTime, {String? locale}) => dateTime == null
+    ? ''
+    : _fmtYMdByLocale
+          .putIfAbsent(locale, () => DateFormat.yMd(locale))
+          .format(dateTime.toLocal());
 
 String timeFormatHm(DateTime? dateTime) =>
     dateTime == null ? '' : _fmtHm.format(dateTime.toLocal());

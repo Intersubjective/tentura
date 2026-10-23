@@ -24,7 +24,7 @@ enum PostAction {
 }
 
 /// «до 18:40» today, «до 05.10.2026 18:40» on another day.
-String postMuteUntilTime(DateTime until, DateTime now) {
+String postMuteUntilTime(DateTime until, DateTime now, {String? locale}) {
   final local = until.toLocal();
   final today = now.toLocal();
   final sameDay =
@@ -33,7 +33,7 @@ String postMuteUntilTime(DateTime until, DateTime now) {
       local.day == today.day;
   return sameDay
       ? timeFormatHm(local)
-      : '${dateFormatYMD(local)} ${timeFormatHm(local)}';
+      : '${dateFormatYMD(local, locale: locale)} ${timeFormatHm(local)}';
 }
 
 /// «Заглушено до …» / «навсегда» for a muted Post; null when it is not muted.
@@ -45,5 +45,7 @@ String? postMuteLine(
 }) {
   if (mutedForever) return l10n.postInfoMutedForever;
   if (mutedUntil == null || !mutedUntil.isAfter(now)) return null;
-  return l10n.postInfoMutedUntil(postMuteUntilTime(mutedUntil, now));
+  return l10n.postInfoMutedUntil(
+    postMuteUntilTime(mutedUntil, now, locale: l10n.localeName),
+  );
 }
