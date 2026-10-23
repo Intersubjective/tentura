@@ -95,9 +95,10 @@ void main() {
       expect(onNow.phaseStatus.statusLine, status.statusLine);
 
       await tapBeaconChatTabAndWaitForRoom(tester);
-      // Negative guard: the old two-row «title + face pile» header is gone
-      // from the top bar (a status stacked under the pile does not count).
-      expect(_inTopBar(find.byType(ThreadDetailGeneralTitle)), findsNothing);
+      // Guard: the top bar carries exactly one header and one title on Chat
+      // (no second two-row «title + face pile» header beside it).
+      expect(_inTopBar(find.byType(BeaconViewAppBarTitle)), findsOneWidget);
+      expect(_inTopBar(find.text(_kTitle)), findsOneWidget);
       final onChat = header();
       expect(onChat.beacon.title, onNow.beacon.title);
       expect(onChat.showBeaconContent, isTrue);
@@ -112,7 +113,7 @@ void main() {
       // Back to Now: still the same header (no state leak from Chat).
       await _tapTab(tester, TestIds.beaconTabNow);
       expect(header().phaseStatus.statusLine, onNow.phaseStatus.statusLine);
-      expect(_inTopBar(find.byType(ThreadDetailGeneralTitle)), findsNothing);
+      expect(_inTopBar(find.text(_kTitle)), findsOneWidget);
     });
   });
 }

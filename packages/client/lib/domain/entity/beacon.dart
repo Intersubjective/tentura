@@ -136,6 +136,27 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   bool get allowsCoordination => isRequest && status.allowsCoordination;
 
+  /// Gate for an author or steward ending a helper's participation: a
+  /// Request in every non-final status, Wrapping up included (#489).
+  /// Admitting new offers stays open-only. Single source for the People tab
+  /// and the help offer sheet. The Request part changes nothing reachable:
+  /// the server takes help offers on Requests only, and both callers need a
+  /// live help offer.
+  bool get allowsEndParticipation => allowsCoordination;
+
+  /// Status and role gate for ending participation: the viewer must be the
+  /// author or a steward, and the target must be neither the author nor the
+  /// viewer. Callers still check that a live help offer stands behind it.
+  bool canEndParticipationOf({
+    required bool targetIsAuthor,
+    required bool targetIsViewer,
+    required bool viewerIsAuthorOrSteward,
+  }) =>
+      allowsEndParticipation &&
+      viewerIsAuthorOrSteward &&
+      !targetIsAuthor &&
+      !targetIsViewer;
+
   bool get allowsForward => isRequest && status.allowsForward;
 
   bool get isFinished => status.isFinished;

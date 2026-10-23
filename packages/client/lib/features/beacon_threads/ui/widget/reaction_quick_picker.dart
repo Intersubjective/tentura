@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 /// Human-readable meaning of a quick-picker reaction emoji, or `null` for
 /// emojis outside [BeaconRoomMessageReaction.quickPickerEmojis].
@@ -79,35 +80,41 @@ class _ReactionQuickPickerState extends State<ReactionQuickPicker> {
           runSpacing: tt.rowGap,
           children: [
             for (final emoji in BeaconRoomMessageReaction.quickPickerEmojis)
-              Semantics(
-                button: true,
-                selected: widget.selected.contains(emoji),
-                label: reactionEmojiMeaning(l10n, emoji) ?? emoji,
-                excludeSemantics: true,
-                child: MouseRegion(
-                  onEnter: (_) => _show(emoji),
-                  onExit: (_) => _hide(emoji),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => widget.onPick(emoji),
-                    onLongPress: () => _show(emoji),
-                    onFocusChange: (focused) =>
-                        focused ? _show(emoji) : _hide(emoji),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: widget.selected.contains(emoji)
-                              ? tt.skyBorder
-                              : Colors.transparent,
-                          width: 1.5,
+              // #415: each reaction names itself, so it carries the focus
+              // state too; otherwise the browser's focus never reaches it.
+              TenturaFocusSemantics(
+                builder: (_, focused) => Semantics(
+                  container: true,
+                  button: true,
+                  selected: widget.selected.contains(emoji),
+                  label: reactionEmojiMeaning(l10n, emoji) ?? emoji,
+                  focused: focused,
+                  excludeSemantics: true,
+                  child: MouseRegion(
+                    onEnter: (_) => _show(emoji),
+                    onExit: (_) => _hide(emoji),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => widget.onPick(emoji),
+                      onLongPress: () => _show(emoji),
+                      onFocusChange: (hasFocus) =>
+                          hasFocus ? _show(emoji) : _hide(emoji),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: widget.selected.contains(emoji)
+                                ? tt.skyBorder
+                                : Colors.transparent,
+                            width: 1.5,
+                          ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(tt.rowGap),
-                        child: Text(
-                          emoji,
-                          style: theme.textTheme.titleMedium,
+                        child: Padding(
+                          padding: EdgeInsets.all(tt.rowGap),
+                          child: Text(
+                            emoji,
+                            style: theme.textTheme.titleMedium,
+                          ),
                         ),
                       ),
                     ),

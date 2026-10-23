@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart'
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/oidc_identity.dart';
+import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
@@ -188,14 +189,48 @@ void main() {
     expect(response.headers['cache-control'], contains('no-store'));
   }
 
-  String loginStateCookie({String state = 'state123'}) => codec.encode(
+  String loginStateCookie({
+    String state = 'state123',
+    String returnTo = '',
+  }) => codec.encode(
     OAuthStatePayload(
       state: state,
       codeVerifier: 'verifier',
       nonce: 'nonce456',
-      returnTo: '',
+      returnTo: returnTo,
     ),
   );
+
+  /// #601: a sign-in started from an invite page carries that page as
+  /// `returnTo` (with the attempt id the landing adds).
+  String inviteReturnTo(String code) => Uri.parse(env.publicOrigin)
+      .replace(
+        path: '/invite/$code',
+        queryParameters: {'auth_attempt_id': 'G123'},
+      )
+      .toString();
+
+  /// #601: a failed sign-in started from `/invite/<code>` goes back to that
+  /// invite page (not the bare start page) with only `?auth_error=<reason>`.
+  void expectInviteWithAuthError(
+    Response response,
+    String code,
+    String reason,
+  ) {
+    expect(response.statusCode, 302);
+    final raw = response.headers['location']!;
+    final location = Uri.parse(raw);
+    expect(
+      raw.split('?').first,
+      Uri.parse(env.publicOrigin).replace(path: '/invite/$code').toString(),
+      reason: 'must return to the invite page the sign-in started from',
+    );
+    expect(location.queryParameters, {'auth_error': reason});
+    expect(location.fragment, isEmpty);
+    expect(setCookieHeader(response), contains(kCookieOAuthStateName));
+    expect(setCookieHeader(response), isNot(contains(kCookieSessionName)));
+    expect(response.headers['cache-control'], contains('no-store'));
+  }
 
   group('callback failures (B073)', () {
     // #418: fails on the base: _callbackFailure -> _oauthStateError() redirects
@@ -359,6 +394,119 @@ void main() {
       expect(setCookieHeader(response), contains(kCookieOAuthStateName));
       expect(setCookieHeader(response), isNot(contains(kCookieSessionName)));
       expect(response.headers['cache-control'], contains('no-store'));
+    });
+
+    group('started from an invite page (#601)', () {
+      test('cancel returns to the invite page saying cancelled', () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?error=access_denied&state=state123',
+            ),
+            headers: {
+              'cookie':
+                  '$kCookieOAuthStateName='
+                  '${loginStateCookie(returnTo: inviteReturnTo('ABC123'))}',
+            },
+          ),
+        );
+        expectInviteWithAuthError(response, 'ABC123', 'google_cancelled');
+      });
+
+      test('failed token exchange returns to the invite page', () async {
+        final failing = AuthGoogleController(
+          env,
+          _FakeOidcProvider(failExchange: true),
+          oidcCase,
+          sessionCase,
+          codec,
+        );
+        final response = await failing.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?code=bogus&state=state123',
+            ),
+            headers: {
+              'cookie':
+                  '$kCookieOAuthStateName='
+                  '${loginStateCookie(returnTo: inviteReturnTo('ABC123'))}',
+            },
+          ),
+        );
+        expectInviteWithAuthError(response, 'ABC123', 'google_failed');
+      });
+
+      test('state mismatch returns to the invite page', () async {
+        final cookie = loginStateCookie(
+          state: 'other',
+          returnTo: inviteReturnTo('ABC123'),
+        );
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?code=abc&state=state123',
+            ),
+            headers: {'cookie': '$kCookieOAuthStateName=$cookie'},
+          ),
+        );
+        expectInviteWithAuthError(response, 'ABC123', 'google_failed');
+      });
+
+      test('an unexpected login error returns to the invite page', () async {
+        when(
+          userRepo.getByCredential(
+            type: anyNamed('type'),
+            identifier: anyNamed('identifier'),
+          ),
+        ).thenAnswer((_) async => const UserEntity(id: _accountId));
+        when(
+          userRepo.addVerifiedContacts(
+            accountId: anyNamed('accountId'),
+            source: anyNamed('source'),
+            contacts: anyNamed('contacts'),
+          ),
+        ).thenThrow(StateError('db down'));
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?code=abc&state=state123',
+            ),
+            headers: {
+              'cookie':
+                  '$kCookieOAuthStateName='
+                  '${loginStateCookie(returnTo: inviteReturnTo('ABC123'))}',
+            },
+          ),
+        );
+        expectInviteWithAuthError(response, 'ABC123', 'google_failed');
+      });
+
+      // Guard: a non-invite return target still lands on the start page.
+      test('a non-invite returnTo still lands on the start page', () async {
+        final response = await controller.callback(
+          Request(
+            'GET',
+            Uri.parse(
+              'http://localhost/api/auth/google/callback'
+              '?error=access_denied&state=state123',
+            ),
+            headers: {
+              'cookie':
+                  '$kCookieOAuthStateName='
+                  '${loginStateCookie(returnTo: '${env.publicOrigin}/')}',
+            },
+          ),
+        );
+        expectLandingWithAuthError(response, 'google_cancelled');
+      });
     });
 
     test(

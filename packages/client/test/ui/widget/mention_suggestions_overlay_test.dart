@@ -215,6 +215,32 @@ void main() {
       expect(composerText(tester).text, 'Hi @Nina Mover recheck 473');
     });
 
+    // #688: right after an instant click the browser can still take the
+    // field away (its connection closes); the next words must land anyway.
+    testWidgets('a connection closed just after a mouse pick comes back', (
+      tester,
+    ) async {
+      await typeHiNi(tester);
+
+      final click = await tester.startGesture(
+        tester.getCenter(find.text('Nina Mover')),
+        kind: PointerDeviceKind.mouse,
+      );
+      await click.up();
+      await tester.pump();
+      await tester.pump();
+      expectPickedWithCaretAfterMention(tester);
+
+      tester.testTextInput.closeConnection();
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isTrue);
+      keepTyping(tester, 'recheck 473');
+      await tester.pump();
+      expect(composerText(tester).text, 'Hi @Nina Mover recheck 473');
+    });
+
     testWidgets('touch pick keeps the keyboard up without reconnecting', (
       tester,
     ) async {
@@ -352,6 +378,135 @@ void main() {
       keepTyping(tester, ' there');
       await tester.pump();
       expect(composerText(tester).text, '$picked there');
+    });
+
+    // #688: tap-to-click sends pointer down and up in the same frame.
+    Future<void> instantMouseClick(WidgetTester tester, Finder target) async {
+      final click = await tester.startGesture(
+        tester.getCenter(target),
+        kind: PointerDeviceKind.mouse,
+      );
+      await click.up();
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('after an instant mouse click the next words land', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+
+      await instantMouseClick(tester, find.text(':smile:'));
+
+      expectPickedWithCaretAfterEmoji(tester);
+      keepTyping(tester, ' there');
+      await tester.pump();
+      expect(composerText(tester).text, '$picked there');
+      expect(composerHasFocus(tester), isTrue);
+    });
+
+    testWidgets('a connection closed just after an instant click comes back', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+      await instantMouseClick(tester, find.text(':smile:'));
+      expectPickedWithCaretAfterEmoji(tester);
+
+      // What the browser does when it takes the field away late.
+      tester.testTextInput.closeConnection();
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isTrue);
+      keepTyping(tester, ' there');
+      await tester.pump();
+      expect(composerText(tester).text, '$picked there');
+    });
+
+    testWidgets('focus parked just after an instant click comes back', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+      await instantMouseClick(tester, find.text(':smile:'));
+      expectPickedWithCaretAfterEmoji(tester);
+
+      // What the app does when the browser reports the page lost focus.
+      FocusManager.instance.rootScope.requestScopeFocus();
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isTrue);
+      keepTyping(tester, ' there');
+      await tester.pump();
+      expect(composerText(tester).text, '$picked there');
+    });
+
+    testWidgets('a click elsewhere just after a pick still leaves the field', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+      await instantMouseClick(tester, find.text(':smile:'));
+      expectPickedWithCaretAfterEmoji(tester);
+
+      await tester.tapAt(const Offset(700, 100), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isFalse);
+    });
+
+    testWidgets('a while after a pick a closed connection stays closed', (
+      tester,
+    ) async {
+      await typeHiSmi(tester);
+      await instantMouseClick(tester, find.text(':smile:'));
+      expectPickedWithCaretAfterEmoji(tester);
+
+      await tester.pump(const Duration(seconds: 1));
+      tester.testTextInput.closeConnection();
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isFalse);
+    });
+
+    // #688 review: on mobile web a touch pick re-attaches the field but holds
+    // no focus, so Done/Back can still close the soft keyboard.
+    testWidgets('a web touch pick does not take a lost focus back', (
+      tester,
+    ) async {
+      debugComposerIsWebOverride = true;
+      addTearDown(() => debugComposerIsWebOverride = null);
+      await typeHiSmi(tester);
+
+      await tester.tap(find.text(':smile:'));
+      await tester.pump();
+      await tester.pump();
+      expectPickedWithCaretAfterEmoji(tester);
+      expect(composerHasFocus(tester), isTrue);
+
+      // What the soft keyboard's Done does: focus goes with no pointer down.
+      FocusManager.instance.rootScope.requestScopeFocus();
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isFalse);
+    });
+
+    testWidgets('a web mouse pick still takes a lost focus back', (
+      tester,
+    ) async {
+      debugComposerIsWebOverride = true;
+      addTearDown(() => debugComposerIsWebOverride = null);
+      await typeHiSmi(tester);
+      await instantMouseClick(tester, find.text(':smile:'));
+      expectPickedWithCaretAfterEmoji(tester);
+
+      FocusManager.instance.rootScope.requestScopeFocus();
+      await tester.pump();
+      await tester.pump();
+
+      expect(composerHasFocus(tester), isTrue);
     });
   });
 }

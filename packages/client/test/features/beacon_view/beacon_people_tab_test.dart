@@ -1252,6 +1252,27 @@ void main() {
       );
     });
 
+    // The People tab shows End participation for an admitted backup helper;
+    // the offer sheet leaves backup offers out (help_offer_tile_sheet_cubit
+    // test). Each call site keeps its own rule.
+    testWidgets('author sees End participation for an admitted backup helper', (
+      tester,
+    ) async {
+      final base = acknowledgedHelperState(BeaconStatus.open);
+      _state = base.copyWith(
+        helpOffers: [
+          for (final offer in base.helpOffers) offer.copyWith(offerKind: 1),
+        ],
+      );
+
+      await pumpPeople(tester);
+
+      expect(
+        find.byKey(TestIds.key(TestIds.helpOfferRelease('h1'))),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('author sees no End participation once closed', (
       tester,
     ) async {

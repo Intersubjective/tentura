@@ -23,7 +23,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -452,24 +451,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           BeaconDeleteFailedMessage(() => unawaited(delete(beaconId))),
         ),
       );
-    }
-  }
-
-  /// Lineage fork → new draft id, or null on failure. [planCopy] copies the
-  /// plan's steps at the given times (plan §5.11).
-  Future<String?> forkFromThis({List<PlanStepTime>? planCopy}) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final draft = await _case.fork(
-        state.beacon.id,
-        copyPlan: planCopy != null,
-        planStepTimes: planCopy ?? const [],
-      );
-      emit(state.copyWith(status: StateStatus.isSuccess));
-      return draft.id;
-    } catch (e) {
-      _showSnackError(e);
-      return null;
     }
   }
 

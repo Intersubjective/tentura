@@ -10,6 +10,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 
 enum InviteAcceptedSetupAction { saved, skipped }
@@ -341,6 +342,16 @@ class _InviteAcceptedSetupSheetState extends State<InviteAcceptedSetupSheet>
                                       controller: _privateNameController,
                                       enabled: !_busy,
                                       maxLength: kTitleMaxLength,
+                                      // Code units, as the validator and the
+                                      // server count the name (#356, #603).
+                                      inputFormatters: const [
+                                        CodeUnitLengthLimitingTextInputFormatter(
+                                          kTitleMaxLength,
+                                        ),
+                                      ],
+                                      buildCounter: tenturaCodeUnitCounter(
+                                        () => _privateNameController.text,
+                                      ),
                                       textInputAction: TextInputAction.done,
                                       decoration: InputDecoration(
                                         labelText: l10n

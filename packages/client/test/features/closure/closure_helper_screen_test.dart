@@ -549,6 +549,37 @@ void main() {
       );
     });
 
+    // #632/#364: the server alone decides whether early close applies (a
+    // small episode or no voter left sends no date); the hint follows it.
+    group('early-close hint follows the server date', () {
+      Future<void> pumpWithEarlyClose(
+        WidgetTester tester,
+        DateTime? earlyCloseAt,
+      ) => _pump(
+        tester,
+        _FakeClosureRepository(
+          members: _roster(3),
+          status: _evaluating,
+          earlyCloseAt: earlyCloseAt,
+        ),
+      );
+
+      testWidgets('no server date: deadline only, no hint', (tester) async {
+        await pumpWithEarlyClose(tester, null);
+        expect(find.textContaining(RegExp('10 янв')), findsWidgets);
+        expect(find.textContaining('Автор может закрыть после'), findsNothing);
+        expect(find.text(_privacy), findsOneWidget);
+      });
+
+      testWidgets('a server date: the hint names it', (tester) async {
+        await pumpWithEarlyClose(tester, DateTime.utc(2030, 1, 5, 12));
+        expect(
+          find.textContaining(RegExp(r'Автор может закрыть после .*5 янв')),
+          findsOneWidget,
+        );
+      });
+    });
+
     testWidgets('skip without a committed version acts at once', (
       tester,
     ) async {

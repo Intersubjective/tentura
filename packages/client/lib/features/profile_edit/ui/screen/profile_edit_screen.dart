@@ -9,6 +9,7 @@ import 'package:image_cropper_for_web/cropper_editor.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
@@ -220,7 +221,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                               key: ValueKey('displayName-$originalId'),
                               initialValue: cubit.state.displayName,
                               maxLength: kTitleMaxLength,
-                              buildCounter: tenturaCounterNearLimit,
+                              // Code units, as the validator and the server
+                              // count the name (#356, #603).
+                              inputFormatters: const [
+                                CodeUnitLengthLimitingTextInputFormatter(
+                                  kTitleMaxLength,
+                                ),
+                              ],
+                              buildCounter: tenturaCodeUnitCounter(
+                                () => cubit.state.displayName,
+                                render: tenturaCounterNearLimit,
+                              ),
                               style: tenturaFormFieldTextStyle(context),
                               onChanged: cubit.setDisplayName,
                               onTapOutside: (_) =>

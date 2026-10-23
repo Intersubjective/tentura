@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
-
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
 
@@ -183,6 +183,14 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                       labelText: _l10n.labelDisplayName,
                     ),
                     maxLength: kTitleMaxLength,
+                    // Code units, as the validator and the server count the
+                    // name (#356, #603): maxLength alone counts characters.
+                    inputFormatters: const [
+                      CodeUnitLengthLimitingTextInputFormatter(kTitleMaxLength),
+                    ],
+                    buildCounter: tenturaCodeUnitCounter(
+                      () => _titleController.text,
+                    ),
                     style: _textTheme.headlineLarge,
                     validator: (text) => displayNameValidator(_l10n, text),
                     onTapOutside: (_) => FocusScope.of(context).unfocus(),

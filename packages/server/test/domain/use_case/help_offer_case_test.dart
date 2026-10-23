@@ -225,6 +225,49 @@ void main() {
       ).called(1);
     });
 
+    // #489: a helper who leaves while the Request is Wrapping up is the case
+    // the author most needs to hear about; the open-family gate dropped it.
+    test('WRAPPING UP withdrawal tells the author who left and why', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.reviewOpen));
+      when(
+        roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => null);
+      when(helpOfferRepo.fetchAllByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          ),
+        ],
+      );
+
+      await case_.withdraw(
+        beaconId: 'B1',
+        userId: 'U1',
+        withdrawReason: 'timing',
+        message: 'Saturday fell through',
+      );
+
+      expect(attention.recorded.single.eventType.name, 'helpWithdrawn');
+      expect(
+        attention.recorded.single.recipients.map((r) => r.role.withdrawReason),
+        allOf(isNotEmpty, everyElement('timing')),
+      );
+      // The inbox keeps its non-open shape: a tombstone, not Watching.
+      verify(
+        inboxRepo.applyTombstoneAfterWithdraw(userId: 'U1', beaconId: 'B1'),
+      ).called(1);
+      verifyNever(
+        inboxRepo.upsertWatchingForSender(
+          senderId: anyNamed('senderId'),
+          beaconId: anyNamed('beaconId'),
+          touchForwardOrdering: anyNamed('touchForwardOrdering'),
+        ),
+      );
+    });
+
     test('allows OPEN (0)', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(

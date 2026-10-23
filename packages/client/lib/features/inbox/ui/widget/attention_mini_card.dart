@@ -215,7 +215,8 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
         : _eventLine(l10n, scoped.event, shownName);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
     final absoluteTime =
-        '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
+        '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
+        '${timeFormatHm(localCreatedAt)}';
     // A forward's note comes from provenance, not the receipt; every other
     // row quotes only what its receipt carries beyond the event.
     final quoted = widget.kind == AttentionMiniCardKind.forward

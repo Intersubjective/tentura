@@ -225,6 +225,7 @@ void main() {
     Future<({HelpOfferTileSheetCubit cubit, _ReleaseCoordination coord})> build(
       BeaconStatus status, {
       int stakeState = acknowledged,
+      int offerKind = 0,
     }) async {
       final beaconRepo = TrackingBeaconRepository()
         ..fetchByIdHandler = (id) async => Beacon.empty.copyWith(
@@ -233,7 +234,13 @@ void main() {
           author: author,
         );
       final coord = _ReleaseCoordination(
-        rows: [_row(userId: offerer.id, stakeState: stakeState)],
+        rows: [
+          _row(
+            userId: offerer.id,
+            stakeState: stakeState,
+            offerKind: offerKind,
+          ),
+        ],
       );
       final cubit = HelpOfferTileSheetCubit(
         beaconId: 'b1',
@@ -277,6 +284,26 @@ void main() {
     test('closed Request: release is refused', () async {
       final (:cubit, :coord) = await build(BeaconStatus.closed);
 
+      expect(await cubit.release(reason: 'no-show'), isFalse);
+      expect(coord.releaseCalls, isEmpty);
+
+      await cubit.close();
+    });
+
+    // The sheet leaves backup offers out of End participation; the People
+    // tab does not (pinned in beacon_people_tab_test.dart).
+    test('the sheet offers End participation for a primary offer', () async {
+      final (:cubit, coord: _) = await build(BeaconStatus.open);
+
+      expect(cubit.canEndParticipation, isTrue);
+
+      await cubit.close();
+    });
+
+    test('the sheet offers no End participation for a backup offer', () async {
+      final (:cubit, :coord) = await build(BeaconStatus.open, offerKind: 1);
+
+      expect(cubit.canEndParticipation, isFalse);
       expect(await cubit.release(reason: 'no-show'), isFalse);
       expect(coord.releaseCalls, isEmpty);
 

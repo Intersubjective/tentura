@@ -93,8 +93,19 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
 
   /// Author may end a helper's participation in every non-final status,
   /// Wrapping up included (#489); admitting offers stays open-only.
-  bool get canEndParticipation =>
-      state.beacon.status.allowsCoordination && _canActOnOtherOffer;
+  bool get canEndParticipation {
+    final offer = state.offer;
+    if (offer == null || offer.isWithdrawn) return false;
+    // The sheet alone leaves backup offers out; the People tab shows End
+    // participation for an admitted backup helper too.
+    if (offer.offerKind == 1) return false;
+    final beacon = state.beacon;
+    return beacon.canEndParticipationOf(
+      targetIsAuthor: offer.user.id == beacon.author.id,
+      targetIsViewer: offer.user.id == state.myProfile.id,
+      viewerIsAuthorOrSteward: state.isAuthorOrSteward,
+    );
+  }
 
   bool get _canActOnOtherOffer {
     final offer = state.offer;

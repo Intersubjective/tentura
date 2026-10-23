@@ -475,6 +475,32 @@ void main() {
     expect(find.textContaining('Выберите итог'), findsNothing);
   });
 
+  // #632: the footer follows the server's earlyCloseAt, not a client copy of
+  // the server's small-episode size.
+  group('#632: early-close hint follows the payload', () {
+    final two = [_member('u1'), _member('u2')];
+
+    testWidgets('two members with a date from the server: hint shown', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(members: two, earlyCloseAt: DateTime.utc(2030, 1, 5, 9)),
+      );
+      expect(_button(tester, 'Завершить сейчас').onPressed, isNull);
+      expect(find.textContaining('Можно закрыть раньше после'), findsOneWidget);
+    });
+
+    testWidgets('no date from the server: no hint', (tester) async {
+      await _pump(
+        tester,
+        _state(outcomes: {..._allDone, 'u4': ClosureOutcome.done}),
+      );
+      expect(_button(tester, 'Завершить сейчас').onPressed, isNull);
+      expect(find.textContaining('Можно закрыть раньше после'), findsNothing);
+    });
+  });
+
   group('#364: the only helper was removed after a Reopen', () {
     const pickHint =
         'Выберите итог для каждого помощника, чтобы завершить сейчас';
@@ -483,13 +509,10 @@ void main() {
     testWidgets('unjudged: Finish now disabled, explains what to do', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        _state(members: removed, earlyCloseAt: DateTime.utc(2030, 1, 5, 9)),
-      );
+      // Nobody is left to answer the review: the server sends no date (#632).
+      await _pump(tester, _state(members: removed));
       expect(_button(tester, 'Завершить сейчас').onPressed, isNull);
       expect(find.text(pickHint), findsOneWidget);
-      // Nobody is left to answer the review: no misleading date.
       expect(find.textContaining('Можно закрыть раньше после'), findsNothing);
     });
 

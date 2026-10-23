@@ -59,8 +59,13 @@ class _RatingScreenState extends State<RatingScreen> {
     text: context.read<RatingCubit>().state.searchFilter,
   );
 
+  /// Close hands the caret back to the field, so the next keys land there
+  /// (on web the first click after Close was lost, #603).
+  final _searchFocusNode = FocusNode();
+
   @override
   void dispose() {
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -188,11 +193,18 @@ class _RatingScreenState extends State<RatingScreen> {
                 ),
                 // Only offer the clear button when there is something to clear,
                 // so no disabled ✕ sits beside the working back arrow.
+                // A click here counts as inside the field (no tap-outside
+                // unfocus) and focus stays in it, so typing goes on (#603).
                 if (!_isScatterView && filter.isNotEmpty)
-                  IconButton(
-                    tooltip: l10n.buttonClose,
-                    icon: const Icon(Icons.clear_rounded),
-                    onPressed: cubit.clearSearchFilter,
+                  TextFieldTapRegion(
+                    child: IconButton(
+                      tooltip: l10n.buttonClose,
+                      icon: const Icon(Icons.clear_rounded),
+                      onPressed: () {
+                        cubit.clearSearchFilter();
+                        _searchFocusNode.requestFocus();
+                      },
+                    ),
                   ),
               ],
               title: _isScatterView
@@ -214,6 +226,7 @@ class _RatingScreenState extends State<RatingScreen> {
                                 isDense: true,
                               ),
                               controller: _searchController,
+                              focusNode: _searchFocusNode,
                               onChanged: cubit.setSearchFilter,
                               textInputAction: TextInputAction.go,
                             ),
