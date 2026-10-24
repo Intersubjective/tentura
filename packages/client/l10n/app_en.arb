@@ -10162,7 +10162,7 @@
   "@notificationPromptTitle": {
     "description": "In-app banner (B065) shown on web while notification permission has not been asked yet."
   },
-  "notificationPromptBody": "So you hear when someone answers your request or needs your help. Tap “Turn on”, then choose “Allow” when your browser asks.",
+  "notificationPromptBody": "We’ll tell you when someone sends you a request, replies in your chat, or accepts your offer. Tap “Turn on”, then choose “Allow” when your browser asks.",
   "@notificationPromptBody": {
     "description": "In-app notification banner: why the app wants permission and what to click in the browser dialog."
   },
