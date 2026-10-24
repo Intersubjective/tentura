@@ -26,10 +26,10 @@ String compactRelativeTimeAgo({
 }
 
 /// #189 rev 2 — the short age on a For You card, its tombstone and its rows:
-/// «сейчас · 40 мин · 2 ч · 3 дн. · 12 сент. · 12.09.25» (EN «now · 40m · 2h ·
-/// 3d · Sep 12 · 9/12/25»). It has to fit beside a one-line event at 1.3x
-/// text, which the shared [compactRelativeTimeAgo] («92 дн. назад») does not;
-/// that one keeps its many other callers unchanged.
+/// «сейчас · 40 мин · 2 ч · 3 дн. · 12 сент. · 12.09.2025» (EN «now · 40m ·
+/// 2h · 3d · Sep 12 · 9/12/2025»). It has to fit beside a one-line event at
+/// 1.3x text, which the shared [compactRelativeTimeAgo] («92 дн. назад») does
+/// not; that one keeps its many other callers unchanged.
 ///
 /// Speak [cardRelativeAgeSpoken] instead: the abbreviations are for the eye.
 String cardRelativeAge({
@@ -49,9 +49,9 @@ String cardRelativeAge({
   if (localWhen.year == now.year) {
     return DateFormat.MMMd(locale).format(localWhen);
   }
-  return locale.startsWith('ru')
-      ? DateFormat('dd.MM.yy', locale).format(localWhen)
-      : DateFormat('M/d/yy', locale).format(localWhen);
+  // #450: an older year is the locale's own short date (yMd), never a
+  // hardcoded US pattern.
+  return DateFormat.yMd(locale).format(localWhen);
 }
 
 /// The spoken form of [cardRelativeAge]: «40 минут назад», «2 hours ago».
