@@ -214,8 +214,11 @@ test('already-friends uses completion copy after signed-in return', () => {
   );
   assert.match(block, /isSignedInReturn\(\)/);
   assert.match(block, /You’re all set/);
-  assert.match(block, /Your account is ready, and \$\{name\} is connected with you/);
-  assert.match(block, /You’re connected with \$\{name\}/);
+  assert.match(
+    block,
+    /t\(\s*'Your account is ready, and \{name\} is connected with you\./,
+  );
+  assert.match(block, /t\('You’re connected with \{name\}', \{ name \}\)/);
   assert.doesNotMatch(block, /already connected/i);
 });
 

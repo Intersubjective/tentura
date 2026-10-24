@@ -131,7 +131,7 @@ test('main.js persists post-join beacon on preview render', () => {
 test('pager exposes explicit textual progress', () => {
   assert.match(
     onboardingJs,
-    /progress\.textContent = `Step \$\{page \+ 1\} of \$\{ONBOARDING_PAGES\.length\}`/,
+    /progress\.textContent = t\('Step \{n\} of \{total\}', \{\s*n: page \+ 1,\s*total: ONBOARDING_PAGES\.length,/,
   );
   assert.match(onboardingJs, /class: 'hint pager-progress'/);
 });
