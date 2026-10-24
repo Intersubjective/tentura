@@ -83,7 +83,11 @@ abstract class RegisterModule {
     // watches local tables, so nothing needs cross-tab updates; a future
     // `.watch()` still updates for writes made by this tab.
     return DatabaseConnection(
-      ReopeningQueryExecutor(open, onRetry: _reportDatabaseReopen),
+      ReopeningQueryExecutor(
+        open,
+        onRetry: _reportDatabaseReopen,
+        onStatementError: _reportDatabaseStatementError,
+      ),
     ).interceptWith(SentryQueryInterceptor(databaseName: _mainDbName));
   }
 
@@ -110,6 +114,13 @@ abstract class RegisterModule {
       ),
     );
   }
+
+  /// Which statement failed, and in which state of the database, for the
+  /// SQLite errors seen in long web sessions (#703). The SQL, the error's
+  /// type and result code only — never its text, which carries the
+  /// statement's arguments.
+  static void _reportDatabaseStatementError(DatabaseStatementFailure failure) =>
+      logDatabaseStatementFailure(_databaseLogger, failure);
 
   static final _databaseLogger = Logger('LocalDatabase');
 
