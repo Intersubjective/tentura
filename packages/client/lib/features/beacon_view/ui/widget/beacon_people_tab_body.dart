@@ -21,7 +21,6 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
-import 'package:tentura/features/forward/domain/forward_trail.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
@@ -226,7 +225,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
           ?offerAcceptedEvent,
           if (myOffer != null) ...[
             HelpOfferTile(
-              helpOffer: myOffer,
+              helpOffer: state.offerOnForwardTrail(myOffer),
               beaconId: beacon.id,
               beaconAuthor: beacon.author,
               beaconAuthorId: beacon.author.id,
@@ -294,10 +293,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     // shows that state. People sections above stay exclusive among
     // themselves.
     final viewerId = state.myProfile.id;
-    final forwardEdges = viewerForwardTrail(
-      state.viewerForwardEdges,
-      viewerUserId: viewerId,
-    );
+    final forwardEdges = state.viewerTrail;
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
         .toList(growable: false);
@@ -314,7 +310,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     bool isDirectAuthorForward(String userId) {
       for (final c in state.helpOffers) {
         if (c.user.id == userId && !c.isWithdrawn) {
-          return c.isDirectAuthorForward;
+          return state.offerOnForwardTrail(c).isDirectAuthorForward;
         }
       }
       return false;
@@ -399,7 +395,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
             viewerIsAuthorOrSteward: state.isAuthorOrSteward,
           );
       return HelpOfferTile(
-        helpOffer: c,
+        helpOffer: state.offerOnForwardTrail(c),
         beaconId: beacon.id,
         beaconAuthor: beacon.author,
         beaconAuthorId: beacon.author.id,
@@ -620,7 +616,10 @@ class BeaconPeopleTabBody extends StatelessWidget {
                   minHeight: graphHit,
                 ),
                 onPressed: () =>
-                    context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+                    context.read<ScreenCubit>().showForwardsGraphFor(
+                      beacon.id,
+                      kind: beacon.kind,
+                    ),
               ),
             ),
             onExpansionChanged: (open) {
@@ -729,7 +728,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       focusWrap(
                         backupOffers[k].user.id,
                         HelpOfferTile(
-                          helpOffer: backupOffers[k],
+                          helpOffer: state.offerOnForwardTrail(
+                            backupOffers[k],
+                          ),
                           beaconId: beacon.id,
                           beaconAuthor: beacon.author,
                           beaconAuthorId: beacon.author.id,
@@ -771,7 +772,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
                         for (var j = 0; j < withdrawn.length; j++) ...[
                           if (j != 0) const SizedBox(height: 12),
                           HelpOfferTile(
-                            helpOffer: withdrawn[j],
+                            helpOffer: state.offerOnForwardTrail(
+                              withdrawn[j],
+                            ),
                             beaconId: beacon.id,
                             beaconAuthor: beacon.author,
                             beaconAuthorId: beacon.author.id,

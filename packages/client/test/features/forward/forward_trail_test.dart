@@ -66,4 +66,60 @@ void main() {
       isTrue,
     );
   });
+
+  group('directAuthorForwardOnTrail (#496)', () {
+    bool direct({
+      required bool server,
+      required List<ForwardEdge> edges,
+      String viewer = 'auth',
+      String helper = 'h1',
+    }) => directAuthorForwardOnTrail(
+      serverSaysDirect: server,
+      viewerEdges: edges,
+      viewerUserId: viewer,
+      authorId: 'auth',
+      helperId: helper,
+    );
+
+    test('author: the server flag alone is not enough without the trail', () {
+      expect(direct(server: true, edges: const []), isFalse);
+    });
+
+    test(
+      'author: a live author -> helper forward on the trail confirms it',
+      () {
+        expect(direct(server: true, edges: [_edge('e', 'auth', 'h1')]), isTrue);
+      },
+    );
+
+    test('author: a cancelled forward does not confirm it', () {
+      expect(
+        direct(
+          server: true,
+          edges: [_edge('e', 'auth', 'h1', cancelled: true)],
+        ),
+        isFalse,
+      );
+    });
+
+    test('author: a forward to someone else does not confirm it', () {
+      expect(direct(server: true, edges: [_edge('e', 'auth', 'h2')]), isFalse);
+    });
+
+    test('helper: the inbound author forward confirms it', () {
+      expect(
+        direct(server: true, viewer: 'h1', edges: [_edge('e', 'auth', 'h1')]),
+        isTrue,
+      );
+      expect(direct(server: true, viewer: 'h1', edges: const []), isFalse);
+    });
+
+    test('no server flag: no claim', () {
+      expect(direct(server: false, edges: [_edge('e', 'auth', 'h1')]), isFalse);
+    });
+
+    test('steward: the author edge is not on their trail; the flag stands', () {
+      expect(direct(server: true, viewer: 's1', edges: const []), isTrue);
+    });
+  });
 }

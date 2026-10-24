@@ -54,3 +54,45 @@ bool trailHasLiveForward(
       e.sender.id == senderId &&
       e.recipient.id == recipientId,
 );
+
+/// Whether a helper card may say the author forwarded the Request to
+/// [helperId] directly (#496).
+///
+/// When the viewer is the author or that helper, the forward is an edge of
+/// the viewer's own trail (People › Forwards), so the claim needs the trail
+/// to hold a live author -> helper forward as well as the server's flag
+/// ([serverSaysDirect]): a trail that is still unknown or shows no such
+/// forward means no claim ("Joined via the network"). Anyone else (a
+/// steward) has no such edge in their trail; the server's flag stands.
+bool directAuthorForwardOnTrail({
+  required bool serverSaysDirect,
+  required Iterable<ForwardEdge> viewerEdges,
+  required String viewerUserId,
+  required String authorId,
+  required String helperId,
+}) => directAuthorForwardOnViewerTrail(
+  serverSaysDirect: serverSaysDirect,
+  trail: viewerForwardTrail(viewerEdges, viewerUserId: viewerUserId),
+  viewerUserId: viewerUserId,
+  authorId: authorId,
+  helperId: helperId,
+);
+
+/// [directAuthorForwardOnTrail] on a [trail] already derived with
+/// [viewerForwardTrail] — for callers that check many helpers against one
+/// trail (People tab tiles, #496).
+bool directAuthorForwardOnViewerTrail({
+  required bool serverSaysDirect,
+  required Iterable<ForwardEdge> trail,
+  required String viewerUserId,
+  required String authorId,
+  required String helperId,
+}) {
+  if (!serverSaysDirect) return false;
+  if (viewerUserId != authorId && viewerUserId != helperId) return true;
+  return trailHasLiveForward(
+    trail,
+    senderId: authorId,
+    recipientId: helperId,
+  );
+}

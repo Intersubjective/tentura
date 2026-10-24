@@ -16,6 +16,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/forward/domain/forward_trail.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
@@ -237,6 +238,10 @@ class TimelineCreation extends TimelineEntry {
   DateTime get timestamp => createdAt;
 }
 
+/// [BeaconViewState.viewerTrail] per state instance: a state is immutable, so
+/// its trail never changes (#496).
+final _viewerTrailMemo = Expando<List<ForwardEdge>>('viewerTrail');
+
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   const factory BeaconViewState({
@@ -343,6 +348,42 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// The author's forward status is still unknown and worth reading (#484).
   bool get needsAuthorForwardStatus =>
       _isAuthorsLiveFieldRequest && !forwardsLoaded && !forwardsLoading;
+
+  /// This viewer's forward trail ([viewerForwardTrail] of
+  /// [viewerForwardEdges]), derived once per state and reused by every helper
+  /// tile and the Forwards fold of one build (#496).
+  List<ForwardEdge> get viewerTrail =>
+      _viewerTrailMemo[this] ??= List.unmodifiable(
+        viewerForwardTrail(viewerForwardEdges, viewerUserId: myProfile.id),
+      );
+
+  /// [offer] as its helper card tells it: the "forwarded directly" claim
+  /// follows this viewer's forward trail, the same data People › Forwards
+  /// shows, so the two never disagree (#496).
+  TimelineHelpOffer offerOnForwardTrail(TimelineHelpOffer offer) {
+    final direct = directAuthorForwardOnViewerTrail(
+      serverSaysDirect: offer.isDirectAuthorForward,
+      trail: viewerTrail,
+      viewerUserId: myProfile.id,
+      authorId: beacon.author.id,
+      helperId: offer.user.id,
+    );
+    return direct == offer.isDirectAuthorForward
+        ? offer
+        : offer.copyWith(isDirectAuthorForward: direct);
+  }
+
+  /// A helper card would claim a direct author forward that only this
+  /// viewer's forward trail can confirm, and the trail is not read yet
+  /// (#496).
+  bool get needsTrailForDirectForward =>
+      !forwardsLoaded &&
+      !forwardsLoading &&
+      helpOffers.any(
+        (o) =>
+            o.isDirectAuthorForward &&
+            (isBeaconMine || o.user.id == myProfile.id),
+      );
 
   /// Live in the Field but the author has forwarded it to nobody (#484).
   /// Unknown (forwards not loaded, e.g. the read failed) is not "nobody".
