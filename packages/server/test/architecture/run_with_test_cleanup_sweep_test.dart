@@ -272,6 +272,9 @@ Future<_Outcome> _sweepRunner(
     environment: {
       ...environment,
       'TMPDIR': sweepTmp.path,
+      // The proc view below hides this suite's own runner, so the sweep
+      // would take the real /tmp kernels (CI keeps them there) for leftovers.
+      'TENTURA_TEST_CLEANUP_SYSTEM_TMP': sweepTmp.path,
       'PATH': '${bin.path}:${Platform.environment['PATH']}',
       'LD_PRELOAD': procViewLibrary.path,
       'CLEANUP_SWEEP_PROC_VIEW': procView.path,

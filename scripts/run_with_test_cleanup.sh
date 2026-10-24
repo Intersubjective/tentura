@@ -217,7 +217,11 @@ def live_cmdlines() -> bytes:
     return b"\n".join(blobs)
 
 live = live_cmdlines()
-roots = {pathlib.Path("/tmp"), pathlib.Path(os.environ.get("TMPDIR") or "/tmp")}
+# TENTURA_TEST_CLEANUP_SYSTEM_TMP stands in for /tmp in sandboxed tests: their
+# restricted /proc view hides the real test runner, whose kernels sit in /tmp
+# on CI (no TMPDIR there), so sweeping the real /tmp would delete them.
+system_tmp = os.environ.get("TENTURA_TEST_CLEANUP_SYSTEM_TMP") or "/tmp"
+roots = {pathlib.Path(system_tmp), pathlib.Path(os.environ.get("TMPDIR") or "/tmp")}
 removed = []
 for root in roots:
   for pat in ("flutter_tools.*", "dart_test.kernel.*"):
