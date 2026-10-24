@@ -593,6 +593,25 @@ List<Widget> _myWorkRedesignSlivers({
       ),
     );
   }
+  // #269 — the archive is one tap away at the end of the list too, not only
+  // through the filter menu or the empty state (same words as that
+  // shortcut); hidden while nothing is archived or the archive is shown.
+  if (state.filter != MyWorkFilter.archived && state.archivedCountHint > 0) {
+    slivers.add(
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: tt.rowGap),
+          child: Center(
+            child: TenturaTextAction(
+              label: l10n.myWorkEmptyArchiveShortcut(state.archivedCountHint),
+              onPressed: () =>
+                  context.read<MyWorkCubit>().setFilter(MyWorkFilter.archived),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
   slivers.add(
     SliverPadding(
       padding: EdgeInsets.only(bottom: tt.rowGap),
