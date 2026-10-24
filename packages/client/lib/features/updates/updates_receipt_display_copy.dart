@@ -713,6 +713,17 @@ const _authorReasonPresentationKeys = {
   'commitment_released',
 };
 
+/// The row's second line carries the author's own reason (#381, #601): it
+/// may wrap further than an ordinary second line so the reason is read
+/// whole.
+bool updatesReceiptCarriesAuthorReason({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+}) =>
+    _authorReasonPresentationKeys.contains(presentationKey) &&
+    (excerptFromPresentationPayload(presentationPayloadJson)?.isNotEmpty ??
+        false);
+
 final _statusTransitionTail = RegExp(r'from (\w+) to (\w+)\s*$');
 
 /// The locale's line for an event whose meaning lives in its key and payload
