@@ -173,11 +173,12 @@ void main() {
         'maxQueueAgeMs': s.stats.maxQueueAge.inMilliseconds,
         'maxStalenessMs': s.stats.maxFullStaleness.inMilliseconds,
       };
+      // Outside packages/server: the analyzer gates scan the package tree in
+      // parallel runs.
       final file = File(
-        'build/perf/constellation_db_scheduler_publication_burst.json',
-      )
-        ..createSync(recursive: true)
-        ..writeAsStringSync(jsonEncode(report));
+        '${Directory.systemTemp.path}/'
+        'constellation_db_scheduler_publication_burst.json',
+      )..writeAsStringSync(jsonEncode(report));
 
       final back = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
       expect(back['fullPerSecond'], 500);
