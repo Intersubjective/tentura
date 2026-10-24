@@ -442,6 +442,7 @@ List<PlatformUiSettings> _avatarCropUiSettings(
         cancelButton: l10n.buttonCancel,
         cropButton: l10n.buttonSave,
         zoomLabel: l10n.cropZoomLabel,
+        cropErrorMessage: l10n.cropSaveError,
       ),
     ),
   ];

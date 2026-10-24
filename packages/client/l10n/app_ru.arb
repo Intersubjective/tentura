@@ -224,6 +224,10 @@
   "@cropZoomLabel": {
     "context": "Utils"
   },
+  "cropSaveError": "Не удалось сохранить изображение. Попробуйте ещё раз.",
+  "@cropSaveError": {
+    "context": "Utils"
+  },
   "buttonClose": "Закрыть",
   "@buttonClose": {
     "context": "Utils"
@@ -3344,6 +3348,10 @@
   },
   "myWorkEmptyArchivedBody": "Сюда переносятся закрытые и отменённые запросы. Новое можно найти в «Поле».",
   "@myWorkEmptyArchivedBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyAllBody": "Здесь появятся все ваши запросы и запросы, на которых вы предложили помощь. Найти, кому помочь, можно в «Поле».",
+  "@myWorkEmptyAllBody": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyGoToFieldCta": "Перейти в «Поле»",

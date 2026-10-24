@@ -11,10 +11,17 @@ class CropperWebTranslations extends WebTranslations {
     required super.cancelButton,
     required super.cropButton,
     this.zoomLabel = defaultZoomLabel,
+    this.cropErrorMessage = defaultCropErrorMessage,
   });
 
   static const defaultZoomLabel = 'Zoom';
 
+  static const defaultCropErrorMessage =
+      'Could not save the image. Please try again.';
+
   /// Label (text + semantics) of the zoom slider.
   final String zoomLabel;
+
+  /// SnackBar text shown when saving the crop fails.
+  final String cropErrorMessage;
 }

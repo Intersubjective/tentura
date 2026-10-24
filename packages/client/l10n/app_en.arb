@@ -224,6 +224,10 @@
   "@cropZoomLabel": {
     "context": "Utils"
   },
+  "cropSaveError": "Could not save the image. Please try again.",
+  "@cropSaveError": {
+    "context": "Utils"
+  },
   "buttonClose": "Close",
   "@buttonClose": {
     "context": "Utils"
@@ -3503,6 +3507,10 @@
   },
   "myWorkEmptyArchivedBody": "Closed and cancelled requests move here. Find something new in the Field.",
   "@myWorkEmptyArchivedBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyAllBody": "Requests you create and requests where you offer help all appear here. Find one to help with in the Field.",
+  "@myWorkEmptyAllBody": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyGoToFieldCta": "Go to Field",

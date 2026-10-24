@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_cropper_platform_interface/image_cropper_platform_interface.dart';
 
 import 'cropper_actionbar.dart';
+import 'cropper_translations.dart';
 
 /// Web-import-free chrome for the cropper page so VM widget tests can pump it.
 ///
@@ -17,7 +18,7 @@ class CropperEditorScaffold extends StatefulWidget {
     required this.onRotate,
     required this.onScale,
     this.themeData,
-    this.cropErrorMessage = 'Could not save the image. Please try again.',
+    this.cropErrorMessage,
   });
 
   final WebTranslations translations;
@@ -27,7 +28,11 @@ class CropperEditorScaffold extends StatefulWidget {
   final void Function(RotationAngle) onRotate;
   final void Function(num) onScale;
   final WebThemeData? themeData;
-  final String cropErrorMessage;
+
+  /// Overrides the crop-failure SnackBar text. When null, the text comes from
+  /// [CropperWebTranslations.cropErrorMessage] (English for plain
+  /// [WebTranslations]).
+  final String? cropErrorMessage;
 
   @override
   State<CropperEditorScaffold> createState() => CropperEditorScaffoldState();
@@ -39,6 +44,14 @@ class CropperEditorScaffoldState extends State<CropperEditorScaffold> {
 
   bool get isProcessing => _processing;
 
+  String get _cropErrorMessage {
+    final translations = widget.translations;
+    return widget.cropErrorMessage ??
+        (translations is CropperWebTranslations
+            ? translations.cropErrorMessage
+            : CropperWebTranslations.defaultCropErrorMessage);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -48,9 +61,7 @@ class CropperEditorScaffoldState extends State<CropperEditorScaffold> {
           title: Text(widget.translations.title),
           leading: IconButton(
             tooltip: widget.translations.cancelButton,
-            onPressed: _processing
-                ? null
-                : () => Navigator.of(context).pop(),
+            onPressed: _processing ? null : () => Navigator.of(context).pop(),
             icon: Icon(widget.themeData?.backIcon ?? Icons.close),
           ),
           actions: [
@@ -128,7 +139,7 @@ class CropperEditorScaffoldState extends State<CropperEditorScaffold> {
       debugPrint(e.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.cropErrorMessage)),
+          SnackBar(content: Text(_cropErrorMessage)),
         );
       }
     }
