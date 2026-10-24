@@ -87,9 +87,19 @@ var _templateReady = false;
 /// MeritRank suite lock sessions held by this suite, by database name.
 final _meritRankSuiteLocks = <String, Connection>{};
 
-/// Whether the running suite is tagged `mr`.
-bool _isMeritRankSuite() =>
-    Invoker.current?.liveTest.suite.metadata.tags.contains('mr') ?? false;
+/// Whether the code calling the harness runs under an `mr` tag.
+///
+/// The tags of the running test (or `setUpAll` / `tearDownAll`), which merge
+/// in those of its groups and its suite, not only the suite's: a CI bundle
+/// (scripts/gen_test_bundles.py) is one suite that imports many test files,
+/// and it carries each file's `@Tags` on the file's `group`, so an `mr` file
+/// inside a bundle has no `mr` on its suite.
+bool _isMeritRankSuite() {
+  final liveTest = Invoker.current?.liveTest;
+  if (liveTest == null) return false;
+  return liveTest.test.metadata.tags.contains('mr') ||
+      liveTest.suite.metadata.tags.contains('mr');
+}
 
 /// `mr` suites share one MeritRank container, so they queue here — before
 /// provisioning a database — and keep the lock until the database is dropped.
