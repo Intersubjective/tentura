@@ -18,24 +18,23 @@ AttentionReceipt _receipt({
   String? beaconId = 'b1234567890ab',
   DateTime? createdAt,
   bool requiresAction = false,
-}) =>
-    AttentionReceipt(
-      id: 'receipt-1',
-      category: 'coordination',
-      kind: 'commitmentAccepted',
-      priority: 'normal',
-      title: title,
-      body: body,
-      actionUrl: '/#/',
-      createdAt: createdAt ?? DateTime(2026, 8, 4, 14, 30),
-      collapsedCount: 1,
-      presentationKey: presentationKey,
-      presentationPayloadJson: presentationPayloadJson,
-      surface: AttentionSurface.activity,
-      beaconId: beaconId,
-      actorUserId: 'actor-1',
-      requiresAction: requiresAction,
-    );
+}) => AttentionReceipt(
+  id: 'receipt-1',
+  category: 'coordination',
+  kind: 'commitmentAccepted',
+  priority: 'normal',
+  title: title,
+  body: body,
+  actionUrl: '/#/',
+  createdAt: createdAt ?? DateTime(2026, 8, 4, 14, 30),
+  collapsedCount: 1,
+  presentationKey: presentationKey,
+  presentationPayloadJson: presentationPayloadJson,
+  surface: AttentionSurface.activity,
+  beaconId: beaconId,
+  actorUserId: 'actor-1',
+  requiresAction: requiresAction,
+);
 
 Widget _wrap(Widget child) => MaterialApp(
   theme: TenturaTheme.light(),
@@ -163,5 +162,73 @@ void main() {
     await tester.pump();
     expect(markedUnseen, isTrue);
     expect(tapped, isFalse);
+  });
+
+  group('a read row still on Unread can be cleared from its menu (#711)', () {
+    Future<void> openMenu(
+      WidgetTester tester,
+      AttentionReceipt receipt, {
+      VoidCallback? onMarkSeen,
+    }) async {
+      await tester.pumpWidget(
+        _wrap(
+          UpdatesReceiptCard(
+            receipt: receipt,
+            onTap: () {},
+            onMarkSeen: onMarkSeen ?? () {},
+            onMarkUnseen: () {},
+            onSettle: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a read optional row offers the clear beside Mark unread', (
+      tester,
+    ) async {
+      var cleared = false;
+      await openMenu(
+        tester,
+        _receipt().copyWith(seenAt: DateTime.utc(2026, 8, 4)),
+        onMarkSeen: () => cleared = true,
+      );
+
+      expect(find.text(L10nEn().updatesMarkUnseen), findsOneWidget);
+      await tester.tap(find.text(L10nEn().attentionEventDismiss));
+      await tester.pump();
+      expect(cleared, isTrue);
+    });
+
+    testWidgets('guard: a cleared row offers only Mark unread', (
+      tester,
+    ) async {
+      await openMenu(
+        tester,
+        _receipt().copyWith(
+          seenAt: DateTime.utc(2026, 8, 4),
+          clearedAt: DateTime.utc(2026, 8, 4),
+        ),
+      );
+
+      expect(find.text(L10nEn().updatesMarkUnseen), findsOneWidget);
+      expect(find.text(L10nEn().attentionEventDismiss), findsNothing);
+    });
+
+    testWidgets('guard: a read obligation is not offered the clear', (
+      tester,
+    ) async {
+      await openMenu(
+        tester,
+        _receipt(
+          requiresAction: true,
+        ).copyWith(seenAt: DateTime.utc(2026, 8, 4)),
+      );
+
+      expect(find.text(L10nEn().updatesMarkUnseen), findsOneWidget);
+      expect(find.text(L10nEn().attentionEventDismiss), findsNothing);
+    });
   });
 }
