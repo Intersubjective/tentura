@@ -7515,6 +7515,8 @@
   "constellationAutoTagMutualContact": "Взаимный контакт",
   "constellationAutoTagITrust": "Я доверяю",
   "constellationAutoTagTrustsMe": "Доверяет мне",
+  "constellationNodeOwnTagsSemantics": "теги: {names}",
+  "constellationNodeAutoTagsSemantics": "автоматические: {names}",
   "peopleTagsYourTags": "Ваши теги",
   "peopleTagsAutomatic": "Автоматические",
   "peopleTagsAutoHelpedMe": "Помог мне",

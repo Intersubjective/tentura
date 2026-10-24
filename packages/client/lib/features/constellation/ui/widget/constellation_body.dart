@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -18,6 +19,8 @@ import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -1178,27 +1181,37 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 // The semantics label changes only with the pin state, so a
                 // move or a phase change leaves the node subtree alone.
                 final anchorTarget = cubit.anchorTargetForNode(node);
-                return BlocSelector<
-                  ConstellationCubit,
-                  ConstellationState,
-                  bool
-                >(
-                  bloc: cubit,
-                  selector: (_) =>
-                      anchorTarget != null && cubit.isAnchored(anchorTarget),
-                  builder: (context, _) => ConstellationPersonPresenceBuilder(
-                    personId: node is FieldPersonNode ? node.person.id : null,
-                    builder: (context, online) =>
-                        _wrapConstellationMapNodeSemantics(
-                          context: context,
-                          cubit: cubit,
-                          state: state,
-                          node: node,
-                          panelVisible: panelVisible,
-                          mapNode: mapNode,
-                          online: online,
-                        ),
-                  ),
+                Widget build(List<PersonTag> ownTags) =>
+                    BlocSelector<ConstellationCubit, ConstellationState, bool>(
+                      bloc: cubit,
+                      selector: (_) =>
+                          anchorTarget != null &&
+                          cubit.isAnchored(anchorTarget),
+                      builder: (context, _) =>
+                          ConstellationPersonPresenceBuilder(
+                            personId: node is FieldPersonNode
+                                ? node.person.id
+                                : null,
+                            builder: (context, online) =>
+                                _wrapConstellationMapNodeSemantics(
+                                  context: context,
+                                  cubit: cubit,
+                                  state: state,
+                                  node: node,
+                                  panelVisible: panelVisible,
+                                  mapNode: mapNode.withOwnTags(ownTags),
+                                  online: online,
+                                  ownTags: ownTags,
+                                ),
+                          ),
+                    );
+                final store = _peopleTags;
+                if (store == null || node is! FieldPersonNode) {
+                  return build(const []);
+                }
+                return StreamBuilder<void>(
+                  stream: store.changes,
+                  builder: (_, _) => build(_ownTagsOf(store, node.person.id)),
                 );
               },
             ),
@@ -1314,6 +1327,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
   }
 
+  /// The viewer's tag store; null where none is registered.
+  final PeopleTagsCase? _peopleTags = GetIt.I.isRegistered<PeopleTagsCase>()
+      ? GetIt.I<PeopleTagsCase>()
+      : null;
+
+  /// Own tags on [personId], in tag order.
+  List<PersonTag> _ownTagsOf(PeopleTagsCase store, String personId) {
+    final ids = store.tagsOfPerson(personId);
+    return [
+      for (final tag in store.tags)
+        if (ids.contains(tag.id)) tag,
+    ];
+  }
+
   ConstellationTagLens? _tagLens;
 
   /// One lens per filter and field snapshot, shared by every marker.
@@ -1348,6 +1375,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     required bool panelVisible,
     required _ConstellationMapNode mapNode,
     bool online = false,
+    List<PersonTag> ownTags = const [],
   }) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
@@ -1368,6 +1396,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       cubit: cubit,
       node: node,
       online: online,
+      ownTagNames: [for (final tag in ownTags) tag.name],
     );
     // Off the selected person's trust chain (#641): the marker fades.
     final chainMarker = cubit.isDimmedByTrustChain(node)
@@ -1647,12 +1676,26 @@ class _ConstellationMapNode extends StatelessWidget {
     required this.detail,
     this.pinBadge,
     this.statusBadge,
+    this.ownTags = const [],
   });
+
+  /// Own tags drawn as glyphs on the top-end corner; two at most, then "+N".
+  static const _maxGlyphs = 2;
 
   final Widget child;
   final ConstellationDetailLevel detail;
   final Widget? pinBadge;
   final Widget? statusBadge;
+  final List<PersonTag> ownTags;
+
+  _ConstellationMapNode withOwnTags(List<PersonTag> ownTags) =>
+      _ConstellationMapNode(
+        detail: detail,
+        pinBadge: pinBadge,
+        statusBadge: statusBadge,
+        ownTags: ownTags,
+        child: child,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -1671,11 +1714,34 @@ class _ConstellationMapNode extends StatelessWidget {
             start: -overhang,
             child: statusBadge,
           ),
-        if (pinBadge != null && detail == ConstellationDetailLevel.normal)
+        if ((pinBadge != null || ownTags.isNotEmpty) &&
+            detail == ConstellationDetailLevel.normal)
           PositionedDirectional(
             top: -overhang,
             end: -overhang,
-            child: pinBadge,
+            // The pin sits left of the glyph cluster.
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: tt.tightGap / 2,
+              children: [
+                ?pinBadge,
+                for (final tag in ownTags.take(_maxGlyphs))
+                  ExcludeSemantics(
+                    child: TagGlyph(
+                      glyph: tag.glyph,
+                      colorIndex: tag.color,
+                      size: tt.iconSize * 0.85,
+                    ),
+                  ),
+                if (ownTags.length > _maxGlyphs)
+                  ExcludeSemantics(
+                    child: Text(
+                      '+${ownTags.length - _maxGlyphs}',
+                      style: TenturaText.labelSmall(tt.textMuted),
+                    ),
+                  ),
+              ],
+            ),
           ),
       ],
     );

@@ -11285,6 +11285,20 @@
   "@constellationAutoTagTrustsMe": {
     "description": "Automatic tag on the Field tag row"
   },
+  "constellationNodeOwnTagsSemantics": "tags: {names}",
+  "@constellationNodeOwnTagsSemantics": {
+    "description": "Screen-reader part of a Field person's label: the viewer's own tags on them, in tag order",
+    "placeholders": {
+      "names": {"type": "String"}
+    }
+  },
+  "constellationNodeAutoTagsSemantics": "automatic: {names}",
+  "@constellationNodeAutoTagsSemantics": {
+    "description": "Screen-reader part of a Field person's label: the automatic tags they carry",
+    "placeholders": {
+      "names": {"type": "String"}
+    }
+  },
   "peopleTagsYourTags": "Your tags",
   "@peopleTagsYourTags": {
     "description": "Heading of the viewer's own tags on a person"

@@ -5,18 +5,23 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/constellation_trust_badge.dart';
+import '../../domain/entity/constellation_field.dart';
 import 'constellation_node_ring_layer.dart';
 import 'constellation_request_status_marker.dart';
+import 'constellation_tag_row.dart';
 
 /// Combined accessibility label for a Constellation map node (body + pin/status).
 ///
 /// [online]: the person is online now (their presence halo is drawn).
+/// [ownTagNames]: the viewer's own tags on the person, in tag order; the
+/// person's automatic tags follow them in the label.
 String constellationNodeSemanticLabel({
   required L10n l10n,
   required TenturaTokens tt,
   required ConstellationCubit cubit,
   required NodeDetails node,
   bool online = false,
+  List<String> ownTagNames = const [],
 }) {
   return switch (node) {
     FieldPersonNode(:final person) => () {
@@ -32,10 +37,28 @@ String constellationNodeSemanticLabel({
         if (trust != null) constellationTrustBadgeLabel(l10n, trust),
         if (online) l10n.chatPresenceOnline,
       ].join(', ');
+      final autoKinds = [
+        for (final peer in field?.peers ?? const <ConstellationPerson>[])
+          if (peer.id == person.id) ...peer.autoTagKinds,
+      ];
+      final tagParts = [
+        if (ownTagNames.isNotEmpty)
+          l10n.constellationNodeOwnTagsSemantics(ownTagNames.join(', ')),
+        if (autoKinds.isNotEmpty)
+          l10n.constellationNodeAutoTagsSemantics(
+            [
+              for (final kind in autoKinds)
+                constellationAutoTagName(l10n, kind),
+            ].join(', '),
+          ),
+      ];
+      final labelled = tagParts.isEmpty
+          ? base
+          : '$base, ${tagParts.join('; ')}';
       if (cubit.isAnchored(ConstellationAnchorTarget.person(person.id))) {
-        return '$base, ${l10n.constellationPinMarkerSemantics}';
+        return '$labelled, ${l10n.constellationPinMarkerSemantics}';
       }
-      return base;
+      return labelled;
     }(),
     FieldBeaconNode(request: final request?) => () {
       final title = request.title.trim();

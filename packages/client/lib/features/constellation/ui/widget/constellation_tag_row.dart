@@ -7,6 +7,14 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../domain/constellation_tag_filter.dart';
 import '../../domain/entity/constellation_field.dart';
 
+String constellationAutoTagName(L10n l10n, ConstellationAutoTagKind kind) =>
+    switch (kind) {
+      ConstellationAutoTagKind.mutualContact =>
+        l10n.constellationAutoTagMutualContact,
+      ConstellationAutoTagKind.iTrust => l10n.constellationAutoTagITrust,
+      ConstellationAutoTagKind.trustsMe => l10n.constellationAutoTagTrustsMe,
+    };
+
 /// The Field's tag row: the viewer's own tags, then the automatic ones.
 /// Tapping a chip toggles it in the tag lens.
 class ConstellationTagRow extends StatelessWidget {
@@ -30,14 +38,6 @@ class ConstellationTagRow extends StatelessWidget {
   final ValueChanged<ConstellationAutoTagKind> onToggleAuto;
   final ValueChanged<ConstellationTagFilterMode> onModeChanged;
   final VoidCallback onAddTag;
-
-  static String _autoTagName(L10n l10n, ConstellationAutoTagKind kind) =>
-      switch (kind) {
-        ConstellationAutoTagKind.mutualContact =>
-          l10n.constellationAutoTagMutualContact,
-        ConstellationAutoTagKind.iTrust => l10n.constellationAutoTagITrust,
-        ConstellationAutoTagKind.trustsMe => l10n.constellationAutoTagTrustsMe,
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +72,7 @@ class ConstellationTagRow extends StatelessWidget {
             selected: filter.selectedAuto.contains(kind),
             onTap: () => onToggleAuto(kind),
             child: AutoTagChip(
-              name: _autoTagName(l10n, kind),
+              name: constellationAutoTagName(l10n, kind),
               enabled: filter.selectedAuto.contains(kind),
             ),
           ),
