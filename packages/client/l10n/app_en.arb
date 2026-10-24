@@ -11192,5 +11192,73 @@
   "graphLegendConstellationMutualTrustHint": "Shown while someone is selected: a double line joins them to each person on the Field they trust both ways.",
   "@graphLegendConstellationMutualTrustHint": {
     "description": "Field legend tooltip for «Trust each other»."
+  },
+  "peopleTagsNameTaken": "You already have this tag",
+  "@peopleTagsNameTaken": {
+    "description": "Inline error when a tag name is already used by the viewer"
+  },
+  "peopleTagsUndo": "Undo",
+  "@peopleTagsUndo": {
+    "description": "Action of the shared Undo snackbar"
+  },
+  "peopleTagsAddToTag": "Add to tag…",
+  "@peopleTagsAddToTag": {
+    "description": "Title of the add-to-tag sheet"
+  },
+  "peopleTagsNewTag": "+ New tag",
+  "@peopleTagsNewTag": {
+    "description": "Row in the add-to-tag sheet that opens the tag editor"
+  },
+  "peopleTagsOnlyYouSee": "Only you see your tags.",
+  "@peopleTagsOnlyYouSee": {
+    "description": "Privacy footer of the add-to-tag sheet"
+  },
+  "peopleTagsEditorTitle": "New tag",
+  "@peopleTagsEditorTitle": {
+    "description": "Title of the tag editor dialog"
+  },
+  "peopleTagsEditorName": "Name",
+  "@peopleTagsEditorName": {
+    "description": "Name field label of the tag editor"
+  },
+  "peopleTagsEditorGlyph": "Letter or emoji",
+  "@peopleTagsEditorGlyph": {
+    "description": "Glyph field label of the tag editor"
+  },
+  "peopleTagsEditorSave": "Save",
+  "@peopleTagsEditorSave": {
+    "description": "Save button of the tag editor"
+  },
+  "peopleTagsColorRed": "Red",
+  "@peopleTagsColorRed": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorOrange": "Orange",
+  "@peopleTagsColorOrange": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorAmber": "Amber",
+  "@peopleTagsColorAmber": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorGreen": "Green",
+  "@peopleTagsColorGreen": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorTeal": "Teal",
+  "@peopleTagsColorTeal": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorBlue": "Blue",
+  "@peopleTagsColorBlue": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorViolet": "Violet",
+  "@peopleTagsColorViolet": {
+    "description": "Tag colour name read by screen readers"
+  },
+  "peopleTagsColorPink": "Pink",
+  "@peopleTagsColorPink": {
+    "description": "Tag colour name read by screen readers"
   }
 }

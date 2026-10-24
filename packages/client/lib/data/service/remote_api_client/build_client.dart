@@ -30,6 +30,7 @@ import 'fetch_cancellation_link.dart';
 import 'auth_loss_classifier.dart';
 import 'package:tentura/features/constellation/data/model/constellation_error_mapper.dart';
 import 'package:tentura/features/closure/data/model/closure_error_mapper.dart';
+import 'package:tentura/features/people_tags/data/model/people_tags_error_mapper.dart';
 
 import 'beacon_hierarchy_error_mapper.dart';
 import 'v2_upload_multipart_link.dart';
@@ -105,6 +106,7 @@ Future<Client> buildClient({
               throwIfConstellationError(code, ext);
               throwIfClosureError(code);
               throwIfBatonError(code);
+              throwIfPeopleTagsError(code);
               throwIfBeaconPlanError(code, ext);
               throwIfBeaconLobbyError(code);
               throwIfNowLineError(code, ext);

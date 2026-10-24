@@ -7491,5 +7491,22 @@
   "beaconShowcaseOfferUnansweredCancelled": "Запрос отменён до того, как автор ответил на ваше предложение.",
   "beaconLobbyRemoveConfirmBody": "Этот человек не сможет читать и писать в вопросах, пока вы не вернёте ему доступ. На его предложение помощи, если оно было, это не повлияет.",
   "graphLegendConstellationMutualTrust": "Доверяют друг другу",
-  "graphLegendConstellationMutualTrustHint": "Видно, пока выбран человек: двойная линия соединяет его с каждым на «Поле», с кем у него взаимное доверие."
+  "graphLegendConstellationMutualTrustHint": "Видно, пока выбран человек: двойная линия соединяет его с каждым на «Поле», с кем у него взаимное доверие.",
+  "peopleTagsNameTaken": "Такой тег уже есть",
+  "peopleTagsUndo": "Отменить",
+  "peopleTagsAddToTag": "Добавить в тег…",
+  "peopleTagsNewTag": "+ Новый тег",
+  "peopleTagsOnlyYouSee": "Свои теги видите только вы.",
+  "peopleTagsEditorTitle": "Новый тег",
+  "peopleTagsEditorName": "Название",
+  "peopleTagsEditorGlyph": "Буква или эмодзи",
+  "peopleTagsEditorSave": "Сохранить",
+  "peopleTagsColorRed": "Красный",
+  "peopleTagsColorOrange": "Оранжевый",
+  "peopleTagsColorAmber": "Янтарный",
+  "peopleTagsColorGreen": "Зелёный",
+  "peopleTagsColorTeal": "Бирюзовый",
+  "peopleTagsColorBlue": "Синий",
+  "peopleTagsColorViolet": "Фиолетовый",
+  "peopleTagsColorPink": "Розовый"
 }

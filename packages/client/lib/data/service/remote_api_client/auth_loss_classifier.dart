@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon_lobby/domain/exception/beacon_lobby_exce
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/constellation/domain/exception.dart';
+import 'package:tentura/features/people_tags/domain/people_tags_exception.dart';
 
 import 'exception.dart';
 import 'session_fetch.dart';
@@ -45,6 +46,9 @@ Exception mapRemoteFailure(Object? error) {
     return error;
   }
   if (error is ConstellationException) {
+    return error;
+  }
+  if (error is PeopleTagsException) {
     return error;
   }
   if (error is BeaconLobbyUnavailableException) {

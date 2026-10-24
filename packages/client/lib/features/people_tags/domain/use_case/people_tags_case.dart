@@ -73,41 +73,65 @@ final class PeopleTagsCase extends UseCaseBase {
   }
 
   Future<void> addToTag({required String personId, required String tagId}) =>
-      _edit(personId: personId, tagId: tagId, add: true);
+      applyMembership([
+        PersonTagMemberOp(tagId: tagId, personId: personId, add: true),
+      ]);
 
   Future<void> removeFromTag({
     required String personId,
     required String tagId,
-  }) => _edit(personId: personId, tagId: tagId, add: false);
+  }) => applyMembership([
+    PersonTagMemberOp(tagId: tagId, personId: personId, add: false),
+  ]);
 
-  Future<void> dispose() async {
-    _timer?.cancel();
-    await _subscription.cancel();
-    await _changes.close();
+  /// Creates an own tag and puts it last in the list.
+  Future<PersonTag> createTag({
+    required String name,
+    String? glyph,
+    int? color,
+  }) async {
+    final tag = await _repository.personTagCreate(
+      name: name,
+      glyph: glyph,
+      color: color,
+      clientOpId: _uuid.v4(),
+    );
+    _tags = [..._tags, tag]..sort((a, b) => a.ord.compareTo(b.ord));
+    _emit();
+    return tag;
   }
 
-  Future<void> _edit({
-    required String personId,
-    required String tagId,
-    required bool add,
-  }) async {
-    if (!_setMember(tagId, personId, add)) return;
-    final op = PersonTagMemberOp(tagId: tagId, personId: personId, add: add);
-    // One id per edit, reused by every retry so the server applies it once.
+  /// Applies [ops] to the index and sends them as one batch; the ops that
+  /// change nothing are dropped, and a failed send rolls the index back.
+  Future<void> applyMembership(List<PersonTagMemberOp> ops) async {
+    final changed = [
+      for (final op in ops)
+        if (_setMember(op.tagId, op.personId, op.add)) op,
+    ];
+    if (changed.isEmpty) return;
+    // One id per batch, reused by every retry so the server applies it once.
     final clientOpId = _uuid.v4();
     for (var attempt = 1; ; attempt++) {
       try {
         await _repository.personTagMembersApply(
-          ops: [op],
+          ops: changed,
           clientOpId: clientOpId,
         );
         return;
       } catch (_) {
         if (attempt < _applyAttempts) continue;
-        _setMember(tagId, personId, !add);
+        for (final op in changed.reversed) {
+          _setMember(op.tagId, op.personId, !op.add);
+        }
         rethrow;
       }
     }
+  }
+
+  Future<void> dispose() async {
+    _timer?.cancel();
+    await _subscription.cancel();
+    await _changes.close();
   }
 
   /// Sets the membership in the index; false when it already was so.
