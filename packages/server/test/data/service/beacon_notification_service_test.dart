@@ -19,11 +19,15 @@ import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/test_attention_harness.dart';
+
 typedef _EmailConsider = ({
   String recipientUserId,
-  NotificationKind kind,
+  NotificationKind? kind,
   String beaconId,
   String channelCollapseKey,
+  String title,
+  String body,
   bool pushDelivered,
 });
 
@@ -130,6 +134,20 @@ class _FakePrefs implements NotificationPreferenceRepositoryPort {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+class _RuPrefs extends _FakePrefs {
+  @override
+  Future<NotificationPreferencesEntity> getForAccount(String accountId) async =>
+      NotificationPreferencesEntity.defaults(accountId).copyWith(locale: 'ru');
+}
+
+class _RuLockScreenSafePrefs extends _FakePrefs {
+  @override
+  Future<NotificationPreferencesEntity> getForAccount(String accountId) async =>
+      NotificationPreferencesEntity.defaults(
+        accountId,
+      ).copyWith(locale: 'ru', lockScreenSafe: true);
+}
+
 class _CapturingEmail implements EmailNotificationPort {
   final considers = <_EmailConsider>[];
 
@@ -149,8 +167,31 @@ class _CapturingEmail implements EmailNotificationPort {
       kind: kind,
       beaconId: beaconId,
       channelCollapseKey: channelCollapseKey,
+      title: title,
+      body: body,
       pushDelivered: pushDelivered,
     ));
+  }
+
+  @override
+  Future<bool> considerImmediateByCategory({
+    required String recipientUserId,
+    required String channelCollapseKey,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String categoryScope,
+  }) async {
+    considers.add((
+      recipientUserId: recipientUserId,
+      kind: null,
+      beaconId: '',
+      channelCollapseKey: channelCollapseKey,
+      title: title,
+      body: body,
+      pushDelivered: false,
+    ));
+    return false;
   }
 
   @override
@@ -165,11 +206,12 @@ void main() {
     FcmTokenRepositoryPort? fcmTokens,
     FcmRemoteRepositoryPort? fcmRemote,
     PushActionTokenService? pushActionTokens,
+    NotificationPreferenceRepositoryPort? preferences,
   }) => BeaconNotificationService(
     fcmBatch ?? _FakeFcmBatch(),
     fcmTokens ?? _FakeFcmTokens(),
     fcmRemote ?? _FakeFcmRemote(),
-    _FakePrefs(),
+    preferences ?? _FakePrefs(),
     email ?? _CapturingEmail(),
     Logger('test'),
     pushActionTokens: pushActionTokens,
@@ -182,19 +224,23 @@ void main() {
     String dedupKey = 'recipient-1|asksOfMe|beacon-1|',
     String actorUserId = 'actor',
     String? coordinationItemId,
+    String title = 'Title',
+    String body = 'Body',
+    String? actorDisplayName,
   }) => AttentionChannelDecision(
     coordinationItemId: coordinationItemId,
     receiptId: 'receipt-1',
     recipientId: recipientId,
     kind: kind,
     priority: NotificationPriority.normal,
-    title: 'Title',
-    body: 'Body',
+    title: title,
+    body: body,
     actionUrl: '/action',
     dedupKey: dedupKey,
     actorUserId: actorUserId,
     reason: 'test',
     beaconId: beaconId,
+    actorDisplayName: actorDisplayName,
   );
 
   group('handOffChannels push delivery', () {
@@ -373,6 +419,263 @@ void main() {
       );
       expect(buttons.actions, isEmpty);
       expect(buttons.token, isNull);
+    });
+  });
+  // #367: a Russian reader's push is Russian, the title included.
+  group('recipient language', () {
+    const recipientId = 'recipient-1';
+    FcmTokenRepositoryPort tokens() => _FakeFcmTokensForUser(recipientId, [
+      FcmTokenEntity(
+        userId: recipientId,
+        appId: const Uuid().v4obj(),
+        platform: 'web',
+        token: 'tok-1',
+        createdAt: DateTime.utc(2026),
+        lastRefreshedAt: DateTime.utc(2026),
+      ),
+    ]);
+
+    Future<FcmNotificationEntity> pushFor(
+      AttentionChannelDecision d, {
+      required NotificationPreferenceRepositoryPort preferences,
+    }) async {
+      final batch = _CapturingFcmBatch();
+      final service = build(
+        fcmBatch: batch,
+        fcmTokens: tokens(),
+        preferences: preferences,
+      );
+      await service.handOffChannels([d]);
+      return batch.enqueues.single.message;
+    }
+
+    test('an accepted offer reads in Russian, title and body', () async {
+      final message = await pushFor(
+        decision(
+          kind: NotificationKind.roomAccess,
+          title: 'Anna accepted your offer',
+          actorDisplayName: 'Anna',
+          body: 'Your offer was accepted',
+        ),
+        preferences: _RuPrefs(),
+      );
+
+      expect(message.title, 'Anna принял(а) ваше предложение');
+      expect(message.body, 'Ваше предложение принято');
+    });
+
+    test('words a person wrote stay as written', () async {
+      final message = await pushFor(
+        decision(
+          kind: NotificationKind.roomAccess,
+          title: 'Anna accepted your offer',
+          actorDisplayName: 'Anna',
+          body: 'Hikes — see you at 9',
+        ),
+        preferences: _RuPrefs(),
+      );
+
+      expect(message.title, 'Anna принял(а) ваше предложение');
+      expect(message.body, 'Hikes — see you at 9');
+    });
+
+    test('an English reader gets the stored copy', () async {
+      final message = await pushFor(
+        decision(
+          kind: NotificationKind.roomAccess,
+          title: 'Anna accepted your offer',
+          actorDisplayName: 'Anna',
+          body: 'Your offer was accepted',
+        ),
+        preferences: _FakePrefs(),
+      );
+
+      expect(message.title, 'Anna accepted your offer');
+      expect(message.body, 'Your offer was accepted');
+    });
+
+    test(
+      'the title is translated only for the actor stored on the job',
+      () async {
+        final message = await pushFor(
+          decision(
+            kind: NotificationKind.roomAccess,
+            title: 'Anna accepted your offer',
+            body: 'Your offer was accepted',
+            actorDisplayName: 'Boris',
+          ),
+          preferences: _RuPrefs(),
+        );
+
+        expect(message.title, 'Anna accepted your offer');
+        expect(message.body, 'Ваше предложение принято');
+      },
+    );
+
+    // #367 review r2: the job carries the actor name each builder used, so
+    // the copy a builder wrote with the actor's name in it can be rebuilt in
+    // the reader's language. The harness actor is called «Actor».
+    group('copy straight from the intent builders', () {
+      final harness = TestAttentionHarness();
+
+      AttentionChannelDecision fromIntent(AttentionDispatchIntent intent) =>
+          decision(
+            kind: intent.kind,
+            title: intent.title,
+            body: intent.body,
+            actorDisplayName: intent.actorDisplayName,
+          );
+
+      test('a mention with no text reads in Russian', () async {
+        final intent = await harness.intents.roomMentioned(
+          beaconId: 'beacon-1',
+          messageId: 'message-1',
+          actorUserId: 'actor',
+          recipientUserIds: const {recipientId},
+          excerpt: '',
+          sourceEventKey: 'mention:1',
+        );
+
+        final message = await pushFor(
+          fromIntent(intent),
+          preferences: _RuPrefs(),
+        );
+
+        expect(message.title, 'Actor');
+        expect(message.body, 'Actor упомянул(а) вас');
+      });
+
+      test('a first reply to a post with no text reads in Russian', () async {
+        final intent = await harness.intents.postFirstResponse(
+          beaconId: 'beacon-1',
+          messageId: 'message-1',
+          actorUserId: 'actor',
+          authorUserId: recipientId,
+          excerpt: '',
+          sourceEventKey: 'first-response:1',
+        );
+
+        final message = await pushFor(
+          fromIntent(intent),
+          preferences: _RuPrefs(),
+        );
+
+        expect(message.title, 'Actor');
+        expect(message.body, 'Actor откликнулся на ваш пост');
+      });
+
+      test('a mention with text keeps the text', () async {
+        final intent = await harness.intents.roomMentioned(
+          beaconId: 'beacon-1',
+          messageId: 'message-1',
+          actorUserId: 'actor',
+          recipientUserIds: const {recipientId},
+          excerpt: 'See you at 9',
+          sourceEventKey: 'mention:2',
+        );
+
+        final message = await pushFor(
+          fromIntent(intent),
+          preferences: _RuPrefs(),
+        );
+
+        expect(message.title, 'Actor');
+        expect(message.body, 'See you at 9');
+      });
+
+      test('builders that name the actor store the name on the job', () async {
+        final declined = await harness.intents.forwardDeclined(
+          beaconId: 'beacon-1',
+          declinerUserId: 'actor',
+          authorId: recipientId,
+          sourceEventKey: 'declined:1',
+        );
+        final connected = await harness.intents.mutualConnectionFormed(
+          actorUserId: 'actor',
+          counterpartUserId: recipientId,
+          sourceEventKey: 'connected:1',
+        );
+
+        expect(declined.body, "Actor can't help");
+        expect(declined.actorDisplayName, 'Actor');
+        expect(connected.body, 'You and Actor are now connected.');
+        expect(connected.actorDisplayName, 'Actor');
+      });
+    });
+  });
+
+  // #367: the email a Russian reader gets carries the Russian sentence, not
+  // the stored English one inside a Russian frame.
+  group('recipient language in email', () {
+    Future<_EmailConsider> emailFor(
+      AttentionChannelDecision d, {
+      required NotificationPreferenceRepositoryPort preferences,
+    }) async {
+      final email = _CapturingEmail();
+      final service = build(email: email, preferences: preferences);
+      await service.handOffChannels([d]);
+      return email.considers.single;
+    }
+
+    test('an accepted offer emails in Russian, title and body', () async {
+      final sent = await emailFor(
+        decision(
+          kind: NotificationKind.roomAccess,
+          title: 'Anna accepted your offer',
+          body: 'Your offer was accepted',
+          actorDisplayName: 'Anna',
+        ),
+        preferences: _RuPrefs(),
+      );
+
+      expect(sent.title, 'Anna принял(а) ваше предложение');
+      expect(sent.body, 'Ваше предложение принято');
+    });
+
+    test('a lock-screen-safe reader still gets the full email copy', () async {
+      final sent = await emailFor(
+        decision(
+          kind: NotificationKind.roomAccess,
+          title: 'Anna accepted your offer',
+          body: 'Hikes — see you at 9',
+          actorDisplayName: 'Anna',
+        ),
+        preferences: _RuLockScreenSafePrefs(),
+      );
+
+      expect(sent.title, 'Anna принял(а) ваше предложение');
+      expect(sent.body, 'Hikes — see you at 9');
+    });
+
+    test('an accepted invitation emails in Russian', () async {
+      final sent = await emailFor(
+        decision(
+          kind: NotificationKind.inviteAccepted,
+          title: 'Invitation accepted',
+          body: 'Anna accepted your invitation',
+          actorDisplayName: 'Anna',
+        ),
+        preferences: _RuPrefs(),
+      );
+
+      expect(sent.kind, isNull, reason: 'the connections email path');
+      expect(sent.title, 'Приглашение принято');
+      expect(sent.body, 'Anna принял(а) ваше приглашение');
+    });
+
+    test('an English reader is emailed the stored copy', () async {
+      final sent = await emailFor(
+        decision(
+          kind: NotificationKind.roomAccess,
+          title: 'Anna accepted your offer',
+          body: 'Your offer was accepted',
+          actorDisplayName: 'Anna',
+        ),
+        preferences: _FakePrefs(),
+      );
+
+      expect(sent.title, 'Anna accepted your offer');
+      expect(sent.body, 'Your offer was accepted');
     });
   });
 }

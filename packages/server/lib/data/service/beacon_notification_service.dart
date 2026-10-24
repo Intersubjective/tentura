@@ -124,8 +124,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
           _emailNotification.considerImmediateByCategory(
             recipientUserId: decision.recipientId,
             channelCollapseKey: decision.dedupKey,
-            title: decision.title,
-            body: decision.body,
+            title: fullCopy.title,
+            body: fullCopy.body,
             actionUrl: decision.actionUrl,
             categoryScope: NotificationCategory.connections.name,
           ),
@@ -137,8 +137,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
             kind: decision.kind,
             beaconId: decision.beaconId ?? '',
             channelCollapseKey: decision.dedupKey,
-            title: decision.title,
-            body: decision.body,
+            title: fullCopy.title,
+            body: fullCopy.body,
             actionUrl: decision.actionUrl,
             pushDelivered: pushDelivered,
           ),
@@ -149,7 +149,9 @@ class BeaconNotificationService implements BeaconNotificationPort {
 
   /// The job's stored English copy, or the recipient-language copy of it when
   /// the job carries the builder's own default sentence. Text a person wrote
-  /// (an excerpt) is never translated.
+  /// (an excerpt, a Request title) is never translated. The title is
+  /// translated when it is the builder's title for the actor name stored on
+  /// the job, e.g. "Anna accepted your offer" (#367).
   BeaconNotificationCopy _localizedCopy(
     AttentionChannelDecision decision,
     BeaconNotificationIntent intent,
@@ -161,19 +163,19 @@ class BeaconNotificationService implements BeaconNotificationPort {
       actionUrl: decision.actionUrl,
     );
     if (!locale.toLowerCase().startsWith('ru')) return stored;
+    final actor = decision.actorDisplayName ?? '';
     final english = _copyBuilder.build(
       intent: intent,
-      actorDisplayName: decision.title,
+      actorDisplayName: actor,
     );
-    if (english.body != decision.body) return stored;
     final russian = _copyBuilder.build(
       intent: intent,
-      actorDisplayName: decision.title,
+      actorDisplayName: actor,
       locale: locale,
     );
     return BeaconNotificationCopy(
-      title: decision.title,
-      body: russian.body,
+      title: english.title == decision.title ? russian.title : decision.title,
+      body: english.body == decision.body ? russian.body : decision.body,
       actionUrl: decision.actionUrl,
     );
   }

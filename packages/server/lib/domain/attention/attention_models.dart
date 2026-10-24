@@ -463,6 +463,10 @@ abstract class AttentionDispatchIntent with _$AttentionDispatchIntent {
     String? targetEntityId,
     String? messageId,
     @Default(BeaconKind.request) BeaconKind beaconKind,
+
+    /// The actor name [title] and [body] were built with, so a channel can
+    /// rebuild the same copy in the reader's language (#367).
+    String? actorDisplayName,
   }) = _AttentionDispatchIntent;
 }
 
@@ -482,6 +486,9 @@ abstract class AttentionChannelDecision with _$AttentionChannelDecision {
     String? beaconId,
     String? coordinationItemId,
     @Default(BeaconKind.request) BeaconKind beaconKind,
+
+    /// The actor name the stored copy was built with (#367).
+    String? actorDisplayName,
   }) = _AttentionChannelDecision;
 }
 

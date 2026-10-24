@@ -207,6 +207,7 @@ class AttentionIntentCase {
       ],
       beaconId: beaconId,
       targetEntityId: declinerUserId,
+      actorDisplayName: name,
     );
   }
 
@@ -664,6 +665,7 @@ class AttentionIntentCase {
       title: copy.title,
       body: copy.body,
       actionUrl: copy.actionUrl,
+      actorDisplayName: actor.displayName,
       collapseKey: collapseKey,
       recipients: [
         if (!blocked)
@@ -777,6 +779,7 @@ class AttentionIntentCase {
       title: copy.title,
       body: copy.body,
       actionUrl: copy.actionUrl,
+      actorDisplayName: actorName,
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: snapshots,
       beaconId: beaconId,
@@ -928,6 +931,7 @@ class AttentionIntentCase {
       beaconKind: kind == NotificationKind.postFirstResponse
           ? BeaconKind.post
           : BeaconKind.request,
+      actorDisplayName: actorName,
     );
   }
 
@@ -1034,6 +1038,7 @@ class AttentionIntentCase {
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
+      actorDisplayName: actorName,
     );
   }
 
@@ -1188,6 +1193,7 @@ class AttentionIntentCase {
               ),
             ],
       targetEntityId: actorUserId,
+      actorDisplayName: actorName,
     );
   }
 
@@ -1228,6 +1234,7 @@ class AttentionIntentCase {
       title: copy.title,
       body: copy.body,
       actionUrl: copy.actionUrl,
+      actorDisplayName: actor.displayName,
       collapseKey: collapseKey ?? AttentionCollapseKey.none(sourceEventKey),
       recipients: [
         for (final recipient in recipients)
@@ -1309,6 +1316,7 @@ class AttentionIntentCase {
               ),
             ],
       targetEntityId: notification.accepterUserId,
+      actorDisplayName: accepterName,
     );
   }
 
