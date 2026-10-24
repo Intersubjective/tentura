@@ -78,6 +78,52 @@ BeaconViewState _peopleState({
   );
 }
 
+/// A live forward from the author to [userId], as People › Forwards loads it.
+ForwardEdge _authorForwardTo(String userId, {bool cancelled = false}) =>
+    ForwardEdge(
+      id: 'fwd-$userId',
+      beaconId: 'B1',
+      createdAt: _t,
+      sender: const Profile(id: 'auth', displayName: 'Author'),
+      recipient: Profile(id: userId, displayName: 'Helper'),
+      cancelledAt: cancelled ? _t.add(const Duration(minutes: 5)) : null,
+    );
+
+/// An admitted helper `h1` whose offer the server flags as a direct author
+/// forward (#496).
+BeaconViewState _admittedDirectState({
+  List<ForwardEdge> viewerForwardEdges = const [],
+  bool forwardsLoaded = true,
+  Profile? myProfile,
+}) => _peopleState(
+  myProfile: myProfile,
+  helpOffers: [
+    TimelineHelpOffer(
+      user: const Profile(id: 'h1', displayName: 'Helper'),
+      message: 'I have a couch',
+      createdAt: _t,
+      updatedAt: _t,
+      roomAccess: RoomAccessBits.admitted,
+      isDirectAuthorForward: true,
+    ),
+  ],
+  roomParticipants: [
+    BeaconParticipant(
+      id: 'p-h1',
+      beaconId: 'B1',
+      userId: 'h1',
+      userTitle: 'Helper',
+      role: BeaconParticipantRoleBits.helper,
+      status: BeaconParticipantStatusBits.committed,
+      roomAccess: RoomAccessBits.admitted,
+      createdAt: _t,
+      updatedAt: _t,
+    ),
+  ],
+  viewerForwardEdges: viewerForwardEdges,
+  forwardsLoaded: forwardsLoaded,
+);
+
 Widget _wrapPeople(Widget child) {
   return MaterialApp(
     theme: TenturaTheme.light(),
@@ -842,6 +888,9 @@ void main() {
           isDirectAuthorForward: true,
         ),
       ],
+      // #496: the chip follows the trail People › Forwards shows.
+      viewerForwardEdges: [_authorForwardTo('h1')],
+      forwardsLoaded: true,
     );
 
     await tester.pumpWidget(
@@ -994,6 +1043,8 @@ void main() {
           isDirectAuthorForward: true,
         ),
       ],
+      viewerForwardEdges: [_authorForwardTo('h2')],
+      forwardsLoaded: true,
     );
 
     await tester.pumpWidget(
@@ -1366,6 +1417,91 @@ void main() {
       await pumpPeople(tester);
 
       expect(find.text(l10n.helpOffersTabActionWithdraw), findsNothing);
+    });
+  });
+
+  // #496: the helper card's admission line comes from the same forward
+  // trail as People › Forwards; with no forward there, no direct claim.
+  group('admission line follows the Forwards trail (#496)', () {
+    const directEn = 'You forwarded this request to them directly';
+    const networkEn = 'Joined via the network';
+
+    Future<void> pumpPeople(WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: lookupL10n(const Locale('en')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('author: flagged direct but Forwards is empty: '
+        'joined via the network', (tester) async {
+      _state = _admittedDirectState();
+      await pumpPeople(tester);
+
+      // Forwards is loaded and shows no trail.
+      expect(find.text('Forwards (0)'), findsOneWidget);
+      expect(find.text(directEn), findsNothing);
+      expect(find.text('Forwarded by you'), findsNothing);
+      expect(find.text(networkEn), findsOneWidget);
+    });
+
+    testWidgets('author: Forwards not loaded yet: no direct claim', (
+      tester,
+    ) async {
+      _state = _admittedDirectState(forwardsLoaded: false);
+      await pumpPeople(tester);
+
+      expect(find.text(directEn), findsNothing);
+      expect(find.text(networkEn), findsOneWidget);
+    });
+
+    testWidgets('author: the forward was cancelled: no direct claim', (
+      tester,
+    ) async {
+      _state = _admittedDirectState(
+        viewerForwardEdges: [_authorForwardTo('h1', cancelled: true)],
+      );
+      await pumpPeople(tester);
+
+      expect(find.text(directEn), findsNothing);
+      expect(find.text(networkEn), findsOneWidget);
+    });
+
+    testWidgets('author: a live forward on the trail keeps the direct line', (
+      tester,
+    ) async {
+      _state = _admittedDirectState(
+        viewerForwardEdges: [_authorForwardTo('h1')],
+      );
+      await pumpPeople(tester);
+
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      expect(find.text(directEn), findsOneWidget);
+      expect(find.text(networkEn), findsNothing);
+    });
+
+    test('a flagged offer asks for the trail while it is unknown', () {
+      expect(
+        _admittedDirectState(forwardsLoaded: false).needsTrailForDirectForward,
+        isTrue,
+      );
+      expect(_admittedDirectState().needsTrailForDirectForward, isFalse);
+      // A steward's cards keep the server flag; no trail read is needed.
+      expect(
+        _admittedDirectState(
+          forwardsLoaded: false,
+          myProfile: const Profile(id: 's1', displayName: 'Steward'),
+        ).needsTrailForDirectForward,
+        isFalse,
+      );
     });
   });
 }
