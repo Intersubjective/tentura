@@ -109,7 +109,16 @@ void main() {
           policy.showSecondaryTrust,
           profile.isMutuallyVisible && !profile.viewerExplicitlyTrustsSubject,
         );
-        expect(policy.showRequestOptions, !profile.isMutuallyVisible);
+        expect(
+          policy.showRequestOptions,
+          !profile.isMutuallyVisible && profile.subjectCanSeeViewer,
+        );
+        expect(
+          policy.showSubjectCantSeeViewerReason,
+          !profile.isMutuallyVisible &&
+              profile.viewerExplicitlyTrustsSubject &&
+              !profile.subjectCanSeeViewer,
+        );
       });
 
       test('limited T→=${c.tOut} MR→=${c.mrOut} T←=${c.tIn} MR←=${c.mrIn}', () {
@@ -135,7 +144,16 @@ void main() {
           policy.showSecondaryTrust,
           profile.isMutuallyVisible && !profile.viewerExplicitlyTrustsSubject,
         );
-        expect(policy.showRequestOptions, !profile.isMutuallyVisible);
+        expect(
+          policy.showRequestOptions,
+          !profile.isMutuallyVisible && profile.subjectCanSeeViewer,
+        );
+        expect(
+          policy.showSubjectCantSeeViewerReason,
+          !profile.isMutuallyVisible &&
+              profile.viewerExplicitlyTrustsSubject &&
+              !profile.subjectCanSeeViewer,
+        );
         expect(
           policy.canDirectSendRequest,
           profile.isMutuallyVisible,
@@ -159,6 +177,7 @@ void main() {
 
         expect(policy.canDirectSendRequest, isFalse);
         expect(policy.showRequestOptions, isFalse);
+        expect(policy.showSubjectCantSeeViewerReason, isFalse);
 
         final basePrimary = _expectedPrimary(
           profile,
@@ -253,7 +272,9 @@ void main() {
       );
       expect(afterPolicy.visibilityState, PersonVisibilityState.viewerOnly);
       expect(afterPolicy.primaryAction, PersonPrimaryAction.none);
-      expect(afterPolicy.showRequestOptions, isTrue);
+      // #679: the forward screen is a dead end while they cannot see you.
+      expect(afterPolicy.showRequestOptions, isFalse);
+      expect(afterPolicy.showSubjectCantSeeViewerReason, isTrue);
       expect(afterPolicy.canDirectSendRequest, isFalse);
     });
 
@@ -270,7 +291,8 @@ void main() {
 
         expect(policy.visibilityState, PersonVisibilityState.viewerOnly);
         expect(policy.primaryAction, PersonPrimaryAction.none);
-        expect(policy.showRequestOptions, isTrue);
+        expect(policy.showRequestOptions, isFalse);
+        expect(policy.showSubjectCantSeeViewerReason, isTrue);
         expect(policy.showSecondaryTrust, isFalse);
       },
     );

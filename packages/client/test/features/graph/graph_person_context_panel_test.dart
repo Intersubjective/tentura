@@ -215,7 +215,7 @@ void main() {
       },
     );
 
-    testWidgets('viewer-only with outgoing trust: unavailable + options', (
+    testWidgets('viewer-only with outgoing trust: reason, no options', (
       tester,
     ) async {
       const profile = Profile(
@@ -239,7 +239,12 @@ void main() {
 
       final l10n = lookupL10n(const Locale('en'));
       expect(find.text(l10n.profileRequestUnavailable), findsOneWidget);
-      expect(find.text(l10n.profileRequestOptions), findsOneWidget);
+      // #679: the forward screen is fully disabled while they cannot see you.
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+      expect(
+        find.byKey(TestIds.key(TestIds.graphPersonContextRequestOptions)),
+        findsNothing,
+      );
       expect(find.byTooltip(l10n.trustThisUser), findsNothing);
       expect(find.byType(FilledButton), findsNothing);
     });
@@ -271,7 +276,7 @@ void main() {
       expect(find.text(l10n.profileRequestOptions), findsOneWidget);
     });
 
-    testWidgets('neither visibility: Trust primary + Request options', (
+    testWidgets('neither visibility: Trust primary, no dead-end options', (
       tester,
     ) async {
       const profile = Profile(id: 'U-peer', displayName: 'Peer');
@@ -291,7 +296,8 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       expect(find.byType(FilledButton), findsNothing);
       expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
-      expect(find.text(l10n.profileRequestOptions), findsOneWidget);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+      expect(find.text(l10n.profileRequestUnavailable), findsNothing);
       expect(find.text(l10n.profile), findsOneWidget);
     });
 
@@ -429,7 +435,7 @@ void main() {
     });
 
     testWidgets('Request options emit forward navigation', (tester) async {
-      const profile = Profile(id: 'U-peer', displayName: 'Peer');
+      const profile = Profile(id: 'U-peer', displayName: 'Peer', rScore: 1);
       final effects = FakeUiEffectPort();
       final graphCubit = _StubGraphCubit(
         initial: const GraphState(

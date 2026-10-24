@@ -1947,9 +1947,9 @@
   "@profileVisibilitySharedContextNote": {
     "context": "ProfileViewBody — explains the co-participant bond lasts until the Request review window closes"
   },
-  "profileRequestUnavailable": "Запрос недоступен",
+  "profileRequestUnavailable": "Вас пока не видят, поэтому отправлять запросы нельзя.",
   "@profileRequestUnavailable": {
-    "context": "ProfileViewBody — direct send blocked for one-way visibility"
+    "context": "ProfileViewBody / graph person panel — reason a trusted contact cannot be sent Requests: they do not see the viewer yet (#679)"
   },
   "profileRequestOptions": "Варианты отправки запроса",
   "@profileRequestOptions": {
