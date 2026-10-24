@@ -48,7 +48,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
 
-/// Footer Forward CTA on authored My Work cards (gated by `Beacon.allowsForward`).
+/// Footer Forward CTA on authored and helper My Work cards (gated by
+/// `Beacon.viewerCanForward`).
 bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) =>
     vm.beacon.viewerCanForward;
 
@@ -780,6 +781,29 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
+    // #597: the same quiet Forward as on the author's card, so a helper can
+    // pass the Request on without opening the overflow menu.
+    final archiveFooter = _myWorkArchiveFooter(context, vm);
+    final forwardCta = myWorkNeedsForwardCta(vm)
+        ? Align(
+            alignment: Alignment.centerRight,
+            child: TenturaTextAction(
+              label: l10n.inboxCardOpenBeacon,
+              icon: const Icon(Icons.arrow_forward),
+              onPressed: () => unawaited(
+                context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+              ),
+            ),
+          )
+        : null;
+    final footerActions = forwardCta != null && archiveFooter != null
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [forwardCta, archiveFooter],
+          )
+        : forwardCta ?? archiveFooter;
+
     return BeaconCardShell(
       bodyMinHeight: 0,
       onTap: () => _openBeaconOrSelect(context, vm),
@@ -787,7 +811,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       footer: _composeMyWorkFooter(
         context,
         vm: vm,
-        existingFooter: _myWorkArchiveFooter(context, vm),
+        existingFooter: footerActions,
         currentUserId: currentUserId,
       ),
       child: Column(
