@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/people_tags/ui/widget/add_to_tag_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -25,6 +29,7 @@ class NetworkPersonCard extends StatelessWidget {
     this.forwardedForSlugs = const [],
     this.commitRoleSlugs = const [],
     this.closeAckSlugs = const [],
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
@@ -47,6 +52,36 @@ class NetworkPersonCard extends StatelessWidget {
   /// Close-acknowledgement slugs — strongest signal (Phase 4+).
   final List<String> closeAckSlugs;
 
+  /// Offers the person menu ("Add to tag…"); off with the feature gate.
+  final bool peopleTagsEnabled;
+
+  static const _touchOrStylus = {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+  };
+
+  List<PopupMenuEntry<void>> _menuEntries(BuildContext context, L10n l10n) => [
+    PopupMenuItem<void>(
+      onTap: () => unawaited(showAddToTagSheet(context, personId: profile.id)),
+      child: Text(l10n.peopleTagsAddToTag),
+    ),
+  ];
+
+  void _showMenuAt(BuildContext context, Offset globalPosition) {
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    unawaited(
+      showMenu<void>(
+        context: context,
+        position: RelativeRect.fromRect(
+          globalPosition & const Size(1, 1),
+          Offset.zero & overlay.size,
+        ),
+        items: _menuEntries(context, L10n.of(context)!),
+      ),
+    );
+  }
+
   String _trustReciprocityLabel(L10n l10n) {
     if (profile.isMutualFriend) return l10n.trustSentenceMutual;
     if (profile.isFriend) return l10n.trustSentenceOneWayOut;
@@ -61,7 +96,13 @@ class NetworkPersonCard extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final selected = TenturaListDetailSelection.of(context) == profile.id;
-    final row = InkWell(
+    final hasMenu =
+        peopleTagsEnabled &&
+        !SelfUserHighlight.profileIsSelf(
+          profile,
+          context.read<ProfileCubit>().state.profile.id,
+        );
+    Widget row = InkWell(
       onTap: () =>
           screenCubit.showProfile(profile.id, entry: kProfileEntryPeople),
       child: Padding(
@@ -181,10 +222,38 @@ class NetworkPersonCard extends StatelessWidget {
               ),
             ),
             ?trailing,
+            if (hasMenu)
+              PopupMenuButton<void>(
+                itemBuilder: (menuContext) => _menuEntries(context, l10n),
+              ),
           ],
         ),
       ),
     );
+    if (hasMenu) {
+      row = RawGestureDetector(
+        behavior: HitTestBehavior.deferToChild,
+        gestures: {
+          LongPressGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+                () => LongPressGestureRecognizer(
+                  supportedDevices: _touchOrStylus,
+                ),
+                (r) => r
+                  ..onLongPressStart = (details) =>
+                      _showMenuAt(context, details.globalPosition),
+              ),
+          TapGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                TapGestureRecognizer.new,
+                (r) => r
+                  ..onSecondaryTapUp = (details) =>
+                      _showMenuAt(context, details.globalPosition),
+              ),
+        },
+        child: row,
+      );
+    }
     // Material 3 list-detail: the person whose profile is open beside this
     // list is marked selected.
     return Semantics(

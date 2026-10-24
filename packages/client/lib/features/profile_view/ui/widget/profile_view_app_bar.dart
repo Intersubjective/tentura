@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/people_tags/ui/widget/add_to_tag_sheet.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -24,6 +25,7 @@ List<PopupMenuEntry<void>> profileViewPopupMenuEntries({
   required L10n l10n,
   required ProfileViewCubit profileViewCubit,
   required ScreenCubit screenCubit,
+  bool peopleTagsEnabled = kPeopleTagsEnabled,
 }) {
   final profile = state.profile;
   return <PopupMenuEntry<void>>[
@@ -40,6 +42,13 @@ List<PopupMenuEntry<void>> profileViewPopupMenuEntries({
           }),
         ),
         child: Text(l10n.renameContactMenuItem),
+      ),
+    if (peopleTagsEnabled && profile.id != viewerId)
+      PopupMenuItem<void>(
+        onTap: () => unawaited(
+          showAddToTagSheet(context, personId: profile.id),
+        ),
+        child: Text(l10n.peopleTagsAddToTag),
       ),
     if (profile.isFriend)
       PopupMenuItem<void>(
@@ -66,7 +75,10 @@ List<PopupMenuEntry<void>> profileViewPopupMenuEntries({
   ];
 }
 
-PreferredSizeWidget buildProfileViewAppBar(BuildContext context) {
+PreferredSizeWidget buildProfileViewAppBar(
+  BuildContext context, {
+  bool peopleTagsEnabled = kPeopleTagsEnabled,
+}) {
   final l10n = L10n.of(context)!;
   final screenCubit = context.read<ScreenCubit>();
   final profileViewCubit = context.read<ProfileViewCubit>();
@@ -118,6 +130,7 @@ PreferredSizeWidget buildProfileViewAppBar(BuildContext context) {
               l10n: l10n,
               profileViewCubit: profileViewCubit,
               screenCubit: screenCubit,
+              peopleTagsEnabled: peopleTagsEnabled,
             ),
           );
         },

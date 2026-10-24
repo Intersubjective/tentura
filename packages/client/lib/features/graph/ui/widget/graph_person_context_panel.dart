@@ -16,6 +16,7 @@ import 'package:tentura/ui/widget/trust_toggle_line.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_label.dart';
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+import 'package:tentura/features/people_tags/ui/widget/add_to_tag_sheet.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
 
 import '../../domain/entity/node_details.dart';
@@ -293,6 +294,18 @@ class GraphPersonContextPanel extends StatelessWidget {
         ),
       ),
     );
+
+    if (peopleTagsEnabled) {
+      addGap();
+      children.add(
+        OutlinedButton.icon(
+          onPressed: () =>
+              unawaited(showAddToTagSheet(context, personId: profile.id)),
+          icon: const Icon(Icons.label_outline),
+          label: Text(l10n.peopleTagsAddToTag),
+        ),
+      );
+    }
 
     if (canShowMore && onExpand != null) {
       addGap();
