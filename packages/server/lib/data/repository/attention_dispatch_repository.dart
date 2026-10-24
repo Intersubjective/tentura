@@ -248,6 +248,7 @@ RETURNING id
         beaconId: intent.beaconId,
         coordinationItemId: intent.coordinationItemId,
         beaconKind: intent.beaconKind,
+        actorDisplayName: intent.actorDisplayName,
       );
       // U05b — collapsing lives here, at the channel layer, and nowhere else.
       //
@@ -386,5 +387,6 @@ WHERE NOT EXISTS (SELECT 1 FROM collapsed)''',
     'beaconId': decision.beaconId,
     'coordinationItemId': decision.coordinationItemId,
     'beaconKind': decision.beaconKind.name,
+    'actorDisplayName': decision.actorDisplayName,
   };
 }

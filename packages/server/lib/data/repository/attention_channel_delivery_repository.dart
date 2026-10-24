@@ -102,19 +102,23 @@ WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
 
   AttentionChannelDecision _decision(Map<dynamic, dynamic> value) =>
       AttentionChannelDecision(
-    receiptId: value['receiptId']! as String,
-    recipientId: value['recipientId']! as String,
-    kind: NotificationKind.values.byName(value['kind']! as String),
-    priority: NotificationPriority.values.byName(value['priority']! as String),
-    title: value['title']! as String,
-    body: value['body']! as String,
-    actionUrl: value['actionUrl']! as String,
-    dedupKey: value['dedupKey']! as String,
-    actorUserId: value['actorUserId']! as String,
-    reason: value['reason']! as String,
-    beaconId: value['beaconId'] as String?,
-    coordinationItemId: value['coordinationItemId'] as String?,
-    beaconKind:
-        BeaconKind.values.asNameMap()[value['beaconKind']] ?? BeaconKind.request,
-  );
+        receiptId: value['receiptId']! as String,
+        recipientId: value['recipientId']! as String,
+        kind: NotificationKind.values.byName(value['kind']! as String),
+        priority: NotificationPriority.values.byName(
+          value['priority']! as String,
+        ),
+        title: value['title']! as String,
+        body: value['body']! as String,
+        actionUrl: value['actionUrl']! as String,
+        dedupKey: value['dedupKey']! as String,
+        actorUserId: value['actorUserId']! as String,
+        reason: value['reason']! as String,
+        beaconId: value['beaconId'] as String?,
+        coordinationItemId: value['coordinationItemId'] as String?,
+        beaconKind:
+            BeaconKind.values.asNameMap()[value['beaconKind']] ??
+            BeaconKind.request,
+        actorDisplayName: value['actorDisplayName'] as String?,
+      );
 }

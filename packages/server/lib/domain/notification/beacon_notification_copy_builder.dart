@@ -33,110 +33,127 @@ class BeaconNotificationCopyBuilder {
   }) {
     final ru = locale.toLowerCase().startsWith('ru');
     final isPost = intent.beaconKind == BeaconKind.post;
-    final actor = actorDisplayName.isEmpty ? 'Someone' : actorDisplayName;
+    final actor = actorDisplayName.isEmpty
+        ? (ru ? 'Кто-то' : 'Someone')
+        : actorDisplayName;
     final excerpt = notificationExcerpt(
       intent.bodyExcerpt.isNotEmpty ? intent.bodyExcerpt : intent.titleExcerpt,
     );
     final beaconTitle = intent.beaconTitle.trim();
     final itemNoun = _coordinationItemNoun(intent.coordinationItemKind);
+    final ruItem = _ruCoordinationItem(intent.coordinationItemKind);
 
     final (title, body) = switch (intent.kind) {
       NotificationKind.deadlineChanged => (
-        'Deadline changed',
+        ru ? 'Срок изменён' : 'Deadline changed',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'The request deadline changed',
+          fallback: ru
+              ? 'Срок запроса изменился'
+              : 'The request deadline changed',
         ),
       ),
       NotificationKind.deadlineReminder => (
-        'Deadline reminder',
+        ru ? 'Напоминание о сроке' : 'Deadline reminder',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'This request deadline is tomorrow',
+          fallback: ru
+              ? 'Срок запроса — завтра'
+              : 'This request deadline is tomorrow',
         ),
       ),
       NotificationKind.needsMe => (
-        'Asked of you',
+        ru ? 'Вас просят' : 'Asked of you',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Action needed in the request discussion',
+          fallback: ru
+              ? 'В обсуждении запроса нужен ваш ответ'
+              : 'Action needed in the request discussion',
         ),
       ),
       NotificationKind.promiseMade =>
         intent.promiseWithdrawn
             ? (
-                '$actor withdrew a promise',
+                ru ? '$actor отозвал(а) обещание' : '$actor withdrew a promise',
                 _bodyWithRequest(
                   beaconTitle: beaconTitle,
                   excerpt: excerpt,
-                  fallback: 'Promise withdrawn',
+                  fallback: ru ? 'Обещание отозвано' : 'Promise withdrawn',
                 ),
               )
             : (
-                '$actor promised',
+                ru ? '$actor пообещал(а)' : '$actor promised',
                 _bodyWithRequest(
                   beaconTitle: beaconTitle,
                   excerpt: excerpt,
-                  fallback: 'New promise in the request discussion',
+                  fallback: ru
+                      ? 'Новое обещание в обсуждении запроса'
+                      : 'New promise in the request discussion',
                 ),
               ),
       NotificationKind.coordinationChanged => (
-        'Plan updated',
+        ru ? 'План обновлён' : 'Plan updated',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Coordination changed',
+          fallback: ru ? 'Договорённости изменились' : 'Coordination changed',
         ),
       ),
       NotificationKind.blockerOpened => (
-        'Blocker opened',
+        ru ? 'Появился блокер' : 'Blocker opened',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'A blocker was opened',
+          fallback: ru ? 'В запросе появился блокер' : 'A blocker was opened',
         ),
       ),
       NotificationKind.blockerResolved => (
-        'Blocker resolved',
+        ru ? 'Блокер снят' : 'Blocker resolved',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'A blocker was resolved',
+          fallback: ru ? 'Блокер в запросе снят' : 'A blocker was resolved',
         ),
       ),
       NotificationKind.roomAccess => (
-        '$actor accepted your offer',
+        ru ? '$actor принял(а) ваше предложение' : '$actor accepted your offer',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Your offer was accepted',
+          fallback: ru ? 'Ваше предложение принято' : 'Your offer was accepted',
         ),
       ),
       NotificationKind.commitmentDeclined => (
-        'Offer declined',
+        ru ? 'Предложение отклонено' : 'Offer declined',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Your offer was declined',
+          fallback: ru
+              ? 'Ваше предложение помощи отклонено'
+              : 'Your offer was declined',
         ),
       ),
       NotificationKind.commitmentRemoved => (
-        'Removed from the discussion',
+        ru ? 'Вас убрали из обсуждения' : 'Removed from the discussion',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'You were removed from the request discussion',
+          fallback: ru
+              ? 'Вас убрали из обсуждения запроса'
+              : 'You were removed from the request discussion',
         ),
       ),
       NotificationKind.commitmentReleased => (
-        'Participation ended',
+        ru ? 'Участие завершено' : 'Participation ended',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'The author ended your participation in this request',
+          fallback: ru
+              ? 'Автор завершил ваше участие в этом запросе'
+              : 'The author ended your participation in this request',
         ),
       ),
       NotificationKind.newRelay => (
@@ -147,40 +164,66 @@ class BeaconNotificationCopyBuilder {
             ? (ru
                   ? '$actor поделился постом с вами'
                   : '$actor shared a post with you')
+            : ru
+            ? '$actor переслал(а) вам запрос'
             : '$actor forwarded a request to you',
       ),
       NotificationKind.commitmentEvent =>
         intent.promiseWithdrawn
             ? (
                 actor,
-                excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
+                excerpt.isNotEmpty
+                    ? excerpt
+                    : ru
+                    ? '$actor отозвал(а) свою помощь'
+                    : '$actor withdrew their help',
               )
             : intent.isBackupOffer
             ? (
                 actor,
                 excerpt.isNotEmpty
                     ? excerpt
+                    : ru
+                    ? '$actor предложил(а) помощь как запасной вариант'
                     : '$actor offered to help as backup',
               )
             : (
                 actor,
-                excerpt.isNotEmpty ? excerpt : '$actor offered help',
+                excerpt.isNotEmpty
+                    ? excerpt
+                    : ru
+                    ? '$actor предложил(а) помощь'
+                    : '$actor offered help',
               ),
       NotificationKind.reviewReady => (
-        'Request closed — close the loop',
-        beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
+        ru
+            ? 'Запрос закрыт — подведите итоги'
+            : 'Request closed — close the loop',
+        beaconTitle.isNotEmpty
+            ? beaconTitle
+            : ru
+            ? 'Отметьте, чья помощь была важной'
+            : 'Review contributions',
       ),
       NotificationKind.roomActivityLowPriority => (
-        beaconTitle.isNotEmpty ? beaconTitle : 'Request update',
+        beaconTitle.isNotEmpty
+            ? beaconTitle
+            : ru
+            ? 'Новое в запросе'
+            : 'Request update',
         _bodyWithRequest(
           beaconTitle: '',
           excerpt: excerpt,
-          fallback: 'New thread update',
+          fallback: ru ? 'Новое сообщение в обсуждении' : 'New thread update',
         ),
       ),
       NotificationKind.roomMention => (
         actor,
-        excerpt.isNotEmpty ? excerpt : '$actor mentioned you',
+        excerpt.isNotEmpty
+            ? excerpt
+            : ru
+            ? '$actor упомянул(а) вас'
+            : '$actor mentioned you',
       ),
       NotificationKind.postFirstResponse => (
         actor,
@@ -311,47 +354,63 @@ class BeaconNotificationCopyBuilder {
         ),
       ),
       NotificationKind.staleRemind => (
-        'Still needs attention',
+        ru ? 'Всё ещё ждёт внимания' : 'Still needs attention',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Something in the request thread needs attention',
+          fallback: ru
+              ? 'В обсуждении запроса что-то ждёт вашего внимания'
+              : 'Something in the request thread needs attention',
         ),
       ),
       NotificationKind.inviteAccepted => (
-        'Invitation accepted',
-        '$actor accepted your invitation',
+        ru ? 'Приглашение принято' : 'Invitation accepted',
+        ru
+            ? '$actor принял(а) ваше приглашение'
+            : '$actor accepted your invitation',
       ),
       NotificationKind.commitmentAccepted => (
-        '$actor accepted your $itemNoun',
+        ru
+            ? '$actor принял(а) ${ruItem.yourAcc}'
+            : '$actor accepted your $itemNoun',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Your $itemNoun was accepted',
+          fallback: ru
+              ? '${ruItem.yourNom} принят${ruItem.ending}'
+              : 'Your $itemNoun was accepted',
         ),
       ),
       NotificationKind.commitmentResolved => (
-        '$actor resolved the $itemNoun',
+        ru ? '$actor закрыл(а) ${ruItem.acc}' : '$actor resolved the $itemNoun',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'The $itemNoun was resolved',
+          fallback: ru
+              ? '${ruItem.nom} закрыт${ruItem.ending}'
+              : 'The $itemNoun was resolved',
         ),
       ),
       NotificationKind.commitmentCancelled => (
-        '$actor cancelled the $itemNoun',
+        ru
+            ? '$actor отменил(а) ${ruItem.acc}'
+            : '$actor cancelled the $itemNoun',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'The $itemNoun was cancelled',
+          fallback: ru
+              ? '${ruItem.nom} ${ruItem.cancelled}'
+              : 'The $itemNoun was cancelled',
         ),
       ),
       NotificationKind.commitmentRedirected => (
-        '$actor reassigned this to you',
+        ru ? '$actor передал(а) это вам' : '$actor reassigned this to you',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Open General to see your new assignment',
+          fallback: ru
+              ? 'Откройте «Общее», чтобы увидеть новое поручение'
+              : 'Open General to see your new assignment',
         ),
       ),
     };
@@ -409,6 +468,50 @@ class BeaconNotificationCopyBuilder {
     coordinationItemKindPromise => 'promise',
     coordinationItemKindBlocker => 'blocker',
     _ => 'commitment',
+  };
+
+  /// Russian forms of the coordination item noun, agreeing in gender (#367).
+  ({
+    String nom,
+    String acc,
+    String yourNom,
+    String yourAcc,
+    String ending,
+    String cancelled,
+  })
+  _ruCoordinationItem(int? kind) => switch (kind) {
+    coordinationItemKindAsk => (
+      nom: 'Просьба',
+      acc: 'просьбу',
+      yourNom: 'Ваша просьба',
+      yourAcc: 'вашу просьбу',
+      ending: 'а',
+      cancelled: 'отменена',
+    ),
+    coordinationItemKindPromise => (
+      nom: 'Обещание',
+      acc: 'обещание',
+      yourNom: 'Ваше обещание',
+      yourAcc: 'ваше обещание',
+      ending: 'о',
+      cancelled: 'отменено',
+    ),
+    coordinationItemKindBlocker => (
+      nom: 'Блокер',
+      acc: 'блокер',
+      yourNom: 'Ваш блокер',
+      yourAcc: 'ваш блокер',
+      ending: '',
+      cancelled: 'отменён',
+    ),
+    _ => (
+      nom: 'Обязательство',
+      acc: 'обязательство',
+      yourNom: 'Ваше обязательство',
+      yourAcc: 'ваше обязательство',
+      ending: 'о',
+      cancelled: 'отменено',
+    ),
   };
 
   String _bodyWithRequest({
