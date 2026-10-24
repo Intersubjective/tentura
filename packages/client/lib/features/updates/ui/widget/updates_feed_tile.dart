@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -133,6 +135,16 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
 
   bool get _isUnread => !widget.receipt.isSeen;
 
+  /// #711: a read optional row can still be on Unread (it is not cleared), so
+  /// its menu offers the clear too, not only "Mark unread". [onMarkSeen] is
+  /// the read-and-clear action.
+  /// An Activity row ([UpdatesFeedTile.activityRow]) has its own × instead.
+  bool get _canDismissRead =>
+      !widget.activityRow &&
+      !_isUnread &&
+      widget.receipt.itemKind == AttentionItemKind.receipt &&
+      isActiveOptional(widget.receipt);
+
   void _markSeen() => widget.onMarkSeen();
 
   void _markUnseen() => widget.onMarkUnseen();
@@ -160,11 +172,17 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
               onTap: _markSeen,
               child: Text(l10n.updatesMarkSeen),
             )
-          else
+          else ...[
+            if (_canDismissRead)
+              PopupMenuItem<void>(
+                onTap: _markSeen,
+                child: Text(l10n.attentionEventDismiss),
+              ),
             PopupMenuItem<void>(
               onTap: _markUnseen,
               child: Text(l10n.updatesMarkUnseen),
             ),
+          ],
         ],
       ),
     );
@@ -378,6 +396,9 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
               if (!widget.activityRow)
                 _UpdatesFeedRowOverflow(
                   isUnread: isUnread,
+                  dismissReadLabel: _canDismissRead
+                      ? l10n.attentionEventDismiss
+                      : null,
                   markSeenLabel: l10n.updatesMarkSeen,
                   markUnseenLabel: l10n.updatesMarkUnseen,
                   onMarkSeen: _markSeen,
@@ -561,9 +582,14 @@ class _UpdatesFeedRowOverflow extends StatelessWidget {
     required this.markUnseenLabel,
     required this.onMarkSeen,
     required this.onMarkUnseen,
+    this.dismissReadLabel,
   });
 
   final bool isUnread;
+
+  /// #711: set on a read row that is still on Unread; it then offers the
+  /// clear ([onMarkSeen]) beside "Mark unread".
+  final String? dismissReadLabel;
   final String markSeenLabel;
   final String markUnseenLabel;
   final VoidCallback onMarkSeen;
@@ -587,11 +613,17 @@ class _UpdatesFeedRowOverflow extends StatelessWidget {
             onTap: onMarkSeen,
             child: Text(markSeenLabel),
           )
-        else
+        else ...[
+          if (dismissReadLabel != null)
+            PopupMenuItem<void>(
+              onTap: onMarkSeen,
+              child: Text(dismissReadLabel!),
+            ),
           PopupMenuItem<void>(
             onTap: onMarkUnseen,
             child: Text(markUnseenLabel),
           ),
+        ],
       ],
     );
   }

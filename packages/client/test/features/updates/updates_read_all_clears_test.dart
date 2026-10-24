@@ -9,6 +9,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -108,6 +109,100 @@ void main() {
       expect(notices, isEmpty);
       expect(c.cubit.state.actionError, isNull);
       await sub.cancel();
+      await c.close();
+    });
+  });
+
+  group('Read all clears already-read rows the sweep does not take (#711)', () {
+    AttentionReceipt deskRow(
+      String id, {
+      required int minute,
+      String? beacon,
+    }) => markSeenTestReceipt(id, minute: minute).copyWith(
+      surface: AttentionSurface.myWork,
+      beaconId: beacon,
+      presentationKey: 'plan_updated',
+      seenAt: DateTime.utc(2026, 10, 14, 8),
+    );
+
+    test(
+      'read optional My Desk rows leave Unread and stay gone after a reload',
+      () async {
+        final server = MarkSeenServerFake([
+          deskRow('p1', minute: 6, beacon: 'B1'),
+          deskRow('p2', minute: 5, beacon: 'B1'),
+          deskRow('w1', minute: 4, beacon: 'B2'),
+          deskRow('n1', minute: 3),
+          markSeenTestReceipt('r1', minute: 2),
+          markSeenTestReceipt(
+            'o1',
+            minute: 1,
+          ).copyWith(
+            surface: AttentionSurface.myWork,
+            beaconId: 'B1',
+            requiresAction: true,
+          ),
+        ]);
+        final c = await _Client.open(server, view: AttentionView.unread);
+        expect(_ids(c.cubit), ['p1', 'p2', 'w1', 'n1', 'r1', 'o1']);
+
+        expect(await c.cubit.markAllSeen(), isTrue);
+        await _settle();
+
+        expect(c.cubit.state.actionError, isNull);
+        for (final id in ['p1', 'p2', 'w1', 'n1', 'r1']) {
+          expect(server.row(id).clearedAt, isNotNull, reason: id);
+        }
+        expect(
+          server.row('o1').clearedAt,
+          isNull,
+          reason: 'an obligation is never cleared by Read all',
+        );
+        expect(server.dismissAllOperationIds, hasLength(1));
+        await c.close();
+
+        final reloaded = await _Client.open(
+          server,
+          view: AttentionView.unread,
+        );
+        expect(_ids(reloaded.cubit), ['o1']);
+        expect(reloaded.cubit.state.summary.unreadTotal, 1);
+
+        // A second Read all has nothing left to clear and still succeeds.
+        expect(await reloaded.cubit.markAllSeen(), isTrue);
+        await _settle();
+        expect(_ids(reloaded.cubit), ['o1']);
+        await reloaded.close();
+      },
+    );
+
+    test('Read all clears them even when they are not on screen', () async {
+      final server = MarkSeenServerFake([
+        deskRow('p1', minute: 3, beacon: 'B1'),
+        markSeenTestReceipt('o1', minute: 1).copyWith(requiresAction: true),
+      ]);
+      final c = await _Client.open(server, view: AttentionView.needsYou);
+      expect(_ids(c.cubit), ['o1']);
+
+      expect(await c.cubit.markAllSeen(), isTrue);
+      await _settle();
+
+      expect(server.row('p1').clearedAt, isNotNull);
+      expect(server.row('o1').clearedAt, isNull);
+      await c.close();
+    });
+
+    test('guard: Mark seen on a read My Desk row clears it', () async {
+      final server = MarkSeenServerFake([
+        deskRow('p1', minute: 2, beacon: 'B1'),
+      ]);
+      final c = await _Client.open(server, view: AttentionView.unread);
+
+      expect(await c.cubit.markSeen('p1'), isTrue);
+      await _settle();
+
+      expect(server.row('p1').clearedAt, isNotNull);
+      expect(_ids(c.cubit), isEmpty);
       await c.close();
     });
   });
