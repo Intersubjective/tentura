@@ -11,11 +11,14 @@ final class QueryPeopleTags extends GqlNodeBase {
   final PeopleTagsCase _case;
 
   static final _personId = InputFieldString(fieldName: 'personId');
+  static final _kind = InputFieldInt(fieldName: 'kind');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     personTags,
     personTagsOf,
     personTagMemberships,
+    personAutoTags,
+    personAutoTagMembers,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get personTags => GraphQLObjectField(
@@ -31,13 +34,44 @@ final class QueryPeopleTags extends GqlNodeBase {
     'personTagsOf',
     gqlTypePersonTagsOf.nonNullable(),
     arguments: [_personId.field],
-    resolve: (_, args) async => {
-      'own': await _case.tagIdsOf(
-        ownerId: getCredentials(args).sub,
-        personId: _personId.fromArgsNonNullable(args),
-      ),
+    resolve: (_, args) async {
+      final ownerId = getCredentials(args).sub;
+      final personId = _personId.fromArgsNonNullable(args);
+      return {
+        'own': await _case.tagIdsOf(ownerId: ownerId, personId: personId),
+        'auto': [
+          for (final a in await _case.autoTagsOf(
+            ownerId: ownerId,
+            personId: personId,
+          ))
+            a.toJson(),
+        ],
+      };
     },
   );
+
+  GraphQLObjectField<dynamic, dynamic> get personAutoTags =>
+      GraphQLObjectField(
+        'personAutoTags',
+        GraphQLListType(gqlTypePersonAutoTag.nonNullable()).nonNullable(),
+        resolve: (_, args) async => [
+          for (final t in await _case.autoTags(
+            ownerId: getCredentials(args).sub,
+          ))
+            t.toJson(),
+        ],
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get personAutoTagMembers =>
+      GraphQLObjectField(
+        'personAutoTagMembers',
+        GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        arguments: [_kind.fieldNonNullable],
+        resolve: (_, args) => _case.autoTagMembers(
+          ownerId: getCredentials(args).sub,
+          kind: _kind.fromArgsNonNullable(args),
+        ),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get personTagMemberships =>
       GraphQLObjectField(

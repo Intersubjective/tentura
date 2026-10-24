@@ -69,7 +69,7 @@ Future<void> main() async {
 
     List<Map<String, dynamic>> hints([String? owner]) => [
       for (final raw in rawNotifications)
-        if ((jsonDecode(raw) as Map<String, dynamic>) case final m
+        if (jsonDecode(raw) as Map<String, dynamic> case final m
             when m['entity'] == 'person_tag')
           if (owner == null || m['id'] == owner) m,
     ];
@@ -108,7 +108,7 @@ Future<void> main() async {
         tags.create(
           ownerId: owner,
           clientOpId: nextOp(),
-          fingerprint: 'fp-${opCounter}',
+          fingerprint: 'fp-$opCounter',
           name: name,
           glyph: glyph,
         );
@@ -119,7 +119,7 @@ Future<void> main() async {
     ) => tags.applyMembers(
       ownerId: owner,
       clientOpId: nextOp(),
-      fingerprint: 'fp-${opCounter}',
+      fingerprint: 'fp-$opCounter',
       ops: ops,
     );
 

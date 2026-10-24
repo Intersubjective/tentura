@@ -59,4 +59,21 @@ abstract interface class PeopleTagsRepositoryPort {
 
   /// Ids of the owner's tags that [personId] is in, in tag order.
   Future<List<String>> tagIdsOf(String ownerId, String personId);
+
+  /// Automatic tags present in the owner's facts, with their counts and
+  /// filter switch (default per kind when never toggled).
+  Future<List<PersonAutoTagSummary>> autoTags(String ownerId);
+
+  /// Stores the filter switch for [kind], returns the kind's summary.
+  Future<PersonAutoTagSummary> setAutoTagPref({
+    required String ownerId,
+    required int kind,
+    required bool showInFilters,
+  });
+
+  /// Peer ids carrying automatic tag [kind] for the owner.
+  Future<List<String>> autoTagMembers(String ownerId, int kind);
+
+  /// Automatic tags [personId] carries for the owner.
+  Future<List<PersonAutoTagOf>> autoTagsOf(String ownerId, String personId);
 }

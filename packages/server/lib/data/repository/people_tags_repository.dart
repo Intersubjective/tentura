@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
+import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -351,6 +352,100 @@ SELECT t.id
         )
         .get();
     return [for (final r in rows) r.read<String>('id')];
+  }
+
+  @override
+  Future<List<PersonAutoTagSummary>> autoTags(String ownerId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT a.kind::int AS kind, count(*)::int AS count, p.show_in_filters
+  FROM public.person_auto_tags($1, NULL) a
+  LEFT JOIN public.person_auto_tag_pref p
+    ON p.owner_id = $1 AND p.kind = a.kind
+ GROUP BY a.kind, p.show_in_filters
+ ORDER BY a.kind
+''',
+          variables: [Variable.withString(ownerId)],
+        )
+        .get();
+    return [
+      for (final r in rows)
+        PersonAutoTagSummary(
+          kind: r.read<int>('kind'),
+          count: r.read<int>('count'),
+          showInFilters:
+              r.readNullable<bool>('show_in_filters') ??
+              PersonAutoTagKind.fromSmallint(
+                r.read<int>('kind'),
+              ).defaultShowInFilters,
+        ),
+    ];
+  }
+
+  @override
+  Future<PersonAutoTagSummary> setAutoTagPref({
+    required String ownerId,
+    required int kind,
+    required bool showInFilters,
+  }) => _database.withMutatingUser(ownerId, () async {
+    await _database.customStatement(
+      'INSERT INTO public.person_auto_tag_pref '
+      r'(owner_id, kind, show_in_filters) VALUES ($1, $2, $3) '
+      'ON CONFLICT (owner_id, kind) '
+      'DO UPDATE SET show_in_filters = EXCLUDED.show_in_filters',
+      [ownerId, kind, showInFilters],
+    );
+    final count = await _database
+        .customSelect(
+          'SELECT count(*)::int AS c '
+          r'FROM public.person_auto_tags($1, NULL) WHERE kind = $2',
+          variables: [Variable.withString(ownerId), Variable.withInt(kind)],
+        )
+        .getSingle();
+    return PersonAutoTagSummary(
+      kind: kind,
+      count: count.read<int>('c'),
+      showInFilters: showInFilters,
+    );
+  });
+
+  @override
+  Future<List<String>> autoTagMembers(String ownerId, int kind) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT peer_id FROM public.person_auto_tags($1, NULL) '
+          r'WHERE kind = $2 ORDER BY peer_id',
+          variables: [Variable.withString(ownerId), Variable.withInt(kind)],
+        )
+        .get();
+    return [for (final r in rows) r.read<String>('peer_id')];
+  }
+
+  @override
+  Future<List<PersonAutoTagOf>> autoTagsOf(
+    String ownerId,
+    String personId,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT kind::int AS kind, n, direction::int AS direction '
+          r'FROM public.person_auto_tags($1, ARRAY[$2]::text[]) '
+          'ORDER BY kind',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(personId),
+          ],
+        )
+        .get();
+    return [
+      for (final r in rows)
+        PersonAutoTagOf(
+          kind: r.read<int>('kind'),
+          n: r.read<int>('n'),
+          direction: r.read<int>('direction'),
+        ),
+    ];
   }
 
   Future<T> _idempotent<T>(

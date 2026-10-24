@@ -113,3 +113,42 @@ final class PersonTagMemberOp {
   final bool add;
   final int source;
 }
+
+/// One automatic tag the owner has: how many people, and the Field filter
+/// row switch.
+final class PersonAutoTagSummary {
+  const PersonAutoTagSummary({
+    required this.kind,
+    required this.count,
+    required this.showInFilters,
+  });
+
+  final int kind;
+  final int count;
+  final bool showInFilters;
+
+  Map<String, dynamic> toJson() => {
+    'kind': kind,
+    'count': count,
+    'showInFilters': showInFilters,
+  };
+}
+
+/// An automatic tag one person carries for the owner.
+final class PersonAutoTagOf {
+  const PersonAutoTagOf({
+    required this.kind,
+    required this.n,
+    required this.direction,
+  });
+
+  final int kind;
+  final int n;
+  final int direction;
+
+  Map<String, dynamic> toJson() => {
+    'kind': kind,
+    'n': n,
+    'direction': direction,
+  };
+}

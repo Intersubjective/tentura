@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -131,6 +132,39 @@ final class PeopleTagsCase extends UseCaseBase {
     required String ownerId,
     required String personId,
   }) => _tags.tagIdsOf(ownerId, personId);
+
+  Future<List<PersonAutoTagSummary>> autoTags({required String ownerId}) =>
+      _tags.autoTags(ownerId);
+
+  Future<PersonAutoTagSummary> setAutoTagPref({
+    required String ownerId,
+    required int kind,
+    required bool showInFilters,
+  }) async {
+    final valid = PersonAutoTagKind.fromSmallint(_validKind(kind));
+    return _tags.setAutoTagPref(
+      ownerId: ownerId,
+      kind: valid.smallintValue,
+      showInFilters: showInFilters,
+    );
+  }
+
+  Future<List<String>> autoTagMembers({
+    required String ownerId,
+    required int kind,
+  }) => _tags.autoTagMembers(ownerId, _validKind(kind));
+
+  Future<List<PersonAutoTagOf>> autoTagsOf({
+    required String ownerId,
+    required String personId,
+  }) => _tags.autoTagsOf(ownerId, personId);
+
+  static int _validKind(int kind) {
+    if (!PersonAutoTagKind.values.any((k) => k.smallintValue == kind)) {
+      throw _invalidTag();
+    }
+    return kind;
+  }
 
   static PersonTagMemberOp _parseOp(String ownerId, Map<String, dynamic> op) {
     final tagId = op['tagId'] as String?;

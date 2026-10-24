@@ -130,6 +130,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlInputPersonTagMemberOp,
   gqlTypePersonTagMembers,
   gqlTypePersonTagsOf,
+  gqlTypePersonAutoTag,
+  gqlTypePersonAutoTagOf,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -2173,13 +2175,33 @@ final gqlTypePersonTagMembers = GraphQLObjectType('PersonTagMembers', null)
     ),
   ]);
 
-/// The owner's tags a person is in; the automatic part comes later.
+/// The owner's tags a person is in: own tag ids and automatic tags.
 final gqlTypePersonTagsOf = GraphQLObjectType('PersonTagsOf', null)
   ..fields.addAll([
     field(
       'own',
       GraphQLListType(graphQLString.nonNullable()).nonNullable(),
     ),
+    field(
+      'auto',
+      GraphQLListType(gqlTypePersonAutoTagOf.nonNullable()).nonNullable(),
+    ),
+  ]);
+
+/// An automatic tag list entry: how many people, and the filter switch.
+final gqlTypePersonAutoTag = GraphQLObjectType('PersonAutoTag', null)
+  ..fields.addAll([
+    field('kind', graphQLInt.nonNullable()),
+    field('count', graphQLInt.nonNullable()),
+    field('showInFilters', graphQLBoolean.nonNullable()),
+  ]);
+
+/// An automatic tag one person carries; `direction` is set for invited only.
+final gqlTypePersonAutoTagOf = GraphQLObjectType('PersonAutoTagOf', null)
+  ..fields.addAll([
+    field('kind', graphQLInt.nonNullable()),
+    field('n', graphQLInt.nonNullable()),
+    field('direction', graphQLInt.nonNullable()),
   ]);
 
 /// `[T!]!` typed over `dynamic`, so a decoded `List<dynamic>` passes

@@ -16,6 +16,8 @@ final class MutationPeopleTags extends GqlNodeBase {
   static final _glyph = InputFieldString(fieldName: 'glyph');
   static final _color = InputFieldInt(fieldName: 'color');
   static final _ord = InputFieldInt(fieldName: 'ord');
+  static final _kind = InputFieldInt(fieldName: 'kind');
+  static final _showInFilters = InputFieldBool(fieldName: 'showInFilters');
   static final _clientOpId = InputFieldString(fieldName: 'clientOpId');
 
   static final _ops = GraphQLFieldInput(
@@ -34,6 +36,7 @@ final class MutationPeopleTags extends GqlNodeBase {
     personTagDelete,
     personTagRestore,
     personTagMembersApply,
+    personAutoTagPrefSet,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get personTagCreate =>
@@ -120,6 +123,18 @@ final class MutationPeopleTags extends GqlNodeBase {
           );
           return true;
         },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get personAutoTagPrefSet =>
+      GraphQLObjectField(
+        'personAutoTagPrefSet',
+        gqlTypePersonAutoTag.nonNullable(),
+        arguments: [_kind.fieldNonNullable, _showInFilters.field],
+        resolve: (_, args) async => (await _case.setAutoTagPref(
+          ownerId: getCredentials(args).sub,
+          kind: _kind.fromArgsNonNullable(args),
+          showInFilters: _showInFilters.fromArgsNonNullable(args),
+        )).toJson(),
       );
 }
 
