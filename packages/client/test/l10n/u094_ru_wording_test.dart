@@ -143,7 +143,7 @@ void main() {
             '$key: $value',
       ];
       expect(offenders, isEmpty);
-      expect(ru.beaconCloseSheetReadyReviewTitle, 'Закрыть и подвести итоги?');
+      expect(ru.beaconCloseSheetReadyReviewTitle, 'Можно подводить итоги');
       expect(
         ru.updatesFallbackTitleObligationEnded,
         'Подведение итогов закончилось',

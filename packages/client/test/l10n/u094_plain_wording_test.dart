@@ -82,10 +82,8 @@ void main() {
 
     test('closing-stage actions use the status name', () {
       expect(en.beaconHudActWrapUpForReview, 'Start final check');
-      expect(
-        en.beaconCloseSheetReadyReviewTitle,
-        'Close and start the final check?',
-      );
+      expect(en.beaconCloseSheetReadyReviewTitle, 'Ready for the final check');
+      expect(en.beaconCloseSheetActionStartFinalCheck, 'Start final check');
       expect(en.beaconCloseSheetEvidenceEnoughHelp, 'Marked: enough help');
     });
   });
