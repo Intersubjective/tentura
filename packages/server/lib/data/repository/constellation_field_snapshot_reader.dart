@@ -95,9 +95,20 @@ final class ConstellationFieldSnapshotReader {
       for (final id in directContactIds)
         if (visibleSet.contains(id)) id,
     };
+
+    // Bond (B) and temporary (T) peers outside the visible set are on the
+    // field with full content; visible > bond > temporary > contactOnly.
+    final bondContexts = await _bondContexts(viewerId, visibleSet);
+    final temporaryBeacons = await _temporaryBeacons(
+      viewerId,
+      excluding: {...visibleSet, ...bondContexts.keys},
+    );
     final contactOnlyIds = <String>{
       for (final id in directContactIds)
-        if (!visibleSet.contains(id)) id,
+        if (!visibleSet.contains(id) &&
+            !bondContexts.containsKey(id) &&
+            !temporaryBeacons.containsKey(id))
+          id,
     };
 
     final indirectPeers = _visibleGraphPeerIds(
@@ -135,7 +146,20 @@ final class ConstellationFieldSnapshotReader {
         ? peerRequestsRaw.sublist(0, kConstellationRequestCap)
         : peerRequestsRaw;
 
-    final requests = [...ownRequests, ...peerRequests];
+    final knownRequestIds = {
+      for (final r in [...ownRequests, ...peerRequests]) r.id,
+      ...reservedBeaconIds,
+    };
+    final temporaryRequests = await _temporaryRequests(
+      viewerId: viewerId,
+      beaconIds: {
+        for (final id in temporaryBeacons.values)
+          if (!knownRequestIds.contains(id)) id,
+      },
+      showClosed: params.filters.showClosed,
+    );
+
+    final requests = [...ownRequests, ...peerRequests, ...temporaryRequests];
 
     // The graph only draws edges among its capped peers and the viewer. Reuse
     // the full set when the anchor projection already loaded it; otherwise
@@ -165,7 +189,13 @@ final class ConstellationFieldSnapshotReader {
               ConstellationEdgeRecord(src: viewerId, dst: id, tier: 1),
           ]..sort(_compareEdges));
 
-    final profileIds = {...graphPeerIds, ...reservedPeerIds, ...contactOnlyIds};
+    final profileIds = {
+      ...graphPeerIds,
+      ...reservedPeerIds,
+      ...contactOnlyIds,
+      ...bondContexts.keys,
+      ...temporaryBeacons.keys,
+    };
     for (final request in requests) {
       profileIds.add(request.authorId);
     }
@@ -178,7 +208,24 @@ final class ConstellationFieldSnapshotReader {
 
     final peers = [
       for (final peer in await _peerProfiles(profileIds))
-        if (contactOnlyIds.contains(peer.id)) peer.asContactOnly() else peer,
+        if (visibleSet.contains(peer.id))
+          peer
+        else if (bondContexts.containsKey(peer.id))
+          peer.withPresence(
+            ConstellationPeerPresence.bond,
+            bondContexts: bondContexts[peer.id]!,
+          )
+        else if (temporaryBeacons.containsKey(peer.id))
+          peer.withPresence(
+            ConstellationPeerPresence.temporary,
+            temporaryBeaconId: temporaryBeacons[peer.id],
+          )
+        else if (contactOnlyIds.contains(peer.id))
+          peer.asContactOnly()
+        else if (reservedPeerIds.contains(peer.id) && peer.id != viewerId)
+          peer.withPresence(ConstellationPeerPresence.pinnedOnly)
+        else
+          peer,
     ];
     final peerIds = {for (final peer in peers) peer.id};
 
@@ -200,6 +247,98 @@ final class ConstellationFieldSnapshotReader {
           ? anchorProjection
           : _withPinnedContactNodes(anchorProjection, contactOnlyIds),
     );
+  }
+
+  /// Bond peers (people sharing a live Request with the viewer) outside
+  /// [visibleSet], each with the titled Requests they share.
+  Future<Map<String, List<ConstellationBondContext>>> _bondContexts(
+    String viewerId,
+    Set<String> visibleSet,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT b.peer_id, c.beacon_id, c.title
+FROM public.person_bond_peers($1) b
+CROSS JOIN LATERAL public.person_shared_contexts($1, b.peer_id) c
+ORDER BY b.peer_id, c.beacon_id
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    final result = <String, List<ConstellationBondContext>>{};
+    for (final row in rows) {
+      final peerId = row.read<String>('peer_id');
+      if (visibleSet.contains(peerId)) {
+        continue;
+      }
+      (result[peerId] ??= []).add(
+        ConstellationBondContext(
+          beaconId: row.read<String>('beacon_id'),
+          title: row.read<String>('title'),
+        ),
+      );
+    }
+    return result;
+  }
+
+  /// Temporarily visible peers (forward holders and authors) not in
+  /// [excluding], each with the forwarded Request that explains them.
+  Future<Map<String, String>> _temporaryBeacons(
+    String viewerId, {
+    required Set<String> excluding,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT peer_id, beacon_id
+FROM public.person_temporary_forward_peers($1)
+ORDER BY peer_id, direction, beacon_id
+''',
+          variables: [Variable.withString(viewerId)],
+        )
+        .get();
+    final result = <String, String>{};
+    for (final row in rows) {
+      final peerId = row.read<String>('peer_id');
+      if (!excluding.contains(peerId)) {
+        result.putIfAbsent(peerId, () => row.read<String>('beacon_id'));
+      }
+    }
+    return result;
+  }
+
+  /// The forwarded Requests behind temporary peers, only those the viewer
+  /// can read; the author's other Requests are not added.
+  Future<List<ConstellationRequestRecord>> _temporaryRequests({
+    required String viewerId,
+    required Set<String> beaconIds,
+    required bool showClosed,
+  }) async {
+    if (beaconIds.isEmpty) {
+      return const [];
+    }
+    final statuses = constellationFieldBeaconStatuses(
+      showClosed: showClosed,
+    ).toList()..sort();
+    final rows = await _database
+        .customSelect(
+          '''
+SELECT $constellationRequestSelectColumns
+FROM public.beacon b
+LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
+WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
+  AND b.status = ANY(\$3::int[])
+ORDER BY b.user_id, b.id
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, beaconIds.toList()..sort())),
+            Variable(TypedValue(Type.integerArray, statuses)),
+          ],
+        )
+        .get();
+    return rows.map(readConstellationRequestRow).toList(growable: false);
   }
 
   /// A pinned contact node is the same identity-only record as in the

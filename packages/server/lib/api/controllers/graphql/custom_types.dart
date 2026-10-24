@@ -965,6 +965,25 @@ final gqlTypeConstellationPeer =
         // the viewer's visible set; identity only, no handle, and no edge
         // but the viewer's own.
         field('contactOnly', graphQLBoolean.nonNullable()),
+        field('presence', graphQLString.nonNullable()),
+        field('temporaryBeaconId', graphQLString),
+        field(
+          'bondContexts',
+          GraphQLListType(
+            gqlTypeConstellationBondContext.nonNullable(),
+          ).nonNullable(),
+        ),
+      ]);
+
+/// A Request shared with a bond peer.
+final gqlTypeConstellationBondContext =
+    GraphQLObjectType(
+        'ConstellationBondContext',
+        null,
+      )
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('title', graphQLString.nonNullable()),
       ]);
 
 /// Two-tier trust edge between constellation peers (ids + tier only).

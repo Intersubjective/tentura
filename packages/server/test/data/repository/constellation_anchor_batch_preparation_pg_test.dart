@@ -674,6 +674,8 @@ WHERE viewer_id = '$viewer'
                   .cast<Map<String, dynamic>>()
                   .singleWhere((record) => record['id'] == peers.first);
               expect(placeholder['pinState'], 'tombstone');
+              expect(placeholder['presence'], 'pinnedOnly');
+              expect(placeholder['bondContexts'], isEmpty);
               const identityFields = {
                 'id',
                 'kind',
@@ -681,6 +683,8 @@ WHERE viewer_id = '$viewer'
                 'pinState',
                 'visible',
                 'contactOnly',
+                'presence',
+                'bondContexts',
               };
               for (final entry in placeholder.entries) {
                 if (!identityFields.contains(entry.key)) {

@@ -1072,9 +1072,15 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
             'pinState',
             'visible',
             'contactOnly',
+            'presence',
+            'bondContexts',
           };
           for (final placeholder in placeholders) {
             expect(placeholder['pinState'], 'tombstone');
+            if (placeholder.containsKey('presence')) {
+              expect(placeholder['presence'], 'pinnedOnly');
+              expect(placeholder['bondContexts'], isEmpty);
+            }
             for (final entry in placeholder.entries) {
               if (!identityFields.contains(entry.key)) {
                 expect(

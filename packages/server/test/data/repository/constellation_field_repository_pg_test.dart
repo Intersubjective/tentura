@@ -1102,6 +1102,119 @@ INSERT INTO public.beacon_pinned (user_id, beacon_id) VALUES ('$egoId', '$id')
       expect(snapshot.anchorProjection.pinnedRequests.single.kind, 0);
     }, skip: skipReason);
   }, tags: ['mr']);
+
+  group('ConstellationFieldRepository field membership and presence', () {
+    Future<void> admitHelper(String beaconId, String userId) =>
+        db.customStatement('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
+VALUES ('$beaconId', '$userId', 1, 3)
+''');
+
+    Future<void> oneWayTrust(String from, String to) => db.customStatement('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES ('$from', '$to', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+''');
+
+    Future<void> forwardTo({
+      required String beaconId,
+      required String senderId,
+      required String recipientId,
+    }) => db.customStatement('''
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$beaconId', '$senderId', '$recipientId')
+''');
+
+    test('mutually visible peer with no Requests is in the field as visible',
+        () async {
+      const peerId = 'Ucfmempeer01';
+      await insertUser(peerId);
+      await reciprocalTrust(egoId, peerId);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      final peer = snapshot.peers.singleWhere((p) => p.id == peerId);
+      expect(peer.presence.name, 'visible');
+      expect(snapshot.requests.where((r) => r.authorId == peerId), isEmpty);
+    }, skip: skipReason);
+
+    test('bond peer outside the visible set has presence bond and titled '
+        'shared contexts', () async {
+      const peerId = 'Ucfbondpeer1';
+      await insertUser(peerId);
+      await insertBeacon(id: 'Bcfbond0001', authorId: egoId);
+      await admitHelper('Bcfbond0001', peerId);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      final peer = snapshot.peers.singleWhere((p) => p.id == peerId);
+      expect(peer.presence.name, 'bond');
+      expect(snapshot.directContactIds, isNot(contains(peerId)));
+      expect(peer.contactOnly, isFalse);
+      expect(peer.bondContexts.map((c) => (c.beaconId, c.title)), [
+        ('Bcfbond0001', 'title-Bcfbond0001'),
+      ]);
+    }, skip: skipReason);
+
+    test('temporary peer carries presence temporary and the forwarded '
+        'Request, and other Requests by the author stay absent', () async {
+      const authorId = 'Ucftempauth1';
+      await insertUser(authorId);
+      await insertBeacon(id: 'Bcftempfwd01', authorId: authorId);
+      await insertBeacon(id: 'Bcftempoth01', authorId: authorId);
+      await forwardTo(
+        beaconId: 'Bcftempfwd01',
+        senderId: authorId,
+        recipientId: egoId,
+      );
+
+      final snapshot = await readField(viewerId: egoId);
+
+      final peer = snapshot.peers.singleWhere((p) => p.id == authorId);
+      expect(peer.presence.name, 'temporary');
+      expect(peer.temporaryBeaconId, 'Bcftempfwd01');
+      final requestIds = snapshot.requests.map((r) => r.id);
+      expect(requestIds, contains('Bcftempfwd01'));
+      expect(requestIds, isNot(contains('Bcftempoth01')));
+    }, skip: skipReason);
+
+    test('rejected forward no longer puts its author in the field', () async {
+      const authorId = 'Ucftemprej01';
+      await insertUser(authorId);
+      await insertBeacon(id: 'Bcftemprej01', authorId: authorId);
+      await forwardTo(
+        beaconId: 'Bcftemprej01',
+        senderId: authorId,
+        recipientId: egoId,
+      );
+      await db.customStatement('''
+UPDATE public.inbox_item SET status = 2
+WHERE user_id = '$egoId' AND beacon_id = 'Bcftemprej01'
+''');
+
+      final snapshot = await readField(viewerId: egoId);
+
+      expect(snapshot.peers.map((p) => p.id), isNot(contains(authorId)));
+      expect(snapshot.requests.map((r) => r.id), isNot(contains('Bcftemprej01')));
+    }, skip: skipReason);
+
+    test('direct contact who is also a bond peer has presence bond with full '
+        'content', () async {
+      const peerId = 'Ucfcontbond1';
+      await insertUser(peerId);
+      await oneWayTrust(egoId, peerId);
+      await insertBeacon(id: 'Bcfcontbond1', authorId: egoId);
+      await admitHelper('Bcfcontbond1', peerId);
+
+      final snapshot = await readField(viewerId: egoId);
+
+      final peer = snapshot.peers.singleWhere((p) => p.id == peerId);
+      expect(snapshot.directContactIds, contains(peerId));
+      expect(peer.presence.name, 'bond');
+      expect(peer.contactOnly, isFalse);
+      expect(peer.visible, isTrue);
+      expect(peer.displayName, peerId);
+    }, skip: skipReason);
+  });
 }
 
 final class _DisposablePgTarget {

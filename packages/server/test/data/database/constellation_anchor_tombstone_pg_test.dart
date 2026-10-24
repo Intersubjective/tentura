@@ -412,9 +412,14 @@ void _expectIdentityOnlyTombstone(
       'pinState',
     },
   );
-  // `visible` and `contactOnly` are non-null wire fields of every peer (U54,
-  // #246); they say nothing about a deleted account, so they are part of the
-  // identity envelope.
+  // `visible`, `contactOnly`, `presence` and `bondContexts` are non-null wire
+  // fields of every peer (U54, #246, people tags A7a); they say nothing about
+  // a deleted account, so they are part of the identity envelope. A deleted
+  // pinned person is on the field only through the pin.
+  if (targetRecord.containsKey('presence')) {
+    expect(targetRecord['presence'], 'pinnedOnly');
+    expect(targetRecord['bondContexts'], isEmpty);
+  }
   _expectNoContent(targetRecord, const {
     'id',
     'kind',
@@ -422,6 +427,8 @@ void _expectIdentityOnlyTombstone(
     'pinState',
     'visible',
     'contactOnly',
+    'presence',
+    'bondContexts',
   });
   expect(projection.supportPeers, isEmpty);
   expect(projection.supportEdges, isEmpty);

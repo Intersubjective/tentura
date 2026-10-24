@@ -79,6 +79,36 @@ class ConstellationMemberWebRecord {
 /// Wire value of `pinState` for a pin whose target was deleted.
 const kConstellationPinStateTombstone = 'tombstone';
 
+/// Why a person is on the field; precedence when categories overlap is
+/// `visible > bond > temporary > contactOnly > pinnedOnly`. Only
+/// `contactOnly` strips content.
+enum ConstellationPeerPresence {
+  visible,
+  bond,
+  temporary,
+  contactOnly,
+  pinnedOnly,
+}
+
+/// A Request the viewer shares with a bond peer.
+@immutable
+class ConstellationBondContext {
+  const ConstellationBondContext({required this.beaconId, required this.title});
+
+  final String beaconId;
+  final String title;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationBondContext &&
+          other.beaconId == beaconId &&
+          other.title == title;
+
+  @override
+  int get hashCode => Object.hash(beaconId, title);
+}
+
 @immutable
 class ConstellationPeerRecord {
   const ConstellationPeerRecord({
@@ -89,6 +119,9 @@ class ConstellationPeerRecord {
     this.pinState,
     this.visible = true,
     this.contactOnly = false,
+    this.presence = ConstellationPeerPresence.visible,
+    this.temporaryBeaconId,
+    this.bondContexts = const [],
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -98,7 +131,10 @@ class ConstellationPeerRecord {
       image = null,
       pinState = kConstellationPinStateTombstone,
       visible = true,
-      contactOnly = false;
+      contactOnly = false,
+      presence = ConstellationPeerPresence.pinnedOnly,
+      temporaryBeaconId = null,
+      bondContexts = const [];
 
   final String id;
   final String? displayName;
@@ -120,6 +156,32 @@ class ConstellationPeerRecord {
   /// viewer was admitted to it, or pinned it).
   final bool contactOnly;
 
+  final ConstellationPeerPresence presence;
+
+  /// The forwarded Request that makes this person temporarily visible.
+  final String? temporaryBeaconId;
+
+  /// Requests shared with the viewer, for a bond peer.
+  final List<ConstellationBondContext> bondContexts;
+
+  /// This record with its field presence set.
+  ConstellationPeerRecord withPresence(
+    ConstellationPeerPresence presence, {
+    String? temporaryBeaconId,
+    List<ConstellationBondContext> bondContexts = const [],
+  }) => ConstellationPeerRecord(
+    id: id,
+    displayName: displayName,
+    handle: handle,
+    image: image,
+    pinState: pinState,
+    visible: visible,
+    contactOnly: contactOnly,
+    presence: presence,
+    temporaryBeaconId: temporaryBeaconId,
+    bondContexts: bondContexts,
+  );
+
   /// This record marked inside or outside the viewer's visible set; outside
   /// it, the record is identity only (no handle).
   ConstellationPeerRecord withVisible({required bool visible}) =>
@@ -131,6 +193,9 @@ class ConstellationPeerRecord {
         pinState: pinState,
         visible: visible,
         contactOnly: contactOnly,
+        presence: presence,
+        temporaryBeaconId: temporaryBeaconId,
+        bondContexts: bondContexts,
       );
 
   /// The identity-only form of this record for a contact node (#246).
@@ -141,6 +206,7 @@ class ConstellationPeerRecord {
     pinState: pinState,
     visible: false,
     contactOnly: true,
+    presence: ConstellationPeerPresence.contactOnly,
   );
 
   @override

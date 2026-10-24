@@ -101,6 +101,12 @@ Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'pinState': peer.pinState,
   'visible': peer.visible,
   'contactOnly': peer.contactOnly,
+  'presence': peer.presence.name,
+  'temporaryBeaconId': peer.temporaryBeaconId,
+  'bondContexts': [
+    for (final c in peer.bondContexts)
+      {'beaconId': c.beaconId, 'title': c.title},
+  ],
   'displayName': peer.displayName,
   'handle': peer.handle,
   'image': peer.image == null ? null : imagePublicToGqlMap(peer.image!),
