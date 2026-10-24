@@ -153,7 +153,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         expect(tester.widget<Switch>(_toggle).value, isFalse);
         expect(find.byType(SnackBar), findsOneWidget);
-        expect(find.text('Trust change not saved'), findsOneWidget);
+        expect(
+          find.text('Trust change not saved', findRichText: true),
+          findsOneWidget,
+        );
         await tester.tap(find.widgetWithText(SnackBarAction, 'Retry'));
         await tester.pump();
         expect(tester.widget<Switch>(_toggle).value, isTrue);
@@ -191,7 +194,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(tester.widget<Switch>(_toggle).value, isFalse);
       expect(
-        find.widgetWithText(SnackBar, 'Trust change not saved'),
+        find.descendant(
+          of: find.byType(SnackBar),
+          matching: find.text('Trust change not saved', findRichText: true),
+        ),
         findsOneWidget,
       );
       expect(find.widgetWithText(SnackBarAction, 'Retry'), findsOneWidget);
@@ -219,7 +225,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
         await tester.pump(const Duration(milliseconds: 300));
         final l10n = L10n.of(tester.element(_toggle))!;
-        expect(find.text(l10n.lazyWriteAckOverdue), findsOneWidget);
+        expect(
+          find.text(l10n.lazyWriteAckOverdue, findRichText: true),
+          findsOneWidget,
+        );
         expect(find.byType(SnackBar), findsOneWidget);
         expect(tester.widget<Switch>(_toggle).onChanged, isNotNull);
       },

@@ -79,12 +79,69 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
-    expect(find.text('Trust change not saved'), findsOneWidget);
+    expect(
+      find.text('Trust change not saved', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('Retry'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
 
     expect(find.byType(SnackBar), findsNothing);
+  });
+
+  // #495: the bar queued behind one already on screen and waited out its
+  // whole duration; it replaces it now, like every app bar.
+  testWidgets('trust-not-saved bar replaces a bar already on screen', (
+    tester,
+  ) async {
+    final cubit = _StubContextCubit();
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: Scaffold(
+          body: BlocProvider<GraphPersonContextCubit>.value(
+            value: cubit,
+            child: const GraphTrustWriteNotices(child: SizedBox.expand()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+        .showSnackBar(
+          const SnackBar(
+            content: Text('Earlier bar'),
+            duration: Duration(seconds: 30),
+          ),
+        );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Earlier bar'), findsOneWidget);
+
+    cubit.revert(
+      const GraphTrustRevert(
+        profile: Profile(id: 'peer', displayName: 'Peer'),
+        acknowledgedAmount: 0,
+        intendedAmount: 1,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Earlier bar'), findsNothing);
+    expect(
+      find.text('Trust change not saved', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Retry'), findsOneWidget);
   });
 }

@@ -408,7 +408,10 @@ void main() {
       await tester.tap(_inRow('Ucat', find.text('Позвать')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Не удалось позвать: Cat'), findsOneWidget);
+      expect(
+        find.text('Не удалось позвать: Cat', findRichText: true),
+        findsOneWidget,
+      );
       expect(_inRow('Ucat', find.text('Позвать')), findsOneWidget);
     });
 

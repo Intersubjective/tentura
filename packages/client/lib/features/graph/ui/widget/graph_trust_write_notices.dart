@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/lazy_write_timeout_notice.dart';
 
 import '../../domain/use_case/graph_trust_write_case.dart';
@@ -26,15 +27,14 @@ class GraphTrustWriteNotices extends StatelessWidget {
           final error = state.trustError;
           if (error is! GraphTrustRevert) return;
           final l10n = L10n.of(context)!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.graphTrustNotSaved),
-              // Not blocking: auto-dismiss despite the action (#470).
-              persist: false,
-              action: SnackBarAction(
-                label: l10n.graphTrustRetry,
-                onPressed: () => unawaited(cubit.retryTrust(error)),
-              ),
+          // Not blocking: the helper auto-dismisses despite the action
+          // (#470) and replaces any bar already up (#495).
+          showSnackBar(
+            context,
+            text: l10n.graphTrustNotSaved,
+            action: SnackBarAction(
+              label: l10n.graphTrustRetry,
+              onPressed: () => unawaited(cubit.retryTrust(error)),
             ),
           );
         },

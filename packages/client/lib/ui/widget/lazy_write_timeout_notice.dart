@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Shows a non-blocking snackbar whenever [notices] emits; never takes part
 /// in the gestures of [child].
@@ -48,12 +49,7 @@ class _LazyWriteTimeoutNoticeState extends State<LazyWriteTimeoutNotice> {
   void _subscribe() {
     _subscription = widget.notices.listen((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(L10n.of(context)!.lazyWriteAckOverdue),
-          showCloseIcon: true,
-        ),
-      );
+      showSnackBar(context, text: L10n.of(context)!.lazyWriteAckOverdue);
     });
   }
 

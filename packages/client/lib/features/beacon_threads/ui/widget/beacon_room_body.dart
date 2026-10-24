@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -577,9 +578,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final text = _pinFactTextForMessage(message, l10n);
     if (text.isEmpty) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.beaconRoomPinFactDisabledEmpty)),
-      );
+      showSnackBar(context, text: l10n.beaconRoomPinFactDisabledEmpty);
       return;
     }
     await _showPinFactChoices(context, cubit, l10n, message, text);
@@ -1424,9 +1423,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   ) async {
     final ok = await copyTextToClipboard(message.body.trim());
     if (!ok || !context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.beaconRoomCopiedToClipboard)),
-    );
+    showSnackBar(context, text: l10n.beaconRoomCopiedToClipboard);
   }
 
   Future<void> _showUpdatePlanFromMessageSheet(
@@ -1438,9 +1435,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final body = message.body.trim();
     if (body.isEmpty) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.beaconRoomPinFactDisabledEmpty)),
-      );
+      showSnackBar(context, text: l10n.beaconRoomPinFactDisabledEmpty);
       return;
     }
     // On a character boundary, never half an emoji (#343).

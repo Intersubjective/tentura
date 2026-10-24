@@ -964,7 +964,7 @@ void main() {
       await tester.tap(find.byKey(RequestAttentionCard.clearAllKey));
       await tester.pump();
       expect(clearedAll, 1);
-      expect(find.text('Убрано 2 события'), findsOneWidget);
+      expect(find.text('Убрано 2 события', findRichText: true), findsOneWidget);
     });
   });
 }

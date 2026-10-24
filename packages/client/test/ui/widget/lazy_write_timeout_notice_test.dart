@@ -50,7 +50,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.text(_en['lazyWriteAckOverdue'] as String), findsOneWidget);
+    expect(
+      find.text(_en['lazyWriteAckOverdue'] as String, findRichText: true),
+      findsOneWidget,
+    );
+    // #495 review: the notice keeps its close icon through the helper.
+    expect(
+      tester.widget<SnackBar>(find.byType(SnackBar)).showCloseIcon,
+      isTrue,
+    );
+  });
+
+  // #495: the notice queued behind a bar already on screen and only showed
+  // once that bar timed out; it replaces it now, like every app bar.
+  testWidgets('a notice replaces a bar already on screen', (tester) async {
+    final notices = StreamController<LazyWriteNotice>.broadcast();
+    addTearDown(notices.close);
+    await _pump(tester, notices.stream, const SizedBox.expand());
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+        .showSnackBar(
+          const SnackBar(
+            content: Text('Earlier bar'),
+            duration: Duration(seconds: 30),
+          ),
+        );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Earlier bar'), findsOneWidget);
+
+    notices.add(const LazyWriteNotice());
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Earlier bar'), findsNothing);
+    expect(
+      find.text(_en['lazyWriteAckOverdue'] as String, findRichText: true),
+      findsOneWidget,
+    );
   });
 
   test(
@@ -99,7 +137,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text(ru['lazyWriteAckOverdue'] as String), findsOneWidget);
+    expect(
+      find.text(ru['lazyWriteAckOverdue'] as String, findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a notice during a drag leaves the drag uninterrupted', (

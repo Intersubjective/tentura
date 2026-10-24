@@ -218,7 +218,10 @@ void main() {
 
     expect(_isOn(tester), isFalse);
     expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.text(en['graphTrustNotSaved'] as String), findsOneWidget);
+    expect(
+      find.text(en['graphTrustNotSaved'] as String, findRichText: true),
+      findsOneWidget,
+    );
 
     await tester.tap(
       find.widgetWithText(SnackBarAction, en['graphTrustRetry'] as String),
@@ -256,7 +259,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(_isOn(tester), isFalse);
     expect(
-      find.widgetWithText(SnackBar, 'Trust change not saved'),
+      find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.text('Trust change not saved', findRichText: true),
+      ),
       findsOneWidget,
     );
     expect(find.widgetWithText(SnackBarAction, 'Retry'), findsOneWidget);
@@ -282,7 +288,10 @@ void main() {
 
     expect(fixture.contextCubit.state.selectedProfile, selected);
     expect(_isOn(tester), isFalse);
-    expect(find.text('Trust change not saved'), findsOneWidget);
+    expect(
+      find.text('Trust change not saved', findRichText: true),
+      findsOneWidget,
+    );
     await tester.tap(find.widgetWithText(SnackBarAction, 'Retry'));
     await tester.pump();
     expect(fixture.likes.calls.map((call) => call.id), ['Ub', 'Ub']);
@@ -308,7 +317,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text(en['lazyWriteAckOverdue'] as String), findsOneWidget);
+    expect(
+      find.text(en['lazyWriteAckOverdue'] as String, findRichText: true),
+      findsOneWidget,
+    );
     expect(_isOn(tester), isTrue);
   });
   testWidgets(
@@ -355,7 +367,10 @@ void main() {
         kLazyWriteAckTimeout - const Duration(seconds: 5) - delay,
       );
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text(en['lazyWriteAckOverdue'] as String), findsOneWidget);
+      expect(
+        find.text(en['lazyWriteAckOverdue'] as String, findRichText: true),
+        findsOneWidget,
+      );
     },
   );
 
@@ -376,12 +391,15 @@ void main() {
       fixture.wakeUp.elapse(kLazyWriteAckTimeout);
       await tester.pump(kLazyWriteAckTimeout);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text(en['lazyWriteAckOverdue'] as String), findsOneWidget);
+      expect(
+        find.text(en['lazyWriteAckOverdue'] as String, findRichText: true),
+        findsOneWidget,
+      );
       await tester.pump(const Duration(seconds: 5));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        find.text(en['lazyWriteAckOverdue'] as String),
+        find.text(en['lazyWriteAckOverdue'] as String, findRichText: true),
         findsNothing,
         reason: 'another overdue write must not enqueue a second snackbar',
       );

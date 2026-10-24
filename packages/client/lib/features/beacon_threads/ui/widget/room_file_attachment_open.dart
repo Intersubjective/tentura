@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 Future<void> openRoomFileAttachment(
   BuildContext context,
@@ -31,9 +32,7 @@ Future<void> openRoomFileAttachment(
     );
   } on Object catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.beaconRoomAttachmentOpenFailed)),
-      );
+      showSnackBar(context, text: l10n.beaconRoomAttachmentOpenFailed);
     }
   }
 }
