@@ -14,7 +14,6 @@ enum ForwardRecipientRowHost {
   pickerStandard,
   pickerLineage,
   pickerBand,
-  pickerSearch,
   lineagePreview,
 }
 
@@ -194,7 +193,7 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
 
   if (host.showsAvailability) {
     final view = candidate.profile.availability.effectiveOn(todayUtc);
-  switch (view) {
+    switch (view) {
       case AvailabilityView.paused:
         if (forwardRecipientPauseReplacesRelation(candidate.involvement)) {
           final resumeOn = candidate.profile.availability.resumeOn;
@@ -247,5 +246,4 @@ bool forwardRecipientCheckboxEnabled({
   required ForwardCandidate candidate,
   required DateTime todayUtc,
   required bool isSelected,
-}) =>
-    candidate.canForwardToOn(todayUtc) || isSelected;
+}) => candidate.canForwardToOn(todayUtc) || isSelected;
