@@ -12,9 +12,16 @@ import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Signup inheritance trigger — spec §9.5 Group T-D.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -77,9 +84,8 @@ Future<void> main() async {
   String keyOf(String userId) =>
       InviteGenealogyNodeKey.derive(userId: userId, env: env);
 
-  Future<void> insertUser(String id, DateTime createdAt) =>
-      db.customStatement(
-        '''
+  Future<void> insertUser(String id, DateTime createdAt) => db.customStatement(
+    '''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES ('$id', '$id', 'pk-$id', '${createdAt.toUtc().toIso8601String()}',
   '${createdAt.toUtc().toIso8601String()}')
@@ -87,7 +93,7 @@ ON CONFLICT (id) DO UPDATE SET
   created_at = EXCLUDED.created_at,
   updated_at = EXCLUDED.updated_at
 ''',
-      );
+  );
 
   Future<void> insertGenealogyEdge({
     required String ancestorId,
@@ -337,10 +343,12 @@ WHERE blocker_id = '$blockerId'
         await hasBlockRow(blockerId: aliceId, blockedId: xId, originId: bobId),
         isFalse,
       );
-      final rows = await db.customSelect(
-        "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId' "
-        "AND blocked_id = '$xId'",
-      ).get();
+      final rows = await db
+          .customSelect(
+            "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId' "
+            "AND blocked_id = '$xId'",
+          )
+          .get();
       expect(rows, isEmpty);
     },
     skip: skipReason,
@@ -384,10 +392,12 @@ WHERE blocker_id = '$blockerId'
         newUserAt: tZ,
       );
 
-      final rows = await db.customSelect(
-        "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId' "
-        "AND blocked_id = '$zId'",
-      ).get();
+      final rows = await db
+          .customSelect(
+            "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId' "
+            "AND blocked_id = '$zId'",
+          )
+          .get();
       expect(rows, isEmpty);
     },
     skip: skipReason,
@@ -451,9 +461,11 @@ INSERT INTO public.invite_genealogy (
 ''',
       );
 
-      final rows = await db.customSelect(
-        "SELECT 1 FROM public.invite_genealogy WHERE descendant_node_key = '$ghostKey'",
-      ).get();
+      final rows = await db
+          .customSelect(
+            "SELECT 1 FROM public.invite_genealogy WHERE descendant_node_key = '$ghostKey'",
+          )
+          .get();
       expect(rows, hasLength(1));
 
       await db.customStatement(
@@ -464,26 +476,20 @@ INSERT INTO public.invite_genealogy (
   );
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_USER_BLOCK_INHERIT_TEST_DB',
+  defaultNamePrefix: 'tentura_test_user_block_inherit',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasUserBlockSchema(TenturaDb db) async {
   final row = await db.customSelect(

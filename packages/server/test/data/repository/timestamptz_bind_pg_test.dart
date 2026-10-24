@@ -14,13 +14,20 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Regression: Drift plain [DateTime] binds as bigint against `timestamptz`.
 ///
 /// Covers the bind styles used in Tentura custom SQL:
 /// - `Variable(TypedValue(Type.timestampTz, ...))` (beacon countRecent)
 /// - ISO-8601 string + `$N::timestamptz` (active mutes)
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -140,36 +147,29 @@ ON CONFLICT (account_id, beacon_id) DO UPDATE
   );
 }
 
-Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_TIMESTAMPTZ_BIND_TEST_DB',
+  defaultNamePrefix: 'tentura_test_timestamptz_bind',
+);
 
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').get();
-    await db.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
+Env _testEnv() => Env(
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 Future<bool> _hasMuteTable(TenturaDb db) async {
-  final row = await db
-      .customSelect(
-        r'''
+  final row = await db.customSelect(
+    r'''
 SELECT EXISTS (
   SELECT 1 FROM information_schema.tables
   WHERE table_schema = 'public' AND table_name = 'notification_beacon_mute'
 ) AS ok
 ''',
-      )
-      .getSingle();
+  ).getSingle();
   return row.read<bool>('ok');
 }

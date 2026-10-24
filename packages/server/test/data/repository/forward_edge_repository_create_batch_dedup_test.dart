@@ -18,10 +18,14 @@ import 'package:tentura_server/env.dart';
 import '../../support/pg_test_public_keys.dart';
 
 import '../../support/disposable_pg_target.dart';
-
 /// Postgres integration — skipped when DB or m0100 dedup index is unavailable.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -154,7 +158,10 @@ WHERE beacon_id = 'Bfwdedup01'
           availabilitySkippedRecipientIds: [],
         ),
       );
-      expect(await countActiveEdges(senderId: sender1, recipientId: recipient), 1);
+      expect(
+        await countActiveEdges(senderId: sender1, recipientId: recipient),
+        1,
+      );
 
       final unchangedEdge = await repo.findActiveEdge(
         beaconId: beaconId,
@@ -174,16 +181,19 @@ WHERE beacon_id = 'Bfwdedup01'
       );
       expect(thirdPartyInserted.createdEdges.length, 1);
       expect(thirdPartyInserted.createdEdges.single.recipientId, recipient);
-      expect(await countActiveEdges(senderId: sender2, recipientId: recipient), 1);
+      expect(
+        await countActiveEdges(senderId: sender2, recipientId: recipient),
+        1,
+      );
     },
     skip: skipReason,
   );
 
   group('createBatch — disposable Postgres', () {
     final target = DisposablePgTarget.fromNamedEnvironment(
-    envVarName: 'TENTURA_FORWARD_EDGE_DEDUP_TEST_DB',
-    defaultNamePrefix: 'tentura_test_fwdedup',
-  );
+      envVarName: 'TENTURA_FORWARD_EDGE_DEDUP_TEST_DB',
+      defaultNamePrefix: 'tentura_test_fwdedup',
+    );
     final disposableSkip = postgresReachable
         ? false
         : 'Postgres admin database not reachable for disposable test target';
@@ -372,14 +382,20 @@ WHERE beacon_id = 'Bfwdedup02'
   });
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_FORWARD_EDGE_REPOSITORY_CREATE_BATCH_DEDUP_TEST_DB',
+  defaultNamePrefix: 'tentura_test_forward_edge_repository_',
+);
+
 Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 Future<bool> _hasActiveEdgeDedupIndex(TenturaDb db) async {
   final rows = await db.customSelect(
@@ -417,15 +433,3 @@ LIMIT 1
   ).get();
   return rows.isNotEmpty;
 }
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-

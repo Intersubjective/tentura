@@ -1,6 +1,8 @@
 @Tags(['pg'])
 library;
 
+import 'dart:io';
+
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
@@ -10,18 +12,15 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/beacon_room_co_participant_lookup.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Admitted beacon-room co-participant lookup — skipped when Postgres unavailable.
 Future<void> main() async {
-  var skipReason = false;
-  TenturaDb? probe;
-
-  try {
-    probe = TenturaDb(_testEnv());
-    await probe.customStatement('SELECT 1');
-  } on Object {
-    skipReason = true;
-  } finally {
-    await probe?.close();
+  final skipReason = !await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (!skipReason) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
   }
 
   late TenturaDb db;
@@ -123,4 +122,17 @@ ON CONFLICT (id) DO NOTHING
   );
 }
 
-Env _testEnv() => Env(environment: Environment.test);
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_ROOM_CO_PARTICIPANT_LOOKUP_TEST_DB',
+  defaultNamePrefix: 'tentura_test_room_co_part',
+);
+
+Env _testEnv() => Env(
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);

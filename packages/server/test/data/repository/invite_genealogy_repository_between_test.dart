@@ -13,6 +13,8 @@ import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Forest fixture (descendant created_at must exceed ancestor's — CHECK):
 ///
 ///            R (root, 2026-01-01)
@@ -26,7 +28,12 @@ import 'package:tentura_server/env.dart';
 ///   Separate tree:  R2 (2026-01-01) -> T2 (2026-02-01)
 ///   Lone user X with no genealogy edges at all.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -158,7 +165,13 @@ ON CONFLICT (descendant_node_key) DO NOTHING
     expect(graph.commonAncestorNodeKey, keyOf(ancId));
     expect(
       graph.nodes.map((n) => n.nodeKey).toSet(),
-      {keyOf(viewId), keyOf(ancId), keyOf(rootId), keyOf(midId), keyOf(targetId)},
+      {
+        keyOf(viewId),
+        keyOf(ancId),
+        keyOf(rootId),
+        keyOf(midId),
+        keyOf(targetId),
+      },
     );
     // Full Y to the root: V<-A, B<-A, T<-B, A<-R.
     expect(graph.edges, hasLength(4));
@@ -178,19 +191,28 @@ ON CONFLICT (descendant_node_key) DO NOTHING
     );
   }, skip: skipReason);
 
-  test('disconnected users return both chains with no common ancestor',
-      () async {
-    if (skipReason != false) return;
-    final graph = await repo.fetchLineageBetween(
-      viewerId: viewId,
-      targetId: target2Id,
-    );
-    expect(graph.commonAncestorNodeKey, isNull);
-    expect(
-      graph.nodes.map((n) => n.nodeKey).toSet(),
-      {keyOf(viewId), keyOf(ancId), keyOf(rootId), keyOf(target2Id), keyOf(root2Id)},
-    );
-  }, skip: skipReason);
+  test(
+    'disconnected users return both chains with no common ancestor',
+    () async {
+      if (skipReason != false) return;
+      final graph = await repo.fetchLineageBetween(
+        viewerId: viewId,
+        targetId: target2Id,
+      );
+      expect(graph.commonAncestorNodeKey, isNull);
+      expect(
+        graph.nodes.map((n) => n.nodeKey).toSet(),
+        {
+          keyOf(viewId),
+          keyOf(ancId),
+          keyOf(rootId),
+          keyOf(target2Id),
+          keyOf(root2Id),
+        },
+      );
+    },
+    skip: skipReason,
+  );
 
   test('seed user with no edges still appears as its own node', () async {
     if (skipReason != false) return;
@@ -205,26 +227,20 @@ ON CONFLICT (descendant_node_key) DO NOTHING
   }, skip: skipReason);
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_INVITE_GENEALOGY_REPOSITORY_BETWEEN_TEST_DB',
+  defaultNamePrefix: 'tentura_test_invite_genealogy_reposit',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasInviteGenealogyTable(TenturaDb db) async {
   final rows = await db.customSelect(
