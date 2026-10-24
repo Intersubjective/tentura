@@ -4,6 +4,7 @@ are exactly the full selection, with no file on two shards. Runs in the lints
 shard, against the repository's real test trees and durations file."""
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -14,12 +15,13 @@ from ci_select_tests import DURATIONS, pack, select
 
 REPO = Path(__file__).resolve().parent.parent
 SELECT = REPO / "scripts" / "ci_select_tests.py"
+BUNDLES = REPO / "scripts" / "gen_test_bundles.py"
 PIPELINE = REPO / ".github" / "workflows" / "pipeline.yml"
 
 
-def run_select(cwd: Path, *args: str) -> list[str]:
+def run_select(cwd: Path, *args: str, script: Path = SELECT) -> list[str]:
     out = subprocess.run(
-        [sys.executable, str(SELECT), *args],
+        [sys.executable, str(script), *args],
         cwd=cwd,
         check=True,
         capture_output=True,
@@ -109,6 +111,9 @@ class SyntheticShardsTest(unittest.TestCase):
                         "test/gone_test.dart": 500,
                     },
                     "multi-connection": {"test/b/multi_test.dart": 90},
+                    # The pg run fills two slots, the multi-connection run one:
+                    # its 90 s of wall time book 180 slot-seconds.
+                    "_parallelism": {"pg": 2, "multi-connection": 1},
                 }
             )
         )
@@ -134,19 +139,43 @@ class SyntheticShardsTest(unittest.TestCase):
     def test_heaviest_file_gets_a_shard_to_itself(self):
         self.assertEqual(self.shard(1, 2), ["test/heavy_test.dart"])
         # The unknown new file weighs the median (30); the stale entry for a
-        # deleted file only shifts that median.
+        # deleted file only shifts that median. Longest first.
         self.assertEqual(
             self.shard(2, 2),
-            ["test/a/one_test.dart", "test/a/two_test.dart",
-             "test/b/multi_test.dart", "test/b/new_test.dart"],
+            ["test/b/multi_test.dart", "test/b/new_test.dart",
+             "test/a/two_test.dart", "test/a/one_test.dart"],
         )
 
     def test_reserved_time_lands_on_the_last_shard(self):
-        # 90 s booked on shard 2 first: heavy (100) goes to shard 1, multi
-        # (30) to shard 2, new (30) to shard 1, two to 2, one to 1.
+        # 180 slot-seconds booked on shard 2 first: everything else fits on
+        # shard 1 (100 + 30 + 30 + 20 = 180), then one goes to shard 1 on the
+        # tie (lowest index).
         shards = [self.shard(i, 2, "--reserve-last", "multi-connection") for i in (1, 2)]
         assert_partition(self, run_select(self.pkg, "test", "--tag", "pg"), shards)
-        self.assertEqual(shards[1], ["test/a/two_test.dart", "test/b/multi_test.dart"])
+        self.assertEqual(shards[1], [])
+        self.assertEqual(len(shards[0]), 5)
+
+    def test_bundles_hold_each_file_once_and_print_longest_first(self):
+        listed = run_select(
+            self.pkg, ".", "--chunks", "2", "--balance", "pg",
+            "--durations", str(self.durations),
+            "test/heavy_test.dart", "test/a", "test/b", "test/untagged_test.dart",
+            script=BUNDLES,
+        )
+        bundled = []
+        for entry in listed:
+            if "_bundle" in entry:
+                source = (self.pkg / entry).read_text()
+                bundled += re.findall(r"group\('([^']+)'", source)
+        standalone = [e for e in listed if "_bundle" not in e]
+        everything = sorted(bundled + standalone)
+        self.assertEqual(
+            everything,
+            ["test/a/one_test.dart", "test/a/two_test.dart", "test/b/multi_test.dart",
+             "test/b/new_test.dart", "test/heavy_test.dart", "test/untagged_test.dart"],
+        )
+        # pg-tagged files run standalone; the heaviest is printed first.
+        self.assertEqual(listed[0], "test/heavy_test.dart")
 
     def test_pack_is_longest_first_onto_the_lightest(self):
         shards, loads = pack({"a": 5, "b": 4, "c": 3, "d": 3}, 2)

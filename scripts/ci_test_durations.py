@@ -13,9 +13,9 @@ Refresh the committed durations file from a green run that ran everything
 
   scripts/ci_test_durations.py update --run <run-id> [--run <run-id> ...]
 
-That downloads the run's report artifacts with `gh run download` (latest
-attempt) and rewrites scripts/ci_test_durations.json. Several runs are
-averaged per file. `update <dir>...` reads already-downloaded reports instead.
+That downloads the run's report artifacts with `gh run download` (each
+job's latest attempt) and rewrites scripts/ci_test_durations.json. Several
+runs are averaged per file. `update <dir>...` reads already-downloaded reports instead.
 
 A stale file only costs balance, never correctness: shards are packed from
 the files that exist now (new files weigh the family's median, deleted files'
@@ -29,14 +29,15 @@ prints how many tests each family ran (passed / skipped / failed, as the
 `dart test` summary counts them), to check that a change to the shard layout
 lost no tests; `--per-file` lists the count per test file, for a diff.
 
-How a file's duration is measured: the report gives every test's start and
-end. A standalone suite's duration is the sum of its tests', its loading
-(compile) included; inside a bundle (scripts/gen_test_bundles.py) each test
-belongs to the file named by its outermost group, and the bundle's own
-loading is per-shard overhead, booked to no file. Runs at different
-concurrency are made comparable by scaling each report so that the time it
-booked, overhead included, sums to its wall time: a duration is then the
-wall-clock seconds the file adds to its shard.
+How a file's duration is measured, in slot-seconds (how long it occupies
+one of the runner's concurrent test slots): the report gives every test's
+start and end. A standalone suite's duration is the sum of its tests', its
+loading (compile) included; inside a bundle (scripts/gen_test_bundles.py)
+each test belongs to the file named by its outermost group, and the bundle's
+own loading is overhead booked to no file. `_parallelism` records, per
+family, the slot-seconds its runs booked (overhead included) per second of
+wall time: ~2 for `dart test` / `flutter test` at their default concurrency
+on a 4-vCPU runner, 1 for the `-j 1` run.
 """
 
 from __future__ import annotations
@@ -122,11 +123,10 @@ class Report:
                     else:
                         counts["failed"] += 1
 
-    def scaled(self) -> dict[str, float]:
-        """Seconds per file, scaled so the run's booked time is its wall."""
-        booked = sum(self.seconds.values()) + self.overhead
-        scale = self.wall / booked if booked > 0 else 0.0
-        return {path: seconds * scale for path, seconds in self.seconds.items()}
+    @property
+    def booked(self) -> float:
+        """Slot-seconds the run spent, bundle loading included."""
+        return sum(self.seconds.values()) + self.overhead
 
 
 def reports_in(sources: list[str], runs: list[str], workdir: Path) -> list[Report]:
@@ -137,15 +137,18 @@ def reports_in(sources: list[str], runs: list[str], workdir: Path) -> list[Repor
             ["gh", "run", "download", run, "--pattern", "test-reports-*", "--dir", str(target)],
             check=True,
         )
-        # Only the run's latest attempt: a rerun uploads under a new name.
-        attempts: dict[int, list[Path]] = defaultdict(list)
+        # Each job's latest attempt: a rerun uploads under a new name, and
+        # "re-run failed jobs" leaves the other jobs' first reports current.
+        latest: dict[str, tuple[int, Path]] = {}
         for artifact in target.iterdir():
-            match = re.match(r"test-reports-a(\d+)-", artifact.name)
+            match = re.fullmatch(r"test-reports-a(\d+)-(.+)", artifact.name)
             if match and artifact.is_dir():
-                attempts[int(match.group(1))].append(artifact)
-        if not attempts:
+                attempt, job = int(match.group(1)), match.group(2)
+                if job not in latest or attempt > latest[job][0]:
+                    latest[job] = (attempt, artifact)
+        if not latest:
             raise SystemExit(f"run {run}: no test-reports-a<attempt>-* artifacts")
-        dirs += attempts[max(attempts)]
+        dirs += [artifact for _, artifact in latest.values()]
     reports = [Report(p) for d in dirs for p in sorted(d.rglob("*--*.json"))]
     unknown = sorted({r.family for r in reports} - FAMILIES.keys())
     if unknown:
@@ -162,11 +165,15 @@ def selection(family: str) -> list[str]:
     return sorted(package_key(f) for f in files)
 
 
-def update(reports: list[Report], out: Path, runs: list[str]) -> None:
+def update(reports: list[Report], out: Path, sources: list[str]) -> None:
     samples: dict[str, dict[str, list[float]]] = {f: defaultdict(list) for f in FAMILIES}
+    booked: dict[str, float] = defaultdict(float)
+    wall: dict[str, float] = defaultdict(float)
     for report in reports:
-        for path, seconds in report.scaled().items():
+        for path, seconds in report.seconds.items():
             samples[report.family][path].append(seconds)
+        booked[report.family] += report.booked
+        wall[report.family] += report.wall
     for family in FAMILIES:
         # A selected file the run never loaded (every test in it excluded by
         # tag, e.g. file-level `mr` in the pg run) costs nothing: record 0
@@ -182,10 +189,13 @@ def update(reports: list[Report], out: Path, runs: list[str]) -> None:
         for f in selected:
             samples[family].setdefault(f, [0.0])
     data: dict[str, object] = {
-        "_about": "Per-file CI test durations (wall seconds) for "
+        "_about": "Per-file CI test durations (slot-seconds) for "
         "scripts/ci_select_tests.py --balance. Regenerate with "
         "scripts/ci_test_durations.py update --run <run-id>; see its docstring.",
-        "_runs": runs,
+        "_sources": sources,
+        "_parallelism": {
+            family: round(booked[family] / wall[family], 2) for family in FAMILIES
+        },
     }
     for family in FAMILIES:
         data[family] = {
@@ -195,7 +205,12 @@ def update(reports: list[Report], out: Path, runs: list[str]) -> None:
     out.write_text(json.dumps(data, indent=1, sort_keys=False) + "\n", encoding="utf-8")
     for family in FAMILIES:
         table = data[family]
-        print(f"{family}: {len(table)} files, {sum(table.values()):.0f} s", file=sys.stderr)
+        par = data["_parallelism"][family]
+        print(
+            f"{family}: {len(table)} files, {sum(table.values()):.0f} slot-s, "
+            f"parallelism {par}",
+            file=sys.stderr,
+        )
 
 
 def counts(reports: list[Report], per_file: bool) -> None:
@@ -231,7 +246,7 @@ def main(argv: list[str]) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         reports = reports_in(args.dirs, args.run, Path(tmp))
         if args.command == "update":
-            update(reports, args.out, args.run)
+            update(reports, args.out, args.run or [Path(d).name for d in args.dirs])
         else:
             counts(reports, args.per_file)
     return 0

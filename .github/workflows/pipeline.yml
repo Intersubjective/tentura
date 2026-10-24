@@ -496,8 +496,11 @@ jobs:
                   if [ "$CLIENT_MODE" = full ]; then
                     shard_files=$(python3 ../../scripts/ci_select_tests.py test --shard "$SHARD" --balance client)
                     # Bundles: one compile + one flutter_tester per chunk of
-                    # files instead of per file (scripts/gen_test_bundles.py).
-                    entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 $shard_files)
+                    # files instead of per file (scripts/gen_test_bundles.py),
+                    # dealt by duration and started longest first. Two
+                    # chunks: flutter test runs two suites at a time here, and
+                    # each bundle costs ~20 s of compile.
+                    entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 2 --balance client $shard_files)
                     flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
                       --file-reporter "json:$reports/client--$SHARD_NAME.json" $entrypoints
                   else

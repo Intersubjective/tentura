@@ -17,16 +17,22 @@ Usage: scripts/ci_select_tests.py <test-dir> [--tag TAG] [--shard I/N]
   Prints matching `*_test.dart` paths (relative to the current directory),
   sorted; with --shard, every N-th of them starting at the I-th (1-based).
 
-  --balance FAMILY packs the N shards by measured duration instead: the
-  durations of FAMILY in scripts/ci_test_durations.json (--durations to read
-  another file; keys are paths relative to the package, `test/...`), longest
+  --balance FAMILY packs the N shards by measured duration instead, from
+  FAMILY's entries in scripts/ci_test_durations.json (--durations to read
+  another file; keys are paths relative to the package, `test/...`): longest
   first, each file onto the shard with the least time so far. A file without
   an entry weighs the family's median, so a new test file still lands on
   exactly one shard; a stale file only costs balance (refresh it with
-  scripts/ci_test_durations.py). --reserve-last TAG books the time of TAG's
-  files, from TAG's own durations, on the last shard before packing: CI runs
-  that selection there too (the `-j 1` multi-connection run on the last pg
-  shard). A summary of the packing goes to stderr.
+  scripts/ci_test_durations.py). The shard's files are printed longest
+  first, so `dart test` starts the long suites first instead of ending on
+  one. --reserve-last TAG books TAG's run on the last shard before packing:
+  CI runs that selection there too (the `-j 1` multi-connection run on the
+  last pg shard). A summary of the packing goes to stderr.
+
+  Durations are slot-seconds: how long a file occupies one of the runner's
+  concurrent test slots (its loading included). A run's wall time is about
+  its slot-seconds over the family's measured parallelism (the `_parallelism`
+  entry), which is also how a reserved run at another concurrency is booked.
 """
 
 from __future__ import annotations
@@ -79,7 +85,8 @@ def weights(files: list[str], table: dict[str, float]) -> dict[str, float]:
 
 def pack(weight: dict[str, float], count: int, preload_last: float = 0.0):
     """Longest-processing-time packing: heaviest first, onto the lightest
-    shard (lowest index on ties). Deterministic for a given input."""
+    shard (lowest index on ties). Deterministic for a given input. Each
+    shard lists its items heaviest first."""
     loads = [0.0] * count
     loads[-1] += preload_last
     shards: list[list[str]] = [[] for _ in range(count)]
@@ -87,15 +94,25 @@ def pack(weight: dict[str, float], count: int, preload_last: float = 0.0):
         i = min(range(count), key=lambda i: (loads[i], i))
         shards[i].append(f)
         loads[i] += weight[f]
-    return [sorted(s) for s in shards], loads
+    return shards, loads
 
 
-def load_durations(path: Path, family: str) -> dict[str, float]:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    table = data.get(family)
-    if not isinstance(table, dict):
-        raise SystemExit(f"ci_select_tests: no '{family}' durations in {path}")
-    return table
+class Durations:
+    """scripts/ci_test_durations.json: slot-seconds per file per family."""
+
+    def __init__(self, path: Path = DURATIONS) -> None:
+        self.path = path
+        self.data = json.loads(path.read_text(encoding="utf-8"))
+
+    def table(self, family: str) -> dict[str, float]:
+        table = self.data.get(family)
+        if not isinstance(table, dict):
+            raise SystemExit(f"ci_select_tests: no '{family}' durations in {self.path}")
+        return table
+
+    def parallelism(self, family: str) -> float:
+        """Slot-seconds per wall second in the family's CI runs."""
+        return float(self.data.get("_parallelism", {}).get(family, 1.0))
 
 
 def main(argv: list[str]) -> int:
@@ -119,18 +136,22 @@ def main(argv: list[str]) -> int:
         print("\n".join(files[index - 1 :: count]))
         return 0
 
-    weight = weights(files, load_durations(args.durations, args.balance))
+    durations = Durations(args.durations)
+    weight = weights(files, durations.table(args.balance))
+    parallel = durations.parallelism(args.balance)
     reserved = 0.0
     if args.reserve_last and count > 1:
+        # The reserved run's wall time, as slot-seconds of this family.
         extra = select(args.test_dir, args.reserve_last)
-        table = load_durations(args.durations, args.reserve_last)
-        reserved = sum(weights(extra, table).values())
+        busy = sum(weights(extra, durations.table(args.reserve_last)).values())
+        reserved = busy / durations.parallelism(args.reserve_last) * parallel
     shards, loads = pack(weight, count, reserved)
     print(
         f"ci_select_tests: shard {index}/{count}: {len(shards[index - 1])} of "
-        f"{len(files)} files, ~{loads[index - 1]:.0f} s by {args.durations.name} "
-        f"(all shards: {', '.join(f'{load:.0f}' for load in loads)} s"
-        + (f"; {reserved:.0f} s reserved on the last for {args.reserve_last}" if reserved else "")
+        f"{len(files)} files, ~{loads[index - 1] / parallel:.0f} s by "
+        f"{args.durations.name} (all shards: "
+        f"{', '.join(f'{load / parallel:.0f}' for load in loads)} s"
+        + (f"; {reserved / parallel:.0f} s of {args.reserve_last} on the last" if reserved else "")
         + ")",
         file=sys.stderr,
     )
