@@ -6,9 +6,9 @@ import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_empty_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-// Issue #430: the Authored / Help offered / Drafts / Archived empty states
-// were a bare title. Each must explain what lands there (one sentence of
-// its own) and offer a next step (Create request / Go to Field).
+// Issue #430: the Authored / Help offered / Drafts / Archived / All empty
+// states were a bare title. Each must explain what lands there (one sentence
+// of its own) and offer a next step (Create request / Go to Field).
 
 class _Taps {
   int create = 0;
@@ -53,6 +53,7 @@ String _title(L10n l10n, MyWorkFilter filter) => switch (filter) {
   MyWorkFilter.helpOffered => l10n.myWorkEmptyHelpOffered,
   MyWorkFilter.drafts => l10n.myWorkEmptyDrafts,
   MyWorkFilter.archived => l10n.myWorkEmptyArchived,
+  MyWorkFilter.all => l10n.myWorkEmptyAll,
   _ => throw ArgumentError(filter),
 };
 
@@ -61,6 +62,7 @@ String _body(L10n l10n, MyWorkFilter filter) => switch (filter) {
   MyWorkFilter.helpOffered => l10n.myWorkEmptyHelpOfferedBody,
   MyWorkFilter.drafts => l10n.myWorkEmptyDraftsBody,
   MyWorkFilter.archived => l10n.myWorkEmptyArchivedBody,
+  MyWorkFilter.all => l10n.myWorkEmptyAllBody,
   _ => throw ArgumentError(filter),
 };
 
@@ -69,6 +71,7 @@ const _filters = [
   MyWorkFilter.helpOffered,
   MyWorkFilter.drafts,
   MyWorkFilter.archived,
+  MyWorkFilter.all,
 ];
 
 void _expectExplained(L10n l10n, MyWorkFilter filter) {
@@ -140,6 +143,22 @@ void main() {
 
     await tester.tap(create.evaluate().isNotEmpty ? create : field);
     expect(taps.create + taps.field, 1);
+    expect(taps.inbox, 0);
+  });
+
+  testWidgets('all empty explains itself and offers Go to Field (#430)', (
+    tester,
+  ) async {
+    final taps = _Taps();
+    final l10n = await _pump(tester, MyWorkFilter.all, taps);
+
+    _expectExplained(l10n, MyWorkFilter.all);
+    expect(find.text(l10n.myWorkEmptyGoToFieldCta), findsOneWidget);
+    expect(find.text(l10n.myWorkEmptyActiveCreateCta), findsNothing);
+
+    await tester.tap(find.text(l10n.myWorkEmptyGoToFieldCta));
+    expect(taps.field, 1);
+    expect(taps.create, 0);
     expect(taps.inbox, 0);
   });
 
