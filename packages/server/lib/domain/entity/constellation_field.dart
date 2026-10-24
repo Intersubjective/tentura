@@ -122,6 +122,9 @@ class ConstellationPeerRecord {
     this.presence = ConstellationPeerPresence.visible,
     this.temporaryBeaconId,
     this.bondContexts = const [],
+    this.ownTagIds = const [],
+    this.autoTagKinds = const [],
+    this.firstSeenAt,
   });
 
   /// Placeholder for a pinned person whose account was deleted.
@@ -134,7 +137,10 @@ class ConstellationPeerRecord {
       contactOnly = false,
       presence = ConstellationPeerPresence.pinnedOnly,
       temporaryBeaconId = null,
-      bondContexts = const [];
+      bondContexts = const [],
+      ownTagIds = const [],
+      autoTagKinds = const [],
+      firstSeenAt = null;
 
   final String id;
   final String? displayName;
@@ -163,6 +169,38 @@ class ConstellationPeerRecord {
 
   /// Requests shared with the viewer, for a bond peer.
   final List<ConstellationBondContext> bondContexts;
+
+  /// Ids of the viewer's own people tags on this person (never another
+  /// owner's).
+  final List<String> ownTagIds;
+
+  /// Kinds of the automatic people tags the viewer has for this person.
+  final List<int> autoTagKinds;
+
+  /// When the viewer first saw this person on the Field; null for people
+  /// seen before first-seen tracking began, or not recorded yet.
+  final DateTime? firstSeenAt;
+
+  /// This record carrying the viewer's people tags and first-seen marker.
+  ConstellationPeerRecord withPeopleTags({
+    required List<String> ownTagIds,
+    required List<int> autoTagKinds,
+    required DateTime? firstSeenAt,
+  }) => ConstellationPeerRecord(
+    id: id,
+    displayName: displayName,
+    handle: handle,
+    image: image,
+    pinState: pinState,
+    visible: visible,
+    contactOnly: contactOnly,
+    presence: presence,
+    temporaryBeaconId: temporaryBeaconId,
+    bondContexts: bondContexts,
+    ownTagIds: ownTagIds,
+    autoTagKinds: autoTagKinds,
+    firstSeenAt: firstSeenAt,
+  );
 
   /// This record with its field presence set.
   ConstellationPeerRecord withPresence(

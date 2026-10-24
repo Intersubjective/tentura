@@ -284,10 +284,10 @@ ON CONFLICT (id) DO NOTHING
     }
   });
 
-  group('direct contacts are not capped', () {
-    test('more than the peer cap of mutual and one-way contacts are all '
-        'present and the snapshot is not capped', () async {
-      const mutualCount = kConstellationPeerCap + 30;
+  group('contact nodes are not capped', () {
+    test('mutual contacts within the peer cap plus one-way contacts beyond it '
+        'are all present and the snapshot is not capped', () async {
+      const mutualCount = kConstellationPeerCap - 30;
       const oneWayCount = 130;
       final mutual = [
         for (var i = 0; i < mutualCount; i++)

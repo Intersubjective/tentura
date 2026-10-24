@@ -21,11 +21,12 @@ import '../../support/constellation_anchor_batch_fixture.dart';
 import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
-/// A FULL read asks `constellation_trust_edges` only for the graph's nodes
-/// (the capped graph peers and the viewer), not for every visible peer, unless
-/// the anchor projection already loaded the full set for its support closure;
-/// then it reuses that set. Either way the edges are the full set's edges
-/// among the graph's nodes.
+/// A FULL read asks `constellation_trust_edges` once. Without anchors, an
+/// over-cap read needs the visible-set edges to order peers by BFS depth
+/// (people-tags plan A7b/P8) and reuses that one set for drawing; with a
+/// pinned person the anchor projection loads the same full set and the FULL
+/// reuses it. Either way the edges are the full set's edges among the graph's
+/// nodes.
 ///
 /// Visibility is stubbed (`person_visible_peers_symmetric` returns a fixed
 /// list) so the viewer can see more peers than [kConstellationPeerCap].
@@ -155,16 +156,17 @@ $$
   tearDownAll(() => tearDownDisposablePgWriter(session: session, drift: db));
 
   test(
-    'without anchors a FULL asks for trust edges among the graph nodes only',
+    'without anchors an over-cap FULL asks for the visible-set edges once and '
+    'draws the graph nodes from it',
     () async {
       final snapshot = await readFull();
 
-      // The viewer trusts the first peer directly: it rides on top of the
-      // cap (#246 Q6), which then takes the next peers in id order.
+      // The viewer trusts the first peer directly: it ranks inside the cap
+      // (own-tagged > direct contacts > ...), the rest fill in priority order.
       expect(snapshot.peersCapped, isTrue);
       expect(snapshot.directContactIds, [peers.first]);
-      expect(snapshot.peers, hasLength(kConstellationPeerCap + 1));
-      expect(recorder.nodeCounts, [kConstellationPeerCap + 2]);
+      expect(snapshot.peers, hasLength(kConstellationPeerCap));
+      expect(recorder.nodeCounts, [visibleCount + 1]);
       expect(edgeSet(snapshot.edges), await expectedEdges(snapshot));
       expect(snapshot.edges, isNotEmpty);
     },

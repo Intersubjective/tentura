@@ -348,12 +348,12 @@ WHERE id = 'Bstartat001'
     }, skip: skipReason);
 
     // Without MeritRank every visible peer here is a mutual direct contact,
-    // so the cap never applies (#246 Q6); the indirect-peer cap is covered by
+    // so the cap is not reached here; the peer cap is covered by
     // constellation_field_direct_contacts_mr_pg_test.dart.
-    test('direct contacts beyond the graph cap are all present, edges inside '
+    test('direct contacts up to the graph cap are all present, edges inside '
         'the field, authors in peers', () async {
       final graphPeerIds = [
-        for (var i = 0; i < kConstellationPeerCap + 1; i++)
+        for (var i = 0; i < kConstellationPeerCap; i++)
           'Ucfpeer${i.toString().padLeft(3, '0')}',
       ];
       for (final id in graphPeerIds) {
@@ -372,7 +372,7 @@ WHERE id = 'Bstartat001'
       final edgeAllowed = graphSet.union({egoId});
       expect(snapshot.peers.map((p) => p.id).toSet(), graphSet);
       expect(snapshot.directContactIds, graphPeerIds);
-      expect(snapshot.peers.length, kConstellationPeerCap + 1);
+      expect(snapshot.peers.length, kConstellationPeerCap);
       for (final edge in snapshot.edges) {
         expect(edgeAllowed, contains(edge.src));
         expect(edgeAllowed, contains(edge.dst));

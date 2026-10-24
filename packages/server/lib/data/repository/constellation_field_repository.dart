@@ -116,18 +116,41 @@ final class ConstellationFieldRepository
           ],
         )
         .get();
-    return _database.withReadSnapshot(() async {
+    final reader = ConstellationFieldSnapshotReader(
+      _database,
+      _profiles,
+      snapshotOpenProbe: _snapshotOpenProbe,
+    );
+    final snapshot = await _database.withReadSnapshot(() async {
       await _database.freezeVisibilityMemo();
-      return ConstellationFieldSnapshotReader(
-        _database,
-        _profiles,
-        snapshotOpenProbe: _snapshotOpenProbe,
-      ).read(
+      return reader.read(
         viewerId: viewerId,
         context: context,
         params: params,
       );
     });
+    // Only a read that met new people writes, in one short transaction of its own
+    // after the snapshot: the first rows ever recorded for a viewer go in at
+    // -infinity so nobody is New right after deploy.
+    if (reader.unseenPeerIds.isNotEmpty) {
+      await _database.withMutatingSystem(
+        () => _database.customUpdate(
+          r'''
+INSERT INTO public.person_field_first_seen (viewer_id, peer_id, first_seen_at)
+SELECT $1, p, CASE WHEN $3::boolean THEN '-infinity'::timestamptz
+                     ELSE now() END
+FROM unnest($2::text[]) AS p
+ON CONFLICT DO NOTHING
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, reader.unseenPeerIds)),
+            Variable.withBool(reader.firstSeenBackfill),
+          ],
+        ),
+      );
+    }
+    return snapshot;
   }
 
   @override

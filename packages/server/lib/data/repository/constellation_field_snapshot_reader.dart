@@ -111,12 +111,21 @@ final class ConstellationFieldSnapshotReader {
           id,
     };
 
-    final indirectPeers = _visibleGraphPeerIds(
+    final kept = await _cappedPeerIds(
+      viewerId: viewerId,
+      context: context,
       visiblePeerIds: visiblePeerIds,
-      cap: kConstellationPeerCap,
-      excludePeerIds: {...reservedPeerIds, ...directVisibleIds},
+      reservedPeerIds: reservedPeerIds,
+      directContactIds: directContactIds.toSet(),
+      bondPeerIds: bondContexts.keys.toSet(),
+      temporaryPeerIds: temporaryBeacons.keys.toSet(),
     );
-    final graphPeerIds = {...directVisibleIds, ...indirectPeers.ids};
+    bondContexts.removeWhere((id, _) => !kept.ids.contains(id));
+    temporaryBeacons.removeWhere((id, _) => !kept.ids.contains(id));
+    final graphPeerIds = {
+      ...directVisibleIds.where(reservedPeerIds.contains),
+      ...kept.ids.where(visibleSet.contains),
+    };
 
     final ownRequests = await _ownRequests(
       viewerId: viewerId,
@@ -228,14 +237,15 @@ final class ConstellationFieldSnapshotReader {
           peer,
     ];
     final peerIds = {for (final peer in peers) peer.id};
+    final taggedPeers = await _withPeopleTags(viewerId, peers);
 
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
       context: context,
-      peers: peers,
+      peers: taggedPeers,
       edges: edges,
       requests: requests,
-      peersCapped: indirectPeers.capped,
+      peersCapped: kept.capped,
       requestsCapped: requestsCapped,
       posts: postFeed.posts,
       memberWebs: postFeed.memberWebs,
@@ -591,22 +601,180 @@ ORDER BY m.beacon_id, m.person_id
     );
   }
 
-  ({Set<String> ids, bool capped}) _visibleGraphPeerIds({
+  /// People the viewer has not been recorded as seeing yet, from the last
+  /// [read]; the caller records them after the snapshot closes.
+  List<String> unseenPeerIds = const [];
+
+  /// True when the viewer has no first-seen row at all (the backfill case).
+  bool firstSeenBackfill = false;
+
+  /// The peers kept under [kConstellationPeerCap], reserved ones aside:
+  /// own-tagged > direct contacts > bond / temporary > BFS depth over the
+  /// visible trust graph > id.
+  Future<({Set<String> ids, bool capped})> _cappedPeerIds({
+    required String viewerId,
+    required String context,
     required List<String> visiblePeerIds,
-    required int cap,
-    required Set<String> excludePeerIds,
-  }) {
-    if (cap <= 0) {
-      return (ids: const <String>{}, capped: false);
+    required Set<String> reservedPeerIds,
+    required Set<String> directContactIds,
+    required Set<String> bondPeerIds,
+    required Set<String> temporaryPeerIds,
+  }) async {
+    final candidates = {
+      for (final id in [
+        ...visiblePeerIds,
+        ...bondPeerIds,
+        ...temporaryPeerIds,
+      ])
+        if (!reservedPeerIds.contains(id)) id,
+    };
+    if (candidates.length <= kConstellationPeerCap) {
+      return (ids: candidates, capped: false);
     }
-    final candidates = [
-      for (final id in visiblePeerIds)
-        if (!excludePeerIds.contains(id)) id,
-    ];
-    return (
-      ids: candidates.take(cap).toSet(),
-      capped: candidates.length > cap,
+
+    final ownTagged = (await _ownTagIds(viewerId, candidates)).keys.toSet();
+    final edges = await _trustEdges(
+      viewerId: viewerId,
+      context: context,
+      visiblePeerIds: visiblePeerIds,
     );
+    final adjacency = <String, List<String>>{};
+    for (final edge in edges) {
+      (adjacency[edge.src] ??= []).add(edge.dst);
+      (adjacency[edge.dst] ??= []).add(edge.src);
+    }
+    final depth = <String, int>{viewerId: 0};
+    final queue = [viewerId];
+    for (var i = 0; i < queue.length; i++) {
+      for (final next in adjacency[queue[i]] ?? const <String>[]) {
+        if (!depth.containsKey(next)) {
+          depth[next] = depth[queue[i]]! + 1;
+          queue.add(next);
+        }
+      }
+    }
+    int tier(String id) => ownTagged.contains(id)
+        ? 0
+        : directContactIds.contains(id)
+        ? 1
+        : bondPeerIds.contains(id) || temporaryPeerIds.contains(id)
+        ? 2
+        : 3;
+    final ranked = candidates.toList()
+      ..sort((a, b) {
+        final byTier = tier(a).compareTo(tier(b));
+        if (byTier != 0) {
+          return byTier;
+        }
+        final byDepth = (depth[a] ?? 1 << 30).compareTo(depth[b] ?? 1 << 30);
+        return byDepth != 0 ? byDepth : a.compareTo(b);
+      });
+    return (ids: ranked.take(kConstellationPeerCap).toSet(), capped: true);
+  }
+
+  /// The viewer's own tag ids per person among [personIds].
+  Future<Map<String, List<String>>> _ownTagIds(
+    String viewerId,
+    Iterable<String> personIds,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT person_id, tag_id
+FROM public.person_tag_member
+WHERE owner_id = $1 AND person_id = ANY($2::text[])
+ORDER BY person_id, tag_id
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, personIds.toList())),
+          ],
+        )
+        .get();
+    final result = <String, List<String>>{};
+    for (final row in rows) {
+      (result[row.read<String>('person_id')] ??= []).add(
+        row.read<String>('tag_id'),
+      );
+    }
+    return result;
+  }
+
+  /// [peers] with the viewer's own tags, automatic tag kinds and first-seen
+  /// time; also notes who has no first-seen row yet.
+  Future<List<ConstellationPeerRecord>> _withPeopleTags(
+    String viewerId,
+    List<ConstellationPeerRecord> peers,
+  ) async {
+    final ids = [
+      for (final peer in peers)
+        if (peer.id != viewerId) peer.id,
+    ];
+    if (ids.isEmpty) {
+      return peers;
+    }
+    final own = await _ownTagIds(viewerId, ids);
+    final idsVariable = Variable(TypedValue(Type.textArray, ids));
+    final autoRows = await _database
+        .customSelect(
+          r'''
+SELECT peer_id, kind::int AS kind
+FROM public.person_auto_tags($1, $2::text[])
+ORDER BY peer_id, kind
+''',
+          variables: [Variable.withString(viewerId), idsVariable],
+        )
+        .get();
+    final auto = <String, Set<int>>{};
+    for (final row in autoRows) {
+      (auto[row.read<String>('peer_id')] ??= {}).add(row.read<int>('kind'));
+    }
+    final seenRows = await _database
+        .customSelect(
+          r'''
+SELECT peer_id,
+       CASE WHEN isfinite(first_seen_at) THEN first_seen_at END AS seen_at
+FROM public.person_field_first_seen
+WHERE viewer_id = $1 AND peer_id = ANY($2::text[])
+''',
+          variables: [Variable.withString(viewerId), idsVariable],
+        )
+        .get();
+    final seen = {
+      for (final row in seenRows)
+        row.read<String>('peer_id'): readCustomSelectTimestamptz(
+          row.data['seen_at'],
+        ),
+    };
+    unseenPeerIds = [
+      for (final id in ids)
+        if (!seen.containsKey(id)) id,
+    ];
+    if (unseenPeerIds.isNotEmpty) {
+      firstSeenBackfill =
+          !(await _database
+                  .customSelect(
+                    r'''
+SELECT EXISTS (
+  SELECT 1 FROM public.person_field_first_seen WHERE viewer_id = $1
+) AS present
+''',
+                    variables: [Variable.withString(viewerId)],
+                  )
+                  .getSingle())
+              .read<bool>('present');
+    }
+    return [
+      for (final peer in peers)
+        if (peer.id == viewerId)
+          peer
+        else
+          peer.withPeopleTags(
+            ownTagIds: own[peer.id] ?? const [],
+            autoTagKinds: (auto[peer.id] ?? const <int>{}).toList(),
+            firstSeenAt: seen[peer.id],
+          ),
+    ];
   }
 
   Future<List<ConstellationRequestRecord>> _ownRequests({

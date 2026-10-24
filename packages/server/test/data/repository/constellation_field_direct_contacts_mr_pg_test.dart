@@ -16,9 +16,9 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../../support/disposable_pg_target.dart';
 
-/// #246 Q6 with MeritRank: indirect peers (visible through MeritRank only,
-/// no explicit trust) keep the 200 cap, while every direct contact is on the
-/// field on top of it.
+/// #246 Q6 with MeritRank: the 400 peer cap ranks direct contacts ahead of
+/// indirect peers (visible through MeritRank only, no explicit trust), so
+/// every direct contact stays and indirect peers fill the rest.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_CONSTELLATION_DIRECT_CONTACTS_MR_TEST_DB',
@@ -112,9 +112,9 @@ FROM (
       expect(peerIds.containsAll(direct), isTrue);
       expect(
         peerIds.intersection(indirect.toSet()),
-        hasLength(kConstellationPeerCap),
+        hasLength(kConstellationPeerCap - directCount),
       );
-      expect(peerIds, hasLength(kConstellationPeerCap + directCount));
+      expect(peerIds, hasLength(kConstellationPeerCap));
       expect(snapshot.peers.where((p) => p.contactOnly), isEmpty);
     },
   );

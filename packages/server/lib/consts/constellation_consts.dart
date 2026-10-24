@@ -1,7 +1,7 @@
 export 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 
 /// Server-side transport guard rails for the constellation field (§5.2 / N2).
-const kConstellationPeerCap = 200;
+const kConstellationPeerCap = 400;
 const kConstellationRequestCap = 150;
 
 /// Candidates examined per readability batch of the discoverable keyset scan.
