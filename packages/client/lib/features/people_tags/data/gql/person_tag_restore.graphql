@@ -1,0 +1,11 @@
+mutation PersonTagRestore($snapshot: v2_PersonTagSnapshotInput!, $clientOpId: String!) {
+  personTagRestore(snapshot: $snapshot, clientOpId: $clientOpId) {
+    id
+    name
+    glyph
+    color
+    ord
+    count
+    countOffField
+  }
+}

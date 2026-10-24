@@ -1,0 +1,11 @@
+mutation PersonTagCreate($name: String!, $glyph: String, $color: Int, $clientOpId: String!) {
+  personTagCreate(name: $name, glyph: $glyph, color: $color, clientOpId: $clientOpId) {
+    id
+    name
+    glyph
+    color
+    ord
+    count
+    countOffField
+  }
+}

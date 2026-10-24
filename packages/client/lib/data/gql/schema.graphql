@@ -3873,6 +3873,13 @@ type mutation_root {
   closureSaveStory(beaconId: String!, body: String!, expectedEpoch: Int!): Boolean!
   closureSetMark(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): Boolean!
   closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!
+  personAutoTagPrefSet(kind: Int!, showInFilters: Boolean!): v2_PersonAutoTag!
+  personTagCreate(clientOpId: String!, color: Int, glyph: String, name: String!): v2_PersonTag!
+  personTagDelete(clientOpId: String!, id: String!): v2_PersonTagSnapshot!
+  personTagMembersApply(clientOpId: String!, ops: [v2_PersonTagMemberOpInput!]!): Boolean!
+  personTagRestore(clientOpId: String!, snapshot: v2_PersonTagSnapshotInput!): v2_PersonTag!
+  personTagSuggestionRecord(clientOpId: String!, outcome: String!): v2_PersonTagSuggestionState!
+  personTagUpdate(clientOpId: String!, color: Int, glyph: String, id: String!, name: String, ord: Int): v2_PersonTag!
   closureToggleSupport(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): v2_ClosureToggleResult!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
@@ -5098,6 +5105,12 @@ type query_root {
   blockInherited(originId: String!): [v2_user!]
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
   closureResultForViewer(beaconId: String!): v2_ClosureResult
+  personAutoTagMembers(kind: Int!): [String!]!
+  personAutoTags: [v2_PersonAutoTag!]!
+  personTagMemberships: [v2_PersonTagMembers!]!
+  personTagSuggestionState: v2_PersonTagSuggestionState!
+  personTags: [v2_PersonTag!]!
+  personTagsOf(personId: String!): v2_PersonTagsOf!
   closureState(beaconId: String!): v2_ClosureState!
   constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
   constellationFieldRequests(ids: [String!]!, participatedOnly: Boolean! = false, showClosed: Boolean! = false): [v2_ConstellationRequest!]!
@@ -8441,6 +8454,71 @@ type v2_PendingAuthorInvite {
   inviterId: String!
   note: String
   sourcePostId: String
+}
+
+type v2_PersonAutoTag {
+  count: Int!
+  kind: Int!
+  showInFilters: Boolean!
+}
+
+type v2_PersonAutoTagOf {
+  direction: Int!
+  kind: Int!
+  n: Int!
+}
+
+type v2_PersonTag {
+  color: Int!
+  count: Int!
+  countOffField: Int!
+  glyph: String!
+  id: String!
+  name: String!
+  ord: Int!
+}
+
+input v2_PersonTagInput {
+  color: Int!
+  glyph: String!
+  id: String!
+  name: String!
+  ord: Int!
+}
+
+input v2_PersonTagMemberOpInput {
+  op: String!
+  personId: String!
+  source: Int!
+  tagId: String!
+}
+
+type v2_PersonTagMembers {
+  personIds: [String!]!
+  tagId: String!
+}
+
+type v2_PersonTagSnapshot {
+  memberIds: [String!]!
+  sources: [Int!]!
+  tag: v2_PersonTag!
+}
+
+input v2_PersonTagSnapshotInput {
+  memberIds: [String!]!
+  sources: [Int!]!
+  tag: v2_PersonTagInput!
+}
+
+type v2_PersonTagSuggestionState {
+  canSuggest: Boolean!
+  disabled: Boolean!
+  silencedUntil: v2_Date
+}
+
+type v2_PersonTagsOf {
+  auto: [v2_PersonAutoTagOf!]!
+  own: [String!]!
 }
 
 type v2_PostBudInviteCandidate {

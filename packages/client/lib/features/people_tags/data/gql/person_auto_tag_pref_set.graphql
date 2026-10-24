@@ -1,0 +1,7 @@
+mutation PersonAutoTagPrefSet($kind: Int!, $showInFilters: Boolean!) {
+  personAutoTagPrefSet(kind: $kind, showInFilters: $showInFilters) {
+    kind
+    count
+    showInFilters
+  }
+}

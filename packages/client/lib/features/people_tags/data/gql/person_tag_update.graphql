@@ -1,0 +1,11 @@
+mutation PersonTagUpdate($id: String!, $name: String, $glyph: String, $color: Int, $ord: Int, $clientOpId: String!) {
+  personTagUpdate(id: $id, name: $name, glyph: $glyph, color: $color, ord: $ord, clientOpId: $clientOpId) {
+    id
+    name
+    glyph
+    color
+    ord
+    count
+    countOffField
+  }
+}

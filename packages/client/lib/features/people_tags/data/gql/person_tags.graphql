@@ -1,0 +1,11 @@
+query PersonTags {
+  personTags {
+    id
+    name
+    glyph
+    color
+    ord
+    count
+    countOffField
+  }
+}

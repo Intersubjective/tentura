@@ -239,3 +239,7 @@ const kPostBudInviteWarningAbove = 5;
 
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;
+
+/// Gate for every client entry point of private people tags (#699); the
+/// phase-1 release unit flips it.
+const kPeopleTagsEnabled = false;

@@ -1,0 +1,6 @@
+query PersonTagMemberships {
+  personTagMemberships {
+    tagId
+    personIds
+  }
+}

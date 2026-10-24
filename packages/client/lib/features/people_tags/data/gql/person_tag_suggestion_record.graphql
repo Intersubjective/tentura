@@ -1,0 +1,7 @@
+mutation PersonTagSuggestionRecord($outcome: String!, $clientOpId: String!) {
+  personTagSuggestionRecord(outcome: $outcome, clientOpId: $clientOpId) {
+    canSuggest
+    disabled
+    silencedUntil
+  }
+}

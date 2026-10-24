@@ -1,0 +1,3 @@
+mutation PersonTagMembersApply($ops: [v2_PersonTagMemberOpInput!]!, $clientOpId: String!) {
+  personTagMembersApply(ops: $ops, clientOpId: $clientOpId)
+}

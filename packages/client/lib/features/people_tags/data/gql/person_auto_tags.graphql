@@ -1,0 +1,7 @@
+query PersonAutoTags {
+  personAutoTags {
+    kind
+    count
+    showInFilters
+  }
+}

@@ -1,0 +1,10 @@
+query PersonTagsOf($personId: String!) {
+  personTagsOf(personId: $personId) {
+    own
+    auto {
+      kind
+      n
+      direction
+    }
+  }
+}

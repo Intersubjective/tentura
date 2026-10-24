@@ -1,0 +1,15 @@
+mutation PersonTagDelete($id: String!, $clientOpId: String!) {
+  personTagDelete(id: $id, clientOpId: $clientOpId) {
+    tag {
+      id
+      name
+      glyph
+      color
+      ord
+      count
+      countOffField
+    }
+    memberIds
+    sources
+  }
+}
