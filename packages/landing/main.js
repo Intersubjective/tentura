@@ -20,6 +20,8 @@ import {
   authErrorMessage,
   urlWithoutAuthError,
   inviterDisplayName,
+  initLocale,
+  t,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -29,6 +31,9 @@ const GOOGLE_ENABLED = Boolean(
 );
 const QA_TEST_LOGIN = Boolean(LANDING_CONFIG.qaTestLogin);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
+
+// #663: pick the reader's language (and set <html lang>) before any render.
+initLocale();
 
 const app = document.getElementById('app');
 const card = document.getElementById('card');
@@ -78,11 +83,11 @@ function beaconOverlay(p) {
   );
 
   const children = [
-    el('div', { class: 'beacon-label' }, `${inviterName(p)} shared`),
+    el('div', { class: 'beacon-label' }, t('{name} shared', { name: inviterName(p) })),
     el(
       'div',
       { class: 'beacon-title' },
-      p.beacon.title || (p.beacon.kind === 'post' ? 'a post' : 'a request'),
+      p.beacon.title || (p.beacon.kind === 'post' ? t('a post') : t('a request')),
     ),
   ];
   if (initialBody) children.push(body);
@@ -97,14 +102,14 @@ function beaconOverlay(p) {
         'aria-expanded': 'false',
         'aria-controls': bodyId,
       },
-      'Show more',
+      t('Show more'),
     );
     toggle.addEventListener('click', () => {
       expanded = !expanded;
       body.textContent = beaconBodyText(p.beacon, expanded);
       body.classList.toggle('is-expanded', expanded);
       toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      toggle.textContent = expanded ? 'Show less' : 'Show more';
+      toggle.textContent = expanded ? t('Show less') : t('Show more');
       track('beacon_snippet_toggled', { expanded });
     });
     children.push(toggle);
@@ -160,11 +165,11 @@ function ctaRecoverSeed(inviteCode) {
         track('seed_recovery_clicked');
       },
     },
-    RECOVER_SEED_LINK_LABEL,
+    t(RECOVER_SEED_LINK_LABEL),
   );
 }
 
-function ctaOpenApp(label = 'Continue to Tentura') {
+function ctaOpenApp(label = t('Continue to Tentura')) {
   return el(
     'a',
     {
@@ -176,7 +181,7 @@ function ctaOpenApp(label = 'Continue to Tentura') {
   );
 }
 
-function ctaOpenAcceptInvite(label = 'Open Tentura to accept') {
+function ctaOpenAcceptInvite(label = t('Open Tentura to accept')) {
   const code = parseInviteCode();
   return el(
     'a',
@@ -200,7 +205,7 @@ function ctaOpenInBrowser() {
         href: androidIntentUrl(location.href),
         onclick: () => track('cta_open_browser', { os: 'android' }),
       },
-      'Open in your browser',
+      t('Open in your browser'),
     );
   }
   return el(
@@ -215,10 +220,10 @@ function ctaOpenInBrowser() {
         } catch (_) {
           /* clipboard blocked in some webviews */
         }
-        alert('Link copied. Open Safari and paste to continue.');
+        alert(t('Link copied. Open Safari and paste to continue.'));
       },
     },
-    'Copy link & open in Safari',
+    t('Copy link & open in Safari'),
   );
 }
 
@@ -257,13 +262,13 @@ function ctaGoogleSignIn(inviteCode) {
         track('google_start_clicked', { hasInvite: Boolean(inviteCode) });
       },
     },
-    'Continue with Google',
+    t('Continue with Google'),
   );
 }
 
 function buildSignInOptionItems(inviteCode) {
   const items = [
-    el('p', { class: 'section-label' }, 'Sign in'),
+    el('p', { class: 'section-label' }, t('Sign in')),
     renderEmailMagicLinkForm(),
   ];
   if (QA_TEST_LOGIN) {
@@ -289,7 +294,7 @@ function createSignInReveal(inviteCode, {
     class: 'signin-options',
     id: blockId,
     role: 'region',
-    'aria-label': 'Sign in',
+    'aria-label': t('Sign in'),
     hidden: expandedByDefault ? null : 'hidden',
   });
 
@@ -300,7 +305,7 @@ function createSignInReveal(inviteCode, {
       type: 'button',
       hidden: 'hidden',
     },
-    'Have an invite link?',
+    t('Have an invite link?'),
   );
 
   inviteModeUndo.addEventListener('click', () => {
@@ -321,7 +326,7 @@ function createSignInReveal(inviteCode, {
       'aria-expanded': 'false',
       'aria-controls': blockId,
     },
-    'I already have an account',
+    t('I already have an account'),
   );
 
   existingToggle.addEventListener('click', () => {
@@ -351,7 +356,7 @@ function createSignInReveal(inviteCode, {
 // Email, Google, and recovery-seed sign-in for invite pages.
 function renderInviteAuthOptions(inviteCode) {
   const items = [
-    el('p', { class: 'section-label' }, 'Get started'),
+    el('p', { class: 'section-label' }, t('Get started')),
     renderEmailMagicLinkForm(),
   ];
   if (QA_TEST_LOGIN) {
@@ -388,7 +393,7 @@ function renderEmailMagicLinkForm() {
   const submit = el(
     'button',
     { class: 'btn btn-secondary', type: 'submit' },
-    'Email me a sign-in link',
+    t('Email me a sign-in link'),
   );
 
   const onSubmit = async (e) => {
@@ -400,7 +405,7 @@ function renderEmailMagicLinkForm() {
     successEl.hidden = true;
     const label = submit.textContent;
     submit.disabled = true;
-    submit.textContent = 'Sending…';
+    submit.textContent = t('Sending…');
     track('email_start_clicked');
     try {
       const attemptId = await startEmailMagicLink({
@@ -410,26 +415,28 @@ function renderEmailMagicLinkForm() {
       if (attemptId) setAttemptId(attemptId, 'email');
       track('email_start_accepted');
       successEl.replaceChildren(
-        el('p', { class: 'email-success-title' }, 'Check your email'),
+        el('p', { class: 'email-success-title' }, t('Check your email')),
         el(
           'p',
           { class: 'email-success-body' },
-          'If that address can sign in, we sent a link. Open the message and tap the link to continue.',
+          t(
+            'If that address can sign in, we sent a link. Open the message and tap the link to continue.',
+          ),
         ),
         el(
           'button',
           { class: 'btn btn-secondary', type: 'button', onclick: useDifferentAddress },
-          'Use a different address',
+          t('Use a different address'),
         ),
       );
       successEl.hidden = false;
       emailInput.disabled = true;
       submit.disabled = true;
-      submit.textContent = 'Link sent — check your email';
+      submit.textContent = t('Link sent — check your email');
       successEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     } catch (err) {
       trackError('email_start_error', err);
-      errorEl.textContent = err.message || 'Could not send link. Try again.';
+      errorEl.textContent = err.message || t('Could not send link. Try again.');
       submit.disabled = false;
       submit.textContent = label;
       if (err?.userInput) {
@@ -447,7 +454,7 @@ function renderEmailMagicLinkForm() {
     successEl.hidden = true;
     emailInput.disabled = false;
     submit.disabled = false;
-    submit.textContent = 'Email me a sign-in link';
+    submit.textContent = t('Email me a sign-in link');
     emailInput.focus();
     emailInput.select();
   };
@@ -461,11 +468,11 @@ function renderEmailMagicLinkForm() {
       novalidate: '',
       'data-lpignore': 'true',
     },
-    el('label', { class: 'field-label', for: 'email-signin' }, 'Email'),
+    el('label', { class: 'field-label', for: 'email-signin' }, t('Email')),
     el(
       'p',
       { class: 'field-hint' },
-      'We never confirm whether an account exists for this address.',
+      t('We never confirm whether an account exists for this address.'),
     ),
     emailInput,
     submit,
@@ -488,7 +495,7 @@ function renderQaTestLoginForm(inviteCode) {
   const submit = el(
     'button',
     { class: 'btn btn-secondary', type: 'submit' },
-    'Test login',
+    t('Test login'),
   );
 
   const onSubmit = async (e) => {
@@ -496,7 +503,7 @@ function renderQaTestLoginForm(inviteCode) {
     errorEl.textContent = '';
     const label = submit.textContent;
     submit.disabled = true;
-    submit.textContent = 'Signing in…';
+    submit.textContent = t('Signing in…');
     track('qa_test_login_clicked');
     try {
       const { redirectUrl } = await startTestLogin({
@@ -511,7 +518,7 @@ function renderQaTestLoginForm(inviteCode) {
       throw new Error('missing redirect');
     } catch (err) {
       trackError('qa_test_login_error', err);
-      errorEl.textContent = err.message || 'Test login failed. Try again.';
+      errorEl.textContent = err.message || t('Test login failed. Try again.');
       submit.disabled = false;
       submit.textContent = label;
     }
@@ -526,8 +533,8 @@ function renderQaTestLoginForm(inviteCode) {
       novalidate: '',
       'data-lpignore': 'true',
     },
-    el('p', { class: 'hint' }, 'QA only — immediate sign-in for test email domains.'),
-    el('label', { class: 'field-label', for: 'email-qa-test-login' }, 'Test email'),
+    el('p', { class: 'hint' }, t('QA only — immediate sign-in for test email domains.')),
+    el('label', { class: 'field-label', for: 'email-qa-test-login' }, t('Test email')),
     emailInput,
     submit,
     errorEl,
@@ -541,7 +548,7 @@ function renderInviteEntryForm() {
     type: 'text',
     id: 'invite-entry',
     name: 'invite-code',
-    placeholder: 'Iabc123 or https://…/invite/Iabc123',
+    placeholder: t('Iabc123 or https://…/invite/Iabc123'),
     autocomplete: 'section-invite off',
     autocapitalize: 'none',
     spellcheck: 'false',
@@ -569,17 +576,17 @@ function renderInviteEntryForm() {
       autocomplete: 'off',
       'data-lpignore': 'true',
     },
-    el('label', { class: 'field-label', for: 'invite-entry' }, 'Invite link or code'),
+    el('label', { class: 'field-label', for: 'invite-entry' }, t('Invite link or code')),
     el(
       'p',
       { class: 'field-hint' },
-      'New here? Paste the invite link a friend sent you.',
+      t('New here? Paste the invite link a friend sent you.'),
     ),
     input,
     el(
       'button',
       { type: 'submit', class: 'btn btn-primary' },
-      'Continue with invite',
+      t('Continue with invite'),
     ),
     errorEl,
   );
@@ -606,20 +613,20 @@ function signedInFlash() {
   return el(
     'p',
     { class: 'hint' },
-    'You are signed in. Open Tentura below to continue.',
+    t('You are signed in. Open Tentura below to continue.'),
   );
 }
 
 // --- State renderers -------------------------------------------------------
 function renderInvalid(p) {
   setState('invalid');
-  setPageTitle('Invite link invalid — Tentura');
+  setPageTitle(t('Invite link invalid — Tentura'));
   const msg =
     p.codeStatus === 'consumed'
-      ? 'This invite has already been used.'
+      ? t('This invite has already been used.')
       : p.codeStatus === 'expired'
-        ? 'This invite has expired.'
-        : 'We couldn’t find this invite.';
+        ? t('This invite has expired.')
+        : t('We couldn’t find this invite.');
   const rawCode = parseInviteCodeRaw();
   const showDashHint =
     inviteCodeHadTrailingDash(rawCode) ||
@@ -627,16 +634,16 @@ function renderInvalid(p) {
   return el(
     'div',
     { class: 'content' },
-    el('h1', {}, 'This invite link is no longer valid'),
+    el('h1', {}, t('This invite link is no longer valid')),
     el('p', {}, msg),
     showDashHint
       ? el(
           'p',
           { class: 'hint hint-emphasis' },
-          'This link ends with a hyphen. Remove any trailing "-" and try again.',
+          t('This link ends with a hyphen. Remove any trailing "-" and try again.'),
         )
       : null,
-    el('p', { class: 'section-label' }, 'Try another invite'),
+    el('p', { class: 'section-label' }, t('Try another invite')),
     renderInviteEntryForm(),
     el(
       'a',
@@ -645,20 +652,20 @@ function renderInvalid(p) {
         href: '/invite/',
         onclick: () => track('cta_invalid_back_to_entry'),
       },
-      'Back to invite entry',
+      t('Back to invite entry'),
     ),
   );
 }
 
 function renderIsInviter(p) {
   setState('is-inviter');
-  setPageTitle('Your invite — Tentura');
+  setPageTitle(t('Your invite — Tentura'));
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
-    el('h1', {}, 'This is your own invite'),
-    el('p', {}, 'Share this link with someone you want to connect with.'),
+    el('h1', {}, t('This is your own invite')),
+    el('p', {}, t('Share this link with someone you want to connect with.')),
     el(
       'button',
       {
@@ -668,13 +675,13 @@ function renderIsInviter(p) {
           track('cta_copy_own_invite');
           try {
             await navigator.clipboard.writeText(location.href);
-            e.target.textContent = 'Link copied';
+            e.target.textContent = t('Link copied');
           } catch (_) {
             /* clipboard blocked in some webviews */
           }
         },
       },
-      'Copy invite link',
+      t('Copy invite link'),
     ),
     ctaOpenApp(),
   );
@@ -684,47 +691,50 @@ function renderAlreadyFriends(p) {
   setState('already-friends');
   const name = inviterName(p);
   if (isSignedInReturn()) {
-    setPageTitle('You’re all set — Tentura');
+    setPageTitle(t('You’re all set — Tentura'));
     return el(
       'div',
       { class: 'content' },
       beaconOverlay(p),
-      el('h1', {}, 'You’re all set'),
+      el('h1', {}, t('You’re all set')),
       el(
         'p',
         {},
-        `Your account is ready, and ${name} is connected with you. Open Tentura to continue.`,
+        t(
+          'Your account is ready, and {name} is connected with you. Open Tentura to continue.',
+          { name },
+        ),
       ),
       ctaOpenApp(),
     );
   }
-  setPageTitle(`Connected with ${name} — Tentura`);
+  setPageTitle(t('Connected with {name} — Tentura', { name }));
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
-    el('h1', {}, `You’re connected with ${name}`),
-    el('p', {}, 'Open Tentura to continue.'),
+    el('h1', {}, t('You’re connected with {name}', { name })),
+    el('p', {}, t('Open Tentura to continue.')),
     ctaOpenApp(),
   );
 }
 
 function renderExistingUser(p) {
   setState('existing-user');
-  setPageTitle(`${inviterName(p)} invited you — Tentura`);
+  setPageTitle(t('{name} invited you — Tentura', { name: inviterName(p) }));
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
-    el('h1', {}, `${inviterName(p)} wants to connect`),
-    el('p', {}, 'Accept the invite in the app to become friends.'),
-    ctaOpenAcceptInvite('Open Tentura to accept'),
+    el('h1', {}, t('{name} wants to connect', { name: inviterName(p) })),
+    el('p', {}, t('Accept the invite in the app to become friends.')),
+    ctaOpenAcceptInvite(),
   );
 }
 
 function renderAnonymous(p) {
   setState('anonymous');
-  setPageTitle(`${inviterName(p)} invited you — Tentura`);
+  setPageTitle(t('{name} invited you — Tentura', { name: inviterName(p) }));
   const code = parseInviteCode();
   // U084: say what Tentura is and why the friend sent the link before
   // asking for an email address.
@@ -742,7 +752,7 @@ function renderAnonymous(p) {
     { class: 'content' },
     beaconOverlay(p),
     signedInFlash(),
-    el('h1', {}, `${inviterName(p)} invited you to Tentura`),
+    el('h1', {}, t('{name} invited you to Tentura', { name: inviterName(p) })),
     authError ? el('p', { class: 'error', role: 'alert' }, authError) : null,
     el('p', { class: 'invite-about' }, copy.about),
     el('p', {}, copy.why),
@@ -804,13 +814,13 @@ function render(p) {
 
 function renderError() {
   setState('invalid');
-  setPageTitle('Something went wrong — Tentura');
+  setPageTitle(t('Something went wrong — Tentura'));
   card.replaceChildren(
     el(
       'div',
       { class: 'content' },
-      el('h1', {}, 'Something went wrong'),
-      el('p', {}, 'Please try opening this link again.'),
+      el('h1', {}, t('Something went wrong')),
+      el('p', {}, t('Please try opening this link again.')),
     ),
   );
 }
@@ -822,12 +832,12 @@ function renderError() {
 function renderNoInvite() {
   setState('no-invite');
 
-  const inviteIntro = el('p', {}, 'Join with a personal invite from someone you know.');
+  const inviteIntro = el('p', {}, t('Join with a personal invite from someone you know.'));
   const inviteForm = renderInviteEntryForm();
-  const heading = el('h1', {}, 'Tentura is invite-only');
+  const heading = el('h1', {}, t('Tentura is invite-only'));
   const applyLandingMode = (signInMode) => {
-    setPageTitle(signInMode ? 'Sign in — Tentura' : 'Tentura — invite-only');
-    heading.textContent = signInMode ? 'Sign in to Tentura' : 'Tentura is invite-only';
+    setPageTitle(signInMode ? t('Sign in — Tentura') : t('Tentura — invite-only'));
+    heading.textContent = signInMode ? t('Sign in to Tentura') : t('Tentura is invite-only');
   };
   const { existingToggle, signInBlock } = createSignInReveal('', {
     expandedByDefault: true,
@@ -838,7 +848,7 @@ function renderNoInvite() {
   const authError = isSignedInReturn() ? null : authErrorMessage(location.search);
 
   const children = [
-    el('p', { class: 'eyebrow' }, 'Private coordination network'),
+    el('p', { class: 'eyebrow' }, t('Private coordination network')),
     heading,
     inviteIntro,
     signedInFlash(),

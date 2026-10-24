@@ -1,6 +1,8 @@
 // Email magic-link auth for the static landing (Tier 1 + Tier 2).
 // New web accounts are created via email OTP or Google OAuth — not device-seed signup.
 
+import { t } from './onboarding.js';
+
 const API_BASE = (window.TENTURA || {}).apiBase || ''; // '' = same origin
 
 export class EmailLinkError extends Error {
@@ -30,9 +32,9 @@ export function isValidEmailFormat(normalized) {
 /** Start magic-link sign-in/signup; server always responds generically when accepted. */
 export async function startEmailMagicLink({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
-  if (!normalized) throw new EmailLinkError('Please enter your email.', { userInput: true });
+  if (!normalized) throw new EmailLinkError(t('Please enter your email.'), { userInput: true });
   if (!isValidEmailFormat(normalized)) {
-    throw new EmailLinkError('Please enter a valid email address.', { userInput: true });
+    throw new EmailLinkError(t('Please enter a valid email address.'), { userInput: true });
   }
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
@@ -44,18 +46,18 @@ export async function startEmailMagicLink({ email, code }) {
       body: JSON.stringify(payload),
     });
   } catch (e) {
-    throw new EmailLinkError(`Could not reach the server (${e}).`);
+    throw new EmailLinkError(t('Could not reach the server ({error}).', { error: e }));
   }
   if (res.status === 400) {
     // The server is the authority on the format (it checks before any rate
     // limit or account lookup, so this reveals nothing about accounts).
     const data = await res.json().catch(() => null);
     if (data?.error === 'invalid_email') {
-      throw new EmailLinkError('Please enter a valid email address.', { userInput: true });
+      throw new EmailLinkError(t('Please enter a valid email address.'), { userInput: true });
     }
   }
   if (!res.ok) {
-    throw new EmailLinkError('Something went wrong. Please try again.');
+    throw new EmailLinkError(t('Something went wrong. Please try again.'));
   }
   const data = await res.json();
   return data?.attemptId ?? null;
@@ -64,7 +66,7 @@ export async function startEmailMagicLink({ email, code }) {
 /** QA immediate sign-in for allowlisted test domains (dev/staging only). */
 export async function startTestLogin({ email, code }) {
   const normalized = (email || '').trim().toLowerCase();
-  if (!normalized) throw new EmailLinkError('Please enter your email.', { userInput: true });
+  if (!normalized) throw new EmailLinkError(t('Please enter your email.'), { userInput: true });
   const payload = { email: normalized };
   if (code) payload.inviteCode = code;
   let res;
@@ -75,7 +77,7 @@ export async function startTestLogin({ email, code }) {
       body: JSON.stringify(payload),
     });
   } catch (e) {
-    throw new EmailLinkError(`Could not reach the server (${e}).`);
+    throw new EmailLinkError(t('Could not reach the server ({error}).', { error: e }));
   }
   if (!res.ok) {
     throw new EmailLinkError('Test login failed. Check the email domain and try again.');
