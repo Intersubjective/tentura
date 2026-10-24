@@ -9,6 +9,250 @@
 
 import { trackError } from './analytics.js';
 
+// --- Landing copy in the reader's language (#663) ---------------------------
+// Kept in this module (not its own file) because every deployed landing
+// file must be listed in the CI tar; main.js, auth.js and invite_entry.js
+// import t() from here.
+// The landing is plain static
+// JS (no build step), so strings stay as English literals in the code and
+// `t()` looks them up in a per-locale table; a missing entry falls back to
+// the English text. The locale comes from `?lang=` when it names a supported
+// locale, else the first supported entry of `navigator.languages` — the same
+// way the app picks its language — else English.
+
+export const SUPPORTED_LOCALES = ['en', 'ru'];
+export const DEFAULT_LOCALE = 'en';
+
+/** English text → Russian text. Keys are the exact English literals. */
+const RU = {
+  // Invite card and states (main.js)
+  Someone: 'Кто-то',
+  'A friend': 'Друг',
+  '{name} shared': '{name} делится',
+  'a post': 'пост',
+  'a request': 'запрос',
+  'Show more': 'Показать полностью',
+  'Show less': 'Свернуть',
+  'Continue to Tentura': 'Перейти в Tentura',
+  'Open Tentura to accept': 'Открыть Tentura и принять',
+  'Open in your browser': 'Открыть в браузере',
+  'Link copied. Open Safari and paste to continue.':
+    'Ссылка скопирована. Откройте Safari и вставьте её, чтобы продолжить.',
+  'Copy link & open in Safari': 'Скопировать ссылку и открыть в Safari',
+  'Continue with Google': 'Продолжить через Google',
+  'Sign in': 'Вход',
+  'Have an invite link?': 'Есть ссылка-приглашение?',
+  'I already have an account': 'У меня уже есть аккаунт',
+  'Get started': 'Начать',
+  'Sending…': 'Отправляем…',
+  'Check your email': 'Проверьте почту',
+  'If that address can sign in, we sent a link. Open the message and tap the link to continue.':
+    'Если с этим адресом можно войти, мы отправили на него ссылку. Откройте письмо и нажмите на ссылку, чтобы продолжить.',
+  'Use a different address': 'Указать другой адрес',
+  'Link sent — check your email': 'Ссылка отправлена — проверьте почту',
+  'Could not send link. Try again.':
+    'Не удалось отправить ссылку. Попробуйте ещё раз.',
+  'Email me a sign-in link': 'Прислать ссылку для входа',
+  Email: 'Электронная почта',
+  'We never confirm whether an account exists for this address.':
+    'Мы никогда не сообщаем, есть ли аккаунт с этим адресом.',
+  'Iabc123 or https://…/invite/Iabc123': 'Iabc123 или https://…/invite/Iabc123',
+  'Invite link or code': 'Ссылка или код приглашения',
+  'New here? Paste the invite link a friend sent you.':
+    'Впервые здесь? Вставьте ссылку-приглашение, которую прислал друг.',
+  'Continue with invite': 'Продолжить по приглашению',
+  'You are signed in. Open Tentura below to continue.':
+    'Вы вошли. Чтобы продолжить, откройте Tentura ниже.',
+  'Invite link invalid — Tentura': 'Ссылка-приглашение недействительна — Tentura',
+  'This invite has already been used.': 'Это приглашение уже использовано.',
+  'This invite has expired.': 'Срок действия этого приглашения истёк.',
+  'We couldn’t find this invite.': 'Мы не нашли это приглашение.',
+  'This invite link is no longer valid':
+    'Эта ссылка-приглашение больше не действует',
+  'This link ends with a hyphen. Remove any trailing "-" and try again.':
+    'Ссылка заканчивается дефисом. Удалите «-» в конце и попробуйте ещё раз.',
+  'Try another invite': 'Попробуйте другое приглашение',
+  'Back to invite entry': 'Назад к вводу приглашения',
+  'Your invite — Tentura': 'Ваше приглашение — Tentura',
+  'This is your own invite': 'Это ваше собственное приглашение',
+  'Share this link with someone you want to connect with.':
+    'Отправьте эту ссылку тому, кого хотите добавить в свою сеть.',
+  'Link copied': 'Ссылка скопирована',
+  'Copy invite link': 'Скопировать ссылку-приглашение',
+  'You’re all set — Tentura': 'Всё готово — Tentura',
+  'You’re all set': 'Всё готово',
+  'Your account is ready, and {name} is connected with you. Open Tentura to continue.':
+    'Ваш аккаунт готов, и {name} уже в вашей сети. Откройте Tentura, чтобы продолжить.',
+  'Connected with {name} — Tentura': '{name} в вашей сети — Tentura',
+  'You’re connected with {name}': '{name} уже в вашей сети',
+  'Open Tentura to continue.': 'Откройте Tentura, чтобы продолжить.',
+  '{name} invited you — Tentura': '{name} приглашает вас — Tentura',
+  '{name} wants to connect': '{name} хочет добавить вас в свою сеть',
+  'Accept the invite in the app to become friends.':
+    'Примите приглашение в приложении, чтобы стать друзьями.',
+  '{name} invited you to Tentura': '{name} приглашает вас в Tentura',
+  'Something went wrong — Tentura': 'Что-то пошло не так — Tentura',
+  'Something went wrong': 'Что-то пошло не так',
+  'Please try opening this link again.':
+    'Попробуйте открыть эту ссылку ещё раз.',
+  'Join with a personal invite from someone you know.':
+    'Присоединяйтесь по личному приглашению от знакомого человека.',
+  'Tentura is invite-only': 'В Tentura можно попасть только по приглашению',
+  'Sign in — Tentura': 'Вход — Tentura',
+  'Tentura — invite-only': 'Tentura — только по приглашению',
+  'Sign in to Tentura': 'Вход в Tentura',
+  'Private coordination network': 'Закрытая сеть для координации',
+  // QA-only test login (dev/staging)
+  'Test login': 'Тестовый вход',
+  'Signing in…': 'Входим…',
+  'Test login failed. Try again.':
+    'Тестовый вход не удался. Попробуйте ещё раз.',
+  'QA only — immediate sign-in for test email domains.':
+    'Только для QA — мгновенный вход для тестовых доменов почты.',
+  'Test email': 'Тестовый адрес',
+  Loading: 'Загрузка',
+
+  // Invite copy, auth errors, name step and pager (onboarding.js). The
+  // pager reuses the app's intro pages (introPage*), so both read the same.
+  'Get things done through people you trust':
+    'Решайте задачи через людей, которым доверяете',
+  'Tentura is where you ask for help and offer yours — no public feed, no likes, no noise. Just real needs moving through real people.':
+    'Tentura — это место, где вы просите о помощи и помогаете сами: без общей ленты, лайков и шума. Только настоящие запросы, которые передаются от человека к человеку.',
+  'Post a request, friends pass it on':
+    'Опубликуйте запрос — друзья передадут его дальше',
+  "Describe what you need — that's a request. Friends forward it to someone who can help, and you coordinate in the request's discussion until it's done.":
+    'Опишите, что вам нужно, — это запрос. Друзья перешлют его тому, кто может помочь, а вы договоритесь обо всём в обсуждении запроса, пока дело не будет сделано.',
+  'Everyone here is vouched for': 'Здесь за каждого кто-то поручился',
+  'You joined by a personal invite, like everyone else — the friend who invited you is already in your network. Add people you trust, and post a request when you need a hand.':
+    'Вы пришли по личному приглашению, как и все остальные: пригласивший вас друг уже в вашей сети. Добавляйте людей, которым доверяете, и публикуйте запрос, когда нужна помощь.',
+  'Restore an account from your recovery seed':
+    'Восстановить аккаунт по seed восстановления',
+  'Tentura is where you ask for help and offer yours — no public feed, no likes, no noise.':
+    'Tentura — это место, где вы просите о помощи и помогаете сами: без общей ленты, лайков и шума.',
+  '{name} shared the post above with you. Join to read it and reply in its chat.':
+    '{name} делится с вами постом выше. Присоединяйтесь, чтобы прочитать его и ответить в чате.',
+  '{name} wants your help with the request above. Join to see it, offer help or pass it on.':
+    '{name} просит вашей помощи с запросом выше. Присоединяйтесь, чтобы увидеть его, предложить помощь или передать дальше.',
+  '{name} wants you in their network, so you can ask each other for a hand.':
+    '{name} зовёт вас в свою сеть, чтобы вы могли просить друг друга о помощи.',
+  'Open this link in your browser, or create an account with email.':
+    'Откройте эту ссылку в браузере или создайте аккаунт по электронной почте.',
+  'Google sign-in was cancelled.': 'Вход через Google отменён.',
+  'Google sign-in failed. Please try again.':
+    'Не удалось войти через Google. Попробуйте ещё раз.',
+  'Could not reach the server ({error}).':
+    'Не удалось связаться с сервером ({error}).',
+  'Could not reach the server. Check your connection and try again.':
+    'Не удалось связаться с сервером. Проверьте подключение и попробуйте ещё раз.',
+  'That name could not be saved. Use 3 to 32 characters and try again.':
+    'Не удалось сохранить это имя. Используйте от 3 до 32 символов и попробуйте ещё раз.',
+  'Could not save your name. Try again.':
+    'Не удалось сохранить имя. Попробуйте ещё раз.',
+  'Try again': 'Попробовать ещё раз',
+  'Continue without a name': 'Продолжить без имени',
+  'Welcome to Tentura': 'Добро пожаловать в Tentura',
+  'e.g. Anna K.': 'например, Анна К.',
+  'Save & continue': 'Сохранить и продолжить',
+  'Enter a name.': 'Введите имя.',
+  'Saving…': 'Сохраняем…',
+  'Account created': 'Аккаунт создан',
+  'What should people call you?': 'Как к вам обращаться?',
+  'Your name': 'Ваше имя',
+  'You can change your name any time in Profile.':
+    'Имя можно изменить в любой момент в профиле.',
+  Back: 'Назад',
+  Next: 'Далее',
+  'Skip — open Tentura': 'Пропустить — открыть Tentura',
+  'Step {n} of {total}': 'Шаг {n} из {total}',
+
+  // Email sign-in (auth.js) and invite entry (invite_entry.js)
+  'Please enter your email.': 'Введите адрес электронной почты.',
+  'Please enter a valid email address.':
+    'Введите корректный адрес электронной почты.',
+  'Something went wrong. Please try again.':
+    'Что-то пошло не так. Попробуйте ещё раз.',
+  'Enter an invite link or code.': 'Введите ссылку или код приглашения.',
+  'That invite link does not look valid.':
+    'Эта ссылка-приглашение выглядит неправильной.',
+  'Enter a valid invite link or code (starts with I).':
+    'Введите корректную ссылку или код приглашения (код начинается с I).',
+};
+
+/** Translation tables by locale; English is the source text itself. */
+export const TRANSLATIONS = { ru: RU };
+
+let current = DEFAULT_LOCALE;
+
+/** Supported locale for one BCP 47 tag (`ru-RU` → `ru`), or null. */
+function supportedLocaleOf(tag) {
+  const primary = String(tag ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/[-_]/)[0];
+  return SUPPORTED_LOCALES.includes(primary) ? primary : null;
+}
+
+/**
+ * Locale for this visit: `?lang=` when supported, else the first supported
+ * browser language, else English.
+ * @param {{ languages?: readonly string[], language?: string, search?: string }} args
+ */
+export function pickLocale({ languages, language, search = '' } = {}) {
+  const override = supportedLocaleOf(
+    new URLSearchParams(search || '').get('lang'),
+  );
+  if (override) return override;
+  const list = languages?.length ? languages : [language];
+  for (const tag of list) {
+    const locale = supportedLocaleOf(tag);
+    if (locale) return locale;
+  }
+  return DEFAULT_LOCALE;
+}
+
+export function getLocale() {
+  return current;
+}
+
+export function setLocale(locale) {
+  current = supportedLocaleOf(locale) ?? DEFAULT_LOCALE;
+  return current;
+}
+
+/**
+ * Pick the locale from the browser and mark the page with it
+ * (`<html lang>`, the loading spinner label). Returns the locale.
+ */
+export function initLocale({
+  navigator: nav = globalThis.navigator,
+  location: loc = globalThis.location,
+  document: doc = globalThis.document,
+} = {}) {
+  const locale = setLocale(
+    pickLocale({
+      languages: nav?.languages,
+      language: nav?.language,
+      search: loc?.search,
+    }),
+  );
+  if (doc?.documentElement) doc.documentElement.lang = locale;
+  doc?.querySelector?.('.spinner')?.setAttribute('aria-label', t('Loading'));
+  return locale;
+}
+
+/**
+ * [text] (the English literal) in the current locale, with `{key}`
+ * placeholders filled from [params].
+ */
+export function t(text, params) {
+  const table = TRANSLATIONS[current];
+  const out = (table && table[text]) ?? text;
+  if (!params) return out;
+  return out.replace(/\{(\w+)\}/g, (m, key) =>
+    key in params ? String(params[key]) : m,
+  );
+}
+
 // '' = same origin; window guard keeps the module importable under node:test.
 const API_BASE =
   (typeof window !== 'undefined' && (window.TENTURA || {}).apiBase) || '';
@@ -68,27 +312,31 @@ export function inviteLandingCopy({
   isPost = false,
   inApp,
 }) {
+  const name = inviterName;
   let why;
   if (hasRequest && isPost) {
-    why =
-      `${inviterName} shared the post above with you. ` +
-      'Join to read it and reply in its chat.';
+    why = t(
+      '{name} shared the post above with you. Join to read it and reply in its chat.',
+      { name },
+    );
   } else if (hasRequest) {
-    why =
-      `${inviterName} wants your help with the request above. ` +
-      'Join to see it, offer help or pass it on.';
+    why = t(
+      '{name} wants your help with the request above. Join to see it, offer help or pass it on.',
+      { name },
+    );
   } else {
-    why =
-      `${inviterName} wants you in their network, ` +
-      'so you can ask each other for a hand.';
+    why = t(
+      '{name} wants you in their network, so you can ask each other for a hand.',
+      { name },
+    );
   }
   return {
-    about: INVITE_ABOUT_SENTENCE,
+    about: t(INVITE_ABOUT_SENTENCE),
     why,
     signUp: inApp
-      ? 'Open this link in your browser, or create an account with email.'
+      ? t('Open this link in your browser, or create an account with email.')
       : null,
-    recoverLink: RECOVER_SEED_LINK_LABEL,
+    recoverLink: t(RECOVER_SEED_LINK_LABEL),
   };
 }
 
@@ -105,10 +353,10 @@ export function isSignedInReturn(search) {
 export function authErrorMessage(search) {
   const reason = new URLSearchParams(search || '').get('auth_error');
   if (reason === 'google_cancelled') {
-    return 'Google sign-in was cancelled.';
+    return t('Google sign-in was cancelled.');
   }
   if (reason === 'google_failed') {
-    return 'Google sign-in failed. Please try again.';
+    return t('Google sign-in failed. Please try again.');
   }
   return null;
 }
@@ -147,9 +395,9 @@ const NEW_MEMBER_DISPLAY_NAME = 'New member';
  */
 export function inviterDisplayName(displayName) {
   const raw = String(displayName ?? '').trim();
-  if (!raw) return 'Someone';
+  if (!raw) return t('Someone');
   if (raw === NEW_MEMBER_DISPLAY_NAME || isLikelyEmailDerivedDisplayName(raw)) {
-    return 'A friend';
+    return t('A friend');
   }
   return raw;
 }
@@ -265,7 +513,7 @@ export async function saveDisplayName(name) {
     // The raw fetch error ("TypeError: Failed to fetch") means nothing to a
     // person (#660 review).
     throw new Error(
-      'Could not reach the server. Check your connection and try again.',
+      t('Could not reach the server. Check your connection and try again.'),
     );
   }
   if (!res.ok) {
@@ -273,8 +521,10 @@ export async function saveDisplayName(name) {
     // so it is not shown as is.
     throw new Error(
       res.status === 400
-        ? 'That name could not be saved. Use 3 to 32 characters and try again.'
-        : 'Could not save your name. Try again.',
+        ? t(
+            'That name could not be saved. Use 3 to 32 characters and try again.',
+          )
+        : t('Could not save your name. Try again.'),
     );
   }
   return res.json();
@@ -321,7 +571,7 @@ export function renderPostSignup({
   nameOnly = false,
 }) {
   setState('post-signup');
-  setPageTitle('Welcome to Tentura');
+  setPageTitle(t('Welcome to Tentura'));
 
   let currentName = (profile.displayName || '').trim();
 
@@ -365,7 +615,7 @@ function renderOpenAppPrompt({ openProductUrl, track, storage }) {
   const openApp = el(
     'a',
     { class: 'btn btn-primary', href: openProductUrl() },
-    'Continue to Tentura',
+    t('Continue to Tentura'),
   );
   openApp.addEventListener('click', () => {
     markOnboardingDone(storage);
@@ -374,8 +624,8 @@ function renderOpenAppPrompt({ openProductUrl, track, storage }) {
   return el(
     'div',
     { class: 'content' },
-    el('h1', {}, 'You’re all set'),
-    el('p', {}, 'Open Tentura to continue.'),
+    el('h1', {}, t('You’re all set')),
+    el('p', {}, t('Open Tentura to continue.')),
     openApp,
   );
 }
@@ -389,7 +639,7 @@ function renderNameStep({ prefill, track, onDone }) {
     id: 'display-name',
     name: 'display-name',
     value: prefill,
-    placeholder: 'e.g. Anna K.',
+    placeholder: t('e.g. Anna K.'),
     maxlength: '32',
     autocomplete: 'off',
     'data-lpignore': 'true',
@@ -399,7 +649,7 @@ function renderNameStep({ prefill, track, onDone }) {
   const submit = el(
     'button',
     { class: 'btn btn-primary', type: 'submit' },
-    'Save & continue',
+    t('Save & continue'),
   );
 
   // Shown once a save fails: with Skip gone (#660) a person who is offline,
@@ -408,7 +658,7 @@ function renderNameStep({ prefill, track, onDone }) {
   const continueWithoutName = el(
     'button',
     { class: 'btn btn-secondary name-continue', type: 'button' },
-    'Continue without a name',
+    t('Continue without a name'),
   );
   continueWithoutName.hidden = true;
   continueWithoutName.addEventListener('click', () => {
@@ -422,7 +672,7 @@ function renderNameStep({ prefill, track, onDone }) {
     const name = input.value.trim();
     // An empty Save used to move on like Skip, saving nothing (#421).
     if (name.length === 0) {
-      errorEl.textContent = 'Enter a name.';
+      errorEl.textContent = t('Enter a name.');
       input.focus();
       return;
     }
@@ -432,7 +682,7 @@ function renderNameStep({ prefill, track, onDone }) {
       return;
     }
     submit.disabled = true;
-    submit.textContent = 'Saving…';
+    submit.textContent = t('Saving…');
     try {
       await saveDisplayName(name);
       track('signup_name_saved');
@@ -441,7 +691,7 @@ function renderNameStep({ prefill, track, onDone }) {
       trackError('signup_name_error', err);
       errorEl.textContent = err.message;
       submit.disabled = false;
-      submit.textContent = 'Try again';
+      submit.textContent = t('Try again');
       continueWithoutName.hidden = false;
     }
   };
@@ -449,18 +699,22 @@ function renderNameStep({ prefill, track, onDone }) {
   return el(
     'div',
     { class: 'content' },
-    el('p', { class: 'eyebrow' }, 'Account created'),
-    el('h1', {}, 'Welcome to Tentura'),
-    el('p', {}, 'What should people call you?'),
+    el('p', { class: 'eyebrow' }, t('Account created')),
+    el('h1', {}, t('Welcome to Tentura')),
+    el('p', {}, t('What should people call you?')),
     el(
       'form',
       { class: 'signup-form', onsubmit: onSubmit, autocomplete: 'off' },
-      el('label', { class: 'field-label', for: 'display-name' }, 'Your name'),
+      el(
+        'label',
+        { class: 'field-label', for: 'display-name' },
+        t('Your name'),
+      ),
       input,
       el(
         'p',
         { class: 'hint name-change-hint', id: 'display-name-hint' },
-        'You can change your name any time in Profile.',
+        t('You can change your name any time in Profile.'),
       ),
       submit,
       errorEl,
@@ -525,14 +779,14 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
   const back = el(
     'button',
     { class: 'btn btn-secondary pager-back', type: 'button' },
-    'Back',
+    t('Back'),
   );
   const next = el('button', { class: 'btn btn-primary', type: 'button' });
 
   const openApp = el(
     'a',
     { class: 'btn btn-primary', href: openProductUrl() },
-    'Continue to Tentura',
+    t('Continue to Tentura'),
   );
   openApp.addEventListener('click', () => {
     markOnboardingDone(storage);
@@ -543,7 +797,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
   const skip = el(
     'button',
     { class: 'hint hint-link', type: 'button' },
-    'Skip — open Tentura',
+    t('Skip — open Tentura'),
   );
   skip.addEventListener('click', () => {
     markOnboardingDone(storage);
@@ -558,9 +812,12 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     // hidden — never step past the last page.
     page = Math.max(0, Math.min(index, ONBOARDING_PAGES.length - 1));
     const p = ONBOARDING_PAGES[page];
-    title.textContent = p.title;
-    body.textContent = p.body;
-    progress.textContent = `Step ${page + 1} of ${ONBOARDING_PAGES.length}`;
+    title.textContent = t(p.title);
+    body.textContent = t(p.body);
+    progress.textContent = t('Step {n} of {total}', {
+      n: page + 1,
+      total: ONBOARDING_PAGES.length,
+    });
     dots.replaceChildren(
       ...ONBOARDING_PAGES.map((_, i) =>
         el('span', { class: i === page ? 'pager-dot active' : 'pager-dot' }),
@@ -571,7 +828,7 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     // changed in Profile — so step 1 has nothing to go back to.
     back.hidden = page === 0;
     next.hidden = isLast;
-    next.textContent = 'Next';
+    next.textContent = t('Next');
     openApp.hidden = !isLast;
     // On the last page Continue is the exit; a Skip beside it did the same.
     skip.hidden = isLast;

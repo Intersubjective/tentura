@@ -1,3 +1,5 @@
+import { t } from './onboarding.js';
+
 /** Strip whitespace and trailing `-` from pasted/URL invite fragments. */
 export function normalizeInviteCode(raw) {
   let code = (raw || '').trim();
@@ -24,7 +26,7 @@ export function inviteCodeHadTrailingDash(raw) {
 export function parseInviteEntryInput(raw) {
   const trimmed = (raw || '').trim();
   if (!trimmed) {
-    return { ok: false, error: 'Enter an invite link or code.' };
+    return { ok: false, error: t('Enter an invite link or code.') };
   }
 
   const pathMatch = trimmed.match(INVITE_PATH_RE);
@@ -33,14 +35,14 @@ export function parseInviteEntryInput(raw) {
   try {
     candidate = decodeURIComponent(candidate);
   } catch {
-    return { ok: false, error: 'That invite link does not look valid.' };
+    return { ok: false, error: t('That invite link does not look valid.') };
   }
 
   candidate = normalizeInviteCode(candidate.split(/[?#]/)[0]);
   if (!INVITE_CODE_PATTERN.test(candidate)) {
     return {
       ok: false,
-      error: 'Enter a valid invite link or code (starts with I).',
+      error: t('Enter a valid invite link or code (starts with I).'),
     };
   }
 

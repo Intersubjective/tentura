@@ -23,7 +23,7 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 | `config.local.js`    | no-op stub by default; `./scripts/sync-landing-local-config.sh` sets `googleEnabled` locally |
 | `main.js`            | entry ES module; renders invite states + signed-out `/` + post-signup dispatch |
 | `beacon_overlay.js`  | shared-request card helpers (snippet expand / collapse)              |
-| `onboarding.js`      | post-signup name step + 3-page onboarding pager (`?signed_in=1&new=1`) |
+| `onboarding.js`      | post-signup name step + 3-page onboarding pager (`?signed_in=1&new=1`); also the EN/RU copy table (`t()`, locale from `?lang=` or `navigator.languages`, sets `<html lang>`) |
 | `app_preload.js`     | background app asset warmup (manifest + SW + cache)        |
 | `browser_compatibility.js` | Flutter loader–aligned wasm vs js path detection   |
 | `invite_entry.js`    | manual invite link/code parsing for signed-out `/`            |
