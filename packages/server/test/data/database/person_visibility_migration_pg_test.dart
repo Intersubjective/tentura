@@ -8,11 +8,12 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/forward_candidates_sql.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 typedef _PeerSignals = ({
   bool trustOut,
@@ -37,7 +38,15 @@ typedef _VisibilityExpectation = ({
 /// `vote_user` and/or a `mr_mutual_scores` row (both directions in that
 /// row). Mixed `trustIn + mrOut` is unchanged.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(
+      target: _target,
+      createPgmer2Extension: true,
+    );
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -73,7 +82,6 @@ SELECT
   }
 
   late TenturaDb db;
-  Connection? migrationConnection;
 
   const viewerId = 'Upvviewer001';
   const selfPeerId = 'Upvselfpeer1';
@@ -251,21 +259,6 @@ WHERE peer_id = \$3
   }
 
   if (skipReason == false) {
-    setUpAll(() async {
-      final env = _testEnv();
-      migrationConnection = await Connection.open(
-        env.pgEndpoint,
-        settings: env.pgEndpointSettings,
-      );
-      await migrationConnection!.execute('SET check_function_bodies = false');
-      await migrationConnection!.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-      await migrateDbSchema(migrationConnection!);
-    });
-
-    tearDownAll(() async {
-      await migrationConnection?.close();
-    });
-
     setUp(() async {
       db = TenturaDb(_testEnv());
       await cleanup();
@@ -583,7 +576,12 @@ ON CONFLICT DO NOTHING
       expect(wrapIds.toSet(), symmetricIds.difference({blockedPeer}));
       expect(
         wrapIds,
-        containsAll([explicitPeer, mrPeer, repairedSymmetryPeer, keptTrustInMrOutPeer]),
+        containsAll([
+          explicitPeer,
+          mrPeer,
+          repairedSymmetryPeer,
+          keptTrustInMrOutPeer,
+        ]),
       );
       expect(wrapIds, isNot(contains(oneWayPeer)));
       expect(wrapIds, isNot(contains(blockedPeer)));
@@ -619,13 +617,25 @@ ON CONFLICT DO NOTHING
         for (final row in rows) row.read<String>('peer_id'): row,
       };
 
-      expect(byId[trustOnly]!.read<bool>('viewer_explicitly_trusts_subject'), isTrue);
-      expect(byId[trustOnly]!.read<bool>('subject_explicitly_trusts_viewer'), isTrue);
+      expect(
+        byId[trustOnly]!.read<bool>('viewer_explicitly_trusts_subject'),
+        isTrue,
+      );
+      expect(
+        byId[trustOnly]!.read<bool>('subject_explicitly_trusts_viewer'),
+        isTrue,
+      );
       expect(_asDouble(byId[trustOnly]!.data['forward_mr']), 0);
       expect(_asDouble(byId[trustOnly]!.data['reverse_mr']), 0);
 
-      expect(byId[mixed]!.read<bool>('viewer_explicitly_trusts_subject'), isFalse);
-      expect(byId[mixed]!.read<bool>('subject_explicitly_trusts_viewer'), isTrue);
+      expect(
+        byId[mixed]!.read<bool>('viewer_explicitly_trusts_subject'),
+        isFalse,
+      );
+      expect(
+        byId[mixed]!.read<bool>('subject_explicitly_trusts_viewer'),
+        isTrue,
+      );
       expect(_asDouble(byId[mixed]!.data['forward_mr']), greaterThan(0));
     },
     skip: skipReason,
@@ -833,30 +843,20 @@ double _asDouble(Object? value) {
   throw StateError('Expected num, got ${value.runtimeType}');
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_PERSON_VISIBILITY_MIGRATION_TEST_DB',
+  defaultNamePrefix: 'tentura_test_person_vis_mig',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final env = _testEnv();
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.execute(Sql('SELECT 1'));
-    await connection.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 String _sessionJson(String userId) => jsonEncode({
   'x-hasura-user-id': userId,

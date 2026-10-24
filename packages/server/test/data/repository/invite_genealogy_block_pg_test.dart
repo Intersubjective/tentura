@@ -13,6 +13,8 @@ import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Blocked genealogy nodes become deleted-account placeholders (§7.3 E13).
 ///
 /// Forest fixture (descendant created_at must exceed ancestor's — CHECK):
@@ -27,7 +29,12 @@ import 'package:tentura_server/env.dart';
 ///
 /// Lone user X with no genealogy edges (target-fallback path).
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -169,7 +176,9 @@ ON CONFLICT (descendant_node_key) DO NOTHING
       await blockPair(blockerId: viewId, blockedId: ancId);
 
       final lineage = await repo.fetchLineage(userId: viewId);
-      final ancNode = lineage.nodes.singleWhere((n) => n.nodeKey == keyOf(ancId));
+      final ancNode = lineage.nodes.singleWhere(
+        (n) => n.nodeKey == keyOf(ancId),
+      );
 
       expect(ancNode.user, isNull);
       expect(ancNode.deletedAt, isNull);
@@ -195,7 +204,9 @@ ON CONFLICT (descendant_node_key) DO NOTHING
       await blockPair(blockerId: ancId, blockedId: viewId);
 
       final lineage = await repo.fetchLineage(userId: viewId);
-      final ancNode = lineage.nodes.singleWhere((n) => n.nodeKey == keyOf(ancId));
+      final ancNode = lineage.nodes.singleWhere(
+        (n) => n.nodeKey == keyOf(ancId),
+      );
 
       expect(ancNode.user, isNull);
       expect(ancNode.deletedAt, isNull);
@@ -264,7 +275,12 @@ ON CONFLICT (descendant_node_key) DO NOTHING
 
       expect(
         graph.edges.map((e) => e.descendantNodeKey),
-        containsAll([keyOf(midId), keyOf(childId), keyOf(ancId), keyOf(viewId)]),
+        containsAll([
+          keyOf(midId),
+          keyOf(childId),
+          keyOf(ancId),
+          keyOf(viewId),
+        ]),
       );
       expect(
         graph.nodes.singleWhere((n) => n.nodeKey == keyOf(childId)).user?.id,
@@ -286,7 +302,9 @@ ON CONFLICT (descendant_node_key) DO NOTHING
         targetId: loneId,
       );
 
-      final loneNode = graph.nodes.singleWhere((n) => n.nodeKey == keyOf(loneId));
+      final loneNode = graph.nodes.singleWhere(
+        (n) => n.nodeKey == keyOf(loneId),
+      );
       expect(loneNode.user, isNull);
       expect(loneNode.deletedAt, isNull);
     },
@@ -305,7 +323,9 @@ ON CONFLICT (descendant_node_key) DO NOTHING
         targetId: loneId,
       );
 
-      final loneNode = graph.nodes.singleWhere((n) => n.nodeKey == keyOf(loneId));
+      final loneNode = graph.nodes.singleWhere(
+        (n) => n.nodeKey == keyOf(loneId),
+      );
       expect(loneNode.user, isNull);
       expect(loneNode.deletedAt, isNull);
     },
@@ -313,26 +333,20 @@ ON CONFLICT (descendant_node_key) DO NOTHING
   );
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_INVITE_GENEALOGY_BLOCK_TEST_DB',
+  defaultNamePrefix: 'tentura_test_invite_genealogy_block',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasInviteGenealogyTable(TenturaDb db) async {
   final rows = await db.customSelect(

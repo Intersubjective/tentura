@@ -11,11 +11,18 @@ import 'package:tentura_server/data/repository/email_auth_transaction_repository
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Postgres integration test — skipped in CI when DB is down.
 ///
 /// See `packages/server/README.md` § Tests for the full list and how to run locally.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   final skipReason =
       postgresReachable ? false : 'local Postgres not reachable';
 
@@ -24,14 +31,7 @@ Future<void> main() async {
 
   if (postgresReachable) {
     setUpAll(() async {
-      final env = Env(
-        environment: Environment.test,
-        pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-        pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-        pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-        printEnv: false,
-        isDebugModeOn: false,
-      );
+      final env = _testEnv();
       db = TenturaDb(env);
       repo = EmailAuthTransactionRepository(db);
       final schemaCurrent = await _hasLinkAccountIdColumn(db);
@@ -387,16 +387,17 @@ LIMIT 1
   return rows.isNotEmpty;
 }
 
-Future<bool> _canConnectPostgres() async {
-  final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-  final port = int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-  try {
-    final socket = await Socket.connect(host, port).timeout(
-      const Duration(seconds: 2),
-    );
-    await socket.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_EMAIL_AUTH_TRANSACTION_REPOSITORY_TEST_DB',
+  defaultNamePrefix: 'tentura_test_email_auth_transaction_r',
+);
+
+Env _testEnv() => Env(
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);

@@ -13,11 +13,17 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Postgres integration — recursive CTE path chain and cancel on forward edges.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
-  final skipReason =
-      postgresReachable ? false : 'local Postgres not reachable';
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
+  final skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   late TenturaDb db;
   late ForwardEdgeRepository repo;
@@ -104,14 +110,16 @@ ON CONFLICT (id) DO NOTHING
   }
 
   Future<bool> isCancelled(String edgeId) async {
-    final row = await db.customSelect(
-      r'''
+    final row = await db
+        .customSelect(
+          r'''
 SELECT cancelled_at IS NOT NULL AS cancelled
 FROM public.beacon_forward_edge
 WHERE id = $1
 ''',
-      variables: [Variable.withString(edgeId)],
-    ).getSingle();
+          variables: [Variable.withString(edgeId)],
+        )
+        .getSingle();
     return row.read<bool>('cancelled');
   }
 
@@ -248,7 +256,10 @@ WHERE id IN ('$edgeHopToHelp', '$edgeAuthorDirect')
           isNull,
         );
         final active = await repo.fetchByBeaconId(beaconId);
-        expect(active.map((e) => e.id), containsAll([edgeAuthorToHop, edgeAuthorDirect]));
+        expect(
+          active.map((e) => e.id),
+          containsAll([edgeAuthorToHop, edgeAuthorDirect]),
+        );
         expect(active.map((e) => e.id), isNot(contains(edgeHopToHelp)));
       },
       skip: skipReason,
@@ -275,22 +286,17 @@ WHERE id IN ('$edgeHopToHelp', '$edgeAuthorDirect')
   });
 }
 
-Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_FORWARD_EDGE_REPOSITORY_PATH_CHAIN_CANCEL_TEST_DB',
+  defaultNamePrefix: 'tentura_test_forward_edge_repository_',
+);
 
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
+Env _testEnv() => Env(
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);

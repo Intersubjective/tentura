@@ -4,11 +4,9 @@ library;
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
-import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -18,10 +16,19 @@ import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
+import '../../support/disposable_pg_target.dart';
 
 /// SQL ↔ Dart policy parity — skipped when Postgres or m0098 is unavailable.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(
+      target: _target,
+      createPgmer2Extension: true,
+    );
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
   var attentionSkipReason = skipReason;
 
@@ -51,14 +58,6 @@ Future<void> main() async {
   if (skipReason == false) {
     setUpAll(() async {
       final env = _testEnv();
-      final writer = await Connection.open(
-        env.pgEndpoint,
-        settings: env.pgEndpointSettings,
-      );
-      await writer.execute('SET check_function_bodies = false');
-      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-      await migrateDbSchema(writer);
-      await writer.close();
       db = TenturaDb(env);
       repo = BeaconAccessRepository(db);
     });
@@ -150,44 +149,42 @@ ON CONFLICT (id) DO UPDATE SET
     bool isDiscoverable = true,
     bool isPublished = true,
     bool isMutuallyVisibleWithAuthor = true,
-  }) =>
-      BeaconContentVisibilityFacts(
-        status: status,
-        isAuthor: false,
-        hasActiveForwardEdgeAsRecipient: false,
-        isRoomAdmittedOrSteward: false,
-        isActiveHelpOfferer: false,
-        isDiscoverable: isDiscoverable,
-        isPublished: isPublished,
-        isMutuallyVisibleWithAuthor: isMutuallyVisibleWithAuthor,
-      );
+  }) => BeaconContentVisibilityFacts(
+    status: status,
+    isAuthor: false,
+    hasActiveForwardEdgeAsRecipient: false,
+    isRoomAdmittedOrSteward: false,
+    isActiveHelpOfferer: false,
+    isDiscoverable: isDiscoverable,
+    isPublished: isPublished,
+    isMutuallyVisibleWithAuthor: isMutuallyVisibleWithAuthor,
+  );
 
   BeaconContentVisibilityFacts legacyPeerFacts({
     BeaconStatus status = BeaconStatus.open,
-  }) =>
-      BeaconContentVisibilityFacts(
-        status: status,
-        isAuthor: false,
-        hasActiveForwardEdgeAsRecipient: false,
-        isRoomAdmittedOrSteward: false,
-        isActiveHelpOfferer: false,
-        isDiscoverable: true,
-        isPublished: true,
-        isMutuallyVisibleWithAuthor: false,
-      );
+  }) => BeaconContentVisibilityFacts(
+    status: status,
+    isAuthor: false,
+    hasActiveForwardEdgeAsRecipient: false,
+    isRoomAdmittedOrSteward: false,
+    isActiveHelpOfferer: false,
+    isDiscoverable: true,
+    isPublished: true,
+    isMutuallyVisibleWithAuthor: false,
+  );
 
   Future<bool> sqlContent(String viewerId) =>
       repo.canReadContent(beaconId: 'Bvisparity01', viewerId: viewerId);
 
   Future<bool> sqlInvolvement(String viewerId) => repo.canReadInvolvement(
-        beaconId: 'Bvisparity01',
-        viewerId: viewerId,
-      );
+    beaconId: 'Bvisparity01',
+    viewerId: viewerId,
+  );
 
   Future<bool> sqlTombstone(String viewerId) => repo.canReadTombstone(
-        beaconId: 'Bvisparity01',
-        viewerId: viewerId,
-      );
+    beaconId: 'Bvisparity01',
+    viewerId: viewerId,
+  );
 
   test(
     'SQL content matches Dart policy for author, draft, and deleted',
@@ -456,7 +453,9 @@ ON CONFLICT (id) DO NOTHING
       expect(
         BeaconVisibility.canReadInvolvement(
           _involvementFacts(
-            contentFacts: discoverablePeerFacts(isMutuallyVisibleWithAuthor: true),
+            contentFacts: discoverablePeerFacts(
+              isMutuallyVisibleWithAuthor: true,
+            ),
             isOnActiveForwardEdge: true,
           ),
         ),
@@ -876,22 +875,27 @@ BeaconInvolvementVisibilityFacts _involvementFacts({
   bool isOnActiveForwardEdge = false,
   bool isActiveHelpOfferer = false,
   bool isRoomAdmittedOrSteward = false,
-}) =>
-    BeaconInvolvementVisibilityFacts(
-      contentFacts: contentFacts,
-      isOnActiveForwardEdge: isOnActiveForwardEdge,
-      isActiveHelpOfferer: isActiveHelpOfferer,
-      isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
-    );
+}) => BeaconInvolvementVisibilityFacts(
+  contentFacts: contentFacts,
+  isOnActiveForwardEdge: isOnActiveForwardEdge,
+  isActiveHelpOfferer: isActiveHelpOfferer,
+  isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
+);
+
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_BEACON_ACCESS_SQL_PARITY_TEST_DB',
+  defaultNamePrefix: 'tentura_test_beacon_access_parity',
+);
 
 Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 Future<bool> _hasVisibilityFunctions(TenturaDb db) async {
   final rows = await db.customSelect(
@@ -932,26 +936,17 @@ LIMIT 1
 }
 
 Future<bool> _attentionRelationContains(TenturaDb db, String receiptId) async {
-  final row = await db.customSelect(
-    r'''
+  final row = await db
+      .customSelect(
+        r'''
 SELECT EXISTS (
   SELECT 1
   FROM public.visible_attention_receipts('Uvisparityview')
   WHERE receipt_id = $1
 ) AS visible
 ''',
-    variables: [Variable<String>(receiptId)],
-  ).getSingle();
+        variables: [Variable<String>(receiptId)],
+      )
+      .getSingle();
   return row.read<bool>('visible');
-}
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object catch (_) {
-    return false;
-  }
 }

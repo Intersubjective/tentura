@@ -13,8 +13,15 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -117,7 +124,10 @@ ON CONFLICT (id) DO NOTHING
     );
     final rows = await repo.fetchByBatchIds([batchB]);
     expect(rows, hasLength(2));
-    expect(rows.map((r) => r.weight).fold<double>(0, (a, b) => a + b), closeTo(1, 1e-9));
+    expect(
+      rows.map((r) => r.weight).fold<double>(0, (a, b) => a + b),
+      closeTo(1, 1e-9),
+    );
   }, skip: skipReason);
 
   test('empty weight map throws', () async {
@@ -153,33 +163,29 @@ ON CONFLICT (id) DO NOTHING
       weightByParentEdgeId: {edge1: 1.0},
       method: ForwardAttributionMethod.explicitSingle,
     );
-    final count = await db.customSelect(
-      "SELECT COUNT(*)::int AS c FROM forward_decision_attribution WHERE child_forward_batch_id = '$batchA'",
-    ).getSingle();
+    final count = await db
+        .customSelect(
+          "SELECT COUNT(*)::int AS c FROM forward_decision_attribution WHERE child_forward_batch_id = '$batchA'",
+        )
+        .getSingle();
     expect(count.read<int>('c'), 1);
   }, skip: skipReason);
 }
+
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_FORWARD_ATTRIBUTION_REPOSITORY_TEST_DB',
+  defaultNamePrefix: 'tentura_test_forward_attribution_repo',
+);
 
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? 'localhost',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgUsername: Platform.environment['POSTGRES_USERNAME'] ?? 'postgres',
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   genealogyNodeKeySecret: 'test-genealogy-secret',
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _hasAttributionTable(TenturaDb db) async {
   final row = await db.customSelect(

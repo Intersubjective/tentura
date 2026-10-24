@@ -13,9 +13,16 @@ import 'package:tentura_server/domain/capability/capability_event_source.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Postgres integration — fetchDeduplicatedCapabilities source-type and dedup SQL.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -181,7 +188,8 @@ WHERE observer_user_id = '$otherId'
       expect(
         ledgerRows,
         isNotEmpty,
-        reason: 'insertCommitRole must still write for audit (plan requirement)',
+        reason:
+            'insertCommitRole must still write for audit (plan requirement)',
       );
     },
     skip: skipReason,
@@ -335,14 +343,20 @@ WHERE observer_user_id = '$viewerId'
   );
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_PERSON_CAPABILITY_FETCH_DEDUPLICATED_TEST_DB',
+  defaultNamePrefix: 'tentura_test_person_capability_fetch_',
+);
+
 Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 Future<bool> _hasPersonCapabilityEventTable(TenturaDb db) async {
   final rows = await db.customSelect(
@@ -353,15 +367,4 @@ LIMIT 1
 ''',
   ).get();
   return rows.isNotEmpty;
-}
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object {
-    return false;
-  }
 }

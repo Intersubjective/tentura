@@ -1,40 +1,34 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
-import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/room_message_snapshot_lookup.dart';
-import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 Future<void> main() async {
-  final env = Env(
-    environment: Environment.test,
-    pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-    pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-    pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-    printEnv: false,
-    isDebugModeOn: false,
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_ROOM_SNAPSHOT_LOOKUP_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_room_snapshot',
   );
-  final reachable = await _canConnect(env);
-  final skipReason = reachable ? false : 'Postgres not reachable for lookup test';
+  final skipReason = await pgSkipReason(target);
+  late DisposablePgWriterSession session;
 
   late TenturaDb database;
   late RoomMessageSnapshotLookup lookup;
 
-  if (skipReason == false) {
+  if (skipReason == null) {
     setUpAll(() async {
-      database = TenturaDb(env);
+      session = await setUpDisposablePgWriter(target: target);
+      database = TenturaDb(target.databaseEnv);
       lookup = RoomMessageSnapshotLookup(database);
     });
 
     tearDownAll(() async {
-      await database.close();
+      await tearDownDisposablePgWriter(session: session, drift: database);
     });
 
     tearDown(() async {
@@ -339,17 +333,4 @@ WHERE id = 'Rlookup000003'
     },
     skip: skipReason,
   );
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
 }
