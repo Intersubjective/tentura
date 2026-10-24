@@ -212,6 +212,8 @@ void main() {
     });
 
     test('a person already online shows as soon as they are watched', () async {
+      // Another screen watches m, so the service already knows m is online.
+      harness.repository.watch('friends', {'m'});
       final cubit = make();
       addTearDown(cubit.close);
       harness.push({'m': 'online'});
@@ -260,6 +262,10 @@ void main() {
 
       cubit.setVisible(true);
       expect(harness.sent.last, {'z', 'm', 'y'});
+      // Unwatched statuses are dropped (#533); the server answers the new
+      // watch with a fresh snapshot.
+      harness.push({'m': 'online'});
+      await pumpEventQueue();
       expect(cubit.state, {'m'});
     });
 

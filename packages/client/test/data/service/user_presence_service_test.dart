@@ -67,6 +67,7 @@ void main() {
     });
 
     test('applies user_presence subscription events to snapshot', () async {
+      service.setWatchPeers('friends', {'U1', 'U2'});
       final seen = <Map<String, UserPresenceStatus>>[];
       final sub = service.presenceChanges.listen(seen.add);
 
@@ -99,6 +100,110 @@ void main() {
         },
       );
       await sub.cancel();
+    });
+
+    // #533: a dot whose last watcher went away must not stay lit.
+    group('#533 stale presence after unwatch', () {
+      Future<void> online(List<String> ids) async {
+        messages.add({
+          'type': 'subscription',
+          'path': 'user_presence',
+          'payload': {
+            'intent': 'watch_updates',
+            'events': [
+              for (final id in ids) {'user_id': id, 'status': 'online'},
+            ],
+          },
+        });
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      test('the last removeWatch empties the snapshot and emits', () async {
+        service.setWatchPeers('room:B1', {'A', 'B'});
+        await online(['A', 'B']);
+        expect(service.snapshot.keys, unorderedEquals(['A', 'B']));
+
+        final seen = <Map<String, UserPresenceStatus>>[];
+        final sub = service.presenceChanges.skip(1).listen(seen.add);
+        service.removeWatch('room:B1');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(service.snapshot, isEmpty);
+        expect(seen, isNotEmpty);
+        expect(seen.last, isEmpty);
+        await sub.cancel();
+      });
+
+      test('a peer another source still watches keeps its status', () async {
+        service
+          ..setWatchPeers('friends', {'A'})
+          ..setWatchPeers('room:B1', {'A', 'B'});
+        await online(['A', 'B']);
+
+        service.removeWatch('room:B1');
+
+        expect(service.snapshot, {'A': UserPresenceStatus.online});
+      });
+
+      test('narrowing a source drops the peers no one watches now', () async {
+        service.setWatchPeers('room:B1', {'A', 'B'});
+        await online(['A', 'B']);
+
+        service.setWatchPeers('room:B1', {'A'});
+
+        expect(service.snapshot, {'A': UserPresenceStatus.online});
+      });
+
+      test('an event for a peer no source watches is dropped', () async {
+        service.setWatchPeers('room:B1', {'A'});
+        await online(['A', 'stranger']);
+
+        expect(service.snapshot, {'A': UserPresenceStatus.online});
+      });
+
+      test('a late snapshot after narrowing does not bring B back', () async {
+        service.setWatchPeers('room:B1', {'A', 'B'});
+        await online(['A', 'B']);
+        service.setWatchPeers('room:B1', {'A'});
+
+        // Sent by the server before it saw the narrowed watch.
+        await online(['A', 'B']);
+
+        expect(service.snapshot, {'A': UserPresenceStatus.online});
+      });
+
+      test('a late event after the last removeWatch stays dropped', () async {
+        service
+          ..setWatchPeers('room:B1', {'A'})
+          ..removeWatch('room:B1');
+
+        await online(['A']);
+
+        expect(service.snapshot, isEmpty);
+      });
+
+      test('a peer watched again takes the next event', () async {
+        service
+          ..setWatchPeers('room:B1', {'A'})
+          ..removeWatch('room:B1');
+        await online(['A']);
+        service.setWatchPeers('friends', {'A'});
+
+        await online(['A']);
+
+        expect(service.snapshot, {'A': UserPresenceStatus.online});
+      });
+
+      test('a source that is still watched keeps every status', () async {
+        service
+          ..setWatchPeers('friends', {'A'})
+          ..setWatchPeers('room:B1', {'B'});
+        await online(['A', 'B']);
+
+        service.removeWatch('unknown');
+
+        expect(service.snapshot.keys, unorderedEquals(['A', 'B']));
+      });
     });
 
     test('re-sends watch list when socket reconnects', () async {
