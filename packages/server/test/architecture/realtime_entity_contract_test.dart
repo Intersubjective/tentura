@@ -80,7 +80,18 @@ void main() {
         'notify_questions_attachment_change',
         'notify_people_seen_change',
         'notify_room_seen_peer_change',
+        'notify_person_tag_change',
       },
+    );
+
+    final personTag = entries.singleWhere(
+      (entry) => entry['wireKind'] == 'person_tag',
+    );
+    expect(personTag['clientKind'], 'personTag');
+    expect(personTag['acceptedWireKinds'], ['person_tag']);
+    expect(
+      personTag['specializedPublishers'],
+      ['notify_person_tag_change'],
     );
 
     final notification = entries.singleWhere(

@@ -142,6 +142,11 @@ const impactSubscribers = <String, List<String>>{
   'constellation_anchors': [
     'packages/client/lib/features/constellation/domain/use_case/constellation_anchor_case.dart',
   ],
+  // Parsed and published by the invalidation service until the people-tags
+  // store subscribes to `person_tag` changes.
+  'people_tags': [
+    'packages/client/lib/data/service/invalidation_service.dart',
+  ],
 };
 
 void main() {

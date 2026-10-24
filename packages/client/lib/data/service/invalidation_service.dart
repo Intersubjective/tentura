@@ -228,7 +228,9 @@ class InvalidationService implements RealtimeSyncPort {
         roomMessagePaint: paint,
         seenPeer: seenPeer,
         peopleSeenAt: peopleSeenAt,
-        revision: kind == RealtimeEntityKind.constellationAnchor
+        revision:
+            kind == RealtimeEntityKind.constellationAnchor ||
+                kind == RealtimeEntityKind.personTag
             ? _parseRevision(payload['revision'])
             : null,
         roomStateChanged:

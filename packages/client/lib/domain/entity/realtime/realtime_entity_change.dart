@@ -33,6 +33,7 @@ enum RealtimeEntityKind {
   constellationItem,
   inviteSeedPrompt,
   beaconPlan,
+  personTag,
   ;
 
   /// Maps the closed WebSocket protocol vocabulary into a domain kind.
@@ -63,6 +64,7 @@ enum RealtimeEntityKind {
     'constellation_item' => RealtimeEntityKind.constellationItem,
     'invite_seed_prompt' => RealtimeEntityKind.inviteSeedPrompt,
     'beacon_plan' => RealtimeEntityKind.beaconPlan,
+    'person_tag' => RealtimeEntityKind.personTag,
     _ => null,
   };
 }
@@ -93,7 +95,7 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
     /// Author/steward People-surface watermark from WS `people_seen` `last_seen_at`.
     DateTime? peopleSeenAt,
 
-    /// Commit revision from WS `constellation_anchor` `revision`; null when absent or malformed.
+    /// Commit revision from WS `constellation_anchor` / `person_tag` `revision`; null when absent or malformed.
     BigInt? revision,
 
     /// WS `room_state` on a `beacon` hint: the request's next step moved, so

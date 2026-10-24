@@ -11,6 +11,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     'room_seen_peer': {'seen_user_id', 'last_seen_at'},
     'people_seen': {'last_seen_at'},
     'constellation_anchor': {'revision'},
+    'person_tag': {'revision'},
   };
 
   static final _decimalRevision = RegExp(r'^[0-9]+$');
@@ -90,7 +91,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     final forwardedExtras = _forwardedExtrasByKind[entity];
     if (forwardedExtras != null) {
       final bool valid;
-      if (entity == 'constellation_anchor') {
+      if (entity == 'constellation_anchor' || entity == 'person_tag') {
         final revision = data['revision'];
         valid = revision is String && _decimalRevision.hasMatch(revision);
       } else {

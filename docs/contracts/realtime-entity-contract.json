@@ -319,6 +319,18 @@
       "tests": [
         "packages/server/test/domain/plan/plan_domain_test.dart"
       ]
+    },
+    {
+      "wireKind": "person_tag",
+      "acceptedWireKinds": ["person_tag"],
+      "clientKind": "personTag",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_person_tag_change"],
+      "impacts": ["people_tags"],
+      "tests": [
+        "packages/client/test/data/service/invalidation_service_person_tag_test.dart",
+        "packages/server/test/data/database/person_tag_deferred_notification_pg_test.dart"
+      ]
     }
   ]
 }

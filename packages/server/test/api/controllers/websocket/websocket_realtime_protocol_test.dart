@@ -154,6 +154,85 @@ void main() {
       },
     );
 
+    group('person_tag fan-out', () {
+      Map<String, dynamic> personTagNotification({
+        Object? revision = '7',
+        bool includeRevision = true,
+      }) => {
+        'entity': 'person_tag',
+        'id': _actorId,
+        'event': 'update',
+        'actor_user_id': _actorId,
+        'user_ids': [_actorId],
+        if (includeRevision) 'revision': revision,
+      };
+
+      test(
+        'reaches every session of the owner, including the acting one, '
+        'when echo is disabled',
+        () async {
+          final dependencies = _Dependencies();
+          final handler = _EntityChangeHarness(
+            Env(realtimeActorEchoEnabled: false),
+            dependencies,
+          );
+          final ownerSessionOne = _RecordingSession();
+          final ownerSessionTwo = _RecordingSession();
+          final foreignSession = _RecordingSession();
+          await dependencies.authenticate(handler, ownerSessionOne, _actorId);
+          await dependencies.authenticate(handler, ownerSessionTwo, _actorId);
+          await dependencies.authenticate(handler, foreignSession, _affectedId);
+          ownerSessionOne.sent.clear();
+          ownerSessionTwo.sent.clear();
+          foreignSession.sent.clear();
+
+          await handler.fanOutEntityChange(personTagNotification());
+
+          expect(ownerSessionOne.sent, hasLength(1));
+          expect(ownerSessionTwo.sent, hasLength(1));
+          expect(foreignSession.sent, isEmpty);
+          final payload =
+              (jsonDecode(ownerSessionOne.sent.single! as String)
+                      as Map)['payload']
+                  as Map;
+          expect(payload['entity'], 'person_tag');
+          expect(payload['id'], _actorId);
+          expect(payload['event'], 'update');
+          expect(payload['revision'], '7');
+          expect(payload.containsKey('user_ids'), isFalse);
+          expect(payload.containsKey('last_seen_at'), isFalse);
+        },
+      );
+
+      for (final (label, notification) in [
+        ('a non-numeric revision', personTagNotification(revision: 'abc')),
+        ('a negative revision', personTagNotification(revision: '-1')),
+        ('no revision', personTagNotification(includeRevision: false)),
+      ]) {
+        test('drops the frame and logs when the envelope has $label', () async {
+          final records = <LogRecord>[];
+          Logger('EntityChangeHarness').onRecord.listen(records.add);
+          final dependencies = _Dependencies();
+          final handler = _EntityChangeHarness(Env(), dependencies);
+          final session = _RecordingSession();
+          await dependencies.authenticate(handler, session, _actorId);
+          session.sent.clear();
+
+          await handler.fanOutEntityChange(notification);
+
+          expect(session.sent, isEmpty);
+          expect(
+            records.where(
+              (record) =>
+                  record.message.contains('realtime_event=malformed_payload') &&
+                  record.message.contains('reason=person_tag'),
+            ),
+            hasLength(1),
+          );
+        });
+      }
+    });
+
     test(
       'enabled actor echo reaches actor and other affected sessions',
       () async {
