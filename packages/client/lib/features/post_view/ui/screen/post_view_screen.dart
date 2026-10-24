@@ -111,11 +111,17 @@ class _PostViewScreenState extends State<PostViewScreen> {
     final rootId = state.beacon.postRootMessageId;
     if (rootId == null) return null;
     final edge = state.forwardedToMe;
+    // #667: the author sending their own Post started the chat; only someone
+    // else passing it on is a forward.
+    final senderName = edge?.sender.shownName ?? '';
+    final fromAuthor = edge?.sender.id == state.beacon.author.id;
     return RoomPostRootPin(
       messageId: rootId,
       excerpt: state.summary?.rootExcerpt.trim() ?? '',
-      forwardedBy: edge?.sender.shownName ?? '',
+      forwardedBy: fromAuthor ? '' : senderName,
+      // The author's personal note stays next to the started line.
       forwardNote: edge?.note.trim() ?? '',
+      startedBy: fromAuthor ? senderName : '',
     );
   }
 

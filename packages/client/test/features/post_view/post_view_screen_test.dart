@@ -300,6 +300,7 @@ Future<_Harness> _pumpPost(
   PostSummary? summary,
   Size surface = const Size(700, 900),
   double textScale = 1,
+  Locale locale = const Locale('ru'),
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -391,7 +392,7 @@ Future<_Harness> _pumpPost(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        locale: const Locale('ru'),
+        locale: locale,
         navigatorObservers: [observer],
         home: MediaQuery(
           data: MediaQueryData(
@@ -1018,6 +1019,179 @@ void main() {
 
       expect(_stripExcerptText(), findsNWidgets(2));
       expect(find.textContaining('переслал(а) вам'), findsNothing);
+    });
+
+    // #667: the author's own send to a recipient starts the chat; it is not
+    // a forward, and the strip does not repeat the root bubble.
+    testWidgets('says the author started the chat when the author sent it '
+        'to the viewer', (tester) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        forwardEdges: [
+          _edge(sender: _author, recipient: _reader, note: ''),
+        ],
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(BasicChatBody),
+          matching: find.textContaining(
+            'Олег начал(а) этот чат с вами',
+            findRichText: true,
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('переслал(а)'), findsNothing);
+      // The first message is shown once: as the root bubble only.
+      expect(_rootBubbleText(), findsOneWidget);
+      expect(_stripExcerptText(), findsOneWidget);
+    });
+
+    testWidgets('in English: «Theo started this chat with you», no forward', (
+      tester,
+    ) async {
+      const theo = Profile(id: 'Uauthor', displayName: 'Theo');
+      await _pumpPost(
+        tester,
+        beacon: _post().copyWith(author: theo),
+        viewer: _reader,
+        locale: const Locale('en'),
+        forwardEdges: [
+          _edge(sender: theo, recipient: _reader, note: ''),
+        ],
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(BasicChatBody),
+          matching: find.textContaining(
+            'Theo started this chat with you',
+            findRichText: true,
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('forwarded'), findsNothing);
+      expect(_stripExcerptText(), findsOneWidget);
+    });
+
+    // #667 review: the author's personal note on the send was dropped.
+    testWidgets('keeps the author note next to started this chat with you', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        forwardEdges: [
+          _edge(sender: _author, recipient: _reader, note: 'ты же хотел'),
+        ],
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(BasicChatBody),
+          matching: find.textContaining(
+            'Олег начал(а) этот чат с вами: «ты же хотел»',
+            findRichText: true,
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('переслал(а)'), findsNothing);
+      expect(_stripExcerptText(), findsOneWidget);
+    });
+
+    testWidgets('in English the author note follows the started line', (
+      tester,
+    ) async {
+      const theo = Profile(id: 'Uauthor', displayName: 'Theo');
+      await _pumpPost(
+        tester,
+        beacon: _post().copyWith(author: theo),
+        viewer: _reader,
+        locale: const Locale('en'),
+        forwardEdges: [
+          _edge(sender: theo, recipient: _reader, note: 'thought of you'),
+        ],
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(BasicChatBody),
+          matching: find.textContaining(
+            'Theo started this chat with you: “thought of you”',
+            findRichText: true,
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('forwarded'), findsNothing);
+    });
+
+    testWidgets('the started line still scrolls the root into view', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        messages: _longConversation(40),
+        forwardEdges: [
+          _edge(sender: _author, recipient: _reader, note: ''),
+        ],
+      );
+
+      final messageList = find
+          .descendant(
+            of: find.byType(BasicChatBody),
+            matching: find.byType(ListView),
+          )
+          .first;
+      for (var i = 0; i < 4; i++) {
+        await tester.fling(messageList, const Offset(0, -3000), 8000);
+        await tester.pump(const Duration(seconds: 2));
+      }
+      expect(_rootBubbleText(), findsNothing);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BasicChatBody),
+          matching: find.textContaining(
+            'Олег начал(а) этот чат с вами',
+            findRichText: true,
+          ),
+        ),
+      );
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(_rootBubbleText(), findsOneWidget);
+      final viewport = tester.getRect(find.byType(BasicChatBody));
+      final bubble = tester.getRect(_rootBubbleText());
+      expect(viewport.overlaps(bubble), isTrue);
+    });
+
+    testWidgets('a real forward after the author still says who forwarded it', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        forwardEdges: [
+          _edge(sender: _author, recipient: _other, note: ''),
+          _edge(sender: _other, recipient: _reader, note: ''),
+        ],
+      );
+
+      expect(find.textContaining('Дима переслал(а) вам'), findsOneWidget);
+      expect(find.textContaining('начал(а) этот чат'), findsNothing);
+      expect(_stripExcerptText(), findsNWidgets(2));
     });
   });
 

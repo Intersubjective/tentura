@@ -97,7 +97,10 @@ class RoomCapabilities {
 }
 
 /// What the pinned strip of a Post room shows: the root message and, for a
-/// recipient the Post was forwarded to, who forwarded it and their note.
+/// recipient the Post was forwarded to, who forwarded it and their note. When
+/// the author sent the Post to the viewer themself, [startedBy] names them
+/// instead (#667): that is starting a chat, not a forward. [forwardNote] is
+/// then the author's own note on that send.
 @immutable
 class RoomPostRootPin {
   const RoomPostRootPin({
@@ -105,14 +108,17 @@ class RoomPostRootPin {
     required this.excerpt,
     this.forwardedBy = '',
     this.forwardNote = '',
+    this.startedBy = '',
   });
 
   final String messageId;
   final String excerpt;
   final String forwardedBy;
   final String forwardNote;
+  final String startedBy;
 
-  bool get hasStrip => excerpt.isNotEmpty || forwardedBy.isNotEmpty;
+  bool get hasStrip =>
+      excerpt.isNotEmpty || forwardedBy.isNotEmpty || startedBy.isNotEmpty;
 }
 
 /// What the room surface reads from the screen that hosts it.
