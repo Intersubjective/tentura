@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -41,10 +42,16 @@ class HomeRailAccountFooter extends StatelessWidget {
         GetIt.I.isRegistered<ProfileCubit>() &&
         GetIt.I.isRegistered<AuthCubit>();
     if (!hasAccount) return _build(context, hasAccount: false, name: '');
-    return BlocSelector<ProfileCubit, ProfileState, String>(
+    return BlocSelector<ProfileCubit, ProfileState, Profile>(
       bloc: GetIt.I<ProfileCubit>(),
-      selector: (state) => state.profile.displayName,
-      builder: (context, name) => _build(context, hasAccount: true, name: name),
+      selector: (state) => state.profile,
+      // #660: the name as shown, read on every build so a server placeholder
+      // follows the app language.
+      builder: (context, profile) => _build(
+        context,
+        hasAccount: true,
+        name: profile.shownName.trim(),
+      ),
     );
   }
 
