@@ -1962,8 +1962,23 @@ Future<ConstellationAnchorTarget> topmostOverlappingConstellationTarget(
 
 Future<void> openConstellationFilters(WidgetTester tester) async {
   final filtersButton = find.byKey(const Key('constellation.app_bar.filters'));
-  await pumpUntilVisible(tester, filtersButton, label: 'constellation filters');
-  await tapConstellationControl(tester, filtersButton);
+  final moreButton = find.byKey(const Key('constellation.app_bar.more'));
+  await pumpUntil(
+    tester,
+    () => finderHasMatch(filtersButton) || finderHasMatch(moreButton),
+    label: 'constellation filters or overflow menu',
+  );
+  if (finderHasMatch(filtersButton)) {
+    await tapConstellationControl(tester, filtersButton);
+    return;
+  }
+  // On a compact (phone) window the filters sit in the overflow menu (#659).
+  await tapConstellationControl(tester, moreButton);
+  final filtersItem = find.byKey(
+    const Key('constellation.app_bar.more.filters'),
+  );
+  await pumpUntilVisible(tester, filtersItem, label: 'constellation filters');
+  await tapConstellationControl(tester, filtersItem);
 }
 
 Future<void> toggleConstellationShowClosed(WidgetTester tester) async {

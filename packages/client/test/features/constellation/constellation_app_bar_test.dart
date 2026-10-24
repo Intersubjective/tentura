@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -8,7 +9,9 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -75,12 +78,17 @@ Future<void> _pumpAppBar(
   Locale locale = const Locale('en'),
   TextScaler textScaler = TextScaler.noScaling,
   ConstellationComposerCubit? composer,
+  ConstellationSelectionCubit? selection,
+  Widget? account,
 }) async {
   await tester.binding.setSurfaceSize(size);
-  final row = ConstellationAppBarRow(
+  Widget row = ConstellationAppBarRow(
     legendExpanded: legendExpanded,
     onToggleLegend: () {},
   );
+  if (selection != null) {
+    row = BlocProvider.value(value: selection, child: row);
+  }
   await tester.pumpWidget(
     MaterialApp(
       locale: locale,
@@ -100,6 +108,7 @@ Future<void> _pumpAppBar(
                   row: composer == null
                       ? row
                       : BlocProvider.value(value: composer, child: row),
+                  account: account,
                 ),
                 body: const SizedBox.expand(),
               ),
@@ -126,7 +135,13 @@ void main() {
       onToggle: (_) {},
     );
     await tester.pumpAndSettle();
-    for (final key in ['legend', 'filters', 'view_mode', 'create_here']) {
+    for (final key in [
+      'legend',
+      'filters',
+      'view_mode',
+      'create_here',
+      'more',
+    ]) {
       expect(find.byKey(Key('constellation.app_bar.$key')), findsNothing);
     }
     expect(
@@ -135,17 +150,15 @@ void main() {
     );
     cubit.exitComposing();
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const Key('constellation.app_bar.filters')),
-      findsOneWidget,
-    );
+    // On a phone the filters sit in the overflow menu (#659).
+    expect(find.byKey(const Key('constellation.app_bar.more')), findsOneWidget);
   });
   group('ConstellationAppBarRow', () {
     testWidgets(
       'without a composer provided, the create button is absent',
       (tester) async {
         final cubit = await _loadCubit();
-        await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));
+        await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
 
         expect(
           find.byKey(const Key('constellation.app_bar.create_here')),
@@ -163,7 +176,7 @@ void main() {
         await _pumpAppBar(
           tester,
           cubit: cubit,
-          size: const Size(400, 800),
+          size: const Size(900, 800),
           composer: composer,
         );
 
@@ -191,7 +204,7 @@ void main() {
 
     testWidgets('filters button opens sheet with filter bar', (tester) async {
       final cubit = await _loadCubit();
-      await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));
+      await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
 
       await tester.tap(find.byKey(const Key('constellation.app_bar.filters')));
       await tester.pumpAndSettle();
@@ -204,7 +217,7 @@ void main() {
       tester,
     ) async {
       final cubit = await _loadCubit();
-      await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));
+      await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
 
       final legend = find.byKey(const Key('constellation.app_bar.legend'));
       final toggle = find.byKey(const Key('constellation.app_bar.view_mode'));
@@ -361,6 +374,234 @@ void main() {
         expect(segment.tooltip!.isNotEmpty, isTrue);
       }
       await cubit.close();
+    });
+  });
+  // #659: on a 390 px phone the bar used to squeeze the title to "F…" and
+  // the Map/List toggle to two 18x32 slivers.
+  group('on a phone', () {
+    const phone = Size(390, 844);
+    final more = find.byKey(const Key('constellation.app_bar.more'));
+
+    Future<(ConstellationCubit, ConstellationSelectionCubit)> pumpPhone(
+      WidgetTester tester, {
+      Locale locale = const Locale('en'),
+    }) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final composer = _buildComposerCubit();
+      addTearDown(composer.close);
+      final selection = ConstellationSelectionCubit();
+      addTearDown(selection.close);
+      await _pumpAppBar(
+        tester,
+        cubit: cubit,
+        size: phone,
+        locale: locale,
+        composer: composer,
+        selection: selection,
+        // The profile avatar shares the bar on the real screen.
+        account: IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.account_circle),
+        ),
+      );
+      return (cubit, selection);
+    }
+
+    for (final (locale, title) in [
+      (const Locale('en'), 'Field'),
+      (const Locale('ru'), 'Поле'),
+    ]) {
+      testWidgets('the title is not cut ($locale)', (tester) async {
+        await pumpPhone(tester, locale: locale);
+        expect(tester.takeException(), isNull);
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.text(title),
+        );
+        final intrinsic = paragraph.getMaxIntrinsicWidth(double.infinity);
+        expect(paragraph.size.width, greaterThanOrEqualTo(intrinsic - 0.5));
+        // Shown whole and still readable: not shrunk to a speck either.
+        expect(
+          tester.getRect(find.text(title)).width,
+          greaterThanOrEqualTo(0.75 * intrinsic),
+        );
+      });
+    }
+
+    testWidgets('both Map/List segments are full 48 dp targets', (
+      tester,
+    ) async {
+      await pumpPhone(tester);
+      final segments = find.descendant(
+        of: find.byKey(const Key('constellation.app_bar.view_mode')),
+        matching: find.byType(TextButton),
+      );
+      expect(segments, findsNWidgets(2));
+      for (var i = 0; i < 2; i++) {
+        final size = tester.getSize(segments.at(i));
+        expect(size.width, greaterThanOrEqualTo(48));
+        expect(size.height, greaterThanOrEqualTo(48));
+      }
+      expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
+      expect(find.byIcon(Icons.view_list_outlined), findsOneWidget);
+    });
+
+    testWidgets('legend, select, create and filters move into a menu', (
+      tester,
+    ) async {
+      await pumpPhone(tester);
+      for (final key in ['legend', 'select', 'create_here', 'filters']) {
+        expect(find.byKey(Key('constellation.app_bar.$key')), findsNothing);
+      }
+      expect(find.byKey(const Key('constellation.app_bar.search')), findsOne);
+
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+      for (final key in ['legend', 'select', 'createHere', 'filters']) {
+        expect(
+          find.byKey(Key('constellation.app_bar.more.$key')),
+          findsOneWidget,
+        );
+      }
+    });
+
+    testWidgets('the menu items act', (tester) async {
+      final (_, selection) = await pumpPhone(tester);
+
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('constellation.app_bar.more.select')),
+      );
+      await tester.pumpAndSettle();
+      expect(selection.state.selecting, isTrue);
+
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('constellation.app_bar.more.createHere')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('constellation.canvas.create_menu.request')),
+        findsOneWidget,
+      );
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('constellation.app_bar.more.filters')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('constellation.filter_bar')), findsOneWidget);
+    });
+
+    testWidgets('the list view menu holds no map-only items', (tester) async {
+      final (cubit, _) = await pumpPhone(tester);
+      cubit.setViewMode(ConstellationViewMode.text);
+      await tester.pumpAndSettle();
+
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('constellation.app_bar.more.legend')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('constellation.app_bar.more.select')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('constellation.app_bar.more.filters')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a wide window keeps the inline buttons', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
+      expect(more, findsNothing);
+      expect(find.byKey(const Key('constellation.app_bar.filters')), findsOne);
+      expect(find.byKey(const Key('constellation.app_bar.legend')), findsOne);
+    });
+  });
+
+  // #678: a labelled segment was read as "Map Map".
+  testWidgets('a labelled segment names itself once', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final cubit = await _loadCubit();
+    addTearDown(cubit.close);
+    await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
+    expect(find.text('Map'), findsOneWidget);
+
+    final data = tester.getSemantics(find.byTooltip('Map')).getSemanticsData();
+    final spoken = '${data.label}\n${data.tooltip}';
+    expect(RegExp('Map').allMatches(spoken), hasLength(1));
+    semantics.dispose();
+  });
+
+  // #659: on a phone the degree chips ran off the edge with no hint.
+  group('the chip row', () {
+    Future<void> pumpChips(WidgetTester tester, Size size) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(size: size),
+            child: TenturaResponsiveScope(
+              child: BlocProvider.value(
+                value: cubit,
+                child: const Scaffold(
+                  body: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstellationVisibilityBar(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    final fadeStart = find.byKey(const Key('constellation.show.fade_start'));
+    final fadeEnd = find.byKey(const Key('constellation.show.fade_end'));
+    final lastChip = find.byKey(const Key('constellation.show.degree.further'));
+
+    testWidgets('fades where chips are hidden and scrolls to the last one', (
+      tester,
+    ) async {
+      await pumpChips(tester, const Size(390, 844));
+      expect(fadeEnd, findsOneWidget);
+      expect(fadeStart, findsNothing);
+      expect(tester.getRect(lastChip).right, greaterThan(390));
+
+      await tester.drag(
+        find.byKey(const Key('constellation.show')),
+        const Offset(-1000, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getRect(lastChip).right, lessThanOrEqualTo(390));
+      expect(fadeEnd, findsNothing);
+      expect(fadeStart, findsOneWidget);
+    });
+
+    testWidgets('has no fade when every chip fits', (tester) async {
+      await pumpChips(tester, const Size(1400, 900));
+      expect(tester.getRect(lastChip).right, lessThanOrEqualTo(1400));
+      expect(fadeEnd, findsNothing);
+      expect(fadeStart, findsNothing);
     });
   });
 }
