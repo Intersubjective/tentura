@@ -84,8 +84,11 @@ class HelpOfferTile extends StatelessWidget {
     final tt = context.tt;
     final isWithdrawn = helpOffer.isWithdrawn;
     // A declined offer is stored as withdrawn too; say what really happened
-    // and keep the author's reason visible (UI review, People tab).
+    // and keep the author's reason visible (UI review, People tab). The
+    // pair's last action outlives that offer: a later active offer (a backup
+    // kept as standby, a re-offer) is not declined (#708).
     final isDeclinedByAuthor =
+        isWithdrawn &&
         helpOffer.admissionAction == HelpOfferAdmissionAction.decline;
     final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
     final roomAccess = helpOffer.roomAccess ?? participant?.roomAccess;
