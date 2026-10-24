@@ -1634,12 +1634,19 @@ class ConstellationSelectionBar extends StatelessWidget {
             Expanded(
               child: Semantics(
                 liveRegion: true,
-                child: Text(
-                  state.isEmpty
-                      ? l10n.constellationSelectionHint
-                      : l10n.constellationSelectionCount(state.count),
-                  key: const Key('constellation.selection.count'),
-                  style: theme.textTheme.bodyMedium,
+                // The empty hint fits the pointer (#681): a mouse or trackpad
+                // has no two fingers to move the map with.
+                child: ListenableBuilder(
+                  listenable: RendererBinding.instance.mouseTracker,
+                  builder: (context, _) => Text(
+                    !state.isEmpty
+                        ? l10n.constellationSelectionCount(state.count)
+                        : RendererBinding.instance.mouseTracker.mouseIsConnected
+                        ? l10n.constellationSelectionHintMouse
+                        : l10n.constellationSelectionHint,
+                    key: const Key('constellation.selection.count'),
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
               ),
             ),
