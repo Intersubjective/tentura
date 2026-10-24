@@ -66,8 +66,9 @@ class BeaconTile extends StatelessWidget {
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,
               onForward: onForward,
-              onForwardsGraph: () =>
-                  context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+              onForwardsGraph: () => context
+                  .read<ScreenCubit>()
+                  .showForwardsGraphFor(beacon.id, kind: beacon.kind),
             ),
           ),
           if (showAuthor) ...[

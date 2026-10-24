@@ -93,6 +93,7 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
         focus: forwardsGraphId,
         helpOffererId: query.optString('committer'),
         helpOffererName: query.optString('committerName'),
+        kind: query.optString(kQueryForwardsGraphKind),
       ),
     );
   }

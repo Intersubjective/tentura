@@ -21,6 +21,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     @PathParam('id') this.focus = '',
     @QueryParam('committer') this.helpOffererId,
     @QueryParam('committerName') this.helpOffererName,
+    @QueryParam('kind') this.kind,
     super.key,
   });
 
@@ -35,6 +36,10 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   /// Optional help offerer display title forwarded by the People tab so the
   /// AppBar title can read e.g. "Forward path to {name}".
   final String? helpOffererName;
+
+  /// Beacon kind's name passed by the caller (`post`), so a Post is named a
+  /// post before the beacon loads (#501). The loaded beacon wins once read.
+  final String? kind;
 
   @override
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
@@ -71,7 +76,9 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
               _titleFor(
                 l10n,
                 state.helpOffererViewerRole,
-                isPost: beacon?.kind == BeaconKind.post,
+                isPost: beacon != null
+                    ? beacon.kind == BeaconKind.post
+                    : kind == BeaconKind.post.name,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

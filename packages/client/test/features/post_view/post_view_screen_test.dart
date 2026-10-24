@@ -764,7 +764,7 @@ void main() {
 
       expect(
         h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
-        contains('/graph/forwards/$_postId'),
+        contains('/graph/forwards/$_postId?kind=post'),
       );
     });
 

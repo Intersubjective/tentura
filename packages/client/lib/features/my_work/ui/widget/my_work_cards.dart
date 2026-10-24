@@ -724,7 +724,10 @@ class _AuthoredActiveCard extends StatelessWidget {
                     )
                   : null,
               onForwardsGraph: () =>
-                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
+                  context.read<ScreenCubit>().showForwardsGraphFor(
+                    b.id,
+                    kind: b.kind,
+                  ),
               onCreateFrom: beaconAllowsLineageOverflow(b)
                   ? () async {
                       await runBeaconCreateFromAction(
@@ -804,7 +807,10 @@ class _HelpOfferedActiveCard extends StatelessWidget {
                     )
                   : null,
               onForwardsGraph: () =>
-                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
+                  context.read<ScreenCubit>().showForwardsGraphFor(
+                    b.id,
+                    kind: b.kind,
+                  ),
               onCreateFrom: beaconAllowsLineageOverflow(b)
                   ? () async {
                       await runBeaconCreateFromAction(
@@ -1018,7 +1024,10 @@ class _FinishedAuthoredCard extends StatelessWidget {
                     )
                   : null,
               onForwardsGraph: () =>
-                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
+                  context.read<ScreenCubit>().showForwardsGraphFor(
+                    b.id,
+                    kind: b.kind,
+                  ),
               onCreateFrom: beaconAllowsLineageOverflow(b)
                   ? () async {
                       await runBeaconCreateFromAction(
@@ -1097,7 +1106,10 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
                     )
                   : null,
               onForwardsGraph: () =>
-                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
+                  context.read<ScreenCubit>().showForwardsGraphFor(
+                    b.id,
+                    kind: b.kind,
+                  ),
               onCreateFrom: beaconAllowsLineageOverflow(b)
                   ? () async {
                       await runBeaconCreateFromAction(
