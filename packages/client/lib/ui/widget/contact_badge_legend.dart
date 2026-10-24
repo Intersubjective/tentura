@@ -17,20 +17,21 @@ class ContactBadgeLegend extends StatelessWidget {
   /// the closed eye merges.
   final bool showTextLabelNote;
 
-  static const _mutualProfile = Profile(
+  /// Sample profiles that carry each badge (also used by the scatter legend).
+  static const mutualProfile = Profile(
     id: 'legend-mutual',
     displayName: 'M',
     isMutualFriend: true,
   );
 
-  static const _eyeOpenProfile = Profile(
+  static const eyeOpenProfile = Profile(
     id: 'legend-seeing',
     displayName: 'O',
     score: 1,
     rScore: 1,
   );
 
-  static const _eyeClosedProfile = Profile(
+  static const eyeClosedProfile = Profile(
     id: 'legend-unseen',
     displayName: 'C',
   );
@@ -50,17 +51,17 @@ class ContactBadgeLegend extends StatelessWidget {
         SizedBox(height: tt.rowGap),
         _BadgeRow(
           label: l10n.graphLegendMutual,
-          profile: _mutualProfile,
+          profile: mutualProfile,
         ),
         SizedBox(height: tt.tightGap),
         _BadgeRow(
           label: l10n.graphLegendEyeOpen,
-          profile: _eyeOpenProfile,
+          profile: eyeOpenProfile,
         ),
         SizedBox(height: tt.tightGap),
         _BadgeRow(
           label: l10n.graphLegendEyeClosed,
-          profile: _eyeClosedProfile,
+          profile: eyeClosedProfile,
         ),
         if (showTextLabelNote) ...[
           SizedBox(height: tt.rowGap),
