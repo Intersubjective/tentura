@@ -34,9 +34,10 @@ one of the runner's concurrent test slots): the report gives every test's
 start and end. A standalone suite's duration is the sum of its tests', its
 loading (compile) included; inside a bundle (scripts/gen_test_bundles.py)
 each test belongs to the file named by its outermost group, and the bundle's
-own loading is overhead booked to no file. `_parallelism` records, per
-family, the slot-seconds its runs booked (overhead included) per second of
-wall time: ~2 for `dart test` / `flutter test` at their default concurrency
+own loading is shared equally by its files (compiling a bundle takes time in
+proportion to how many files it imports: 36-41 s for a two-bundle shard of
+~180 files, 66-82 s for one of ~330). `_parallelism` records, per family,
+the slot-seconds its runs booked per second of wall time: ~2 for `dart test` / `flutter test` at their default concurrency
 on a 4-vCPU runner, 1 for the `-j 1` run.
 """
 
@@ -82,7 +83,9 @@ class Report:
         )
         suites: dict[int, str] = {}
         groups: dict[int, str] = {}
-        running: dict[int, tuple[float, str | None]] = {}
+        running: dict[int, tuple[float, int, str | None]] = {}
+        loading: dict[int, float] = defaultdict(float)
+        members: dict[int, set[str]] = defaultdict(set)
         for line in path.read_text(encoding="utf-8").splitlines():
             if not line.startswith("{"):
                 continue
@@ -107,13 +110,14 @@ class Report:
                     owner = package_path(owner.split(" ", 1)[0]) if owner else None
                 else:
                     owner = package_path(suite_path)
-                running[test["id"]] = (now, owner)
+                running[test["id"]] = (now, test["suiteID"], owner)
             elif kind == "testDone":
-                start, owner = running.pop(event["testID"], (now, None))
+                start, suite_id, owner = running.pop(event["testID"], (now, -1, None))
                 if owner is None:
-                    self.overhead += now - start
+                    loading[suite_id] += now - start
                 else:
                     self.seconds[owner] += now - start
+                    members[suite_id].add(owner)
                 if not event.get("hidden") and owner is not None:
                     counts = self.counts[owner]
                     if event.get("skipped"):
@@ -122,6 +126,13 @@ class Report:
                         counts["passed"] += 1
                     else:
                         counts["failed"] += 1
+        for suite_id, seconds in loading.items():
+            files = members.get(suite_id)
+            if not files:
+                self.overhead += seconds
+                continue
+            for owner in files:
+                self.seconds[owner] += seconds / len(files)
 
     @property
     def booked(self) -> float:
