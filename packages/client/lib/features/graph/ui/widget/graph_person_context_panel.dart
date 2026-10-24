@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/ui/widget/trust_toggle_line.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_label.dart';
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
 
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_person_context_cubit.dart';
@@ -34,6 +36,7 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.onDiscoverableRequestTap,
     this.footer,
     this.subtitle,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
@@ -53,6 +56,9 @@ class GraphPersonContextPanel extends StatelessWidget {
 
   /// A line under the name, e.g. the field's chain of trust (#641).
   final Widget? subtitle;
+
+  /// Shows the viewer's private tags on the person; off with the feature gate.
+  final bool peopleTagsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +143,10 @@ class GraphPersonContextPanel extends StatelessWidget {
           profile: profile,
           policy: policy,
         ),
+        if (peopleTagsEnabled) ...[
+          SizedBox(height: tt.sectionGap),
+          PersonTagsBlock(personId: profile.id),
+        ],
         if (discoverableRequests.isNotEmpty &&
             onToggleRequestsExpanded != null) ...[
           SizedBox(height: tt.sectionGap),

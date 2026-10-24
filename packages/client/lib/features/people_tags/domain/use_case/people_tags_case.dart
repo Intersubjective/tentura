@@ -56,6 +56,10 @@ final class PeopleTagsCase extends UseCaseBase {
       if (e.value.contains(personId)) e.key,
   };
 
+  /// The automatic tags [personId] carries, as the server derives them.
+  Future<List<PersonAutoTagOf>> autoTagsOf(String personId) async =>
+      (await _repository.personTagsOf(personId)).auto;
+
   Future<void> load() async {
     final results = await Future.wait([
       _repository.personTags(),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
@@ -22,6 +23,7 @@ import 'package:tentura/ui/widget/url_link_annotations.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../domain/port/person_shared_context_port.dart';
@@ -33,10 +35,17 @@ import 'profile_info_sheet.dart';
 import 'seen_helping_with_strip.dart';
 
 class ProfileViewBody extends StatelessWidget {
-  const ProfileViewBody({this.showNetwork = true, super.key});
+  const ProfileViewBody({
+    this.showNetwork = true,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
+    super.key,
+  });
 
   /// False when [ProfileViewNetworkGroup] is placed in a supporting pane.
   final bool showNetwork;
+
+  /// Shows the viewer's private tags on another person; off with the gate.
+  final bool peopleTagsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +138,11 @@ class ProfileViewBody extends StatelessWidget {
                 const _SeenHelpingWithSection(),
                 _EditSeedSuggestionSection(profile: profile),
                 _ProfileCapabilitySection(profile: profile),
+                if (peopleTagsEnabled && !isSelf && profile.id.isNotEmpty)
+                  Padding(
+                    padding: kPaddingSmallT,
+                    child: PersonTagsBlock(personId: profile.id),
+                  ),
                 if (showNetwork) ProfileViewNetworkGroup(profile: profile),
               ],
             );
@@ -534,37 +548,44 @@ class _ProfileCapabilitySection extends StatelessWidget {
         if (isSelf || !isFriend) return const SizedBox.shrink();
         final name = profile.shownName;
         final isEmpty = viewerVisible.isEmpty;
-        return ProfileFactRow(
-          icon: Icons.label_outline,
-          text: isEmpty
-              ? l10n.profileMarkCapabilities(name)
-              : l10n.profileMyLabelsLine(
-                  viewerVisible.map((c) => _labelOf(l10n, c)).join(', '),
+        // Its own semantics node: what follows the section (the tags block)
+        // must not be read as part of it.
+        return Semantics(
+          container: true,
+          child: ProfileFactRow(
+            icon: Icons.label_outline,
+            text: isEmpty
+                ? l10n.profileMarkCapabilities(name)
+                : l10n.profileMyLabelsLine(
+                    viewerVisible.map((c) => _labelOf(l10n, c)).join(', '),
+                  ),
+            richText: isEmpty
+                ? null
+                : _labelsSpan(context, l10n, viewerVisible),
+            onTextTap: () => _edit(context, viewerVisible),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () => _edit(context, viewerVisible),
+                  tooltip: l10n.profileEditLabels,
+                  icon: Icon(isEmpty ? Icons.add : Icons.edit_outlined),
                 ),
-          richText: isEmpty ? null : _labelsSpan(context, l10n, viewerVisible),
-          onTextTap: () => _edit(context, viewerVisible),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () => _edit(context, viewerVisible),
-                tooltip: l10n.profileEditLabels,
-                icon: Icon(isEmpty ? Icons.add : Icons.edit_outlined),
-              ),
-              IconButton(
-                onPressed: () => showProfileInfoSheet(
-                  context,
-                  title: l10n.profileLabelsInfoTitle,
-                  lines: [
-                    l10n.profileLabelsInfoPrivate,
-                    l10n.profileLabelsInfoShared(name),
-                  ],
-                  lineIcons: const [_privateIcon, _sharedIcon],
+                IconButton(
+                  onPressed: () => showProfileInfoSheet(
+                    context,
+                    title: l10n.profileLabelsInfoTitle,
+                    lines: [
+                      l10n.profileLabelsInfoPrivate,
+                      l10n.profileLabelsInfoShared(name),
+                    ],
+                    lineIcons: const [_privateIcon, _sharedIcon],
+                  ),
+                  tooltip: l10n.profileLabelsInfoTitle,
+                  icon: const Icon(Icons.info_outline),
                 ),
-                tooltip: l10n.profileLabelsInfoTitle,
-                icon: const Icon(Icons.info_outline),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

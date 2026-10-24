@@ -7514,5 +7514,13 @@
   "constellationTagModeAnd": "Все сразу",
   "constellationAutoTagMutualContact": "Взаимный контакт",
   "constellationAutoTagITrust": "Я доверяю",
-  "constellationAutoTagTrustsMe": "Доверяет мне"
+  "constellationAutoTagTrustsMe": "Доверяет мне",
+  "peopleTagsYourTags": "Ваши теги",
+  "peopleTagsAutomatic": "Автоматические",
+  "peopleTagsAutoHelpedMe": "Помог мне",
+  "peopleTagsAutoIHelped": "Я помог",
+  "peopleTagsAutoWorkedTogether": "Работали вместе",
+  "peopleTagsAutoInvited": "Приглашение",
+  "peopleTagsAutoForwarded": "Пересылка",
+  "peopleTagsAutoNewOnField": "Новый в поле"
 }

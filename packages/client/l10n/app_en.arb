@@ -11284,5 +11284,37 @@
   "constellationAutoTagTrustsMe": "Trusts me",
   "@constellationAutoTagTrustsMe": {
     "description": "Automatic tag on the Field tag row"
+  },
+  "peopleTagsYourTags": "Your tags",
+  "@peopleTagsYourTags": {
+    "description": "Heading of the viewer's own tags on a person"
+  },
+  "peopleTagsAutomatic": "Automatic",
+  "@peopleTagsAutomatic": {
+    "description": "Heading of the automatic tags on a person"
+  },
+  "peopleTagsAutoHelpedMe": "Helped me",
+  "@peopleTagsAutoHelpedMe": {
+    "description": "Automatic tag"
+  },
+  "peopleTagsAutoIHelped": "I helped",
+  "@peopleTagsAutoIHelped": {
+    "description": "Automatic tag"
+  },
+  "peopleTagsAutoWorkedTogether": "Worked together",
+  "@peopleTagsAutoWorkedTogether": {
+    "description": "Automatic tag"
+  },
+  "peopleTagsAutoInvited": "Invited",
+  "@peopleTagsAutoInvited": {
+    "description": "Automatic tag"
+  },
+  "peopleTagsAutoForwarded": "Forwarded",
+  "@peopleTagsAutoForwarded": {
+    "description": "Automatic tag"
+  },
+  "peopleTagsAutoNewOnField": "New on the Field",
+  "@peopleTagsAutoNewOnField": {
+    "description": "Automatic tag"
   }
 }
