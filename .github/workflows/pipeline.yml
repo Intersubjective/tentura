@@ -475,8 +475,8 @@ jobs:
                     # test/bundle_exclude.txt.
                     # Bundles and concurrency: measured, see the PR (#TBD).
                     pg_files=$(python3 ../../scripts/gen_test_bundles.py . --allow-pg \
-                      --chunks 2 --balance pg $pg_files)
-                    pg_jobs=(-j 2)
+                      --chunks 4 --balance pg $pg_files)
+                    pg_jobs=(-j 4)
                   fi
                   TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test "${pg_jobs[@]}" --tags pg "${only[@]}" \
                     --exclude-tags mr,multi-connection \
