@@ -111,8 +111,7 @@ final class _FakeSetupCase implements InviteAcceptedSetupPort {
   @override
   Future<Map<String, InviteSeedPromptState>> fetchPrompts(
     Set<String> subjectIds,
-  ) async =>
-      {};
+  ) async => {};
 }
 
 void main() {
@@ -165,7 +164,9 @@ void main() {
                     onMarkSeen: () async => markSeenCalls++,
                     onMarkUnseen: () {},
                     onPromptSettled: (subjectId, state) {
-                      setState(() => promptProjection = PromptProjection.known(state));
+                      setState(
+                        () => promptProjection = PromptProjection.known(state),
+                      );
                     },
                   );
                 },
@@ -290,7 +291,12 @@ void main() {
       );
 
       expect(find.text('Carol joined via your invitation'), findsOneWidget);
-      expect(find.text('Carol is now on Tentura.'), findsOneWidget);
+      // #712: the body comes from the payload origin, not the stored text.
+      expect(
+        find.text(l10n.updatesInviteAcceptedBodyNewAccount),
+        findsOneWidget,
+      );
+      expect(find.text('Carol is now on Tentura.'), findsNothing);
       expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
     });
 

@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -15,8 +17,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
 
-// The select tool's toolbar toggle (#642): on the map only, and it fits the
-// field toolbar on a phone.
+// The select tool's toolbar toggle (#642): on the map only; on a phone it
+// is in the field toolbar's overflow menu (#659).
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -132,6 +134,28 @@ void main() {
     expect(selection.state.selecting, isFalse);
   });
 
+  // #678: the on/off state was exposed only as "current".
+  testWidgets('the toggle exposes its on/off state', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await load(tester);
+    await _pump(
+      tester,
+      cubit: cubit,
+      selection: selection,
+      size: const Size(900, 800),
+    );
+
+    var data = tester.getSemantics(_toggle).getSemanticsData();
+    expect(data.flagsCollection.isButton, isTrue);
+    expect(data.flagsCollection.isToggled, Tristate.isFalse);
+
+    await tester.tap(_toggle);
+    await tester.pumpAndSettle();
+    data = tester.getSemantics(_toggle).getSemanticsData();
+    expect(data.flagsCollection.isToggled, Tristate.isTrue);
+    semantics.dispose();
+  });
+
   testWidgets('it is hidden in the list view', (tester) async {
     await load(tester);
     await _pump(
@@ -164,7 +188,15 @@ void main() {
         locale: locale,
       );
       expect(tester.takeException(), isNull);
-      expect(_toggle, findsOneWidget);
+      // On a phone it sits in the bar's overflow menu (#659).
+      expect(_toggle, findsNothing);
+      await tester.tap(find.byKey(const Key('constellation.app_bar.more')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('constellation.app_bar.more.select')),
+      );
+      await tester.pumpAndSettle();
+      expect(selection.state.selecting, isTrue);
     });
   }
 }

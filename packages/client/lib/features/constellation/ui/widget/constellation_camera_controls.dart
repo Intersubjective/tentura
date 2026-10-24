@@ -105,26 +105,34 @@ class ConstellationCameraControls extends StatelessWidget {
             ),
             if (state.hasUserPlacements) ...[
               SizedBox(height: tt.tightGap * 2),
-              IconButton.filledTonal(
-                key: TestIds.key(TestIds.constellationRearrange),
-                tooltip: l10n.constellationRearrange,
-                onPressed: enabled ? cubit.rearrangeFreeNodes : null,
-                icon: Icon(
-                  Icons.auto_fix_high,
-                  semanticLabel: l10n.constellationRearrange,
+              // The icon's label names the button; the tooltip is visual
+              // only, so it is not read twice (#678).
+              Tooltip(
+                message: l10n.constellationRearrange,
+                excludeFromSemantics: true,
+                child: IconButton.filledTonal(
+                  key: TestIds.key(TestIds.constellationRearrange),
+                  onPressed: enabled ? cubit.rearrangeFreeNodes : null,
+                  icon: Icon(
+                    Icons.auto_fix_high,
+                    semanticLabel: l10n.constellationRearrange,
+                  ),
+                  constraints: buttonSize,
                 ),
-                constraints: buttonSize,
               ),
               SizedBox(height: tt.tightGap * 2),
-              IconButton.filledTonal(
-                key: const Key('constellation.camera.reset_positions'),
-                tooltip: l10n.constellationResetPositions,
-                onPressed: enabled ? () => _confirmReset(context) : null,
-                icon: Icon(
-                  Icons.restart_alt,
-                  semanticLabel: l10n.constellationResetPositions,
+              Tooltip(
+                message: l10n.constellationResetPositions,
+                excludeFromSemantics: true,
+                child: IconButton.filledTonal(
+                  key: const Key('constellation.camera.reset_positions'),
+                  onPressed: enabled ? () => _confirmReset(context) : null,
+                  icon: Icon(
+                    Icons.restart_alt,
+                    semanticLabel: l10n.constellationResetPositions,
+                  ),
+                  constraints: buttonSize,
                 ),
-                constraints: buttonSize,
               ),
             ],
           ],

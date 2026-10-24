@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/app/platform/text_input_focus.dart';
+
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
@@ -16,6 +19,16 @@ import '../widget/rating_list_tile.dart';
 import '../widget/rating_scatter_view.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
+
+/// Lets a widget test say whether the browser focus is still on the search
+/// field; null asks the platform.
+@visibleForTesting
+bool Function()? debugRatingSearchTextInputHasPlatformFocus;
+
+/// Lets a widget test see which semantics identifier prefixes the screen
+/// asks the browser to keep the field's focus on; null asks the platform.
+@visibleForTesting
+void Function(Iterable<String> prefixes)? debugRatingKeepTextInputFocusOnPress;
 
 @RoutePage()
 class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -62,6 +75,38 @@ class _RatingScreenState extends State<RatingScreen> {
   /// Close hands the caret back to the field, so the next keys land there
   /// (on web the first click after Close was lost, #603).
   final _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // With semantics on, a press on ✕ moved the browser focus off the
+    // field's input to the page, while Flutter still counted the field as
+    // focused, so the first click back on it and the keys after it were lost
+    // (#603, as #688). Cancelling the press keeps the browser focus on it.
+    (debugRatingKeepTextInputFocusOnPress ?? keepTextInputFocusOnPress)(
+      const [TestIds.ratingSearchClear],
+    );
+  }
+
+  /// Keeps the caret and the keys in the search field. If Flutter counts the
+  /// field as focused but the browser focus has left its input anyway, the
+  /// field is re-attached the way a fresh click into it does (#603).
+  void _keepSearchFocus() {
+    if (!_searchFocusNode.hasFocus) {
+      _searchFocusNode.requestFocus();
+      return;
+    }
+    final hasPlatformFocus =
+        (debugRatingSearchTextInputHasPlatformFocus ??
+        textInputHasPlatformFocus)();
+    if (hasPlatformFocus) return;
+    _searchFocusNode.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_searchFocusNode.hasFocus) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -197,13 +242,17 @@ class _RatingScreenState extends State<RatingScreen> {
                 // unfocus) and focus stays in it, so typing goes on (#603).
                 if (!_isScatterView && filter.isNotEmpty)
                   TextFieldTapRegion(
-                    child: IconButton(
-                      tooltip: l10n.buttonClose,
-                      icon: const Icon(Icons.clear_rounded),
-                      onPressed: () {
-                        cubit.clearSearchFilter();
-                        _searchFocusNode.requestFocus();
-                      },
+                    child: Semantics(
+                      container: true,
+                      identifier: TestIds.ratingSearchClear,
+                      child: IconButton(
+                        tooltip: l10n.buttonClose,
+                        icon: const Icon(Icons.clear_rounded),
+                        onPressed: () {
+                          cubit.clearSearchFilter();
+                          _keepSearchFocus();
+                        },
+                      ),
                     ),
                   ),
               ],
@@ -228,6 +277,13 @@ class _RatingScreenState extends State<RatingScreen> {
                               controller: _searchController,
                               focusNode: _searchFocusNode,
                               onChanged: cubit.setSearchFilter,
+                              // A click on the field while the browser focus
+                              // sits elsewhere puts it back on the input.
+                              onTap: () {
+                                if (_searchFocusNode.hasFocus) {
+                                  _keepSearchFocus();
+                                }
+                              },
                               textInputAction: TextInputAction.go,
                             ),
                           ),

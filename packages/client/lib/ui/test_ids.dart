@@ -101,6 +101,12 @@ abstract final class TestIds {
   static const roomAuthorCommitmentGlyphs =
       'room.message.author_commitment_glyphs';
 
+  /// Close (✕) of the Rating search. The Rating screen keeps the browser
+  /// focus on its search field when this button is pressed
+  /// (`keepTextInputFocusOnPress`), so renaming it changes runtime
+  /// behaviour, not only tests (#603).
+  static const ratingSearchClear = 'rating.search.clear';
+
   /// Identifier prefix of every mention suggestion row. The web composer
   /// keeps the browser focus on its field when one of these rows is pressed
   /// (`keepTextInputFocusOnPress` in `BasicChatBody`), so the fix for #688

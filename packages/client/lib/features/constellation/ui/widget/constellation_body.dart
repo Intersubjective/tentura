@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -86,6 +87,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
   final _graphStackKey = GlobalKey();
+  final _mapFocus = FocusNode(debugLabel: 'ConstellationMap');
 
   // Single owner of pin zoom detail: per-node history would diverge when a
   // node is recreated inside the hysteresis band.
@@ -123,6 +125,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _graphController.cameraRevision.removeListener(_onCamera);
     _reveal.dispose();
     _edgeStrokeScale.dispose();
+    _mapFocus.dispose();
     if (!kReleaseMode) ConstellationPerf.stopFrameReporting();
     super.dispose();
   }
@@ -358,6 +361,28 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   Future<void> _dismissRequestPreview(ConstellationCubit cubit) async {
     cubit.selectRequest(null);
+  }
+
+  /// Closes the open person or Request panel (#680). Focus that was inside
+  /// the panel goes away with it, so it comes back to the map, where Tab and
+  /// Escape keep working; focus already on a map node stays there.
+  void _closePanelOnEscape(ConstellationCubit cubit) {
+    final state = cubit.state;
+    if (state.selectedPersonId != null) {
+      cubit.selectPerson(null);
+    } else if (state.selectedRequestId != null) {
+      unawaited(_dismissRequestPreview(cubit));
+    } else {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final focus = FocusManager.instance.primaryFocus;
+      if (focus == null ||
+          (focus != _mapFocus && !focus.ancestors.contains(_mapFocus))) {
+        _mapFocus.requestFocus();
+      }
+    });
   }
 
   void _openBeacon(
@@ -740,13 +765,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                 await composer.finish();
                               }());
                             } else {
+                              final placing =
+                                  cubit.state.placementPhase !=
+                                  ConstellationPlacementPhase.idle;
                               cubit.cancelPlacement();
+                              // Nothing else to cancel: Escape closes the
+                              // person or Request panel (#680).
+                              if (!placing) _closePanelOnEscape(cubit);
                             }
                             return null;
                           },
                         ),
                   },
                   child: Focus(
+                    focusNode: _mapFocus,
                     autofocus: true,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -786,12 +818,18 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               ValueListenableBuilder<int>(
                                 valueListenable:
                                     cubit.graphController.topologyRevision,
-                                builder: (context, _, _) => _buildGraphStack(
-                                  context,
-                                  cubit,
-                                  cubit.state,
-                                  cubit.graphSceneLayoutAlgorithm,
-                                  panelVisible,
+                                // Labels and chips drawn near the top edge
+                                // pass under the chip row, as edges do: the
+                                // clip stops their paint and hits at the
+                                // map's edge (#675).
+                                builder: (context, _, _) => ClipRect(
+                                  child: _buildGraphStack(
+                                    context,
+                                    cubit,
+                                    cubit.state,
+                                    cubit.graphSceneLayoutAlgorithm,
+                                    panelVisible,
+                                  ),
                                 ),
                               ),
                               // The map stack hosts the preview overlay; the
@@ -1272,7 +1310,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     // web engine's tabindex land on it, and Enter/Space (ActivateIntent, and
     // ButtonActivateIntent for Enter on web) do what a tap does. Focus alone
     // does not select.
-    return Semantics(
+    return _MinExtentSemantics(
       container: true,
       button: true,
       selected: selected,
@@ -1326,6 +1364,70 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: SingleChildScrollView(child: legend),
+    );
+  }
+}
+
+/// [Semantics] whose node rect is at least [kMinInteractiveDimension] on
+/// screen at any zoom (#678), like the tap target (#640), so touch
+/// exploration finds the node where a tap does.
+class _MinExtentSemantics extends Semantics {
+  // Not const: Semantics has no const constructor taking these flags.
+  _MinExtentSemantics({
+    super.container,
+    super.button,
+    super.selected,
+    super.label,
+    super.onTap,
+    super.child,
+  });
+
+  @override
+  RenderSemanticsAnnotations createRenderObject(BuildContext context) =>
+      _RenderMinExtentSemantics(
+        container: container,
+        explicitChildNodes: explicitChildNodes,
+        excludeSemantics: excludeSemantics,
+        blockUserActions: blockUserActions,
+        properties: properties,
+        localeForSubtree: localeForSubtree,
+        textDirection:
+            properties.textDirection ?? Directionality.maybeOf(context),
+      );
+}
+
+class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
+  _RenderMinExtentSemantics({
+    required super.properties,
+    super.container,
+    super.explicitChildNodes,
+    super.excludeSemantics,
+    super.blockUserActions,
+    super.localeForSubtree,
+    super.textDirection,
+  });
+
+  @override
+  Rect get semanticBounds {
+    final bounds = super.semanticBounds;
+    if (!attached) {
+      return bounds;
+    }
+    // Screen pixels per local pixel (the camera zoom); semantics geometry is
+    // recomputed whenever the camera transform changes.
+    final m = getTransformTo(null).storage;
+    final scale = math.sqrt(m[0] * m[0] + m[1] * m[1]);
+    if (scale <= 0 || !scale.isFinite) {
+      return bounds;
+    }
+    final minExtent = kMinInteractiveDimension / scale;
+    if (bounds.width >= minExtent && bounds.height >= minExtent) {
+      return bounds;
+    }
+    return Rect.fromCenter(
+      center: bounds.center,
+      width: math.max(bounds.width, minExtent),
+      height: math.max(bounds.height, minExtent),
     );
   }
 }

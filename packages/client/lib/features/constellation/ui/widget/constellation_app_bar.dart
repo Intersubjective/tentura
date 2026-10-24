@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
@@ -68,6 +69,45 @@ class ConstellationAppBarRow extends StatelessWidget {
                         await composer.cancel();
                         await composer.finish();
                       }()),
+              ),
+            ],
+          );
+        }
+
+        // On a phone (#659) the bar keeps the title, the person search and a
+        // full-size Map/List toggle; everything else goes into a menu.
+        if (context.windowClass == WindowClass.compact) {
+          return Row(
+            children: [
+              // Never cut to "F…": a title that does not fit is scaled down
+              // whole instead.
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    l10n.constellationTitle,
+                    style: theme.textTheme.titleLarge,
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+              Visibility(
+                visible: showLegend,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: const ConstellationPersonSearchButton(),
+              ),
+              // Not Flexible: the toggle keeps its own (icon-only) size.
+              _ConstellationViewModeToggle(
+                viewMode: state.viewMode,
+                onChanged: cubit.setViewMode,
+              ),
+              _ConstellationOverflowMenu(
+                showMapActions: showLegend,
+                legendExpanded: legendExpanded,
+                onToggleLegend: onToggleLegend,
               ),
             ],
           );
@@ -195,9 +235,10 @@ class _ConstellationViewModeToggle extends StatelessWidget {
         return SegmentedButton<ConstellationViewMode>(
           key: const Key('constellation.app_bar.view_mode'),
           showSelectedIcon: false,
+          // Full 48 dp touch targets on every platform (#659).
           style: ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.standard,
+            tapTargetSize: MaterialTapTargetSize.padded,
             textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
           ),
           segments: [
@@ -207,7 +248,10 @@ class _ConstellationViewModeToggle extends StatelessWidget {
                 identifier: TestIds.constellationAppBarViewModeMap,
                 child: const Icon(TenturaIcons.graph),
               ),
-              label: showLabels ? Text(mapLabel) : null,
+              // Named by its tooltip, not read twice (#678).
+              label: showLabels
+                  ? ExcludeSemantics(child: Text(mapLabel))
+                  : null,
               tooltip: mapLabel,
             ),
             ButtonSegment(
@@ -216,7 +260,10 @@ class _ConstellationViewModeToggle extends StatelessWidget {
                 identifier: TestIds.constellationAppBarViewModeText,
                 child: const Icon(Icons.view_list_outlined),
               ),
-              label: showLabels ? Text(textLabel) : null,
+              // Named by its tooltip, not read twice (#678).
+              label: showLabels
+                  ? ExcludeSemantics(child: Text(textLabel))
+                  : null,
               tooltip: textLabel,
             ),
           ],
@@ -265,5 +312,160 @@ class _ConstellationViewModeToggle extends StatelessWidget {
       maxLines: 1,
     )..layout();
     return painter.width;
+  }
+}
+
+enum _ConstellationOverflowAction { legend, select, createHere, filters }
+
+/// The phone bar's overflow menu (#659): legend, select several, create here
+/// and filters. Its icon carries the active-filters badge.
+class _ConstellationOverflowMenu extends StatelessWidget {
+  const _ConstellationOverflowMenu({
+    required this.showMapActions,
+    required this.legendExpanded,
+    required this.onToggleLegend,
+  });
+
+  final bool showMapActions;
+  final bool legendExpanded;
+  final VoidCallback onToggleLegend;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final cubit = context.read<ConstellationCubit>();
+    final composer = maybeConstellationComposer(context);
+    final selection = showMapActions
+        ? maybeConstellationSelection(context)
+        : null;
+
+    PopupMenuItem<_ConstellationOverflowAction> item(
+      BuildContext menuContext, {
+      required _ConstellationOverflowAction action,
+      required IconData icon,
+      required String label,
+      bool badge = false,
+      bool? checked,
+    }) {
+      final color = Theme.of(menuContext).colorScheme.onSurface;
+      return PopupMenuItem(
+        key: Key('constellation.app_bar.more.${action.name}'),
+        value: action,
+        child: Semantics(
+          toggled: checked,
+          child: Row(
+            children: [
+              Badge(
+                isLabelVisible: badge,
+                smallSize: tt.tightGap,
+                child: Icon(icon, size: tt.iconSize, color: color),
+              ),
+              SizedBox(width: tt.rowGap),
+              Flexible(child: Text(label)),
+              if (checked ?? false) ...[
+                SizedBox(width: tt.rowGap),
+                Icon(Icons.check, size: tt.iconSize, color: color),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return PopupMenuButton<_ConstellationOverflowAction>(
+      key: const Key('constellation.app_bar.more'),
+      icon: Badge(
+        isLabelVisible: cubit.hasActiveFilters,
+        smallSize: tt.tightGap,
+        child: const Icon(Icons.more_vert),
+      ),
+      constraints: BoxConstraints(
+        minWidth: tt.buttonHeight,
+        minHeight: tt.buttonHeight,
+      ),
+      popUpAnimationStyle: AnimationStyle.noAnimation,
+      itemBuilder: (menuContext) => [
+        if (showMapActions)
+          item(
+            menuContext,
+            action: _ConstellationOverflowAction.legend,
+            icon: Icons.legend_toggle,
+            label: legendExpanded
+                ? l10n.graphLegendClose
+                : l10n.graphLegendOpen,
+          ),
+        if (selection != null)
+          item(
+            menuContext,
+            action: _ConstellationOverflowAction.select,
+            icon: Icons.select_all,
+            label: l10n.constellationSelectMany,
+            checked: selection.state.selecting,
+          ),
+        if (composer != null)
+          item(
+            menuContext,
+            action: _ConstellationOverflowAction.createHere,
+            icon: Icons.add,
+            label: l10n.constellationCreateHere,
+          ),
+        item(
+          menuContext,
+          action: _ConstellationOverflowAction.filters,
+          icon: Icons.tune,
+          label: l10n.constellationFiltersOpen,
+          badge: cubit.hasActiveFilters,
+        ),
+      ],
+      onSelected: (action) {
+        switch (action) {
+          case _ConstellationOverflowAction.legend:
+            onToggleLegend();
+          case _ConstellationOverflowAction.select:
+            selection?.setSelecting(!selection.state.selecting);
+          case _ConstellationOverflowAction.createHere:
+            unawaited(_offerCreate(context, cubit: cubit, composer: composer));
+          case _ConstellationOverflowAction.filters:
+            unawaited(showConstellationFilterSheet(context, cubit: cubit));
+        }
+      },
+    );
+  }
+
+  /// The kind menu, anchored at this button; the composer starts at the
+  /// centre of the map, as the wide bar's create button does.
+  static Future<void> _offerCreate(
+    BuildContext context, {
+    required ConstellationCubit cubit,
+    required ConstellationComposerCubit? composer,
+  }) async {
+    final box = context.findRenderObject();
+    final overlay = Overlay.of(context).context.findRenderObject();
+    if (composer == null || box is! RenderBox || overlay is! RenderBox) {
+      return;
+    }
+    final anchor = box.localToGlobal(
+      box.size.bottomCenter(Offset.zero),
+      ancestor: overlay,
+    );
+    final kind = await showMenu<BeaconKind>(
+      context: context,
+      position: RelativeRect.fromRect(
+        anchor & Size.zero,
+        Offset.zero & overlay.size,
+      ),
+      items: constellationCreateMenuItems(L10n.of(context)!),
+      popUpAnimationStyle: AnimationStyle.noAnimation,
+    );
+    final controller = cubit.graphController;
+    final size = controller.viewportSize;
+    if (kind == null || size == null) {
+      return;
+    }
+    composer.start(
+      kind,
+      controller.viewportLocalToScene(size.center(Offset.zero)),
+    );
   }
 }

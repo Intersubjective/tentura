@@ -320,7 +320,7 @@ void main() {
       },
     );
 
-    testWidgets('neither visibility: Trust primary + Request options', (
+    testWidgets('neither visibility: Trust primary, no dead-end options', (
       tester,
     ) async {
       const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
@@ -330,12 +330,13 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       expect(countFilledButtons(tester), 0);
       expect(find.byTooltip(l10n.trustThisUser), findsOneWidget);
-      expect(find.text(l10n.profileRequestOptions), findsOneWidget);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+      expect(find.text(l10n.profileRequestUnavailable), findsNothing);
       expect(find.text(l10n.profileEyeClosed), findsOneWidget);
     });
 
     testWidgets(
-      'viewer-only with outgoing trust: no Filled CTA, unavailable + options',
+      'viewer-only with outgoing trust: no Filled CTA, reason, no options',
       (
         tester,
       ) async {
@@ -353,7 +354,8 @@ void main() {
         expect(find.byTooltip(l10n.trustThisUser), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsOneWidget);
-        expect(find.text(l10n.profileRequestOptions), findsOneWidget);
+        // #679: the forward screen is fully disabled while they cannot see you.
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileEyeClosed), findsOneWidget);
         await openEyeInfo(tester, l10n);
         expect(
@@ -389,7 +391,7 @@ void main() {
       tester,
     ) async {
       const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-      const subject = Profile(id: 'U-peer', displayName: 'Peer');
+      const subject = Profile(id: 'U-peer', displayName: 'Peer', rScore: 1);
       await pumpBody(tester, subject: subject, viewer: viewer);
 
       final l10n = lookupL10n(const Locale('en'));

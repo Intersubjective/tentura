@@ -361,9 +361,9 @@ FROM public.beacon_closure WHERE beacon_id = '$_beacon' AND epoch = 1
         expect(r1['band'], _bandAsIfSilent);
         expect(r2['band'], _bandLowered);
         expect(r3['band'], _bandRaised);
-        expect(r1['helped'] as double, closeTo(0.3856, 5e-4));
-        expect(r2['helped'] as double, closeTo(0.1471, 5e-4));
-        expect(r3['helped'] as double, closeTo(0.1672, 5e-4));
+        expect(r1['helped'], closeTo(0.3856, 5e-4));
+        expect(r2['helped'], closeTo(0.1471, 5e-4));
+        expect(r3['helped'], closeTo(0.1672, 5e-4));
 
         expect(
           await evidenceCountValue(_kHelped, _author, _u1),
@@ -483,6 +483,84 @@ VALUES ('$_beacon', '$u', $_done) ON CONFLICT DO NOTHING
         await member(_u2, outcome: null);
         await finalizeNow();
         expect((await resultOf(_u2))['outcome'], _cantJudge);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 an unanswered voluntary leaver gets no share',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: null);
+        await finalizeNow();
+        final r3 = await resultOf(_u3);
+        expect(r3['outcome'], _cantJudge);
+        expect(r3['helped'], closeTo(0, 1e-9));
+        expect(await evidenceCountValue(_kHelped, _author, _u3), isNull);
+        for (final u in [_u1, _u2]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.35, 5e-4),
+          );
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 a custom split drops the unanswered voluntary leaver',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: null);
+        await split({_u1: 40, _u2: 40, _u3: 20});
+        await finalizeNow();
+        expect((await resultOf(_u3))['helped'], closeTo(0, 1e-9));
+        for (final u in [_u1, _u2]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.35, 5e-4),
+          );
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 an author outcome for a voluntary leaver still counts',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: _cantJudge);
+        await finalizeNow();
+        for (final u in [_u1, _u2, _u3]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.2333, 5e-4),
+          );
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 an unanswered removed member keeps the default share',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _removed, outcome: null);
+        await finalizeNow();
+        for (final u in [_u1, _u2, _u3]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.2333, 5e-4),
+          );
+        }
       },
       skip: skipReason,
     );

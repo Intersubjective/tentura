@@ -3,6 +3,9 @@
 // only gives a DOM node a tabindex when its semantics node is focusable).
 // Tab walks the nodes in map reading order (not widget-tree order), and a
 // node Tab lands on off screen is brought into view.
+// Issue #680: Escape closes the person or Request panel.
+// Issue #678: a node's semantics rect is never smaller than a tap target.
+// Issue #675: what the map paints stays under the chip row above it.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -16,8 +19,12 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_post_preview_sheet.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -267,6 +274,59 @@ Future<void> _parkAtGlobal(
     lessThan(1.5),
     reason: 'test setup must park $graphId at $target',
   );
+}
+
+/// Whether the primary focus sits inside the Field body (not lost to the
+/// route or the app).
+bool _focusIsInBody() {
+  final focused = FocusManager.instance.primaryFocus?.context;
+  if (focused is! Element) return false;
+  var found = false;
+  focused.visitAncestorElements((e) {
+    if (e.widget is ConstellationBody) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
+/// [node]'s rect in logical screen pixels. The semantics tree's root space
+/// is physical pixels, so the walk to the root ends with a divide by the
+/// device pixel ratio.
+Rect _semanticsRectOnScreen(WidgetTester tester, SemanticsNode node) {
+  var rect = node.rect;
+  for (SemanticsNode? n = node; n != null; n = n.parent) {
+    final transform = n.transform;
+    if (transform != null) rect = MatrixUtils.transformRect(transform, rect);
+  }
+  final ratio = tester.view.devicePixelRatio;
+  return Rect.fromLTRB(
+    rect.left / ratio,
+    rect.top / ratio,
+    rect.right / ratio,
+    rect.bottom / ratio,
+  );
+}
+
+/// The clip, in global coordinates, that the ancestors of [object] apply to
+/// whatever it paints; null when nothing clips it.
+Rect? _ancestorPaintClip(RenderObject object) {
+  Rect? clip;
+  var child = object;
+  for (var parent = child.parent; parent != null; parent = parent.parent) {
+    final local = parent.describeApproximatePaintClip(child);
+    if (local != null) {
+      final global = MatrixUtils.transformRect(
+        parent.getTransformTo(null),
+        local,
+      );
+      clip = clip == null ? global : clip.intersect(global);
+    }
+    child = parent;
+  }
+  return clip;
 }
 
 void main() {
@@ -535,5 +595,172 @@ void main() {
       reason: 'bringing the node into view pans, it does not zoom',
     );
     expect(cubit.state.selectedPersonId, isNull, reason: 'focus alone');
+  });
+
+  group('Escape closes the panel (#680)', () {
+    testWidgets('Escape closes the person panel; focus stays on the map', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      expect(await _tabTo(tester, 'a', const ['post-a']), isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+      final focusWasOnNode = _focusIsOnNode(tester, 'a', const ['post-a']);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedPersonId, isNull);
+      expect(find.byType(GraphPersonContextPanel), findsNothing);
+      expect(_focusIsInBody(), isTrue);
+      if (focusWasOnNode) {
+        expect(_focusIsOnNode(tester, 'a', const ['post-a']), isTrue);
+      }
+    });
+
+    testWidgets('Escape with focus inside the person panel closes it', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      expect(await _tabTo(tester, 'a', const ['post-a']), isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+
+      final close = find.byKey(TestIds.key(TestIds.graphPersonContextClose));
+      Focus.of(
+        tester.element(
+          find.descendant(of: close, matching: find.byType(Icon)),
+        ),
+      ).requestFocus();
+      await tester.pump();
+      final focused = FocusManager.instance.primaryFocus?.context;
+      expect(
+        focused != null &&
+            find
+                .ancestor(
+                  of: find.byElementPredicate((e) => e == focused),
+                  matching: find.byType(GraphPersonContextPanel),
+                )
+                .evaluate()
+                .isNotEmpty,
+        isTrue,
+        reason: 'test setup must put focus inside the panel',
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedPersonId, isNull);
+      expect(find.byType(GraphPersonContextPanel), findsNothing);
+      expect(
+        _focusIsInBody(),
+        isTrue,
+        reason: 'focus must come back to the map, not get lost',
+      );
+    });
+
+    testWidgets('Escape closes the Post panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      expect(await _tabTo(tester, 'post-a', const ['a']), isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(cubit.state.selectedRequestId, 'post-a');
+      expect(find.byType(ConstellationPostPreviewSheet), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+    });
+  });
+
+  testWidgets('at the smallest zoom node semantics rects are still 48 px '
+      '(#678)', (tester) async {
+    final handle = tester.ensureSemantics();
+    final cubit = await _loadCubit();
+    addTearDown(cubit.close);
+    await _pumpBody(tester, cubit);
+    await tester.pumpAndSettle();
+
+    final controller = cubit.graphController..zoomBy(0.001);
+    await tester.pumpAndSettle();
+    controller.jumpToPosition(_sceneOf(cubit, 'fp:a'));
+    await tester.pumpAndSettle();
+    final drawn = tester.getRect(_node('a'));
+    expect(
+      drawn.width < kMinInteractiveDimension &&
+          drawn.height < kMinInteractiveDimension,
+      isTrue,
+      reason: 'test setup must zoom out until the marker is small ($drawn)',
+    );
+
+    for (final id in const ['a', 'post-a']) {
+      final rect = _semanticsRectOnScreen(
+        tester,
+        tester.getSemantics(_node(id)),
+      );
+      expect(
+        rect.width >= kMinInteractiveDimension - 0.5 &&
+            rect.height >= kMinInteractiveDimension - 0.5,
+        isTrue,
+        reason: '$id semantics rect on screen is $rect',
+      );
+      expect(
+        (rect.center - tester.getCenter(_node(id))).distance,
+        lessThan(1.5),
+        reason: 'the $id semantics rect is centred on its marker',
+      );
+    }
+    handle.dispose();
+  });
+
+  group('the chip row stays on top of the map (#675)', () {
+    testWidgets('the map overlay that draws labels is clipped at the map '
+        'edge, under the chip row', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      final bar = tester.getRect(find.byType(ConstellationVisibilityBar));
+      expect(bar.height, greaterThan(0), reason: 'the chip row is shown');
+      final overlay = find.byType(ConstellationViewportOverlay);
+      final map = tester.getRect(overlay);
+      expect(map.top, greaterThanOrEqualTo(bar.bottom - 0.5));
+
+      // A label near the top edge is translated past the overlay's box, so
+      // only a clip around it keeps it off the chips.
+      final clip = _ancestorPaintClip(tester.renderObject(overlay));
+      expect(clip, isNotNull, reason: 'nothing clips the map overlay');
+      expect(
+        clip!.top,
+        greaterThanOrEqualTo(bar.bottom - 0.5),
+        reason: 'the clip $clip must not reach the chip row $bar',
+      );
+      expect(map.inflate(0.5).contains(clip.topLeft), isTrue);
+      expect(map.inflate(0.5).contains(clip.bottomRight), isTrue);
+    });
+
+    testWidgets('a tap on a chip reaches the chip', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      final chip = find.byKey(const Key('constellation.show.requests'));
+      expect(chip, findsOneWidget);
+
+      final result = tester.hitTestOnBinding(tester.getCenter(chip));
+      final chipBox = tester.renderObject(chip);
+      expect(result.path.any((entry) => entry.target == chipBox), isTrue);
+    });
   });
 }

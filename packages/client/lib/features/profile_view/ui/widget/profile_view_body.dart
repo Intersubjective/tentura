@@ -363,8 +363,7 @@ class _ProfileSecondaryActions extends StatelessWidget {
     }
 
     if (policy.primaryAction == PersonPrimaryAction.none &&
-        policy.showRequestOptions &&
-        profile.viewerExplicitlyTrustsSubject) {
+        policy.showSubjectCantSeeViewerReason) {
       children.add(
         Text(
           l10n.profileRequestUnavailable,

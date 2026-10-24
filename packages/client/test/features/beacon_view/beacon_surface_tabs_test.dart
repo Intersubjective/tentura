@@ -130,10 +130,12 @@ Widget _harness({
 }
 
 void main() {
+  // The labelled tests use 720 px: in the test font «Discussion» (#609)
+  // no longer fits a 140 px slot, and the bar then shows icons only.
   testWidgets('People is labeled at index 3 when not split', (tester) async {
     await tester.pumpWidget(
       _harness(
-        width: 560,
+        width: 720,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.now,
@@ -145,7 +147,7 @@ void main() {
 
     expect(find.text('Overview'), findsOneWidget);
     expect(find.text('Plan'), findsOneWidget);
-    expect(find.text('Chat'), findsOneWidget);
+    expect(find.text('Discussion'), findsOneWidget);
     expect(find.text('People'), findsOneWidget);
   });
 
@@ -162,7 +164,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Chat'), findsNothing);
+    expect(find.text('Discussion'), findsNothing);
     expect(find.text('Overview'), findsOneWidget);
     expect(find.text('People'), findsOneWidget);
     expect(find.byIcon(Icons.people_outline), findsOneWidget);
@@ -173,7 +175,7 @@ void main() {
     final selected = <BeaconSurface>[];
     await tester.pumpWidget(
       _harness(
-        width: 560,
+        width: 720,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.now,
@@ -183,7 +185,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Chat'));
+    await tester.tap(find.text('Discussion'));
     await tester.pump();
     expect(selected, [BeaconSurface.room]);
 
@@ -333,7 +335,7 @@ void main() {
     final reselected = <BeaconSurface>[];
     await tester.pumpWidget(
       _harness(
-        width: 560,
+        width: 720,
         child: BeaconSurfaceTabs(
           isSplit: false,
           selectedSurface: BeaconSurface.room,
@@ -344,7 +346,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Chat'));
+    await tester.tap(find.text('Discussion'));
     await tester.pump();
     expect(reselected, [BeaconSurface.room]);
   });

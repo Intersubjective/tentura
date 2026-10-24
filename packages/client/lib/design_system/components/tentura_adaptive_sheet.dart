@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../tentura_tokens.dart';
@@ -20,7 +21,9 @@ import 'tentura_modal_bottom_sheet_route.dart';
 /// While the sheet animates away the route no longer takes taps, so the
 /// second tap of a double tap on its last button would land on the page
 /// underneath (#684). For [kTenturaSheetCloseTapShield] after it closes a
-/// transparent layer swallows taps on the page.
+/// transparent layer swallows taps on the page. Taps that reach the app before
+/// the next frame (a fast double click) are swallowed by the closing sheet
+/// itself, so its button cannot pop the page under it.
 Future<T?> showTenturaAdaptiveSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -41,8 +44,10 @@ Future<T?> showTenturaAdaptiveSheet<T>({
     final localizations = MaterialLocalizations.of(context);
     result = await navigator.push<T>(
       TenturaModalBottomSheetRoute<T>(
-        builder: (sheetContext) => _EscapeDismissesSheet(
-          child: builder(sheetContext),
+        builder: (sheetContext) => _AbsorbTapsWhileClosing(
+          child: _EscapeDismissesSheet(
+            child: builder(sheetContext),
+          ),
         ),
         capturedThemes: InheritedTheme.capture(
           from: context,
@@ -69,14 +74,16 @@ Future<T?> showTenturaAdaptiveSheet<T>({
         final maxHeight = size.height * maxHeightFraction;
         final child = builder(dialogContext);
 
-        return SafeArea(
-          child: Dialog(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: resolvedMaxWidth,
-                maxHeight: maxHeight,
+        return _AbsorbTapsWhileClosing(
+          child: SafeArea(
+            child: Dialog(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: resolvedMaxWidth,
+                  maxHeight: maxHeight,
+                ),
+                child: _EscapeDismissesSheet(child: child),
               ),
-              child: _EscapeDismissesSheet(child: child),
             ),
           ),
         );
@@ -155,6 +162,45 @@ class _TapShieldState extends State<_TapShield>
     key: Key('tenturaSheetCloseTapShield'),
     child: SizedBox.expand(),
   );
+}
+
+/// Swallows taps on [child] from the moment its route starts closing.
+///
+/// The route's own pointer block only takes effect on the next frame, so the
+/// second tap of a fast double click (both taps before that frame) used to
+/// reach the closing sheet's button again; its `Navigator.pop` then popped
+/// the page under the sheet (#684). This checks the route at hit-test time.
+class _AbsorbTapsWhileClosing extends SingleChildRenderObjectWidget {
+  const _AbsorbTapsWhileClosing({required Widget super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderAbsorbTapsWhileClosing(ModalRoute.of(context));
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderAbsorbTapsWhileClosing renderObject,
+  ) {
+    renderObject.route = ModalRoute.of(context);
+  }
+}
+
+class _RenderAbsorbTapsWhileClosing extends RenderProxyBox {
+  _RenderAbsorbTapsWhileClosing(this.route);
+
+  ModalRoute<Object?>? route;
+
+  bool get _closing {
+    final r = route;
+    if (r == null) return false;
+    return !r.isActive || r.animation?.status == AnimationStatus.reverse;
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) => _closing
+      ? size.contains(position)
+      : super.hitTest(result, position: position);
 }
 
 /// Returns keyboard focus to [trigger] when it is a still-mounted control;

@@ -2039,9 +2039,9 @@
   "@profileVisibilitySharedContextNote": {
     "context": "ProfileViewBody — explains the co-participant bond lasts until the Request review window closes"
   },
-  "profileRequestUnavailable": "Request unavailable",
+  "profileRequestUnavailable": "They don’t see you yet, so you can’t send them Requests.",
   "@profileRequestUnavailable": {
-    "context": "ProfileViewBody — direct send blocked for one-way visibility"
+    "context": "ProfileViewBody / graph person panel — reason a trusted contact cannot be sent Requests: they do not see the viewer yet (#679)"
   },
   "profileRequestOptions": "Request options",
   "@profileRequestOptions": {
@@ -4765,7 +4765,7 @@
   "labelBeaconTabLog": "Log",
   "labelBeaconTabThreads": "Threads",
   "labelBeaconTabNow": "Overview",
-  "labelBeaconTabChat": "Chat",
+  "labelBeaconTabChat": "Discussion",
   "beaconChildRequestsTitle": "Child requests",
   "beaconCreateChildRequest": "Create child request",
   "beaconChildRequestsEmpty": "No child requests yet",
@@ -5430,7 +5430,7 @@
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
   "beaconRoomOpen": "Discussion",
-  "beaconRoomBackToChat": "Back to Chat",
+  "beaconRoomBackToChat": "Back to Discussion",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Returns from a nested item thread to the main room chat column."
@@ -5709,7 +5709,7 @@
     }
   },
   "beaconRoomFactCardActionEditHistory": "Edit history",
-  "beaconRoomFactCardActionQuoteInChat": "Quote in chat",
+  "beaconRoomFactCardActionQuoteInChat": "Quote in discussion",
   "beaconRoomFactHistorySheetTitle": "Fact history",
   "beaconRoomFactHistoryImportedBaseline": "Earlier history was not recorded",
   "beaconRoomFactHistoryRestoredFrom": "Restored from revision {seq}",
@@ -8249,7 +8249,7 @@
   "beaconOutcomeClosed": "Completed",
   "beaconOutcomeCancelled": "Cancelled",
   "beaconOutcomeDeleted": "Deleted",
-  "beaconOutcomeReadOnlyNote": "No new offers or messages. The chat stays readable.",
+  "beaconOutcomeReadOnlyNote": "No new offers or messages. The discussion stays readable.",
   "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
   "batonOutcomeYou": "You took it.",
   "@batonOutcomeYou": {
@@ -10737,6 +10737,10 @@
   "constellationSelectionHint": "Draw a box or tap people, Requests and Posts. Move the map with two fingers.",
   "@constellationSelectionHint": {
     "context": "Field map: selection bar while the select toggle is on and nothing is selected yet (#642)"
+  },
+  "constellationSelectionHintMouse": "Drag a box or click people, Requests and Posts. Shift-drag works without this mode.",
+  "@constellationSelectionHintMouse": {
+    "context": "Field map: selection bar while the select toggle is on and nothing is selected yet, when a mouse or trackpad is connected (#681)"
   },
   "constellationSelectionClear": "Clear selection",
   "@constellationSelectionClear": {

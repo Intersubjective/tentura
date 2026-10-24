@@ -67,15 +67,21 @@ class ConstellationSelectionToggle extends StatelessWidget {
     >(
       bloc: selection,
       buildWhen: (previous, current) => previous.selecting != current.selecting,
-      builder: (context, state) => IconButton(
-        key: const Key('constellation.app_bar.select'),
-        tooltip: l10n.constellationSelectMany,
-        isSelected: state.selecting,
-        onPressed: () => selection.setSelecting(!state.selecting),
-        icon: const Icon(Icons.select_all),
-        constraints: BoxConstraints(
-          minWidth: tt.buttonHeight,
-          minHeight: tt.buttonHeight,
+      // On/off is read as a toggle state, not only as "current" (#678).
+      builder: (context, state) => MergeSemantics(
+        child: Semantics(
+          toggled: state.selecting,
+          child: IconButton(
+            key: const Key('constellation.app_bar.select'),
+            tooltip: l10n.constellationSelectMany,
+            isSelected: state.selecting,
+            onPressed: () => selection.setSelecting(!state.selecting),
+            icon: const Icon(Icons.select_all),
+            constraints: BoxConstraints(
+              minWidth: tt.buttonHeight,
+              minHeight: tt.buttonHeight,
+            ),
+          ),
         ),
       ),
     );
@@ -1628,12 +1634,19 @@ class ConstellationSelectionBar extends StatelessWidget {
             Expanded(
               child: Semantics(
                 liveRegion: true,
-                child: Text(
-                  state.isEmpty
-                      ? l10n.constellationSelectionHint
-                      : l10n.constellationSelectionCount(state.count),
-                  key: const Key('constellation.selection.count'),
-                  style: theme.textTheme.bodyMedium,
+                // The empty hint fits the pointer (#681): a mouse or trackpad
+                // has no two fingers to move the map with.
+                child: ListenableBuilder(
+                  listenable: RendererBinding.instance.mouseTracker,
+                  builder: (context, _) => Text(
+                    !state.isEmpty
+                        ? l10n.constellationSelectionCount(state.count)
+                        : RendererBinding.instance.mouseTracker.mouseIsConnected
+                        ? l10n.constellationSelectionHintMouse
+                        : l10n.constellationSelectionHint,
+                    key: const Key('constellation.selection.count'),
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
               ),
             ),
