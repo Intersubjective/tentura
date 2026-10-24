@@ -472,6 +472,8 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(
       state.copyWith(
         selectedIds: {},
+        addedByTag: {},
+        tagMembers: {},
         perRecipientNotes: {},
         recipientReasons: {},
         skippedPersonalNoteIds: {},
@@ -500,6 +502,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(
       state.copyWith(
         selectedIds: selected,
+        addedByTag: _keepSelected(state.addedByTag, selected),
         perRecipientNotes: draft.notes,
         recipientReasons: draft.reasons,
         skippedPersonalNoteIds: draft.skipped,
@@ -510,6 +513,56 @@ class ForwardCubit extends Cubit<ForwardState> {
         : ForwardSelectionResult.deselected;
   }
 
+  static Map<String, Set<String>> _keepSelected(
+    Map<String, Set<String>> byTag,
+    Set<String> selected,
+  ) => {
+    for (final e in byTag.entries) e.key: e.value.intersection(selected),
+  };
+
+  /// Taps tag [tagId] whose people are [memberIds]: selects the eligible
+  /// ones, or on a second tap removes only those the tags added. Individually
+  /// picked people stay. The tag is not sent anywhere.
+  void toggleTag(String tagId, Iterable<String> memberIds) {
+    final byTag = Map<String, Set<String>>.from(state.addedByTag);
+    final members = Map<String, Set<String>>.from(state.tagMembers);
+    final selected = Set<String>.from(state.selectedIds);
+    if (byTag.containsKey(tagId)) {
+      final added = byTag.remove(tagId)!;
+      members.remove(tagId);
+      final others = {for (final ids in byTag.values) ...ids};
+      selected.removeAll(added.difference(others));
+    } else {
+      final today = _todayUtc();
+      final others = {for (final ids in byTag.values) ...ids};
+      final added = <String>{};
+      for (final id in memberIds) {
+        if (selected.contains(id)) {
+          if (others.contains(id)) added.add(id);
+          continue;
+        }
+        final candidate = _findCandidate(id);
+        if (candidate != null && candidate.canForwardToOn(today)) {
+          selected.add(id);
+          added.add(id);
+        }
+      }
+      byTag[tagId] = added;
+      members[tagId] = memberIds.toSet();
+    }
+    final draft = _pruneRecipientDraft(state.selectedIds.difference(selected));
+    emit(
+      state.copyWith(
+        selectedIds: selected,
+        addedByTag: byTag,
+        tagMembers: members,
+        perRecipientNotes: draft.notes,
+        recipientReasons: draft.reasons,
+        skippedPersonalNoteIds: draft.skipped,
+      ),
+    );
+  }
+
   /// Replaces the selected set; notes and reasons of ids that stay are kept.
   void setSelection(Set<String> ids) {
     final selected = Set<String>.from(ids);
@@ -517,6 +570,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(
       state.copyWith(
         selectedIds: selected,
+        addedByTag: _keepSelected(state.addedByTag, selected),
         perRecipientNotes: draft.notes,
         recipientReasons: draft.reasons,
         skippedPersonalNoteIds: draft.skipped,

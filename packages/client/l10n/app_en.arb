@@ -11331,6 +11331,14 @@
   "@peopleTagsAutoNewOnField": {
     "description": "Automatic tag"
   },
+  "peopleTagsForwardOutsideTag": "Outside the tag, could help",
+  "@peopleTagsForwardOutsideTag": {
+    "description": "Heading in the forward picker over up to three people outside the tapped tag who could help"
+  },
+  "peopleTagsForwardNote": "Tags only help you choose. Each person gets their own forward and does not see the tag.",
+  "@peopleTagsForwardNote": {
+    "description": "Note under the tag chips in the forward picker"
+  },
   "peopleTagsScreenTitle": "People tags",
   "@peopleTagsScreenTitle": {
     "description": "Title of the People tags screen, its Settings tile and its Field menu entry"

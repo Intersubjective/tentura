@@ -85,6 +85,10 @@ final class PeopleTagsCase extends UseCaseBase {
     _emit();
   }
 
+  /// Ids of the people in the automatic tag [kind].
+  Future<List<String>> autoTagMembers(int kind) =>
+      _repository.personAutoTagMembers(kind);
+
   /// Moves own tag [id] to the 1-based position [ord]; the server closes up
   /// the rest, so the list is reloaded.
   Future<void> moveTag({required String id, required int ord}) async {

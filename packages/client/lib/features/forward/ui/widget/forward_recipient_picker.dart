@@ -34,6 +34,7 @@ import '../model/forward_recipient_row_host.dart';
 import 'forward_pinned_tab_bar_delegate.dart';
 import 'forward_recipient_row.dart';
 import 'forward_scope_links.dart';
+import 'forward_tag_picker.dart';
 import 'forward_beacon_subtitle.dart';
 import 'lineage_forward_section.dart';
 import 'per_recipient_note_input.dart';
@@ -594,8 +595,19 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             final beacon = state.beacon;
             final searchQuery = _searchActive ? _searchController.text : '';
             final isFiltering = searchQuery.trim().isNotEmpty;
+            final shownIds = state.visibleRecipients.map((c) => c.id).toSet();
+            final tagMemberIds = {
+              for (final ids in state.tagMembers.values) ...ids,
+            };
+            // Members of a tapped tag who cannot be picked stay listed, with
+            // their usual reason label.
             final visible = _filterInPlace(
-              state.visibleRecipients,
+              [
+                ...state.visibleRecipients,
+                for (final c in state.candidates)
+                  if (tagMemberIds.contains(c.id) && !shownIds.contains(c.id))
+                    c,
+              ],
               searchQuery,
             );
             final profile = state.profile;
@@ -799,6 +811,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     ),
                                   ),
                                 ),
+                              SliverToBoxAdapter(
+                                child: ForwardTagPicker(
+                                  state: state,
+                                  onToggle: (id) => _toggle(cubit, id),
+                                ),
+                              ),
                               SliverPersistentHeader(
                                 pinned: true,
                                 delegate: ForwardPinnedSliverHeaderDelegate(

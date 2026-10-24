@@ -110,6 +110,13 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default([]) List<ForwardCandidate> candidates,
     @Default([]) List<ForwardCandidate> lineageSuggestions,
     @Default({}) Set<String> selectedIds,
+
+    /// Tag id → the people that tag put into [selectedIds]; a tag is active
+    /// while it has a key here. Local to the picker, never sent.
+    @Default(<String, Set<String>>{}) Map<String, Set<String>> addedByTag,
+
+    /// Tag id → every member of an active tag, picked or not.
+    @Default(<String, Set<String>>{}) Map<String, Set<String>> tagMembers,
     @Default(<String>{}) Set<String> droppedPreselectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
     @Default(<String>{}) Set<String> skippedPersonalNoteIds,
@@ -295,4 +302,21 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   }
 
   int get selectedCount => selectedIds.length;
+
+  /// Up to three eligible people outside [memberIds], those matching the
+  /// Request's capability labels first, then by score.
+  List<ForwardCandidate> outsideTagSuggestions(Iterable<String> memberIds) {
+    final members = memberIds.toSet();
+    final needs = beacon?.needs ?? const <String>{};
+    int matches(ForwardCandidate c) =>
+        c.topCapabilities.where(needs.contains).length;
+    final list = candidates
+        .where((c) => !members.contains(c.id) && c.canForwardTo)
+        .toList()
+      ..sort((a, b) {
+        final byMatch = matches(b).compareTo(matches(a));
+        return byMatch != 0 ? byMatch : _compareByMr(a, b);
+      });
+    return list.take(3).toList();
+  }
 }

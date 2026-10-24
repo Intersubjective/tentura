@@ -7525,6 +7525,8 @@
   "peopleTagsAutoInvited": "Приглашение",
   "peopleTagsAutoForwarded": "Пересылка",
   "peopleTagsAutoNewOnField": "Новый в поле",
+  "peopleTagsForwardOutsideTag": "Вне метки, могут помочь",
+  "peopleTagsForwardNote": "Метки только помогают выбрать. Каждый получает свою отдельную пересылку и не видит метку.",
   "peopleTagsScreenTitle": "Теги людей",
   "peopleTagsOffField": "{count} вне поля",
   "peopleTagsShowInFilters": "Показывать в фильтрах",
