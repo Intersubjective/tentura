@@ -1,5 +1,5 @@
-// The Post screen is the room under an app bar «<author>: <root excerpt>» over
-// «N участников» (🔕 when muted) that opens «О посте» on tap, with ↗ for a
+// The Post screen is the room under an app bar «<root excerpt>» over
+// «<author> · N участников» (🔕 when muted) that opens «О посте» on tap, with ↗ for a
 // member who may forward and a short ⋮ menu («О посте», mute, pin, complain /
 // delete). «О посте» holds the participants, the forwarding graph, show on
 // field, forward, allow forwarding and the author's actions. A pinned strip
@@ -448,6 +448,9 @@ Future<_Harness> _pumpPost(
 Finder _inAppBar(Finder f) =>
     find.descendant(of: find.byType(AppBar), matching: f);
 
+/// The app bar title: the root excerpt alone (#667).
+Finder _titleText() => _inAppBar(find.text(_rootText));
+
 Future<void> _openOverflow(WidgetTester tester) async {
   final button = _inAppBar(find.byIcon(Icons.more_vert));
   expect(button, findsOneWidget);
@@ -525,11 +528,13 @@ void main() {
   final l10n = lookupL10n(const Locale('ru'));
 
   group('Post app bar', () {
-    testWidgets('title is «<author>: <root excerpt>»', (tester) async {
+    testWidgets('title is the root excerpt, without the author', (
+      tester,
+    ) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
 
       expect(
-        _inAppBar(find.textContaining('Олег: $_rootText')),
+        _titleText(),
         findsOneWidget,
       );
     });
@@ -539,7 +544,7 @@ void main() {
 
       // Positive anchor: the screen has its Post app bar.
       expect(
-        _inAppBar(find.textContaining('Олег: $_rootText')),
+        _titleText(),
         findsOneWidget,
       );
       expect(find.byType(TabBar), findsNothing);
@@ -566,7 +571,7 @@ void main() {
       );
 
       expect(
-        _inAppBar(find.textContaining('Олег: $_rootText')),
+        _titleText(),
         findsOneWidget,
       );
       expect(find.byType(HudLabeledMultiline), findsNothing);
@@ -583,7 +588,7 @@ void main() {
       );
 
       expect(
-        _inAppBar(find.textContaining('Олег: $_rootText')),
+        _titleText(),
         findsOneWidget,
       );
       expect(_mutedIndicator(), findsOneWidget);
@@ -593,7 +598,7 @@ void main() {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
 
       expect(
-        _inAppBar(find.textContaining('Олег: $_rootText')),
+        _titleText(),
         findsOneWidget,
       );
       expect(_mutedIndicator(), findsNothing);
@@ -608,10 +613,92 @@ void main() {
       );
 
       expect(
-        _inAppBar(find.textContaining('Олег: $_rootText')),
+        _titleText(),
         findsOneWidget,
       );
       expect(_mutedIndicator(), findsNothing);
+    });
+  });
+
+  // #667: «QA Alice: GQ1024: planning…» left the subject unreadable; the
+  // title is the excerpt and the author moves to the line under it.
+  group('#667 Post app bar title', () {
+    Text titleWidget(WidgetTester tester) => tester.widget<Text>(_titleText());
+
+    testWidgets('desktop: the excerpt gets two lines, author on line two', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        surface: const Size(1280, 800),
+      );
+
+      expect(_titleText(), findsOneWidget);
+      expect(titleWidget(tester).maxLines, 2);
+      expect(_inAppBar(find.textContaining('Олег:')), findsNothing);
+      expect(_inAppBar(find.text('Олег · 2 участника')), findsOneWidget);
+      expect(
+        tester.getTopLeft(_inAppBar(find.text('Олег · 2 участника'))).dy,
+        greaterThan(tester.getTopLeft(_titleText()).dy),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('phone: the excerpt keeps one line, author on line two', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        surface: const Size(390, 844),
+      );
+
+      expect(_titleText(), findsOneWidget);
+      expect(titleWidget(tester).maxLines, 1);
+      expect(_inAppBar(find.textContaining('Олег:')), findsNothing);
+      expect(_inAppBar(find.text('Олег · 2 участника')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('desktop: a muted, pinned Post still fits the bar', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        surface: const Size(1280, 800),
+        summary: PostSummary(
+          id: _postId,
+          authorId: _author.id,
+          authorName: _author.displayName,
+          rootExcerpt: _rootText * 6,
+          lastActivityAt: _createdAt,
+          mutedForever: true,
+          pinnedAt: _createdAt,
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(_mutedIndicator(), findsOneWidget);
+    });
+
+    testWidgets('in English: «Oleg · 2 participants» under the excerpt', (
+      tester,
+    ) async {
+      await _pumpPost(
+        tester,
+        beacon: _post(),
+        viewer: _reader,
+        surface: const Size(1280, 800),
+        locale: const Locale('en'),
+      );
+
+      expect(_titleText(), findsOneWidget);
+      expect(_inAppBar(find.text('Олег · 2 participants')), findsOneWidget);
     });
   });
 
@@ -622,19 +709,19 @@ void main() {
     ) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
 
-      expect(_inAppBar(find.text('2 участника')), findsOneWidget);
+      expect(_inAppBar(find.text('Олег · 2 участника')), findsOneWidget);
     });
 
     testWidgets('does not count the author twice', (tester) async {
       await _pumpPost(tester, beacon: _post(), viewer: _author);
 
-      expect(_inAppBar(find.text('1 участник')), findsOneWidget);
+      expect(_inAppBar(find.text('Олег · 1 участник')), findsOneWidget);
     });
 
     testWidgets('tapping the title opens «О посте»', (tester) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
 
-      await tester.tap(_inAppBar(find.textContaining('Олег: $_rootText')));
+      await tester.tap(_titleText());
       await _settle(tester);
 
       expect(find.byType(PostInfoSheet), findsOneWidget);

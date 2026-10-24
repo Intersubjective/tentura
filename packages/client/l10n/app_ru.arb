@@ -6722,6 +6722,17 @@
   "postOriginCardBody": "Вы в чате. Чтобы участвовать в деле — предложите помощь.",
   "postOriginLeaveChat": "Выйти из чата",
   "postOriginPeopleSection": "ИЗ ПОСТА · {count}",
+  "postHeaderAuthorMembers": "{author} · {members}",
+  "@postHeaderAuthorMembers": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "members": {
+        "type": "String"
+      }
+    }
+  },
   "postHeaderMembers": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
   "@postHeaderMembers": {
     "placeholders": {

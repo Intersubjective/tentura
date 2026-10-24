@@ -37,6 +37,11 @@ class PostConversationRow extends StatelessWidget {
         ? l10n.postConversationYours
         : l10n.postConversationAddressed(post.authorName);
     final lastMessage = post.lastMessageExcerpt?.trim() ?? '';
+    // #667: while the root is the only message, the last message is the root;
+    // the row names it once and keeps the age.
+    final lastMessageText = lastMessage == post.rootExcerpt.trim()
+        ? ''
+        : lastMessage;
     final muted = post.isMutedAt(now);
 
     return Semantics(
@@ -44,7 +49,7 @@ class PostConversationRow extends StatelessWidget {
         addressing,
         if (post.isClosed) l10n.postClosedMarker,
         post.rootExcerpt,
-        lastMessage,
+        if (lastMessageText.isNotEmpty) lastMessageText,
       ].join(', '),
       selected: selected,
       child: Material(
@@ -110,7 +115,7 @@ class PostConversationRow extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                lastMessage,
+                                lastMessageText,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TenturaText.bodySmall(tt.textMuted),
