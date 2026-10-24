@@ -1,5 +1,6 @@
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/entity/questions_access.dart';
@@ -16,6 +17,11 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
   const BeaconLobbyRepository(this._db);
 
   final TenturaDb _db;
+
+  /// `BeaconStatus.openFamilyValues` as an SQL list of integer constants, so
+  /// a new open-family status cannot silently count as closed (#657).
+  static final String _openFamilyStatusList =
+      (BeaconStatus.openFamilyValues.toList()..sort()).join(', ');
 
   @override
   Future<String> ensureLobby({
@@ -105,7 +111,9 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
   }) async {
     final row = await _db
         .customSelect(
-          'SELECT b.status IN (1, 2, 6) AS closed, '
+          // Open family (0 open, 7, 8) still takes offers; Final check (5)
+          // and every closed state do not (#657).
+          'SELECT b.status NOT IN ($_openFamilyStatusList) AS closed, '
           'EXISTS (SELECT 1 FROM public.beacon_lobby_ban ban '
           r'WHERE ban.beacon_id = b.id AND ban.user_id = $2) AS banned, '
           'EXISTS (SELECT 1 FROM public.beacon_forward_edge fe '
@@ -114,7 +122,14 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
           'AS cant_help, '
           'COALESCE(ho.status <> 0, false) AS past_offer, '
           'COALESCE(ho.status <> 0 AND ho.withdraw_reason IS NOT NULL, false) '
-          'AS withdrew '
+          'AS withdrew, '
+          r'(b.user_id <> $2 AND ( '
+          'EXISTS (SELECT 1 FROM public.beacon_steward bs '
+          r'WHERE bs.beacon_id = b.id AND bs.user_id = $2) '
+          'OR EXISTS (SELECT 1 FROM public.beacon_participant bp '
+          r'WHERE bp.beacon_id = b.id AND bp.user_id = $2 '
+          'AND (bp.role = 1 OR bp.room_access = 3)) '
+          'OR COALESCE(ho.status = 0, false))) AS helper '
           'FROM public.beacon b '
           'LEFT JOIN public.beacon_help_offer ho '
           r'ON ho.beacon_id = b.id AND ho.user_id = $2 '
@@ -132,6 +147,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
       answeredCantHelp: row.read<bool>('cant_help'),
       pastOffer: row.read<bool>('past_offer'),
       offerWithdrawnByHelper: row.read<bool>('withdrew'),
+      helper: row.read<bool>('helper'),
     );
   }
 

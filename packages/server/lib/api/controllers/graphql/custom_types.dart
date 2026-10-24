@@ -233,6 +233,11 @@ final gqlTypeBeaconLobby = GraphQLObjectType('BeaconLobby', null)
     field('beaconId', graphQLString.nonNullable()),
     field('lobbyId', graphQLString.nonNullable()),
     field('isAuthor', graphQLBoolean.nonNullable()),
+    // Inside already (live offer, admitted, steward), not the author: the
+    // header is not "ask before offering" for them (#657).
+    field('isHelper', graphQLBoolean.nonNullable()),
+    // False from Final check on: nobody can offer help any more (#657).
+    field('takesOffers', graphQLBoolean.nonNullable()),
     // The Request author, so the author's answers are marked (#657).
     field('authorId', graphQLString.nonNullable()),
     field('canPost', graphQLBoolean.nonNullable()),
@@ -267,6 +272,10 @@ final gqlTypeBeaconLobbyAccess = GraphQLObjectType('BeaconLobbyAccess', null)
     // (`QuestionsLimitReason.wire`: closed, cant_help, withdrew, declined,
     // removed), or null. Only ever about the caller.
     field('readOnlyReason', graphQLString),
+    // The caller is inside already (live offer, admitted, steward), not the
+    // author; and whether the Request still takes offers (#657).
+    field('isHelper', graphQLBoolean.nonNullable()),
+    field('takesOffers', graphQLBoolean.nonNullable()),
   ]);
 
 final gqlTypeAttentionReconcileResult =

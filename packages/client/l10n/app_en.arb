@@ -10872,6 +10872,21 @@
     "description": "Request Questions entry and screen intro, shown to the Request author (#657)",
     "context": "Request Questions"
   },
+  "beaconLobbyEntrySubtitleHelper": "Questions and answers about this request. Everyone it was sent to can see them.",
+  "@beaconLobbyEntrySubtitleHelper": {
+    "description": "Request Questions entry and screen intro for someone who already offered help or was admitted (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyEntrySubtitleClosed": "This request no longer takes offers. Everyone it was sent to can still read the questions and answers.",
+  "@beaconLobbyEntrySubtitleClosed": {
+    "description": "Request Questions entry and screen intro once the Request no longer takes help offers (Final check or closed), for everyone but the author (#657)",
+    "context": "Request Questions"
+  },
+  "beaconLobbyEntrySubtitleAuthorClosed": "This request no longer takes offers. Everyone you sent it to can still read the questions and your answers.",
+  "@beaconLobbyEntrySubtitleAuthorClosed": {
+    "description": "Request Questions entry and screen intro for the author once the Request no longer takes help offers (Final check or closed) (#657)",
+    "context": "Request Questions"
+  },
   "beaconLobbyComposerHintAuthor": "Write an answer",
   "@beaconLobbyComposerHintAuthor": {
     "description": "Request Questions composer hint for the Request author (#657)",

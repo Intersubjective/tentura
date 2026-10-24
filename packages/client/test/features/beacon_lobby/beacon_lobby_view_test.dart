@@ -380,6 +380,209 @@ void main() {
     });
   });
 
+  group('#657 the Questions line follows role and Request state', () {
+    tearDown(() => GetIt.I.reset());
+
+    const author = 'People you sent this request to can ask you here';
+    const recipient = 'Ask the author before offering help';
+    const helper = 'Questions and answers about this request';
+    const closed =
+        'This request no longer takes offers. Everyone it was '
+        'sent to';
+    const authorClosed =
+        'This request no longer takes offers. Everyone you '
+        'sent it to';
+
+    // (case, viewer, helper, takes offers, can post, reason, expected)
+    final cases =
+        <(String, String, bool, bool, bool, BeaconLobbyLimitReason?, String)>[
+          ('author, open', 'Uauthor', false, true, true, null, author),
+          (
+            'author, Final check',
+            'Uauthor',
+            false,
+            false,
+            true,
+            null,
+            authorClosed,
+          ),
+          (
+            'author, closed',
+            'Uauthor',
+            false,
+            false,
+            false,
+            BeaconLobbyLimitReason.closed,
+            authorClosed,
+          ),
+          (
+            'recipient before offering',
+            'Unina',
+            false,
+            true,
+            true,
+            null,
+            recipient,
+          ),
+          ('pending offer', 'Unina', true, true, true, null, helper),
+          ('admitted helper', 'Unina', true, true, true, null, helper),
+          (
+            'admitted helper, closed',
+            'Unina',
+            true,
+            false,
+            false,
+            BeaconLobbyLimitReason.closed,
+            closed,
+          ),
+          (
+            'recipient, closed',
+            'Unina',
+            false,
+            false,
+            false,
+            BeaconLobbyLimitReason.closed,
+            closed,
+          ),
+          (
+            "Can't help reader, closed",
+            'Unina',
+            false,
+            false,
+            false,
+            BeaconLobbyLimitReason.cantHelp,
+            closed,
+          ),
+        ];
+
+    FakeLobbyPort portFor(
+      String viewer, {
+      required bool isHelper,
+      required bool takesOffers,
+      required bool canPost,
+      required BeaconLobbyLimitReason? reason,
+    }) => FakeLobbyPort(viewerId: viewer)
+      ..isHelper = isHelper
+      ..takesOffers = takesOffers
+      ..canPost = canPost
+      ..limitReason = reason;
+
+    for (final (name, viewer, isHelper, takesOffers, canPost, reason, line)
+        in cases) {
+      testWidgets('screen header: $name', (tester) async {
+        final port = portFor(
+          viewer,
+          isHelper: isHelper,
+          takesOffers: takesOffers,
+          canPost: canPost,
+          reason: reason,
+        );
+        await tester.pumpWidget(_lobby(port, viewer));
+        await tester.pumpAndSettle();
+        expect(find.textContaining(line), findsOneWidget);
+        for (final other in {
+          author,
+          recipient,
+          helper,
+          closed,
+          authorClosed,
+        }..remove(line)) {
+          expect(find.textContaining(other), findsNothing, reason: other);
+        }
+      });
+
+      testWidgets('Overview row: $name', (tester) async {
+        await GetIt.I.reset();
+        final port = portFor(
+          viewer,
+          isHelper: isHelper,
+          takesOffers: takesOffers,
+          canPost: canPost,
+          reason: reason,
+        );
+        GetIt.I.registerSingleton<BeaconLobbyCase>(
+          lobbyCaseFor(port, FakeRealtimeSyncPort()),
+        );
+        await tester.pumpWidget(
+          _app(
+            Scaffold(
+              body: BeaconLobbyEntryRow(
+                beaconId: 'B1',
+                isAuthor: viewer == 'Uauthor',
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining(line), findsOneWidget);
+        for (final other in {
+          author,
+          recipient,
+          helper,
+          closed,
+          authorClosed,
+        }..remove(line)) {
+          expect(find.textContaining(other), findsNothing, reason: other);
+        }
+      });
+    }
+
+    testWidgets('the Request card of a recipient on a closed Request says '
+        'it is closed', (tester) async {
+      await GetIt.I.reset();
+      final port = portFor(
+        'Unina',
+        isHelper: false,
+        takesOffers: false,
+        canPost: false,
+        reason: BeaconLobbyLimitReason.cantHelp,
+      );
+      GetIt.I.registerSingleton<BeaconLobbyCase>(
+        lobbyCaseFor(port, FakeRealtimeSyncPort()),
+      );
+      await tester.pumpWidget(
+        _app(
+          const Scaffold(
+            body: BeaconLobbyEntryRow(beaconId: 'B1', prominent: true),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining(closed), findsOneWidget);
+      expect(find.textContaining(recipient), findsNothing);
+    });
+
+    testWidgets("closed beats Can't help in the read-only note: nobody can "
+        'offer again', (tester) async {
+      final port = portFor(
+        'Unina',
+        isHelper: false,
+        takesOffers: false,
+        canPost: false,
+        reason: BeaconLobbyLimitReason.cantHelp,
+      );
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('This request is closed'), findsOneWidget);
+      expect(find.textContaining('Offer help'), findsNothing);
+    });
+
+    testWidgets("open Request: Can't help still names the reader's own act", (
+      tester,
+    ) async {
+      final port = portFor(
+        'Unina',
+        isHelper: false,
+        takesOffers: true,
+        canPost: false,
+        reason: BeaconLobbyLimitReason.cantHelp,
+      );
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining("You said you can't help"), findsOneWidget);
+    });
+  });
+
   group('#658 desktop composer', () {
     testWidgets('Enter (the send action) sends, like the Chat composer', (
       tester,

@@ -45,6 +45,15 @@ abstract class BeaconLobbyState extends StateBase with _$BeaconLobbyState {
 
   BeaconLobbyLimitReason? get readOnlyReason => info?.readOnlyReason;
 
+  /// Inside already (offered, admitted, steward), not the author (#657).
+  bool get isHelper => info?.isHelper ?? false;
+
+  /// The Request no longer takes help offers (Final check or closed), so
+  /// nobody is told to ask or offer (#657).
+  bool get closedToOffers =>
+      !(info?.takesOffers ?? true) ||
+      readOnlyReason == BeaconLobbyLimitReason.closed;
+
   List<BeaconLobbyBannedPerson> get banned => info?.banned ?? const [];
 
   bool isBanned(String userId) => banned.any((b) => b.userId == userId);

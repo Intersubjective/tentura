@@ -8,6 +8,7 @@ import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 import '../../domain/entity/beacon_lobby.dart';
 import '../bloc/beacon_lobby_cubit.dart';
+import 'beacon_lobby_subtitle.dart';
 
 /// The Request Questions screen's content under its top bar (internally the
 /// lobby, U088).
@@ -82,10 +83,13 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
             Padding(
               padding: tt.listRowPadding,
               child: Text(
-                // Copy for the one reading: the author answers (#657).
-                state.isAuthor
-                    ? l10n.beaconLobbyEntrySubtitleAuthor
-                    : l10n.beaconLobbyEntrySubtitle,
+                // Copy for the one reading and the Request's state (#657).
+                beaconLobbySubtitle(
+                  l10n,
+                  isAuthor: state.isAuthor,
+                  isHelper: state.isHelper,
+                  closed: state.closedToOffers,
+                ),
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
             ),
@@ -193,7 +197,14 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                 key: const Key('beaconLobbyReadOnly'),
                 padding: tt.listRowPadding,
                 child: Text(
-                  beaconLobbyReadOnlyText(l10n, state.readOnlyReason),
+                  // Nobody can offer again once the Request stops taking
+                  // offers: closed wins over the reader's own act (#657).
+                  beaconLobbyReadOnlyText(
+                    l10n,
+                    state.closedToOffers
+                        ? BeaconLobbyLimitReason.closed
+                        : state.readOnlyReason,
+                  ),
                   style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),

@@ -8492,16 +8492,20 @@ type v2_BeaconLobby {
   beaconId: String!
   canPost: Boolean!
   isAuthor: Boolean!
+  isHelper: Boolean!
   lobbyId: String!
   readOnlyReason: String
+  takesOffers: Boolean!
 }
 
 type v2_BeaconLobbyAccess {
   beaconId: String!
   canPost: Boolean!
   canRead: Boolean!
+  isHelper: Boolean!
   messageCount: Int!
   readOnlyReason: String
+  takesOffers: Boolean!
 }
 
 type v2_BeaconLobbyBannedUser {
