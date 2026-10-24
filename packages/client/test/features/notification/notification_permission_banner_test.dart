@@ -216,6 +216,38 @@ void main() {
     expect(find.text('Не сейчас'), findsOneWidget);
   });
 
+  // #271: the explanation says what will be sent: a request sent to you, a
+  // reply in your chat, your offer accepted.
+  testWidgets('banner body names all three things that will be sent', (
+    tester,
+  ) async {
+    await _pump(tester, NotificationPermissionStatus.notDetermined);
+    for (final item in [
+      'sends you a request',
+      'replies in your chat',
+      'accepts your offer',
+    ]) {
+      expect(find.textContaining(item), findsOneWidget, reason: item);
+    }
+  });
+
+  testWidgets('Russian banner body names all three things that will be sent', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      NotificationPermissionStatus.notDetermined,
+      locale: const Locale('ru'),
+    );
+    for (final item in [
+      'отправят запрос',
+      'ответят в вашем чате',
+      'примут ваше предложение',
+    ]) {
+      expect(find.textContaining(item), findsOneWidget, reason: item);
+    }
+  });
+
   group('Notification settings row', () {
     testWidgets('not asked yet (or banner closed): offers "Turn on"', (
       tester,
