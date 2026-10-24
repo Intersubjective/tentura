@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'tentura_capability_colors.dart';
 import 'tentura_colors.dart';
 import 'tentura_radii.dart';
+import 'tentura_tag_colors.dart';
 import 'tentura_text.dart';
 import 'tentura_tokens.dart';
 
@@ -18,12 +19,16 @@ abstract final class TenturaTheme {
     colorScheme: palette.toColorScheme(),
     tokens: TenturaTokens.fromPalette(palette),
     capabilityColors: palette.capabilities,
+    tagColors: palette.brightness == Brightness.dark
+        ? TenturaTagColors.dark
+        : TenturaTagColors.light,
   );
 
   static ThemeData _base({
     required ColorScheme colorScheme,
     required TenturaTokens tokens,
     required TenturaCapabilityColors capabilityColors,
+    required TenturaTagColors tagColors,
   }) {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(tokens.buttonRadius),
@@ -60,7 +65,11 @@ abstract final class TenturaTheme {
       canvasColor: colorScheme.surface,
       scaffoldBackgroundColor: colorScheme.surface,
       unselectedWidgetColor: colorScheme.onSurface,
-      extensions: <ThemeExtension<dynamic>>[tokens, capabilityColors],
+      extensions: <ThemeExtension<dynamic>>[
+        tokens,
+        capabilityColors,
+        tagColors,
+      ],
       dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surfaceContainer,
       ),
