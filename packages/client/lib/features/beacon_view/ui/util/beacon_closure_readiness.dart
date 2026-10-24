@@ -36,6 +36,18 @@ enum ClosureActionPriority {
   primary,
 }
 
+/// A completion check the close sheet lists as not met yet (#474).
+enum BeaconClosureCriterion {
+  /// The author has not marked «Enough help».
+  enoughHelp,
+
+  /// No help offer has a useful or done result.
+  usefulOrDoneResult,
+
+  /// Some ordinary help offers are not settled (backup offers never count).
+  offersSettled,
+}
+
 /// Summary for close confirmation sheet (counts / flags only).
 class BeaconClosureConfirmationSummary {
   const BeaconClosureConfirmationSummary({
@@ -48,6 +60,7 @@ class BeaconClosureConfirmationSummary {
     required this.enoughHelpOffered,
     required this.hasSuccessfulHelpOfferResult,
     required this.requiresReviewWindow,
+    this.missingCriteria = const {},
   });
 
   final BeaconClosureReadiness readiness;
@@ -59,6 +72,17 @@ class BeaconClosureConfirmationSummary {
   final bool enoughHelpOffered;
   final bool hasSuccessfulHelpOfferResult;
   final bool requiresReviewWindow;
+
+  /// Checks not met yet, from the same inputs as [readiness]; the sheet only
+  /// maps them to rows (#474).
+  final Set<BeaconClosureCriterion> missingCriteria;
+
+  /// Every completion check passes: the sheet offers a plain close (or the
+  /// start of the final check) with no warning.
+  bool get allChecksPass =>
+      readiness == BeaconClosureReadiness.readyToClose ||
+      (readiness == BeaconClosureReadiness.waitingForReview &&
+          missingCriteria.isEmpty);
 }
 
 bool closeHardGate(BeaconViewState state) {
@@ -141,8 +165,7 @@ bool hasSuccessfulHelpOfferResult(BeaconViewState state) {
 }
 
 bool authorMarkedEnoughHelp(BeaconViewState state) =>
-    state.beacon.status ==
-    BeaconStatus.enoughHelp;
+    state.beacon.status == BeaconStatus.enoughHelp;
 
 bool helpOfferRowSettled(TimelineHelpOffer c, BeaconViewState state) {
   if (c.roleLabel?.trim().isNotEmpty ?? false) return true;
@@ -162,10 +185,18 @@ bool helpOfferRowSettled(TimelineHelpOffer c, BeaconViewState state) {
   return false;
 }
 
+/// Relevant offers that still need settling. A backup offer stays a backup
+/// on purpose («Decline remaining offers» keeps it), so it never counts as
+/// unsettled (#474).
+Iterable<TimelineHelpOffer> unsettledRelevantHelpOffers(
+  BeaconViewState state,
+) => relevantHelpOffers(
+  state,
+).where((c) => !c.isBackup && !helpOfferRowSettled(c, state));
+
 bool allRelevantHelpOffersSettled(BeaconViewState state) {
-  final relevant = relevantHelpOffers(state).toList();
-  if (relevant.isEmpty) return false;
-  return relevant.every((c) => helpOfferRowSettled(c, state));
+  if (relevantHelpOffers(state).isEmpty) return false;
+  return unsettledRelevantHelpOffers(state).isEmpty;
 }
 
 bool hasClosureBlockingState(BeaconViewState state) =>
@@ -219,9 +250,7 @@ BeaconClosureReadiness computeClosureReadiness(BeaconViewState state) {
     return BeaconClosureReadiness.readyToClose;
   }
 
-  if (enoughHelp ||
-      successfulResult ||
-      settled) {
+  if (enoughHelp || successfulResult || settled) {
     return BeaconClosureReadiness.waitingForReview;
   }
 
@@ -274,10 +303,12 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
 ) {
   final readiness = computeClosureReadiness(state);
   final relevant = relevantHelpOffers(state).toList();
-  var unsettled = 0;
-  for (final c in relevant) {
-    if (!helpOfferRowSettled(c, state)) unsettled++;
-  }
+  final unsettled = unsettledRelevantHelpOffers(state).length;
+  final enoughHelp = authorMarkedEnoughHelp(state);
+  final successfulResult = hasSuccessfulHelpOfferResult(state);
+  final judged =
+      readiness == BeaconClosureReadiness.waitingForReview ||
+      readiness == BeaconClosureReadiness.premature;
 
   return BeaconClosureConfirmationSummary(
     readiness: readiness,
@@ -286,19 +317,24 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
     relevantHelpOffersCount: relevant.length,
     unsettledRelevantCount: unsettled,
     hasWholeBeaconDoneSignal: hasExplicitWholeBeaconDoneSignal(state),
-    enoughHelpOffered: authorMarkedEnoughHelp(state),
-    hasSuccessfulHelpOfferResult: hasSuccessfulHelpOfferResult(state),
-    requiresReviewWindow:
-        expectedRequiresReviewWindowForState(state) ?? false,
+    enoughHelpOffered: enoughHelp,
+    hasSuccessfulHelpOfferResult: successfulResult,
+    requiresReviewWindow: expectedRequiresReviewWindowForState(state) ?? false,
+    missingCriteria: {
+      if (judged && !enoughHelp) BeaconClosureCriterion.enoughHelp,
+      if (judged && !successfulResult)
+        BeaconClosureCriterion.usefulOrDoneResult,
+      if (unsettled > 0 && readiness != BeaconClosureReadiness.readyToClose)
+        BeaconClosureCriterion.offersSettled,
+    },
   );
 }
 
 extension BeaconViewClosureX on BeaconViewState {
   BeaconClosureReadiness get closureReadiness => computeClosureReadiness(this);
 
-  ClosureActionPriority get closureActionPriority =>
-      closureActionPriorityFor(
-        closureReadiness,
-        allowForceCloseWhenBlocked: kBeaconAllowForceCloseWhenBlocked,
-      );
+  ClosureActionPriority get closureActionPriority => closureActionPriorityFor(
+    closureReadiness,
+    allowForceCloseWhenBlocked: kBeaconAllowForceCloseWhenBlocked,
+  );
 }

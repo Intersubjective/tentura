@@ -153,6 +153,7 @@ void main() {
                       enoughHelpOffered: false,
                       hasSuccessfulHelpOfferResult: true,
                       requiresReviewWindow: true,
+                      missingCriteria: {BeaconClosureCriterion.enoughHelp},
                     ),
                     isLoading: false,
                     onCloseBeacon: (_) async => true,

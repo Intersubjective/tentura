@@ -19,7 +19,11 @@ Future<bool> showBeaconCloseConfirmSheet({
 }) async {
   final l10n = L10n.of(context)!;
   final scheme = Theme.of(context).colorScheme;
-  final r = summary.readiness;
+  // Every check passes: the sheet reads as ready even when the readiness is
+  // still «waiting for review», with no warning and no «anyway» (#474).
+  final r = summary.allChecksPass
+      ? BeaconClosureReadiness.readyToClose
+      : summary.readiness;
   final reviewBranch = summary.requiresReviewWindow;
 
   final (title, body, branchPreview) = switch ((r, reviewBranch)) {
@@ -73,11 +77,14 @@ Future<bool> showBeaconCloseConfirmSheet({
     builder: (ctx) {
       final tt = ctx.tt;
       // Not ready yet: list the unmet criteria too, not only the met ones,
-      // or the sheet reads as all ticks under a warning (#474).
-      final showMissing =
-          (r == BeaconClosureReadiness.waitingForReview ||
-              r == BeaconClosureReadiness.premature) &&
-          !summary.hasWholeBeaconDoneSignal;
+      // or the sheet reads as all ticks under a warning (#474). Which ones
+      // are unmet comes with the summary, next to the readiness.
+      final missing = summary.missingCriteria;
+      // Starting the final check and closing are named apart, so the button
+      // matches the «Next:» line above it.
+      final anywayLabel = reviewBranch
+          ? l10n.beaconCloseSheetActionStartFinalCheckAnyway
+          : l10n.beaconCloseSheetActionCloseAnyway;
       final evidence = <Widget>[
         if (branchPreview != null)
           _evidenceRow(scheme, branchPreview, bottomPadding: tt.tightGap),
@@ -107,21 +114,22 @@ Future<bool> showBeaconCloseConfirmSheet({
             l10n.beaconCloseSheetEvidenceUsefulOrDone,
             bottomPadding: tt.tightGap,
           ),
-        if (showMissing && !summary.enoughHelpOffered)
+        if (missing.contains(BeaconClosureCriterion.enoughHelp))
           _evidenceRow(
             scheme,
             l10n.beaconCloseSheetEvidenceEnoughHelpMissing,
             positive: false,
             bottomPadding: tt.tightGap,
           ),
-        if (showMissing && !summary.hasSuccessfulHelpOfferResult)
+        if (missing.contains(BeaconClosureCriterion.usefulOrDoneResult))
           _evidenceRow(
             scheme,
             l10n.beaconCloseSheetEvidenceUsefulOrDoneMissing,
             positive: false,
             bottomPadding: tt.tightGap,
           ),
-        if (summary.unsettledRelevantCount > 0)
+        if (missing.contains(BeaconClosureCriterion.offersSettled) &&
+            summary.unsettledRelevantCount > 0)
           _evidenceRow(
             scheme,
             l10n.beaconCloseSheetEvidenceUnsettledCount(
@@ -146,120 +154,134 @@ Future<bool> showBeaconCloseConfirmSheet({
             actionSpacing: tt.tightGap,
           ),
       ];
-      return SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            tt.screenHPadding,
-            tt.rowGap,
-            tt.screenHPadding,
-            tt.sectionGap + MediaQuery.paddingOf(ctx).bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                title,
-                style: TenturaText.titleSmall(scheme.onSurface),
-              ),
-              SizedBox(height: tt.rowGap),
-              Text(
-                body,
-                style: TenturaText.body(scheme.onSurfaceVariant),
-              ),
-              if (evidence.isNotEmpty) ...[
-                SizedBox(height: tt.sectionGap),
-                ...evidence,
-              ],
-              if (r == BeaconClosureReadiness.blocked &&
-                  !kBeaconAllowForceCloseWhenBlocked) ...[
+      // Its own node in the semantics tree, named by the title (#474).
+      return Semantics(
+        scopesRoute: true,
+        namesRoute: true,
+        explicitChildNodes: true,
+        label: title,
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              tt.rowGap,
+              tt.screenHPadding,
+              tt.sectionGap + MediaQuery.paddingOf(ctx).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The route node above already says the title; read once.
+                ExcludeSemantics(
+                  child: Text(
+                    title,
+                    style: TenturaText.titleSmall(scheme.onSurface),
+                  ),
+                ),
                 SizedBox(height: tt.rowGap),
                 Text(
-                  l10n.beaconCloseSheetBlockedForceHint,
-                  style: TenturaText.status(scheme.onSurfaceVariant),
+                  body,
+                  style: TenturaText.body(scheme.onSurfaceVariant),
                 ),
-              ],
-              SizedBox(height: tt.sectionGap),
-              if (isLoading)
-                const Center(child: CircularProgressIndicator.adaptive())
-              else ...[
-                if (r == BeaconClosureReadiness.readyToClose) ...[
-                  Semantics(
-                    identifier: TestIds.beaconCloseConfirm,
-                    child: FilledButton(
+                if (evidence.isNotEmpty) ...[
+                  SizedBox(height: tt.sectionGap),
+                  ...evidence,
+                ],
+                if (r == BeaconClosureReadiness.blocked &&
+                    !kBeaconAllowForceCloseWhenBlocked) ...[
+                  SizedBox(height: tt.rowGap),
+                  Text(
+                    l10n.beaconCloseSheetBlockedForceHint,
+                    style: TenturaText.status(scheme.onSurfaceVariant),
+                  ),
+                ],
+                SizedBox(height: tt.sectionGap),
+                if (isLoading)
+                  const Center(child: CircularProgressIndicator.adaptive())
+                else ...[
+                  if (r == BeaconClosureReadiness.readyToClose) ...[
+                    Semantics(
+                      identifier: TestIds.beaconCloseConfirm,
+                      child: FilledButton(
+                        key: TestIds.key(TestIds.beaconCloseConfirm),
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          confirmed = await onCloseBeacon(reviewBranch);
+                        },
+                        child: Text(
+                          reviewBranch
+                              ? l10n.beaconCloseSheetActionStartFinalCheck
+                              : l10n.beaconCloseSheetActionCloseBeacon,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(l10n.beaconCloseSheetActionNotNow),
+                    ),
+                  ],
+                  if (r == BeaconClosureReadiness.waitingForReview) ...[
+                    FilledButton(
                       key: TestIds.key(TestIds.beaconCloseConfirm),
                       onPressed: () async {
                         Navigator.of(ctx).pop();
                         confirmed = await onCloseBeacon(reviewBranch);
                       },
-                      child: Text(l10n.beaconCloseSheetActionCloseBeacon),
+                      child: Text(anywayLabel),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l10n.beaconCloseSheetActionNotNow),
-                  ),
-                ],
-                if (r == BeaconClosureReadiness.waitingForReview) ...[
-                  FilledButton(
-                    key: TestIds.key(TestIds.beaconCloseConfirm),
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      confirmed = await onCloseBeacon(reviewBranch);
-                    },
-                    child: Text(l10n.beaconCloseSheetActionCloseAnyway),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      onOpenPeople();
-                    },
-                    child: Text(l10n.beaconCloseSheetActionOpenPeople),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l10n.beaconCloseSheetActionNotNow),
-                  ),
-                ],
-                if (r == BeaconClosureReadiness.premature ||
-                    r == BeaconClosureReadiness.notCloseable) ...[
-                  FilledButton(
-                    key: TestIds.key(TestIds.beaconCloseConfirm),
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      confirmed = await onCloseBeacon(reviewBranch);
-                    },
-                    child: Text(l10n.beaconCloseSheetActionCloseAnyway),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l10n.beaconCloseSheetActionKeepActive),
-                  ),
-                ],
-                if (r == BeaconClosureReadiness.blocked) ...[
-                  if (onResolveRoom != null)
-                    FilledButton(
+                    TextButton(
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        onResolveRoom();
+                        onOpenPeople();
                       },
-                      child: Text(l10n.beaconCloseSheetActionResolveRoom),
+                      child: Text(l10n.beaconCloseSheetActionOpenPeople),
                     ),
-                  if (kBeaconAllowForceCloseWhenBlocked)
                     TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(l10n.beaconCloseSheetActionNotNow),
+                    ),
+                  ],
+                  if (r == BeaconClosureReadiness.premature ||
+                      r == BeaconClosureReadiness.notCloseable) ...[
+                    FilledButton(
+                      key: TestIds.key(TestIds.beaconCloseConfirm),
                       onPressed: () async {
                         Navigator.of(ctx).pop();
                         confirmed = await onCloseBeacon(reviewBranch);
                       },
-                      child: Text(l10n.beaconCloseSheetActionCloseAnyway),
+                      child: Text(anywayLabel),
                     ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l10n.beaconCloseSheetActionNotNow),
-                  ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(l10n.beaconCloseSheetActionKeepActive),
+                    ),
+                  ],
+                  if (r == BeaconClosureReadiness.blocked) ...[
+                    if (onResolveRoom != null)
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          onResolveRoom();
+                        },
+                        child: Text(l10n.beaconCloseSheetActionResolveRoom),
+                      ),
+                    if (kBeaconAllowForceCloseWhenBlocked)
+                      TextButton(
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          confirmed = await onCloseBeacon(reviewBranch);
+                        },
+                        child: Text(l10n.beaconCloseSheetActionCloseAnyway),
+                      ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(l10n.beaconCloseSheetActionNotNow),
+                    ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ),
       );

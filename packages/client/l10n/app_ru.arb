@@ -4689,7 +4689,7 @@
   "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
   "beaconCloseSheetEvidenceEnoughHelpMissing": "«Помощи хватает» ещё не отмечено",
   "beaconCloseSheetEvidenceUsefulOrDoneMissing": "Пока нет полезного или завершённого результата",
-  "beaconCloseSheetEvidenceUnsettledCount": "{count} предложение(-й) помощи не доведены до ясного статуса",
+  "beaconCloseSheetEvidenceUnsettledCount": "{count, plural, one{{count} предложение помощи не доведено до ясного статуса} few{{count} предложения помощи не доведены до ясного статуса} many{{count} предложений помощи не доведены до ясного статуса} other{{count} предложения помощи не доведены до ясного статуса}}",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
       "count": {
@@ -4697,7 +4697,7 @@
       }
     }
   },
-  "beaconCloseSheetEvidenceUnansweredCount": "{count} предложение(-й) помощи ждут вашей координации",
+  "beaconCloseSheetEvidenceUnansweredCount": "{count, plural, one{{count} предложение помощи ждёт вашей координации} few{{count} предложения помощи ждут вашей координации} many{{count} предложений помощи ждут вашей координации} other{{count} предложения помощи ждут вашей координации}}",
   "@beaconCloseSheetEvidenceUnansweredCount": {
     "placeholders": {
       "count": {
@@ -4707,13 +4707,15 @@
   },
   "beaconCloseSheetActionCloseBeacon": "Закрыть запрос",
   "beaconCloseSheetActionCloseAnyway": "Всё равно закрыть",
+  "beaconCloseSheetActionStartFinalCheck": "Подвести итоги",
+  "beaconCloseSheetActionStartFinalCheckAnyway": "Всё равно подвести итоги",
   "beaconCloseSheetActionKeepActive": "Оставить активным",
   "beaconCloseSheetActionOpenPeople": "Открыть людей",
   "beaconCloseAnswerFirst": "Сначала ответить",
   "beaconCloseSheetActionResolveRoom": "Открыть обсуждение",
   "beaconCloseSheetActionNotNow": "Не сейчас",
   "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
-  "beaconCloseSheetReadyReviewTitle": "Закрыть и подвести итоги?",
+  "beaconCloseSheetReadyReviewTitle": "Можно подводить итоги",
   "beaconCloseSheetReadyReviewBody": "Помощники, которые участвовали, смогут отметить, чья помощь была важной.",
   "beaconCloseSheetReadyImmediateBody": "Запрос сразу будет отмечен завершённым, без подведения итогов.",
   "beaconCloseSheetReviewWrappingUpBody": "Прежде чем подводить итоги, решите ещё несколько пунктов.",

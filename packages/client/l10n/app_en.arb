@@ -4982,7 +4982,7 @@
   "@beaconCloseSheetEvidenceUsefulOrDoneMissing": {
     "description": "Close sheet checklist row: no help offer has a useful or done result yet"
   },
-  "beaconCloseSheetEvidenceUnsettledCount": "{count} help offer(s) not settled",
+  "beaconCloseSheetEvidenceUnsettledCount": "{count, plural, =1{1 help offer not settled} other{{count} help offers not settled}}",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
       "count": {
@@ -4990,7 +4990,7 @@
       }
     }
   },
-  "beaconCloseSheetEvidenceUnansweredCount": "{count} help offer(s) await coordination review",
+  "beaconCloseSheetEvidenceUnansweredCount": "{count, plural, =1{1 help offer awaits coordination review} other{{count} help offers await coordination review}}",
   "@beaconCloseSheetEvidenceUnansweredCount": {
     "placeholders": {
       "count": {
@@ -5000,13 +5000,21 @@
   },
   "beaconCloseSheetActionCloseBeacon": "Close request",
   "beaconCloseSheetActionCloseAnyway": "Close anyway",
+  "beaconCloseSheetActionStartFinalCheck": "Start final check",
+  "@beaconCloseSheetActionStartFinalCheck": {
+    "description": "Close sheet primary action when every check passes and closing starts the final check"
+  },
+  "beaconCloseSheetActionStartFinalCheckAnyway": "Start final check anyway",
+  "@beaconCloseSheetActionStartFinalCheckAnyway": {
+    "description": "Close sheet primary action when a check is not met yet and closing starts the final check"
+  },
   "beaconCloseSheetActionKeepActive": "Keep active",
   "beaconCloseSheetActionOpenPeople": "Open people",
   "beaconCloseAnswerFirst": "Answer first",
   "beaconCloseSheetActionResolveRoom": "Open discussion",
   "beaconCloseSheetActionNotNow": "Not now",
   "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
-  "beaconCloseSheetReadyReviewTitle": "Close and start the final check?",
+  "beaconCloseSheetReadyReviewTitle": "Ready for the final check",
   "beaconCloseSheetReadyReviewBody": "Helpers who committed get a final check to acknowledge contributions.",
   "beaconCloseSheetReadyImmediateBody": "This marks the request complete right away, with no final check.",
   "beaconCloseSheetReviewWrappingUpBody": "Some items still need your judgment before the final check.",
