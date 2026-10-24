@@ -465,8 +465,8 @@ jobs:
                     --balance pg --reserve-last multi-connection)
                   pg_jobs=()
                   if [ "$SERVER_MODE" = full ]; then
-                    # Bundles of the shard's files, built after the shard is
-                    # chosen so the duration balance holds: one compile and
+                    # Bundles of the files selected for this shard, built
+                    # after the selection so the duration balance holds: one compile and
                     # one isolate per bundle instead of per file
                     # (scripts/gen_test_bundles.py --allow-pg; each file
                     # still builds its own disposable database). `mr`,

@@ -88,10 +88,11 @@ DEFERRED_MAIN_SOURCE = """\
 // Bundles an async test `main`. A group body must declare its tests
 // synchronously, but most pg test files await a Postgres probe before they
 // declare anything. So the bundle runs such a `main` up front, with a
-// declarer that only records the top-level test / group / setUp(All) /
-// tearDown(All) calls it makes, and replays them later inside the file's
-// group, where test_api builds them exactly as the file's own suite would.
-// Nested group bodies run only on replay, against the real declarer.
+// declarer that records the test / group / setUp(All) / tearDown(All) calls
+// it makes — group bodies run right away, under a nested recorder, as
+// test_api runs them — and replays the recorded tree later inside the
+// file's group, where test_api builds it exactly as the file's own suite
+// would.
 
 // ignore_for_file: implementation_imports, depend_on_referenced_packages
 
@@ -103,19 +104,19 @@ import 'package:test_api/src/backend/declarer.dart';
 /// declarations into the current group.
 Future<void Function()> recordDeclarations(Function main) async {
   final recorder = _Recorder();
-  await runZoned(
-    () async {
-      final result = main();
-      if (result is Future) await result;
-    },
-    zoneValues: {#test.declarer: recorder},
-  );
+  await recorder._record(() async {
+    final result = main();
+    if (result is Future) await result;
+  });
   return recorder.replay;
 }
 
 final class _Recorder implements Declarer {
   final _calls = <Invocation>[];
   var _replayed = false;
+
+  T _record<T>(T Function() body) =>
+      runZoned(body, zoneValues: {#test.declarer: this});
 
   void replay() {
     if (_replayed) throw StateError('declarations replayed twice');
@@ -140,17 +141,33 @@ final class _Recorder implements Declarer {
     const recorded = {
       #test, #group, #setUp, #tearDown, #setUpAll, #tearDownAll, //
     };
-    if (invocation.isMethod && recorded.contains(invocation.memberName)) {
-      if (_replayed) {
-        throw StateError('a bundled main declared after its group was built');
-      }
-      _calls.add(invocation);
+    if (!invocation.isMethod || !recorded.contains(invocation.memberName)) {
+      throw UnsupportedError(
+        'a bundled test main called Declarer ${invocation.memberName} '
+        'while it was being recorded',
+      );
+    }
+    if (_replayed) {
+      throw StateError('a bundled main declared after its group was built');
+    }
+    if (invocation.memberName == #group) {
+      // Declared now, like test_api does, so code after the group sees what
+      // its body did; replayed as a group whose body replays the children.
+      final [name, body as Function] = invocation.positionalArguments;
+      final children = _Recorder();
+      final result = children._record(() => body());
+      if (result is Future) throw ArgumentError('Groups may not be async.');
+      _calls.add(
+        Invocation.method(
+          #group,
+          [name, children.replay],
+          invocation.namedArguments,
+        ),
+      );
       return null;
     }
-    throw UnsupportedError(
-      'a bundled test main called Declarer ${invocation.memberName} '
-      'while it was being recorded',
-    );
+    _calls.add(invocation);
+    return null;
   }
 }
 """
