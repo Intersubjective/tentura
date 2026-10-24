@@ -157,12 +157,21 @@ void main() {
       expect(line.relationLabel, isNotNull);
     });
 
-    for (final host in [
-      ForwardRecipientRowHost.pickerStandard,
-      ForwardRecipientRowHost.pickerLineage,
-      ForwardRecipientRowHost.pickerBand,
-      ForwardRecipientRowHost.pickerSearch,
-    ]) {
+    test('host inventory is exactly the hosts that render rows (#453)', () {
+      expect(
+        ForwardRecipientRowHost.values.map((h) => h.name),
+        unorderedEquals(<String>[
+          'pickerStandard',
+          'pickerLineage',
+          'pickerBand',
+          'lineagePreview',
+        ]),
+      );
+    });
+
+    for (final host in ForwardRecipientRowHost.values.where(
+      (h) => h != ForwardRecipientRowHost.lineagePreview,
+    )) {
       test('$host shows paused availability for unseen', () {
         final line = _line(
           candidate: _candidate(
