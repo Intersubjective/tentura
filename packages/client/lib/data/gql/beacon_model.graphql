@@ -61,8 +61,15 @@ fragment BeaconModel on beacon {
     user_id
   }
   unanswered_help_offers: help_offers_aggregate(
-    # Unreviewed = active offer (status 0) with no coordination row (author has not responded).
-    where: { status: { _eq: 0 }, _not: { coordination: {} } }
+    # Unreviewed = active ordinary offer (status 0, offer_kind 0) with no
+    # coordination row (author has not responded). A backup offer (offer_kind
+    # 1) is never reviewed here: kept as standby it stays active with no
+    # coordination row (#710), as the Request page already counts it.
+    where: {
+      status: { _eq: 0 }
+      offer_kind: { _eq: 0 }
+      _not: { coordination: {} }
+    }
   ) {
     aggregate {
       count
