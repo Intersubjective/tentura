@@ -472,7 +472,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       context,
                       cubit: cubit,
                       onAddFact: canAddFact
-                          ? () => unawaited(authoring.openAddFact(context))
+                          ? () => unawaited(
+                              _addFactThenRefresh(context, authoring, cubit),
+                            )
                           : null,
                     );
                     if (!context.mounted) return;
@@ -515,6 +517,20 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         },
       ),
     );
+  }
+
+  /// #481: a fact pinned through the host's Add-fact form shows in this
+  /// room's fact cards without waiting for a realtime echo. A cancelled form
+  /// changed nothing, so nothing is re-read.
+  Future<void> _addFactThenRefresh(
+    BuildContext context,
+    RoomFactAuthoring authoring,
+    RoomCubit cubit,
+  ) async {
+    final saved = await authoring.openAddFact(context);
+    if (!saved) return;
+    // A closed cubit ignores the refresh.
+    await cubit.refreshFactCards();
   }
 
   BeaconFactCard? _pendingQuotedFactCard(RoomState state) {

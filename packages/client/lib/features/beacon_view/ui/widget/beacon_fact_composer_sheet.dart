@@ -15,13 +15,15 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
-Future<void> showBeaconFactComposerSheet(
+/// Opens the Add-fact form; completes with true when a fact was pinned, false
+/// when the form was cancelled or dismissed (#481).
+Future<bool> showBeaconFactComposerSheet(
   BuildContext pageContext, {
   required BeaconViewCubit cubit,
   ImageRepository? imageRepository,
   ClipboardImageRepository? clipboardImageRepository,
-}) {
-  return showTenturaAdaptiveSheet<void>(
+}) async {
+  final saved = await showTenturaAdaptiveSheet<bool>(
     context: pageContext,
     builder: (ctx) => _BeaconFactComposerBody(
       cubit: cubit,
@@ -29,6 +31,7 @@ Future<void> showBeaconFactComposerSheet(
       clipboardImageRepository: clipboardImageRepository,
     ),
   );
+  return saved ?? false;
 }
 
 class _BeaconFactComposerBody extends StatefulWidget {
@@ -102,7 +105,7 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
     );
     if (!mounted) return;
     if (ok) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
       return;
     }
     setState(() => _submitting = false);
