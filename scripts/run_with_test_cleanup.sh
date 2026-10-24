@@ -16,6 +16,11 @@
 # Preserves: `flutter run` web compilers (`--target=dartdevc`),
 # tentura-server, Serena language-server, Chrome, Cursor.
 #
+# When TMPDIR is unset, use the on-disk user cache: /tmp's usrquota can
+# reject test kernels with "Disk quota exceeded" even when df shows space.
+# Explicit TMPDIR values (including sandbox-provided ones) are preserved.
+# The leftover sweep covers both /tmp and the effective TMPDIR.
+#
 # Usage:
 #   scripts/run_with_test_cleanup.sh [--timeout 45m] -- flutter test ...
 #   scripts/run_with_test_cleanup.sh --sweep-only
@@ -25,6 +30,10 @@
 set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+if [[ -z "${TMPDIR+x}" ]]; then
+  export TMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/tentura-test-tmp"
+  mkdir -p "$TMPDIR"
+fi
 STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
 DEFAULT_TIMEOUT="45m"
 KILL_AFTER="15s"
@@ -32,7 +41,7 @@ KILL_AFTER="15s"
 log() { printf '[test-cleanup] %s\n' "$*" >&2; }
 
 usage() {
-  sed -n '2,28p' "$SELF" | sed 's/^# \?//'
+  sed -n '2,33p' "$SELF" | sed 's/^# \?//'
   exit 2
 }
 
@@ -201,10 +210,11 @@ def live_cmdlines() -> bytes:
     return b"\n".join(blobs)
 
 live = live_cmdlines()
-tmp = pathlib.Path(os.environ.get("TMPDIR", "/tmp"))
+roots = {pathlib.Path("/tmp"), pathlib.Path(os.environ.get("TMPDIR") or "/tmp")}
 removed = []
-for pat in ("flutter_tools.*", "dart_test.kernel.*"):
-    for d in tmp.glob(pat):
+for root in roots:
+  for pat in ("flutter_tools.*", "dart_test.kernel.*"):
+    for d in root.glob(pat):
         if not d.exists():
             continue
         token = d.name.encode()

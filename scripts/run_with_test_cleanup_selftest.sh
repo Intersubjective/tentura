@@ -279,4 +279,53 @@ if [[ -d "$NT/tentura-st-live-B" ]]; then ok "nested TMPDIR of a live process ke
 if [[ -d "$NT/tentura-st-fresh-C" ]]; then ok "fresh nested TMPDIR kept"; else bad "fresh nested TMPDIR deleted"; fi
 if [[ -d "$NT/tentura-st-foreign-D" ]]; then ok "tentura-* dir without nested signature kept"; else bad "foreign tentura-* dir deleted"; fi
 
+# --- 13. unset TMPDIR uses disk cache; explicit values survive unchanged ---
+TEMP_HOME="$NT/cache-home"
+TEMP_CACHE="$NT/xdg cache"
+for cache_mode in home xdg; do
+  if [[ "$cache_mode" == home ]]; then
+    cache_env=(-u XDG_CACHE_HOME)
+    expected_tmp="$TEMP_HOME/.cache/tentura-test-tmp"
+  else
+    cache_env=("XDG_CACHE_HOME=$TEMP_CACHE")
+    expected_tmp="$TEMP_CACHE/tentura-test-tmp"
+  fi
+  if env -u TMPDIR "${cache_env[@]}" HOME="$TEMP_HOME" \
+    "$WRAP" --timeout 10s -- bash -c \
+    '[[ "$TMPDIR" == "$1" && -d "$TMPDIR" ]]' bash "$expected_tmp"; then
+    ok "unset TMPDIR uses and creates $cache_mode cache"
+  else
+    bad "unset TMPDIR failed with $cache_mode cache"
+  fi
+done
+EXPLICIT_TMP="$NT/explicit tmp"
+mkdir -p "$EXPLICIT_TMP"
+if TMPDIR="$EXPLICIT_TMP" "$WRAP" --timeout 10s -- bash -c \
+  '[[ "$TMPDIR" == "$1" ]]' bash "$EXPLICIT_TMP"; then
+  ok "explicit TMPDIR preserved"
+else
+  bad "explicit TMPDIR changed"
+fi
+
+# Create fixtures inside the child so their names are absent from live
+# command lines when the exit sweep checks whether they are referenced.
+if TMPDIR="$EXPLICIT_TMP" "$WRAP" --timeout 10s -- python3 - <<'PY'
+import os, pathlib
+for root in (pathlib.Path('/tmp'), pathlib.Path(os.environ['TMPDIR'])):
+    for pattern in ('flutter_tools.', 'dart_test.kernel.'):
+        (root / (pattern + 'lt6i-' + str(os.getppid()))).mkdir()
+PY
+then
+  if compgen -G '/tmp/flutter_tools.lt6i-*' >/dev/null || \
+    compgen -G '/tmp/dart_test.kernel.lt6i-*' >/dev/null || \
+    compgen -G "$EXPLICIT_TMP/flutter_tools.*" >/dev/null || \
+    compgen -G "$EXPLICIT_TMP/dart_test.kernel.*" >/dev/null; then
+    bad "exit sweep left temporary fixtures behind"
+  else
+    ok "exit sweep cleans both /tmp and explicit TMPDIR"
+  fi
+else
+  bad "dual-directory cleanup fixture command failed"
+fi
+
 log "done"
