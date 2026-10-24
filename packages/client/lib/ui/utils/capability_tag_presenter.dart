@@ -1,3 +1,4 @@
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -50,5 +51,30 @@ extension CapabilityTagLabel on CapabilityTag {
     CapabilityTag.time => l10n.capabilityTagTime,
     CapabilityTag.contact => l10n.capabilityTagContact,
     CapabilityTag.other => l10n.capabilityTagOther,
+  };
+}
+
+extension CapabilityGroupLabel on CapabilityGroup {
+  String labelOf(L10n l10n) => switch (this) {
+    CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
+    CapabilityGroup.communication => l10n.capabilityGroupCommunication,
+    CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
+    CapabilityGroup.care => l10n.capabilityGroupCare,
+    CapabilityGroup.resources => l10n.capabilityGroupResources,
+    CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+    CapabilityGroup.rpg => l10n.capabilityGroupRpg,
+    CapabilityGroup.special => l10n.capabilityGroupSpecial,
+  };
+
+  String descriptionOf(L10n l10n) => switch (this) {
+    CapabilityGroup.logistics => l10n.capabilityGroupLogisticsDescription,
+    CapabilityGroup.communication =>
+      l10n.capabilityGroupCommunicationDescription,
+    CapabilityGroup.knowledge => l10n.capabilityGroupKnowledgeDescription,
+    CapabilityGroup.care => l10n.capabilityGroupCareDescription,
+    CapabilityGroup.resources => l10n.capabilityGroupResourcesDescription,
+    CapabilityGroup.technical => l10n.capabilityGroupTechnicalDescription,
+    CapabilityGroup.rpg => l10n.capabilityGroupRpgDescription,
+    CapabilityGroup.special => l10n.capabilityGroupSpecialDescription,
   };
 }
