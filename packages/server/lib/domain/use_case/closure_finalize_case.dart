@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/episode_settlement.dart';
@@ -154,7 +155,29 @@ final class ClosureFinalizeCase extends UseCaseBase
     final outcomes = {
       for (final o in await _repo.outcomes(beaconId)) o.helperId: o.outcome,
     };
-    final split = await _repo.split(beaconId);
+    // #489 (Vadim, V1 = A): a voluntary leaver the author did not judge is
+    // out of A; a custom split is renormalized over the rest, as if the
+    // author had marked them «Не выполнено».
+    final unjudgedLeavers = {
+      for (final m in members)
+        if (m.departure == Departure.voluntary && outcomes[m.userId] == null)
+          m.userId,
+    };
+    var split = await _repo.split(beaconId);
+    if (split.keys.any(unjudgedLeavers.contains)) {
+      split =
+          renormalize(
+            current: split,
+            newA: {
+              for (final m in members)
+                if (outcomes[m.userId] != ClosureOutcome.notDone &&
+                    !unjudgedLeavers.contains(m.userId))
+                  m.userId,
+            },
+            beaconId: beaconId,
+          ) ??
+          const {};
+    }
     final drafts = _targetsByVoter(
       await _repo.supports(
         beaconId: beaconId,
@@ -179,6 +202,7 @@ final class ClosureFinalizeCase extends UseCaseBase
               userId: m.userId,
               outcome: outcomes[m.userId],
               voter: _isVoter(m),
+              inAWithoutOutcome: !unjudgedLeavers.contains(m.userId),
               support: committedVoters.contains(m.userId)
                   ? committed[m.userId] ?? const {}
                   : null,

@@ -57,4 +57,43 @@ void main() {
     );
     expectHelped(got, [0.2333, 0.2333, 0.2333]);
   });
+
+  test('#489: an unanswered voluntary leaver gets no share', () {
+    final got = silentPreview(
+      outcomes: {
+        'u1': ClosureOutcome.done,
+        'u2': ClosureOutcome.done,
+        'u3': null,
+      },
+      split: null,
+      leftVoluntarily: {'u3'},
+    );
+    expectHelped(got, [0.35, 0.35, 0]);
+  });
+
+  test('#489: an author outcome for a voluntary leaver still counts', () {
+    final got = silentPreview(
+      outcomes: {
+        'u1': ClosureOutcome.done,
+        'u2': ClosureOutcome.done,
+        'u3': ClosureOutcome.cantJudge,
+      },
+      split: null,
+      leftVoluntarily: {'u3'},
+    );
+    expectHelped(got, [0.2333, 0.2333, 0.2333]);
+  });
+
+  test('#489: a split share of the dropped leaver goes to the rest', () {
+    final got = silentPreview(
+      outcomes: {
+        'u1': ClosureOutcome.done,
+        'u2': ClosureOutcome.done,
+        'u3': null,
+      },
+      split: {'u1': 40, 'u2': 40, 'u3': 20},
+      leftVoluntarily: {'u3'},
+    );
+    expectHelped(got, [0.35, 0.35, 0]);
+  });
 }

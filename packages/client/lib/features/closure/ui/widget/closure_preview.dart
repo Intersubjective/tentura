@@ -18,6 +18,10 @@ class ClosurePreview extends StatelessWidget {
     final shares = silentPreview(
       outcomes: {for (final m in data.members) m.id: data.outcomes?[m.id]},
       split: data.split,
+      leftVoluntarily: {
+        for (final m in data.members)
+          if (m.departure == 'voluntary') m.id,
+      },
     );
     final top = shares.values.fold<double>(0, (a, b) => a > b ? a : b);
     return Column(

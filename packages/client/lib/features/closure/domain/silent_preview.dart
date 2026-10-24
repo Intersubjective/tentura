@@ -6,21 +6,34 @@ const _beta = 0.5;
 
 /// Client-side port of the server's silent settlement (Arch §5.5 with every
 /// colleague support ignored): helper id -> share if nobody else says
-/// anything. A `null` outcome (unanswered) counts like `cantJudge`.
+/// anything. A `null` outcome (unanswered) counts like `cantJudge`, except
+/// for a member in [leftVoluntarily]: they get no author share (#489).
 Map<String, double> silentPreview({
   required Map<String, ClosureOutcome?> outcomes,
   required Map<String, int>? split,
+  Set<String> leftVoluntarily = const {},
 }) {
   final ids = outcomes.keys.toList()..sort();
   final n = ids.length;
   const poolH = 1 - _rho;
   final aSet = [
     for (final id in ids)
-      if (outcomes[id] != ClosureOutcome.notDone) id,
+      if (outcomes[id] != ClosureOutcome.notDone &&
+          !(outcomes[id] == null && leftVoluntarily.contains(id)))
+        id,
   ];
+  // A split that still gives the dropped leaver a share is rescaled over
+  // the rest, like the server's renormalize (without its 5% rounding).
+  final splitSum = split == null
+      ? 0
+      : aSet.fold<int>(0, (sum, id) => sum + (split[id] ?? 0));
   final aPct = {for (final id in ids) id: 0.0};
   for (final id in aSet) {
-    aPct[id] = split == null ? 100.0 / aSet.length : (split[id] ?? 0).toDouble();
+    aPct[id] = split == null
+        ? 100.0 / aSet.length
+        : splitSum == 0
+        ? 0.0
+        : (split[id] ?? 0) * 100 / splitSum;
   }
   final silent = {for (final id in ids) id: 0.0};
   if (aSet.isEmpty) return silent;
