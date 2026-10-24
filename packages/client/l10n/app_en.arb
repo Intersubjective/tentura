@@ -1561,7 +1561,7 @@
   "@constellationPersonActiveRequests": {
     "context": "GraphPersonContextPanel"
   },
-  "constellationPersonShowRequests": "Show {count} requests",
+  "constellationPersonShowRequests": "{count, plural, =1{Show 1 request} other{Show {count} requests}}",
   "@constellationPersonShowRequests": {
     "placeholders": {
       "count": {
@@ -6359,7 +6359,7 @@
       }
     }
   },
-  "friendContextInboxCount": "{count} active requests forwarded to them",
+  "friendContextInboxCount": "{count, plural, =1{1 active request forwarded to them} other{{count} active requests forwarded to them}}",
   "@friendContextInboxCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
@@ -6377,7 +6377,7 @@
       }
     }
   },
-  "friendContextSharedCount": "{count} active requests you both see",
+  "friendContextSharedCount": "{count, plural, =1{1 active request you both see} other{{count} active requests you both see}}",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
