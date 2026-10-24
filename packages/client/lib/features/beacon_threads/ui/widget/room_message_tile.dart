@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -2978,13 +2979,15 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     ).chain(CurveTween(curve: _growCurve)),
   );
 
-  /// How far the hover toolbar dips into the bubble's top padding, so the
-  /// pointer crosses straight from the bubble onto it. Must stay below the
-  /// bubble's top padding (12) so the toolbar never covers text (#478).
+  /// How far the hover toolbar dips into the bubble's top padding (or its
+  /// bottom padding, when flipped below), so the pointer crosses straight
+  /// from the bubble onto it. Must stay below the bubble's padding (12) so
+  /// the toolbar never covers text (#478).
   static const _toolbarOverlap = 4.0;
 
-  /// The toolbar floats above the bubble's top edge in the overlay: drawn
-  /// inside the bubble it hid the first line of the text / caption (#478).
+  /// The toolbar floats above the bubble's top edge in the overlay (below its
+  /// bottom edge when there is no room above): drawn inside the bubble it hid
+  /// the first line of the text / caption (#478).
   final _toolbarController = OverlayPortalController();
 
   bool _hovering = false;
@@ -3093,6 +3096,35 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
     _settlePress();
   }
 
+  /// The part of the overlay the hover toolbar may occupy: the enclosing
+  /// scroll view (so it never lands on the app bar above the chat) within the
+  /// overlay's safe area (so it never goes off-screen) (#478).
+  Rect _toolbarBounds(
+    BuildContext overlayContext,
+    OverlayChildLayoutInfo info,
+    ScrollableState? scrollable,
+  ) {
+    var bounds = MediaQuery.paddingOf(
+      overlayContext,
+    ).deflateRect(Offset.zero & info.overlaySize);
+    final viewport = scrollable?.context.findRenderObject();
+    final self = mounted ? context.findRenderObject() : null;
+    if (viewport is RenderBox &&
+        viewport.hasSize &&
+        self is RenderBox &&
+        viewport.attached &&
+        self.attached) {
+      final toOverlay = info.childPaintTransform.clone()
+        ..multiply(viewport.getTransformTo(self));
+      final visible = MatrixUtils.transformRect(
+        toOverlay,
+        Offset.zero & viewport.size,
+      );
+      if (visible.overlaps(bounds)) bounds = bounds.intersect(visible);
+    }
+    return bounds;
+  }
+
   @override
   Widget build(BuildContext context) {
     final onActions = widget.onActions;
@@ -3191,6 +3223,10 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
       return content;
     }
 
+    // Read in build (not in the overlay's layout callback) to keep the
+    // dependency on the enclosing scroll view a normal one.
+    final scrollable = Scrollable.maybeOf(context);
+
     // MouseRegion hover fires only for pointer devices, so the toolbar never
     // appears on touch (where tap / long-press / double-tap already cover it).
     // The portal's child is an empty box laid exactly over the bubble (so
@@ -3220,35 +3256,37 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
                     info.childPaintTransform,
                     Offset.zero & info.childSize,
                   );
-                  return Positioned(
-                    left: widget.isMine ? bubble.left + 4 : null,
-                    right: widget.isMine
-                        ? null
-                        : info.overlaySize.width - bubble.right + 4,
-                    bottom:
-                        info.overlaySize.height - bubble.top - _toolbarOverlap,
-                    // Its own region keeps the toolbar up while the pointer
-                    // is on it; onHover (not onEnter) so the bubble's region
-                    // stays the only enter/exit one.
-                    child: MouseRegion(
-                      onHover: (_) {
-                        if (_hoveringToolbar) return;
-                        _hoveringToolbar = true;
-                        _syncToolbar();
-                      },
-                      onExit: (_) {
-                        _hoveringToolbar = false;
-                        _syncToolbar();
-                      },
-                      child: _HoverActionToolbar(
-                        onReply: onReply,
-                        onPickReaction: onPickReaction,
-                        selectedReactions: widget.selectedReactions,
-                        onPickerOpenChanged: (open) {
-                          _pickerOpen = open;
+                  return Positioned.fill(
+                    child: CustomSingleChildLayout(
+                      delegate: HoverToolbarLayout(
+                        bubble: bubble,
+                        bounds: _toolbarBounds(context, info, scrollable),
+                        alignLeft: widget.isMine,
+                        overlap: _toolbarOverlap,
+                      ),
+                      // Its own region keeps the toolbar up while the pointer
+                      // is on it; onHover (not onEnter) so the bubble's region
+                      // stays the only enter/exit one.
+                      child: MouseRegion(
+                        onHover: (_) {
+                          if (_hoveringToolbar) return;
+                          _hoveringToolbar = true;
                           _syncToolbar();
                         },
-                        onMore: onActions,
+                        onExit: (_) {
+                          _hoveringToolbar = false;
+                          _syncToolbar();
+                        },
+                        child: _HoverActionToolbar(
+                          onReply: onReply,
+                          onPickReaction: onPickReaction,
+                          selectedReactions: widget.selectedReactions,
+                          onPickerOpenChanged: (open) {
+                            _pickerOpen = open;
+                            _syncToolbar();
+                          },
+                          onMore: onActions,
+                        ),
                       ),
                     ),
                   );
@@ -3261,6 +3299,70 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
       ),
     );
   }
+}
+
+/// Places the hover toolbar over the bubble's top edge, pinned to its near
+/// side, or flips it under the bubble when there is no room above inside
+/// [bounds] (the bubble is at the top of the chat) (#478). It never leaves
+/// [bounds] sideways either: on a narrow window a short bubble would
+/// otherwise push the strip past the edge.
+@visibleForTesting
+class HoverToolbarLayout extends SingleChildLayoutDelegate {
+  const HoverToolbarLayout({
+    required this.bubble,
+    required this.bounds,
+    required this.alignLeft,
+    required this.overlap,
+  });
+
+  /// The bubble, in overlay coordinates.
+  final Rect bubble;
+
+  /// Where the toolbar may go, in overlay coordinates.
+  final Rect bounds;
+
+  /// Pinned to the bubble's left edge (own messages) or its right edge.
+  final bool alignLeft;
+
+  /// How far the toolbar dips into the bubble's padding.
+  final double overlap;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final pinned = alignLeft
+        ? bubble.left + 4
+        : bubble.right - 4 - childSize.width;
+    // Clamped to [bounds]; a strip wider than them starts at their left edge.
+    final x = pinned
+        .clamp(
+          bounds.left,
+          math.max(bounds.left, bounds.right - childSize.width),
+        )
+        .toDouble();
+    final above = bubble.top + overlap - childSize.height;
+    final below = bubble.bottom - overlap;
+    final double y;
+    if (above >= bounds.top) {
+      y = above;
+    } else if (below + childSize.height <= bounds.bottom) {
+      y = below;
+    } else {
+      // Neither side fits (a bubble taller than the view): keep it in view.
+      y = bounds.top;
+    }
+    return Offset(x, y);
+  }
+
+  @override
+  bool shouldRelayout(HoverToolbarLayout oldDelegate) =>
+      bubble != oldDelegate.bubble ||
+      bounds != oldDelegate.bounds ||
+      alignLeft != oldDelegate.alignLeft ||
+      overlap != oldDelegate.overlap;
 }
 
 /// Desktop hover toolbar: reply + reaction picker + more, mirroring

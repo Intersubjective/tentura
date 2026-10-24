@@ -136,6 +136,54 @@ Future<void> _pumpTile(
   await tester.pumpAndSettle();
 }
 
+/// The tile inside a chat-like scroll view under an app bar. [gapAbove] is
+/// the list space before the tile: 0 puts the bubble at the very top of the
+/// view, right under the app bar.
+Future<void> _pumpTileInList(
+  WidgetTester tester,
+  RoomMessage message, {
+  required void Function(RoomMessage message) onReplyPressed,
+  required double gapAbove,
+  RoomMessage? previousMessage,
+  bool withAppBar = true,
+}) async {
+  await tester.binding.setSurfaceSize(const Size(900, 800));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+        BlocProvider<PresenceCubit>.value(value: _MockPresenceCubit()),
+      ],
+      child: MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: Scaffold(
+          appBar: withAppBar ? AppBar(title: const Text('Room')) : null,
+          body: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              SizedBox(height: gapAbove),
+              RoomMessageTile(
+                message: message,
+                previousMessage: previousMessage,
+                myProfile: _viewer,
+                onActionsPressed: (_) {},
+                onReplyPressed: onReplyPressed,
+                onToggleReaction: (_, _) async {},
+              ),
+              const SizedBox(height: 600),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<TestGesture> _hoverCaption(WidgetTester tester) async {
   final at = tester.getCenter(find.textContaining(_caption));
   final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -245,4 +293,105 @@ void main() {
       await _expectStripStillWorks(tester, gesture, replied);
     },
   );
+
+  // A bubble at the top of the chat has no room above it: the strip used to
+  // float over the app bar (or above the screen edge). It flips below (#478).
+  group('bubble at the top of the view', () {
+    testWidgets('strip flips below the bubble, clear of the app bar', (
+      tester,
+    ) async {
+      final replied = <String>[];
+      await _pumpTileInList(
+        tester,
+        _message(),
+        gapAbove: 0,
+        onReplyPressed: (m) => replied.add(m.id),
+      );
+
+      final gesture = await _hoverCaption(tester);
+      final l10n = lookupL10n(const Locale('en'));
+      final strip = _stripRect(tester, l10n);
+      final appBar = tester.getRect(find.byType(AppBar));
+      final text = tester.getRect(find.textContaining(_caption));
+      expect(
+        strip.top,
+        greaterThanOrEqualTo(appBar.bottom),
+        reason: 'strip $strip must not cover the app bar $appBar',
+      );
+      expect(
+        strip.top,
+        greaterThan(text.bottom),
+        reason: 'strip $strip sits under the bubble text $text',
+      );
+      await _expectStripClearOfText(tester);
+      await _expectStripStillWorks(tester, gesture, replied);
+    });
+
+    testWidgets('strip of another author flips below too', (tester) async {
+      final replied = <String>[];
+      await _pumpTileInList(
+        tester,
+        _otherPhotoMessage(),
+        previousMessage: _otherPrevious(),
+        gapAbove: 0,
+        onReplyPressed: (m) => replied.add(m.id),
+      );
+
+      final gesture = await _hoverCaption(tester);
+      final l10n = lookupL10n(const Locale('en'));
+      final strip = _stripRect(tester, l10n);
+      final appBar = tester.getRect(find.byType(AppBar));
+      expect(
+        strip.top,
+        greaterThanOrEqualTo(appBar.bottom),
+        reason: 'strip $strip must not cover the app bar $appBar',
+      );
+      await _expectStripClearOfText(tester);
+      await _expectStripStillWorks(tester, gesture, replied);
+    });
+
+    testWidgets('strip stays on screen without an app bar', (tester) async {
+      final replied = <String>[];
+      await _pumpTileInList(
+        tester,
+        _message(),
+        gapAbove: 0,
+        withAppBar: false,
+        onReplyPressed: (m) => replied.add(m.id),
+      );
+
+      final gesture = await _hoverCaption(tester);
+      final l10n = lookupL10n(const Locale('en'));
+      final strip = _stripRect(tester, l10n);
+      expect(
+        strip.top,
+        greaterThanOrEqualTo(0),
+        reason: 'strip $strip must not go above the screen edge',
+      );
+      await _expectStripClearOfText(tester);
+      await _expectStripStillWorks(tester, gesture, replied);
+    });
+  });
+
+  // Guard: with room above, the strip keeps its place over the bubble's top.
+  testWidgets('strip stays above a bubble with room above it', (tester) async {
+    final replied = <String>[];
+    await _pumpTileInList(
+      tester,
+      _message(),
+      gapAbove: 200,
+      onReplyPressed: (m) => replied.add(m.id),
+    );
+
+    final gesture = await _hoverCaption(tester);
+    final l10n = lookupL10n(const Locale('en'));
+    final strip = _stripRect(tester, l10n);
+    final text = tester.getRect(find.textContaining(_caption));
+    expect(
+      strip.bottom,
+      lessThanOrEqualTo(text.top),
+      reason: 'strip $strip sits above the bubble text $text',
+    );
+    await _expectStripStillWorks(tester, gesture, replied);
+  });
 }
