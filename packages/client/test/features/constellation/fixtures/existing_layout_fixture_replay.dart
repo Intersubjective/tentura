@@ -29,6 +29,7 @@ const existingLayoutFixtureFiles = {
   'constellation_p06_composition_layout_test.dart',
   'constellation_layout_positional_stability_test.dart',
   'constellation_post_projection_test.dart',
+  'constellation_field_membership_v2_test.dart',
 };
 
 /// Replays the existing fixtures rather than maintaining a second set of inputs.

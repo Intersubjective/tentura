@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'entity/constellation_anchor_projection.dart';
@@ -84,6 +85,7 @@ ConstellationField patchViewerRelations(
   ConstellationField field, {
   required String viewerId,
   required Iterable<ConstellationViewerRelation> relations,
+  bool fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
 }) {
   if (viewerId.isEmpty) return field;
   var result = field;
@@ -93,7 +95,12 @@ ConstellationField patchViewerRelations(
         !constellationFieldHasPerson(result, personId)) {
       continue;
     }
-    result = _patchOne(result, viewerId: viewerId, relation: relation);
+    result = _patchOne(
+      result,
+      viewerId: viewerId,
+      relation: relation,
+      fieldMembershipV2Enabled: fieldMembershipV2Enabled,
+    );
   }
   return result;
 }
@@ -102,6 +109,7 @@ ConstellationField _patchOne(
   ConstellationField field, {
   required String viewerId,
   required ConstellationViewerRelation relation,
+  required bool fieldMembershipV2Enabled,
 }) {
   final personId = relation.personId;
   final projection = field.resolvedAnchorProjection;
@@ -206,6 +214,17 @@ ConstellationField _patchOne(
     }
   }
 
+  if (fieldMembershipV2Enabled) {
+    final kinds = _patchedAutoTagKinds(peers, relation);
+    if (kinds != null) {
+      peers = [
+        for (final p in peers)
+          if (p.id == personId) p.copyWith(autoTagKinds: kinds) else p,
+      ];
+      peersChanged = true;
+    }
+  }
+
   final edgesChanged = !_sameEdges(edges, field.edges);
   final supportChanged = !_sameEdges(supportEdges, projection.supportEdges);
   final contactsChanged = !_sameIds(directContactIds, field.directContactIds);
@@ -222,6 +241,32 @@ ConstellationField _patchOne(
         ? _withSupportEdges(projection, supportEdges)
         : field.anchorProjection,
   );
+}
+
+/// The trust kinds of the person in [relation] as the patched relation leaves
+/// them, or null when they do not change.
+Set<ConstellationAutoTagKind>? _patchedAutoTagKinds(
+  List<ConstellationPerson> peers,
+  ConstellationViewerRelation relation,
+) {
+  for (final peer in peers) {
+    if (peer.id != relation.personId || peer.contactOnly) continue;
+    final old = peer.autoTagKinds;
+    final iTrust =
+        relation.viewerTrusts ??
+        old.contains(ConstellationAutoTagKind.iTrust);
+    final trustsMe =
+        relation.trustsViewer ??
+        old.contains(ConstellationAutoTagKind.trustsMe);
+    final kinds = {
+      if (iTrust) ConstellationAutoTagKind.iTrust,
+      if (trustsMe) ConstellationAutoTagKind.trustsMe,
+      if (iTrust && trustsMe) ConstellationAutoTagKind.mutualContact,
+    };
+    final same = kinds.length == old.length && kinds.containsAll(old);
+    return same ? null : kinds;
+  }
+  return null;
 }
 
 /// [field] with every one of [requests] it lacks added to its Requests.

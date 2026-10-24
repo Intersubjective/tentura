@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart' show immutable;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -12,6 +13,39 @@ enum ConstellationHeldState {
   participant,
   forwarded,
   mine,
+}
+
+/// Why a person is on the field (wire name `presence`).
+enum ConstellationFieldMembership {
+  visible,
+  bond,
+  temporary,
+  contactOnly,
+}
+
+/// Automatic tags derived from the viewer's trust relation to a person.
+enum ConstellationAutoTagKind {
+  mutualContact,
+  iTrust,
+  trustsMe,
+}
+
+/// A Request the viewer works on together with a bond person.
+@immutable
+class ConstellationBondContext {
+  const ConstellationBondContext({required this.beaconId, required this.title});
+
+  final String beaconId;
+  final String title;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ConstellationBondContext &&
+      other.beaconId == beaconId &&
+      other.title == title;
+
+  @override
+  int get hashCode => Object.hash(beaconId, title);
 }
 
 @freezed
@@ -55,6 +89,22 @@ abstract class ConstellationPerson with _$ConstellationPerson {
     /// directly who is outside the viewer's visible set. Identity only; the
     /// field holds no edge of theirs but the viewer's own.
     @Default(false) bool contactOnly,
+
+    /// Why the person is on the field; read only with
+    /// `kFieldMembershipV2Enabled`.
+    @Default(ConstellationFieldMembership.visible)
+    ConstellationFieldMembership fieldMembership,
+
+    /// The viewer's own tags on the person (ids only).
+    @Default([]) List<String> ownTagIds,
+    @Default({}) Set<ConstellationAutoTagKind> autoTagKinds,
+    DateTime? firstSeenAt,
+
+    /// The Request that made a temporary person visible.
+    String? temporaryBeaconId,
+
+    /// The Requests a bond person works on with the viewer.
+    @Default([]) List<ConstellationBondContext> bondContexts,
   }) = _ConstellationPerson;
 }
 

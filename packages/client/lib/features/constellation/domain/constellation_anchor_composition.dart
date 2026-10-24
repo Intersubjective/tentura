@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:tentura/consts.dart';
 
 import 'constellation_cap_policy.dart';
 import 'constellation_consts.dart';
@@ -193,6 +194,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
   Set<String> expandedSatelliteAuthorIds = const {},
   List<ConstellationMemberWeb> selectedRequestWebs = const [],
   Set<String> extraKeptPeerIds = const {},
+  bool fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
 }) {
   final projection = field.resolvedAnchorProjection;
   final automatic = ConstellationAutomaticLayer(
@@ -284,6 +286,11 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
     ...pathPinnedPeerIds,
     ...directContactIds,
+    if (fieldMembershipV2Enabled)
+      for (final peer in automatic.peers)
+        if (peer.fieldMembership != ConstellationFieldMembership.contactOnly &&
+            !peer.contactOnly)
+          peer.id,
   };
 
   final mergedEdges = [
@@ -308,6 +315,18 @@ ConstellationComposedPresentation composeConstellationPresentation({
     edges: mergedEdges,
     cap: kConstellationRenderPeerCap,
     budgetExemptPeerIds: budgetExemptPeerIds,
+    fieldMembershipV2Enabled: fieldMembershipV2Enabled,
+    ownTaggedPeerIds: {
+      for (final peer in automatic.peers)
+        if (peer.ownTagIds.isNotEmpty) peer.id,
+    },
+    directContactPeerIds: directContactIds,
+    bondOrTemporaryPeerIds: {
+      for (final peer in automatic.peers)
+        if (peer.fieldMembership == ConstellationFieldMembership.bond ||
+            peer.fieldMembership == ConstellationFieldMembership.temporary)
+          peer.id,
+    },
   );
 
   final keptPeerIds = {

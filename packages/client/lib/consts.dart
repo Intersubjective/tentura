@@ -243,3 +243,9 @@ const kBatonEnabled = true;
 /// Gate for every client entry point of private people tags (#699); the
 /// phase-1 release unit flips it.
 const kPeopleTagsEnabled = false;
+
+/// Gate for field membership without a Request (people tags #699): visible,
+/// bond and temporary people join the Constellation field on their own and
+/// the render cap follows the tag priority. The phase-1 release unit flips
+/// it.
+const kFieldMembershipV2Enabled = false;

@@ -1,3 +1,4 @@
+import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 
 typedef ConstellationResolvedField = ({
@@ -15,6 +16,10 @@ ConstellationResolvedField resolveAndCapConstellation({
   required int cap,
   int maxHops = 3,
   Set<String> budgetExemptPeerIds = const {},
+  bool fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
+  Set<String> ownTaggedPeerIds = const {},
+  Set<String> directContactPeerIds = const {},
+  Set<String> bondOrTemporaryPeerIds = const {},
 }) {
   final paths = resolveConstellationPaths(
     egoId: egoId,
@@ -37,7 +42,28 @@ ConstellationResolvedField resolveAndCapConstellation({
     }
   }
 
-  final attributedSorted = paths.attributed.toList()..sort();
+  // With the gate on: own-tagged, direct contacts, bond/temporary people,
+  // then shallower chains, then id. Gate off: id order only.
+  int rank(String id) {
+    if (!fieldMembershipV2Enabled) return 0;
+    if (ownTaggedPeerIds.contains(id)) return 0;
+    if (directContactPeerIds.contains(id)) return 1;
+    if (bondOrTemporaryPeerIds.contains(id)) return 2;
+    return 3;
+  }
+
+  int depth(String id) => fieldMembershipV2Enabled
+      ? _ancestorChain(holder: id, parent: paths.parent, egoId: egoId).length
+      : 0;
+
+  int byPriority(String a, String b) {
+    final byRank = rank(a).compareTo(rank(b));
+    if (byRank != 0) return byRank;
+    final byDepth = depth(a).compareTo(depth(b));
+    return byDepth != 0 ? byDepth : a.compareTo(b);
+  }
+
+  final attributedSorted = paths.attributed.toList()..sort(byPriority);
   for (final holder in attributedSorted) {
     final chain = _ancestorChain(
       holder: holder,
@@ -62,7 +88,7 @@ ConstellationResolvedField resolveAndCapConstellation({
     }
   }
 
-  final ringSorted = paths.ring.toList()..sort();
+  final ringSorted = paths.ring.toList()..sort(byPriority);
   for (final holder in ringSorted) {
     if (remaining <= 0 && !budgetExemptPeerIds.contains(holder)) {
       break;
