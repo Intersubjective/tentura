@@ -967,9 +967,51 @@ final class AttentionCase implements AttentionReconcilePort {
   /// clears what is dismissible in one bounded server sweep ([dismissAll]).
   /// Obligations are only read; the sweep never takes them. The result is the
   /// sweep's, undo token included.
+  ///
+  /// #711: the sweep is For You's *Dismiss all*, so it takes only Set R
+  /// (Activity rows). Unread also lists the optional rows of a Request the
+  /// viewer works on (My Desk), and those stayed there after Read all. What
+  /// is still optional on Unread after the sweep is cleared per Request
+  /// ([clearBeacon]), or per row when it has no Request ([clearReceipt]).
   Future<AttentionDismissAllResult> readAll() async {
     await markAllSeen();
-    return dismissAll();
+    final result = await dismissAll();
+    await _clearUnreadLeftovers(
+      sweepCompleted: result.status == AttentionOperationStatus.complete,
+    );
+    return result;
+  }
+
+  /// One page of Unread, read back after the sweep: its active optional
+  /// receipts the sweep did not take. An Activity row is the sweep's own
+  /// business, so it is only picked up when the sweep completed and still
+  /// left it (it was never a member). The forward shell is never cleared.
+  Future<void> _clearUnreadLeftovers({required bool sweepCompleted}) async {
+    final generation = _accountGeneration;
+    final feed = await _repository.fetch(view: AttentionView.unread);
+    if (generation != _accountGeneration) return;
+    final beaconIds = <String>{};
+    final receiptIds = <String>{};
+    for (final receipt in feed.page.items) {
+      if (receipt.itemKind != AttentionItemKind.receipt ||
+          !isActiveOptional(receipt) ||
+          receipt.presentationKey == 'relay_received' ||
+          (receipt.surface == AttentionSurface.activity && !sweepCompleted)) {
+        continue;
+      }
+      final beaconId = receipt.beaconId;
+      if (beaconId == null || beaconId.isEmpty) {
+        receiptIds.add(receipt.id);
+      } else {
+        beaconIds.add(beaconId);
+      }
+    }
+    for (final beaconId in beaconIds) {
+      await clearBeacon(beaconId: beaconId);
+    }
+    for (final receiptId in receiptIds) {
+      await clearReceipt(receiptId: receiptId);
+    }
   }
 
   /// Restores what [operationId] applied, within the server's window.
