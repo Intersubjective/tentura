@@ -19,7 +19,6 @@ import 'package:tentura/features/forward/domain/entity/forward_delivery_result.d
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';

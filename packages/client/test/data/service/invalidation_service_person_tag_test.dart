@@ -20,7 +20,7 @@ Map<String, dynamic> _personTagFrame({
     'id': ownerId,
     'event': event,
     'actor_user_id': ownerId,
-    if (revision != null) 'revision': revision,
+    'revision': ?revision,
   },
 };
 

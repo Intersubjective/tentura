@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -111,7 +110,7 @@ void main() {
                               buildProfileViewAppBar,
                               gate: peopleTagsEnabled,
                               positional: [context],
-                            )
+                            )!
                             as PreferredSizeWidget,
                   ),
                 ),
@@ -156,11 +155,11 @@ void main() {
                                 #context: context,
                                 #state: cubit.state,
                                 #viewerId: _viewer.id,
-                                #l10n: L10n.of(context)!,
+                                #l10n: L10n.of(context),
                                 #profileViewCubit: cubit,
                                 #screenCubit: screenCubit,
                               },
-                            )
+                            )!
                             as List)
                         .cast<PopupMenuEntry<void>>(),
               ),

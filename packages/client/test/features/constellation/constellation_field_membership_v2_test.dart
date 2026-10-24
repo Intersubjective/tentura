@@ -69,12 +69,12 @@ void main() {
         fieldMembership: ConstellationFieldMembership.temporary,
         temporaryBeaconId: 'B1',
         ownTagIds: const ['t1'],
-        firstSeenAt: DateTime.utc(2026, 10, 1),
+        firstSeenAt: DateTime.utc(2026, 10),
       );
       expect(person.fieldMembership, ConstellationFieldMembership.temporary);
       expect(person.temporaryBeaconId, 'B1');
       expect(person.ownTagIds, ['t1']);
-      expect(person.firstSeenAt, DateTime.utc(2026, 10, 1));
+      expect(person.firstSeenAt, DateTime.utc(2026, 10));
     });
   });
 
@@ -129,7 +129,6 @@ void main() {
           (src: 'a', dst: 'h', tier: 1),
         ],
         cap: 1,
-        fieldMembershipV2Enabled: false,
       );
       expect(result.keptPeerIds, isEmpty);
       expect(result.droppedHolderIds, {'h'});

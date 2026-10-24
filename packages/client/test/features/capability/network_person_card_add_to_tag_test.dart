@@ -1,9 +1,7 @@
-import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -98,7 +96,7 @@ void main() {
                           NetworkPersonCard.new,
                           gate: peopleTagsEnabled,
                           named: {#profile: profile},
-                        )
+                        )!
                         as Widget,
               ),
             ),
@@ -156,7 +154,7 @@ void main() {
       expect(find.text('Add to tag…'), findsNothing);
     });
 
-    for (final way in _OpenWay.values)
+    for (final way in _OpenWay.values) {
       testWidgets(
         '"Add to tag…" opened by ${way.name} opens the sheet for the card '
         'person',
@@ -173,6 +171,7 @@ void main() {
           );
         },
       );
+    }
 
     testWidgets('a self row has no overflow button and no long-press menu', (
       tester,

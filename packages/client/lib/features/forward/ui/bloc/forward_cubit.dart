@@ -668,7 +668,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         reasonSlugs: state.editReasons,
       );
       emit(state.copyWith(editingRecipientId: null));
-      await reloadCandidates(forceReload: true);
+      await reloadCandidates();
     } catch (e) {
       _emitSnackError(e);
     }
@@ -691,7 +691,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         );
         return;
       }
-      await reloadCandidates(forceReload: true);
+      await reloadCandidates();
     } catch (e) {
       _emitSnackError(e);
     }
@@ -860,7 +860,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       // Standalone D7: reload chain and switch to Involved. Embedded create
       // pops immediately; skip the second full load.
       if (!embedded && outcome.deliveredRecipientIds.isNotEmpty) {
-        await reloadCandidates(forceReload: true);
+        await reloadCandidates();
         if (!isClosed) {
           emit(
             state.copyWith(

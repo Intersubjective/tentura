@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/constellation/domain/constellation_tag_filter.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
@@ -225,7 +223,7 @@ void main() {
       expect(_dimmedCount(tester), greaterThanOrEqualTo(2));
     });
 
-    testWidgets('a dimmed person\'s Request fades as well', (tester) async {
+    testWidgets("a dimmed person's Request fades as well", (tester) async {
       final without = await _mount(tester, _field(bobRequest: false));
       await _selectIntersection(tester, without);
       final base = _dimmedCount(tester);
@@ -236,7 +234,7 @@ void main() {
       expect(_dimmedCount(tester), greaterThan(base));
     });
 
-    testWidgets('a dimmed person\'s Post fades as well', (tester) async {
+    testWidgets("a dimmed person's Post fades as well", (tester) async {
       final without = await _mount(tester, _field(bobPost: false));
       await _selectIntersection(tester, without);
       final base = _dimmedCount(tester);

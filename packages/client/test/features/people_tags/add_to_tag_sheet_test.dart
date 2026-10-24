@@ -135,7 +135,7 @@ void main() {
       },
     );
 
-    for (final way in _CloseWay.values)
+    for (final way in _CloseWay.values) {
       testWidgets(
         'toggling two tags then closing by ${way.name} sends one batch of two ops',
         (
@@ -164,6 +164,7 @@ void main() {
           );
         },
       );
+    }
 
     testWidgets('unchecking a tag the person is in sends a remove op', (
       tester,
@@ -233,7 +234,7 @@ void main() {
       expect(_checked(tester), [false, false, false, true]);
     });
 
-    for (final way in _CloseWay.values)
+    for (final way in _CloseWay.values) {
       testWidgets('closing by ${way.name} adds the person to the new tag', (
         tester,
       ) async {
@@ -248,6 +249,7 @@ void main() {
           [('Tnew', _person, true)],
         );
       });
+    }
 
     testWidgets('keeps the choices made before the new tag was created', (
       tester,

@@ -1,6 +1,5 @@
-import 'package:flutter/foundation.dart' show immutable, setEquals;
+import 'package:meta/meta.dart';
 
-import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import 'entity/constellation_field.dart';
 
@@ -43,8 +42,8 @@ class ConstellationTagFilter {
   bool operator ==(Object other) =>
       other is ConstellationTagFilter &&
       other.mode == mode &&
-      setEquals(other.selectedOwn, selectedOwn) &&
-      setEquals(other.selectedAuto, selectedAuto);
+      _sameSet(other.selectedOwn, selectedOwn) &&
+      _sameSet(other.selectedAuto, selectedAuto);
 
   @override
   int get hashCode => Object.hash(
@@ -76,15 +75,10 @@ class ConstellationTagLens {
   bool _isBrightAuthor(String authorId) =>
       authorId == viewerId || brightPersonIds.contains(authorId);
 
-  /// People, Requests and Posts follow their author; the viewer never dims.
-  bool isDimmed(NodeDetails node) {
-    if (!isActive) return false;
-    return switch (node) {
-      FieldPersonNode() => !_isBrightAuthor(node.id),
-      FieldBeaconNode() => !_isBrightAuthor(node.userId),
-      _ => false,
-    };
-  }
+  /// Whether a node owned by [authorId] dims: a person is their own author,
+  /// Requests and Posts follow theirs, and the viewer never dims.
+  bool isAuthorDimmed(String authorId) =>
+      isActive && !_isBrightAuthor(authorId);
 
   /// Requests passing both the Request filters and the tag filter.
   Set<String> brightRequestIds(
@@ -97,3 +91,5 @@ class ConstellationTagLens {
         request.id,
   };
 }
+
+bool _sameSet<T>(Set<T> a, Set<T> b) => a.length == b.length && a.containsAll(b);

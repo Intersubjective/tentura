@@ -1,4 +1,3 @@
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/app/router/root_router.dart';
@@ -7,11 +6,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
-import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
-import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -122,7 +118,7 @@ Future<void> _pumpAppBar(
                                 #legendExpanded: false,
                                 #onToggleLegend: () {},
                               },
-                            )
+                            )!
                             as Widget,
                   ),
                   body: const SizedBox.expand(),

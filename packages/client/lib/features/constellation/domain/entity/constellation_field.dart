@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart' show immutable;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';

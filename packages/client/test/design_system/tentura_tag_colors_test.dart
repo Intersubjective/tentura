@@ -80,15 +80,15 @@ void main() {
     test(
       'swatchFor wraps an out-of-range colour index instead of throwing',
       () {
-        final colors = TenturaTagColors.light;
+        const colors = TenturaTagColors.light;
         expect(colors.swatchFor(8), colors.swatchFor(0));
         expect(colors.swatchFor(11), colors.swatchFor(3));
       },
     );
 
     test('lerp at the ends returns the endpoints', () {
-      final light = TenturaTagColors.light;
-      final dark = TenturaTagColors.dark;
+      const light = TenturaTagColors.light;
+      const dark = TenturaTagColors.dark;
       expect(light.lerp(dark, 0).swatches, light.swatches);
       expect(light.lerp(dark, 1).swatches, dark.swatches);
     });

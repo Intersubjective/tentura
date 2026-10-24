@@ -1,11 +1,8 @@
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/port/attention_reconcile_port.dart';
 import 'package:tentura/domain/port/trust_preference_repository_port.dart';
@@ -198,7 +195,7 @@ void main() {
               stateHash: 0,
               child: TenturaResponsiveScope(
                 child:
-                    callWithPeopleTagsGate(SettingsScreen.new, gate: gate)
+                    callWithPeopleTagsGate(SettingsScreen.new, gate: gate)!
                         as Widget,
               ),
             ),

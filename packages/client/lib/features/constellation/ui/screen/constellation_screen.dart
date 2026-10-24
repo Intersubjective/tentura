@@ -362,7 +362,6 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
       child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
-          alignment: TenturaTopBarAlignment.content,
           title: const SizedBox.shrink(),
           row: ConstellationAppBarRow(
             legendExpanded: _legendExpanded,

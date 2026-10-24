@@ -124,7 +124,7 @@ void main() {
         _candidate('o2', score: 4),
         _candidate('o3', score: 3),
         _candidate('o4', score: 2),
-        _candidate('o5', score: 1, reachable: false),
+        _candidate('o5', reachable: false),
       ]);
 
       final hint = cubit.state.outsideTagSuggestions(['m1']);
@@ -140,7 +140,7 @@ void main() {
           _candidate('m1'),
           _candidate('highScoreNoMatch', score: 9),
           _candidate('midScoreNoMatch', score: 5),
-          _candidate('lowScoreMatch', score: 1, topCapabilities: ['tools']),
+          _candidate('lowScoreMatch', topCapabilities: ['tools']),
           _candidate(
             'lowestScoreBothMatch',
             score: 0.5,

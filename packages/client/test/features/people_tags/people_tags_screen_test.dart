@@ -169,7 +169,7 @@ void main() {
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        home: TenturaResponsiveScope(child: const PeopleTagsScreen()),
+        home: const TenturaResponsiveScope(child: PeopleTagsScreen()),
       ),
     );
     await tester.pumpAndSettle();

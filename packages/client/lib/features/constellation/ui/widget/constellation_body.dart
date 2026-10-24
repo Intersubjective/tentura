@@ -1367,11 +1367,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   FieldBeaconNode(post: final post?) => _ConstellationMapNode(
                     detail: _detail,
-                    child: GraphNodeWidget(
-                      key: TestIds.key(TestIds.graphNode(node.id)),
-                      nodeDetails: node,
-                      isFocused: state.selectedRequestId == post.id,
-                    ),
                     pinBadge:
                         cubit.isAnchored(
                           ConstellationAnchorTarget.beacon(post.id),
@@ -1384,6 +1379,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             ),
                           )
                         : null,
+                    child: GraphNodeWidget(
+                      key: TestIds.key(TestIds.graphNode(node.id)),
+                      nodeDetails: node,
+                      isFocused: state.selectedRequestId == post.id,
+                    ),
                   ),
                   _ => const SizedBox.shrink(),
                 };
@@ -1621,12 +1621,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
         : mapNode;
     // Outside the tag selection: the marker fades; positions stay put.
     final lensCubit = maybeConstellationTagLens(context);
-    final Widget marker = lensCubit == null
+    final marker = lensCubit == null
         ? chainMarker
         : BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
             bloc: lensCubit,
             builder: (_, filter) =>
-                _tagLensFor(cubit, lensCubit, filter).isDimmed(node)
+                _tagLensFor(cubit, lensCubit, filter).isNodeDimmed(node)
                 ? Opacity(
                     opacity: kConstellationTagLensDimOpacity,
                     child: chainMarker,
@@ -2189,4 +2189,13 @@ class _ConstellationMapReadingOrderPolicy extends FocusTraversalPolicy
     }
     return sorted;
   }
+}
+
+extension on ConstellationTagLens {
+  /// People dim by themselves; Requests and Posts follow their author.
+  bool isNodeDimmed(NodeDetails node) => switch (node) {
+    FieldPersonNode() => isAuthorDimmed(node.id),
+    FieldBeaconNode() => isAuthorDimmed(node.userId),
+    _ => false,
+  };
 }

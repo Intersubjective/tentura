@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/features/constellation/domain/constellation_tag_filter.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
 
@@ -125,7 +124,7 @@ void main() {
       expect(field.state, same(before));
     });
 
-    test('the lens cubit asks an injected lookup for a person\'s own tags', () {
+    test("the lens cubit asks an injected lookup for a person's own tags", () {
       final lens = ConstellationTagLensCubit(
         ownTagIdsOf: (id) => id == 'ann' ? {'T1'} : const {},
       );

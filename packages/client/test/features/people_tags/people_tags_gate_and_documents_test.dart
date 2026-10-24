@@ -60,7 +60,7 @@ const _selections = <String, List<String>>{
 /// The document text that calls [op], from its operation keyword on.
 String _documentCalling(String documents, String op) {
   for (final doc in documents.split(
-    RegExp(r'(?=^(query|mutation) )', multiLine: true),
+    RegExp('(?=^(query|mutation) )', multiLine: true),
   )) {
     if (RegExp('\\b$op\\b\\s*[({\\n]').hasMatch(doc) ||
         RegExp('\\b$op\\s*\$').hasMatch(doc)) {

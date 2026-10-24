@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -162,7 +161,7 @@ Future<ForwardCubit> _pump(
             _candidate('lena'),
             _candidate('blocked', reachable: false),
             _candidate('sent', involvement: CandidateInvolvement.forwardedByMe),
-            _candidate('o1', score: 1, topCapabilities: ['tools']),
+            _candidate('o1', topCapabilities: ['tools']),
             _candidate('o2', score: 2),
             _candidate('o3', score: 3),
             _candidate('o4', score: 4),

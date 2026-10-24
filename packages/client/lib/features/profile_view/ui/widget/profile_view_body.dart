@@ -176,9 +176,7 @@ class _OtherProfileAvailabilityLine extends StatelessWidget {
       padding: kPaddingSmallT,
       child: TenturaStatusText(
         line,
-        tone: TenturaTone.neutral,
         maxLines: null,
-        softWrap: true,
       ),
     );
   }

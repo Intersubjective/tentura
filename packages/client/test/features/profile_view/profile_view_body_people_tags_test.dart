@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -194,7 +193,7 @@ void main() {
       expect(blockTop, greaterThanOrEqualTo(capabilityBottom));
     });
 
-    for (final locale in const [Locale('en'), Locale('ru')])
+    for (final locale in const [Locale('en'), Locale('ru')]) {
       testWidgets(
         'the capability section never mentions tags (${locale.languageCode})',
         (tester) async {
@@ -247,6 +246,7 @@ void main() {
           semantics.dispose();
         },
       );
+    }
 
     testWidgets('is absent on the own profile', (tester) async {
       await pumpBody(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/design_system/components/person_tag_chip.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';

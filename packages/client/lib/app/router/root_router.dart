@@ -39,7 +39,7 @@ Uri normalizeBeaconViewThreadDeepLink(Uri uri) {
     incomingQuery: uri.queryParameters,
   );
   return uri.replace(
-    path: '${kPathBeaconView}/${match.group(1)}',
+    path: '$kPathBeaconView/${match.group(1)}',
     queryParameters: normalized.queryParameters,
   );
 }
@@ -621,7 +621,7 @@ class RootRouter extends RootStackRouter {
         ),
       HomeTab.work => HomeRoute(
           children: [
-            workTabShell(children: [MyWorkRoute()]),
+            workTabShell(children: [const MyWorkRoute()]),
           ],
         ),
       _ => null,

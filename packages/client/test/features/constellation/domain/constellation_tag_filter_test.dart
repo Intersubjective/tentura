@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/constellation_tag_filter.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
-import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 const _neighbour = 'T-neighbour';
 const _helpedMe = 'T-helped-me';
@@ -50,29 +48,8 @@ ConstellationTagLens _lens(ConstellationTagFilter filter) =>
       viewerId: 'ego',
     );
 
-FieldPersonNode _personNode(String id) => FieldPersonNode(
-  person: Profile(id: id),
-  ring: 1,
-  isKept: true,
-);
 
-FieldBeaconNode _postNode(String id, String authorId) => FieldBeaconNode(
-  post: ConstellationPost(
-    id: id,
-    authorId: authorId,
-    rootExcerpt: id,
-    lastActivityAt: DateTime.utc(2026, 10, 22),
-  ),
-);
 
-FieldBeaconNode _requestNode(String id, String authorId) => FieldBeaconNode(
-  request: ConstellationRequest(
-    id: id,
-    authorId: authorId,
-    title: id,
-    status: 0,
-  ),
-);
 
 void main() {
   group('ConstellationTagFilter', () {
@@ -114,7 +91,7 @@ void main() {
       expect(_bright(filter), {'ann'});
     });
 
-    test('an automatic tag matches through the person\'s autoTagKinds', () {
+    test("an automatic tag matches through the person's autoTagKinds", () {
       const filter = ConstellationTagFilter(
         selectedAuto: {ConstellationAutoTagKind.iTrust},
       );
@@ -172,8 +149,8 @@ void main() {
       final lens = _lens(const ConstellationTagFilter());
 
       expect(lens.isActive, isFalse);
-      expect(lens.isDimmed(_personNode('dee')), isFalse);
-      expect(lens.isDimmed(_requestNode('r-dee', 'dee')), isFalse);
+      expect(lens.isAuthorDimmed('dee'), isFalse);
+      expect(lens.isAuthorDimmed('dee'), isFalse);
     });
 
     test('the intersection stays bright and everybody else is dimmed', () {
@@ -181,9 +158,9 @@ void main() {
 
       expect(lens.isActive, isTrue);
       expect(lens.brightPersonIds, {'ann'});
-      expect(lens.isDimmed(_personNode('ann')), isFalse);
+      expect(lens.isAuthorDimmed('ann'), isFalse);
       for (final id in ['bob', 'cid', 'dee']) {
-        expect(lens.isDimmed(_personNode(id)), isTrue, reason: id);
+        expect(lens.isAuthorDimmed(id), isTrue, reason: id);
       }
     });
 
@@ -191,28 +168,28 @@ void main() {
       final lens = _lens(union);
 
       expect(lens.brightPersonIds, {'ann', 'bob', 'cid'});
-      expect(lens.isDimmed(_personNode('dee')), isTrue);
-      expect(lens.isDimmed(_personNode('cid')), isFalse);
+      expect(lens.isAuthorDimmed('dee'), isTrue);
+      expect(lens.isAuthorDimmed('cid'), isFalse);
     });
 
     test('a Request follows its author', () {
       final lens = _lens(intersection);
 
-      expect(lens.isDimmed(_requestNode('r-ann', 'ann')), isFalse);
-      expect(lens.isDimmed(_requestNode('r-bob', 'bob')), isTrue);
+      expect(lens.isAuthorDimmed('ann'), isFalse);
+      expect(lens.isAuthorDimmed('bob'), isTrue);
     });
 
     test('a Post follows its author', () {
       final lens = _lens(intersection);
 
-      expect(lens.isDimmed(_postNode('p-ann', 'ann')), isFalse);
-      expect(lens.isDimmed(_postNode('p-bob', 'bob')), isTrue);
+      expect(lens.isAuthorDimmed('ann'), isFalse);
+      expect(lens.isAuthorDimmed('bob'), isTrue);
     });
 
     test('the viewer is never dimmed', () {
       final lens = _lens(intersection);
 
-      expect(lens.isDimmed(_personNode('ego')), isFalse);
+      expect(lens.isAuthorDimmed('ego'), isFalse);
     });
 
     test('a Request filter and the tag filter combine by "and"', () {
