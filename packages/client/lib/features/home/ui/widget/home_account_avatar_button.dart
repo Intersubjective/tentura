@@ -6,6 +6,7 @@ import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -47,13 +48,17 @@ class HomeAccountAvatarButton extends StatelessWidget {
         icon: Icon(selected ? Icons.person : Icons.person_outline),
       );
     }
-    return BlocSelector<ProfileCubit, ProfileState, String>(
+    return BlocSelector<ProfileCubit, ProfileState, Profile>(
       bloc: GetIt.I<ProfileCubit>(),
-      selector: (state) => state.profile.displayName,
+      selector: (state) => state.profile,
       // A fixed glyph; the name (long ones too) goes to the tooltip.
-      builder: (context, name) => IconButton(
+      // #660: the name as shown, read on every build so a server placeholder
+      // follows the app language.
+      builder: (context, profile) => IconButton(
         key: buttonKey,
-        tooltip: name.isEmpty ? L10n.of(context)!.profile : name,
+        tooltip: profile.shownName.trim().isEmpty
+            ? L10n.of(context)!.profile
+            : profile.shownName,
         isSelected: selected,
         onPressed: onPressed ?? () => openMyProfile(context),
         icon: ProfileNavBarItem(selected: selected),

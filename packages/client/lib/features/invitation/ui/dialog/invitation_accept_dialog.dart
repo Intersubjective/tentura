@@ -13,14 +13,13 @@ class InvitationAcceptDialog extends StatelessWidget {
     BuildContext context, {
     required Profile profile,
     InvitePreviewBeacon? beacon,
-  }) =>
-      showAdaptiveDialog<bool>(
-        context: context,
-        builder: (_) => InvitationAcceptDialog(
-          profile: profile,
-          beacon: beacon,
-        ),
-      );
+  }) => showAdaptiveDialog<bool>(
+    context: context,
+    builder: (_) => InvitationAcceptDialog(
+      profile: profile,
+      beacon: beacon,
+    ),
+  );
 
   const InvitationAcceptDialog({
     required this.profile,
@@ -39,7 +38,9 @@ class InvitationAcceptDialog extends StatelessWidget {
     final beaconSnippet = beacon?.snippet;
     return AlertDialog.adaptive(
       title: Text(
-        beacon != null ? l10n.inviteAcceptBeaconTitle : l10n.confirmFriendAccept,
+        beacon != null
+            ? l10n.inviteAcceptBeaconTitle
+            : l10n.confirmFriendAccept,
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -50,7 +51,7 @@ class InvitationAcceptDialog extends StatelessWidget {
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
-            profile.displayName,
+            profile.shownName,
             style: theme.textTheme.titleMedium,
             textAlign: TextAlign.center,
           ),
@@ -71,7 +72,7 @@ class InvitationAcceptDialog extends StatelessWidget {
             ],
             const SizedBox(height: kSpacingSmall),
             Text(
-              l10n.inviteAcceptBeaconBody(profile.displayName),
+              l10n.inviteAcceptBeaconBody(profile.shownName),
               style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
