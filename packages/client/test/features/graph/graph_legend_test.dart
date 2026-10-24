@@ -1,4 +1,7 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -469,5 +472,75 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 7));
     await tester.pumpAndSettle();
+  });
+
+  // #678: legend rows were read two or three times ("Mutual trust Mutual
+  // trust", "Open Open Open") because the row label, the visible text and
+  // the swatch's own label all reached one node.
+  testWidgets('field legend rows are each announced once', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    for (final label in ['Mutual trust', 'You trust them', 'Open']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+      expect(
+        tester.getSemantics(find.text(label)).getSemanticsData().label,
+        label,
+        reason: label,
+      );
+    }
+    semantics.dispose();
+  });
+
+  // #678: the (i) explanation was not reachable without a pointer.
+  testWidgets('field legend hints are buttons that show the hint', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+    const hint =
+        'You and this person have each marked the other as someone you trust.';
+
+    final node = tester.getSemantics(find.text('Mutual trust'));
+    final data = node.getSemanticsData();
+    expect(data.label, 'Mutual trust');
+    expect(data.hint, hint);
+    expect(data.flagsCollection.isButton, isTrue);
+    expect(data.hasAction(SemanticsAction.tap), isTrue);
+    expect(find.text(hint), findsNothing);
+
+    node.owner!.performAction(node.id, SemanticsAction.tap);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(hint), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    semantics.dispose();
+  });
+
+  testWidgets('negative edge toggle is one switch with its own label', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpLegendContent(tester, GraphLegendMode.trust);
+
+    final node = tester.getSemantics(find.text('Negative connection'));
+    final data = node.getSemanticsData();
+    expect(data.label, 'Show negative connections');
+    // Negative connections start hidden (positiveOnly).
+    expect(data.flagsCollection.isToggled, Tristate.isFalse);
+    expect(data.hasAction(SemanticsAction.tap), isTrue);
+
+    node.owner!.performAction(node.id, SemanticsAction.tap);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .getSemantics(find.text('Negative connection'))
+          .getSemanticsData()
+          .flagsCollection
+          .isToggled,
+      Tristate.isTrue,
+    );
+    semantics.dispose();
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -130,6 +132,28 @@ void main() {
     await tester.tap(_toggle);
     await tester.pumpAndSettle();
     expect(selection.state.selecting, isFalse);
+  });
+
+  // #678: the on/off state was exposed only as "current".
+  testWidgets('the toggle exposes its on/off state', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await load(tester);
+    await _pump(
+      tester,
+      cubit: cubit,
+      selection: selection,
+      size: const Size(900, 800),
+    );
+
+    var data = tester.getSemantics(_toggle).getSemanticsData();
+    expect(data.flagsCollection.isButton, isTrue);
+    expect(data.flagsCollection.isToggled, Tristate.isFalse);
+
+    await tester.tap(_toggle);
+    await tester.pumpAndSettle();
+    data = tester.getSemantics(_toggle).getSemanticsData();
+    expect(data.flagsCollection.isToggled, Tristate.isTrue);
+    semantics.dispose();
   });
 
   testWidgets('it is hidden in the list view', (tester) async {
