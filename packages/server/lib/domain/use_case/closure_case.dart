@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_exception.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
+import 'package:tentura_server/domain/closure/closure_set_a.dart';
 import 'package:tentura_server/domain/closure/closure_view.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
@@ -482,20 +483,14 @@ final class ClosureCase extends UseCaseBase {
     },
   );
 
-  /// Members whose outcome is done, can't judge or unanswered.
+  /// Set A: members whose outcome is done, can't judge or unanswered, minus a
+  /// voluntary leaver with no outcome (#489, the rule finalize settles by).
   Future<Set<String>> _setA(
     String beaconId,
     List<ClosureMemberRow> members,
-  ) async {
-    final notDone = {
-      for (final o in await _repo.outcomes(beaconId))
-        if (o.outcome == ClosureOutcome.notDone) o.helperId,
-    };
-    return {
-      for (final m in members)
-        if (!notDone.contains(m.userId)) m.userId,
-    };
-  }
+  ) async => closureSetA(members, {
+    for (final o in await _repo.outcomes(beaconId)) o.helperId: o.outcome,
+  });
 
   /// Voter toggles support for [targetId]. When the draft then holds every
   /// other member, the earliest other press is released and returned.
@@ -884,17 +879,23 @@ final class ClosureCase extends UseCaseBase {
       BeaconKindPolicy.requireRequest(beacon);
       return null;
     }
-    if (!(await _repo.members(
+    final me = (await _repo.members(
       beaconId: beaconId,
       epoch: epoch.epoch,
-    )).any((m) => m.userId == viewerId)) {
-      throw IdNotFoundException(id: beaconId);
-    }
+    )).where((m) => m.userId == viewerId).firstOrNull;
+    if (me == null) throw IdNotFoundException(id: beaconId);
     if (epoch.status != ClosureEpochStatus.finalized) return null;
     final row = await _repo.resultFor(beaconId: beaconId, userId: viewerId);
     if (row == null) return null;
+    // Finalize settles an unjudged voluntary leaver as «Не выполнено»
+    // (#489). Rows finalized before it stored that store cantJudge, so the
+    // read still reports notDone, and says why, so the card does not claim
+    // the author judged them.
+    final unjudgedLeaver = isUnjudgedLeaver(me, {
+      for (final o in await _repo.outcomes(beaconId)) o.helperId: o.outcome,
+    });
     return ClosureResultView(
-      outcome: row.outcome,
+      outcome: unjudgedLeaver ? ClosureOutcome.notDone : row.outcome,
       band: row.band,
       draftFlag: row.draftFlag,
       marks: [
@@ -902,6 +903,7 @@ final class ClosureCase extends UseCaseBase {
           if (r.markerId == viewerId) r.targetId,
       ],
       story: await _repo.story(beaconId),
+      unjudgedLeaver: unjudgedLeaver,
     );
   }
 

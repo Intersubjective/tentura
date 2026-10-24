@@ -134,8 +134,15 @@ class _ClosureResultCardState extends State<ClosureResultCard> {
   }
 
   /// notDone with no band means the member has no share in the results (V8);
-  /// with a band (peer support, V6) the outcome line stands alone.
+  /// with a band (peer support, V6) the outcome line stands alone. An
+  /// unjudged voluntary leaver ([ClosureResult.unjudgedLeaver], #489) did not
+  /// get notDone from the author, so their line says why instead. A leaver
+  /// the author marked, or a removed member, keeps the author's mark.
   static String _outcomeLine(L10n l10n, ClosureResult r) => switch (r.outcome) {
+    ClosureOutcome.notDone
+        when r.unjudgedLeaver && r.band == ClosureBand.none =>
+      l10n.closureResultLeftNoShare,
+    ClosureOutcome.notDone when r.unjudgedLeaver => l10n.closureResultLeft,
     ClosureOutcome.done => l10n.closureResultOutcomeDone,
     ClosureOutcome.notDone when r.band == ClosureBand.none =>
       l10n.closureResultNoShare,

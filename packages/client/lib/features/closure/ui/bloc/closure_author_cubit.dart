@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/closure/domain/closure_exception.dart';
+import 'package:tentura/features/closure/domain/closure_split.dart';
 import 'package:tentura/features/closure/domain/entity/closure_outcome.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
@@ -42,13 +43,9 @@ abstract class ClosureAuthorState extends StateBase with _$ClosureAuthorState {
 
   const ClosureAuthorState._();
 
-  /// Members the author did not mark «Не выполнено» (set A).
-  List<String> get splitIds => data == null
-      ? const []
-      : [
-          for (final m in data!.members)
-            if (data!.outcomes?[m.id] != ClosureOutcome.notDone) m.id,
-        ];
+  /// Set A: members the author did not mark «Не выполнено», minus a
+  /// voluntary leaver the author did not judge (#489, as on the server).
+  List<String> get splitIds => data == null ? const [] : closureSetAOf(data!);
 
   bool get splitAvailable => splitIds.length <= kClosureSplitMaxPeople;
 }
@@ -76,7 +73,9 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
         state.copyWith(
           status: StateStatus.isSuccess,
           data: data,
-          draft: state.draft == null ? null : _revalidated(state.draft, data),
+          draft: state.draft == null
+              ? null
+              : _revalidated(state.draft, data, beaconId),
         ),
       );
     } on Object catch (e) {
@@ -126,7 +125,7 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
   void unlockSplit() {
     final data = state.data;
     if (data == null || !state.splitAvailable) return;
-    emit(state.copyWith(draft: _revalidated(data.split, data)));
+    emit(state.copyWith(draft: _revalidated(data.split, data, beaconId)));
   }
 
   /// Moves [id] to [percent]; the others absorb the difference in steps of 5.
@@ -189,12 +188,14 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
 }
 
 /// Keeps [draft] only while it still covers exactly set A and adds up to 100;
-/// otherwise falls back to the saved split or equal shares.
-Map<String, int>? _revalidated(Map<String, int>? draft, ClosureState data) {
-  final ids = [
-    for (final m in data.members)
-      if (data.outcomes?[m.id] != ClosureOutcome.notDone) m.id,
-  ];
+/// otherwise carries the saved split over to set A the way the server does
+/// (`renormalizeSplit`), or falls back to equal shares.
+Map<String, int>? _revalidated(
+  Map<String, int>? draft,
+  ClosureState data,
+  String beaconId,
+) {
+  final ids = closureSetAOf(data);
   if (ids.isEmpty) return null;
   bool fits(Map<String, int>? m) =>
       m != null &&
@@ -205,7 +206,12 @@ Map<String, int>? _revalidated(Map<String, int>? draft, ClosureState data) {
         (v) => v >= kClosureSplitStep && v % kClosureSplitStep == 0,
       );
   if (fits(draft)) return draft;
-  if (fits(data.split)) return {for (final id in ids) id: data.split![id]!};
+  final carried = renormalizeSplit(
+    current: data.split,
+    newA: ids.toSet(),
+    beaconId: beaconId,
+  );
+  if (fits(carried)) return {for (final id in ids) id: carried![id]!};
   return equalSplit(ids);
 }
 

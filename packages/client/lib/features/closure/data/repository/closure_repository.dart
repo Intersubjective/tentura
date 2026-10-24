@@ -95,6 +95,7 @@ class ClosureRepository {
               draftFlag: ClosureDraftFlag.fromWire(s.draftFlag.name),
               marks: s.marks?.toList() ?? const [],
               story: s.story,
+              unjudgedLeaver: s.unjudgedLeaver,
             );
           });
 

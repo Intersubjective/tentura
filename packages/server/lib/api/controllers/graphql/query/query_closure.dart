@@ -55,6 +55,7 @@ final class QueryClosure extends GqlNodeBase {
                         'draftFlag': r.draftFlag.name,
                         'marks': r.marks,
                         'story': r.story,
+                        'unjudgedLeaver': r.unjudgedLeaver,
                       },
               ),
         ),

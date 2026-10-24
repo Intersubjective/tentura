@@ -8066,6 +8066,7 @@ type v2_ClosureResult {
   marks: [String!]
   outcome: v2_ClosureOutcome!
   story: String
+  unjudgedLeaver: Boolean!
 }
 
 enum v2_ClosureRole {

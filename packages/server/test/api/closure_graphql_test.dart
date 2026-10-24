@@ -90,14 +90,15 @@ const _forbiddenKey = 'share|helped|pct';
 void main() {
   group('closure schema contract', () {
     test(
-      'ClosureResult has exactly outcome, band, draftFlag, marks, story',
+      'ClosureResult has exactly outcome, band, draftFlag, marks, story, '
+      'unjudgedLeaver',
       () {
         final type = _objectType('ClosureResult');
         expect(
           type.fields.map((f) => f.name).toSet(),
-          {'outcome', 'band', 'draftFlag', 'marks', 'story'},
+          {'outcome', 'band', 'draftFlag', 'marks', 'story', 'unjudgedLeaver'},
         );
-        expect(type.fields, hasLength(5));
+        expect(type.fields, hasLength(6));
       },
     );
 
@@ -108,7 +109,7 @@ void main() {
       final names = ((result! as Map)['__type'] as Map)['fields'] as List;
       expect(
         names.map((f) => (f as Map)['name']).toSet(),
-        {'outcome', 'band', 'draftFlag', 'marks', 'story'},
+        {'outcome', 'band', 'draftFlag', 'marks', 'story', 'unjudgedLeaver'},
       );
     });
 
@@ -657,20 +658,37 @@ void main() {
       ('blocked member', _blockedId),
     ]) {
       test(
-        '$label gets only own outcome, band, draftFlag, marks, story',
+        '$label gets only own outcome, band, draftFlag, marks, story, '
+        'unjudgedLeaver',
         () async {
           final r = await result(viewer);
           expect(r['errors'], isNull, reason: '${r['errors']}');
           final res = r['closureResultForViewer'] as Map<String, dynamic>;
           expect(
             res.keys.toSet(),
-            {'outcome', 'band', 'draftFlag', 'marks', 'story'},
+            {
+              'outcome',
+              'band',
+              'draftFlag',
+              'marks',
+              'story',
+              'unjudgedLeaver',
+            },
           );
           _expectNoForbiddenKeys(res);
           // No numeric share/helped/pct: the seeded helped=0.42 never leaves.
           expect(_numbers(res), isEmpty);
           expect(jsonEncode(res), isNot(contains('0.42')));
-          expect('${res['outcome']}', 'done');
+          // The fixture records an outcome for the active voter only, so
+          // the voluntary leaver is unjudged and finalize settled them as
+          // notDone (#489); the stored row is not what they see.
+          expect(
+            '${res['outcome']}',
+            viewer == _leaverId ? 'notDone' : 'done',
+          );
+          // Only the unjudged voluntary leaver is told why: a removed member
+          // keeps their own line.
+          expect(res['unjudgedLeaver'], viewer == _leaverId);
           expect('${res['band']}', 'raised');
           expect('${res['draftFlag']}', 'none');
           expect(res['story'], 'A story');
@@ -686,6 +704,30 @@ void main() {
         },
       );
     }
+
+    test('a voluntary leaver the author judged gets that outcome', () async {
+      fx = _Fixture(finalized: true, leaverOutcome: ClosureOutcome.done);
+      graph = _graph(fx);
+      final r = await result(_leaverId);
+      expect(r['errors'], isNull, reason: '${r['errors']}');
+      final res = r['closureResultForViewer'] as Map<String, dynamic>;
+      expect('${res['outcome']}', 'done');
+      expect(res['unjudgedLeaver'], isFalse);
+    });
+
+    test(
+      'a voluntary leaver the author marked not done is not unjudged',
+      () async {
+        fx = _Fixture(finalized: true, leaverOutcome: ClosureOutcome.notDone);
+        graph = _graph(fx);
+        final r = await result(_leaverId);
+        expect(r['errors'], isNull, reason: '${r['errors']}');
+        final res = r['closureResultForViewer'] as Map<String, dynamic>;
+        // The stored row in this fixture says done; the author's mark is the
+        // author's, so the card shows it and not the "you left" line.
+        expect(res['unjudgedLeaver'], isFalse);
+      },
+    );
 
     test(
       'the request author is not a member: not found (member only)',
@@ -989,24 +1031,40 @@ final _peerPressedAt = DateTime.utc(2026, 9, 2, 7, 8, 9);
 final _peerCommittedAt = DateTime.utc(2026, 9, 3, 4, 5, 6);
 
 final class _Fixture {
-  _Fixture({this.finalized = false, this.extensionsUsed = 0}) {
-    repo = _Repo(finalized: finalized, extensionsUsed: extensionsUsed);
+  _Fixture({
+    this.finalized = false,
+    this.extensionsUsed = 0,
+    this.leaverOutcome,
+  }) {
+    repo = _Repo(
+      finalized: finalized,
+      extensionsUsed: extensionsUsed,
+      leaverOutcome: leaverOutcome,
+    );
     beacons = _Beacons();
     commitments = _Commitments();
   }
 
   final bool finalized;
   final int extensionsUsed;
+  final ClosureOutcome? leaverOutcome;
   late final _Repo repo;
   late final _Beacons beacons;
   late final _Commitments commitments;
 }
 
 final class _Repo implements ClosureRepositoryPort {
-  _Repo({required this.finalized, this.extensionsUsed = 0});
+  _Repo({
+    required this.finalized,
+    this.extensionsUsed = 0,
+    this.leaverOutcome,
+  });
 
   final bool finalized;
   final int extensionsUsed;
+
+  /// The author's outcome for the voluntary leaver; null leaves them unjudged.
+  final ClosureOutcome? leaverOutcome;
 
   ClosureEpoch get _epoch => ClosureEpoch(
     beaconId: _beaconId,
@@ -1063,6 +1121,8 @@ final class _Repo implements ClosureRepositoryPort {
       outcome: ClosureOutcome.done,
       updatedAt: _t0,
     ),
+    if (leaverOutcome case final outcome?)
+      ClosureOutcomeRow(helperId: _leaverId, outcome: outcome, updatedAt: _t0),
   ];
 
   @override

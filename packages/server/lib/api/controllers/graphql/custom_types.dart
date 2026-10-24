@@ -1947,6 +1947,7 @@ final gqlTypeClosureResult =
         field('draftFlag', gqlEnumClosureDraftFlag.nonNullable()),
         field('marks', GraphQLListType(graphQLString.nonNullable())),
         field('story', graphQLString),
+        field('unjudgedLeaver', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeClosureToggleResult = GraphQLObjectType(

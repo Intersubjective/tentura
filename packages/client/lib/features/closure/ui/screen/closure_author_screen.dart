@@ -96,7 +96,7 @@ class _Body extends StatelessWidget {
         gap,
         ClosureSplitSection(state: state),
         gap,
-        ClosurePreview(data: data),
+        ClosurePreview(data: data, beaconId: cubit.beaconId),
         gap,
         ClosureStoryField(initial: data.story, onSave: cubit.saveStory),
         gap,

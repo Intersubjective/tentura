@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_exception.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
+import 'package:tentura_server/domain/closure/membership_reducer.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/closure_finalizer_port.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
@@ -104,6 +105,7 @@ Future<void> main() async {
   Future<void> openEpoch(
     List<String> helpers, {
     Set<String> nonVoters = const {},
+    Map<String, Departure> departures = const {},
     bool finalized = false,
   }) async {
     await repo.createEpoch(
@@ -120,6 +122,7 @@ Future<void> main() async {
           ClosureMemberInsert(
             userId: h,
             activeAtOpen: !nonVoters.contains(h),
+            departure: departures[h],
           ),
       ],
     );
@@ -537,6 +540,72 @@ Future<void> main() async {
         split: null,
       );
       expect(await repo.split(_beaconId), isEmpty);
+    }, skip: skipReason);
+
+    test('#489 the split leaves out an unjudged voluntary leaver', () async {
+      final helpers = [_h(1), _h(2), _h(3)];
+      await openEpoch(helpers, departures: {helpers[2]: Departure.voluntary});
+      await answerAll(helpers.take(2).toList());
+
+      await expectLater(
+        closureCase.saveAuthorSplit(
+          authorId: _authorId,
+          beaconId: _beaconId,
+          expectedEpoch: 1,
+          split: {helpers[0]: 40, helpers[1]: 40, helpers[2]: 20},
+        ),
+        closureError(ClosureExceptionCode.invalidSplit),
+      );
+
+      await closureCase.saveAuthorSplit(
+        authorId: _authorId,
+        beaconId: _beaconId,
+        expectedEpoch: 1,
+        split: {helpers[0]: 70, helpers[1]: 30},
+      );
+      expect(await repo.split(_beaconId), {helpers[0]: 70, helpers[1]: 30});
+    }, skip: skipReason);
+
+    test('#489 an outcome brings the leaver back into the split', () async {
+      final helpers = [_h(1), _h(2), _h(3)];
+      await openEpoch(helpers, departures: {helpers[2]: Departure.voluntary});
+      await answerAll(helpers.take(2).toList());
+      await repo.replaceSplit(_beaconId, {helpers[0]: 70, helpers[1]: 30});
+
+      await closureCase.saveOutcome(
+        authorId: _authorId,
+        beaconId: _beaconId,
+        expectedEpoch: 1,
+        helperId: helpers[2],
+        outcome: ClosureOutcome.cantJudge,
+      );
+      final withLeaver = renormalize(
+        current: {helpers[0]: 70, helpers[1]: 30},
+        newA: helpers.toSet(),
+        beaconId: _beaconId,
+      )!;
+      expect(withLeaver.keys.toSet(), helpers.toSet());
+      expect(await repo.split(_beaconId), withLeaver);
+
+      // Clearing the outcome drops them again.
+      await closureCase.saveOutcome(
+        authorId: _authorId,
+        beaconId: _beaconId,
+        expectedEpoch: 1,
+        helperId: helpers[2],
+      );
+      expect(
+        await repo.split(_beaconId),
+        renormalize(
+          current: withLeaver,
+          newA: {helpers[0], helpers[1]},
+          beaconId: _beaconId,
+        ),
+      );
+      expect((await repo.split(_beaconId)).keys.toSet(), {
+        helpers[0],
+        helpers[1],
+      });
     }, skip: skipReason);
 
     Future<void> answerMixed(List<String> helpers) async {

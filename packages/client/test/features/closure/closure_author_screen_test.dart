@@ -646,6 +646,90 @@ void main() {
     });
   });
 
+  group('#489 an unjudged voluntary leaver', () {
+    final members = [
+      _member('u1'),
+      _member('u2'),
+      _member('u3'),
+      _member('u4', departure: 'voluntary'),
+    ];
+
+    List<double> sliderValues(WidgetTester tester) => [
+      for (final s in tester.widgetList<Slider>(find.byType(Slider))) s.value,
+    ];
+
+    testWidgets('gets no slider and is left out of the saved split', (
+      tester,
+    ) async {
+      final fake = await _pump(tester, _state(members: members));
+      await tester.tap(find.text('Изменить распределение'));
+      await tester.pumpAndSettle();
+      expect(sliderValues(tester), [35, 35, 30]);
+      await tester.tap(find.byKey(_k('closure.author.split.save')));
+      await tester.pumpAndSettle();
+      expect(fake.calls['saveAuthorSplit'], {
+        'expectedEpoch': _epoch,
+        'split': {'u1': 35, 'u2': 35, 'u3': 30},
+      });
+    });
+
+    testWidgets('a saved split that still covers them is carried over '
+        'like the server (35/35/10 + 20 -> 45/45/10)', (tester) async {
+      await _pump(
+        tester,
+        _state(
+          members: members,
+          split: {'u1': 35, 'u2': 35, 'u3': 10, 'u4': 20},
+        ),
+      );
+      expect(find.text('Name u1 — 45%'), findsOneWidget);
+      expect(find.text('Name u3 — 10%'), findsOneWidget);
+      expect(find.textContaining('Name u4 —'), findsNothing);
+      await tester.tap(find.text('Изменить распределение'));
+      await tester.pumpAndSettle();
+      expect(sliderValues(tester), [45, 45, 10]);
+    });
+
+    testWidgets('comes back to the sliders once the author marks them', (
+      tester,
+    ) async {
+      final fake = await _pump(tester, _state(members: members));
+      await tester.tap(find.text('Изменить распределение'));
+      await tester.pumpAndSettle();
+      expect(sliderValues(tester), hasLength(3));
+      fake.state = _state(
+        members: members,
+        outcomes: {'u4': ClosureOutcome.done},
+      );
+      await tester.tap(_outcome('u4', 'Выполнено'));
+      await tester.pumpAndSettle();
+      expect(fake.calls['saveOutcome']?['helperId'], 'u4');
+      expect(sliderValues(tester), [25, 25, 25, 25]);
+    });
+
+    testWidgets('preview bars use the renormalized split', (tester) async {
+      await _pump(
+        tester,
+        _state(
+          members: members,
+          split: {'u1': 35, 'u2': 35, 'u3': 10, 'u4': 20},
+        ),
+      );
+      final want = silentPreview(
+        beaconId: _beaconId,
+        outcomes: {
+          'u1': null,
+          'u2': null,
+          'u3': null,
+          'u4': ClosureOutcome.notDone,
+        },
+        split: {'u1': 45, 'u2': 45, 'u3': 10},
+      );
+      _expectRatios(tester, [want['u1']!, want['u2']!, want['u3']!]);
+      expect(_barWidth(tester, 'u4'), 0);
+    });
+  });
+
   testWidgets('sliders enforce min 5, steps of 5 and a 100 total', (
     tester,
   ) async {
