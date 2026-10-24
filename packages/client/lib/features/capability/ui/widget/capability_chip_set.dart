@@ -57,8 +57,8 @@ class CapabilityChipSet extends StatelessWidget {
       sections.add(
         _GroupSection(
           group: group,
-          groupLabel: _groupLabel(l10n, group),
-          groupDescription: _groupDescription(l10n, group),
+          groupLabel: group.labelOf(l10n),
+          groupDescription: group.descriptionOf(l10n),
           tags: tags,
           forceExpanded: searching,
           selectedSlugs: selectedSlugs,
@@ -99,24 +99,12 @@ class CapabilityChipSet extends StatelessWidget {
     );
   }
 
-  static String _groupLabel(L10n l10n, CapabilityGroup group) =>
-      switch (group) {
-        CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
-        CapabilityGroup.communication => l10n.capabilityGroupCommunication,
-        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
-        CapabilityGroup.care => l10n.capabilityGroupCare,
-        CapabilityGroup.resources => l10n.capabilityGroupResources,
-        CapabilityGroup.technical => l10n.capabilityGroupTechnical,
-        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
-        CapabilityGroup.special => l10n.capabilityGroupSpecial,
-      };
-
   List<CapabilityTag> _matchingTags(CapabilityGroup group, L10n l10n) {
     final normalized = query.trim().toLowerCase();
     final groupMatches =
         normalized.isEmpty ||
-        _groupLabel(l10n, group).toLowerCase().contains(normalized) ||
-        _groupDescription(l10n, group).toLowerCase().contains(normalized);
+        group.labelOf(l10n).toLowerCase().contains(normalized) ||
+        group.descriptionOf(l10n).toLowerCase().contains(normalized);
     return CapabilityTag.values.where((tag) {
       if (tag.group != group) return false;
       if (availableSlugs != null && !availableSlugs!.contains(tag.slug)) {
@@ -126,19 +114,6 @@ class CapabilityChipSet extends StatelessWidget {
           tag.labelOf(l10n).toLowerCase().contains(normalized);
     }).toList();
   }
-
-  static String _groupDescription(L10n l10n, CapabilityGroup group) =>
-      switch (group) {
-        CapabilityGroup.logistics => l10n.capabilityGroupLogisticsDescription,
-        CapabilityGroup.communication =>
-          l10n.capabilityGroupCommunicationDescription,
-        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledgeDescription,
-        CapabilityGroup.care => l10n.capabilityGroupCareDescription,
-        CapabilityGroup.resources => l10n.capabilityGroupResourcesDescription,
-        CapabilityGroup.technical => l10n.capabilityGroupTechnicalDescription,
-        CapabilityGroup.rpg => l10n.capabilityGroupRpgDescription,
-        CapabilityGroup.special => l10n.capabilityGroupSpecialDescription,
-      };
 }
 
 class _GroupSection extends StatelessWidget {

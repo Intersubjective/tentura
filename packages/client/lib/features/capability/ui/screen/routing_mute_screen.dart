@@ -9,6 +9,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/capability/ui/widget/capability_selection_count_badge.dart';
 import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 
 import '../bloc/routing_mute_cubit.dart';
@@ -155,14 +156,14 @@ class _GroupSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _groupLabel(l10n, group),
+                  group.labelOf(l10n),
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  _groupDescription(l10n, group),
+                  group.descriptionOf(l10n),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -205,29 +206,4 @@ class _GroupSection extends StatelessWidget {
       ],
     );
   }
-
-  static String _groupLabel(L10n l10n, CapabilityGroup group) =>
-      switch (group) {
-        CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
-        CapabilityGroup.communication => l10n.capabilityGroupCommunication,
-        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
-        CapabilityGroup.care => l10n.capabilityGroupCare,
-        CapabilityGroup.resources => l10n.capabilityGroupResources,
-        CapabilityGroup.technical => l10n.capabilityGroupTechnical,
-        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
-        CapabilityGroup.special => l10n.capabilityGroupSpecial,
-      };
-
-  static String _groupDescription(L10n l10n, CapabilityGroup group) =>
-      switch (group) {
-        CapabilityGroup.logistics => l10n.capabilityGroupLogisticsDescription,
-        CapabilityGroup.communication =>
-          l10n.capabilityGroupCommunicationDescription,
-        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledgeDescription,
-        CapabilityGroup.care => l10n.capabilityGroupCareDescription,
-        CapabilityGroup.resources => l10n.capabilityGroupResourcesDescription,
-        CapabilityGroup.technical => l10n.capabilityGroupTechnicalDescription,
-        CapabilityGroup.rpg => l10n.capabilityGroupRpgDescription,
-        CapabilityGroup.special => l10n.capabilityGroupSpecialDescription,
-      };
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
-import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -86,25 +85,13 @@ class CapabilityTagFilterChip extends StatelessWidget {
       enabled: onSelected != null,
       focusable: onSelected != null,
       selected: selected,
-      label: '${tag.labelOf(l10n)}, ${_groupLabel(l10n, tag.group)}',
+      label: '${tag.labelOf(l10n)}, ${tag.group.labelOf(l10n)}',
       onTap: onSelected == null ? null : () => onSelected(!selected),
       excludeSemantics: true,
       child: chip,
     );
     return semanticChip;
   }
-
-  static String _groupLabel(L10n l10n, CapabilityGroup group) =>
-      switch (group) {
-        CapabilityGroup.logistics => l10n.capabilityGroupLogistics,
-        CapabilityGroup.communication => l10n.capabilityGroupCommunication,
-        CapabilityGroup.knowledge => l10n.capabilityGroupKnowledge,
-        CapabilityGroup.care => l10n.capabilityGroupCare,
-        CapabilityGroup.resources => l10n.capabilityGroupResources,
-        CapabilityGroup.technical => l10n.capabilityGroupTechnical,
-        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
-        CapabilityGroup.special => l10n.capabilityGroupSpecial,
-      };
 }
 
 /// Circular icon-only chip for selected capabilities in compact summary rows.
