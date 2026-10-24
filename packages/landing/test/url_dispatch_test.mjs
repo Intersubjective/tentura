@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+import { inviterDisplayName } from '../onboarding.js';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(root, 'main.js'), 'utf8');
 const authJs = readFileSync(join(root, 'auth.js'), 'utf8');
@@ -111,9 +113,17 @@ test('email magic link shows in-page check-your-email confirmation', () => {
 });
 
 test('inviterName hides email-derived display names', () => {
-  assert.match(mainJs, /function isLikelyEmailDerivedDisplayName/);
-  assert.ok(mainJs.includes("&& /\\d/.test(name)"));
-  assert.match(mainJs, /return 'A friend'/);
+  assert.equal(inviterDisplayName('agent 3c4703tb'), 'A friend');
+  assert.equal(inviterDisplayName('Nina'), 'Nina');
+  assert.equal(inviterDisplayName('  '), 'Someone');
+  assert.match(mainJs, /inviterDisplayName\(p\.inviter\?\.displayName\)/);
+});
+
+// #660 review: an invite from a brand-new member read "New member shared".
+test('inviterName maps the server placeholder New member to A friend', () => {
+  assert.equal(inviterDisplayName('New member'), 'A friend');
+  assert.equal(inviterDisplayName(' New member '), 'A friend');
+  assert.equal(inviterDisplayName('New member Anna'), 'New member Anna');
 });
 
 test('main redirects invite URLs with trailing dash', () => {

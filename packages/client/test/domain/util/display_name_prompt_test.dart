@@ -19,5 +19,15 @@ void main() {
     test('lowercase name without digits does not need prompt', () {
       expect(needsDisplayNamePromptFor('ada lovelace'), isFalse);
     });
+
+    // #660: the server names new email accounts "New member".
+    test('server placeholder New member needs prompt', () {
+      expect(needsDisplayNamePromptFor('New member'), isTrue);
+      expect(needsDisplayNamePromptFor(' New member '), isTrue);
+    });
+
+    test('a chosen name containing New member does not need prompt', () {
+      expect(needsDisplayNamePromptFor('New member Anna'), isFalse);
+    });
   });
 }

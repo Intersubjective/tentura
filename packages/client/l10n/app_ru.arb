@@ -73,6 +73,11 @@
     "context": "Utils",
     "description": "Fallback label when a person's name and handle are unavailable"
   },
+  "newMemberDisplayName": "Новый участник",
+  "@newMemberDisplayName": {
+    "context": "Utils",
+    "description": "Shown instead of the server placeholder name of an account that has not chosen a name yet (#660)"
+  },
   "labelYou": "Вы",
   "@labelYou": {
     "context": "Utils",

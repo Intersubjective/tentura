@@ -50,12 +50,14 @@ abstract class Profile with _$Profile implements Likable, Scorable {
 
   /// What the viewer should see: their own contact name when set,
   /// the user's self-chosen display name otherwise.
-  String get shownName => contactName.isNotEmpty ? contactName : displayName;
+  /// A server placeholder name ("New member", #660) reads in the app language.
+  String get shownName =>
+      contactName.isNotEmpty ? contactName : localizedDisplayName(displayName);
 
   /// Public identity join: non-empty [displayName] and `@handle`, separated
   /// by ` · `. Empty when neither is set. No contact-name overlay.
   String get canonicalPublicLabel {
-    final name = displayName.trim();
+    final name = localizedDisplayName(displayName).trim();
     final h = handle.trim();
     final parts = <String>[
       if (name.isNotEmpty) name,
@@ -68,7 +70,7 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   /// [shownName] dropped. Empty when nothing remains.
   String get canonicalSecondaryLabel {
     final primary = shownName.trim();
-    final name = displayName.trim();
+    final name = localizedDisplayName(displayName).trim();
     final h = handle.trim();
     final parts = <String>[
       if (name.isNotEmpty && name != primary) name,

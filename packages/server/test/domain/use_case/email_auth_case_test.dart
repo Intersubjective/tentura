@@ -432,6 +432,55 @@ void main() {
     );
   });
 
+  // #660: a skipped name step must not publish the email local-part.
+  test('confirm names a new email account New member, not the email', () async {
+    await case_.start(
+      email: 'qa1-ilya-c24a@test.tentura.local',
+      inviteCode: 'Iabc',
+      ipFingerprint: 'ip',
+      userAgentFingerprint: 'ua',
+    );
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+    when(
+      userRepo.createInvitedWithCredential(
+        invitationId: anyNamed('invitationId'),
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        displayName: anyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer(
+      (_) async => const UserEntity(id: 'Unew', displayName: 'New member'),
+    );
+
+    await case_.confirm('opaque-token');
+
+    final names = verify(
+      userRepo.createInvitedWithCredential(
+        invitationId: anyNamed('invitationId'),
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        displayName: captureAnyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).captured;
+    expect(names, ['New member']);
+    expect(names.single, isNot(contains('qa1')));
+    expect(names.single, isNot(contains('ilya')));
+  });
+
   test('confirm link mode strict-links without session', () async {
     const accountId = 'Uabc123456789012345678901234567890';
     final startResult = await case_.start(

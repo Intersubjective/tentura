@@ -1,17 +1,10 @@
 /// Normalizes an email for credential lookup and transactions.
 String normalizeAuthEmail(String raw) => raw.trim().toLowerCase();
 
-/// Derives a display name from the email local-part (new invited accounts).
-String displayNameFromEmail(String normalizedEmail) {
-  final at = normalizedEmail.indexOf('@');
-  final local = at > 0 ? normalizedEmail.substring(0, at) : normalizedEmail;
-  final cleaned = local
-      .replaceAll(RegExp('[._+-]+'), ' ')
-      .trim();
-  if (cleaned.isEmpty) return 'User';
-  if (cleaned.length <= 50) return cleaned;
-  return cleaned.substring(0, 50);
-}
+/// Display name of a new email account until the person picks one. Never
+/// derived from the email: that leaked the local-part to everyone (#660).
+/// The landing and the app treat this exact name as "no name chosen yet".
+const kNewMemberDisplayName = 'New member';
 
 final RegExp kAuthEmailPattern = RegExp(
   r'^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$',

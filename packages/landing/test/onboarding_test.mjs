@@ -395,9 +395,16 @@ test('#522 review: reload after the name step resumes at the pager', async () =>
       storage,
     });
 
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ id: 'U1', displayName: 'Ada' }),
+  });
   const first = document.createElement('div');
   render(first);
-  first.querySelector('.hint-link').click(); // Skip for now
+  first.querySelector('#display-name').value = 'Ada';
+  first.querySelector('FORM').submit(); // #660: no Skip; the name is saved
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
   assert.ok(first.querySelector('.pager'));
 
   // Same tab session, same ?signed_in=1&new=1 URL (reload / Back+Forward).
@@ -553,6 +560,45 @@ test('#422: Save with an untouched empty field still asks for a name', async () 
   assert.equal(patched, false, 'nothing saved');
   assert.equal(card.querySelector('.pager'), null, 'still on the name step');
   assert.match(card.querySelector('.error').textContent, /Enter a name/);
+});
+
+// #660: skipping the name step left the account published under its
+// email-derived name. The step is no longer skippable, and the server's
+// neutral placeholder "New member" counts as no name yet.
+test('#660: the name step offers no Skip', async () => {
+  const { card } = await renderNameStepFor('New member');
+  assert.equal(card.querySelector('.hint-link'), null);
+  assert.ok(
+    !card
+      .querySelectorAll('BUTTON')
+      .some((b) => /skip/i.test(b.textContent)),
+    'no Skip button',
+  );
+  assert.doesNotMatch(onboardingJs, /Skip for now/);
+});
+
+test('#660: the empty-name error does not point at a Skip', async () => {
+  const { card } = await renderNameStepFor('New member');
+  card.querySelector('FORM').submit();
+  await new Promise((r) => setTimeout(r, 0));
+  const error = card.querySelector('.error').textContent;
+  assert.match(error, /Enter a name/);
+  assert.doesNotMatch(error, /skip/i);
+});
+
+test('#660: the server placeholder New member is not prefilled', async () => {
+  const { input } = await renderNameStepFor('New member');
+  assert.equal(input.value, '');
+});
+
+test('#660: a signed-in New member still gets the name step', () => {
+  assert.equal(
+    shouldRunPostSignup('?signed_in=1', fakeStorage(), {
+      id: 'U1',
+      displayName: 'New member',
+    }),
+    true,
+  );
 });
 
 for (const real of ['Ada Lovelace', 'Ada', 'Анна К.']) {
@@ -758,4 +804,94 @@ test('#522 guard: the pager still steps without a history API', async () => {
   assert.equal(step(), 'Step 2 of 3');
   card.querySelector('.pager-back').click();
   assert.equal(step(), 'Step 1 of 3');
+});
+
+// #660 review: with Skip gone, a failed save (offline, or a rejected name)
+// left no way off the name step and showed the raw error text.
+async function failNameSave(failure) {
+  const events = [];
+  installDomFake();
+  globalThis.window = globalThis;
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'New member' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: (name) => events.push(name),
+    openProductUrl: () => '/app/',
+    storage: fakeStorage(),
+    nameOnly: false,
+  });
+  let patches = 0;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === 'PATCH') patches += 1;
+    return failure();
+  };
+  card.querySelector('#display-name').value = 'Anna K.';
+  card.querySelector('FORM').submit();
+  await new Promise((r) => setTimeout(r, 0));
+  return { card, events, patches: () => patches };
+}
+
+const continueButton = (card) =>
+  card
+    .querySelectorAll('BUTTON')
+    .find((b) => /continue without a name/i.test(b.textContent));
+
+test('#660 review: Continue without a name is hidden until a save fails', async () => {
+  const { card } = await renderNameStepFor('New member');
+  const button = continueButton(card);
+  assert.ok(button, 'exit exists');
+  assert.equal(button.hidden, true);
+});
+
+test('#660 review: an offline save shows a readable error, not the raw one', async () => {
+  const { card } = await failNameSave(() => {
+    throw new TypeError('Failed to fetch');
+  });
+  const error = card.querySelector('.error').textContent;
+  assert.doesNotMatch(error, /TypeError|Failed to fetch/);
+  assert.match(error, /connection/i);
+  assert.match(error, /try again/i);
+  assert.equal(card.querySelector('.pager'), null, 'still on the name step');
+});
+
+test('#660 review: a rejected name shows readable copy, not the server text', async () => {
+  const { card } = await failNameSave(() => ({
+    ok: false,
+    status: 400,
+    json: async () => ({ error: 'displayName must be 3-32 characters' }),
+  }));
+  const error = card.querySelector('.error').textContent;
+  assert.doesNotMatch(error, /displayName/);
+  assert.match(error, /3 to 32 characters/);
+});
+
+test('#660 review: after a failed save the person can continue without a name', async () => {
+  const { card, events, patches } = await failNameSave(() => ({
+    ok: false,
+    status: 500,
+    json: async () => ({}),
+  }));
+  const button = continueButton(card);
+  assert.ok(button, 'exit exists');
+  assert.equal(button.hidden, false);
+  button.click();
+  assert.ok(card.querySelector('.pager'), 'moved on to the pager');
+  assert.ok(events.includes('signup_name_skipped'));
+  assert.equal(patches(), 1, 'nothing saved on the way out');
+});
+
+test('#660 review: after a failed save, Save can be tried again', async () => {
+  const { card } = await failNameSave(() => ({
+    ok: false,
+    status: 500,
+    json: async () => ({}),
+  }));
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+  card.querySelector('FORM').submit();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(card.querySelector('.pager'), 'saved on retry');
 });
