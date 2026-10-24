@@ -12,13 +12,41 @@ targets:
       json_serializable:
         enabled: false
 
+      # generate_for below keeps each builder off the libraries it can never
+      # generate for, so a change re-runs far fewer builder steps (incremental
+      # codegen roughly halves; the generated tree is byte-identical).
+      # test/architecture/codegen_generate_for_coverage_test.dart fails when an
+      # annotated file falls outside its builder's globs — widen the glob then.
+      # An @injectable class outside them would otherwise be silently missing
+      # from DI (a runtime failure only).
       drift_dev:
+        generate_for:
+          - lib/data/database/**
         options:
           databases:
             tentura: lib/data/database/database.dart
           named_parameters: true
           schema_dir: lib/data/database/schema/
           store_date_time_values_as_text: true
+
+      injectable_generator:injectable_builder:
+        generate_for:
+          include:
+            - lib/*.dart
+            - lib/app/**
+            - lib/data/**
+            - lib/domain/**
+            - lib/features/*/data/**
+            - lib/features/*/domain/**
+            - lib/features/*/ui/bloc/**
+            - lib/ui/bloc/**
+            - lib/ui/effect/**
+          exclude:
+            - lib/**/_g/**
+
+      injectable_generator:injectable_config_builder:
+        generate_for:
+          - lib/app/di/di_current.dart
 
       auto_route_generator:auto_route_generator:
         generate_for:
@@ -29,6 +57,15 @@ targets:
           - lib/app/router/root_router.dart
 
       freezed:
+        generate_for:
+          include:
+            - lib/data/service/remote_api_client/**
+            - lib/domain/**
+            - lib/features/*/domain/**
+            - lib/features/*/ui/bloc/**
+            - lib/ui/bloc/**
+          exclude:
+            - lib/**/_g/**
         options:
           equal: true
           copy_with: true
