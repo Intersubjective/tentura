@@ -85,4 +85,48 @@ void main() {
     expect(en['inboxCategoryGeneral'], 'General');
     expect(ru['inboxCategoryGeneral'], 'Общее');
   });
+
+  // QA 7.50.3 follow-up: the request room's tab and the labels that lead
+  // back into it said «Chat» / «Чат». A Post's own chat is a different thing
+  // and keeps its wording (guard below).
+  test('room tab and its chat labels say discussion, en and ru', () {
+    expect(en['labelBeaconTabChat'], 'Discussion');
+    expect(ru['labelBeaconTabChat'], 'Обсуждение');
+    expect(en['beaconRoomBackToChat'], 'Back to Discussion');
+    expect(ru['beaconRoomBackToChat'], 'К обсуждению');
+    expect(en['beaconRoomFactCardActionQuoteInChat'], 'Quote in discussion');
+    expect(
+      ru['beaconRoomFactCardActionQuoteInChat'],
+      'Цитировать в обсуждении',
+    );
+    expect(
+      en['beaconOutcomeReadOnlyNote'],
+      'No new offers or messages. The discussion stays readable.',
+    );
+    expect(ru['beaconOutcomeReadOnlyNote'], contains('обсуждение'));
+    for (final key in [
+      'labelBeaconTabChat',
+      'beaconRoomBackToChat',
+      'beaconRoomFactCardActionQuoteInChat',
+      'beaconOutcomeReadOnlyNote',
+    ]) {
+      expect(
+        (en[key] as String).toLowerCase(),
+        isNot(contains('chat')),
+        reason: key,
+      );
+      expect(
+        (ru[key] as String).toLowerCase(),
+        isNot(contains('чат')),
+        reason: key,
+      );
+    }
+  });
+
+  test('guard: Post chat strings keep their chat wording', () {
+    expect(en['postMenuLeave'], 'Leave chat');
+    expect(ru['postMenuLeave'], 'Выйти из чата');
+    expect(en['postsTabNewPost'], 'New chat');
+    expect(ru['postsTabNewPost'], 'Новый чат');
+  });
 }

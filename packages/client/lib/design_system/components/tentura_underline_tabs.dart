@@ -8,6 +8,9 @@ import '../tentura_tokens.dart';
 
 enum TenturaTabCountStyle { badge, plainText }
 
+/// How the equal-width tabs of a row with icons are drawn (#609).
+enum _TabLabelMode { iconAndLabel, labelOnly, iconOnly }
+
 /// Icon size for tabs with [TenturaUnderlineTabs.icons] — matches HUD row icons
 /// so the 48px pinned beacon bar stays valid across WindowClass.
 const double _kTabIconSize = 20;
@@ -17,8 +20,10 @@ const double _kTabIconSize = 20;
 /// Optional [attentionIndex] + [attentionActive] pulse a soft highlight on that
 /// tab (respects [MediaQuery.disableAnimationsOf] with a static highlight).
 ///
-/// When [icons] is set, labels hide together if icon+text does not fit each
-/// equal slot (badges are not part of that fit decision).
+/// When [icons] is set and icon+text does not fit each equal slot, the row
+/// first drops the icons and keeps the labels (#609); only when a label alone
+/// does not fit either does it show icons only. Every flex tab takes the same
+/// step, and badges are not part of that fit decision.
 class TenturaUnderlineTabs extends StatefulWidget {
   const TenturaUnderlineTabs({
     required this.tabs,
@@ -143,20 +148,22 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     super.dispose();
   }
 
-  /// Whether icon+label fits every equal slot. Badges are ignored so count
-  /// chips do not flip the whole row between labeled and icon-only.
+  /// Whether icon+label fits every equal slot, else whether the label alone
+  /// does (#609: «Обсуждение» with its icon is wider than a quarter of a
+  /// phone, so the row keeps its words and drops the icons first). Badges
+  /// are ignored so count chips do not flip the whole row between modes.
   /// [compactIconTabs] are excluded — they are always icon-only.
-  bool _labelsFit(BuildContext context, double maxWidth) {
+  _TabLabelMode _labelMode(BuildContext context, double maxWidth) {
     final icons = widget.icons;
     if (icons == null || icons.isEmpty || widget.tabs.isEmpty) {
-      return true;
+      return _TabLabelMode.iconAndLabel;
     }
     final n = widget.tabs.length;
     final compact = widget.compactIconTabs;
     final compactCount = compact.where((i) => i >= 0 && i < n).length;
     final flexCount = n - compactCount;
     if (flexCount == 0) {
-      return true;
+      return _TabLabelMode.iconAndLabel;
     }
     final tt = context.tt;
     final fixedTotal = compactCount * tt.tabCompactWidth;
@@ -164,6 +171,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     final textScaler = MediaQuery.textScalerOf(context);
     final style = TenturaText.tabLabel(tt.text);
 
+    var widestLabel = 0.0;
     for (var i = 0; i < n; i++) {
       if (compact.contains(i)) {
         continue;
@@ -174,13 +182,15 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
         textScaler: textScaler,
         maxLines: 1,
       )..layout();
-      final needed = _kTabIconSize + tt.iconTextGap + painter.width;
+      if (painter.width > widestLabel) widestLabel = painter.width;
       painter.dispose();
-      if (needed > slotWidth) {
-        return false;
-      }
     }
-    return true;
+    if (_kTabIconSize + tt.iconTextGap + widestLabel <= slotWidth) {
+      return _TabLabelMode.iconAndLabel;
+    }
+    return widestLabel <= slotWidth
+        ? _TabLabelMode.labelOnly
+        : _TabLabelMode.iconOnly;
   }
 
   @override
@@ -200,8 +210,9 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showLabels =
-              !hasIcons || _labelsFit(context, constraints.maxWidth);
+          final mode = hasIcons
+              ? _labelMode(context, constraints.maxWidth)
+              : _TabLabelMode.iconAndLabel;
           return Row(
             children: [
               for (var i = 0; i < widget.tabs.length; i++)
@@ -223,7 +234,8 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
                     child: _buildTabCell(
                       context,
                       index: i,
-                      showLabel: showLabels,
+                      showLabel: mode != _TabLabelMode.iconOnly,
+                      showIcon: mode != _TabLabelMode.labelOnly,
                       badgeOverlay: false,
                       staticAttentionOpacity: i == widget.attentionIndex
                           ? staticOpacity
@@ -243,6 +255,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     required bool showLabel,
     required bool badgeOverlay,
     required double staticAttentionOpacity,
+    bool showIcon = true,
   }) {
     final badge = widget.badges != null && index < widget.badges!.length
         ? widget.badges![index]
@@ -256,7 +269,8 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
             index < widget.badgeBackgroundColors!.length
         ? widget.badgeBackgroundColors![index]
         : null;
-    final icon = widget.icons != null && index < widget.icons!.length
+    final icon =
+        showIcon && widget.icons != null && index < widget.icons!.length
         ? widget.icons![index]
         : null;
     final dot =
