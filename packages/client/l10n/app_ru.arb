@@ -6626,6 +6626,25 @@
       }
     }
   },
+  "postStartedByLine": "{name} начал(а) этот чат с вами",
+  "@postStartedByLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postStartedByLineWithNote": "{name} начал(а) этот чат с вами: «{note}»",
+  "@postStartedByLineWithNote": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "postParticipantsTitle": "Участники · {count}",
   "@postParticipantsTitle": {
     "placeholders": {

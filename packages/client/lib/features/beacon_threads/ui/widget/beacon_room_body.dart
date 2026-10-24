@@ -1688,7 +1688,8 @@ class _PinnedBlockerRow extends StatelessWidget {
 }
 
 /// Post rooms: the root excerpt (tap scrolls to the root message) and, for a
-/// recipient the Post was forwarded to, who forwarded it and their note.
+/// recipient the Post was forwarded to, who forwarded it and their note; for a
+/// recipient the author sent it to, only who started the chat (#667).
 class _PinnedPostRootRow extends StatelessWidget {
   const _PinnedPostRootRow({required this.pin, required this.onTap});
 
@@ -1699,11 +1700,18 @@ class _PinnedPostRootRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final forwardedLine = pin.forwardedBy.isEmpty
+    final forwardedLine = pin.startedBy.isNotEmpty
+        ? pin.forwardNote.isEmpty
+              ? l10n.postStartedByLine(pin.startedBy)
+              : l10n.postStartedByLineWithNote(pin.startedBy, pin.forwardNote)
+        : pin.forwardedBy.isEmpty
         ? null
         : pin.forwardNote.isEmpty
         ? l10n.postForwardedByLineNoNote(pin.forwardedBy)
         : l10n.postForwardedByLine(pin.forwardedBy, pin.forwardNote);
+    // #667: the author's own opening message is the first bubble; the strip
+    // names who started the chat and does not repeat it (tap still jumps).
+    final showExcerpt = pin.excerpt.isNotEmpty && pin.startedBy.isEmpty;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1732,12 +1740,13 @@ class _PinnedPostRootRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        pin.excerpt,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.bodySmall(tt.text),
-                      ),
+                      if (showExcerpt)
+                        Text(
+                          pin.excerpt,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TenturaText.bodySmall(tt.text),
+                        ),
                       if (forwardedLine != null)
                         Text(
                           forwardedLine,

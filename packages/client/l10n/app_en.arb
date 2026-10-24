@@ -7872,6 +7872,27 @@
       }
     }
   },
+  "postStartedByLine": "{name} started this chat with you",
+  "@postStartedByLine": {
+    "description": "Pinned strip line for a recipient the Post author sent the Post to (a New chat); not a forward.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postStartedByLineWithNote": "{name} started this chat with you: “{note}”",
+  "@postStartedByLineWithNote": {
+    "description": "Pinned strip line for a recipient the Post author sent the Post to with a personal note (#667).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "postParticipantsTitle": "Participants · {count}",
   "@postParticipantsTitle": {
     "description": "Title of the Post participants sheet.",
