@@ -10,6 +10,13 @@
 // the field and dropped its focus, and the first click back on the field did
 // not focus it, so the next keys were lost. Spec: Close keeps the caret in
 // the field, so typing goes on with no extra click.
+//
+// Follow-up (QA 7.50.3): in the browser, with semantics on, the press on ✕
+// still moved the browser focus off the field's input to the page while
+// Flutter kept the field focused, so the first click back and the keys after
+// it were lost (as #688). Spec: the ✕ is tagged so the web keeps the browser
+// focus on the field when it is pressed, and if the browser focus has left
+// the field anyway, Close (or a click on the field) re-attaches it.
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/gestures.dart';
@@ -23,6 +30,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/rating/ui/bloc/rating_cubit.dart';
 import 'package:tentura/features/rating/ui/screen/rating_screen.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// A real cubit for the search filter; everything else is a no-op.
 class _RatingCubitFake extends Cubit<RatingState> implements RatingCubit {
@@ -246,6 +254,126 @@ void main() {
 
         expect(_fieldText(tester), 'al');
         expect(cubit.state.searchFilter, 'al');
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+  });
+
+  group('#603 Rating search: the browser focus stays on the field', () {
+    List<String> methodsAfterClose(WidgetTester tester) => [
+      for (final c in tester.testTextInput.log) c.method,
+    ].skipWhile((m) => m != 'TextInput.clearClient').toList();
+
+    testWidgets('the ✕ is tagged as a press that keeps the field focus', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        final kept = <String>[];
+        debugRatingKeepTextInputFocusOnPress = kept.addAll;
+        addTearDown(() => debugRatingKeepTextInputFocusOnPress = null);
+        await _pumpRating(tester);
+
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+
+        expect(
+          find.bySemanticsIdentifier(TestIds.ratingSearchClear),
+          findsOneWidget,
+        );
+        // A press inside this node no longer moves the browser focus.
+        expect(
+          kept.any(TestIds.ratingSearchClear.startsWith),
+          isTrue,
+          reason: 'registered prefixes: $kept',
+        );
+      } finally {
+        semantics.dispose();
+      }
+    });
+
+    testWidgets(
+      'guard: Close keeps the text input connection open',
+      (tester) async {
+        await _pumpRating(tester);
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+        tester.testTextInput.log.clear();
+
+        await tester.tap(
+          find.byIcon(Icons.clear_rounded),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          [for (final c in tester.testTextInput.log) c.method],
+          isNot(contains('TextInput.clearClient')),
+        );
+        expect(_fieldHasFocus(tester), isTrue);
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+
+    testWidgets(
+      'Close re-attaches the field if the browser took focus',
+      (tester) async {
+        debugRatingSearchTextInputHasPlatformFocus = () => false;
+        addTearDown(() => debugRatingSearchTextInputHasPlatformFocus = null);
+        final cubit = await _pumpRating(tester);
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+        tester.testTextInput.log.clear();
+
+        await tester.tap(
+          find.byIcon(Icons.clear_rounded),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        await tester.pump();
+
+        // The field reconnects its text input, the way a click into it does,
+        // so the browser puts focus back on its input.
+        expect(
+          methodsAfterClose(tester),
+          containsAllInOrder(['TextInput.setClient', 'TextInput.show']),
+        );
+        expect(_fieldHasFocus(tester), isTrue);
+        tester.testTextInput.enterText('mi');
+        await tester.pump();
+        expect(_fieldText(tester), 'mi');
+        expect(cubit.state.searchFilter, 'mi');
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+
+    testWidgets(
+      'a click on the focused field re-attaches it if the browser took focus',
+      (tester) async {
+        final cubit = await _pumpRating(tester);
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+        debugRatingSearchTextInputHasPlatformFocus = () => false;
+        addTearDown(() => debugRatingSearchTextInputHasPlatformFocus = null);
+        tester.testTextInput.log.clear();
+
+        await tester.tap(
+          find.byType(TextField),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          methodsAfterClose(tester),
+          containsAllInOrder(['TextInput.setClient', 'TextInput.show']),
+        );
+        expect(_fieldHasFocus(tester), isTrue);
+        tester.testTextInput.enterText('jasp');
+        await tester.pump();
+        expect(_fieldText(tester), 'jasp');
+        expect(cubit.state.searchFilter, 'jasp');
       },
       variant: TargetPlatformVariant.desktop(),
     );
