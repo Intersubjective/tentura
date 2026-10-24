@@ -463,7 +463,23 @@ jobs:
                   # 600+ suites to discover test-level tags.
                   pg_files=$(python3 ../../scripts/ci_select_tests.py test --tag pg --shard "$SHARD" \
                     --balance pg --reserve-last multi-connection)
-                  TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test --tags pg "${only[@]}" --exclude-tags mr,multi-connection \
+                  pg_jobs=()
+                  if [ "$SERVER_MODE" = full ]; then
+                    # Bundles of the shard's files, built after the shard is
+                    # chosen so the duration balance holds: one compile and
+                    # one isolate per bundle instead of per file
+                    # (scripts/gen_test_bundles.py --allow-pg; each file
+                    # still builds its own disposable database). `mr`,
+                    # `multi-connection` and pool-sizing files stay
+                    # standalone; leaky ones are listed in
+                    # test/bundle_exclude.txt.
+                    # Bundles and concurrency: measured, see the PR (#TBD).
+                    pg_files=$(python3 ../../scripts/gen_test_bundles.py . --allow-pg \
+                      --chunks 2 --balance pg $pg_files)
+                    pg_jobs=(-j 2)
+                  fi
+                  TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test "${pg_jobs[@]}" --tags pg "${only[@]}" \
+                    --exclude-tags mr,multi-connection \
                     --file-reporter "json:$reports/pg--$SHARD_NAME.json" $pg_files
                   # On the last shard (or the only one). Loading every suite
                   # one by one to find these took 132 s of a 172 s run; list
