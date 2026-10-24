@@ -39,7 +39,7 @@ void main() {
       expect(find.text('OUTCOME'), findsOneWidget);
       expect(find.text('Completed'), findsOneWidget);
       expect(
-        find.text('No new offers or messages. The chat stays readable.'),
+        find.text('No new offers or messages. The discussion stays readable.'),
         findsOneWidget,
       );
     });
@@ -59,7 +59,7 @@ void main() {
       );
       expect(find.text('Deleted'), findsOneWidget);
       expect(
-        find.text('No new offers or messages. The chat stays readable.'),
+        find.text('No new offers or messages. The discussion stays readable.'),
         findsNothing,
       );
     });
