@@ -3849,6 +3849,14 @@
   "@activityForwardOutcomeAcceptedNoAuthorWithRole": {
     "context": "InboxScreen"
   },
+  "activityForwardOutcomeInviteAccepted": "Вы приняли приглашение от {name}",
+  "@activityForwardOutcomeInviteAccepted": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeInviteAcceptedNoAuthor": "Вы приняли приглашение",
+  "@activityForwardOutcomeInviteAcceptedNoAuthor": {
+    "context": "InboxScreen"
+  },
   "activityForwardOutcomeWrappingUp": "Запрос на подведении итогов — оцените совместную работу",
   "@activityForwardOutcomeWrappingUp": {
     "context": "InboxScreen"

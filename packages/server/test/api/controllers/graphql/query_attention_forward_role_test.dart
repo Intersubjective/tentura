@@ -32,6 +32,52 @@ void main() {
       returnsNormally,
     );
   });
+
+  // #665: accepting a bud invitation admits the helper too, and the row read
+  // "<budder> accepted your offer". The bool `acceptedInvite` tells the
+  // client which sentence to use, so it has to survive the allow-list.
+  test('acceptedInvite survives the GraphQL allow-list as a bool', () {
+    const invitePayload = {
+      'helperStage': 'accepted',
+      'actorUserId': 'u-author',
+      'acceptedInvite': true,
+    };
+    final mapped = QueryAttention.mapReceiptForTesting(
+      _forwardRow(invitePayload),
+    );
+
+    final payload =
+        jsonDecode(mapped['presentationPayloadJson']! as String)
+            as Map<String, Object?>;
+    expect(payload['acceptedInvite'], isTrue);
+    expect(payload['helperStage'], 'accepted');
+    expect(
+      () => QueryAttention.validateAttentionPresentationPayload(invitePayload),
+      returnsNormally,
+    );
+  });
+
+  // #665 review: the client named the Request's author as the inviter; the
+  // row now carries who actually sent the invite.
+  test('inviterId survives the GraphQL allow-list', () {
+    const invitePayload = {
+      'helperStage': 'accepted',
+      'acceptedInvite': true,
+      'inviterId': 'u-steward',
+    };
+    final mapped = QueryAttention.mapReceiptForTesting(
+      _forwardRow(invitePayload),
+    );
+
+    final payload =
+        jsonDecode(mapped['presentationPayloadJson']! as String)
+            as Map<String, Object?>;
+    expect(payload['inviterId'], 'u-steward');
+    expect(
+      () => QueryAttention.validateAttentionPresentationPayload(invitePayload),
+      returnsNormally,
+    );
+  });
 }
 
 AttentionReceipt _forwardRow(Map<String, Object?> presentationPayload) =>

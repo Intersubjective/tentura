@@ -4,8 +4,9 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// #367: the stage of an accepted helper, carried by a `helping` forward row
-/// in its presentation payload (`helperStage`, with `roleLabel`). An absent,
-/// unknown or unreadable stage keeps the plain "You offered help".
+/// in its presentation payload (`helperStage`, with `roleLabel`, and #665's
+/// `acceptedInvite` and `inviterId` when the viewer accepted an invitation).
+/// An absent, unknown or unreadable stage keeps the plain "You offered help".
 String? activityForwardOutcomeLabel(
   L10n l10n,
   AttentionForwardOutcome? outcome, {
@@ -43,6 +44,19 @@ String _helpingLabel(
     case 'wrappingUp':
       return l10n.activityForwardOutcomeWrappingUp;
     case 'accepted':
+      // #665: admitted by accepting the author's invitation (a bud invite):
+      // the viewer accepted, nobody accepted an offer of theirs. The payload
+      // names the inviter (`inviterId`); only when that is the Request's
+      // author (or a server too old to say) is the author named.
+      if (payload?['acceptedInvite'] == true) {
+        final inviterId = _string(payload, 'inviterId') ?? '';
+        final invitedBySomeoneElse =
+            inviterId.isNotEmpty && inviterId != (authorId?.trim() ?? '');
+        final inviter = invitedBySomeoneElse ? '' : authorName?.trim() ?? '';
+        return inviter.isEmpty
+            ? l10n.activityForwardOutcomeInviteAcceptedNoAuthor
+            : l10n.activityForwardOutcomeInviteAccepted(inviter);
+      }
       // #507: a steward may accept; then the author is not the one to
       // credit, and the sentence names no one.
       final actorId = _string(payload, 'actorUserId') ?? '';

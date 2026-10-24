@@ -427,6 +427,8 @@ final class QueryAttention extends GqlNodeBase {
     // #367: an accepted helper's forward row ('accepted' | 'wrappingUp').
     'helperStage',
     'roleLabel',
+    // #665: who sent the author invite the helper accepted.
+    'inviterId',
   };
 
   /// #189 — the «вам» flag, a bool rather than a String.
@@ -440,6 +442,9 @@ final class QueryAttention extends GqlNodeBase {
     attentionPresentationPayloadPersonalKey,
     'leftDiscussion',
     'nextStepMentionsActor',
+    // #665: an accepted helper's forward row, admitted by accepting the
+    // author's invitation rather than by an accepted offer.
+    'acceptedInvite',
   };
 
   @visibleForTesting

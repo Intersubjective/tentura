@@ -692,6 +692,96 @@ WHERE beacon_id = @b AND user_id = @u AND kind = 1
       });
     });
 
+    // #665: accepting a bud invitation admits the helper too (AdmissionOperation
+    // records the `acknowledged` event with the inviter, the author, as its
+    // actor), and the row read "<budder> accepted your offer". Contract: the
+    // accepted row says so with `acceptedInvite: true` when the viewer's
+    // latest acknowledgement came with their accepted author invite (the
+    // invite is resolved in the same transaction, so not before it).
+    group('#665: an accepted invitation is not an accepted offer', () {
+      Future<void> seedAck({required String ackAt}) async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-04T09:00:00Z',
+        );
+        await _insertRoleHelpOffer(
+          writer,
+          beaconId: _foreignBeaconId,
+          roleLabel: '',
+        );
+        await _admitViewer(writer, beaconId: _foreignBeaconId);
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_commitment_event (
+  id, beacon_id, user_id, actor_user_id, kind, created_at
+) VALUES (@id, @b, @u, @actor, 1, @at::timestamptz)
+'''),
+          parameters: {
+            'id': 'E665ack$ackAt',
+            'b': _foreignBeaconId,
+            'u': _viewerId,
+            'actor': _authorId,
+            'at': ackAt,
+          },
+        );
+      }
+
+      Future<void> seedAcceptedInvite({required String resolvedAt}) =>
+          writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_author_invite (
+  id, beacon_id, inviter_id, invitee_id, warm, status, resolved_at,
+  resolved_by
+) VALUES ('BI665accepted', @b, @inviter, @u, true, 1, @at::timestamptz, @u)
+'''),
+            parameters: {
+              'b': _foreignBeaconId,
+              'inviter': _authorId,
+              'u': _viewerId,
+              'at': resolvedAt,
+            },
+          );
+
+      test('admitted by accepting the invite: acceptedInvite', () async {
+        await seedAck(ackAt: '2026-08-05T10:00:00Z');
+        await seedAcceptedInvite(resolvedAt: '2026-08-05T10:00:00Z');
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'helping');
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(forward.presentationPayload['acceptedInvite'], isTrue);
+        expect(forward.presentationPayload['actorUserId'], _authorId);
+        // #665 review: the inviter rides the payload (here, the author).
+        expect(forward.presentationPayload['inviterId'], _authorId);
+      });
+
+      test('an ordinary accepted offer has no acceptedInvite', () async {
+        await seedAck(ackAt: '2026-08-05T10:00:00Z');
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(
+          forward.presentationPayload.containsKey('acceptedInvite'),
+          isFalse,
+        );
+        expect(forward.presentationPayload.containsKey('inviterId'), isFalse);
+      });
+
+      test('an older accepted invite does not mark a later accept', () async {
+        await seedAcceptedInvite(resolvedAt: '2026-08-05T10:00:00Z');
+        await seedAck(ackAt: '2026-08-06T10:00:00Z');
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.presentationPayload['helperStage'], 'accepted');
+        expect(
+          forward.presentationPayload.containsKey('acceptedInvite'),
+          isFalse,
+        );
+      });
+    });
+
     test('tombstone_dismissed_at hides the forward row', () async {
       await _ensureForwardPath(writer, beaconId: _closedBeaconId);
       await _upsertInbox(
