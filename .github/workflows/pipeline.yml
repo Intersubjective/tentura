@@ -371,6 +371,7 @@ jobs:
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env TEST_TARGET="$target" \
             --env PG_SHARD="${{ matrix.pg_shard }}" \
+            --env SHARD_NAME="${{ matrix.target }}" \
             --env SERVER_MODE \
             --env CLIENT_MODE \
             --env CI \
@@ -382,6 +383,11 @@ jobs:
               # `dart test` exits 79 when a selection matches no test, which a
               # repo-files run may legitimately do.
               allow_empty() { "$@" || { s=$?; [ "$s" -eq 79 ] || return "$s"; echo "(no tests selected)"; }; }
+              # JSON reports of the client and pg runs, uploaded below: the
+              # source of scripts/ci_test_durations.json and of test counts
+              # (scripts/ci_test_durations.py).
+              reports=/app/test-reports
+              mkdir -p "$reports"
               case "$TEST_TARGET" in
                 lints)
                   dart pub get
@@ -439,13 +445,15 @@ jobs:
                   # Listing files also spares dart test loading all 600+
                   # suites to discover test-level tags.
                   pg_files=$(python3 ../../scripts/ci_select_tests.py test --tag pg --shard "$PG_SHARD")
-                  TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test --tags pg "${only[@]}" --exclude-tags mr,multi-connection $pg_files
+                  TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test --tags pg "${only[@]}" --exclude-tags mr,multi-connection \
+                    --file-reporter "json:$reports/pg--$SHARD_NAME.json" $pg_files
                   # On the lightest of three shards (or the only one). Loading
                   # every suite one by one to find these took 132 s of a
                   # 172 s run; list them instead.
                   if [ "$PG_SHARD" = 1/1 ] || [ "${PG_SHARD%%/*}" = 2 ]; then
                     multi_files=$(python3 ../../scripts/ci_select_tests.py test --tag multi-connection)
-                    allow_empty dart test --tags multi-connection "${only[@]}" --exclude-tags mr -j 1 $multi_files
+                    allow_empty dart test --tags multi-connection "${only[@]}" --exclude-tags mr -j 1 \
+                      --file-reporter "json:$reports/multi-connection--$SHARD_NAME.json" $multi_files
                   fi
                   ;;
                 client-a)
@@ -470,19 +478,22 @@ jobs:
                     entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 \
                       $non_feature_paths \
                       test/features/beacon_threads test/features/constellation test/features/auth)
-                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $entrypoints
+                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+                      --file-reporter "json:$reports/client--$SHARD_NAME.json" $entrypoints
                   else
                     # Only the tagged files: flutter test pays ~1.5 s to load
                     # each file it is given, tagged or not.
                     repo_files=$(python3 ../../scripts/ci_select_tests.py test --tag repo-files)
-                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --tags repo-files $repo_files
+                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --tags repo-files \
+                      --file-reporter "json:$reports/client--$SHARD_NAME.json" $repo_files
                   fi
                   ;;
                 client-b)
                   cd packages/client
                   other_feature_paths=$(find test/features -mindepth 1 -maxdepth 1 -type d | grep -vE "/(beacon_threads|constellation|auth)$")
                   entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 $other_feature_paths)
-                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env $entrypoints
+                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+                      --file-reporter "json:$reports/client--$SHARD_NAME.json" $entrypoints
                   ;;
                 *)
                   echo "Unknown test target: $TEST_TARGET" >&2
@@ -490,6 +501,17 @@ jobs:
                   ;;
               esac
             '
+
+      # Per-test timings for scripts/ci_test_durations.py. Named by attempt:
+      # a rerun uploads alongside the first attempt's reports, not over them.
+      - name: Upload test reports
+        if: always() && (startsWith(matrix.target, 'pg-') || startsWith(matrix.target, 'client-'))
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-reports-a${{ github.run_attempt }}-${{ matrix.target }}
+          path: test-reports/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # The required status for merging into main. One stable name whatever the
   # PR touched: the shard matrix differs per PR, and a required check that a
