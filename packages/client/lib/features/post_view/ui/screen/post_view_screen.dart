@@ -278,8 +278,9 @@ class _PostViewScreenState extends State<PostViewScreen> {
   }
 }
 
-/// «‹Автор›: ‹начало поста›» over «N участников · 🔕»; the whole title opens
-/// «О посте».
+/// «‹начало поста›» over «‹Автор› · N участников · 🔕»; the whole title opens
+/// «О посте». The excerpt is the subject, so it gets the title line alone
+/// (two lines beside a wide window) and the author moves under it (#667).
 class _Title extends StatelessWidget {
   const _Title({required this.state, required this.onTap});
 
@@ -295,9 +296,10 @@ class _Title extends StatelessWidget {
         : state.summary?.authorName ?? '';
     final excerpt = state.summary?.rootExcerpt.trim() ?? '';
     final muted = state.summary?.isMutedAt(DateTime.now()) ?? false;
-    final title = excerpt.isEmpty
-        ? author
-        : l10n.postViewTitle(author, excerpt);
+    final title = excerpt.isEmpty ? author : excerpt;
+    final metaStyle = TenturaText.bodySmall(tt.textMuted);
+    // Status glyphs match the meta line so two title lines fit the bar.
+    final metaIconSize = metaStyle.fontSize! * (metaStyle.height ?? 1);
     return Semantics(
       button: true,
       hint: l10n.postHeaderOpenInfo,
@@ -309,7 +311,7 @@ class _Title extends StatelessWidget {
           children: [
             Text(
               title,
-              maxLines: 1,
+              maxLines: context.windowClass == WindowClass.compact ? 1 : 2,
               overflow: TextOverflow.ellipsis,
               style: TenturaText.titleSmall(tt.text),
             ),
@@ -318,14 +320,15 @@ class _Title extends StatelessWidget {
                 Flexible(
                   child: _MembersLine(
                     post: state.beacon,
-                    style: TenturaText.bodySmall(tt.textMuted),
+                    author: excerpt.isEmpty ? '' : author,
+                    style: metaStyle,
                   ),
                 ),
                 if (muted) ...[
                   SizedBox(width: tt.tightGap),
                   Icon(
                     Icons.notifications_off_outlined,
-                    size: tt.iconSize,
+                    size: metaIconSize,
                     color: tt.textMuted,
                     semanticLabel: l10n.postConversationMuted,
                   ),
@@ -334,7 +337,7 @@ class _Title extends StatelessWidget {
                   SizedBox(width: tt.tightGap),
                   Icon(
                     Icons.push_pin_outlined,
-                    size: tt.iconSize,
+                    size: metaIconSize,
                     color: tt.textMuted,
                     semanticLabel: l10n.postMenuUnpin,
                   ),
@@ -348,11 +351,19 @@ class _Title extends StatelessWidget {
   }
 }
 
-/// «N участников», counted from the room once it is loaded.
+/// «‹Автор› · N участников», counted from the room once it is loaded; only
+/// the author until then.
 class _MembersLine extends StatelessWidget {
-  const _MembersLine({required this.post, required this.style});
+  const _MembersLine({
+    required this.post,
+    required this.author,
+    required this.style,
+  });
 
   final Beacon post;
+
+  /// Empty when the title already names the author.
+  final String author;
   final TextStyle style;
 
   @override
@@ -360,30 +371,40 @@ class _MembersLine extends StatelessWidget {
       BlocBuilder<ThreadHostCubit, ThreadHostState>(
         builder: (context, _) {
           final room = context.read<ThreadHostCubit>().roomCubit;
-          if (room == null) return const SizedBox.shrink();
+          if (room == null) return _line(context, null);
           return BlocBuilder<RoomCubit, RoomState>(
             bloc: room,
             buildWhen: (p, c) =>
                 p.participants != c.participants ||
                 p.participantsLoaded != c.participantsLoaded,
             builder: (context, roomState) {
-              if (!roomState.participantsLoaded) {
-                return const SizedBox.shrink();
-              }
+              if (!roomState.participantsLoaded) return _line(context, null);
               final count = withPostAuthor(
                 roomState.participants,
                 post,
               ).where((p) => p.roomAccess == RoomAccessBits.admitted).length;
-              return Text(
-                L10n.of(context)!.postHeaderMembers(count),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: style,
-              );
+              return _line(context, count);
             },
           );
         },
       );
+
+  Widget _line(BuildContext context, int? count) {
+    final l10n = L10n.of(context)!;
+    final members = count == null ? '' : l10n.postHeaderMembers(count);
+    final text = author.isEmpty
+        ? members
+        : members.isEmpty
+        ? author
+        : l10n.postHeaderAuthorMembers(author, members);
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+  }
 }
 
 /// ⋮: «О посте», mute and pin, then complain / leave / delete.
