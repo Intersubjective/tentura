@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -111,20 +112,23 @@ class ConstellationVisibilityBar extends StatelessWidget {
           child: Semantics(
             container: true,
             label: l10n.constellationShowSection,
-            child: SingleChildScrollView(
-              key: const Key('constellation.show'),
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(
-                horizontal: tt.screenHPadding,
-                vertical: tt.tightGap,
-              ),
-              child: Row(
-                children: [
-                  for (var i = 0; i < chips.length; i++) ...[
-                    if (i > 0) SizedBox(width: tt.tightGap),
-                    chips[i],
+            child: _EdgeFadedRow(
+              color: theme.colorScheme.surface,
+              child: SingleChildScrollView(
+                key: const Key('constellation.show'),
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.screenHPadding,
+                  vertical: tt.tightGap,
+                ),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < chips.length; i++) ...[
+                      if (i > 0) SizedBox(width: tt.tightGap),
+                      chips[i],
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -132,4 +136,95 @@ class ConstellationVisibilityBar extends StatelessWidget {
       },
     );
   }
+}
+
+/// Fades the edges of the horizontally scrolled chip row where more chips
+/// are hidden (#659), so on a phone the row reads as scrollable.
+class _EdgeFadedRow extends StatefulWidget {
+  const _EdgeFadedRow({required this.color, required this.child});
+
+  final Color color;
+  final Widget child;
+
+  @override
+  State<_EdgeFadedRow> createState() => _EdgeFadedRowState();
+}
+
+class _EdgeFadedRowState extends State<_EdgeFadedRow> {
+  static const _fadeWidth = TenturaSpacing.scrollEdgeFade;
+
+  var _moreBefore = false;
+  var _moreAfter = false;
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.horizontal) return false;
+    final moreBefore = metrics.extentBefore > 0.5;
+    final moreAfter = metrics.extentAfter > 0.5;
+    if (moreBefore == _moreBefore && moreAfter == _moreAfter) return false;
+    void apply() {
+      if (!mounted) return;
+      setState(() {
+        _moreBefore = moreBefore;
+        _moreAfter = moreAfter;
+      });
+    }
+
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => apply());
+    } else {
+      apply();
+    }
+    return false;
+  }
+
+  Widget _fade(String key, AlignmentDirectional towards) => IgnorePointer(
+    key: Key(key),
+    child: SizedBox(
+      width: _fadeWidth,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: -towards,
+            end: towards,
+            colors: [widget.color.withValues(alpha: 0), widget.color],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      NotificationListener<ScrollMetricsNotification>(
+        onNotification: (notification) => _onMetrics(notification.metrics),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) =>
+              notification.depth == 0 && _onMetrics(notification.metrics),
+          child: widget.child,
+        ),
+      ),
+      if (_moreBefore)
+        PositionedDirectional(
+          start: 0,
+          top: 0,
+          bottom: 0,
+          child: _fade(
+            'constellation.show.fade_start',
+            AlignmentDirectional.centerStart,
+          ),
+        ),
+      if (_moreAfter)
+        PositionedDirectional(
+          end: 0,
+          top: 0,
+          bottom: 0,
+          child: _fade(
+            'constellation.show.fade_end',
+            AlignmentDirectional.centerEnd,
+          ),
+        ),
+    ],
+  );
 }

@@ -17,8 +17,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
 
-// The select tool's toolbar toggle (#642): on the map only, and it fits the
-// field toolbar on a phone.
+// The select tool's toolbar toggle (#642): on the map only; on a phone it
+// is in the field toolbar's overflow menu (#659).
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -188,7 +188,15 @@ void main() {
         locale: locale,
       );
       expect(tester.takeException(), isNull);
-      expect(_toggle, findsOneWidget);
+      // On a phone it sits in the bar's overflow menu (#659).
+      expect(_toggle, findsNothing);
+      await tester.tap(find.byKey(const Key('constellation.app_bar.more')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('constellation.app_bar.more.select')),
+      );
+      await tester.pumpAndSettle();
+      expect(selection.state.selecting, isTrue);
     });
   }
 }
