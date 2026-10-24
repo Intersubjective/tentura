@@ -505,6 +505,15 @@ page_stream AS (
       -- #507: who accepted the offer (the author or a steward).
       'actorUserId', CASE
         WHEN hs.helper_stage = 'accepted' THEN hs.acceptor_id
+      END,
+      -- #665: the helper was admitted by accepting the author's invitation
+      -- (a bud invite), not by having an offer accepted.
+      'acceptedInvite', CASE
+        WHEN hs.helper_stage = 'accepted'
+          AND hs.accepted_invite_inviter_id IS NOT NULL THEN true
+      END,
+      'inviterId', CASE
+        WHEN hs.helper_stage = 'accepted' THEN hs.accepted_invite_inviter_id
       END
     )) AS presentation_payload,
     NULL::text AS in_app_preference_class,
@@ -566,7 +575,29 @@ page_stream AS (
           AND ce.kind = 1
         ORDER BY ce.seq DESC
         LIMIT 1
-      ) AS acceptor_id
+      ) AS acceptor_id,
+      -- #665: the latest acknowledgement came from the viewer accepting an
+      -- author invite: the invite was accepted in (or after) the same
+      -- transaction that recorded it. A later ordinary accept is newer.
+      -- The inviter rides along so the client names them, not the author.
+      (
+        SELECT ai.inviter_id
+        FROM public.beacon_author_invite ai
+        WHERE ai.beacon_id = ef.beacon_id
+          AND ai.invitee_id = \$1
+          AND ai.status = 1
+          AND ai.resolved_at >= (
+            SELECT ce.created_at
+            FROM public.beacon_commitment_event ce
+            WHERE ce.beacon_id = ef.beacon_id
+              AND ce.user_id = \$1
+              AND ce.kind = 1
+            ORDER BY ce.seq DESC
+            LIMIT 1
+          )
+        ORDER BY ai.resolved_at DESC
+        LIMIT 1
+      ) AS accepted_invite_inviter_id
     FROM public.beacon_help_offer ho
     WHERE ho.beacon_id = ef.beacon_id
       AND ho.user_id = \$1

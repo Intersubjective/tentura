@@ -4026,6 +4026,19 @@
       }
     }
   },
+  "activityForwardOutcomeInviteAccepted": "You accepted {name}'s invitation",
+  "@activityForwardOutcomeInviteAccepted": {
+    "description": "Activity outcome row (#665): the viewer accepted the request author's invitation to help (a bud invite)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activityForwardOutcomeInviteAcceptedNoAuthor": "You accepted the invitation",
+  "@activityForwardOutcomeInviteAcceptedNoAuthor": {
+    "description": "Activity outcome row (#665): the viewer accepted an invitation to help; the author's name is not readable"
+  },
   "activityForwardOutcomeWrappingUp": "Request is in final check — review your collaboration",
   "@activityForwardOutcomeWrappingUp": {
     "description": "Activity outcome row (#367): the request the viewer helps with entered its final check (Wrapping up)"
