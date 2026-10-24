@@ -159,6 +159,32 @@ final class PeopleTagsCase extends UseCaseBase {
     required String personId,
   }) => _tags.autoTagsOf(ownerId, personId);
 
+  Future<PersonTagSuggestionState> suggestionState({
+    required String ownerId,
+  }) => _tags.suggestionState(ownerId);
+
+  /// [outcome] is `accepted`, `skipped`, `disabled` or `enabled`.
+  Future<PersonTagSuggestionState> recordSuggestion({
+    required String ownerId,
+    required String outcome,
+    required String clientOpId,
+  }) {
+    if (!_suggestionOutcomes.contains(outcome)) throw _invalidTag();
+    return _tags.recordSuggestion(
+      ownerId: ownerId,
+      clientOpId: clientOpId,
+      fingerprint: _fingerprint('suggestion', [outcome]),
+      outcome: outcome,
+    );
+  }
+
+  static const _suggestionOutcomes = {
+    'accepted',
+    'skipped',
+    'disabled',
+    'enabled',
+  };
+
   static int _validKind(int kind) {
     if (!PersonAutoTagKind.values.any((k) => k.smallintValue == kind)) {
       throw _invalidTag();

@@ -76,4 +76,16 @@ abstract interface class PeopleTagsRepositoryPort {
 
   /// Automatic tags [personId] carries for the owner.
   Future<List<PersonAutoTagOf>> autoTagsOf(String ownerId, String personId);
+
+  /// "Tag them?" frequency state; a person who never answered can be asked.
+  Future<PersonTagSuggestionState> suggestionState(String ownerId);
+
+  /// Applies one answer ([outcome] is `accepted`, `skipped`, `disabled` or
+  /// `enabled`): the third consecutive skip silences suggestions for 30 days.
+  Future<PersonTagSuggestionState> recordSuggestion({
+    required String ownerId,
+    required String clientOpId,
+    required String fingerprint,
+    required String outcome,
+  });
 }

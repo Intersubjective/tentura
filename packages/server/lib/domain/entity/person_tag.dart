@@ -152,3 +152,38 @@ final class PersonAutoTagOf {
     'direction': direction,
   };
 }
+
+/// Whether the "Tag them?" prompt may be shown to the owner.
+final class PersonTagSuggestionState {
+  const PersonTagSuggestionState({
+    required this.canSuggest,
+    required this.disabled,
+    this.silencedUntil,
+  });
+
+  factory PersonTagSuggestionState.fromJson(Map<String, dynamic> json) =>
+      PersonTagSuggestionState(
+        canSuggest: json['canSuggest']! as bool,
+        disabled: json['disabled']! as bool,
+        silencedUntil: json['silencedUntil'] == null
+            ? null
+            : DateTime.parse(json['silencedUntil']! as String).toUtc(),
+      );
+
+  final bool canSuggest;
+  final bool disabled;
+  final DateTime? silencedUntil;
+
+  /// The GraphQL object; `silencedUntil` stays a [DateTime] for `graphQLDate`.
+  Map<String, dynamic> toGraphQL() => {
+    'canSuggest': canSuggest,
+    'silencedUntil': silencedUntil,
+    'disabled': disabled,
+  };
+
+  Map<String, dynamic> toJson() => {
+    'canSuggest': canSuggest,
+    'silencedUntil': silencedUntil?.toUtc().toIso8601String(),
+    'disabled': disabled,
+  };
+}

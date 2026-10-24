@@ -84,4 +84,16 @@ class PeopleTagsRepositoryMock implements PeopleTagsRepositoryPort {
   @override
   Future<List<PersonAutoTagOf>> autoTagsOf(String ownerId, String personId) =>
       throw UnimplementedError();
+
+  @override
+  Future<PersonTagSuggestionState> suggestionState(String ownerId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<PersonTagSuggestionState> recordSuggestion({
+    required String ownerId,
+    required String clientOpId,
+    required String fingerprint,
+    required String outcome,
+  }) => throw UnimplementedError();
 }

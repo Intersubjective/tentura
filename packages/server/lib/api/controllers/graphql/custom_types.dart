@@ -132,6 +132,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonTagsOf,
   gqlTypePersonAutoTag,
   gqlTypePersonAutoTagOf,
+  gqlTypePersonTagSuggestionState,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -2222,6 +2223,14 @@ final gqlTypePersonAutoTagOf = GraphQLObjectType('PersonAutoTagOf', null)
     field('n', graphQLInt.nonNullable()),
     field('direction', graphQLInt.nonNullable()),
   ]);
+
+/// Whether the "Tag them?" prompt may be shown, and why not.
+final gqlTypePersonTagSuggestionState =
+    GraphQLObjectType('PersonTagSuggestionState', null)..fields.addAll([
+      field('canSuggest', graphQLBoolean.nonNullable()),
+      field('silencedUntil', graphQLDate),
+      field('disabled', graphQLBoolean.nonNullable()),
+    ]);
 
 /// `[T!]!` typed over `dynamic`, so a decoded `List<dynamic>` passes
 /// validation on executors that do not re-type variable lists.

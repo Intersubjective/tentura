@@ -24,6 +24,33 @@ NOT EXISTS (
       OR (ub.blocker_id = m.person_id AND ub.blocked_id = $1))
 ''';
 
+const _skippedSql = r'''
+UPDATE public.person_tag_suggestion_state
+   SET consecutive_skips = CASE WHEN consecutive_skips + 1 >= 3
+                                THEN 0 ELSE consecutive_skips + 1 END,
+       silenced_until = CASE WHEN consecutive_skips + 1 >= 3
+                             THEN now() + interval '30 days'
+                             ELSE silenced_until END,
+       updated_at = now()
+ WHERE owner_id = $1
+''';
+
+const _acceptedSql = r'''
+UPDATE public.person_tag_suggestion_state
+   SET consecutive_skips = 0, updated_at = now() WHERE owner_id = $1
+''';
+
+const _disabledSql = r'''
+UPDATE public.person_tag_suggestion_state
+   SET disabled = true, updated_at = now() WHERE owner_id = $1
+''';
+
+const _enabledSql = r'''
+UPDATE public.person_tag_suggestion_state
+   SET disabled = false, silenced_until = NULL, updated_at = now()
+ WHERE owner_id = $1
+''';
+
 /// `person_tag`, `person_tag_member`, `person_tag_revision` and
 /// `person_tag_op_log` (m0261). Each mutation is one transaction under a
 /// per-owner advisory lock, so replays and order changes never interleave.
@@ -447,6 +474,63 @@ SELECT a.kind::int AS kind, count(*)::int AS count, p.show_in_filters
         ),
     ];
   }
+
+  @override
+  Future<PersonTagSuggestionState> suggestionState(String ownerId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT NOT disabled AND (silenced_until IS NULL OR silenced_until <= now())
+         AS can_suggest,
+       silenced_until::text AS silenced_until,
+       disabled
+  FROM public.person_tag_suggestion_state
+ WHERE owner_id = $1
+''',
+          variables: [Variable.withString(ownerId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return const PersonTagSuggestionState(canSuggest: true, disabled: false);
+    }
+    final r = rows.single;
+    final until = r.readNullable<String>('silenced_until');
+    return PersonTagSuggestionState(
+      canSuggest: r.read<bool>('can_suggest'),
+      disabled: r.read<bool>('disabled'),
+      silencedUntil: until == null ? null : DateTime.parse(until).toUtc(),
+    );
+  }
+
+  @override
+  Future<PersonTagSuggestionState> recordSuggestion({
+    required String ownerId,
+    required String clientOpId,
+    required String fingerprint,
+    required String outcome,
+  }) => _idempotent(
+    ownerId,
+    clientOpId,
+    fingerprint,
+    decode: PersonTagSuggestionState.fromJson,
+    run: () async {
+      await _database.customStatement(
+        r'''
+INSERT INTO public.person_tag_suggestion_state (owner_id)
+VALUES ($1) ON CONFLICT (owner_id) DO NOTHING
+''',
+        [ownerId],
+      );
+      await _database.customStatement(switch (outcome) {
+        'skipped' => _skippedSql,
+        'accepted' => _acceptedSql,
+        'disabled' => _disabledSql,
+        _ => _enabledSql,
+      }, [ownerId]);
+      return suggestionState(ownerId);
+    },
+    encode: (s) => s.toJson(),
+  );
 
   Future<T> _idempotent<T>(
     String ownerId,

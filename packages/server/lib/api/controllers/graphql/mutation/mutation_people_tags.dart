@@ -18,6 +18,7 @@ final class MutationPeopleTags extends GqlNodeBase {
   static final _ord = InputFieldInt(fieldName: 'ord');
   static final _kind = InputFieldInt(fieldName: 'kind');
   static final _showInFilters = InputFieldBool(fieldName: 'showInFilters');
+  static final _outcome = InputFieldString(fieldName: 'outcome');
   static final _clientOpId = InputFieldString(fieldName: 'clientOpId');
 
   static final _ops = GraphQLFieldInput(
@@ -37,6 +38,7 @@ final class MutationPeopleTags extends GqlNodeBase {
     personTagRestore,
     personTagMembersApply,
     personAutoTagPrefSet,
+    personTagSuggestionRecord,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get personTagCreate =>
@@ -123,6 +125,18 @@ final class MutationPeopleTags extends GqlNodeBase {
           );
           return true;
         },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get personTagSuggestionRecord =>
+      GraphQLObjectField(
+        'personTagSuggestionRecord',
+        gqlTypePersonTagSuggestionState.nonNullable(),
+        arguments: [_outcome.field, _clientOpId.field],
+        resolve: (_, args) async => (await _case.recordSuggestion(
+          ownerId: getCredentials(args).sub,
+          outcome: _outcome.fromArgsNonNullable(args),
+          clientOpId: _clientOpId.fromArgsNonNullable(args),
+        )).toGraphQL(),
       );
 
   GraphQLObjectField<dynamic, dynamic> get personAutoTagPrefSet =>

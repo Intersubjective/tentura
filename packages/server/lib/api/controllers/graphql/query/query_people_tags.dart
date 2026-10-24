@@ -19,6 +19,7 @@ final class QueryPeopleTags extends GqlNodeBase {
     personTagMemberships,
     personAutoTags,
     personAutoTagMembers,
+    personTagSuggestionState,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get personTags => GraphQLObjectField(
@@ -71,6 +72,15 @@ final class QueryPeopleTags extends GqlNodeBase {
           ownerId: getCredentials(args).sub,
           kind: _kind.fromArgsNonNullable(args),
         ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get personTagSuggestionState =>
+      GraphQLObjectField(
+        'personTagSuggestionState',
+        gqlTypePersonTagSuggestionState.nonNullable(),
+        resolve: (_, args) async => (await _case.suggestionState(
+          ownerId: getCredentials(args).sub,
+        )).toGraphQL(),
       );
 
   GraphQLObjectField<dynamic, dynamic> get personTagMemberships =>
