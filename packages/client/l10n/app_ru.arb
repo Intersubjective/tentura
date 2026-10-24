@@ -5837,7 +5837,7 @@
       }
     }
   },
-  "friendContextInboxCount": "{count} активных запросов переслано ему/ей",
+  "friendContextInboxCount": "{count, plural, one{{count} активный запрос переслан ему/ей} few{{count} активных запроса переслано ему/ей} many{{count} активных запросов переслано ему/ей} other{{count} активного запроса переслано ему/ей}}",
   "@friendContextInboxCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
@@ -5855,7 +5855,7 @@
       }
     }
   },
-  "friendContextSharedCount": "{count} активных запросов видите оба",
+  "friendContextSharedCount": "{count, plural, one{{count} активный запрос видите оба} few{{count} активных запроса видите оба} many{{count} активных запросов видите оба} other{{count} активного запроса видите оба}}",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
