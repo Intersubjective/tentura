@@ -50,8 +50,15 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
-DURATIONS = Path(__file__).resolve().parent / "ci_test_durations.json"
-FAMILIES = ("client", "multi-connection", "pg")
+from ci_select_tests import DURATIONS, package_key, select
+
+REPO = Path(__file__).resolve().parent.parent
+# What CI runs per family: (package, --tag), as in pipeline.yml.
+FAMILIES = {
+    "client": ("packages/client", None),
+    "multi-connection": ("packages/server", "multi-connection"),
+    "pg": ("packages/server", "pg"),
+}
 TEST_PATH = re.compile(r"(?:^|/packages/[^/]+/)(test/\S+?_test\.dart)$")
 
 
@@ -140,7 +147,7 @@ def reports_in(sources: list[str], runs: list[str], workdir: Path) -> list[Repor
             raise SystemExit(f"run {run}: no test-reports-a<attempt>-* artifacts")
         dirs += attempts[max(attempts)]
     reports = [Report(p) for d in dirs for p in sorted(d.rglob("*--*.json"))]
-    unknown = sorted({r.family for r in reports} - set(FAMILIES))
+    unknown = sorted({r.family for r in reports} - FAMILIES.keys())
     if unknown:
         raise SystemExit(f"unknown report families: {unknown}")
     if not reports:
@@ -148,11 +155,32 @@ def reports_in(sources: list[str], runs: list[str], workdir: Path) -> list[Repor
     return reports
 
 
+def selection(family: str) -> list[str]:
+    """The family's CI file selection, as durations-file keys."""
+    package, tag = FAMILIES[family]
+    files = select(REPO / package / "test", tag)
+    return sorted(package_key(f) for f in files)
+
+
 def update(reports: list[Report], out: Path, runs: list[str]) -> None:
     samples: dict[str, dict[str, list[float]]] = {f: defaultdict(list) for f in FAMILIES}
     for report in reports:
         for path, seconds in report.scaled().items():
             samples[report.family][path].append(seconds)
+    for family in FAMILIES:
+        # A selected file the run never loaded (every test in it excluded by
+        # tag, e.g. file-level `mr` in the pg run) costs nothing: record 0
+        # rather than leave it to weigh the median. Only from a run that
+        # measured the family's whole selection, not a repo-files subset.
+        selected = selection(family)
+        measured = sum(1 for f in selected if f in samples[family])
+        if measured < len(selected) / 2:
+            raise SystemExit(
+                f"{family}: only {measured} of {len(selected)} files measured; "
+                "use a run that ran everything (push to main, or a PR with ci:full)"
+            )
+        for f in selected:
+            samples[family].setdefault(f, [0.0])
     data: dict[str, object] = {
         "_about": "Per-file CI test durations (wall seconds) for "
         "scripts/ci_select_tests.py --balance. Regenerate with "
@@ -161,7 +189,7 @@ def update(reports: list[Report], out: Path, runs: list[str]) -> None:
     }
     for family in FAMILIES:
         data[family] = {
-            path: round(max(sum(v) / len(v), 0.01), 2)
+            path: round(sum(v) / len(v), 2)
             for path, v in sorted(samples[family].items())
         }
     out.write_text(json.dumps(data, indent=1, sort_keys=False) + "\n", encoding="utf-8")

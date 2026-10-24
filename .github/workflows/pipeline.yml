@@ -184,6 +184,14 @@ jobs:
           RUN_PG: ${{ steps.diff.outputs.pg }}
           CACHED_WEB: ${{ steps.webcache.outputs.cache-matched-key }}
           IMAGE_FOUND: ${{ steps.srvimage.outputs.found }}
+          # Shard counts. Each shard's files come from
+          # scripts/ci_select_tests.py --balance, packed by the measured
+          # durations in scripts/ci_test_durations.json; any count works
+          # (scripts/test_ci_select_tests.py checks 1-8). Mind the 20
+          # concurrent jobs of the free plan: a full run has lints, server,
+          # client-analyze and these shards, plus build-web/build-server.
+          PG_SHARDS: 6
+          CLIENT_SHARDS: 3
         run: |
           set -euo pipefail
           web="$WEB"
@@ -203,20 +211,24 @@ jobs:
               echo "pg shards skipped (PR without the ci:full label)."
             elif [ "$SERVER" = "full" ]; then
               # The pg suite is CPU-bound on one 4-vCPU runner; split by file
-              # across three, each with its own Postgres.
-              shards+=',{"target":"pg-1","package":"server","pg_shard":"1/3"}'
-              shards+=',{"target":"pg-2","package":"server","pg_shard":"2/3"}'
-              shards+=',{"target":"pg-3","package":"server","pg_shard":"3/3"}'
+              # across PG_SHARDS runners, each with its own Postgres.
+              for i in $(seq 1 "$PG_SHARDS"); do
+                shards+=",{\"target\":\"pg-$i\",\"package\":\"server\",\"shard\":\"$i/$PG_SHARDS\"}"
+              done
             else
               # A handful of repo-files pg tests: one runner is plenty.
-              shards+=',{"target":"pg-1","package":"server","pg_shard":"1/1"}'
+              shards+=',{"target":"pg-1","package":"server","shard":"1/1"}'
             fi
           fi
-          if [ "$CLIENT" != "skip" ]; then
-            shards+=',{"target":"client-a","package":"client"}'
-          fi
           if [ "$CLIENT" = "full" ]; then
-            shards+=',{"target":"client-b","package":"client"}'
+            # The analyzer gate on its own runner, next to the test shards
+            # rather than before the tests of one of them.
+            shards+=',{"target":"client-analyze","package":"client"}'
+            for i in $(seq 1 "$CLIENT_SHARDS"); do
+              shards+=",{\"target\":\"client-$i\",\"package\":\"client\",\"shard\":\"$i/$CLIENT_SHARDS\"}"
+            done
+          elif [ "$CLIENT" = "repo-files" ]; then
+            shards+=',{"target":"client-1","package":"client","shard":"1/1"}'
           fi
           shards+=']'
           {
@@ -325,7 +337,7 @@ jobs:
       - name: Pull the builder image
         run: docker pull -q "${{ env.BUILDER_IMAGE }}:latest"
 
-      # One job per package saves the cache (client-a, server); the others
+      # One job per package saves the cache (client-1, server); the others
       # would only race it for the same key.
       - name: Generate code in builder container
         if: matrix.package != ''
@@ -334,13 +346,13 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
-            --env CODEGEN_SAVE="${{ (matrix.target == 'client-a' || matrix.target == 'server') && steps.codegen-cache.outputs.cache-hit != 'true' }}" \
+            --env CODEGEN_SAVE="${{ (matrix.target == 'client-1' || matrix.target == 'server') && steps.codegen-cache.outputs.cache-hit != 'true' }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash scripts/ci_codegen.sh "${{ matrix.package }}"
 
       # Saved right after codegen so a red test run still warms the cache.
       - name: Save codegen cache
-        if: (matrix.target == 'client-a' || matrix.target == 'server') && steps.codegen-cache.outputs.cache-hit != 'true'
+        if: (matrix.target == 'client-1' || matrix.target == 'server') && steps.codegen-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         continue-on-error: true
         with:
@@ -353,12 +365,14 @@ jobs:
         run: |
           set -euo pipefail
           target="${{ matrix.target }}"
-          if [[ "$target" == client-* ]]; then
+          # pg-N and client-N run the `pg` / `client` target, each on its
+          # shard of the files.
+          case "$target" in
+            pg-*) target=pg ;;
+            client-[0-9]*) target=client ;;
+          esac
+          if [ "$target" = client ]; then
             bash scripts/test_resolve_deploy_web_config.sh
-          fi
-          # pg-1..pg-3 run the `pg` target, each on its shard of the files.
-          if [[ "$target" == pg-* ]]; then
-            target=pg
           fi
           network_args=()
           if [ "$target" = "pg" ]; then
@@ -370,7 +384,7 @@ jobs:
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env TEST_TARGET="$target" \
-            --env PG_SHARD="${{ matrix.pg_shard }}" \
+            --env SHARD="${{ matrix.shard }}" \
             --env SHARD_NAME="${{ matrix.target }}" \
             --env SERVER_MODE \
             --env CLIENT_MODE \
@@ -392,6 +406,7 @@ jobs:
                 lints)
                   dart pub get
                   python3 scripts/test_ci_changes.py
+                  python3 scripts/test_ci_select_tests.py
                   python3 scripts/check_repo_files_tags.py
                   bash scripts/check-user-facing-terminology.sh
                   bash scripts/check-doc-drift.sh
@@ -441,43 +456,48 @@ jobs:
                   # the normal pool. They assert admission latency, waiter
                   # caps and RSS under overload, so they must not overlap
                   # each other: `-j 1`.
-                  # This runner shard of the files that can hold pg tests.
-                  # Listing files also spares dart test loading all 600+
-                  # suites to discover test-level tags.
-                  pg_files=$(python3 ../../scripts/ci_select_tests.py test --tag pg --shard "$PG_SHARD")
+                  # This runner shard of the files that can hold pg tests,
+                  # packed by measured duration, with the time of the
+                  # multi-connection run booked on the last shard, which runs
+                  # it below. Listing files also spares dart test loading all
+                  # 600+ suites to discover test-level tags.
+                  pg_files=$(python3 ../../scripts/ci_select_tests.py test --tag pg --shard "$SHARD" \
+                    --balance pg --reserve-last multi-connection)
                   TENTURA_TEST_PG_POOL_SIZE=1 allow_empty dart test --tags pg "${only[@]}" --exclude-tags mr,multi-connection \
                     --file-reporter "json:$reports/pg--$SHARD_NAME.json" $pg_files
-                  # On the lightest of three shards (or the only one). Loading
-                  # every suite one by one to find these took 132 s of a
-                  # 172 s run; list them instead.
-                  if [ "$PG_SHARD" = 1/1 ] || [ "${PG_SHARD%%/*}" = 2 ]; then
+                  # On the last shard (or the only one). Loading every suite
+                  # one by one to find these took 132 s of a 172 s run; list
+                  # them instead.
+                  if [ "${SHARD%%/*}" = "${SHARD##*/}" ]; then
                     multi_files=$(python3 ../../scripts/ci_select_tests.py test --tag multi-connection)
                     allow_empty dart test --tags multi-connection "${only[@]}" --exclude-tags mr -j 1 \
                       --file-reporter "json:$reports/multi-connection--$SHARD_NAME.json" $multi_files
                   fi
                   ;;
-                client-a)
-                  # client-a/client-b split packages/client/test in two to run
-                  # in parallel: client-a keeps every non-feature test
-                  # directory/file (computed, so a new top-level test dir
-                  # lands here automatically) plus the three largest
-                  # test/features/* subdirectories; client-b takes the rest
-                  # of test/features/* (also computed, so a new feature
-                  # subdirectory lands there automatically). Package-wide
-                  # checks (lints, analyze baseline, l10n/arb duplicates)
-                  # only need to run once, so they live on client-a.
-                  # When only repo-files tests run, client-a runs all of them.
-                  python3 scripts/test_check_arb_duplicates.py
-                  python3 scripts/check_arb_duplicates.py
+                client-analyze)
+                  # The client analyzer gate (both gates, one analyzer pass).
+                  # Its own job: it needs only the generated code, not the
+                  # tests, and took ~100 s of a test shard before.
+                  cd packages/client
+                  bash ../../scripts/check-analysis.sh packages/client
+                  ;;
+                client)
+                  # client-N: shard N of packages/client/test, packed by
+                  # measured duration (scripts/ci_select_tests.py --balance;
+                  # every *_test.dart lands on exactly one shard, so a new
+                  # test file or directory needs nothing here). The l10n/arb
+                  # checks run once, on the first shard. When only repo-files
+                  # tests run, the single client-1 runs all of them.
+                  if [ "${SHARD%%/*}" = 1 ]; then
+                    python3 scripts/test_check_arb_duplicates.py
+                    python3 scripts/check_arb_duplicates.py
+                  fi
                   cd packages/client
                   if [ "$CLIENT_MODE" = full ]; then
-                    bash ../../scripts/check-analysis.sh packages/client
-                    non_feature_paths=$(find test -mindepth 1 -maxdepth 1 \( -type d -o -name "*_test.dart" \) | grep -v "^test/features$")
+                    shard_files=$(python3 ../../scripts/ci_select_tests.py test --shard "$SHARD" --balance client)
                     # Bundles: one compile + one flutter_tester per chunk of
                     # files instead of per file (scripts/gen_test_bundles.py).
-                    entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 \
-                      $non_feature_paths \
-                      test/features/beacon_threads test/features/constellation test/features/auth)
+                    entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 $shard_files)
                     flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
                       --file-reporter "json:$reports/client--$SHARD_NAME.json" $entrypoints
                   else
@@ -487,13 +507,6 @@ jobs:
                     flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --tags repo-files \
                       --file-reporter "json:$reports/client--$SHARD_NAME.json" $repo_files
                   fi
-                  ;;
-                client-b)
-                  cd packages/client
-                  other_feature_paths=$(find test/features -mindepth 1 -maxdepth 1 -type d | grep -vE "/(beacon_threads|constellation|auth)$")
-                  entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 4 $other_feature_paths)
-                  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
-                      --file-reporter "json:$reports/client--$SHARD_NAME.json" $entrypoints
                   ;;
                 *)
                   echo "Unknown test target: $TEST_TARGET" >&2
@@ -505,7 +518,7 @@ jobs:
       # Per-test timings for scripts/ci_test_durations.py. Named by attempt:
       # a rerun uploads alongside the first attempt's reports, not over them.
       - name: Upload test reports
-        if: always() && (startsWith(matrix.target, 'pg-') || startsWith(matrix.target, 'client-'))
+        if: always() && (startsWith(matrix.target, 'pg-') || (startsWith(matrix.target, 'client-') && matrix.target != 'client-analyze'))
         uses: actions/upload-artifact@v6
         with:
           name: test-reports-a${{ github.run_attempt }}-${{ matrix.target }}
@@ -666,7 +679,7 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      # Same key as the client test shards; test-client-a saves it (see
+      # Same key as the client test shards; test-client-1 saves it (see
       # test-shards "Restore codegen cache").
       - name: Restore client codegen cache
         uses: actions/cache/restore@v5
