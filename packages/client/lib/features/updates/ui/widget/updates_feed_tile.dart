@@ -84,6 +84,10 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
   };
 }
 
+/// Lines for a second line that carries the author's reason (#601): the
+/// Request title, then the reason (server cap 80 characters), on a phone.
+const _reasonBodyMaxLines = 4;
+
 /// Dense Updates feed row.
 class UpdatesFeedTile extends StatefulWidget {
   const UpdatesFeedTile({
@@ -276,6 +280,13 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         ? null
         : beaconTitle;
 
+    final carriesReason =
+        widget.bodyOverride == null &&
+        updatesReceiptCarriesAuthorReason(
+          presentationKey: widget.receipt.presentationKey,
+          presentationPayloadJson: widget.receipt.presentationPayloadJson,
+        );
+
     final leading = profile != null
         ? _LeadingAvatar(profile: profile, unread: isUnread)
         : _LeadingGlyph(glyph: glyph, unread: isUnread);
@@ -332,7 +343,9 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         if (copy.body.isNotEmpty)
           Text(
             copy.body,
-            maxLines: 2,
+            // The author's reason is read whole, not cut after two lines
+            // behind the Request title (#601, #381); the server caps it.
+            maxLines: carriesReason ? _reasonBodyMaxLines : 2,
             overflow: TextOverflow.ellipsis,
             style: TenturaText.bodySmall(tt.textMuted),
           ),
