@@ -925,3 +925,15 @@ final class PlanInvalidException extends ExceptionBase {
         description: description ?? 'The plan is not valid',
       );
 }
+
+/// A people-tags failure. The description is the code name only: tag names
+/// and glyphs never appear in exception text, which reaches error reporting.
+final class PeopleTagsException extends ExceptionBase {
+  PeopleTagsException({required this.peopleTagsCode})
+    : super(
+        code: PeopleTagsExceptionCodes(peopleTagsCode),
+        description: peopleTagsCode.name,
+      );
+
+  final PeopleTagsExceptionCode peopleTagsCode;
+}

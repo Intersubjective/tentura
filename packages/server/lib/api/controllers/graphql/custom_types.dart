@@ -123,6 +123,10 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeAuthorInviteResult,
   gqlTypePendingAuthorInvite,
   gqlTypeBeaconAuthorInvite,
+  gqlTypePersonTag,
+  gqlTypePersonTagSnapshot,
+  gqlInputPersonTag,
+  gqlInputPersonTagSnapshot,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -2093,3 +2097,62 @@ final gqlTypeBeaconAuthorInvite = GraphQLObjectType('BeaconAuthorInvite', null)
     field('note', graphQLString),
     field('createdAt', graphQLString.nonNullable()),
   ]);
+
+/// An owner's private people tag (#699).
+final gqlTypePersonTag = GraphQLObjectType('PersonTag', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('name', graphQLString.nonNullable()),
+    field('glyph', graphQLString.nonNullable()),
+    field('color', graphQLInt.nonNullable()),
+    field('ord', graphQLInt.nonNullable()),
+  ]);
+
+final gqlTypePersonTagSnapshot = GraphQLObjectType('PersonTagSnapshot', null)
+  ..fields.addAll([
+    field('tag', gqlTypePersonTag.nonNullable()),
+    field(
+      'memberIds',
+      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    ),
+    field(
+      'sources',
+      GraphQLListType(graphQLInt.nonNullable()).nonNullable(),
+    ),
+  ]);
+
+final gqlInputPersonTag = GraphQLInputObjectType(
+  'PersonTagInput',
+  inputFields: [
+    GraphQLInputObjectField('id', graphQLString.nonNullable()),
+    GraphQLInputObjectField('name', graphQLString.nonNullable()),
+    GraphQLInputObjectField('glyph', graphQLString.nonNullable()),
+    GraphQLInputObjectField('color', graphQLInt.nonNullable()),
+    GraphQLInputObjectField('ord', graphQLInt.nonNullable()),
+  ],
+);
+
+final gqlInputPersonTagSnapshot = GraphQLInputObjectType(
+  'PersonTagSnapshotInput',
+  inputFields: [
+    GraphQLInputObjectField('tag', gqlInputPersonTag.nonNullable()),
+    GraphQLInputObjectField(
+      'memberIds',
+      _DynamicListType(graphQLString).nonNullable(),
+    ),
+    GraphQLInputObjectField(
+      'sources',
+      _DynamicListType(graphQLInt).nonNullable(),
+    ),
+  ],
+);
+
+/// `[T!]!` typed over `dynamic`, so a decoded `List<dynamic>` passes
+/// validation on executors that do not re-type variable lists.
+final class _DynamicListType extends GraphQLListType<dynamic, dynamic> {
+  _DynamicListType(GraphQLType<dynamic, dynamic> element)
+    : super(element.nonNullable());
+
+  @override
+  GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
+}

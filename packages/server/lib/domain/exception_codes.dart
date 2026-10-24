@@ -263,3 +263,26 @@ class ClosureExceptionCodes extends ExceptionCodes {
   @override
   int get codeNumber => codeSpace + exceptionCode.index;
 }
+
+// People tags (#699)
+
+enum PeopleTagsExceptionCode {
+  tagNameTaken,
+  tagLimitReached,
+  memberLimitReached,
+  tagNotFound,
+  snapshotNotFound,
+  invalidTag,
+  opIdReused,
+}
+
+class PeopleTagsExceptionCodes extends ExceptionCodes {
+  static const codeSpace = 1900;
+
+  const PeopleTagsExceptionCodes(this.exceptionCode);
+
+  final PeopleTagsExceptionCode exceptionCode;
+
+  @override
+  int get codeNumber => codeSpace + exceptionCode.index;
+}
