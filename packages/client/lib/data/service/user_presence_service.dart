@@ -11,8 +11,7 @@ import 'remote_api_service.dart';
 /// Live user presence from the V2 WebSocket `user_presence` subscription path.
 @singleton
 class UserPresenceService {
-  UserPresenceService(RemoteApiService remoteApiService)
-    : _testSend = null {
+  UserPresenceService(RemoteApiService remoteApiService) : _testSend = null {
     _messagesSub = remoteApiService.webSocketMessages.listen(_onMessage);
     _stateSub = remoteApiService.webSocketState.listen((state) {
       if (state == WebSocketState.connected) {
@@ -30,8 +29,8 @@ class UserPresenceService {
     required Stream<Map<String, dynamic>> messages,
     required Stream<WebSocketState> connectionState,
     required void Function(String message) send,
-  })  : _remoteApiService = null,
-        _testSend = send {
+  }) : _remoteApiService = null,
+       _testSend = send {
     _messagesSub = messages.listen(_onMessage);
     _stateSub = connectionState.listen((state) {
       if (state == WebSocketState.connected) {
@@ -68,12 +67,27 @@ class UserPresenceService {
         if (id.isNotEmpty) id,
     };
     _sendWatchUpdates(_remoteApiService);
+    _forgetUnwatched();
   }
 
   void removeWatch(String sourceKey) {
     if (_watchSources.remove(sourceKey) != null) {
       _sendWatchUpdates(_remoteApiService);
+      _forgetUnwatched();
     }
+  }
+
+  /// Drops statuses no source watches any more: the server stops pushing
+  /// them, so a kept entry would be a stale dot the next time anyone looks
+  /// (#533).
+  void _forgetUnwatched() {
+    final current = _presenceSubject.value;
+    final watched = _watchSources.values.expand((s) => s).toSet();
+    if (current.keys.every(watched.contains)) return;
+    _presenceSubject.add({
+      for (final e in current.entries)
+        if (watched.contains(e.key)) e.key: e.value,
+    });
   }
 
   void _sendWatchUpdates(RemoteApiService? api) {
@@ -98,7 +112,8 @@ class UserPresenceService {
   }
 
   void _onMessage(Map<String, dynamic> message) {
-    if (message['type'] != 'subscription' || message['path'] != 'user_presence') {
+    if (message['type'] != 'subscription' ||
+        message['path'] != 'user_presence') {
       return;
     }
     final payload = _normalizeJsonObject(message['payload']);
@@ -110,6 +125,10 @@ class UserPresenceService {
       return;
     }
 
+    // A snapshot or NOTIFY sent before the server saw a narrowed watch can
+    // land after the prune; a status no source watches would be a stale dot
+    // (#533).
+    final watched = _watchSources.values.expand((s) => s).toSet();
     final next = Map<String, UserPresenceStatus>.from(_presenceSubject.value);
     for (final raw in rawEvents) {
       final event = _normalizeJsonObject(raw);
@@ -118,7 +137,9 @@ class UserPresenceService {
       }
       final userId = event['user_id'];
       final statusRaw = event['status'];
-      if (userId is! String || userId.isEmpty || statusRaw is! String) {
+      if (userId is! String ||
+          !watched.contains(userId) ||
+          statusRaw is! String) {
         continue;
       }
       final status = UserPresenceStatus.values.firstWhere(

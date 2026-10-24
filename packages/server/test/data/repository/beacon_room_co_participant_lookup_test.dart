@@ -120,6 +120,38 @@ ON CONFLICT (id) DO NOTHING
     },
     skip: skipReason ? 'Postgres not reachable' : false,
   );
+
+  // #533: a viewer who only asked to join (not admitted) gets no team dots,
+  // not even for the room's admitted members.
+  test(
+    'a viewer who is not admitted sees no co-participants',
+    () async {
+      await seedFixture();
+
+      final result = await lookup.coParticipantPeerIds(
+        viewerId: 'Ucopresother',
+        peerIds: ['Ucopresviewer', 'Ucoprespeer', 'Ucopresnoshare'],
+      );
+
+      expect(result, isEmpty);
+    },
+    skip: skipReason ? 'Postgres not reachable' : false,
+  );
+
+  test(
+    'a requested member is not shown to an admitted viewer',
+    () async {
+      await seedFixture();
+
+      final result = await lookup.coParticipantPeerIds(
+        viewerId: 'Ucoprespeer',
+        peerIds: ['Ucopresviewer', 'Ucopresother'],
+      );
+
+      expect(result, {'Ucopresviewer'});
+    },
+    skip: skipReason ? 'Postgres not reachable' : false,
+  );
 }
 
 final _target = DisposablePgTarget.fromNamedEnvironment(
