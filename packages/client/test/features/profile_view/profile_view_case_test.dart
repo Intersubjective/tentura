@@ -147,7 +147,8 @@ void main() {
 
         expect(afterPolicy.visibilityState, PersonVisibilityState.viewerOnly);
         expect(afterPolicy.primaryAction, PersonPrimaryAction.none);
-        expect(afterPolicy.showRequestOptions, isTrue);
+        expect(afterPolicy.showRequestOptions, isFalse);
+        expect(afterPolicy.showSubjectCantSeeViewerReason, isTrue);
         expect(afterPolicy.canDirectSendRequest, isFalse);
       });
     });

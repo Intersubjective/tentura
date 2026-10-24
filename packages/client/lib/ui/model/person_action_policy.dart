@@ -26,6 +26,7 @@ class PersonActionPolicy {
     required this.primaryAction,
     required this.showSecondaryTrust,
     required this.showRequestOptions,
+    required this.showSubjectCantSeeViewerReason,
   });
 
   factory PersonActionPolicy.from(
@@ -60,6 +61,7 @@ class PersonActionPolicy {
           : base.primaryAction,
       showSecondaryTrust: base.showSecondaryTrust,
       showRequestOptions: false,
+      showSubjectCantSeeViewerReason: false,
     );
   }
 
@@ -96,6 +98,7 @@ class PersonActionPolicy {
         primaryAction: PersonPrimaryAction.none,
         showSecondaryTrust: false,
         showRequestOptions: false,
+        showSubjectCantSeeViewerReason: false,
       );
     }
 
@@ -111,6 +114,7 @@ class PersonActionPolicy {
         primaryAction: PersonPrimaryAction.sendRequest,
         showSecondaryTrust: !viewerExplicitlyTrustsSubject,
         showRequestOptions: false,
+        showSubjectCantSeeViewerReason: false,
       );
     }
 
@@ -125,7 +129,10 @@ class PersonActionPolicy {
         canDirectSendRequest: false,
         primaryAction: PersonPrimaryAction.trust,
         showSecondaryTrust: false,
-        showRequestOptions: true,
+        // The person-forward screen is fully disabled while the subject
+        // cannot see the viewer, so offer no dead-end entry to it (#679).
+        showRequestOptions: subjectCanSeeViewer,
+        showSubjectCantSeeViewerReason: false,
       );
     }
 
@@ -139,7 +146,8 @@ class PersonActionPolicy {
       canDirectSendRequest: false,
       primaryAction: PersonPrimaryAction.none,
       showSecondaryTrust: false,
-      showRequestOptions: true,
+      showRequestOptions: subjectCanSeeViewer,
+      showSubjectCantSeeViewerReason: !subjectCanSeeViewer,
     );
   }
 
@@ -153,6 +161,10 @@ class PersonActionPolicy {
   final PersonPrimaryAction primaryAction;
   final bool showSecondaryTrust;
   final bool showRequestOptions;
+
+  /// Explain why a trusted contact cannot be sent Requests: they do not see
+  /// the viewer yet (#679).
+  final bool showSubjectCantSeeViewerReason;
 
   static PersonVisibilityState _visibilityState({
     required bool isMutuallyVisible,
