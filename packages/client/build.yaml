@@ -2,6 +2,16 @@ targets:
   $default:
     builders:
 
+      # Neither generates anything here (no @GenerateMocks, no
+      # @JsonSerializable; tests hand-write `extends Mock`), yet both re-ran
+      # over every library a change reached: ~13 s of each incremental CI
+      # codegen. Re-enable with generate_for when a file needs one.
+      mockito:mockBuilder:
+        enabled: false
+
+      json_serializable:
+        enabled: false
+
       drift_dev:
         options:
           databases:

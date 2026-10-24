@@ -296,18 +296,37 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      # build_runner keeps its asset graph, compiled build script and generated
-      # outputs under .dart_tool/build: with it, codegen takes seconds instead
-      # of minutes. Shared by every job that generates the same package.
+      # build_runner's state is two things: its asset graph and hidden outputs
+      # under .dart_tool/build, and the generated files it wrote into the
+      # source tree (gitignored, so a fresh checkout has none). Restoring only
+      # the first made every run rebuild all in-tree outputs (7185 written,
+      # 163 s); scripts/ci_codegen.sh restores both, so only what the change
+      # touches is rebuilt. Shared by every job that generates the package.
+      # GitHub scopes caches by branch: a PR reads main's entries but writes
+      # its own, so nothing a PR builds is ever restored on main. Restores fall
+      # back only to entries from the same pubspec.lock: a graph from another
+      # build_runner version may be unreadable, and then build_runner could
+      # not delete the outputs it lists.
       - name: Restore codegen cache
         id: codegen-cache
         if: matrix.package != ''
         uses: actions/cache/restore@v5
         with:
-          path: packages/${{ matrix.package }}/.dart_tool/build
-          key: codegen-${{ matrix.package }}-${{ hashFiles('pubspec.lock', format('packages/{0}/pubspec.yaml', matrix.package), format('packages/{0}/build.yaml', matrix.package), format('packages/{0}/lib/**', matrix.package), format('packages/{0}/test/**', matrix.package), format('packages/{0}/integration_test/**', matrix.package), format('packages/{0}/l10n/**', matrix.package)) }}
-          restore-keys: codegen-${{ matrix.package }}-
+          path: |
+            packages/${{ matrix.package }}/.dart_tool/build
+            packages/${{ matrix.package }}/.dart_tool/ci-codegen-outputs.tar
+          key: codegen-v2-${{ matrix.package }}-${{ hashFiles('pubspec.lock') }}-${{ hashFiles(format('packages/{0}/pubspec.yaml', matrix.package), format('packages/{0}/build.yaml', matrix.package), format('packages/{0}/lib/**', matrix.package), format('packages/{0}/test/**', matrix.package), format('packages/{0}/integration_test/**', matrix.package), format('packages/{0}/l10n/**', matrix.package)) }}
+          restore-keys: codegen-v2-${{ matrix.package }}-${{ hashFiles('pubspec.lock') }}-
 
+      # Its own step so the pull (~25 s on a fresh runner) is not booked as
+      # codegen. Pulling in the background from the first step was tried and
+      # dropped: it competed with the cache restores (32-36 s instead of
+      # 22-26 s) and had the image ready no earlier.
+      - name: Pull the builder image
+        run: docker pull -q "${{ env.BUILDER_IMAGE }}:latest"
+
+      # One job per package saves the cache (client-a, server); the others
+      # would only race it for the same key.
       - name: Generate code in builder container
         if: matrix.package != ''
         run: |
@@ -315,28 +334,19 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
-            --env PKG="${{ matrix.package }}" \
+            --env CODEGEN_SAVE="${{ (matrix.target == 'client-a' || matrix.target == 'server') && steps.codegen-cache.outputs.cache-hit != 'true' }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
-            bash -c '
-              set -euo pipefail
-              if [ "$PKG" = client ]; then
-                flutter pub get
-                cd packages/client
-                flutter gen-l10n
-              else
-                dart pub get
-                cd "packages/$PKG"
-              fi
-              dart run build_runner build -d
-            '
+            bash scripts/ci_codegen.sh "${{ matrix.package }}"
 
       # Saved right after codegen so a red test run still warms the cache.
       - name: Save codegen cache
-        if: matrix.package != '' && steps.codegen-cache.outputs.cache-hit != 'true'
+        if: (matrix.target == 'client-a' || matrix.target == 'server') && steps.codegen-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         continue-on-error: true
         with:
-          path: packages/${{ matrix.package }}/.dart_tool/build
+          path: |
+            packages/${{ matrix.package }}/.dart_tool/build
+            packages/${{ matrix.package }}/.dart_tool/ci-codegen-outputs.tar
           key: ${{ steps.codegen-cache.outputs.cache-primary-key }}
 
       - name: Run ${{ matrix.target }} checks in builder container
@@ -634,14 +644,16 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      # Same key as the client test shards: whichever job generates first
-      # warms it for the others (see test-shards "Restore codegen cache").
-      - name: Cache client codegen state
-        uses: actions/cache@v5
+      # Same key as the client test shards; test-client-a saves it (see
+      # test-shards "Restore codegen cache").
+      - name: Restore client codegen cache
+        uses: actions/cache/restore@v5
         with:
-          path: packages/client/.dart_tool/build
-          key: codegen-client-${{ hashFiles('pubspec.lock', 'packages/client/pubspec.yaml', 'packages/client/build.yaml', 'packages/client/lib/**', 'packages/client/test/**', 'packages/client/integration_test/**', 'packages/client/l10n/**') }}
-          restore-keys: codegen-client-
+          path: |
+            packages/client/.dart_tool/build
+            packages/client/.dart_tool/ci-codegen-outputs.tar
+          key: codegen-v2-client-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('packages/client/pubspec.yaml', 'packages/client/build.yaml', 'packages/client/lib/**', 'packages/client/test/**', 'packages/client/integration_test/**', 'packages/client/l10n/**') }}
+          restore-keys: codegen-v2-client-${{ hashFiles('pubspec.lock') }}-
 
       # Multiline .env blob (FB_* dart-defines) — same format as packages/client/env/dev-web.env
       - name: Write client dart-define file
@@ -688,8 +700,8 @@ jobs:
               set -euo pipefail
               git config --global --add safe.directory \"*\"
               python3 scripts/check_arb_duplicates.py
-              flutter pub get
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d
+              bash scripts/ci_codegen.sh client
+              cd packages/client
               SENTRY_RELEASE=\"tentura@\${CLIENT_VERSION}\"
               SENTRY_DIST=\"\${WEB_BUILD_ID}\"
               SENTRY_ENVIRONMENT=\"dev\"
@@ -823,12 +835,14 @@ jobs:
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      - name: Cache server codegen state
-        uses: actions/cache@v5
+      - name: Restore server codegen cache
+        uses: actions/cache/restore@v5
         with:
-          path: packages/server/.dart_tool/build
-          key: codegen-server-${{ hashFiles('pubspec.lock', 'packages/server/pubspec.yaml', 'packages/server/build.yaml', 'packages/server/lib/**', 'packages/server/test/**', 'packages/server/integration_test/**', 'packages/server/l10n/**') }}
-          restore-keys: codegen-server-
+          path: |
+            packages/server/.dart_tool/build
+            packages/server/.dart_tool/ci-codegen-outputs.tar
+          key: codegen-v2-server-${{ hashFiles('pubspec.lock') }}-${{ hashFiles('packages/server/pubspec.yaml', 'packages/server/build.yaml', 'packages/server/lib/**', 'packages/server/test/**', 'packages/server/integration_test/**', 'packages/server/l10n/**') }}
+          restore-keys: codegen-v2-server-${{ hashFiles('pubspec.lock') }}-
 
       - name: Build server binary in builder container
         run: |
@@ -839,9 +853,8 @@ jobs:
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c '
               set -euo pipefail
-              dart pub get
+              bash scripts/ci_codegen.sh server
               cd packages/server
-              dart run build_runner build -d
               dart build cli -t bin/tentura.dart -o bin/cli-build
             '
 

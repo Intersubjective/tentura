@@ -16,8 +16,20 @@
 # Preserves: `flutter run` web compilers (`--target=dartdevc`),
 # tentura-server, Serena language-server, Chrome, Cursor.
 #
+# When TMPDIR is unset, use the on-disk user cache: /tmp's usrquota can
+# reject test kernels with "Disk quota exceeded" even when df shows space.
+# Explicit TMPDIR values (including sandbox-provided ones) are preserved.
+# The leftover sweep covers both /tmp and the effective TMPDIR.
+#
+# Machine-wide queue: a run waits for $TENTURA_TEST_LOCK (default
+# ~/.cache/tentura-tests.lock) before it sweeps or starts, so two suites never
+# overlap: overlapping runs oversubscribed RAM (pg suites keep their disposable
+# databases on tmpfs) and swept each other's kernels (tentura-23h). Nested
+# wrapped runs inherit the held lock. TENTURA_TEST_LOCK=off or --no-lock skips
+# it (only for a run you know is alone); --lock-wait caps the wait (default 3h).
+#
 # Usage:
-#   scripts/run_with_test_cleanup.sh [--timeout 45m] -- flutter test ...
+#   scripts/run_with_test_cleanup.sh [--timeout 45m] [--no-lock] -- flutter test ...
 #   scripts/run_with_test_cleanup.sh --sweep-only
 #   cd packages/client && ../../scripts/run_with_test_cleanup.sh -- \
 #     flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
@@ -25,6 +37,10 @@
 set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+if [[ -z "${TMPDIR+x}" ]]; then
+  export TMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/tentura-test-tmp"
+  mkdir -p "$TMPDIR"
+fi
 STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
 DEFAULT_TIMEOUT="45m"
 KILL_AFTER="15s"
@@ -32,7 +48,7 @@ KILL_AFTER="15s"
 log() { printf '[test-cleanup] %s\n' "$*" >&2; }
 
 usage() {
-  sed -n '2,28p' "$SELF" | sed 's/^# \?//'
+  sed -n '2,41p' "$SELF" | sed 's/^# \?//'
   exit 2
 }
 
@@ -201,10 +217,15 @@ def live_cmdlines() -> bytes:
     return b"\n".join(blobs)
 
 live = live_cmdlines()
-tmp = pathlib.Path(os.environ.get("TMPDIR", "/tmp"))
+# TENTURA_TEST_CLEANUP_SYSTEM_TMP stands in for /tmp in sandboxed tests: their
+# restricted /proc view hides the real test runner, whose kernels sit in /tmp
+# on CI (no TMPDIR there), so sweeping the real /tmp would delete them.
+system_tmp = os.environ.get("TENTURA_TEST_CLEANUP_SYSTEM_TMP") or "/tmp"
+roots = {pathlib.Path(system_tmp), pathlib.Path(os.environ.get("TMPDIR") or "/tmp")}
 removed = []
-for pat in ("flutter_tools.*", "dart_test.kernel.*"):
-    for d in tmp.glob(pat):
+for root in roots:
+  for pat in ("flutter_tools.*", "dart_test.kernel.*"):
+    for d in root.glob(pat):
         if not d.exists():
             continue
         token = d.name.encode()
@@ -513,6 +534,34 @@ run_reaper() {
   rm -rf "$marker"
 }
 
+# Holds the machine-wide test lock on fd 9 for the rest of the wrapper's life
+# (the wrapped command inherits it, so a SIGKILLed wrapper's orphaned suite
+# keeps the queue blocked until the reaper ends it).
+acquire_test_lock() {
+  local wait_secs="$1"
+  local lock="${TENTURA_TEST_LOCK:-${XDG_CACHE_HOME:-$HOME/.cache}/tentura-tests.lock}"
+  if [[ "$lock" == "off" || -n "${TENTURA_TEST_LOCK_HELD:-}" ]]; then
+    return 0
+  fi
+  mkdir -p "$(dirname "$lock")" 2>/dev/null || true
+  exec 9>>"$lock" || { log "warning: cannot open $lock; running without the queue"; return 0; }
+  local waited=0 next_note=0
+  until flock -n 9; do
+    if (( waited >= next_note )); then
+      log "queued behind another test run ($(cat "$lock.holder" 2>/dev/null || echo unknown)); waited ${waited}s"
+      next_note=$(( next_note + 60 ))
+    fi
+    if (( waited >= wait_secs )); then
+      log "gave up waiting for the test lock after ${wait_secs}s"
+      return 1
+    fi
+    sleep 5
+    waited=$(( waited + 5 ))
+  done
+  printf 'pid %s since %s: %s\n' "$$" "$(date +%H:%M:%S)" "${CMD_SUMMARY:-?}" >"$lock.holder" 2>/dev/null || true
+  export TENTURA_TEST_LOCK_HELD=1
+}
+
 parse_duration_seconds() {
   # GNU timeout suffixes: s/m/h/d. Integer or float seconds with no suffix.
   python3 - "$1" <<'PY'
@@ -529,7 +578,7 @@ PY
 }
 
 main() {
-  local timeout="$DEFAULT_TIMEOUT" sweep_only=0
+  local timeout="$DEFAULT_TIMEOUT" sweep_only=0 use_lock=1 lock_wait="3h"
   local -a cmd=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -539,6 +588,8 @@ main() {
         timeout="$2"
         shift 2
         ;;
+      --no-lock) use_lock=0; shift ;;
+      --lock-wait) lock_wait="$2"; shift 2 ;;
       -h|--help) usage ;;
       --) shift; cmd=("$@"); break ;;
       *) cmd=("$@"); break ;;
@@ -567,6 +618,12 @@ main() {
     log "invalid --timeout '$timeout'"
     exit 2
   }
+
+  if [[ "$use_lock" -eq 1 ]]; then
+    local wait_secs
+    wait_secs="$(parse_duration_seconds "$lock_wait")" || { log "invalid --lock-wait '$lock_wait'"; exit 2; }
+    CMD_SUMMARY="$(pwd | sed "s|$HOME|~|"): ${cmd[*]:0:6}" acquire_test_lock "$wait_secs" || exit 75
+  fi
 
   local run_id
   run_id="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"

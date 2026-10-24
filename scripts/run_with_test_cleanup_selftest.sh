@@ -15,7 +15,9 @@ chmod +x "$WRAP"
 # (STATE_ROOT and the tmpfs fixtures both derive from it).
 if [[ -z "${SELFTEST_ISOLATED:-}" ]]; then
   export SELFTEST_ISOLATED=1
-  exec env -u TENTURA_TEST_CLEANUP_RUN \
+  # The cleanup scenarios below start overlapping wrapped runs on purpose, so
+  # they run outside the machine-wide queue; section 15 tests the queue itself.
+  exec env -u TENTURA_TEST_CLEANUP_RUN -u TENTURA_TEST_LOCK_HELD TENTURA_TEST_LOCK=off \
     TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/tentura-selftest.XXXXXX")" \
     bash "$ROOT/scripts/run_with_test_cleanup_selftest.sh" "$@"
 fi
@@ -278,5 +280,82 @@ if [[ ! -d "$NT/tentura-st-leaked-A" ]]; then ok "leaked nested TMPDIR removed";
 if [[ -d "$NT/tentura-st-live-B" ]]; then ok "nested TMPDIR of a live process kept"; else bad "live nested TMPDIR deleted"; fi
 if [[ -d "$NT/tentura-st-fresh-C" ]]; then ok "fresh nested TMPDIR kept"; else bad "fresh nested TMPDIR deleted"; fi
 if [[ -d "$NT/tentura-st-foreign-D" ]]; then ok "tentura-* dir without nested signature kept"; else bad "foreign tentura-* dir deleted"; fi
+
+# --- 13. unset TMPDIR uses disk cache; explicit values survive unchanged ---
+TEMP_HOME="$NT/cache-home"
+TEMP_CACHE="$NT/xdg cache"
+for cache_mode in home xdg; do
+  if [[ "$cache_mode" == home ]]; then
+    cache_env=(-u XDG_CACHE_HOME)
+    expected_tmp="$TEMP_HOME/.cache/tentura-test-tmp"
+  else
+    cache_env=("XDG_CACHE_HOME=$TEMP_CACHE")
+    expected_tmp="$TEMP_CACHE/tentura-test-tmp"
+  fi
+  if env -u TMPDIR "${cache_env[@]}" HOME="$TEMP_HOME" \
+    "$WRAP" --timeout 10s -- bash -c \
+    '[[ "$TMPDIR" == "$1" && -d "$TMPDIR" ]]' bash "$expected_tmp"; then
+    ok "unset TMPDIR uses and creates $cache_mode cache"
+  else
+    bad "unset TMPDIR failed with $cache_mode cache"
+  fi
+done
+EXPLICIT_TMP="$NT/explicit tmp"
+mkdir -p "$EXPLICIT_TMP"
+if TMPDIR="$EXPLICIT_TMP" "$WRAP" --timeout 10s -- bash -c \
+  '[[ "$TMPDIR" == "$1" ]]' bash "$EXPLICIT_TMP"; then
+  ok "explicit TMPDIR preserved"
+else
+  bad "explicit TMPDIR changed"
+fi
+
+# Create fixtures inside the child so their names are absent from live
+# command lines when the exit sweep checks whether they are referenced.
+if TMPDIR="$EXPLICIT_TMP" "$WRAP" --timeout 10s -- python3 - <<'PY'
+import os, pathlib
+for root in (pathlib.Path('/tmp'), pathlib.Path(os.environ['TMPDIR'])):
+    for pattern in ('flutter_tools.', 'dart_test.kernel.'):
+        (root / (pattern + 'lt6i-' + str(os.getppid()))).mkdir()
+PY
+then
+  if compgen -G '/tmp/flutter_tools.lt6i-*' >/dev/null || \
+    compgen -G '/tmp/dart_test.kernel.lt6i-*' >/dev/null || \
+    compgen -G "$EXPLICIT_TMP/flutter_tools.*" >/dev/null || \
+    compgen -G "$EXPLICIT_TMP/dart_test.kernel.*" >/dev/null; then
+    bad "exit sweep left temporary fixtures behind"
+  else
+    ok "exit sweep cleans both /tmp and explicit TMPDIR"
+  fi
+else
+  bad "dual-directory cleanup fixture command failed"
+fi
+
+
+# --- 15. machine-wide queue: a second run waits; nested runs do not deadlock ---
+QLOCK="$NT/queue.lock"
+QLOG="$NT/queue.log"
+: >"$QLOG"
+TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --timeout 30s -- bash -c \
+  "echo A-start \$(date +%s%N) >>'$QLOG'; sleep 2; \
+   '$WRAP' --timeout 10s -- bash -c 'echo nested >>\"$QLOG\"'; \
+   echo A-end \$(date +%s%N) >>'$QLOG'" >/dev/null 2>&1 &
+QA=$!
+sleep 0.5
+TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --timeout 30s -- bash -c \
+  "echo B-start \$(date +%s%N) >>'$QLOG'" >/dev/null 2>&1 || true
+wait "$QA" || true
+a_end="$(awk '$1=="A-end"{print $2}' "$QLOG")"
+b_start="$(awk '$1=="B-start"{print $2}' "$QLOG")"
+if grep -q '^nested$' "$QLOG"; then ok "queue: nested wrapped run inside a held lock does not deadlock"; else bad "queue: nested run never ran"; fi
+if [[ -n "$a_end" && -n "$b_start" ]] && (( b_start >= a_end )); then
+  ok "queue: second run starts only after the first ends"
+else
+  bad "queue: runs overlapped (A-end=$a_end B-start=$b_start)"
+fi
+if TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --no-lock --timeout 10s -- true >/dev/null 2>&1; then
+  ok "queue: --no-lock runs"
+else
+  bad "queue: --no-lock run failed"
+fi
 
 log "done"

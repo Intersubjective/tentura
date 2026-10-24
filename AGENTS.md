@@ -50,6 +50,16 @@ Inside the Alloy bwrap sandbox (nosuid mounts) Chrome's setuid sandbox aborts;
 run the web e2e runner with `TENTURA_WEB_CHROME_NO_SANDBOX=1` to pass
 `--web-browser-flag=--no-sandbox` to `flutter drive` (off by default).
 
+**Preferred: `scripts/run_tests.sh <profile>`** — memory-aware `-j`, tag runs
+that load only the tagged files, and the right timeout, all through the
+wrapper. Profiles: `server-files <files>`, `server-affected`, `server-unit`,
+`server-pg`, `server-mr`, `server-gates`, `server-regression`,
+`client-files <paths>`, `client-affected`, `client-all`, `client-gates`.
+Iterate with `*-files` / `*-affected`; run `server-regression` (or
+`client-gates` + `client-all`) once before landing; never `perf` / `load` in a
+routine run. Wrapped runs queue machine-wide (one at a time). Policy and
+measurements: [`docs/testing-resource-profile.md`](docs/testing-resource-profile.md).
+
 ```bash
 # sweep leftovers from a killed agent, no new tests
 ./scripts/run_with_test_cleanup.sh --sweep-only
@@ -85,9 +95,11 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 90m -- \
 > never runs as part of a test run. `tentura_test_tpl_*` templates are kept on
 > purpose and reused across runs.
 >
-> **Never run two wrapped suites at once.** They sweep each other's
-> `/tmp/dart_test.kernel.*`, and every test file then fails to load with an empty
-> "Failed to load" message that looks nothing like the real cause.
+> **Wrapped runs queue machine-wide** (`flock` on `~/.cache/tentura-tests.lock`):
+> overlapping suites used to sweep each other's kernels (every file then fails
+> to load with an empty "Failed to load") and oversubscribe RAM. A second run
+> logs `queued behind another test run` and waits; do not bypass it with
+> `--no-lock` unless the run is alone.
 >
 > Never query `pg_locks` or `pg_stat_activity` from a test without scoping to
 > `current_database()` (or `datname = <own database>`): they report the whole

@@ -7,6 +7,10 @@
 # starving every concurrent run of tmpfs. Does not start Flutter/Dart — only
 # sleeping stand-ins.
 set -euo pipefail
+# Overlapping wrapped runs on purpose: stay outside the machine-wide test
+# queue (run_with_test_cleanup_selftest.sh section 15 covers the queue).
+export TENTURA_TEST_LOCK=off
+unset TENTURA_TEST_LOCK_HELD
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WRAP="$ROOT/scripts/run_with_test_cleanup.sh"
