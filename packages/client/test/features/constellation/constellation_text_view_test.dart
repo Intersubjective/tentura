@@ -413,6 +413,41 @@ void main() {
       },
     );
 
+    // #678: the Pin tooltip leaked into every request card ("Keep this on
+    // your field in a fixed spot..." read before the title).
+    testWidgets('only the Pin button carries the Pin tooltip sentence', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final cubit = await _loadCubit(_multiAuthorField());
+      await _pumpTextView(tester, cubit);
+
+      final l10n = lookupL10n(const Locale('en'));
+      final sentence = l10n.constellationPinTargetTooltip;
+      final carriers = find.semantics
+          .byPredicate((node) {
+            if (node.isMergedIntoParent) return false;
+            final data = node.getSemanticsData();
+            return [
+              data.label,
+              data.value,
+              data.hint,
+              data.tooltip,
+            ].any((part) => part.contains(sentence));
+          })
+          .evaluate()
+          .toList();
+
+      expect(carriers, isNotEmpty);
+      for (final node in carriers) {
+        final data = node.getSemanticsData();
+        expect(data.label, l10n.constellationPinTarget);
+        expect(data.hint, sentence);
+        expect(data.flagsCollection.isButton, isTrue);
+      }
+      handle.dispose();
+    });
+
     testWidgets('request tiles and overflow controls are keyboard reachable', (
       tester,
     ) async {

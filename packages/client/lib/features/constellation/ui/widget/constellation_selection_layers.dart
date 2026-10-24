@@ -67,15 +67,21 @@ class ConstellationSelectionToggle extends StatelessWidget {
     >(
       bloc: selection,
       buildWhen: (previous, current) => previous.selecting != current.selecting,
-      builder: (context, state) => IconButton(
-        key: const Key('constellation.app_bar.select'),
-        tooltip: l10n.constellationSelectMany,
-        isSelected: state.selecting,
-        onPressed: () => selection.setSelecting(!state.selecting),
-        icon: const Icon(Icons.select_all),
-        constraints: BoxConstraints(
-          minWidth: tt.buttonHeight,
-          minHeight: tt.buttonHeight,
+      // On/off is read as a toggle state, not only as "current" (#678).
+      builder: (context, state) => MergeSemantics(
+        child: Semantics(
+          toggled: state.selecting,
+          child: IconButton(
+            key: const Key('constellation.app_bar.select'),
+            tooltip: l10n.constellationSelectMany,
+            isSelected: state.selecting,
+            onPressed: () => selection.setSelecting(!state.selecting),
+            icon: const Icon(Icons.select_all),
+            constraints: BoxConstraints(
+              minWidth: tt.buttonHeight,
+              minHeight: tt.buttonHeight,
+            ),
+          ),
         ),
       ),
     );

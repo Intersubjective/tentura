@@ -51,33 +51,43 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
             ? TestIds.constellationUnpinTarget
             : TestIds.constellationPinTarget;
 
+        // The tooltip's sentence is the button's hint and nothing else's:
+        // left to the Tooltip it merged into the card or map group (#678).
         if (filled) {
           return Tooltip(
             message: tooltip,
-            child: Semantics(
-              identifier: testId,
-              button: true,
-              child: FilledButton.icon(
-                key: TestIds.key(testId),
-                onPressed: onPressed,
-                icon: Icon(
-                  anchored ? Icons.push_pin_outlined : Icons.push_pin,
+            excludeFromSemantics: true,
+            child: MergeSemantics(
+              child: Semantics(
+                identifier: testId,
+                button: true,
+                hint: tooltip,
+                child: FilledButton.icon(
+                  key: TestIds.key(testId),
+                  onPressed: onPressed,
+                  icon: Icon(
+                    anchored ? Icons.push_pin_outlined : Icons.push_pin,
+                  ),
+                  label: Text(label),
                 ),
-                label: Text(label),
               ),
             ),
           );
         }
         return Tooltip(
           message: tooltip,
-          child: Semantics(
-            identifier: testId,
-            button: true,
-            child: OutlinedButton.icon(
-              key: TestIds.key(testId),
-              onPressed: onPressed,
-              icon: Icon(anchored ? Icons.push_pin_outlined : Icons.push_pin),
-              label: Text(label),
+          excludeFromSemantics: true,
+          child: MergeSemantics(
+            child: Semantics(
+              identifier: testId,
+              button: true,
+              hint: tooltip,
+              child: OutlinedButton.icon(
+                key: TestIds.key(testId),
+                onPressed: onPressed,
+                icon: Icon(anchored ? Icons.push_pin_outlined : Icons.push_pin),
+                label: Text(label),
+              ),
             ),
           ),
         );

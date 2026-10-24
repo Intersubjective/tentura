@@ -400,8 +400,11 @@ class _NegativeEdgeToggleRow extends StatelessWidget {
         return Padding(
           padding: EdgeInsets.only(bottom: tt.tightGap),
           child: Semantics(
+            container: true,
             label: l10n.graphLegendToggleNegative,
             toggled: layerVisible,
+            excludeSemantics: true,
+            onTap: toggle,
             child: InkWell(
               onTap: toggle,
               borderRadius: BorderRadius.circular(tt.cardRadius),
@@ -447,7 +450,7 @@ class _NegativeEdgeToggleRow extends StatelessWidget {
   }
 }
 
-class _LegendRow extends StatelessWidget {
+class _LegendRow extends StatefulWidget {
   const _LegendRow({
     required this.swatch,
     required this.label,
@@ -463,23 +466,28 @@ class _LegendRow extends StatelessWidget {
   final String? hint;
 
   @override
+  State<_LegendRow> createState() => _LegendRowState();
+}
+
+class _LegendRowState extends State<_LegendRow> {
+  final _tooltipKey = GlobalKey<TooltipState>();
+
+  @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final label = widget.label;
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: tt.avatarSize,
-          child: Center(child: swatch),
+          child: Center(child: widget.swatch),
         ),
         SizedBox(width: tt.avatarTextGap),
         Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
         ),
-        if (hint != null) ...[
+        if (widget.hint != null) ...[
           SizedBox(width: tt.iconTextGap),
           ExcludeSemantics(
             child: Icon(
@@ -491,18 +499,34 @@ class _LegendRow extends StatelessWidget {
         ],
       ],
     );
-    final hintText = hint;
+    final hintText = widget.hint;
+    // The row is read once, by its label (#678): the visible text and the
+    // swatch's own label are excluded.
     if (hintText == null) {
-      return Semantics(label: label, child: row);
+      return Semantics(
+        container: true,
+        label: label,
+        excludeSemantics: true,
+        child: row,
+      );
     }
+    // A focusable button whose hint is the explanation; activating it shows
+    // the same tooltip a tap does (#678).
     return Tooltip(
+      key: _tooltipKey,
       message: hintText,
       triggerMode: TooltipTriggerMode.tap,
       showDuration: _legendHintShowDuration,
       excludeFromSemantics: true,
       child: Semantics(
+        container: true,
+        button: true,
         label: label,
         hint: hintText,
+        excludeSemantics: true,
+        onTap: () {
+          _tooltipKey.currentState?.ensureTooltipVisible();
+        },
         child: row,
       ),
     );

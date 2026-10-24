@@ -483,6 +483,22 @@ Future<void> _placeTwoNodes(
 Finder _resetButton() =>
     find.byKey(const Key('constellation.camera.reset_positions'));
 
+/// How many times [text] is read across the engine-visible semantics nodes
+/// (label, value, hint and tooltip).
+int _timesAnnounced(String text) => find.semantics
+    .byPredicate((node) => !node.isMergedIntoParent)
+    .evaluate()
+    .map((node) {
+      final data = node.getSemanticsData();
+      return [
+        data.label,
+        data.value,
+        data.hint,
+        data.tooltip,
+      ].fold(0, (count, part) => count + text.allMatches(part).length);
+    })
+    .fold(0, (sum, count) => sum + count);
+
 void main() {
   group('Reset positions (#251)', () {
     testWidgets('is offered beside re-arrange once something was moved', (
@@ -804,6 +820,27 @@ void main() {
       expect(label.trim(), isNotEmpty);
       expect(tester.getSemantics(_rearrangeButton()).label, contains(label));
       // Disposed here: the framework checks for open handles before teardowns.
+      semantics.dispose();
+    });
+
+    // #678: the tooltip and the icon label both said "Re-arrange", so a
+    // screen reader read "Re-arrange Re-arrange".
+    testWidgets('camera actions are each announced once', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
+      addTearDown(harness.cubit.close);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpShell(tester, harness.cubit);
+
+      final l10n = L10n.of(tester.element(find.byType(ConstellationBody)))!;
+      expect(_rearrangeButton(), findsOneWidget);
+      expect(_resetButton(), findsOneWidget);
+      for (final label in [
+        l10n.constellationRearrange,
+        l10n.constellationResetPositions,
+      ]) {
+        expect(_timesAnnounced(label), 1, reason: label);
+      }
       semantics.dispose();
     });
 
