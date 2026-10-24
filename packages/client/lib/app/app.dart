@@ -6,6 +6,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'package:tentura/config/web_build_config.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/util/display_name_prompt.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_perf.dart';
 import 'package:tentura/ui/bloc/app_update_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
@@ -170,6 +171,12 @@ class App extends StatelessWidget {
             builder: (context, child) {
               if (child == null) {
                 return const SizedBox();
+              }
+              // #660: names stored as the server placeholder read in the
+              // app language (Profile.shownName).
+              final l10n = L10n.of(context);
+              if (l10n != null) {
+                setNewMemberDisplayNameLabel(l10n.newMemberDisplayName);
               }
               // Live web integration bindings do not honor
               // FakeAccessibilityFeatures; force reduced motion so repeating

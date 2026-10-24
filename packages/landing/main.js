@@ -19,6 +19,7 @@ import {
   RECOVER_SEED_LINK_LABEL,
   authErrorMessage,
   urlWithoutAuthError,
+  inviterDisplayName,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -57,18 +58,7 @@ function setPageTitle(title) {
   document.title = title;
 }
 
-const inviterName = (p) => {
-  const raw = p.inviter?.displayName?.trim();
-  if (!raw) return 'Someone';
-  if (isLikelyEmailDerivedDisplayName(raw)) return 'A friend';
-  return raw;
-};
-
-/** Matches server displayNameFromEmail: lowercase alnum tokens separated by spaces. */
-function isLikelyEmailDerivedDisplayName(name) {
-  if (!name || name.length > 50 || /[A-Z]/.test(name)) return false;
-  return /^[a-z0-9]+( [a-z0-9]+)*$/.test(name) && /\d/.test(name);
-}
+const inviterName = (p) => inviterDisplayName(p.inviter?.displayName);
 
 // Shared beacon context — shown above the CTA in EVERY state when present.
 function beaconOverlay(p) {

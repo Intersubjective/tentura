@@ -47,8 +47,7 @@ final class EmailAuthCase extends UseCaseBase {
     String? linkAccountId,
     String? attemptId,
   }) async {
-    final correlationId =
-        attemptId ?? EmailAuthTransactionEntity.newId;
+    final correlationId = attemptId ?? EmailAuthTransactionEntity.newId;
     final isLink = linkAccountId != null && linkAccountId.isNotEmpty;
     final normalized = normalizeAuthEmail(email);
     if (!isValidAuthEmailFormat(normalized)) {
@@ -79,9 +78,13 @@ final class EmailAuthCase extends UseCaseBase {
     if (!isLink &&
         (inviteCode == null || inviteCode.isEmpty) &&
         env.isNeedInvite) {
-      final registered = await _credentialAuthCase.emailIsRegistered(normalized);
+      final registered = await _credentialAuthCase.emailIsRegistered(
+        normalized,
+      );
       if (!registered) {
-        logger.info('email auth start skipped: unregistered email, invite required');
+        logger.info(
+          'email auth start skipped: unregistered email, invite required',
+        );
         return EmailAuthStartResult(
           correlationId: correlationId,
           outcome: EmailAuthStartOutcome.inviteRequiredSkip,
@@ -184,7 +187,7 @@ final class EmailAuthCase extends UseCaseBase {
     final resolved = await _credentialAuthCase.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: normalizedEmail,
-      displayName: displayNameFromEmail(normalizedEmail),
+      displayName: kNewMemberDisplayName,
       inviteId: inviteCode,
       assertedContacts: [emailContact],
       bypassInviteForNewAccount: bypassInviteForNewAccount,
@@ -201,7 +204,9 @@ final class EmailAuthCase extends UseCaseBase {
   }
 
   Future<void> _consumeLast(String plaintextToken) async {
-    final consumed = await _transactionRepository.consumeByToken(plaintextToken);
+    final consumed = await _transactionRepository.consumeByToken(
+      plaintextToken,
+    );
     if (consumed == null) {
       logger.warning(
         'email auth confirm: token consume failed after successful auth '

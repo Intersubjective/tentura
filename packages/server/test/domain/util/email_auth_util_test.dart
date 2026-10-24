@@ -7,18 +7,8 @@ void main() {
     expect(normalizeAuthEmail('  Ada@Example.COM '), 'ada@example.com');
   });
 
-  test('displayNameFromEmail uses local part', () {
-    expect(displayNameFromEmail('ada.lovelace@example.com'), 'ada lovelace');
-  });
-
-  test('displayNameFromEmail keeps local parts up to 50 characters', () {
-    final local = 'a' * 50;
-    expect(displayNameFromEmail('$local@example.com'), local);
-  });
-
-  test('displayNameFromEmail truncates long local parts to 50 characters', () {
-    final local = 'a' * 51;
-    expect(displayNameFromEmail('$local@example.com'), 'a' * 50);
+  test('new accounts get a neutral name, not one made from the email', () {
+    expect(kNewMemberDisplayName, 'New member');
   });
 
   test('isValidAuthEmailFormat accepts common addresses', () {

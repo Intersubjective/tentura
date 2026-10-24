@@ -134,12 +134,39 @@ export function isNewSignupReturn(search) {
 }
 
 /**
+ * Name the server gives a new email account until the person picks one
+ * (server kNewMemberDisplayName, #660). Older accounts may still carry an
+ * email-derived name, matched by the heuristics below.
+ */
+const NEW_MEMBER_DISPLAY_NAME = 'New member';
+
+/**
+ * How the invite landing names the inviter: "Someone" when there is no name,
+ * "A friend" for a placeholder ("New member", #660) or an older
+ * email-derived name, else the name itself.
+ */
+export function inviterDisplayName(displayName) {
+  const raw = String(displayName ?? '').trim();
+  if (!raw) return 'Someone';
+  if (raw === NEW_MEMBER_DISPLAY_NAME || isLikelyEmailDerivedDisplayName(raw)) {
+    return 'A friend';
+  }
+  return raw;
+}
+
+/** Matches server displayNameFromEmail: lowercase alnum tokens separated by spaces. */
+function isLikelyEmailDerivedDisplayName(name) {
+  if (!name || name.length > 50 || /[A-Z]/.test(name)) return false;
+  return /^[a-z0-9]+( [a-z0-9]+)*$/.test(name) && /\d/.test(name);
+}
+
+/**
  * Placeholder display names from email local-parts are lowercase and often
  * contain digits (e.g. agent-3c4703tb@test… → "agent 3c4703tb").
  */
 export function isLikelyAutoDerivedDisplayName(displayName) {
   const t = String(displayName ?? '').trim();
-  if (t.length === 0) return true;
+  if (t.length === 0 || t === NEW_MEMBER_DISPLAY_NAME) return true;
   if (t !== t.toLowerCase()) return false;
   return /\d/.test(t);
 }
@@ -153,7 +180,7 @@ export function isLikelyAutoDerivedDisplayName(displayName) {
  */
 function isLikelyEmailLocalPartName(displayName) {
   const t = String(displayName ?? '').trim();
-  if (t.length === 0) return true;
+  if (t.length === 0 || t === NEW_MEMBER_DISPLAY_NAME) return true;
   return /^[a-z0-9 !#$%&'*/=?^_`{|}~]+$/.test(t);
 }
 
@@ -234,18 +261,21 @@ export async function saveDisplayName(name) {
       credentials: 'include',
       body: JSON.stringify({ displayName: name }),
     });
-  } catch (e) {
-    throw new Error(`Could not reach the server (${e}).`);
+  } catch {
+    // The raw fetch error ("TypeError: Failed to fetch") means nothing to a
+    // person (#660 review).
+    throw new Error(
+      'Could not reach the server. Check your connection and try again.',
+    );
   }
   if (!res.ok) {
-    let message = 'Could not save your name. You can change it later in the app.';
-    try {
-      const body = await res.json();
-      if (body && typeof body.error === 'string') message = body.error;
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new Error(message);
+    // The server's error body is developer text ("displayName must be …"),
+    // so it is not shown as is.
+    throw new Error(
+      res.status === 400
+        ? 'That name could not be saved. Use 3 to 32 characters and try again.'
+        : 'Could not save your name. Try again.',
+    );
   }
   return res.json();
 }
@@ -372,13 +402,27 @@ function renderNameStep({ prefill, track, onDone }) {
     'Save & continue',
   );
 
+  // Shown once a save fails: with Skip gone (#660) a person who is offline,
+  // or whose name keeps being rejected, still has a way on. The account keeps
+  // the server placeholder "New member" and the app asks for a name later.
+  const continueWithoutName = el(
+    'button',
+    { class: 'btn btn-secondary name-continue', type: 'button' },
+    'Continue without a name',
+  );
+  continueWithoutName.hidden = true;
+  continueWithoutName.addEventListener('click', () => {
+    track('signup_name_skipped', { reason: 'save_failed' });
+    onDone();
+  });
+
   const onSubmit = async (e) => {
     e.preventDefault();
     errorEl.textContent = '';
     const name = input.value.trim();
     // An empty Save used to move on like Skip, saving nothing (#421).
     if (name.length === 0) {
-      errorEl.textContent = 'Enter a name, or tap “Skip for now”.';
+      errorEl.textContent = 'Enter a name.';
       input.focus();
       return;
     }
@@ -397,19 +441,10 @@ function renderNameStep({ prefill, track, onDone }) {
       trackError('signup_name_error', err);
       errorEl.textContent = err.message;
       submit.disabled = false;
-      submit.textContent = 'Save & continue';
+      submit.textContent = 'Try again';
+      continueWithoutName.hidden = false;
     }
   };
-
-  const skip = el(
-    'button',
-    { class: 'hint hint-link', type: 'button' },
-    'Skip for now',
-  );
-  skip.addEventListener('click', () => {
-    track('signup_name_skipped', { reason: 'skip' });
-    onDone();
-  });
 
   return el(
     'div',
@@ -429,8 +464,8 @@ function renderNameStep({ prefill, track, onDone }) {
       ),
       submit,
       errorEl,
+      continueWithoutName,
     ),
-    skip,
   );
 }
 
