@@ -7692,6 +7692,14 @@
   "@closureResultNoShare": {
     "description": "Outcome line when the outcome is not done and the band is none (V8)."
   },
+  "closureResultLeft": "You were no longer in the request when it closed",
+  "@closureResultLeft": {
+    "description": "Outcome line for a viewer who had left or been removed before the review ended and was settled as not done, with a band from colleagues (#489)."
+  },
+  "closureResultLeftNoShare": "You were no longer in the request when it closed — no share in the results",
+  "@closureResultLeftNoShare": {
+    "description": "Outcome line for a viewer who had left or been removed before the review ended and has no share (band none) (#489)."
+  },
   "closureResultBandRaised": "Colleagues raised your share",
   "@closureResultBandRaised": {
     "description": "Band sentence of the Results card."

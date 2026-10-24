@@ -21,6 +21,7 @@ import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
 import 'package:tentura_server/data/repository/trust_publish_repository.dart';
 import 'package:tentura_server/domain/closure/closure_exception.dart';
+import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/closure_receipts_port.dart';
@@ -361,9 +362,9 @@ FROM public.beacon_closure WHERE beacon_id = '$_beacon' AND epoch = 1
         expect(r1['band'], _bandAsIfSilent);
         expect(r2['band'], _bandLowered);
         expect(r3['band'], _bandRaised);
-        expect(r1['helped'] as double, closeTo(0.3856, 5e-4));
-        expect(r2['helped'] as double, closeTo(0.1471, 5e-4));
-        expect(r3['helped'] as double, closeTo(0.1672, 5e-4));
+        expect(r1['helped'], closeTo(0.3856, 5e-4));
+        expect(r2['helped'], closeTo(0.1471, 5e-4));
+        expect(r3['helped'], closeTo(0.1672, 5e-4));
 
         expect(
           await evidenceCountValue(_kHelped, _author, _u1),
@@ -483,6 +484,154 @@ VALUES ('$_beacon', '$u', $_done) ON CONFLICT DO NOTHING
         await member(_u2, outcome: null);
         await finalizeNow();
         expect((await resultOf(_u2))['outcome'], _cantJudge);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 an unanswered voluntary leaver gets no share',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: null);
+        await finalizeNow();
+        final r3 = await resultOf(_u3);
+        // Stored as finalize settled them: «Не выполнено», not cantJudge.
+        expect(r3['outcome'], _notDone);
+        expect(r3['helped'], closeTo(0, 1e-9));
+        expect(await evidenceCountValue(_kHelped, _author, _u3), isNull);
+        for (final u in [_u1, _u2]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.35, 5e-4),
+          );
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 the leaver result reads not done, not could not judge',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: null);
+        await member(_u4, departure: _voluntary, outcome: _cantJudge);
+        await finalizeNow();
+        // The stored row and the viewer read agree: «Не выполнено».
+        expect((await resultOf(_u3))['outcome'], _notDone);
+        expect((await resultOf(_u4))['outcome'], _cantJudge);
+        final closureCase = buildClosureCase();
+        final r3 = await closureCase.resultForViewer(
+          viewerId: _u3,
+          beaconId: _beacon,
+        );
+        expect(r3!.outcome, ClosureOutcome.notDone);
+        expect(r3.unjudgedLeaver, isTrue);
+        final r4 = await closureCase.resultForViewer(
+          viewerId: _u4,
+          beaconId: _beacon,
+        );
+        expect(r4!.outcome, ClosureOutcome.cantJudge);
+        expect(r4.unjudgedLeaver, isFalse);
+        final r1 = await closureCase.resultForViewer(
+          viewerId: _u1,
+          beaconId: _beacon,
+        );
+        expect(r1!.outcome, ClosureOutcome.done);
+        expect(r1.unjudgedLeaver, isFalse);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 a leaver row finalized as cantJudge earlier still reads not done',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2, departure: _removed, outcome: _notDone);
+        await member(_u3, departure: _voluntary, outcome: null);
+        await member(_u4, departure: _voluntary, outcome: _notDone);
+        await finalizeNow();
+        // A row stored before finalize wrote notDone for the leaver.
+        await sql('''
+UPDATE public.beacon_closure_result SET outcome = $_cantJudge
+WHERE beacon_id = '$_beacon' AND user_id = '$_u3'
+''');
+        final closureCase = buildClosureCase();
+        final r3 = await closureCase.resultForViewer(
+          viewerId: _u3,
+          beaconId: _beacon,
+        );
+        expect(r3!.outcome, ClosureOutcome.notDone);
+        expect(r3.unjudgedLeaver, isTrue);
+        // The author's own mark, on a leaver or a removed member, is theirs.
+        for (final u in [_u2, _u4]) {
+          final r = await closureCase.resultForViewer(
+            viewerId: u,
+            beaconId: _beacon,
+          );
+          expect(r!.outcome, ClosureOutcome.notDone);
+          expect(r.unjudgedLeaver, isFalse);
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 a custom split drops the unanswered voluntary leaver',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: null);
+        await split({_u1: 40, _u2: 40, _u3: 20});
+        await finalizeNow();
+        expect((await resultOf(_u3))['helped'], closeTo(0, 1e-9));
+        for (final u in [_u1, _u2]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.35, 5e-4),
+          );
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 an author outcome for a voluntary leaver still counts',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _voluntary, outcome: _cantJudge);
+        await finalizeNow();
+        for (final u in [_u1, _u2, _u3]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.2333, 5e-4),
+          );
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      '#489 an unanswered removed member keeps the default share',
+      () async {
+        await seedEpoch();
+        await member(_u1);
+        await member(_u2);
+        await member(_u3, departure: _removed, outcome: null);
+        await finalizeNow();
+        for (final u in [_u1, _u2, _u3]) {
+          expect(
+            (await resultOf(u))['helped'],
+            closeTo(0.2333, 5e-4),
+          );
+        }
       },
       skip: skipReason,
     );

@@ -14,6 +14,11 @@ abstract class ClosureResult with _$ClosureResult {
     required ClosureDraftFlag draftFlag,
     @Default([]) List<String> marks,
     String? story,
+
+    /// The viewer left on their own and the author never judged them
+    /// (#489): a [ClosureOutcome.notDone] here is how finalize settled
+    /// them, not the author's mark.
+    @Default(false) bool unjudgedLeaver,
   }) = _ClosureResult;
 
   const ClosureResult._();

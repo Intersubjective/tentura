@@ -262,6 +262,44 @@ void main() {
       });
     });
 
+    test('V8b #489: an unanswered voluntary leaver is out of A', () {
+      final result = _settle([
+        _member('u1'),
+        _member('u2'),
+        const SettlementMember(
+          userId: 'u3',
+          voter: false,
+          inAWithoutOutcome: false,
+        ),
+      ]);
+      _expectHelped(result, {'u1': 0.35, 'u2': 0.35, 'u3': 0});
+      expect(result.lost, closeTo(0, _vectorTol));
+      _expectBands(result, {
+        'u1': ClosureBand.asIfSilent,
+        'u2': ClosureBand.asIfSilent,
+        'u3': ClosureBand.none,
+      });
+      expect(result.closeAck, {'u1', 'u2'});
+    });
+
+    test('V8c #489: an author outcome for a voluntary leaver still counts', () {
+      final result = _settle([
+        _member('u1'),
+        _member('u2'),
+        const SettlementMember(
+          userId: 'u3',
+          outcome: ClosureOutcome.cantJudge,
+          voter: false,
+          inAWithoutOutcome: false,
+        ),
+      ]);
+      _expectHelped(result, {
+        'u1': 0.2333,
+        'u2': 0.2333,
+        'u3': 0.2333,
+      });
+    });
+
     test('V9 split 100/0/0, u1 supports u2', () {
       final result = _settle(
         _threeDone(u1Support: {'u2'}),

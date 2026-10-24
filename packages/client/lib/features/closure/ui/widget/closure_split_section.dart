@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/closure/domain/closure_split.dart';
 import 'package:tentura/features/closure/ui/bloc/closure_author_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -20,6 +21,14 @@ class ClosureSplitSection extends StatelessWidget {
     final draft = state.draft;
     final names = {for (final m in data.members) m.id: m.displayName ?? m.id};
     final hasSplit = data.split != null;
+    // What finalize would settle with: a saved split that still covers an
+    // unjudged voluntary leaver is shown renormalized over the rest (#489).
+    final shown = closureSettledSplit(
+      split: data.split,
+      outcomes: {for (final m in data.members) m.id: data.outcomes?[m.id]},
+      leftVoluntarily: closureVoluntaryLeavers(data),
+      beaconId: cubit.beaconId,
+    );
 
     final resetButton = hasSplit
         ? TextButton(
@@ -54,13 +63,13 @@ class ClosureSplitSection extends StatelessWidget {
               ?resetButton,
             ],
           ),
-        ] else if (!hasSplit)
+        ] else if (shown == null)
           Text(
             l10n.closureAuthorSplitEqual,
             style: theme.textTheme.bodySmall,
           )
         else
-          for (final e in data.split!.entries)
+          for (final e in shown.entries)
             Text(
               l10n.closureAuthorSplitShare(names[e.key] ?? e.key, e.value),
               style: theme.textTheme.bodyMedium,

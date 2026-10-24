@@ -66,6 +66,10 @@ const _asIfSilent = 'твоя часть — как если бы коллеги
 const _lowered = 'коллеги опустили твою часть';
 const _notCounted = 'твои отметки не вошли: ты не нажал готово';
 const _lastEdit = 'в расчёте прошлая версия, последняя правка не вошла';
+const _left = 'к закрытию тебя уже не было в запросе';
+const _leftNoShare =
+    'к закрытию тебя уже не было в запросе — части в итогах нет';
+const _authorMarked = 'автор отметил';
 
 const _author = ClosureMember(id: 'auth', displayName: 'Name auth');
 
@@ -91,8 +95,17 @@ final class _FakeClosureRepository implements ClosureRepository {
     required this.outcome,
     this.band = ClosureBand.none,
     this.draftFlag = ClosureDraftFlag.none,
+    this.meNotInRequest = false,
+    this.unjudgedLeaver = false,
     List<String> marks = const [],
   }) : marks = [...marks];
+
+  /// The viewer left (or was removed) before the review ended.
+  final bool meNotInRequest;
+
+  /// #489: the server says the viewer left on their own and the author never
+  /// judged them.
+  final bool unjudgedLeaver;
 
   final ClosureOutcome outcome;
   final ClosureBand band;
@@ -107,6 +120,7 @@ final class _FakeClosureRepository implements ClosureRepository {
         band: band,
         draftFlag: draftFlag,
         marks: [...marks],
+        unjudgedLeaver: unjudgedLeaver,
       );
 
   @override
@@ -115,7 +129,11 @@ final class _FakeClosureRepository implements ClosureRepository {
     status: _finalized,
     role: ClosureRole.voter,
     members: [
-      const ClosureMember(id: _me, displayName: 'Name me'),
+      ClosureMember(
+        id: _me,
+        displayName: 'Name me',
+        notInRequest: meNotInRequest,
+      ),
       for (var i = 1; i <= 2; i++)
         ClosureMember(id: 'c$i', displayName: 'Name c$i'),
     ],
@@ -321,6 +339,86 @@ void main() {
       expect(_copy(_noShareTail), findsNothing);
       expect(_copy(_asIfSilent), findsNothing);
       expect(_copy(_lowered), findsNothing);
+    });
+  });
+
+  group('#489 a viewer who was no longer in the request', () {
+    testWidgets('notDone, band none: says so, no author mark', (tester) async {
+      await _pump(
+        tester,
+        _FakeClosureRepository(
+          outcome: ClosureOutcome.notDone,
+          meNotInRequest: true,
+          unjudgedLeaver: true,
+        ),
+      );
+      expect(_copy(_leftNoShare), findsOneWidget);
+      expect(_copy(_authorMarked), findsNothing);
+      _expectNoBand();
+    });
+
+    testWidgets('notDone with a band: the left line plus the band', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _FakeClosureRepository(
+          outcome: ClosureOutcome.notDone,
+          band: ClosureBand.raised,
+          meNotInRequest: true,
+          unjudgedLeaver: true,
+        ),
+      );
+      expect(_copy(_left), findsOneWidget);
+      expect(_copy(_noShareTail), findsNothing);
+      expect(_copy(_raised), findsOneWidget);
+      expect(_copy(_authorMarked), findsNothing);
+    });
+
+    testWidgets('an outcome the author gave still shows as theirs', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _FakeClosureRepository(
+          outcome: ClosureOutcome.cantJudge,
+          meNotInRequest: true,
+        ),
+      );
+      expect(_copy(_outCantJudge), findsOneWidget);
+      expect(_copy(_left), findsNothing);
+    });
+
+    // A leaver the author marked «Не выполнено», or a removed member: the
+    // mark is the author's, so the card shows it as theirs.
+    testWidgets('notDone the author gave, band none: the author line', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _FakeClosureRepository(
+          outcome: ClosureOutcome.notDone,
+          meNotInRequest: true,
+        ),
+      );
+      expect(_copy(_noShare), findsOneWidget);
+      expect(_copy(_left), findsNothing);
+    });
+
+    testWidgets('notDone the author gave, with a band: the author line', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _FakeClosureRepository(
+          outcome: ClosureOutcome.notDone,
+          band: ClosureBand.lowered,
+          meNotInRequest: true,
+        ),
+      );
+      expect(_copy(_outNotDone), findsOneWidget);
+      expect(_copy(_lowered), findsOneWidget);
+      expect(_copy(_left), findsNothing);
     });
   });
 

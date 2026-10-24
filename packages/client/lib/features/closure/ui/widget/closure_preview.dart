@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/closure/domain/closure_split.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/silent_preview.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Live bars: what each member would get if the colleagues stay silent.
 class ClosurePreview extends StatelessWidget {
-  const ClosurePreview({required this.data, super.key});
+  const ClosurePreview({
+    required this.data,
+    required this.beaconId,
+    super.key,
+  });
 
   final ClosureState data;
+
+  /// Tie-break seed of the split rounding, as on the server.
+  final String beaconId;
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +26,8 @@ class ClosurePreview extends StatelessWidget {
     final shares = silentPreview(
       outcomes: {for (final m in data.members) m.id: data.outcomes?[m.id]},
       split: data.split,
+      leftVoluntarily: closureVoluntaryLeavers(data),
+      beaconId: beaconId,
     );
     final top = shares.values.fold<double>(0, (a, b) => a > b ? a : b);
     return Column(

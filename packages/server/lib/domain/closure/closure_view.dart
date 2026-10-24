@@ -69,6 +69,7 @@ final class ClosureResultView {
     required this.draftFlag,
     required this.marks,
     this.story,
+    this.unjudgedLeaver = false,
   });
 
   final ClosureOutcome outcome;
@@ -76,4 +77,9 @@ final class ClosureResultView {
   final ClosureResultDraftFlag draftFlag;
   final List<String> marks;
   final String? story;
+
+  /// The viewer left the request on their own and the author never judged
+  /// them (#489): [outcome] is the «Не выполнено» finalize settled them by,
+  /// not a mark the author gave.
+  final bool unjudgedLeaver;
 }

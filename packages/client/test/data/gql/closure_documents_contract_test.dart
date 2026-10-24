@@ -97,6 +97,7 @@ const _types = {
     'marks: [String!]',
     'outcome: v2_ClosureOutcome!',
     'story: String',
+    'unjudgedLeaver: Boolean!',
   ],
   'v2_ClosureToggleResult': ['released: String'],
 };
@@ -200,6 +201,8 @@ void main() {
         'draftFlag',
         'marks',
         'story',
+        // #489: a flag, not a number: who left unjudged, no share leaks.
+        'unjudgedLeaver',
       });
     });
   });

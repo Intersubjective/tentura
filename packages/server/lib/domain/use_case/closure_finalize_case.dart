@@ -6,8 +6,10 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
+import 'package:tentura_server/domain/closure/closure_set_a.dart';
 import 'package:tentura_server/domain/closure/episode_settlement.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
@@ -154,7 +156,23 @@ final class ClosureFinalizeCase extends UseCaseBase
     final outcomes = {
       for (final o in await _repo.outcomes(beaconId)) o.helperId: o.outcome,
     };
-    final split = await _repo.split(beaconId);
+    // #489 (Vadim, V1 = A): a voluntary leaver the author did not judge is
+    // out of A; a custom split is renormalized over the rest, as if the
+    // author had marked them «Не выполнено».
+    final unjudgedLeavers = {
+      for (final m in members)
+        if (isUnjudgedLeaver(m, outcomes)) m.userId,
+    };
+    var split = await _repo.split(beaconId);
+    if (split.keys.any(unjudgedLeavers.contains)) {
+      split =
+          renormalize(
+            current: split,
+            newA: closureSetA(members, outcomes),
+            beaconId: beaconId,
+          ) ??
+          const {};
+    }
     final drafts = _targetsByVoter(
       await _repo.supports(
         beaconId: beaconId,
@@ -179,6 +197,7 @@ final class ClosureFinalizeCase extends UseCaseBase
               userId: m.userId,
               outcome: outcomes[m.userId],
               voter: _isVoter(m),
+              inAWithoutOutcome: !unjudgedLeavers.contains(m.userId),
               support: committedVoters.contains(m.userId)
                   ? committed[m.userId] ?? const {}
                   : null,
@@ -196,7 +215,11 @@ final class ClosureFinalizeCase extends UseCaseBase
         for (final m in members)
           ClosureResultInsert(
             userId: m.userId,
-            outcome: outcomes[m.userId] ?? ClosureOutcome.cantJudge,
+            // #489: the unjudged voluntary leaver was settled as «Не
+            // выполнено» above, so the stored row says so too.
+            outcome: unjudgedLeavers.contains(m.userId)
+                ? ClosureOutcome.notDone
+                : outcomes[m.userId] ?? ClosureOutcome.cantJudge,
             band: settlement.band[m.userId]!,
             draftFlag: _draftFlag(
               hasCommit: committedVoters.contains(m.userId),

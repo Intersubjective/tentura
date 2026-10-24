@@ -330,6 +330,7 @@ void main() {
                 'draftFlag': f.key,
                 'marks': <String>[],
                 'story': 'told',
+                'unjudgedLeaver': false,
               },
             },
           },
@@ -341,6 +342,7 @@ void main() {
             expect(r.draftFlag, f.value);
             expect(r.marks, isEmpty);
             expect(r.story, 'told');
+            expect(r.unjudgedLeaver, isFalse);
           },
         );
       }
@@ -359,6 +361,7 @@ void main() {
             'draftFlag': 'lastEditNotCounted',
             'marks': ['Uhelper000001'],
             'story': null,
+            'unjudgedLeaver': true,
           },
         },
       },
@@ -371,6 +374,8 @@ void main() {
         expect(r.draftFlag, ClosureDraftFlag.lastEditNotCounted);
         expect(r.marks, ['Uhelper000001']);
         expect(r.story, isNull);
+        // #489: the server says this notDone was not the author's mark.
+        expect(r.unjudgedLeaver, isTrue);
       },
     );
 

@@ -8,12 +8,18 @@ final class SettlementMember {
     this.outcome,
     this.voter = true,
     this.support,
+    this.inAWithoutOutcome = true,
   });
 
   final String userId;
   final ClosureOutcome? outcome;
   final bool voter;
   final Set<String>? support;
+
+  /// Where a member the author gave no outcome lands (U55 as amended by
+  /// #489): `true` keeps them in A like «Не могу судить»; `false` (a
+  /// voluntary leaver) leaves them out of A, so they get no author share.
+  final bool inAWithoutOutcome;
 }
 
 final class SettlementInput {
@@ -54,6 +60,7 @@ class EpisodeSettlement {
     final effectiveOutcome = <String, ClosureOutcome>{};
     for (final m in sorted) {
       effectiveOutcome[m.userId] = switch (m.outcome) {
+        null when !m.inAWithoutOutcome => ClosureOutcome.notDone,
         null => ClosureOutcome.cantJudge,
         ClosureOutcome.notDone => ClosureOutcome.notDone,
         ClosureOutcome.done => ClosureOutcome.done,
