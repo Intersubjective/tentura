@@ -18,7 +18,7 @@ import 'constellation_field_store_case.dart';
 
 /// Most placements one [ConstellationPlacementCase.place] call (one cluster,
 /// sent as one batch) may hold.
-const int kConstellationPlacementBatchCap = 64;
+const int kConstellationPlacementBatchCap = 400;
 
 /// Account-owned placement writes, separate from the store's read lifecycle.
 @Order(2)
@@ -128,7 +128,11 @@ final class ConstellationPlacementCase extends UseCaseBase {
         r.id: r,
     };
     if (positions.length > _batchCap) {
-      throw ArgumentError.value(positions.length, 'cluster size', 'Maximum 64');
+      throw ArgumentError.value(
+        positions.length,
+        'cluster size',
+        'Maximum $_batchCap',
+      );
     }
     final clusterId = _uuid.v4();
     _enqueue([

@@ -4,6 +4,9 @@ export 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 const kConstellationPeerCap = 400;
 const kConstellationRequestCap = 150;
 
+/// Most operations one `constellationAnchorsApply` batch may hold.
+const kConstellationAnchorBatchCap = 400;
+
 /// Candidates examined per readability batch of the discoverable keyset scan.
 const kConstellationDiscoverableScanBatch = kConstellationRequestCap + 1;
 

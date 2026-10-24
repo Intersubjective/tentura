@@ -330,9 +330,9 @@ void main() {
       expect(repository.batchCalls, 0);
     });
 
-    test('more than 64 operations is invalidTarget 1700', () async {
+    test('more than 400 operations is invalidTarget 1700', () async {
       final ops = [
-        for (var i = 0; i < 65; i++) _upsertOp('op-$i', 'U_anchors_apply_$i'),
+        for (var i = 0; i < 401; i++) _upsertOp('op-$i', 'U_anchors_apply_$i'),
       ];
 
       await expectLater(
@@ -345,15 +345,15 @@ void main() {
       expect(repository.batchCalls, 0);
     });
 
-    test('exactly 64 operations reaches the port', () async {
+    test('exactly 400 operations reaches the port', () async {
       final ops = [
-        for (var i = 0; i < 64; i++) _upsertOp('op-$i', 'U_anchors_apply_$i'),
+        for (var i = 0; i < 400; i++) _upsertOp('op-$i', 'U_anchors_apply_$i'),
       ];
 
       await mutation.constellationAnchorsApply.resolve!(null, args(ops));
 
       expect(repository.batchCalls, 1);
-      expect(repository.lastOps, hasLength(64));
+      expect(repository.lastOps, hasLength(400));
     });
 
     test('duplicate client operation ids are 1700', () async {

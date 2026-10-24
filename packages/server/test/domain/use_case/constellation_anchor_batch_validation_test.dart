@@ -52,10 +52,18 @@ void main() {
   });
 
   group('anchor batch envelope validation', () {
-    test('rejects more than 64 operations before repository IO', () async {
-      await expectInvalidEnvelope([
+    test('accepts a 65-operation batch through the port', () async {
+      final ops = [
         for (var i = 0; i < 65; i++) upsert('limit-$i', 'Ulimit$i'),
-      ]);
+      ];
+      final result = await case_.apply(
+        viewerId: viewer,
+        ops: ops,
+      );
+
+      expect(repository.batchCalls, 1);
+      _expectEquivalentOps(repository.lastOps, ops);
+      _expectEquivalentBatchResult(result, repository.result);
     });
 
     test('accepts exactly 64 distinct operations through the port', () async {
@@ -69,6 +77,26 @@ void main() {
 
       expect(repository.batchCalls, 1);
       expect(repository.lastViewerId, viewer);
+      _expectEquivalentOps(repository.lastOps, ops);
+      _expectEquivalentBatchResult(result, repository.result);
+    });
+
+    test('rejects more than 400 operations before repository IO', () async {
+      await expectInvalidEnvelope([
+        for (var i = 0; i < 401; i++) upsert('cap-$i', 'Ucap$i'),
+      ]);
+    });
+
+    test('accepts exactly 400 distinct operations through the port', () async {
+      final ops = [
+        for (var i = 0; i < 400; i++) upsert('cap-$i', 'Ucap$i'),
+      ];
+      final result = await case_.apply(
+        viewerId: viewer,
+        ops: ops,
+      );
+
+      expect(repository.batchCalls, 1);
       _expectEquivalentOps(repository.lastOps, ops);
       _expectEquivalentBatchResult(result, repository.result);
     });

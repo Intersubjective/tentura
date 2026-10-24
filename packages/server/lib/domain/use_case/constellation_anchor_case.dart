@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
@@ -20,10 +21,12 @@ final class ConstellationAnchorCase extends UseCaseBase {
     required String viewerId,
     required List<AnchorApplyOp> ops,
   }) async {
-    if (ops.length > 64) {
+    if (ops.length > kConstellationAnchorBatchCap) {
       throw ConstellationException(
         constellationCode: ConstellationExceptionCode.invalidTarget,
-        description: 'An anchor batch may contain at most 64 operations',
+        description:
+            'An anchor batch may contain at most '
+            '$kConstellationAnchorBatchCap operations',
       );
     }
     final opIds = <String>{};

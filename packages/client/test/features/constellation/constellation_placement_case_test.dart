@@ -370,12 +370,12 @@ void main() {
 
   group('Cluster bounded single flight flushing', () {
     for (final sizes in [
-      [40, 30],
-      [64, 1],
-      [40, 24, 30],
+      [kConstellationPlacementBatchCap - 24, 30],
+      [kConstellationPlacementBatchCap, 1],
+      [kConstellationPlacementBatchCap - 24, 24, 30],
     ]) {
       test(
-        'queued clusters of ${sizes.join(', ')} stay whole below the 64 op cap',
+        'queued clusters of ${sizes.join(', ')} stay whole below the op cap',
         () async {
           placeCluster('blocker', 1);
           await _drain();
@@ -405,7 +405,7 @@ void main() {
               hasLength(next + 1),
               reason: 'Only the currently released batch can be dispatched',
             );
-            expect(anchors.calls[next].ops.length, inInclusiveRange(1, 64));
+            expect(anchors.calls[next].ops.length, inInclusiveRange(1, kConstellationPlacementBatchCap));
             anchors.settle(next);
             next++;
             await _drain();
