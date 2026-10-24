@@ -15,6 +15,8 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 const _beaconId = 'Binboxtest01';
 const _authorId = 'Uinboxtestauth';
 const _recipientId = 'Uinboxtestrecp';
@@ -24,7 +26,15 @@ const _watcherId = 'Uinboxtestwatch';
 
 /// Postgres integration — inbox state machine + provenance (COV-090).
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(
+      target: _target,
+      createPgmer2Extension: true,
+    );
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
   var tombstoneSkipReason = skipReason;
   var provenanceSkipReason = skipReason;
@@ -610,10 +620,16 @@ WHERE ii.user_id = $2 AND ii.beacon_id = $3
   );
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_INBOX_REPOSITORY_TEST_DB',
+  defaultNamePrefix: 'tentura_test_inbox_repository',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   printEnv: false,
   isDebugModeOn: false,
@@ -751,15 +767,4 @@ WHERE n.nspname = 'public'
   }
 
   return buffer.toString();
-}
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object catch (_) {
-    return false;
-  }
 }

@@ -16,10 +16,17 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Verifies linking a credential when the authoritative contact already exists
 /// on the same account (e.g. Google signup + email magic link).
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   final skipReason =
       postgresReachable ? false : 'local Postgres not reachable';
 
@@ -30,14 +37,7 @@ Future<void> main() async {
 
   if (postgresReachable) {
     setUpAll(() async {
-      final env = Env(
-        environment: Environment.test,
-        pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-        pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-        pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-        printEnv: false,
-        isDebugModeOn: false,
-      );
+      final env = _testEnv();
       db = TenturaDb(env);
       repo = UserRepository(
         env,
@@ -106,16 +106,17 @@ Future<void> main() async {
   );
 }
 
-Future<bool> _canConnectPostgres() async {
-  try {
-    final socket = await Socket.connect(
-      Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      timeout: const Duration(milliseconds: 500),
-    );
-    await socket.close();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_USER_REPOSITORY_LINK_CREDENTIAL_TEST_DB',
+  defaultNamePrefix: 'tentura_test_user_repository_link_cre',
+);
+
+Env _testEnv() => Env(
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);

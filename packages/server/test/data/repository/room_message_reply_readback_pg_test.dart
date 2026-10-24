@@ -1,12 +1,8 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
-import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -31,9 +27,9 @@ import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
-import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
@@ -52,18 +48,12 @@ class _PgFakePolling extends Fake implements PollingRepositoryPort {}
 class _PgFakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {}
 
 Future<void> main() async {
-  final env = Env(
-    environment: Environment.test,
-    pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-    pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-    pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-    printEnv: false,
-    isDebugModeOn: false,
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_ROOM_REPLY_READBACK_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_room_reply',
   );
-  final reachable = await _canConnect(env);
-  final skipReason = reachable
-      ? false
-      : 'Postgres not reachable for reply readback test';
+  final skipReason = await pgSkipReason(target);
+  late DisposablePgWriterSession session;
 
   const beaconId = 'Breplypg00001';
   const otherBeaconId = 'Breplypgother1';
@@ -75,14 +65,15 @@ Future<void> main() async {
   late TenturaDb database;
   late BeaconRoomRepository room;
 
-  if (skipReason == false) {
+  if (skipReason == null) {
     setUpAll(() async {
-      database = TenturaDb(env);
+      session = await setUpDisposablePgWriter(target: target);
+      database = TenturaDb(target.databaseEnv);
       room = BeaconRoomRepository(database);
     });
 
     tearDownAll(() async {
-      await database.close();
+      await tearDownDisposablePgWriter(session: session, drift: database);
     });
 
     tearDown(() async {
@@ -603,7 +594,7 @@ WHERE id = '${reply.id}'
           CommitmentRepository(database),
         ),
         UserRepository(
-          Env(environment: Environment.test),
+          target.databaseEnv,
           database,
           _NoopInviteGenealogyRepository(),
           InviteSeedPromptRepositoryMock(),
@@ -627,7 +618,7 @@ WHERE id = '${reply.id}'
         const ProductionDiscussionProductPolicy(),
         attentionIntents: attentionIntents,
         attention: attention,
-        env: Env(environment: Environment.test),
+        env: target.databaseEnv,
         logger: Logger('room_message_reply_readback_pg_test'),
       );
 
@@ -719,20 +710,6 @@ WHERE account_id = \$1
     skip: skipReason,
   );
 }
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}

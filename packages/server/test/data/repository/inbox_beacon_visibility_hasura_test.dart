@@ -6,16 +6,15 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:injectable/injectable.dart' show Environment;
-import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
+import '../../support/disposable_pg_target.dart';
 
 /// Hasura returns `beacon: null` for an `inbox_item` row whose beacon fails
 /// the `can_read_content` row permission (e.g. the viewer's own beacon after
@@ -30,7 +29,15 @@ import '../../support/pg_test_public_keys.dart';
 /// `beacons_fetch_by_user_id.graphql`). This test locks in that Hasura-level
 /// contract directly, since it cannot be exercised by a pure Dart unit test.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(
+      target: _target,
+      createPgmer2Extension: true,
+    );
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   final hasuraReachable = postgresReachable && await _canConnectHasura();
   final skipReason = !postgresReachable
       ? 'local Postgres not reachable'
@@ -44,14 +51,6 @@ Future<void> main() async {
   if (skipReason == false) {
     setUpAll(() async {
       final env = _testEnv();
-      final writer = await Connection.open(
-        env.pgEndpoint,
-        settings: env.pgEndpointSettings,
-      );
-      await writer.execute('SET check_function_bodies = false');
-      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-      await migrateDbSchema(writer);
-      await writer.close();
       db = TenturaDb(env);
       originalHasuraSourceConfiguration = await _pointHasuraAtTestDatabase();
     });
@@ -112,7 +111,12 @@ ON CONFLICT (id) DO UPDATE SET
   is_discoverable = EXCLUDED.is_discoverable,
   published_at = EXCLUDED.published_at
 ''',
-      [id, status, isDiscoverable, effectivePublishedAt.toUtc().toIso8601String()],
+      [
+        id,
+        status,
+        isDiscoverable,
+        effectivePublishedAt.toUtc().toIso8601String(),
+      ],
     );
   }
 
@@ -235,21 +239,21 @@ Future<bool> _hasuraBeaconReadable({
   required String beaconId,
   bool filtered = true,
 }) async {
-  final filter = filtered
-      ? ', can_read_content: {_eq: true}'
-      : '';
+  final filter = filtered ? ', can_read_content: {_eq: true}' : '';
   final query =
       'query { beacon(where: {id: {_eq: "$beaconId"}$filter}) { id } }';
-  final response = await http.post(
-    Uri.parse('$_hasuraUrl/v1/graphql'),
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Hasura-Admin-Secret': _hasuraAdminSecret,
-      'X-Hasura-Role': 'user',
-      'X-Hasura-User-Id': userId,
-    },
-    body: jsonEncode({'query': query}),
-  ).timeout(const Duration(seconds: 10));
+  final response = await http
+      .post(
+        Uri.parse('$_hasuraUrl/v1/graphql'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Hasura-Admin-Secret': _hasuraAdminSecret,
+          'X-Hasura-Role': 'user',
+          'X-Hasura-User-Id': userId,
+        },
+        body: jsonEncode({'query': query}),
+      )
+      .timeout(const Duration(seconds: 10));
   final body = jsonDecode(response.body) as Map<String, dynamic>;
   expect(body['errors'], isNull, reason: body.toString());
   final rows = (body['data']! as Map<String, dynamic>)['beacon'] as List;
@@ -358,26 +362,20 @@ Future<Map<String, dynamic>> _postHasuraMetadata(
   return body;
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_INBOX_BEACON_VISIBILITY_HASURA_TEST_DB',
+  defaultNamePrefix: 'tentura_test_inbox_beacon_vis',
+);
+
 Env _testEnv() => Env(
   environment: Environment.test,
   pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
   pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgDatabase: _target.databaseName,
   pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
   printEnv: false,
   isDebugModeOn: false,
 );
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object catch (_) {
-    return false;
-  }
-}
 
 Future<bool> _canConnectHasura() async {
   try {

@@ -11,6 +11,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/polling_act_repository.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Postgres integration — guards the m0104 re-key of `polling_act`.
 ///
 /// Range voting upserts one row per variant with `insertOnConflictUpdate`,
@@ -19,7 +21,12 @@ import 'package:tentura_server/env.dart';
 /// unique constraint and PostgreSQL raises 42P10; multi-variant votes also
 /// collide on the old PK (23505). After m0104 both must succeed.
 Future<void> main() async {
-  final postgresReachable = await _canConnectPostgres();
+  final postgresReachable = await canReachPostgresAdmin(_target);
+  DisposablePgWriterSession? pgSession;
+  if (postgresReachable) {
+    pgSession = await setUpDisposablePgWriter(target: _target);
+    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
+  }
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
 
   if (postgresReachable) {
@@ -147,14 +154,20 @@ WHERE polling_id = 'Prangeupsert' AND author_id = 'Urangeupsertvoter'
   );
 }
 
+final _target = DisposablePgTarget.fromNamedEnvironment(
+  envVarName: 'TENTURA_POLLING_ACT_REPOSITORY_RANGE_UPSERT_TEST_DB',
+  defaultNamePrefix: 'tentura_test_polling_act_repository_r',
+);
+
 Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: _target.databaseName,
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 /// True when `polling_act`'s primary key is keyed on
 /// (author_id, polling_variant_id) — i.e. m0104 has been applied.
@@ -170,15 +183,4 @@ LIMIT 1
 ''',
   ).get();
   return rows.isNotEmpty;
-}
-
-Future<bool> _canConnectPostgres() async {
-  try {
-    final db = TenturaDb(_testEnv());
-    await db.customSelect('SELECT 1').getSingle();
-    await db.close();
-    return true;
-  } on Object {
-    return false;
-  }
 }
