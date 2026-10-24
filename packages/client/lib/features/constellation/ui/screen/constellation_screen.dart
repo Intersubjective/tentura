@@ -157,6 +157,11 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   StackRouter? _rootRouter;
   TabsRouter? _homeTabs;
 
+  /// The root's URL history. A root route popped by its navigator (the back
+  /// button, a swipe, `maybePop`) leaves through `StackRouter.onPopPage`,
+  /// which rebuilds the URL but does not notify the root router itself.
+  Listenable? _history;
+
   /// Whether the field is already in the composing phase for the composer.
   bool _composing = false;
 
@@ -179,11 +184,16 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     // No router (isolated widget tests): treated as always visible.
     final root = StackRouterScope.of(context)?.controller.root;
     final tabs = root?.innerRouterOf<TabsRouter>(HomeRoute.name);
-    if (!identical(root, _rootRouter) || !identical(tabs, _homeTabs)) {
+    final history = root?.navigationHistory;
+    if (!identical(root, _rootRouter) ||
+        !identical(tabs, _homeTabs) ||
+        !identical(history, _history)) {
       _rootRouter?.removeListener(_syncVisibility);
       _homeTabs?.removeListener(_syncVisibility);
+      _history?.removeListener(_syncVisibility);
       _rootRouter = root?..addListener(_syncVisibility);
       _homeTabs = tabs?..addListener(_syncVisibility);
+      _history = history?..addListener(_syncVisibility);
     }
     _syncVisibility();
   }
@@ -193,6 +203,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     _graphController.removeListener(_syncComposerPersonPositions);
     _rootRouter?.removeListener(_syncVisibility);
     _homeTabs?.removeListener(_syncVisibility);
+    _history?.removeListener(_syncVisibility);
     _focusRequest.pending.removeListener(_takeFocusRequest);
     super.dispose();
   }

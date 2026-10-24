@@ -169,7 +169,8 @@ final class _Fields implements ConstellationRepositoryPort {
       for (final person in people)
         ConstellationTrustEdgeEntity(src: 'ego', dst: person.id, tier: 1),
     ],
-    // A person with nothing of theirs on the field is not drawn.
+    // A person with nothing of theirs on the field is not drawn. A Post is
+    // pinned when the server stores a position for it.
     posts: [
       for (final person in people)
         ConstellationPost(
@@ -177,6 +178,9 @@ final class _Fields implements ConstellationRepositoryPort {
           authorId: person.id,
           rootExcerpt: 'Hello',
           lastActivityAt: DateTime.utc(2026, 10, 22),
+          isPinned: server.anchors.containsKey(
+            ConstellationAnchorTarget.beacon('post-${person.id}'),
+          ),
         ),
     ],
     anchorProjection: ConstellationAnchorProjection(
@@ -210,6 +214,8 @@ const _threePeople = [
 final _ann = ConstellationAnchorTarget.person('a');
 final _bob = ConstellationAnchorTarget.person('b');
 final _cat = ConstellationAnchorTarget.person('c');
+final _postA = ConstellationAnchorTarget.beacon('post-a');
+final _postB = ConstellationAnchorTarget.beacon('post-b');
 
 typedef _Harness = ({
   _Server server,
@@ -316,6 +322,14 @@ Offset _scene(ConstellationCubit cubit, String personId) {
     'fp:$personId',
   );
   expect(point, isNotNull, reason: '$personId must be laid out');
+  return Offset(point!.x, point.y);
+}
+
+Offset _beacon(ConstellationCubit cubit, String beaconId) {
+  final point = cubit.graphController.renderSnapshot.resolvePosition(
+    'fr:$beaconId',
+  );
+  expect(point, isNotNull, reason: '$beaconId must be laid out');
   return Offset(point!.x, point.y);
 }
 
@@ -511,6 +525,86 @@ void main() {
     expectOffset(_written(ops[_ann]!) - annStart, delta);
     expectOffset(_written(ops[_bob]!) - bobStart, delta);
     expect(ops[_bob]!.position!.xUnits, lessThanOrEqualTo(10));
+  });
+
+  testWidgets('a member that starts outside the envelope is not written and '
+      'stays put, without holding the group back; pinned Posts follow their '
+      'own author', (tester) async {
+    // Bob is pinned 0.6 units past the right edge (on the canvas, outside
+    // the envelope a position can be stored in), as an old row can be.
+    // Ann and Bob each have a pinned Post; Cat is pinned in the middle.
+    final h = await _mount(
+      tester,
+      seeded: {
+        _ann: (1, 0),
+        _bob: (10.6, 1),
+        _cat: (-1, 1.5),
+        _postA: (2, 1),
+        _postB: (9.5, 2),
+      },
+    );
+    h.selection
+      ..toggle(_ann)
+      ..toggle(_bob)
+      ..toggle(_cat);
+    await _frames(tester);
+    final annStart = _scene(h.cubit, 'a');
+    final bobStart = _scene(h.cubit, 'b');
+    final catStart = _scene(h.cubit, 'c');
+    final postAStart = _beacon(h.cubit, 'post-a');
+    final postBStart = _beacon(h.cubit, 'post-b');
+    expect(
+      bobStart.dx,
+      closeTo(_centre + 10.6 * _unit, 1),
+      reason: 'Bob must be laid out outside the envelope',
+    );
+
+    h.cubit.beginDragExisting(
+      target: _ann,
+      group: h.selection.state.dragGroupFor(_ann),
+    );
+    final annNode = h.cubit.graphController.nodePayloadForId('fp:a')!;
+    // Not enough to the left to bring Bob back inside.
+    final proposed = annStart + const Offset(-60, 50);
+    final clamped = h.cubit.clampClusterDragPosition(annNode, proposed);
+    h.cubit.updateDragPresentation(nodeId: 'fp:a', sceneCentre: clamped);
+    await _frames(tester);
+
+    // Live: the rest of the group moves the whole way; Bob does not hold it.
+    final delta = clamped - annStart;
+    expectOffset(delta, const Offset(-60, 50), reason: 'not held back');
+    expectOffset(_scene(h.cubit, 'c') - catStart, delta, reason: 'rigid');
+    expectOffset(_scene(h.cubit, 'b'), bobStart, reason: 'Bob stays');
+    expectOffset(
+      _beacon(h.cubit, 'post-a') - postAStart,
+      delta,
+      reason: "Ann's Post follows Ann",
+    );
+    expectOffset(
+      _beacon(h.cubit, 'post-b'),
+      postBStart,
+      reason: "Bob's Post follows Bob, not the grabbed node",
+    );
+
+    await h.cubit.onExistingNodeDrop(target: _ann, sceneCentre: proposed);
+    await _flushWrites(tester);
+
+    // One batch, every position in range (the fake server checks that).
+    expect(h.server.applies, hasLength(1));
+    final ops = {for (final op in h.server.applies.single) op.target: op};
+    expect(ops.keys, isNot(contains(_bob)), reason: 'Bob is not written');
+    expect(ops.keys, containsAll([_ann, _cat, _postA]));
+    expectOffset(_written(ops[_ann]!) - annStart, delta);
+    expectOffset(_written(ops[_cat]!) - catStart, delta);
+    expectOffset(_written(ops[_postA]!) - postAStart, delta);
+    if (ops[_postB] case final postB?) {
+      expectOffset(_written(postB), postBStart, reason: 'Bob did not move');
+    }
+
+    // Bob is back where he was, his stored row untouched.
+    expectOffset(_scene(h.cubit, 'b'), bobStart, reason: 'snaps back');
+    expect(h.server.anchors[_bob]!.position.xUnits, 10.6);
+    expectOffset(_beacon(h.cubit, 'post-b'), postBStart);
   });
 
   testWidgets('a group larger than one batch is written in several', (
