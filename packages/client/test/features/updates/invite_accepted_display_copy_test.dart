@@ -12,7 +12,8 @@ void main() {
     test('loading keeps server title and body', () {
       final copy = resolveInviteAcceptedDisplayCopy(
         receiptTitle: 'Alice · @alice',
-        receiptBody: 'Created an account via your invitation. You are now connected.',
+        receiptBody:
+            'Created an account via your invitation. You are now connected.',
         presentationPayloadJson: '{"inviteOrigin":"new_account"}',
         presentationKey: 'invite_accepted',
         l10n: l10n,
@@ -25,7 +26,7 @@ void main() {
       expect(copy.secondary, isEmpty);
     });
 
-    test('legacy empty payload uses receipt.body after profile load', () {
+    test('legacy empty payload with unknown body uses generic copy', () {
       final copy = resolveInviteAcceptedDisplayCopy(
         receiptTitle: 'Carol joined via your invitation',
         receiptBody: 'Carol is now on Tentura.',
@@ -35,14 +36,15 @@ void main() {
         profile: const Profile(id: 'invitee-1', displayName: 'Carol'),
       );
       expect(copy.title, 'Carol');
-      expect(copy.body, 'Carol is now on Tentura.');
+      expect(copy.body, l10n.updatesFallbackBodyInviteAccepted);
       expect(copy.secondary, isEmpty);
     });
 
     test('nickname title with canonical secondary and new-account body', () {
       final copy = resolveInviteAcceptedDisplayCopy(
         receiptTitle: 'Alice · @alice',
-        receiptBody: 'Created an account via your invitation. You are now connected.',
+        receiptBody:
+            'Created an account via your invitation. You are now connected.',
         presentationPayloadJson: '{"inviteOrigin":"new_account"}',
         presentationKey: 'invite_accepted',
         l10n: l10n,
@@ -80,6 +82,87 @@ void main() {
         copy.body,
         'Already had a Tentura account. You are now connected.',
       );
+    });
+  });
+
+  group('resolveInviteAcceptedDisplayCopy in Russian (#712)', () {
+    final ru = lookupL10n(const Locale('ru'));
+    const newAccountEn =
+        'Created an account via your invitation. You are now connected.';
+    const existingAccountEn =
+        'Already had a Tentura account. You are now connected.';
+
+    test('old row with no inviteOrigin payload is localized', () {
+      final copy = resolveInviteAcceptedDisplayCopy(
+        receiptTitle: 'tab qa 05',
+        receiptBody: newAccountEn,
+        presentationPayloadJson: '{}',
+        presentationKey: 'invite_accepted',
+        l10n: ru,
+        profile: const Profile(id: 'invitee-1', displayName: 'tab qa 05'),
+      );
+      expect(copy.title, 'tab qa 05');
+      expect(copy.body, ru.updatesInviteAcceptedBodyNewAccount);
+      expect(copy.body, isNot(newAccountEn));
+    });
+
+    test('old row is localized while the profile is not loaded', () {
+      final copy = resolveInviteAcceptedDisplayCopy(
+        receiptTitle: 'tab qa 05',
+        receiptBody: newAccountEn,
+        presentationPayloadJson: '',
+        presentationKey: 'invite_accepted',
+        l10n: ru,
+      );
+      expect(copy.title, 'tab qa 05');
+      expect(copy.body, ru.updatesInviteAcceptedBodyNewAccount);
+    });
+
+    test('payload origin is localized while the profile is not loaded', () {
+      final copy = resolveInviteAcceptedDisplayCopy(
+        receiptTitle: 'tab qa 05',
+        receiptBody: newAccountEn,
+        presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+        presentationKey: 'invite_accepted',
+        l10n: ru,
+      );
+      expect(copy.body, ru.updatesInviteAcceptedBodyNewAccount);
+    });
+
+    test('old existing-account row is localized', () {
+      final copy = resolveInviteAcceptedDisplayCopy(
+        receiptTitle: 'Nina',
+        receiptBody: existingAccountEn,
+        presentationPayloadJson: '{}',
+        presentationKey: 'invite_accepted',
+        l10n: ru,
+      );
+      expect(copy.body, ru.updatesInviteAcceptedBodyExistingAccount);
+    });
+
+    test('unknown stored body falls back to localized generic copy', () {
+      final copy = resolveInviteAcceptedDisplayCopy(
+        receiptTitle: 'Invitation accepted',
+        receiptBody: 'Carol is now on Tentura.',
+        presentationPayloadJson: '{}',
+        presentationKey: 'invite_accepted',
+        l10n: ru,
+      );
+      expect(copy.title, ru.updatesFallbackTitleInviteAccepted);
+      expect(copy.body, ru.updatesFallbackBodyInviteAccepted);
+    });
+
+    test('current row with payload and profile stays localized', () {
+      final copy = resolveInviteAcceptedDisplayCopy(
+        receiptTitle: 'Helper Two',
+        receiptBody: newAccountEn,
+        presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+        presentationKey: 'invite_accepted',
+        l10n: ru,
+        profile: const Profile(id: 'invitee-2', displayName: 'Helper Two'),
+      );
+      expect(copy.title, 'Helper Two');
+      expect(copy.body, ru.updatesInviteAcceptedBodyNewAccount);
     });
   });
 }

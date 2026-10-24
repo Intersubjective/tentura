@@ -190,7 +190,25 @@ class InviteAcceptedDisplayCopy {
   final String secondary;
 }
 
+/// English bodies the server writes on invite-accepted receipts, keyed to the
+/// invite origin they mean. Rows stored before the server added
+/// `inviteOrigin` to the payload carry only this text (#712).
+const _serverInviteAcceptedBodies = <String, String>{
+  'Created an account via your invitation. You are now connected.':
+      'new_account',
+  'Already had a Tentura account. You are now connected.': 'existing_account',
+  'You are now connected on Tentura.': 'connected',
+};
+
+/// English titles the server writes on an invite-accepted receipt with no
+/// accepter name.
+const _serverInviteAcceptedTitles = {'Invitation accepted'};
+
 /// In-app Updates composition for invite-accepted receipts.
+///
+/// The body is always localized: from `inviteOrigin` in the payload, else
+/// from the server's known English body, else the generic invite-accepted
+/// copy — never the stored server text (#712).
 InviteAcceptedDisplayCopy resolveInviteAcceptedDisplayCopy({
   required String receiptTitle,
   required String receiptBody,
@@ -206,28 +224,31 @@ InviteAcceptedDisplayCopy resolveInviteAcceptedDisplayCopy({
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
   );
+  final fallbackTitle = _serverInviteAcceptedTitles.contains(fallback.title)
+      ? l10n.updatesFallbackTitleInviteAccepted
+      : fallback.title;
+  final origin =
+      inviteOriginFromPresentationPayload(presentationPayloadJson) ??
+      _serverInviteAcceptedBodies[receiptBody.trim()];
+  final body = switch (origin) {
+    'new_account' => l10n.updatesInviteAcceptedBodyNewAccount,
+    'existing_account' => l10n.updatesInviteAcceptedBodyExistingAccount,
+    'connected' => l10n.updatesFallbackBodyMutualConnectionFormed,
+    _ => l10n.updatesFallbackBodyInviteAccepted,
+  };
   if (profile == null) {
-    return InviteAcceptedDisplayCopy(
-      title: fallback.title,
-      body: fallback.body,
-    );
+    return InviteAcceptedDisplayCopy(title: fallbackTitle, body: body);
   }
 
   final shown = profile.shownName.trim();
   final public = profile.canonicalPublicLabel;
   final title = shown.isNotEmpty
       ? shown
-      : (public.isNotEmpty ? public : fallback.title);
+      : (public.isNotEmpty ? public : fallbackTitle);
   final secondary = profile.canonicalSecondaryLabel;
-  final origin = inviteOriginFromPresentationPayload(presentationPayloadJson);
-  final originBody = switch (origin) {
-    'new_account' => l10n.updatesInviteAcceptedBodyNewAccount,
-    'existing_account' => l10n.updatesInviteAcceptedBodyExistingAccount,
-    _ => null,
-  };
   return InviteAcceptedDisplayCopy(
     title: title,
-    body: originBody ?? fallback.body,
+    body: body,
     secondary: secondary.isNotEmpty && secondary != title ? secondary : '',
   );
 }
