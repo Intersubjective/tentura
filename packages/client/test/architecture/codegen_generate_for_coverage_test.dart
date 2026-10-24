@@ -48,23 +48,69 @@ void main() {
     expect(counts[_routerConfig], 1, reason: '$counts');
   });
 
+  // The self-checks below run against this fixed config, not the real
+  // build.yaml, so widening a real glob never breaks them.
+  final fixture = _GenerateForConfig.parse(r'''
+targets:
+  $default:
+    builders:
+      injectable_generator:injectable_builder:
+        generate_for:
+          include: [lib/features/*/ui/bloc/**]
+          exclude: [lib/**/_g/**]
+      freezed:
+        generate_for: [lib/features/*/ui/bloc/**]
+      drift_dev:
+        generate_for:
+          include: []
+          exclude: [lib/features/**]
+''');
+
   test('a library outside the globs is reported (negative self-check)', () {
     const widget = 'lib/features/sample/ui/widget/sample_tile.dart';
     const state = 'lib/features/sample/ui/widget/sample_state.dart';
-    final misses = _findUncovered(config, const [
+    const prefixed = 'lib/features/sample/ui/widget/sample_prefixed.dart';
+    const generated = 'lib/features/sample/ui/bloc/_g/sample.dart';
+    const table = 'lib/features/sample/data/sample_table.dart';
+    final misses = _findUncovered(fixture, const [
       _SourceFile(widget, '@injectable\nclass SampleTile {}\n'),
       _SourceFile(
         state,
         "part 'sample_state.freezed.dart';\n\n@freezed\nclass S {}\n",
       ),
+      _SourceFile(prefixed, '@di.LazySingleton()\nclass P {}\n'),
+      _SourceFile(generated, '@singleton\nclass G {}\n'),
+      _SourceFile(table, 'class T extends Table {}\n'),
     ]);
-    expect(misses, hasLength(2));
+    expect(misses, hasLength(5), reason: misses.join('\n'));
     expect(misses[0], allOf(contains(widget), contains(_injectable)));
     expect(misses[1], allOf(contains(state), contains(_freezed)));
+    expect(misses[2], allOf(contains(prefixed), contains(_injectable)));
+    expect(misses[3], allOf(contains(generated), contains(_injectable)));
+    expect(misses[4], allOf(contains(table), contains(_drift)));
+  });
+
+  test('comments are not generator input', () {
+    final misses = _findUncovered(fixture, const [
+      _SourceFile(
+        'lib/features/sample/ui/widget/sample_doc.dart',
+        '/// Like an @injectable class.\n'
+            '/* @singleton\n   class Old {} */\n'
+            "// part 'old.freezed.dart';\n"
+            "const glob = 'lib/**/*.dart'; // @singleton\n"
+            'class SampleDoc {}\n',
+      ),
+    ]);
+    expect(misses, isEmpty, reason: misses.join('\n'));
+  });
+
+  test('an empty include list matches every library', () {
+    expect(fixture.covers(_drift, 'lib/data/database/database.dart'), isTrue);
+    expect(fixture.covers(_drift, 'lib/features/x/data/t.dart'), isFalse);
   });
 
   test('a part file is checked through its library', () {
-    final misses = _findUncovered(config, const [
+    final misses = _findUncovered(fixture, const [
       _SourceFile(
         'lib/features/sample/ui/bloc/sample_cubit.dart',
         "part 'sample_state.dart';\npart 'sample_cubit.freezed.dart';\n",
@@ -92,11 +138,17 @@ final _rules = [
   _Rule(
     _injectable,
     RegExp(
-      r'(?<![\w.])@(injectable|singleton|lazySingleton|module|Injectable|'
+      '$_at(injectable|singleton|lazySingleton|module|Injectable|'
       r'Singleton|LazySingleton)\b',
     ),
   ),
-  _Rule(_injectableConfig, RegExp(r'(?<![\w.])@InjectableInit\b')),
+  _Rule(
+    _injectableConfig,
+    RegExp(
+      '$_at(InjectableInit|injectableInit)'
+      r'\b',
+    ),
+  ),
   _Rule(
     _freezed,
     RegExp(
@@ -106,11 +158,29 @@ final _rules = [
   ),
   _Rule(
     _drift,
-    RegExp(r'(?<![\w.])@Drift(Database|Accessor)\b|\bextends\s+Table\b'),
+    RegExp(
+      '${_at}Drift(Database|Accessor)'
+      r'\b|\bextends\s+(\w+\.)?Table\b',
+    ),
   ),
-  _Rule(_routePage, RegExp(r'(?<![\w.])@RoutePage\b')),
-  _Rule(_routerConfig, RegExp(r'(?<![\w.])@AutoRouterConfig\b')),
+  _Rule(
+    _routePage,
+    RegExp(
+      '${_at}RoutePage'
+      r'\b',
+    ),
+  ),
+  _Rule(
+    _routerConfig,
+    RegExp(
+      '${_at}AutoRouterConfig'
+      r'\b',
+    ),
+  ),
 ];
+
+/// An annotation's `@`, optionally with an import prefix (`@di.singleton`).
+const _at = r'(?<![\w.])@(?:\w+\.)?';
 
 /// One line per (library, generator) pair the generator would skip.
 List<String> _findUncovered(
@@ -143,8 +213,9 @@ bool _isHandWrittenDart(String path) =>
     !path.endsWith('.gr.dart') &&
     !path.endsWith('.config.dart');
 
-// A `//` comment: at line start or after whitespace, so `https://` in a
-// string survives.
+// Comments that start at a line start or after whitespace, so `https://` and
+// `'lib/**/*.dart'` in strings survive.
+final _blockComment = RegExp(r'(^|\s)/\*.*?\*/', multiLine: true, dotAll: true);
 final _lineComment = RegExp(r'(^|\s)//.*', multiLine: true);
 final _partOf = RegExp(
   r'''^\s*part\s+of\s+['"]([^'"]+)['"]\s*;''',
@@ -159,8 +230,9 @@ class _SourceFile {
   final String path;
   final String rawContent;
 
-  /// Source without `//` comments, so documented annotations do not count.
-  String get content => rawContent.replaceAll(_lineComment, '');
+  /// Source without comments, so documented annotations do not count.
+  String get content =>
+      rawContent.replaceAll(_blockComment, ' ').replaceAll(_lineComment, ' ');
 
   /// The library build_runner runs the generator on: the file itself, or
   /// the library named by its `part of '<uri>';` directive.
@@ -219,11 +291,15 @@ class _GenerateForConfig {
       final generateFor = options?['generate_for'];
       byBuilder[key as String] = switch (generateFor) {
         null => null,
-        final YamlList include => _Globs(_globs(include), const []),
+        // build_runner treats an empty include list as "everything".
+        final YamlList include => _Globs(
+          include.isEmpty ? [Glob('**')] : _globs(include),
+          const [],
+        ),
         final YamlMap map => _Globs(
-          map['include'] == null
-              ? [Glob('**')]
-              : _globs(map['include'] as YamlList),
+          (map['include'] as YamlList?)?.isNotEmpty ?? false
+              ? _globs(map['include'] as YamlList)
+              : [Glob('**')],
           map['exclude'] == null
               ? const []
               : _globs(map['exclude'] as YamlList),
