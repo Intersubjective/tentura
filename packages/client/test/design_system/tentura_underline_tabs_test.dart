@@ -10,9 +10,8 @@ Widget _tabsHarness({
 }) {
   final wc = windowClass ?? windowClassForWidth(width);
   final baseTheme = TenturaTheme.light();
-  final tokens =
-      (baseTheme.extension<TenturaTokens>() ?? TenturaTokens.light)
-          .applyWindowClass(wc);
+  final tokens = (baseTheme.extension<TenturaTokens>() ?? TenturaTokens.light)
+      .applyWindowClass(wc);
   return MaterialApp(
     theme: baseTheme.copyWith(
       extensions: [
@@ -634,5 +633,75 @@ void main() {
     final label = tester.getRect(find.text('Unread'));
     final count = tester.getRect(find.text('2'));
     expect(count.left - label.right, lessThan(16));
+  });
+
+  // #609: when icon+label does not fit an equal slot, the row keeps its
+  // words and drops the icons before it gives up on the labels.
+  group('label fit ladder', () {
+    Future<void> pumpRow(WidgetTester tester, double width) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: width,
+          child: SizedBox(
+            width: width,
+            child: TenturaUnderlineTabs(
+              tabs: const ['Now', 'Chat', 'People'],
+              icons: const [
+                Icons.bolt_outlined,
+                Icons.forum_outlined,
+                Icons.people_outline,
+              ],
+              selectedIndex: 0,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('labels without icons when only the icons do not fit', (
+      tester,
+    ) async {
+      // Test font, 13 px: «People» is 78 px, with its icon 104 px; the
+      // slot is 90 px.
+      await pumpRow(tester, 270);
+
+      for (final label in const ['Now', 'Chat', 'People']) {
+        expect(find.text(label), findsOneWidget);
+        expect(
+          tester
+              .renderObject<RenderParagraph>(find.text(label))
+              .didExceedMaxLines,
+          isFalse,
+          reason: '$label is cut',
+        );
+      }
+      expect(find.byIcon(Icons.bolt_outlined), findsNothing);
+      expect(find.byIcon(Icons.forum_outlined), findsNothing);
+      expect(find.byIcon(Icons.people_outline), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('guard: icon and label together when both fit', (
+      tester,
+    ) async {
+      await pumpRow(tester, 420);
+
+      expect(find.text('People'), findsOneWidget);
+      expect(find.byIcon(Icons.people_outline), findsOneWidget);
+      expect(find.byIcon(Icons.bolt_outlined), findsOneWidget);
+    });
+
+    testWidgets('guard: icons only when even a label alone does not fit', (
+      tester,
+    ) async {
+      await pumpRow(tester, 210);
+
+      expect(find.text('People'), findsNothing);
+      expect(find.text('Now'), findsNothing);
+      expect(find.byIcon(Icons.people_outline), findsOneWidget);
+      expect(find.byIcon(Icons.bolt_outlined), findsOneWidget);
+    });
   });
 }

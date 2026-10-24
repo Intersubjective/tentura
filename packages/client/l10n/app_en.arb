@@ -4765,7 +4765,7 @@
   "labelBeaconTabLog": "Log",
   "labelBeaconTabThreads": "Threads",
   "labelBeaconTabNow": "Overview",
-  "labelBeaconTabChat": "Chat",
+  "labelBeaconTabChat": "Discussion",
   "beaconChildRequestsTitle": "Child requests",
   "beaconCreateChildRequest": "Create child request",
   "beaconChildRequestsEmpty": "No child requests yet",
@@ -5430,7 +5430,7 @@
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
   "beaconRoomOpen": "Discussion",
-  "beaconRoomBackToChat": "Back to Chat",
+  "beaconRoomBackToChat": "Back to Discussion",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Returns from a nested item thread to the main room chat column."
@@ -5709,7 +5709,7 @@
     }
   },
   "beaconRoomFactCardActionEditHistory": "Edit history",
-  "beaconRoomFactCardActionQuoteInChat": "Quote in chat",
+  "beaconRoomFactCardActionQuoteInChat": "Quote in discussion",
   "beaconRoomFactHistorySheetTitle": "Fact history",
   "beaconRoomFactHistoryImportedBaseline": "Earlier history was not recorded",
   "beaconRoomFactHistoryRestoredFrom": "Restored from revision {seq}",
@@ -8249,7 +8249,7 @@
   "beaconOutcomeClosed": "Completed",
   "beaconOutcomeCancelled": "Cancelled",
   "beaconOutcomeDeleted": "Deleted",
-  "beaconOutcomeReadOnlyNote": "No new offers or messages. The chat stays readable.",
+  "beaconOutcomeReadOnlyNote": "No new offers or messages. The discussion stays readable.",
   "beaconCurrentLineEditHelper": "Everyone in the request sees it. The author and anyone let in can change it.",
   "batonOutcomeYou": "You took it.",
   "@batonOutcomeYou": {

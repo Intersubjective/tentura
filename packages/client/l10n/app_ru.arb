@@ -4509,7 +4509,7 @@
   "labelBeaconTabLog": "Журнал",
   "labelBeaconTabThreads": "Темы",
   "labelBeaconTabNow": "Обзор",
-  "labelBeaconTabChat": "Чат",
+  "labelBeaconTabChat": "Обсуждение",
   "beaconChildRequestsTitle": "Дочерние запросы",
   "beaconCreateChildRequest": "Создать дочерний запрос",
   "beaconChildRequestsEmpty": "Дочерних запросов пока нет",
@@ -5128,7 +5128,7 @@
     "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
   },
   "beaconRoomOpen": "Обсуждение",
-  "beaconRoomBackToChat": "К чату",
+  "beaconRoomBackToChat": "К обсуждению",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Возврат из вложенного обсуждения элемента в основной чат."
@@ -6793,7 +6793,7 @@
   "beaconOutcomeClosed": "Завершён",
   "beaconOutcomeCancelled": "Отменён",
   "beaconOutcomeDeleted": "Удалён",
-  "beaconOutcomeReadOnlyNote": "Новые отклики и сообщения больше не принимаются, чат доступен для чтения.",
+  "beaconOutcomeReadOnlyNote": "Новые отклики и сообщения больше не принимаются, обсуждение доступно для чтения.",
   "beaconCurrentLineEditHelper": "Его видят все в запросе. Изменить может автор и все, кого впустили.",
   "beaconShowcaseVia": "Переслал(а) {name}",
   "beaconShowcaseViaMore": "Переслал(а) {name} и ещё {count}",

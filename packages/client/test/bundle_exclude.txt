@@ -1,0 +1,9 @@
+# Test files that must run in their own isolate, not inside a CI bundle
+# (scripts/gen_test_bundles.py): they change process-wide state that the
+# per-file reset between bundled files cannot put back.
+
+# Registers the real Inter font with the engine (FontLoader); there is no
+# way to unregister it, and every later file in the isolate would measure
+# text with Inter instead of the test font (#609, PR8 CI: the 360 px tab
+# bar then keeps its labels and drops the icons other files look for).
+test/features/beacon_view/beacon_surface_tabs_360_labels_test.dart
