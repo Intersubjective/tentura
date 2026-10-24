@@ -824,15 +824,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         color: Theme.of(context).colorScheme.surface,
         border: Border(bottom: BorderSide(color: tt.borderSubtle)),
       ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-        child: BeaconSurfaceTabs(
-          isSplit: isSplit,
-          selectedSurface: _selectedSurface,
-          onSurfaceSelected: _switchToSurface,
-          onSurfaceReselected: _onSurfaceReselected,
-          peopleTabAttentionActive: _peopleTabAttentionActive,
-        ),
+      // Edge to edge, like a Material tab bar (#609): on a 360 dp phone the
+      // screen padding left a quarter too narrow for «Обсуждение», and the
+      // whole row fell back to icons only.
+      child: BeaconSurfaceTabs(
+        isSplit: isSplit,
+        selectedSurface: _selectedSurface,
+        onSurfaceSelected: _switchToSurface,
+        onSurfaceReselected: _onSurfaceReselected,
+        peopleTabAttentionActive: _peopleTabAttentionActive,
       ),
     );
   }

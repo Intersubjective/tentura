@@ -14,7 +14,6 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/entity/inbox_item.dart';
-import '../../domain/enum.dart';
 import '../../domain/use_case/inbox_case.dart';
 import 'activity_offers_state.dart';
 
@@ -36,8 +35,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
        _userId = userId,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
        _attention = attentionCase ?? GetIt.I<AttentionCase>(),
-       _actorProfiles =
-           actorProfiles ?? GetIt.I<AttentionActorProfilesCase>(),
+       _actorProfiles = actorProfiles ?? GetIt.I<AttentionActorProfilesCase>(),
        _demotedController = StreamController<String>.broadcast(),
        _pageSize = pageSize,
        super(const ActivityOffersState()) {
@@ -92,7 +90,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   late final StreamSubscription<String> _deskRelevantChanges;
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<Map<String, ActivityOfferBeaconMeta>>
-      _offerGroups;
+  _offerGroups;
 
   /// Emits when an open forward leaves the pinned zone (UNIT 17 motion).
   Stream<String> get demotedBeaconIds => _demotedController.stream;
@@ -126,9 +124,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
     final resolvedPage = offerPage;
     final nextCursor = resolvedPage?.nextCursor;
-    final hasMore = !pageFailed &&
-        nextCursor != null &&
-        nextCursor.isNotEmpty;
+    final hasMore = !pageFailed && nextCursor != null && nextCursor.isNotEmpty;
     final eventsByBeacon = _attention.activityOfferGroupsSnapshot;
     final inviteIds = pageFailed
         ? state.inviteIdByBeacon
@@ -213,18 +209,10 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   Future<void> declineInvite(String beaconId, {String message = ''}) =>
       _answerInvite(beaconId, (inviteId) async {
         await _invites.decline(inviteId);
-        if (message.isEmpty) return;
-        try {
-          // The decline already set the inbox row to declined; this only
-          // records the note, the way «Не могу помочь» does.
-          await _inboxCase.setStatus(
-            beaconId: beaconId,
-            status: InboxItemStatus.rejected,
-            rejectionMessage: message,
-          );
-        } on Object {
-          // The decline itself succeeded; the note is best-effort.
-        }
+        await _inboxCase.recordInviteDeclineNote(
+          beaconId: beaconId,
+          message: message,
+        );
       });
 
   Future<void> _answerInvite(
@@ -440,7 +428,9 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
   Future<void> _refreshUnseenDots() async {
     final generation = ++_unseenGeneration;
-    final beaconIds = state.items.map((e) => e.beaconId).toList(growable: false);
+    final beaconIds = state.items
+        .map((e) => e.beaconId)
+        .toList(growable: false);
     if (beaconIds.isEmpty) {
       emit(
         state.copyWith(
