@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_cropper_for_web/src/cropper_editor_scaffold.dart';
+import 'package:image_cropper_for_web/src/cropper_translations.dart';
 import 'package:image_cropper_platform_interface/image_cropper_platform_interface.dart';
 
 void main() {
@@ -16,6 +17,7 @@ void main() {
 
   Widget pumpScaffold({
     required Future<String?> Function() onCrop,
+    WebTranslations webTranslations = translations,
     double maxCanvasSide = 400,
     Size surfaceSize = const Size(400, 700),
   }) {
@@ -26,7 +28,7 @@ void main() {
           width: surfaceSize.width,
           height: surfaceSize.height,
           child: CropperEditorScaffold(
-            translations: translations,
+            translations: webTranslations,
             maxCanvasSide: maxCanvasSide,
             onCrop: onCrop,
             onRotate: (_) {},
@@ -68,7 +70,8 @@ void main() {
     );
 
     final save = tester.getRect(find.byKey(const Key('CropperEditor.Save')));
-    final canvas = tester.getRect(find.byKey(const Key('CropperEditor.Canvas')));
+    final canvas =
+        tester.getRect(find.byKey(const Key('CropperEditor.Canvas')));
     final rotateLeft = tester.getRect(
       find.byTooltip('Rotate left'),
     );
@@ -130,5 +133,34 @@ void main() {
       find.byKey(const Key('CropperEditor.Save')),
     );
     expect(saveButton.onPressed, isNotNull);
+  });
+
+  testWidgets('crop failure uses the localized message it is given', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      pumpScaffold(
+        webTranslations: const CropperWebTranslations(
+          title: 'Фото профиля',
+          rotateLeftTooltip: 'Влево',
+          rotateRightTooltip: 'Вправо',
+          cancelButton: 'Отмена',
+          cropButton: 'Сохранить',
+          cropErrorMessage: 'Не удалось сохранить изображение.',
+        ),
+        onCrop: () async {
+          throw StateError('crop failed');
+        },
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('CropperEditor.Save')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Не удалось сохранить изображение.'), findsOneWidget);
+    expect(
+      find.text('Could not save the image. Please try again.'),
+      findsNothing,
+    );
   });
 }

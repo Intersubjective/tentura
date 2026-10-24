@@ -58,6 +58,7 @@ class BeaconCoverCropUi implements ImageCropUiPort {
           cancelButton: _l10n.buttonCancel,
           cropButton: _l10n.buttonSave,
           zoomLabel: _l10n.cropZoomLabel,
+          cropErrorMessage: _l10n.cropSaveError,
         ),
       ),
     ];
