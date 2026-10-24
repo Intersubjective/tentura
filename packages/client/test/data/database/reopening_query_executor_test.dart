@@ -2,7 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/data/database/database.dart';
+import 'package:tentura/data/database/database.dart' hide isNull;
 import 'package:tentura/data/database/reopening_query_executor.dart';
 import 'package:tentura/env.dart';
 
@@ -111,9 +111,11 @@ void main() {
     expect(opener.failed.every((e) => e.closed), isTrue);
 
     // Once open, the same connection serves every later call.
-    await db.into(db.settings).insert(
-      SettingsCompanion.insert(key: 'k', valueText: const Value('v')),
-    );
+    await db
+        .into(db.settings)
+        .insert(
+          SettingsCompanion.insert(key: 'k', valueText: const Value('v')),
+        );
     expect((await db.select(db.settings).get()).single.valueText, 'v');
     expect(opener.opened, 3);
   });
@@ -164,5 +166,163 @@ void main() {
     // The failure is not cached: the next query opens a fresh connection.
     expect(await _countAccounts(db), 0);
     expect(opener.opened, delays.length + 2);
+  });
+
+  group('after open (#703)', () {
+    test('a failing statement is reported with its SQL and state, '
+        'then rethrown', () async {
+      final failures = <DatabaseStatementFailure>[];
+      final opener = _Opener(failures: 1);
+      final db = _database(
+        ReopeningQueryExecutor(
+          opener.call,
+          retryDelays: delays,
+          delay: (_) async {},
+          onStatementError: failures.add,
+        ),
+      );
+      addTearDown(db.close);
+
+      expect(await _countAccounts(db), 0);
+      // The failed open is the retry listener's business, not a statement.
+      expect(failures, isEmpty);
+
+      await expectLater(
+        db.customSelect('SELECT * FROM no_such_table').get(),
+        throwsA(isA<SqliteException>()),
+      );
+      expect(failures, hasLength(1));
+      expect(failures.single.statement, 'SELECT * FROM no_such_table');
+      expect(failures.single.state, LocalDatabaseState.open);
+      expect(failures.single.connection, 2);
+      expect(failures.single.failedOpens, 1);
+      expect(failures.single.error, isA<SqliteException>());
+      expect(failures.single.toString(), contains('no_such_table'));
+    });
+
+    test('a failure never carries the error text (bound arguments), only '
+        'its type and SQLite result code', () async {
+      final failures = <DatabaseStatementFailure>[];
+      final db = _database(
+        ReopeningQueryExecutor(
+          _Opener(failures: 0).call,
+          onStatementError: failures.add,
+        ),
+      );
+      addTearDown(db.close);
+
+      const secret = 'secret-user-value-703';
+      Future<void> insert() => db
+          .into(db.settings)
+          .insert(
+            SettingsCompanion.insert(key: secret, valueText: const Value('v')),
+          );
+      await insert();
+      // The same primary key again: a constraint failure on a bound value.
+      await expectLater(insert(), throwsA(isA<SqliteException>()));
+
+      final failure = failures.single;
+      expect(failure.error.toString(), contains(secret));
+      expect(failure.statement, contains('settings'));
+      expect(failure.toString(), isNot(contains(secret)));
+      final code = (failure.error as SqliteException).extendedResultCode;
+      expect(failure.errorSummary, 'SqliteException($code)');
+      expect(failure.toString(), contains(failure.errorSummary));
+
+      // What reaches the log (and the Sentry breadcrumb built from it).
+      final logger = Logger('LocalDatabase703');
+      final records = <LogRecord>[];
+      final sub = logger.onRecord.listen(records.add);
+      addTearDown(sub.cancel);
+      logDatabaseStatementFailure(logger, failure);
+      expect(records.single.level, Level.WARNING);
+      expect(records.single.message, isNot(contains(secret)));
+      expect(records.single.message, contains(failure.errorSummary));
+      expect(records.single.error, isNull);
+      expect(records.single.stackTrace, failure.stackTrace);
+    });
+
+    test('a non-SQLite error is described by its type only', () {
+      final failure = DatabaseStatementFailure(
+        statement: 'SELECT 1',
+        state: LocalDatabaseState.open,
+        connection: 1,
+        failedOpens: 0,
+        error: StateError('secret-user-value-703'),
+        stackTrace: StackTrace.empty,
+      );
+      expect(failure.errorSummary, 'StateError');
+      expect(failure.toString(), isNot(contains('secret-user-value-703')));
+    });
+
+    test('after close reads are dropped and reported, but writes and '
+        'transactions throw LocalDatabaseClosedException', () async {
+      final failures = <DatabaseStatementFailure>[];
+      final db = _database(
+        ReopeningQueryExecutor(
+          _Opener(failures: 0).call,
+          retryDelays: delays,
+          delay: (_) async {},
+          onStatementError: failures.add,
+        ),
+      );
+      expect(await _countAccounts(db), 0);
+      await db.close();
+
+      // Late work (a realtime handler, a disposed account) after close.
+      expect(await _countAccounts(db), 0);
+      await expectLater(
+        db
+            .into(db.settings)
+            .insert(
+              SettingsCompanion.insert(key: 'k', valueText: const Value('v')),
+            ),
+        throwsA(isA<LocalDatabaseClosedException>()),
+      );
+      await expectLater(
+        db
+            .update(db.settings)
+            .write(const SettingsCompanion(valueInt: Value(1))),
+        throwsA(isA<LocalDatabaseClosedException>()),
+      );
+      await expectLater(
+        db.transaction(() async {
+          await db.delete(db.contacts).go();
+        }),
+        throwsA(isA<LocalDatabaseClosedException>()),
+      );
+      // A transaction that only reads still never commits after close.
+      await expectLater(
+        db.transaction(() => _countAccounts(db)),
+        throwsA(isA<LocalDatabaseClosedException>()),
+      );
+
+      expect(
+        failures.map((f) => f.state),
+        everyElement(LocalDatabaseState.closed),
+      );
+      expect(
+        failures.map((f) => f.error),
+        everyElement(isA<LocalDatabaseClosedException>()),
+      );
+      expect(failures.first.statement, contains('accounts'));
+      expect(failures[1].statement, contains('settings'));
+      expect(failures[2].statement, contains('settings'));
+      expect(failures[3].statement, contains('contacts'));
+    });
+
+    test('a statement that succeeds is not reported', () async {
+      final failures = <DatabaseStatementFailure>[];
+      final db = _database(
+        ReopeningQueryExecutor(
+          _Opener(failures: 0).call,
+          onStatementError: failures.add,
+        ),
+      );
+      addTearDown(db.close);
+
+      expect(await _countAccounts(db), 0);
+      expect(failures, isEmpty);
+    });
   });
 }
