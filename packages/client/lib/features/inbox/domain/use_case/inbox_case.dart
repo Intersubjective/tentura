@@ -124,6 +124,26 @@ final class InboxCase extends UseCaseBase {
     rejectionMessage: rejectionMessage,
   );
 
+  /// After «Не смогу» on an author invite (#664) declined it: keeps the
+  /// rejection dialog's optional [message] on the inbox row, the way «Не могу
+  /// помочь» does. Best-effort — the decline itself already went through, so
+  /// a failed write is swallowed; an empty [message] writes nothing.
+  Future<void> recordInviteDeclineNote({
+    required String beaconId,
+    required String message,
+  }) async {
+    if (message.isEmpty) return;
+    try {
+      await _repository.setStatus(
+        beaconId: beaconId,
+        status: InboxItemStatus.rejected,
+        rejectionMessage: message,
+      );
+    } on Object {
+      // The decline itself succeeded; the note is best-effort.
+    }
+  }
+
   /// «Can't help» (#486): the author is told, with [message]. False when
   /// the server refused (nothing to answer any more).
   Future<bool> cantHelp({required String beaconId, String message = ''}) =>

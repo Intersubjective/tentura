@@ -448,6 +448,9 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   ThreadsCubit? threadsCubit,
   BeaconViewCubit? beaconViewCubit,
   Locale locale = const Locale('en'),
+  // Runs after the harness registered its GetIt fakes, before the pump: a
+  // test swaps one of them for its own.
+  FutureOr<void> Function()? afterGetItRegistered,
 }) async {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
@@ -461,6 +464,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   final mediaKey = GlobalKey<BeaconViewResizableMediaQueryState>();
 
   await registerBeaconViewHarnessGetIt(profile: beaconState.myProfile);
+  await afterGetItRegistered?.call();
 
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));

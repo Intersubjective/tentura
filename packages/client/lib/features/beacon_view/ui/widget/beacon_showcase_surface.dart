@@ -16,6 +16,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_anchor_status.dart
 import 'package:tentura/features/beacon_view/ui/widget/beacon_definition_body.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_helper_hud_actions.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_action_button.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_my_invite_banner.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dart';
@@ -482,6 +483,14 @@ class _ShowcaseBottomPanel extends StatelessWidget {
                         ),
                       ),
               ),
+              // #664: an invited member answers the author's invite here,
+              // above Offer help, as on the Activity invite card.
+              if (!isPreview)
+                BeaconMyInviteBanner(
+                  key: ValueKey('BeaconMyInviteBanner.${beacon.id}'),
+                  beaconId: beacon.id,
+                  onAnswered: beaconViewCubit.refreshAfterInviteAnswer,
+                ),
               if (offerPending) ...[
                 SizedBox(height: tt.tightGap),
                 Text(

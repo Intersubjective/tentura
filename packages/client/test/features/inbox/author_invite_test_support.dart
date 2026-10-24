@@ -10,7 +10,11 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/author_invite_port.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
+
+import 'inbox_case_test.dart'
+    show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 
 /// Scriptable [AuthorInvitePort] for the «Для вас» invite card (plan D3).
 final class FakeAuthorInvitePort implements AuthorInvitePort {
@@ -101,7 +105,9 @@ final class _Account implements AttentionAccountPort {
 
 /// Registers an [AuthorInviteCase] over empty lists plus an empty
 /// [AttentionActorProfilesCase], for screens that mount the author's invites
-/// section (the post-budding gate is on) without caring about it.
+/// section (the post-budding gate is on) without caring about it. The
+/// Request page's invite banner also needs an [InboxCase] (for the decline
+/// note), so one over an empty inbox is registered unless a test has its own.
 void registerEmptyAuthorInvitesGetIt() {
   unregisterEmptyAuthorInvitesGetIt();
   GetIt.I
@@ -111,7 +117,17 @@ void registerEmptyAuthorInvitesGetIt() {
     ..registerSingleton<AttentionActorProfilesCase>(
       buildActorProfiles(const []),
     );
+  if (!GetIt.I.isRegistered<InboxCase>()) {
+    GetIt.I.registerSingleton<InboxCase>(
+      buildTestInboxCase(FakeInboxRepository(), buildTestBeaconThreadsCase()),
+    );
+    _ownsInboxCase = true;
+  }
 }
+
+/// Whether [registerEmptyAuthorInvitesGetIt] put the [InboxCase] there, so
+/// the unregister never takes a test's own.
+var _ownsInboxCase = false;
 
 void unregisterEmptyAuthorInvitesGetIt() {
   final getIt = GetIt.I;
@@ -121,6 +137,10 @@ void unregisterEmptyAuthorInvitesGetIt() {
   if (getIt.isRegistered<AttentionActorProfilesCase>()) {
     getIt.unregister<AttentionActorProfilesCase>();
   }
+  if (_ownsInboxCase && getIt.isRegistered<InboxCase>()) {
+    getIt.unregister<InboxCase>();
+  }
+  _ownsInboxCase = false;
 }
 
 final class _EmptyInvitesPort extends FakeAuthorInvitePort {

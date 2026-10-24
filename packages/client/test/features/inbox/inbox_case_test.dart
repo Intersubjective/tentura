@@ -119,6 +119,36 @@ void main() {
     });
   });
 
+  // #664: «Не смогу» on an author invite keeps the dialog's note on the
+  // inbox row — one implementation for the Activity card and the banner.
+  group('InboxCase.recordInviteDeclineNote', () {
+    test('keeps the note as a rejection message', () async {
+      await case_.recordInviteDeclineNote(beaconId: 'b1', message: 'Away');
+
+      expect(repo.lastSetStatus, (
+        beaconId: 'b1',
+        status: InboxItemStatus.rejected,
+        rejectionMessage: 'Away',
+      ));
+    });
+
+    test('an empty note writes nothing', () async {
+      await case_.recordInviteDeclineNote(beaconId: 'b1', message: '');
+
+      expect(repo.lastSetStatus, isNull);
+    });
+
+    test('a failed write is swallowed', () async {
+      repo.setStatusError = Exception('offline');
+
+      await expectLater(
+        case_.recordInviteDeclineNote(beaconId: 'b1', message: 'Away'),
+        completes,
+      );
+      expect(repo.lastSetStatus, isNull);
+    });
+  });
+
   test(
     'dismiss stores a private note without sending a rejection message',
     () async {
@@ -210,44 +240,48 @@ void main() {
     // row from this cubit's state. So the × on a helping tombstone lands on a
     // beaconId the cubit does not hold, and the old `indexWhere(...) < 0`
     // early return swallowed it silently.
-    test('dismisses the helping outcome, whose row this cubit does not hold',
-        () async {
-      repo.fetchResult = const [];
-      final cubit = InboxCubit(
-        userId: 'u1',
-        inboxCase: case_,
-        effects: FakeUiEffectPort(),
-      );
-      await cubit.stream.firstWhere((s) => s.isSuccess);
-      expect(cubit.state.items, isEmpty);
+    test(
+      'dismisses the helping outcome, whose row this cubit does not hold',
+      () async {
+        repo.fetchResult = const [];
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        await cubit.stream.firstWhere((s) => s.isSuccess);
+        expect(cubit.state.items, isEmpty);
 
-      await cubit.dismissTombstone('b-helping');
+        await cubit.dismissTombstone('b-helping');
 
-      expect(repo.lastDismissTombstone?.beaconId, 'b-helping');
-      await cubit.close();
-    });
+        expect(repo.lastDismissTombstone?.beaconId, 'b-helping');
+        await cubit.close();
+      },
+    );
 
-    test('an unanswered forward is not a tombstone and is never dismissed',
-        () async {
-      repo.fetchResult = [
-        InboxItem(
-          beaconId: 'b-pinned',
-          latestForwardAt: DateTime.utc(2026),
-        ),
-      ];
-      final cubit = InboxCubit(
-        userId: 'u1',
-        inboxCase: case_,
-        effects: FakeUiEffectPort(),
-      );
-      await cubit.stream.firstWhere((s) => s.isSuccess);
+    test(
+      'an unanswered forward is not a tombstone and is never dismissed',
+      () async {
+        repo.fetchResult = [
+          InboxItem(
+            beaconId: 'b-pinned',
+            latestForwardAt: DateTime.utc(2026),
+          ),
+        ];
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        await cubit.stream.firstWhere((s) => s.isSuccess);
 
-      await cubit.dismissTombstone('b-pinned');
+        await cubit.dismissTombstone('b-pinned');
 
-      expect(repo.lastDismissTombstone, isNull);
-      expect(cubit.state.items.single.tombstoneDismissedAt, isNull);
-      await cubit.close();
-    });
+        expect(repo.lastDismissTombstone, isNull);
+        expect(cubit.state.items.single.tombstoneDismissedAt, isNull);
+        await cubit.close();
+      },
+    );
 
     test('a tombstone already put away is not dismissed twice', () async {
       repo.fetchResult = [
@@ -413,23 +447,25 @@ void main() {
       },
     );
 
-    test('local forward command to watching stays silent (no movement nudge)',
-        () async {
-      repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
-      final cubit = InboxCubit(
-        userId: 'u1',
-        inboxCase: case_,
-        effects: FakeUiEffectPort(),
-      );
-      await cubit.stream.firstWhere((state) => state.isSuccess);
-      repo.fetchResult = [_item(status: InboxItemStatus.watching)];
+    test(
+      'local forward command to watching stays silent (no movement nudge)',
+      () async {
+        repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        await cubit.stream.firstWhere((state) => state.isSuccess);
+        repo.fetchResult = [_item(status: InboxItemStatus.watching)];
 
-      forwardRepo.emitForwardCommandCompleted('b-forward');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        forwardRepo.emitForwardCommandCompleted('b-forward');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(cubit.state.pendingMovedNudge, isNull);
-      await cubit.close();
-    });
+        expect(cubit.state.pendingMovedNudge, isNull);
+        await cubit.close();
+      },
+    );
 
     test('catch-up silently refreshes the authoritative list', () async {
       repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
@@ -746,12 +782,17 @@ class FakeInboxRepository implements InboxRepository {
     throw UnimplementedError();
   }
 
+  /// When set, [setStatus] throws it (and records nothing).
+  Object? setStatusError;
+
   @override
   Future<void> setStatus({
     required String beaconId,
     required InboxItemStatus status,
     String rejectionMessage = '',
   }) async {
+    final error = setStatusError;
+    if (error != null) throw error;
     lastSetStatus = (
       beaconId: beaconId,
       status: status,
@@ -808,7 +849,8 @@ class FakeInboxRepository implements InboxRepository {
   int openForwardForBeaconCalls = 0;
 
   @override
-  Future<({List<InboxItem> page, int totalCount})> fetchActivityOffersFirstPage({
+  Future<({List<InboxItem> page, int totalCount})>
+  fetchActivityOffersFirstPage({
     required String userId,
     int limit = 20,
   }) async {
