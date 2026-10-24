@@ -288,7 +288,8 @@ class TenturaAvatar extends StatelessWidget {
   /// "Name, open profile".
   static String openProfileLabel(BuildContext context, Profile profile) {
     final l10n = L10n.of(context);
-    final name = profile.displayName.trim();
+    // #660: the name as shown ([Profile.shownName]), not the stored one.
+    final name = profile.shownName.trim();
     if (l10n == null) {
       return name.isEmpty ? 'Open profile' : '$name, open profile';
     }
@@ -299,7 +300,7 @@ class TenturaAvatar extends StatelessWidget {
 
   /// Initials when there is no profile photo (also used by room mini avatars).
   static String initialsForProfile(Profile profile) {
-    final t = profile.displayName.trim();
+    final t = profile.shownName.trim();
     if (t.isEmpty) {
       return '?';
     }
