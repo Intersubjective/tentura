@@ -11,6 +11,7 @@ import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_spacing.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
+import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/rating_cubit.dart';
@@ -27,6 +28,14 @@ const _labelWidth = 100.0;
 const _labelHeight = 20.0;
 const _avatarLabelGap = 2.0;
 const _zoomDuration = Duration(milliseconds: 250);
+
+/// Axis ticks (#462): the ranks labelled on both axes and their gutters.
+const _tickValues = [0.0, 50.0, 100.0];
+const _yTickGutter = 32.0;
+const _xTickGutter = 16.0;
+const _xTickLabelWidth = 40.0;
+const _yTickLabelHeight = 16.0;
+const _tickLabelGap = 4.0;
 
 /// Share of a column's box another column may cover before they cluster.
 const _clusterOverlapShare = 0.15;
@@ -134,7 +143,8 @@ class _RatingScatterViewState extends State<RatingScatterView>
     );
     // Axis titles (#462): x = how they rank you (rScore), y = how you rank
     // them (score). Each sits in its own gutter outside the plot area, so
-    // neither covers the avatars at rank 0.
+    // neither covers the avatars at rank 0. The 0 / 50 / 100 ticks and the
+    // badge legend sit outside the plot area too.
     final plot = Column(
       children: [
         Expanded(
@@ -150,15 +160,22 @@ class _RatingScatterViewState extends State<RatingScatterView>
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) =>
-                      _buildPlotArea(context, constraints.biggest),
+                      _buildPlotWithTicks(context, constraints.biggest),
                 ),
               ),
             ],
           ),
         ),
         Padding(
-          padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+          padding: EdgeInsets.only(top: tt.tightGap),
           child: Text(l10n.rankToYou, style: axisTitleStyle),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.tightGap,
+            vertical: tt.tightGap,
+          ),
+          child: const _ScatterBadgeLegend(),
         ),
       ],
     );
@@ -175,6 +192,86 @@ class _RatingScatterViewState extends State<RatingScatterView>
                   : _canvasHeight,
               child: plot,
             ),
+    );
+  }
+
+  /// Plot area with the 0 / 50 / 100 tick labels in a left and a bottom
+  /// gutter (#462). The labels follow the zoom / pan and hide once their
+  /// rank is scrolled out of the plot.
+  Widget _buildPlotWithTicks(BuildContext context, Size size) {
+    final plotSize = Size(
+      max(0.0, size.width - _yTickGutter),
+      max(0.0, size.height - _xTickGutter),
+    );
+    final theme = Theme.of(context);
+    final tickStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Stack(
+      children: [
+        Positioned(
+          left: _yTickGutter,
+          top: 0,
+          width: plotSize.width,
+          height: plotSize.height,
+          child: _buildPlotArea(context, plotSize),
+        ),
+        Positioned.fill(
+          child: ListenableBuilder(
+            listenable: _transformController,
+            builder: (context, _) {
+              final m = _transformController.value;
+              const plotW = _canvasWidth - 2 * _plotMargin;
+              const plotH = _canvasHeight - 2 * _plotMargin;
+              final labels = <Widget>[];
+              for (final value in _tickValues) {
+                final mapped = _stretchBorders(value) / 100;
+                final text = Text(value.round().toString(), style: tickStyle);
+                final x = MatrixUtils.transformPoint(
+                  m,
+                  _canvasToChild(
+                    Offset(_plotMargin + mapped * plotW, 0),
+                    plotSize,
+                  ),
+                ).dx;
+                if (x >= -0.5 && x <= plotSize.width + 0.5) {
+                  labels.add(
+                    Positioned(
+                      left: _yTickGutter + x - _xTickLabelWidth / 2,
+                      top: plotSize.height,
+                      width: _xTickLabelWidth,
+                      height: _xTickGutter,
+                      child: Align(alignment: Alignment.topCenter, child: text),
+                    ),
+                  );
+                }
+                final y = MatrixUtils.transformPoint(
+                  m,
+                  _canvasToChild(
+                    Offset(0, _plotMargin + (1 - mapped) * plotH),
+                    plotSize,
+                  ),
+                ).dy;
+                if (y >= -0.5 && y <= plotSize.height + 0.5) {
+                  labels.add(
+                    Positioned(
+                      left: 0,
+                      top: y - _yTickLabelHeight / 2,
+                      width: _yTickGutter - _tickLabelGap,
+                      height: _yTickLabelHeight,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: text,
+                      ),
+                    ),
+                  );
+                }
+              }
+              return Stack(clipBehavior: Clip.none, children: labels);
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -652,4 +749,45 @@ class _QuadrantBackgroundPainter extends CustomPainter {
       oldDelegate.quadrantMyFriends != quadrantMyFriends ||
       oldDelegate.quadrantAcquaintances != quadrantAcquaintances ||
       oldDelegate.quadrantMyFans != quadrantMyFans;
+}
+
+/// One-line legend for the avatar badges (#462): mutual trust, eye open,
+/// eye closed, with the words the profile and graph use.
+class _ScatterBadgeLegend extends StatelessWidget {
+  const _ScatterBadgeLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    Widget item(Profile sample, String label) => MergeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExcludeSemantics(
+            child: TenturaAvatar.small(
+              profile: sample,
+              withContactBadge: true,
+            ),
+          ),
+          SizedBox(width: tt.tightGap),
+          Flexible(child: Text(label, style: style)),
+        ],
+      ),
+    );
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: tt.rowGap,
+      runSpacing: tt.tightGap,
+      children: [
+        item(ContactBadgeLegend.mutualProfile, l10n.graphLegendEdgeMutual),
+        item(ContactBadgeLegend.eyeOpenProfile, l10n.profileEyeOpen),
+        item(ContactBadgeLegend.eyeClosedProfile, l10n.profileEyeClosed),
+      ],
+    );
+  }
 }
