@@ -15,7 +15,9 @@ chmod +x "$WRAP"
 # (STATE_ROOT and the tmpfs fixtures both derive from it).
 if [[ -z "${SELFTEST_ISOLATED:-}" ]]; then
   export SELFTEST_ISOLATED=1
-  exec env -u TENTURA_TEST_CLEANUP_RUN \
+  # The cleanup scenarios below start overlapping wrapped runs on purpose, so
+  # they run outside the machine-wide queue; section 15 tests the queue itself.
+  exec env -u TENTURA_TEST_CLEANUP_RUN -u TENTURA_TEST_LOCK_HELD TENTURA_TEST_LOCK=off \
     TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/tentura-selftest.XXXXXX")" \
     bash "$ROOT/scripts/run_with_test_cleanup_selftest.sh" "$@"
 fi
@@ -326,6 +328,34 @@ then
   fi
 else
   bad "dual-directory cleanup fixture command failed"
+fi
+
+
+# --- 15. machine-wide queue: a second run waits; nested runs do not deadlock ---
+QLOCK="$NT/queue.lock"
+QLOG="$NT/queue.log"
+: >"$QLOG"
+TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --timeout 30s -- bash -c \
+  "echo A-start \$(date +%s%N) >>'$QLOG'; sleep 2; \
+   '$WRAP' --timeout 10s -- bash -c 'echo nested >>\"$QLOG\"'; \
+   echo A-end \$(date +%s%N) >>'$QLOG'" >/dev/null 2>&1 &
+QA=$!
+sleep 0.5
+TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --timeout 30s -- bash -c \
+  "echo B-start \$(date +%s%N) >>'$QLOG'" >/dev/null 2>&1 || true
+wait "$QA" || true
+a_end="$(awk '$1=="A-end"{print $2}' "$QLOG")"
+b_start="$(awk '$1=="B-start"{print $2}' "$QLOG")"
+if grep -q '^nested$' "$QLOG"; then ok "queue: nested wrapped run inside a held lock does not deadlock"; else bad "queue: nested run never ran"; fi
+if [[ -n "$a_end" && -n "$b_start" ]] && (( b_start >= a_end )); then
+  ok "queue: second run starts only after the first ends"
+else
+  bad "queue: runs overlapped (A-end=$a_end B-start=$b_start)"
+fi
+if TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --no-lock --timeout 10s -- true >/dev/null 2>&1; then
+  ok "queue: --no-lock runs"
+else
+  bad "queue: --no-lock run failed"
 fi
 
 log "done"
