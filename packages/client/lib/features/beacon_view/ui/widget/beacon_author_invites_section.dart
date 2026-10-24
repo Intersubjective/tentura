@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_author_invites_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// The author's invites section on a budded Request's People tab (plan D4):
 /// each snapshot observer or invitee with the invite status and note,
@@ -32,9 +33,7 @@ class BeaconAuthorInvitesSection extends StatelessWidget {
       listener: (context, state) {
         final refusal = state.notInvited!;
         final name = _name(l10n, state.profiles[refusal.userId]);
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(l10n.postBudNotInvitedSnack(name))),
-        );
+        showSnackBar(context, text: l10n.postBudNotInvitedSnack(name));
       },
       builder: (context, state) {
         if (state.isLoading) return const SizedBox.shrink();

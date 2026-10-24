@@ -7,6 +7,7 @@ import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dar
 import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart';
 import 'package:tentura/features/profile_view/ui/widget/mutual_friends_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// On-demand mutual friends: button, then overlapping mini-avatars + optional +N.
 class MutualFriendsButton extends StatefulWidget {
@@ -49,8 +50,11 @@ class _MutualFriendsButtonState extends State<MutualFriendsButton> {
       setState(() {
         _loading = false;
       });
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text('$e')),
+      showSnackBar(
+        context,
+        isError: true,
+        text: L10n.of(context)!.errorGenericAction,
+        detail: e.toString(),
       );
     }
   }

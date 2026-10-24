@@ -15,6 +15,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
@@ -675,9 +676,7 @@ class RequestAttentionCard extends StatelessWidget {
             onPressed: () {
               final cleared = eventTotal;
               onClearAll!();
-              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                SnackBar(content: Text(l10n.attentionCardCleared(cleared))),
-              );
+              showSnackBar(context, text: l10n.attentionCardCleared(cleared));
             },
           ),
         ],
