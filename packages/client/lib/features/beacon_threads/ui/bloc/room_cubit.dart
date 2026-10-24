@@ -384,6 +384,12 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  /// Re-reads the fact list after a fact was pinned outside this cubit (the
+  /// host's Add-fact form, #481): the room must not wait for a realtime
+  /// echo of the viewer's own write, which the server may not send.
+  Future<void> refreshFactCards() =>
+      _requestRefresh(scope: _RoomRefreshScope.facts);
+
   /// Fact-list-only refresh (factCard invalidation, fact edits); leaves
   /// messages and participants untouched.
   Future<void> _fetchFactCardsSnapshot({required bool silent}) async {

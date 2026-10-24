@@ -10,6 +10,7 @@ abstract interface class RoomFactAuthoring {
   /// Whether the viewer may pin a fact in this room right now.
   bool get canAddFact;
 
-  /// Opens the Add-fact form over [context].
-  Future<void> openAddFact(BuildContext context);
+  /// Opens the Add-fact form over [context]; completes with true when a fact
+  /// was pinned, false when the form was cancelled or dismissed.
+  Future<bool> openAddFact(BuildContext context);
 }

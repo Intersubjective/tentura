@@ -140,7 +140,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   bool get canAddFact => state.canCoordinateInBeaconRoom;
 
   @override
-  Future<void> openAddFact(BuildContext context) =>
+  Future<bool> openAddFact(BuildContext context) =>
       showBeaconFactComposerSheet(context, cubit: this);
 
   @override
