@@ -20,7 +20,14 @@ import 'package:tentura/consts.dart';
 
 @RoutePage()
 class SettingsScreen extends StatefulWidget implements AutoRouteWrapper {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    this.peopleTagsEnabled,
+  });
+
+  /// Defaults to [kPeopleTagsEnabled]; null because the generated route
+  /// cannot reference that constant.
+  final bool? peopleTagsEnabled;
 
   @override
   Widget wrappedRoute(BuildContext context) => this;
@@ -95,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     authCubit: authCubit,
                     settingsCubit: cubit,
                     isDebugRevealed: _isDebugRevealed,
+                    peopleTagsEnabled: widget.peopleTagsEnabled ?? kPeopleTagsEnabled,
                     onConfirmResetLocal: () => _confirmResetLocal(context),
                   ),
                   if (visibleVersion != null && visibleVersion.isNotEmpty)
@@ -124,6 +132,7 @@ class _SettingsCommandList extends StatelessWidget {
     required this.authCubit,
     required this.settingsCubit,
     required this.isDebugRevealed,
+    required this.peopleTagsEnabled,
     required this.onConfirmResetLocal,
   });
 
@@ -131,6 +140,7 @@ class _SettingsCommandList extends StatelessWidget {
   final AuthCubit authCubit;
   final SettingsCubit settingsCubit;
   final bool isDebugRevealed;
+  final bool peopleTagsEnabled;
   final VoidCallback onConfirmResetLocal;
 
   @override
@@ -181,6 +191,13 @@ class _SettingsCommandList extends StatelessWidget {
                   title: l10n.settingsRoutingMute,
                   onTap: () => context.router.push(const RoutingMuteRoute()),
                 ),
+                if (peopleTagsEnabled)
+                  TenturaMenuTile(
+                    key: const Key('settings.people_tags'),
+                    icon: Icons.sell_outlined,
+                    title: l10n.peopleTagsScreenTitle,
+                    onTap: () => context.router.push(const PeopleTagsRoute()),
+                  ),
                 const NoisyWallTile(),
               ],
             ),

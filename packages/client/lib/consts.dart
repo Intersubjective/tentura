@@ -48,6 +48,7 @@ const kPathUpdates = '/home/updates';
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';
 const kPathRoutingMute = '/settings/routing-mute';
+const kPathPeopleTags = '/settings/people-tags';
 const kPathDebugSettings = '/settings/debug';
 const kPathMyWork = '/home/work';
 const kPathConstellation = '/home/constellation';

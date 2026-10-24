@@ -11316,5 +11316,38 @@
   "peopleTagsAutoNewOnField": "New on the Field",
   "@peopleTagsAutoNewOnField": {
     "description": "Automatic tag"
+  },
+  "peopleTagsScreenTitle": "People tags",
+  "@peopleTagsScreenTitle": {
+    "description": "Title of the People tags screen, its Settings tile and its Field menu entry"
+  },
+  "peopleTagsOffField": "{count} off the field",
+  "@peopleTagsOffField": {
+    "description": "Under a tag: how many of its people are not on the Field",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "peopleTagsShowInFilters": "Show in filters",
+  "@peopleTagsShowInFilters": {
+    "description": "Switch on an automatic tag: offer it in the Field filters"
+  },
+  "peopleTagsMoveUp": "Move up",
+  "@peopleTagsMoveUp": {
+    "description": "Tag row menu"
+  },
+  "peopleTagsMoveDown": "Move down",
+  "@peopleTagsMoveDown": {
+    "description": "Tag row menu"
+  },
+  "peopleTagsDelete": "Delete",
+  "@peopleTagsDelete": {
+    "description": "Tag row menu"
+  },
+  "peopleTagsDeleted": "Tag deleted",
+  "@peopleTagsDeleted": {
+    "description": "Undo snackbar text after deleting a tag"
   }
 }

@@ -8,9 +8,9 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'add_to_tag_sheet.dart';
+import 'person_auto_tag_name.dart';
 
 /// The viewer's private tags on one person: own tags with ×, the automatic
 /// ones without, and "+ Tag" to edit the person's membership.
@@ -64,17 +64,7 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
   }
 
   static String _autoName(L10n l10n, PersonAutoTagOf tag) {
-    final name = switch (PersonAutoTagKind.fromSmallint(tag.kind)) {
-      PersonAutoTagKind.mutualContact => l10n.constellationAutoTagMutualContact,
-      PersonAutoTagKind.iTrust => l10n.constellationAutoTagITrust,
-      PersonAutoTagKind.trustsMe => l10n.constellationAutoTagTrustsMe,
-      PersonAutoTagKind.helpedMe => l10n.peopleTagsAutoHelpedMe,
-      PersonAutoTagKind.iHelped => l10n.peopleTagsAutoIHelped,
-      PersonAutoTagKind.workedTogether => l10n.peopleTagsAutoWorkedTogether,
-      PersonAutoTagKind.invited => l10n.peopleTagsAutoInvited,
-      PersonAutoTagKind.forwarded => l10n.peopleTagsAutoForwarded,
-      PersonAutoTagKind.newOnField => l10n.peopleTagsAutoNewOnField,
-    };
+    final name = personAutoTagName(l10n, tag.kind);
     return tag.n > 1 ? '$name · ${tag.n}' : name;
   }
 

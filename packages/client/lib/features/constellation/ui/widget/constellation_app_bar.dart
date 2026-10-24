@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -24,11 +26,13 @@ class ConstellationAppBarRow extends StatelessWidget {
   const ConstellationAppBarRow({
     required this.legendExpanded,
     required this.onToggleLegend,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
   final bool legendExpanded;
   final VoidCallback onToggleLegend;
+  final bool peopleTagsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +214,19 @@ class ConstellationAppBarRow extends StatelessWidget {
                 minHeight: tt.buttonHeight,
               ),
             ),
+            if (peopleTagsEnabled)
+              PopupMenuButton<void>(
+                key: const Key('constellation.app_bar.menu'),
+                popUpAnimationStyle: AnimationStyle.noAnimation,
+                itemBuilder: (_) => [
+                  PopupMenuItem<void>(
+                    key: const Key('constellation.app_bar.people_tags'),
+                    onTap: () =>
+                        unawaited(context.router.push(const PeopleTagsRoute())),
+                    child: Text(l10n.peopleTagsScreenTitle),
+                  ),
+                ],
+              ),
             Flexible(
               child: _ConstellationViewModeToggle(
                 viewMode: state.viewMode,

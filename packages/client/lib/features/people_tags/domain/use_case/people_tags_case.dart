@@ -38,6 +38,7 @@ final class PeopleTagsCase extends UseCaseBase {
   final _uuid = const Uuid();
 
   List<PersonTag> _tags = const [];
+  List<PersonAutoTag> _autoTags = const [];
   BigInt? _lastRevision;
   Timer? _timer;
 
@@ -46,6 +47,9 @@ final class PeopleTagsCase extends UseCaseBase {
 
   /// Own tags in `ord` order.
   List<PersonTag> get tags => _tags;
+
+  /// Automatic tags with their counts and filter switches.
+  List<PersonAutoTag> get autoTags => _autoTags;
 
   /// Ids of the people in own tag [tagId].
   Set<String> peopleInTag(String tagId) => {...?_members[tagId]};
@@ -73,6 +77,56 @@ final class PeopleTagsCase extends UseCaseBase {
         for (final m in results[1] as List<PersonTagMembers>)
           MapEntry(m.tagId, {...m.personIds}),
       ]);
+    _emit();
+  }
+
+  Future<void> loadAutoTags() async {
+    _autoTags = await _repository.personAutoTags();
+    _emit();
+  }
+
+  /// Moves own tag [id] to the 1-based position [ord]; the server closes up
+  /// the rest, so the list is reloaded.
+  Future<void> moveTag({required String id, required int ord}) async {
+    await _repository.personTagUpdate(
+      id: id,
+      ord: ord,
+      clientOpId: _uuid.v4(),
+    );
+    await load();
+  }
+
+  /// Deletes own tag [id]; the snapshot feeds [restoreTag] (Undo).
+  Future<PersonTagSnapshot> deleteTag(String id) async {
+    final snapshot = await _repository.personTagDelete(
+      id: id,
+      clientOpId: _uuid.v4(),
+    );
+    await load();
+    return snapshot;
+  }
+
+  /// Brings a deleted tag back under the same id.
+  Future<void> restoreTag(PersonTagSnapshot snapshot) async {
+    await _repository.personTagRestore(
+      snapshot: snapshot,
+      clientOpId: _uuid.v4(),
+    );
+    await load();
+  }
+
+  Future<void> setAutoTagShownInFilters({
+    required int kind,
+    required bool show,
+  }) async {
+    final updated = await _repository.personAutoTagPrefSet(
+      kind: kind,
+      showInFilters: show,
+    );
+    _autoTags = [
+      for (final t in _autoTags)
+        if (t.kind == kind) updated else t,
+    ];
     _emit();
   }
 

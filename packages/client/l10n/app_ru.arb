@@ -7522,5 +7522,12 @@
   "peopleTagsAutoWorkedTogether": "Работали вместе",
   "peopleTagsAutoInvited": "Приглашение",
   "peopleTagsAutoForwarded": "Пересылка",
-  "peopleTagsAutoNewOnField": "Новый в поле"
+  "peopleTagsAutoNewOnField": "Новый в поле",
+  "peopleTagsScreenTitle": "Теги людей",
+  "peopleTagsOffField": "{count} вне поля",
+  "peopleTagsShowInFilters": "Показывать в фильтрах",
+  "peopleTagsMoveUp": "Выше",
+  "peopleTagsMoveDown": "Ниже",
+  "peopleTagsDelete": "Удалить",
+  "peopleTagsDeleted": "Тег удалён"
 }
