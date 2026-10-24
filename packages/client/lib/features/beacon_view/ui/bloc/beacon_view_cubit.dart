@@ -559,6 +559,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
+  /// Reloads the Request after the viewer answered their author invite on
+  /// the page (#664): an accepted invitee lands inside at once instead of
+  /// keeping the showcase until realtime catches up.
+  Future<void> refreshAfterInviteAnswer() => refreshAfterClosureReview();
+
   /// Refreshes the closure snapshot when lifecycle is wrapping up.
   Future<void> refreshClosureState() async {
     if (state.beacon.status != BeaconStatus.reviewOpen) return;
