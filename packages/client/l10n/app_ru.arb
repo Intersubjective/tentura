@@ -7508,5 +7508,11 @@
   "peopleTagsColorTeal": "Бирюзовый",
   "peopleTagsColorBlue": "Синий",
   "peopleTagsColorViolet": "Фиолетовый",
-  "peopleTagsColorPink": "Розовый"
+  "peopleTagsColorPink": "Розовый",
+  "constellationTagRowAdd": "+ Тег",
+  "constellationTagModeOr": "Любой из них",
+  "constellationTagModeAnd": "Все сразу",
+  "constellationAutoTagMutualContact": "Взаимный контакт",
+  "constellationAutoTagITrust": "Я доверяю",
+  "constellationAutoTagTrustsMe": "Доверяет мне"
 }

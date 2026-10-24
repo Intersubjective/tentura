@@ -28,6 +28,7 @@ import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_tag_lens_cubit.dart';
 import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_presentation_frame.dart';
@@ -1313,6 +1314,32 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
   }
 
+  ConstellationTagLens? _tagLens;
+
+  /// One lens per filter and field snapshot, shared by every marker.
+  ConstellationTagLens _tagLensFor(
+    ConstellationCubit cubit,
+    ConstellationTagLensCubit lensCubit,
+    ConstellationTagFilter filter,
+  ) {
+    final people = cubit.state.field?.peers ?? const <ConstellationPerson>[];
+    final cached = _tagLens;
+    if (cached != null &&
+        cached.filter == filter &&
+        identical(_tagLensPeople, people)) {
+      return cached;
+    }
+    _tagLensPeople = people;
+    return _tagLens = ConstellationTagLens(
+      filter: filter,
+      people: people,
+      ownTagIdsOf: lensCubit.ownTagIdsOf,
+      viewerId: cubit.viewerId,
+    );
+  }
+
+  List<ConstellationPerson>? _tagLensPeople;
+
   Widget _wrapConstellationMapNodeSemantics({
     required BuildContext context,
     required ConstellationCubit cubit,
@@ -1343,9 +1370,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
       online: online,
     );
     // Off the selected person's trust chain (#641): the marker fades.
-    final marker = cubit.isDimmedByTrustChain(node)
+    final chainMarker = cubit.isDimmedByTrustChain(node)
         ? Opacity(opacity: kConstellationTrustChainDimOpacity, child: mapNode)
         : mapNode;
+    // Outside the tag selection: the marker fades; positions stay put.
+    final lensCubit = maybeConstellationTagLens(context);
+    final Widget marker = lensCubit == null
+        ? chainMarker
+        : BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+            bloc: lensCubit,
+            builder: (_, filter) =>
+                _tagLensFor(cubit, lensCubit, filter).isDimmed(node)
+                ? Opacity(
+                    opacity: kConstellationTagLensDimOpacity,
+                    child: chainMarker,
+                  )
+                : chainMarker,
+          );
     if (isEgo) {
       return Semantics(
         selected: selected,

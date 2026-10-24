@@ -11260,5 +11260,29 @@
   "peopleTagsColorPink": "Pink",
   "@peopleTagsColorPink": {
     "description": "Tag colour name read by screen readers"
+  },
+  "constellationTagRowAdd": "+ Tag",
+  "@constellationTagRowAdd": {
+    "description": "Field tag row: opens the tag editor"
+  },
+  "constellationTagModeOr": "Any of them",
+  "@constellationTagModeOr": {
+    "description": "Field tag row switch: people with any selected tag stay bright"
+  },
+  "constellationTagModeAnd": "All of them",
+  "@constellationTagModeAnd": {
+    "description": "Field tag row switch: only people with every selected tag stay bright"
+  },
+  "constellationAutoTagMutualContact": "Mutual contact",
+  "@constellationAutoTagMutualContact": {
+    "description": "Automatic tag on the Field tag row"
+  },
+  "constellationAutoTagITrust": "I trust",
+  "@constellationAutoTagITrust": {
+    "description": "Automatic tag on the Field tag row"
+  },
+  "constellationAutoTagTrustsMe": "Trusts me",
+  "@constellationAutoTagTrustsMe": {
+    "description": "Automatic tag on the Field tag row"
   }
 }
