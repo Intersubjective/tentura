@@ -13,6 +13,8 @@ import '_use_case_base.dart';
 const kPersonTagMaxNameLength = 32;
 const kPersonTagMaxGlyphUnits = 8;
 const kPersonTagColors = 8;
+const kPersonTagMaxOpsPerCall = 400;
+const kPersonTagMaxSource = 4;
 
 /// An owner's own tags: create, update, delete and restore. Names and glyphs
 /// are private; they never go into exception text or log lines.
@@ -103,6 +105,58 @@ final class PeopleTagsCase extends UseCaseBase {
       snapshot: snapshot,
     );
   }
+
+  /// [ops] are `{tagId, personId, op: add|remove, source}`.
+  Future<void> applyMembers({
+    required String ownerId,
+    required List<Map<String, dynamic>> ops,
+    required String clientOpId,
+  }) {
+    if (ops.length > kPersonTagMaxOpsPerCall) throw _invalidTag();
+    final parsed = [for (final o in ops) _parseOp(ownerId, o)];
+    return _tags.applyMembers(
+      ownerId: ownerId,
+      clientOpId: clientOpId,
+      fingerprint: _fingerprint('members', [
+        for (final o in parsed) [o.tagId, o.personId, o.add, o.source],
+      ]),
+      ops: parsed,
+    );
+  }
+
+  Future<List<PersonTagMembers>> memberships({required String ownerId}) =>
+      _tags.memberships(ownerId);
+
+  Future<List<String>> tagIdsOf({
+    required String ownerId,
+    required String personId,
+  }) => _tags.tagIdsOf(ownerId, personId);
+
+  static PersonTagMemberOp _parseOp(String ownerId, Map<String, dynamic> op) {
+    final tagId = op['tagId'] as String?;
+    final personId = op['personId'] as String?;
+    final kind = op['op'] as String?;
+    final source = op['source'] as int?;
+    if (tagId == null ||
+        personId == null ||
+        personId == ownerId ||
+        (kind != 'add' && kind != 'remove') ||
+        source == null ||
+        source < 0 ||
+        source > kPersonTagMaxSource) {
+      throw _invalidTag();
+    }
+    return PersonTagMemberOp(
+      tagId: tagId,
+      personId: personId,
+      add: kind == 'add',
+      source: source,
+    );
+  }
+
+  static PeopleTagsException _invalidTag() => PeopleTagsException(
+    peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+  );
 
   static String _fingerprint(String op, List<Object?> payload) =>
       sha256.convert(utf8.encode(jsonEncode([op, ...payload]))).toString();

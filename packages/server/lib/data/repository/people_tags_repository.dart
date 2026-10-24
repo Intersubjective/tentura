@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -12,6 +13,15 @@ import '../database/tentura_db.dart';
 
 const _maxTags = 50;
 const _colors = 8;
+const _maxMembers = 1000;
+
+/// The two-way block test of `block_hides`, as an anti-join on a member row.
+const _notBlockedSql = r'''
+NOT EXISTS (
+  SELECT 1 FROM public.user_block ub
+   WHERE (ub.blocker_id = $1 AND ub.blocked_id = m.person_id)
+      OR (ub.blocker_id = m.person_id AND ub.blocked_id = $1))
+''';
 
 /// `person_tag`, `person_tag_member`, `person_tag_revision` and
 /// `person_tag_op_log` (m0261). Each mutation is one transaction under a
@@ -27,7 +37,8 @@ class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   final TenturaDb _database;
 
   @override
-  Future<List<PersonTag>> list(String ownerId) => _list(ownerId);
+  Future<List<PersonTag>> list(String ownerId) =>
+      _list(ownerId, withCounts: true);
 
   @override
   Future<PersonTag> create({
@@ -98,7 +109,9 @@ UPDATE public.person_tag
           ..insert(ord.clamp(1, tags.length) - 1, id);
         await _writeOrder(ownerId, ids);
       }
-      return (await _list(ownerId)).singleWhere((t) => t.id == id);
+      return (await _list(ownerId, withCounts: true)).singleWhere(
+        (t) => t.id == id,
+      );
     },
     encode: (t) => t.toJson(),
   );
@@ -198,10 +211,147 @@ ON CONFLICT DO NOTHING
       final ids = [for (final t in tags) t.id]
         ..insert(position - 1, snapshot.tag.id);
       await _writeOrder(ownerId, ids);
-      return (await _list(ownerId)).singleWhere((t) => t.id == snapshot.tag.id);
+      return (await _list(ownerId, withCounts: true)).singleWhere(
+        (t) => t.id == snapshot.tag.id,
+      );
     },
     encode: (t) => t.toJson(),
   );
+
+  @override
+  Future<void> applyMembers({
+    required String ownerId,
+    required String clientOpId,
+    required String fingerprint,
+    required List<PersonTagMemberOp> ops,
+  }) => _idempotent<bool>(
+    ownerId,
+    clientOpId,
+    fingerprint,
+    decode: (_) => true,
+    run: () async {
+      final tagIds = {for (final t in await _list(ownerId)) t.id};
+      if (ops.any((o) => !tagIds.contains(o.tagId))) {
+        throw PeopleTagsException(
+          peopleTagsCode: PeopleTagsExceptionCode.tagNotFound,
+        );
+      }
+      final added = {
+        for (final o in ops)
+          if (o.add) o.personId,
+      }.toList();
+      final known = await _database
+          .customSelect(
+            r'SELECT id FROM public."user" WHERE id = ANY($1::text[])',
+            variables: [Variable(TypedValue(Type.textArray, added))],
+          )
+          .get();
+      if (known.length != added.length) {
+        throw PeopleTagsException(
+          peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+        );
+      }
+      for (final o in ops) {
+        if (o.add) {
+          await _database.customStatement(
+            r'''
+INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
+SELECT $1::text, $2::text, $3::text, $4::int
+ WHERE NOT EXISTS (
+   SELECT 1 FROM public.user_block ub
+    WHERE (ub.blocker_id = $2 AND ub.blocked_id = $3)
+       OR (ub.blocker_id = $3 AND ub.blocked_id = $2))
+ON CONFLICT DO NOTHING
+''',
+            [o.tagId, ownerId, o.personId, o.source],
+          );
+        } else {
+          await _database.customStatement(
+            r'''
+DELETE FROM public.person_tag_member
+ WHERE tag_id = $1 AND owner_id = $2 AND person_id = $3
+''',
+            [o.tagId, ownerId, o.personId],
+          );
+        }
+      }
+      final over = await _database
+          .customSelect(
+            'SELECT 1 FROM public.person_tag_member '
+            r'WHERE owner_id = $1 AND tag_id = ANY($2::text[]) '
+            r'GROUP BY tag_id HAVING count(*) > $3',
+            variables: [
+              Variable.withString(ownerId),
+              Variable(
+                TypedValue(
+                  Type.textArray,
+                  {
+                    for (final o in ops) o.tagId,
+                  }.toList(),
+                ),
+              ),
+              Variable.withInt(_maxMembers),
+            ],
+          )
+          .get();
+      if (over.isNotEmpty) {
+        throw PeopleTagsException(
+          peopleTagsCode: PeopleTagsExceptionCode.memberLimitReached,
+        );
+      }
+      return true;
+    },
+    encode: (ok) => {'ok': ok},
+  );
+
+  @override
+  Future<List<PersonTagMembers>> memberships(String ownerId) async {
+    final rows = await _database
+        .customSelect(
+          '''
+SELECT t.id AS tag_id,
+       coalesce(
+         array_agg(m.person_id ORDER BY m.person_id)
+           FILTER (WHERE m.person_id IS NOT NULL),
+         '{}'::text[]) AS person_ids
+  FROM public.person_tag t
+  LEFT JOIN public.person_tag_member m
+    ON m.tag_id = t.id AND $_notBlockedSql
+ WHERE t.owner_id = \$1
+ GROUP BY t.id, t.ord, t.created_at
+ ORDER BY t.ord, t.created_at, t.id
+''',
+          variables: [Variable.withString(ownerId)],
+        )
+        .get();
+    return [
+      for (final r in rows)
+        PersonTagMembers(
+          tagId: r.read<String>('tag_id'),
+          personIds: r.read<List<dynamic>>('person_ids').cast<String>(),
+        ),
+    ];
+  }
+
+  @override
+  Future<List<String>> tagIdsOf(String ownerId, String personId) async {
+    final rows = await _database
+        .customSelect(
+          '''
+SELECT t.id
+  FROM public.person_tag t
+  JOIN public.person_tag_member m ON m.tag_id = t.id
+ WHERE t.owner_id = \$1 AND m.person_id = \$2 AND $_notBlockedSql
+ ORDER BY t.ord, t.created_at, t.id
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable.withString(personId),
+          ],
+        )
+        .get();
+    return [for (final r in rows) r.read<String>('id')];
+  }
 
   Future<T> _idempotent<T>(
     String ownerId,
@@ -249,7 +399,10 @@ VALUES ($1, $2, $3, $4::jsonb)
     return result;
   });
 
-  Future<List<PersonTag>> _list(String ownerId) async {
+  Future<List<PersonTag>> _list(
+    String ownerId, {
+    bool withCounts = false,
+  }) async {
     final rows = await _database
         .customSelect(
           'SELECT id, name, glyph, color, ord FROM public.person_tag '
@@ -257,6 +410,9 @@ VALUES ($1, $2, $3, $4::jsonb)
           variables: [Variable.withString(ownerId)],
         )
         .get();
+    final counts = withCounts && rows.isNotEmpty
+        ? await _counts(ownerId)
+        : const <String, ({int count, int off})>{};
     return [
       for (final r in rows)
         PersonTag(
@@ -265,8 +421,57 @@ VALUES ($1, $2, $3, $4::jsonb)
           glyph: r.read<String>('glyph'),
           color: r.read<int>('color'),
           ord: r.read<int>('ord'),
+          count: counts[r.read<String>('id')]?.count ?? 0,
+          countOffField: counts[r.read<String>('id')]?.off ?? 0,
         ),
     ];
+  }
+
+  /// Members per tag, blocked people left out, and of those the ones off the
+  /// owner's Field: not visible (the transaction-memoised closed form, no
+  /// MeritRank call of its own), not a bond, contact or pinned person. The
+  /// visible set is only read when some member is left.
+  Future<Map<String, ({int count, int off})>> _counts(String ownerId) async {
+    final rows = await _database
+        .customSelect(
+          '''
+WITH live AS MATERIALIZED (
+  SELECT m.tag_id, m.person_id FROM public.person_tag_member m
+   WHERE m.owner_id = \$1 AND $_notBlockedSql
+),
+visible AS MATERIALIZED (
+  SELECT public.person_visible_peer_ids_tx(\$1, '') AS ids
+   WHERE EXISTS (SELECT 1 FROM live)
+),
+near AS MATERIALIZED (
+  SELECT vu.object AS id FROM public.vote_user vu
+   WHERE vu.subject = \$1 AND vu.amount > 0
+  UNION
+  SELECT b.peer_id FROM public.person_bond_peers(\$1) b
+  UNION
+  SELECT a.person_id FROM public.constellation_anchor a
+   WHERE a.viewer_id = \$1 AND a.person_id IS NOT NULL
+)
+SELECT l.tag_id,
+       count(*) AS member_count,
+       count(*) FILTER (
+         WHERE NOT (l.person_id = ANY(
+                 coalesce((SELECT v.ids FROM visible v), '{}'::text[])))
+           AND NOT EXISTS (SELECT 1 FROM near n WHERE n.id = l.person_id)
+       ) AS off_field_count
+  FROM live l
+ GROUP BY l.tag_id
+''',
+          variables: [Variable.withString(ownerId)],
+        )
+        .get();
+    return {
+      for (final r in rows)
+        r.read<String>('tag_id'): (
+          count: r.read<int>('member_count'),
+          off: r.read<int>('off_field_count'),
+        ),
+    };
   }
 
   PersonTag _find(List<PersonTag> tags, String id) => tags.firstWhere(

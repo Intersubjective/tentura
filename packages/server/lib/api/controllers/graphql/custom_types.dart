@@ -127,6 +127,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonTagSnapshot,
   gqlInputPersonTag,
   gqlInputPersonTagSnapshot,
+  gqlInputPersonTagMemberOp,
+  gqlTypePersonTagMembers,
+  gqlTypePersonTagsOf,
 ];
 
 /// Account notification preferences (channel × category matrix + controls).
@@ -2106,6 +2109,8 @@ final gqlTypePersonTag = GraphQLObjectType('PersonTag', null)
     field('glyph', graphQLString.nonNullable()),
     field('color', graphQLInt.nonNullable()),
     field('ord', graphQLInt.nonNullable()),
+    field('count', graphQLInt.nonNullable()),
+    field('countOffField', graphQLInt.nonNullable()),
   ]);
 
 final gqlTypePersonTagSnapshot = GraphQLObjectType('PersonTagSnapshot', null)
@@ -2146,6 +2151,36 @@ final gqlInputPersonTagSnapshot = GraphQLInputObjectType(
     ),
   ],
 );
+
+/// One add or remove in `personTagMembersApply`; `op` is `add` or `remove`.
+final gqlInputPersonTagMemberOp = GraphQLInputObjectType(
+  'PersonTagMemberOpInput',
+  inputFields: [
+    GraphQLInputObjectField('tagId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('personId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('op', graphQLString.nonNullable()),
+    GraphQLInputObjectField('source', graphQLInt.nonNullable()),
+  ],
+);
+
+/// The people in one own tag (blocked people left out).
+final gqlTypePersonTagMembers = GraphQLObjectType('PersonTagMembers', null)
+  ..fields.addAll([
+    field('tagId', graphQLString.nonNullable()),
+    field(
+      'personIds',
+      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    ),
+  ]);
+
+/// The owner's tags a person is in; the automatic part comes later.
+final gqlTypePersonTagsOf = GraphQLObjectType('PersonTagsOf', null)
+  ..fields.addAll([
+    field(
+      'own',
+      GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    ),
+  ]);
 
 /// `[T!]!` typed over `dynamic`, so a decoded `List<dynamic>` passes
 /// validation on executors that do not re-type variable lists.

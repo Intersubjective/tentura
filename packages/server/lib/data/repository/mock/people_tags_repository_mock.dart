@@ -49,4 +49,20 @@ class PeopleTagsRepositoryMock implements PeopleTagsRepositoryPort {
     required String fingerprint,
     required PersonTagSnapshot snapshot,
   }) => throw UnimplementedError();
+
+  @override
+  Future<void> applyMembers({
+    required String ownerId,
+    required String clientOpId,
+    required String fingerprint,
+    required List<PersonTagMemberOp> ops,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<List<PersonTagMembers>> memberships(String ownerId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<String>> tagIdsOf(String ownerId, String personId) =>
+      throw UnimplementedError();
 }

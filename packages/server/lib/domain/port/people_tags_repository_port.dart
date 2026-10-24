@@ -42,4 +42,21 @@ abstract interface class PeopleTagsRepositoryPort {
     required String fingerprint,
     required PersonTagSnapshot snapshot,
   });
+
+  /// Applies [ops] in order in one transaction. Adding someone a block hides
+  /// is skipped without a trace. Throws tagNotFound for a tag that is not
+  /// the owner's, invalidTag for the owner or an unknown person, and
+  /// memberLimitReached when a tag would end over 1000 members.
+  Future<void> applyMembers({
+    required String ownerId,
+    required String clientOpId,
+    required String fingerprint,
+    required List<PersonTagMemberOp> ops,
+  });
+
+  /// Every own tag with its members, blocked people left out.
+  Future<List<PersonTagMembers>> memberships(String ownerId);
+
+  /// Ids of the owner's tags that [personId] is in, in tag order.
+  Future<List<String>> tagIdsOf(String ownerId, String personId);
 }

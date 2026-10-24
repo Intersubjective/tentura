@@ -9,6 +9,8 @@ final class PersonTag {
     required this.glyph,
     required this.color,
     required this.ord,
+    this.count = 0,
+    this.countOffField = 0,
   });
 
   factory PersonTag.fromJson(Map<String, dynamic> json) => PersonTag(
@@ -25,12 +27,24 @@ final class PersonTag {
   final int color;
   final int ord;
 
+  /// Members not hidden by a block, and of those the ones off the owner's
+  /// Field. Derived on read: not part of [toJson] and not compared.
+  final int count;
+  final int countOffField;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'glyph': glyph,
     'color': color,
     'ord': ord,
+  };
+
+  /// The GraphQL `PersonTag` object: [toJson] plus the derived counts.
+  Map<String, dynamic> toGraphQL() => {
+    ...toJson(),
+    'count': count,
+    'countOffField': countOffField,
   };
 
   @override
@@ -73,4 +87,29 @@ final class PersonTagSnapshot {
     'memberIds': memberIds,
     'sources': sources,
   };
+}
+
+/// The people in one of the owner's tags, blocked people left out.
+final class PersonTagMembers {
+  const PersonTagMembers({required this.tagId, required this.personIds});
+
+  final String tagId;
+  final List<String> personIds;
+
+  Map<String, dynamic> toJson() => {'tagId': tagId, 'personIds': personIds};
+}
+
+/// One add or remove of a person in a tag, with the add's `source`.
+final class PersonTagMemberOp {
+  const PersonTagMemberOp({
+    required this.tagId,
+    required this.personId,
+    required this.add,
+    required this.source,
+  });
+
+  final String tagId;
+  final String personId;
+  final bool add;
+  final int source;
 }

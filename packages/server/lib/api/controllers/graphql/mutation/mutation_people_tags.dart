@@ -18,6 +18,11 @@ final class MutationPeopleTags extends GqlNodeBase {
   static final _ord = InputFieldInt(fieldName: 'ord');
   static final _clientOpId = InputFieldString(fieldName: 'clientOpId');
 
+  static final _ops = GraphQLFieldInput(
+    'ops',
+    _PersonTagMemberOpListType().nonNullable(),
+  );
+
   static final _snapshot = GraphQLFieldInput(
     'snapshot',
     gqlInputPersonTagSnapshot.nonNullable(),
@@ -28,6 +33,7 @@ final class MutationPeopleTags extends GqlNodeBase {
     personTagUpdate,
     personTagDelete,
     personTagRestore,
+    personTagMembersApply,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get personTagCreate =>
@@ -46,7 +52,7 @@ final class MutationPeopleTags extends GqlNodeBase {
           glyph: _glyph.fromArgs(args),
           color: _color.fromArgs(args),
           clientOpId: _clientOpId.fromArgsNonNullable(args),
-        )).toJson(),
+        )).toGraphQL(),
       );
 
   GraphQLObjectField<dynamic, dynamic> get personTagUpdate =>
@@ -69,7 +75,7 @@ final class MutationPeopleTags extends GqlNodeBase {
           color: _color.fromArgs(args),
           ord: _ord.fromArgs(args),
           clientOpId: _clientOpId.fromArgsNonNullable(args),
-        )).toJson(),
+        )).toGraphQL(),
       );
 
   GraphQLObjectField<dynamic, dynamic> get personTagDelete =>
@@ -95,6 +101,35 @@ final class MutationPeopleTags extends GqlNodeBase {
             Map<String, dynamic>.from(args[_snapshot.name]! as Map),
           ),
           clientOpId: _clientOpId.fromArgsNonNullable(args),
-        )).toJson(),
+        )).toGraphQL(),
       );
+
+  GraphQLObjectField<dynamic, dynamic> get personTagMembersApply =>
+      GraphQLObjectField(
+        'personTagMembersApply',
+        graphQLBoolean.nonNullable(),
+        arguments: [_ops, _clientOpId.field],
+        resolve: (_, args) async {
+          await _case.applyMembers(
+            ownerId: getCredentials(args).sub,
+            ops: [
+              for (final op in args[_ops.name]! as List)
+                Map<String, dynamic>.from(op as Map),
+            ],
+            clientOpId: _clientOpId.fromArgsNonNullable(args),
+          );
+          return true;
+        },
+      );
+}
+
+/// `[PersonTagMemberOpInput!]` typed over `dynamic`, so a decoded
+/// `List<dynamic>` of maps passes validation on executors that do not re-type
+/// variable lists.
+final class _PersonTagMemberOpListType
+    extends GraphQLListType<dynamic, dynamic> {
+  _PersonTagMemberOpListType() : super(gqlInputPersonTagMemberOp.nonNullable());
+
+  @override
+  GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
 }
