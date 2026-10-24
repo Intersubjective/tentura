@@ -787,6 +787,61 @@ void main() {
     expect(cubit.state.skippedPersonalNoteIds, {'u1'});
   });
 
+  testWidgets(
+    '#669 one recipient without a personal note sends with no shared-note '
+    'sheet',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Alex',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
+          ],
+          selectedIds: {'u1'},
+          note: 'composer shared',
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+      var sendPressed = false;
+
+      await pumpPicker(
+        tester,
+        cubit: cubit,
+        embedded: true,
+        onSendPressed: () => sendPressed = true,
+        sendEnabled: true,
+      );
+      await tester.tap(find.text('Forward to 1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shared note'), findsNothing);
+      expect(
+        find.text("Sent to anyone who doesn't have a personal note."),
+        findsNothing,
+      );
+      expect(sendPressed, isTrue);
+      // The cubit refuses to send to anyone still «uncovered», so the lone
+      // recipient must be marked as having skipped the personal note.
+      expect(cubit.state.skippedPersonalNoteIds, {'u1'});
+      // Whatever the composer already holds is left alone.
+      expect(cubit.state.note, 'composer shared');
+    },
+  );
+
   testWidgets('submit with uncovered recipients shows shared-note sheet', (
     tester,
   ) async {
@@ -866,25 +921,33 @@ void main() {
                 rScore: 1,
               ),
             ),
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u2',
+                displayName: 'Blake',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
           ],
-          selectedIds: {'u1'},
+          selectedIds: {'u1', 'u2'},
           note: 'composer shared',
           candidatesLoad: const ForwardCandidatesReady(),
         ),
       );
 
       await pumpPicker(tester, cubit: cubit);
-      await tester.tap(find.text('Forward to 1'));
+      await tester.tap(find.text('Forward to 2'));
       await tester.pumpAndSettle();
 
       expect(find.text('composer shared'), findsOneWidget);
       await tester.enterText(find.byType(TextField).last, '');
       await tester.pump();
-      await tester.tap(find.widgetWithText(FilledButton, 'Forward to 1'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Forward to 2'));
       await tester.pumpAndSettle();
 
       expect(cubit.state.note, '');
-      expect(cubit.state.skippedPersonalNoteIds, {'u1'});
+      expect(cubit.state.skippedPersonalNoteIds, {'u1', 'u2'});
     },
   );
 
@@ -910,8 +973,16 @@ void main() {
                 rScore: 1,
               ),
             ),
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u2',
+                displayName: 'Blake',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
           ],
-          selectedIds: {'u1'},
+          selectedIds: {'u1', 'u2'},
           candidatesLoad: const ForwardCandidatesReady(),
         ),
       );
@@ -924,7 +995,7 @@ void main() {
         onSendPressed: () => sendPressed = true,
         sendEnabled: true,
       );
-      await tester.tap(find.text('Forward to 1'));
+      await tester.tap(find.text('Forward to 2'));
       await tester.pumpAndSettle();
 
       expect(find.text('Shared note'), findsWidgets);

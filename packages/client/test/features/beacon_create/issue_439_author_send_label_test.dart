@@ -294,21 +294,50 @@ void main() {
   });
 
   testWidgets(
-    'author shared-note sheet confirms with Send to 1, not Forward to 1',
+    'author shared-note sheet confirms with Send to 2, not Forward to 2',
     (tester) async {
       await pumpAuthorRecipientsWithOnePicked(tester);
+      // A shared note only makes sense for two or more people (#669), so
+      // pick a second person.
+      final forwardCubit = tester
+          .element(find.byType(BeaconRecipientsTab))
+          .read<ForwardCubit>();
+      forwardCubit.emit(
+        forwardCubit.state.copyWith(
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Clara',
+                rScore: 1,
+                score: 70,
+              ),
+            ),
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u2',
+                displayName: 'Dan',
+                rScore: 1,
+                score: 60,
+              ),
+            ),
+          ],
+          selectedIds: const {'u1', 'u2'},
+        ),
+      );
+      await _settle(tester);
 
       await tester.tap(_sendButton);
       await _settle(tester);
 
-      // Precondition: Clara has no personal note, so send first opens the
+      // Precondition: neither has a personal note, so send first opens the
       // shared-note sheet instead of sending.
       expect(find.text('Shared note'), findsOneWidget);
       expect(
-        find.widgetWithText(FilledButton, 'Send to 1'),
+        find.widgetWithText(FilledButton, 'Send to 2'),
         findsOneWidget,
       );
-      expect(find.text('Forward to 1'), findsNothing);
+      expect(find.text('Forward to 2'), findsNothing);
     },
   );
 
