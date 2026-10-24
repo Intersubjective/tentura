@@ -597,6 +597,61 @@ void main() {
     expect(h.selection.state.isActive, isFalse);
   });
 
+  group('empty selection hint by pointer (#681)', () {
+    final l10n = lookupL10n(const Locale('en'));
+
+    String hint(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(const Key('constellation.selection.count')))
+        .data!;
+
+    Future<void> connectMouse(WidgetTester tester) async {
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      // Off the surface, so it hovers nothing (no tooltip timers).
+      await mouse.addPointer(location: const Offset(-1, -1));
+      addTearDown(mouse.removePointer);
+    }
+
+    testWidgets('with a mouse it says how to select with a mouse', (
+      tester,
+    ) async {
+      await connectMouse(tester);
+      final h = await _mount(tester);
+      h.selection.setSelecting(true);
+      await _frames(tester);
+
+      expect(hint(tester), l10n.constellationSelectionHintMouse);
+      expect(hint(tester), isNot(contains('two fingers')));
+    });
+
+    testWidgets('on touch it keeps the two-finger hint', (tester) async {
+      final h = await _mount(tester);
+      h.selection.setSelecting(true);
+      await _frames(tester);
+
+      expect(tester.binding.mouseTracker.mouseIsConnected, isFalse);
+      expect(hint(tester), l10n.constellationSelectionHint);
+    });
+
+    testWidgets('follows a mouse plugged in or out while the bar is shown', (
+      tester,
+    ) async {
+      final h = await _mount(tester);
+      h.selection.setSelecting(true);
+      await _frames(tester);
+      expect(hint(tester), l10n.constellationSelectionHint);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      // Off the surface, so it hovers nothing (no tooltip timers).
+      await mouse.addPointer(location: const Offset(-1, -1));
+      await _frames(tester);
+      expect(hint(tester), l10n.constellationSelectionHintMouse);
+
+      await mouse.removePointer();
+      await _frames(tester);
+      expect(hint(tester), l10n.constellationSelectionHint);
+    });
+  });
+
   testWidgets('dragging a node with the tool on still moves it', (
     tester,
   ) async {

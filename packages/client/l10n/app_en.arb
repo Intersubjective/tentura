@@ -10738,6 +10738,10 @@
   "@constellationSelectionHint": {
     "context": "Field map: selection bar while the select toggle is on and nothing is selected yet (#642)"
   },
+  "constellationSelectionHintMouse": "Drag a box or click people, Requests and Posts. Shift-drag works without this mode.",
+  "@constellationSelectionHintMouse": {
+    "context": "Field map: selection bar while the select toggle is on and nothing is selected yet, when a mouse or trackpad is connected (#681)"
+  },
   "constellationSelectionClear": "Clear selection",
   "@constellationSelectionClear": {
     "context": "Field map: removes every node from the selection and turns the select tool off (#642)"

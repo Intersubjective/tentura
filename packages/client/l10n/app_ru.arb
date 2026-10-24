@@ -7358,6 +7358,7 @@
   "constellationSelectMany": "Выбрать несколько",
   "constellationSelectionCount": "Выбрано: {count}",
   "constellationSelectionHint": "Обведите рамкой или нажмите на людей, запросы и посты. Поле двигается двумя пальцами.",
+  "constellationSelectionHintMouse": "Обведите рамкой или щёлкните по людям, запросам и постам. Без этого режима рамку можно обвести с зажатым Shift.",
   "constellationSelectionClear": "Снять выделение",
   "constellationSelectionDone": "Готово",
   "constellationArrangeSector": "Расставить сектором",
