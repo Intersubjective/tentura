@@ -6014,6 +6014,8 @@
   "beaconYouBlockedSemantics": "Блок поставил {name}, {elapsed} назад",
   "beaconPhaseCtaResolveBlocker": "Снять блок",
   "beaconPhaseCtaReviewOffers": "Просмотреть предложения",
+  "beaconPhaseOffersToReview": "{count, plural, one{{count} предложение к рассмотрению} few{{count} предложения к рассмотрению} many{{count} предложений к рассмотрению} other{{count} предложения к рассмотрению}}",
+  "beaconPhaseOfferSent": "Предложение отправлено",
   "beaconYouOfferSent": "Ждём, пока автор рассмотрит ваше предложение",
   "forwardReasonAheadHint": "После выбора человека можно указать причину пересылки и добавить личную заметку.",
   "@forwardReasonAheadHint": {

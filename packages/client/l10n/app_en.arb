@@ -6680,6 +6680,19 @@
   },
   "beaconPhaseCtaResolveBlocker": "Resolve blocker",
   "beaconPhaseCtaReviewOffers": "Review offers",
+  "beaconPhaseOffersToReview": "{count, plural, one{{count} offer to review} other{{count} offers to review}}",
+  "@beaconPhaseOffersToReview": {
+    "description": "STATUS slot2 cue for the author while help offers wait for review (#636)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconPhaseOfferSent": "Offer sent",
+  "@beaconPhaseOfferSent": {
+    "description": "STATUS slot2 cue for a helper whose own offer still waits for the author (#636)"
+  },
   "beaconYouOfferSent": "Waiting for author to review your offer",
   "forwardReasonAheadHint": "After selecting someone, you can explain why you're forwarding and add a personal note.",
   "@forwardReasonAheadHint": {
