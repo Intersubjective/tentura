@@ -5,7 +5,7 @@ Reads changed paths (one per line, repo-relative) on stdin and prints
 `key=value` lines for `$GITHUB_OUTPUT`:
 
   server        full | repo-files | skip   server + pg shards, analyzer gate
-  client        full | repo-files | skip   client-a/client-b, analyzer gate
+  client        full | repo-files | skip   client shards, analyzer gate
   web           true | false               build-web (wasm app + landing)
   server_image  true | false               build-server (server image push)
   deploy        true | false               deploy-dev

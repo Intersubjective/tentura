@@ -23,10 +23,12 @@ List<String> _pgJobCommands() {
   ).readAsStringSync();
   final start = text.indexOf(RegExp(r'^\s*pg\)\s*$', multiLine: true));
   expect(start, isNonNegative, reason: 'pg case branch not found');
+  // Up to the next case label, whichever target follows.
   final end = text.indexOf(
-    RegExp(r'^\s*client-a\)\s*$', multiLine: true),
-    start,
+    RegExp(r'^\s*[\w-]+\)\s*$', multiLine: true),
+    start + 1,
   );
+  expect(end, greaterThan(start), reason: 'no case branch after pg');
   final joined = text.substring(start, end).replaceAll(RegExp(r'\\\s*\n'), ' ');
   return [
     for (final line in joined.split('\n'))

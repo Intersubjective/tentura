@@ -125,7 +125,10 @@ other package — `scripts/check_repo_files_tags.py` enforces the tag) also run 
 outside it changed. Agent docs (`AGENTS.md`, `.cursor/`, `.claude/`) reach only the lint
 shard. Client and server (non-pg) tests run as a few bundled entrypoints
 (`scripts/gen_test_bundles.py`, CI only — a file that leaks process-wide state goes in
-`test/bundle_exclude.txt`); the pg suite is split by file across three runners. Manual
+`test/bundle_exclude.txt`); client tests run on three shards and pg tests on six, packed by
+measured per-file duration (`scripts/ci_select_tests.py --balance`, weights in
+`scripts/ci_test_durations.json` — refresh with `scripts/ci_test_durations.py update --run <id>`
+when shards drift apart; a stale file only costs balance). Manual
 dispatch runs everything. Pull requests into `main` get the same selection minus the web
 build, server image, deploy and pg shards — add the `ci:full` label for the pg shards and
 every package's full suite — and must pass the required `PR checks` status to merge.
@@ -172,7 +175,7 @@ review due: 2026-10-29
 client analyze: flutter analyze --no-fatal-infos <paths> (bare flutter analyze fails on ~267 pre-existing info lints; real gate is scripts/check-custom-lints.sh packages/client). Server checks: use scripts/run_with_test_cleanup.sh from repo root, never scripts/../../../ paths
 
 ### check-hints-analyze-baseline
-CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
+CI gate (pipeline.yml test-client-analyze/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
 
 ### check-hints-analyzer-crash
 server architecture analyzer-budget tests (client_analyzer_issue_budget_test, analyzer_issue_budget_toolchain_integration_test): on this machine the Dart analyzer intermittently crashes ('analyzer did not complete … exit 255' / SIGBUS) under concurrent load, which shows up as a budget failure with count 1. Before treating it as a regression, rerun bash scripts/check-analyze-baseline.sh packages/<pkg> on its own. Only an explicit 'has N issues, baseline is M' line is a real overrun.
