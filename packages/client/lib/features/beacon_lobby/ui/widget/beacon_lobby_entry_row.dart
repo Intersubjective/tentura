@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../domain/entity/beacon_lobby.dart';
 import '../../domain/use_case/beacon_lobby_case.dart';
 import '../bloc/beacon_lobby_entry_cubit.dart';
+import 'beacon_lobby_subtitle.dart';
 
 /// The way into a Request's Questions. Shown only when the server policy
 /// says the viewer may read Questions (the client never re-implements who is
@@ -108,9 +109,19 @@ class _StandingWatcherState extends State<_StandingWatcher> {
   Widget build(BuildContext context) => widget.child;
 }
 
-String _subtitle(L10n l10n, {required bool isAuthor}) => isAuthor
-    ? l10n.beaconLobbyEntrySubtitleAuthor
-    : l10n.beaconLobbyEntrySubtitle;
+String _subtitle(
+  L10n l10n,
+  BeaconLobbyAccess access, {
+  required bool isAuthor,
+}) => beaconLobbySubtitle(
+  l10n,
+  isAuthor: isAuthor,
+  isHelper: access.isHelper,
+  closed: beaconLobbyClosedToOffers(
+    takesOffers: access.takesOffers,
+    reason: access.limitReason,
+  ),
+);
 
 class _EntryTile extends StatelessWidget {
   const _EntryTile({
@@ -133,7 +144,7 @@ class _EntryTile extends StatelessWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_subtitle(l10n, isAuthor: isAuthor)),
+          Text(_subtitle(l10n, access, isAuthor: isAuthor)),
           TenturaMetaText(l10n.beaconLobbyEntryCount(access.messageCount)),
         ],
       ),
@@ -186,7 +197,7 @@ class _EntryCard extends StatelessWidget {
                     ),
                     SizedBox(height: tt.tightGap),
                     Text(
-                      _subtitle(l10n, isAuthor: isAuthor),
+                      _subtitle(l10n, access, isAuthor: isAuthor),
                       style: TenturaText.bodySmall(tt.textMuted),
                     ),
                     TenturaMetaText(

@@ -5,6 +5,8 @@ query BeaconLobby($beaconId: String!) {
     beaconId
     lobbyId
     isAuthor
+    isHelper
+    takesOffers
     authorId
     canPost
     readOnlyReason
@@ -23,6 +25,8 @@ query BeaconLobbyAccess($beaconId: String!) {
     canPost
     messageCount
     readOnlyReason
+    isHelper
+    takesOffers
   }
 }
 

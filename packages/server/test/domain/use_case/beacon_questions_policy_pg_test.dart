@@ -175,7 +175,11 @@ Future<void> main() async {
     (name: 'cancelled forward', id: cancelled, expected: QuestionsAccess.none),
     (name: 'discovery-only', id: discovery, expected: QuestionsAccess.none),
     (name: 'banned', id: banned, expected: QuestionsAccess.none),
-    (name: 'blocked the author', id: blocksAuthor, expected: QuestionsAccess.none),
+    (
+      name: 'blocked the author',
+      id: blocksAuthor,
+      expected: QuestionsAccess.none,
+    ),
     (
       name: 'blocked by the author',
       id: blockedByAuthor,
@@ -257,12 +261,19 @@ Future<void> main() async {
     }
 
     Future<String> openAsAuthor() async =>
-        (await rooms.beaconLobby(beaconId: beaconId, userId: author))['lobbyId']!
+        (await rooms.beaconLobby(
+              beaconId: beaconId,
+              userId: author,
+            ))['lobbyId']!
             as String;
 
     /// Inserts a Questions message as [userId] directly (an earlier message,
     /// written while they still had standing).
-    Future<String> seedMessage(String userId, String lobbyId, String body) async {
+    Future<String> seedMessage(
+      String userId,
+      String lobbyId,
+      String body,
+    ) async {
       final id = 'Mq${userId.substring(2, 10)}${body.length}';
       final escaped = body.replaceAll("'", "''");
       await sql(
@@ -477,51 +488,123 @@ Future<void> main() async {
       }
     });
 
-    test('read, history and seen: everyone who may read, nobody else', () async {
-      final lobbyId = await openAsAuthor();
-      await rooms.createMessage(
-        beaconId: beaconId,
-        userId: author,
-        body: 'Saturday the 18th',
-        threadItemId: lobbyId,
+    test('the header facts: helper standing and whether the Request still '
+        'takes offers (#657)', () async {
+      await openAsAuthor();
+      // Offered (live), admitted or a steward; never the author, a plain
+      // recipient, or someone whose offer is over.
+      const helpers = <String, bool>{
+        author: false,
+        steward: true,
+        forwardee: false,
+        addressee: false,
+        helper: true,
+        offerer: true,
+        rejected: false,
+        departed: false,
+      };
+      for (final e in helpers.entries) {
+        final probe = await rooms.beaconLobbyAccess(
+          beaconId: beaconId,
+          userId: e.key,
+        );
+        expect(probe['isHelper'], e.value, reason: e.key);
+        expect(probe['takesOffers'], isTrue, reason: e.key);
+        final opened = await rooms.beaconLobby(
+          beaconId: beaconId,
+          userId: e.key,
+        );
+        expect(opened['isHelper'], e.value, reason: e.key);
+        expect(opened['takesOffers'], isTrue, reason: e.key);
+      }
+    });
+
+    test("closed via Final check: closed beats Can't help and a withdrawn "
+        'offer, since nobody can offer again (#657)', () async {
+      await openAsAuthor();
+      await sql(
+        "UPDATE public.beacon_help_offer SET withdraw_reason = 'busy' "
+        "WHERE user_id = '$departed'",
       );
-      for (final c in matrix) {
-        if (c.expected.canRead) {
-          expect(
-            await bodiesFor(c.id, lobbyId),
-            contains('Saturday the 18th'),
-            reason: c.name,
-          );
-          final older = await rooms.listMessages(
-            beaconId: beaconId,
-            userId: c.id,
-            threadItemId: lobbyId,
-            beforeIso: '2100-01-01T00:00:00Z',
-          );
-          expect(older, hasLength(1), reason: c.name);
-          await rooms.markThreadSeen(
-            beaconId: beaconId,
-            userId: c.id,
-            threadId: lobbyId,
-          );
-        } else {
-          await expectLater(
-            bodiesFor(c.id, lobbyId),
-            throwsA(isA<UnauthorizedException>()),
-            reason: c.name,
-          );
-          await expectLater(
-            rooms.markThreadSeen(
+      // Close & sum up with helpers lands in Final check (status 5): no new
+      // offers, the discussion still open to those inside.
+      await sql("UPDATE public.beacon SET status = 5 WHERE id = '$beaconId'");
+      for (final id in [rejected, rejectedAddressee, departed]) {
+        final probe = await rooms.beaconLobbyAccess(
+          beaconId: beaconId,
+          userId: id,
+        );
+        expect(probe['readOnlyReason'], 'closed', reason: id);
+        expect(probe['takesOffers'], isFalse, reason: id);
+        final opened = await rooms.beaconLobby(beaconId: beaconId, userId: id);
+        expect(opened['readOnlyReason'], 'closed', reason: id);
+      }
+      // Those inside still write during Final check.
+      for (final id in [author, helper]) {
+        final opened = await rooms.beaconLobby(beaconId: beaconId, userId: id);
+        expect(opened['canPost'], isTrue, reason: id);
+        expect(opened['readOnlyReason'], isNull, reason: id);
+        expect(opened['takesOffers'], isFalse, reason: id);
+      }
+      // Then closed for good (status 6, read from the row itself).
+      await sql("UPDATE public.beacon SET status = 6 WHERE id = '$beaconId'");
+      for (final id in [rejected, departed]) {
+        final probe = await rooms.beaconLobbyAccess(
+          beaconId: beaconId,
+          userId: id,
+        );
+        expect(probe['readOnlyReason'], 'closed', reason: id);
+      }
+    });
+
+    test(
+      'read, history and seen: everyone who may read, nobody else',
+      () async {
+        final lobbyId = await openAsAuthor();
+        await rooms.createMessage(
+          beaconId: beaconId,
+          userId: author,
+          body: 'Saturday the 18th',
+          threadItemId: lobbyId,
+        );
+        for (final c in matrix) {
+          if (c.expected.canRead) {
+            expect(
+              await bodiesFor(c.id, lobbyId),
+              contains('Saturday the 18th'),
+              reason: c.name,
+            );
+            final older = await rooms.listMessages(
+              beaconId: beaconId,
+              userId: c.id,
+              threadItemId: lobbyId,
+              beforeIso: '2100-01-01T00:00:00Z',
+            );
+            expect(older, hasLength(1), reason: c.name);
+            await rooms.markThreadSeen(
               beaconId: beaconId,
               userId: c.id,
               threadId: lobbyId,
-            ),
-            throwsA(isA<UnauthorizedException>()),
-            reason: c.name,
-          );
+            );
+          } else {
+            await expectLater(
+              bodiesFor(c.id, lobbyId),
+              throwsA(isA<UnauthorizedException>()),
+              reason: c.name,
+            );
+            await expectLater(
+              rooms.markThreadSeen(
+                beaconId: beaconId,
+                userId: c.id,
+                threadId: lobbyId,
+              ),
+              throwsA(isA<UnauthorizedException>()),
+              reason: c.name,
+            );
+          }
         }
-      }
-    });
+      },
+    );
 
     test('post, react, edit and delete: write standing only', () async {
       final lobbyId = await openAsAuthor();
@@ -839,32 +922,35 @@ Future<void> main() async {
       expect(await bodiesFor(forwardee, lobbyId), isNotEmpty);
     });
 
-    test('only the author bans, never themselves, never an unknown user', () async {
-      await expectLater(
-        rooms.banFromLobby(
-          beaconId: beaconId,
-          userId: steward,
-          bannedUserId: offerer,
-        ),
-        throwsA(isA<UnauthorizedException>()),
-      );
-      await expectLater(
-        rooms.banFromLobby(
-          beaconId: beaconId,
-          userId: author,
-          bannedUserId: author,
-        ),
-        throwsA(isA<IdWrongException>()),
-      );
-      await expectLater(
-        rooms.banFromLobby(
-          beaconId: beaconId,
-          userId: author,
-          bannedUserId: 'Unobody00001',
-        ),
-        throwsA(isA<IdNotFoundException>()),
-      );
-    });
+    test(
+      'only the author bans, never themselves, never an unknown user',
+      () async {
+        await expectLater(
+          rooms.banFromLobby(
+            beaconId: beaconId,
+            userId: steward,
+            bannedUserId: offerer,
+          ),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        await expectLater(
+          rooms.banFromLobby(
+            beaconId: beaconId,
+            userId: author,
+            bannedUserId: author,
+          ),
+          throwsA(isA<IdWrongException>()),
+        );
+        await expectLater(
+          rooms.banFromLobby(
+            beaconId: beaconId,
+            userId: author,
+            bannedUserId: 'Unobody00001',
+          ),
+          throwsA(isA<IdNotFoundException>()),
+        );
+      },
+    );
 
     test('a closed Request: everyone who could read still reads, nobody '
         'writes', () async {
@@ -919,7 +1005,9 @@ Future<void> main() async {
         beaconId: beaconId,
         userId: author,
       );
-      expect([for (final m in general) m['body']], isNot(contains('Which Saturday?')));
+      expect([
+        for (final m in general) m['body'],
+      ], isNot(contains('Which Saturday?')));
       // General-only features cannot point at a Questions message.
       await expectLater(
         sql(

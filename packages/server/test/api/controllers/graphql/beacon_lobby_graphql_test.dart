@@ -25,6 +25,8 @@ final class _RecordingLobbyCase extends Fake implements BeaconRoomCase {
       'beaconId': beaconId,
       'lobbyId': 'Llobby1',
       'isAuthor': true,
+      'isHelper': false,
+      'takesOffers': true,
       'authorId': 'Uauthor',
       'canPost': true,
       'readOnlyReason': null,
@@ -47,6 +49,8 @@ final class _RecordingLobbyCase extends Fake implements BeaconRoomCase {
       'canPost': false,
       'messageCount': 3,
       'readOnlyReason': 'cant_help',
+      'isHelper': true,
+      'takesOffers': false,
     };
   }
 
@@ -98,13 +102,15 @@ void main() {
   test('BeaconLobby opens the lobby for the caller', () async {
     final data = await run(
       'query { BeaconLobby(beaconId: "B1") '
-      '{ beaconId lobbyId isAuthor authorId canPost readOnlyReason '
-      'bannedUserIds banned { userId title } } }',
+      '{ beaconId lobbyId isAuthor isHelper takesOffers authorId canPost '
+      'readOnlyReason bannedUserIds banned { userId title } } }',
     );
     expect(data['BeaconLobby'], {
       'beaconId': 'B1',
       'lobbyId': 'Llobby1',
       'isAuthor': true,
+      'isHelper': false,
+      'takesOffers': true,
       'authorId': 'Uauthor',
       'canPost': true,
       'readOnlyReason': null,
@@ -119,7 +125,8 @@ void main() {
   test("BeaconLobbyAccess reports the caller's own standing", () async {
     final data = await run(
       'query { BeaconLobbyAccess(beaconId: "B1") '
-      '{ beaconId canRead canPost messageCount readOnlyReason } }',
+      '{ beaconId canRead canPost messageCount readOnlyReason isHelper '
+      'takesOffers } }',
     );
     expect(data['BeaconLobbyAccess'], {
       'beaconId': 'B1',
@@ -127,6 +134,8 @@ void main() {
       'canPost': false,
       'messageCount': 3,
       'readOnlyReason': 'cant_help',
+      'isHelper': true,
+      'takesOffers': false,
     });
     expect(lobbyCase.calls, ['access B1 Uauthor']);
   });

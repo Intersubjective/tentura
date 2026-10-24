@@ -84,9 +84,13 @@ final class QuestionsStandingFacts {
     this.answeredCantHelp = false,
     this.pastOffer = false,
     this.offerWithdrawnByHelper = false,
+    this.helper = false,
   });
 
-  /// Request status cancelled / deleted / closed.
+  /// The Request no longer takes help offers: Final check (after Close & sum
+  /// up), closed, cancelled or deleted. Nobody can "offer help again", so
+  /// a read-only reader is told it is closed, whatever their own act was
+  /// (#657).
   final bool closed;
 
   final bool banned;
@@ -100,6 +104,13 @@ final class QuestionsStandingFacts {
   /// That past offer was withdrawn by the helper (a withdraw reason is set);
   /// otherwise the author declined or removed it.
   final bool offerWithdrawnByHelper;
+
+  /// Inside already, not the author: a live help offer, admitted, or a
+  /// steward (the policy's own standing). For the Questions header (#657).
+  final bool helper;
+
+  /// The Request still takes help offers.
+  bool get takesOffers => !closed;
 
   /// The reason for a person whose policy level is [access]; null when they
   /// write, or when nothing more specific than the level can be said.

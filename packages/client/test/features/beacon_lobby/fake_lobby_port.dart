@@ -33,6 +33,12 @@ class FakeLobbyPort implements BeaconLobbyPort {
   /// What the server would say about the viewer's own limit (#657).
   BeaconLobbyLimitReason? limitReason;
 
+  /// The viewer is inside already (offered, admitted, steward) (#657).
+  bool isHelper = false;
+
+  /// False from Final check on (#657).
+  bool takesOffers = true;
+
   /// The next call of any kind fails like a dropped connection.
   bool failNext = false;
 
@@ -56,6 +62,8 @@ class FakeLobbyPort implements BeaconLobbyPort {
       beaconId: beaconId,
       lobbyId: 'Llobby',
       isAuthor: viewerId == authorId,
+      isHelper: isHelper,
+      takesOffers: takesOffers,
       canPost: canPost,
       authorId: authorId,
       readOnlyReason: canPost ? null : limitReason,
@@ -77,6 +85,8 @@ class FakeLobbyPort implements BeaconLobbyPort {
       canPost: _allowed && canPost,
       messageCount: _allowed ? messagesList.length : 0,
       limitReason: limitReason,
+      isHelper: isHelper,
+      takesOffers: takesOffers,
     );
   }
 

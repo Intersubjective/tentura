@@ -49,6 +49,13 @@ abstract class BeaconLobbyInfo with _$BeaconLobbyInfo {
     /// The Request author: their answers are marked as the author's.
     @Default('') String authorId,
 
+    /// The viewer is inside already (a live help offer, admitted, or a
+    /// steward), not the author (#657).
+    @Default(false) bool isHelper,
+
+    /// False from Final check on: nobody can offer help any more (#657).
+    @Default(true) bool takesOffers,
+
     /// Why [canPost] is false, when the server can say.
     BeaconLobbyLimitReason? readOnlyReason,
 
@@ -76,6 +83,13 @@ abstract class BeaconLobbyAccess with _$BeaconLobbyAccess {
     /// Why the viewer reads only, or cannot open Questions, when the server
     /// can say.
     BeaconLobbyLimitReason? limitReason,
+
+    /// The viewer is inside already (a live help offer, admitted, or a
+    /// steward), not the author (#657).
+    @Default(false) bool isHelper,
+
+    /// False from Final check on: nobody can offer help any more (#657).
+    @Default(true) bool takesOffers,
   }) = _BeaconLobbyAccess;
 }
 

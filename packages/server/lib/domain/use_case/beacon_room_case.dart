@@ -271,10 +271,18 @@ class BeaconRoomCase extends UseCaseBase {
         ? await lobby.bannedUsers(beaconId)
         : const <QuestionsBannedUser>[];
     final lifecycleBlocks = await _lifecycleBlocksOrdinaryWrites(beaconId);
+    final standing = await lobby.standingFacts(
+      beaconId: beaconId,
+      userId: userId,
+    );
     return {
       'beaconId': beaconId,
       'lobbyId': lobbyId,
       'isAuthor': isAuthor,
+      // For the header: who is reading and whether offering is still
+      // possible (#657).
+      'isHelper': standing.helper,
+      'takesOffers': standing.takesOffers,
       // The Request author, so every reader can tell the author's answers
       // from the questions (#657). Not secret: the Request names its author.
       'authorId': authorId,
@@ -282,9 +290,8 @@ class BeaconRoomCase extends UseCaseBase {
       // already folds the lifecycle in; the lifecycle check stays as the
       // same rule the post path enforces).
       'canPost': access.canWrite && !lifecycleBlocks,
-      'readOnlyReason': await _questionsLimitReason(
-        beaconId: beaconId,
-        userId: userId,
+      'readOnlyReason': _questionsLimitReason(
+        standing,
         access: access,
         lifecycleBlocks: lifecycleBlocks,
       ),
@@ -315,37 +322,36 @@ class BeaconRoomCase extends UseCaseBase {
       }
     }
     final lifecycleBlocks = await _lifecycleBlocksOrdinaryWrites(beaconId);
+    final standing = lobby == null
+        ? const QuestionsStandingFacts()
+        : await lobby.standingFacts(beaconId: beaconId, userId: userId);
     return {
       'beaconId': beaconId,
       'canRead': access.canRead,
       'canPost': access.canWrite && !lifecycleBlocks,
       'messageCount': messageCount,
-      'readOnlyReason': await _questionsLimitReason(
-        beaconId: beaconId,
-        userId: userId,
+      'readOnlyReason': _questionsLimitReason(
+        standing,
         access: access,
         lifecycleBlocks: lifecycleBlocks,
       ),
+      // For the entry row's line: who is reading and whether offering is
+      // still possible (#657). Only ever about the caller.
+      'isHelper': standing.helper,
+      'takesOffers': standing.takesOffers,
     };
   }
 
-  /// Request Questions — why [userId] reads only, or cannot open it (#657):
+  /// Request Questions — why the caller in [facts] reads only, or cannot open it (#657):
   /// their own "Can't help", a withdrawn or declined offer, a closed Request,
   /// or the author's removal. Null when they write or no reason applies.
   /// Only ever about the caller themselves.
-  Future<String?> _questionsLimitReason({
-    required String beaconId,
-    required String userId,
+  String? _questionsLimitReason(
+    QuestionsStandingFacts facts, {
     required QuestionsAccess access,
     required bool lifecycleBlocks,
-  }) async {
-    final lobby = _lobby;
-    if (lobby == null) return null;
+  }) {
     if (access.canWrite && !lifecycleBlocks) return null;
-    final facts = await lobby.standingFacts(
-      beaconId: beaconId,
-      userId: userId,
-    );
     return facts
         .reasonFor(access, lifecycleBlocksWrites: lifecycleBlocks)
         ?.wire;
