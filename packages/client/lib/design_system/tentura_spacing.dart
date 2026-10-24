@@ -43,6 +43,10 @@ abstract final class TenturaSpacing {
   /// stack into one column.
   static const double supportingPrimaryMinWidth = 560;
 
+  /// Width of the fade over a horizontally scrolled row's edge where more
+  /// content is hidden (e.g. the Field visibility chips, #659).
+  static const double scrollEdgeFade = 32;
+
   /// Unread indicator on a list-row leading glyph.
   static const double unreadDot = 10;
 
