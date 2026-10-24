@@ -177,6 +177,49 @@ class SyntheticShardsTest(unittest.TestCase):
         # pg-tagged files run standalone; the heaviest is printed first.
         self.assertEqual(listed[0], "test/heavy_test.dart")
 
+    def test_allow_pg_bundles_pg_files_but_not_serial_or_pool_sizing_ones(self):
+        files = {
+            "test/p/async_test.dart":
+                "@Tags(['pg'])\nlibrary;\nFuture<void> main() async {\n  await probe();\n}\n",
+            "test/p/sync_test.dart": "@Tags(['pg'])\nlibrary;\nvoid main() {}\n",
+            "test/p/group_mr_test.dart":
+                "@Tags(['pg'])\nlibrary;\nvoid main() {\n  group('x', () {}, tags: ['mr']);\n}\n",
+            "test/p/pool_test.dart":
+                "@Tags(['pg'])\nlibrary;\nvoid main() {\n  Env(maxConnectionCount: 4);\n}\n",
+            "test/p/leaky_test.dart": "@Tags(['pg'])\nlibrary;\nvoid main() {}\n",
+            "test/p/plain_async_test.dart": "Future<void> main() async {}\n",
+        }
+        for rel, body in files.items():
+            (self.pkg / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.pkg / rel).write_text(body)
+        (self.pkg / "test/bundle_exclude.txt").write_text("test/p/leaky_test.dart  # leaks\n")
+
+        def listed(*flags):
+            return run_select(self.pkg, ".", "--chunks", "1", *flags, "test/p", script=BUNDLES)
+
+        # Without the flag pg files and async mains stay standalone, as before.
+        self.assertEqual(sorted(listed()), sorted(files))
+        self.assertFalse((self.pkg / "test/_bundle").exists())
+
+        entries = listed("--allow-pg")
+        self.assertEqual(
+            sorted(entries),
+            ["test/_bundle/bundle_0_test.dart", "test/p/group_mr_test.dart",
+             "test/p/leaky_test.dart", "test/p/pool_test.dart"],
+        )
+        bundle = (self.pkg / "test/_bundle/bundle_0_test.dart").read_text()
+        self.assertEqual(
+            re.findall(r"group\('([^']+)'", bundle),
+            ["test/p/async_test.dart", "test/p/plain_async_test.dart", "test/p/sync_test.dart"],
+        )
+        # Async mains are recorded up front and replayed in their group.
+        self.assertIn("Future<void> main() async {", bundle)
+        self.assertIn("final d0 = await recordDeclarations(t0.main);", bundle)
+        self.assertIn("    d0();", bundle)
+        self.assertIn("    t2.main();", bundle)
+        self.assertIn("tags: ['pg']", bundle)
+        self.assertTrue((self.pkg / "test/_bundle/deferred_main.dart").is_file())
+
     def test_pack_is_longest_first_onto_the_lightest(self):
         shards, loads = pack({"a": 5, "b": 4, "c": 3, "d": 3}, 2)
         self.assertEqual(shards, [["a", "d"], ["b", "c"]])
