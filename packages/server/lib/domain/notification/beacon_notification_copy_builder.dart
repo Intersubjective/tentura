@@ -225,6 +225,16 @@ class BeaconNotificationCopyBuilder {
             ? '$actor упомянул(а) вас'
             : '$actor mentioned you',
       ),
+      NotificationKind.postExpiringSoon => (
+        ru ? 'Пост скоро истечёт' : 'Your post is about to expire',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: ru
+              ? 'Пост истекает меньше чем через 3 часа'
+              : 'Your post expires in under 3 hours',
+        ),
+      ),
       NotificationKind.postFirstResponse => (
         actor,
         excerpt.isNotEmpty
@@ -573,7 +583,8 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.batonTaken ||
       NotificationKind.batonAllAnswered => roomUrl,
       NotificationKind.deadlineChanged ||
-      NotificationKind.deadlineReminder => genericUrl,
+      NotificationKind.deadlineReminder ||
+      NotificationKind.postExpiringSoon => genericUrl,
       NotificationKind.planStepDue ||
       NotificationKind.planStepTurn ||
       NotificationKind.planChangePending ||

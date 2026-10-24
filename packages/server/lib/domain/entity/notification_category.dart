@@ -40,6 +40,7 @@ NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
   NotificationKind.newRelay ||
   NotificationKind.roomMention ||
   NotificationKind.postFirstResponse ||
+  NotificationKind.postExpiringSoon ||
   NotificationKind.batonAsked ||
   NotificationKind.batonTaken ||
   NotificationKind.batonAllAnswered ||

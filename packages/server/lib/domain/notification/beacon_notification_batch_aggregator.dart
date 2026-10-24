@@ -59,6 +59,7 @@ class BeaconNotificationBatchAggregator {
     return switch (kind) {
       NotificationKind.newRelay when isPost =>
         '$n posts shared with you$suffix',
+      NotificationKind.postExpiringSoon => '$n posts are about to expire',
       NotificationKind.postFirstResponse => '$n replies to your posts$suffix',
       NotificationKind.needsMe => '$n items need you$suffix',
       NotificationKind.promiseMade => '$n new promises$suffix',

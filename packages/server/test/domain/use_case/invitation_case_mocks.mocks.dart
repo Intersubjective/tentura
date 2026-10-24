@@ -974,6 +974,32 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<_i5.BeaconEntity?>);
 
   @override
+  _i6.Future<List<String>> postExpiryWarningCandidateIds({
+    required Duration? window,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#postExpiryWarningCandidateIds, [], {
+              #window: window,
+            }),
+            returnValue: _i6.Future<List<String>>.value(<String>[]),
+          )
+          as _i6.Future<List<String>>);
+
+  @override
+  _i6.Future<String?> lockPostForExpiryWarning({
+    required String? beaconId,
+    required Duration? window,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockPostForExpiryWarning, [], {
+              #beaconId: beaconId,
+              #window: window,
+            }),
+            returnValue: _i6.Future<String?>.value(),
+          )
+          as _i6.Future<String?>);
+
+  @override
   _i6.Future<T> runInBeaconStateTransaction<T>({
     required String? beaconId,
     required String? userId,

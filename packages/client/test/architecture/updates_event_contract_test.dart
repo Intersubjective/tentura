@@ -50,6 +50,8 @@ const _runtimeAttentionEventTypes = <String>[
   'requestStale',
   // Post first response receipt.
   'postFirstResponse',
+  // Post expiry warning to the author.
+  'postExpiringSoon',
   // «Who'll take it?» (baton).
   'batonAsked',
   'batonTaken',

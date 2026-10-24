@@ -1156,7 +1156,10 @@ WITH readable AS (
 SELECT
   readable.beacon_id,
   CASE
+    -- The author's own beacon has no forwarders to show; skipping it also
+    -- spares the MR score walk for every Post notice the author receives.
     WHEN readable.can_read_content
+      AND readable.author_id IS DISTINCT FROM \$1
     THEN public.attention_provenance_data(
       readable.beacon_id,
       \$1,

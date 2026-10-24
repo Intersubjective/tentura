@@ -123,6 +123,18 @@ abstract class BeaconRepositoryPort {
     required DateTime followingUtcDayStart,
   });
 
+  /// Ids of open, warning-eligible Posts that expire within [window].
+  Future<List<String>> postExpiryWarningCandidateIds({
+    required Duration window,
+  });
+
+  /// Row-locks the Post if it is still a warning candidate and returns its
+  /// author id, or null.
+  Future<String?> lockPostForExpiryWarning({
+    required String beaconId,
+    required Duration window,
+  });
+
   /// Row-lock beacon and run [fn] with the locked entity snapshot.
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,

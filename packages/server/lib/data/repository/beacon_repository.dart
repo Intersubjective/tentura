@@ -169,6 +169,40 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     return rows.map((row) => row.read<String>('id')).toList();
   }
 
+  static const _postExpiryWarningWhere =
+      r'''kind = 1 AND status = 0 AND expiry_warning_eligible AND expires_at > now() AND expires_at <= now() + make_interval(secs => $1)''';
+
+  @override
+  Future<List<String>> postExpiryWarningCandidateIds({
+    required Duration window,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT id FROM public.beacon WHERE $_postExpiryWarningWhere',
+          variables: [Variable<double>(window.inSeconds.toDouble())],
+        )
+        .get();
+    return rows.map((row) => row.read<String>('id')).toList();
+  }
+
+  @override
+  Future<String?> lockPostForExpiryWarning({
+    required String beaconId,
+    required Duration window,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT user_id FROM public.beacon WHERE id = $2 AND '
+          '$_postExpiryWarningWhere FOR UPDATE',
+          variables: [
+            Variable<double>(window.inSeconds.toDouble()),
+            Variable<String>(beaconId),
+          ],
+        )
+        .get();
+    return rows.isEmpty ? null : rows.single.read<String>('user_id');
+  }
+
   @override
   Future<BeaconEntity?> lockOpenBeaconForDeadlineReminder({
     required String beaconId,

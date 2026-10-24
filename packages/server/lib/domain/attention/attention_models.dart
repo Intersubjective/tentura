@@ -54,6 +54,7 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.closureCancelled:
       case AttentionEventType.requestStale:
       case AttentionEventType.postFirstResponse:
+      case AttentionEventType.postExpiringSoon:
       case AttentionEventType.batonAsked:
       case AttentionEventType.batonTaken:
       case AttentionEventType.batonAllAnswered:
@@ -119,6 +120,9 @@ enum AttentionEventType {
   /// A non-author member's first message or reaction in a Post room, told to
   /// the Post author once per member.
   postFirstResponse,
+
+  /// The author-only notice a few hours before a Post expires.
+  postExpiringSoon,
 
   /// «Who'll take it?» (baton) — plan §2.2/B3
   /// (`docs/plans/baton-who-takes-it-plan.md`). All three are

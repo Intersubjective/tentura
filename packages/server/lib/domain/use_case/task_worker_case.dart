@@ -25,6 +25,7 @@ import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/post_expiry_warning_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_draft_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/contact_resolution_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_finalize_sweep_case.dart';
@@ -66,6 +67,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ContactResolutionSweepCase contactResolutionSweep,
     BudAnchorSweepCase budAnchorSweep,
     PlanStepSweepCase planStepSweep,
+    PostExpiryWarningSweepCase postExpiryWarningSweep,
     AttentionCaptureSettlementCase attentionCaptureSettlement,
   ) => Future.value(
     TaskWorkerCase(
@@ -96,6 +98,7 @@ final class TaskWorkerCase extends UseCaseBase {
       contactResolutionSweep: contactResolutionSweep,
       budAnchorSweep: budAnchorSweep,
       planStepSweep: planStepSweep,
+      postExpiryWarningSweep: postExpiryWarningSweep,
       attentionCaptureSettlement: attentionCaptureSettlement,
       env: env,
       logger: logger,
@@ -127,6 +130,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ContactResolutionSweepCase? contactResolutionSweep,
     this._budAnchorSweep,
     this._planStepSweep,
+    this._postExpiryWarningSweep,
     this._attentionCaptureSettlement,
     required super.env,
     required super.logger,
@@ -177,6 +181,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final ContactResolutionSweepCase? _contactResolutionSweep;
   final BudAnchorSweepCase? _budAnchorSweep;
   final PlanStepSweepCase? _planStepSweep;
+  final PostExpiryWarningSweepCase? _postExpiryWarningSweep;
   final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
@@ -210,6 +215,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBudAnchorSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastPlanStepSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastPostExpiryWarningSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAttentionCaptureSettlement = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
@@ -319,6 +325,15 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastDeadlineReminderSweep = now;
       await _deadlineReminderSweep?.runDue(now: now);
+    },
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastPostExpiryWarningSweep) <
+          const Duration(minutes: 1)) {
+        return;
+      }
+      _lastPostExpiryWarningSweep = now;
+      await _postExpiryWarningSweep?.runDue();
     },
     // Request plan («либретто», #220) §4.5: step reminders, due, overdue.
     () async {

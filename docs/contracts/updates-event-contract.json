@@ -1709,6 +1709,33 @@
       ]
     },
     {
+      "eventType": "postExpiringSoon",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:postAuthor",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/post_expiry_warning_sweep_pg_test.dart"
+          ],
+          "transitionTests": [],
+          "personal": false,
+          "stateLike": false,
+          "ownDutyReminder": false
+        }
+      ]
+    },
+    {
       "eventType": "batonAsked",
       "status": "supported",
       "variants": [

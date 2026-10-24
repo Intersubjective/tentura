@@ -485,6 +485,40 @@ class AttentionIntentCase {
     reason: AttentionRecipientReason.postAuthor,
   );
 
+  /// The warning to a Post's author that it expires soon. Author-only, never
+  /// collapsed into another notification.
+  Future<AttentionDispatchIntent> postExpiringSoon({
+    required String beaconId,
+    required String authorUserId,
+  }) async {
+    final sourceEventKey = 'post_expiring:$beaconId';
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.postExpiringSoon,
+      sourceEventKey: sourceEventKey,
+      actorUserId: null,
+      priority: NotificationPriority.high,
+      kind: NotificationKind.postExpiringSoon,
+      title: 'Your post is about to expire',
+      body: 'Your post expires in under 3 hours',
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '?is_deep_link=true',
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+      beaconId: beaconId,
+      beaconKind: BeaconKind.post,
+      recipients: [
+        AttentionRecipientSnapshot(
+          recipientId: authorUserId,
+          reasons: const {AttentionRecipientReason.postAuthor},
+          role: AttentionRecipientRoleFacts(
+            beaconId: beaconId,
+            canReadBeaconContent: true,
+          ),
+        ),
+      ],
+    );
+  }
+
   /// «Who'll take it?» (baton) — plan §2.2/B3
   /// (`docs/plans/baton-who-takes-it-plan.md`). All three carry only the
   /// source message's excerpt and never name other candidates (D3/D10).

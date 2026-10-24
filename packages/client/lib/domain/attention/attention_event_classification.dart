@@ -76,6 +76,10 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
+  'postExpiringSoon': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
   'batonAsked': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,

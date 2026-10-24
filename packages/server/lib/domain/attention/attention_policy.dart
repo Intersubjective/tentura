@@ -96,6 +96,7 @@ class AttentionPolicy {
     AttentionEventType.deadlineChanged ||
     AttentionEventType.obligationEnded => AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
+    AttentionEventType.postExpiringSoon => AttentionSuppressionClass.standard,
     AttentionEventType.closureDraftReminder ||
     AttentionEventType.requestStale ||
     AttentionEventType.closureOpened ||
@@ -162,6 +163,7 @@ class AttentionPolicy {
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.postFirstResponse ||
+    AttentionEventType.postExpiringSoon ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.blockerOpened ||
@@ -237,6 +239,7 @@ class AttentionPolicy {
     AttentionEventType.forwardDeclined => AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
+    AttentionEventType.postExpiringSoon ||
     AttentionEventType.closureDraftReminder ||
     AttentionEventType.requestStale => AttentionAccessPolicy.beaconContent,
     AttentionEventType.planStepDue ||
@@ -303,6 +306,7 @@ class AttentionPolicy {
       ),
       AttentionEventType.deadlineChanged ||
       AttentionEventType.deadlineReminder ||
+      AttentionEventType.postExpiringSoon ||
       AttentionEventType.closureOpened ||
       AttentionEventType.closureDraftReminder ||
       AttentionEventType.closureFinalized ||
@@ -394,6 +398,7 @@ class AttentionPolicy {
     AttentionEventType.commitmentReleased => false,
     AttentionEventType.deadlineChanged => false,
     AttentionEventType.deadlineReminder => false,
+    AttentionEventType.postExpiringSoon => false,
     AttentionEventType.closureOpened => false,
     AttentionEventType.closureDraftReminder => false,
     AttentionEventType.closureFinalized => false,
@@ -499,6 +504,7 @@ class AttentionPolicy {
     AttentionEventType.commitmentResolved ||
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
+    AttentionEventType.postExpiringSoon ||
     AttentionEventType.closureOpened ||
     AttentionEventType.closureDraftReminder ||
     AttentionEventType.closureFinalized ||
@@ -668,6 +674,7 @@ class AttentionPolicy {
     AttentionEventType.commitmentReleased => 'commitment_released',
     AttentionEventType.roomMessagePosted => 'room_message_posted',
     AttentionEventType.postFirstResponse => 'post_first_response',
+    AttentionEventType.postExpiringSoon => 'post_expiring_soon',
     AttentionEventType.requestStatusChanged => 'request_status_changed',
     AttentionEventType.beaconHierarchyStatusChanged =>
       'beacon_hierarchy_status_changed',

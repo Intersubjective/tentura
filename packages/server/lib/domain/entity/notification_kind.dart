@@ -28,6 +28,9 @@ enum NotificationKind {
   /// A member's first response in a Post room, told to the Post author.
   postFirstResponse,
 
+  /// The author-only notice a few hours before a Post expires.
+  postExpiringSoon,
+
   /// «Who'll take it?» (baton) — plan §2.2/B3.
   batonAsked,
   batonTaken,

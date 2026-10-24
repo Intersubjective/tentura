@@ -200,6 +200,7 @@ class BeaconNotificationRecipientResolver {
 
       case NotificationKind.roomMention:
       case NotificationKind.postFirstResponse:
+      case NotificationKind.postExpiringSoon:
       case NotificationKind.batonAsked:
       case NotificationKind.batonTaken:
       case NotificationKind.batonAllAnswered:
