@@ -21,11 +21,14 @@ import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
@@ -55,6 +58,9 @@ import 'constellation_trust_chain_line.dart';
 import 'constellation_visibility_bar.dart';
 import 'constellation_placement_marker_layer.dart';
 import 'constellation_selection_layers.dart';
+import 'constellation_tag_hull_layer.dart';
+import 'constellation_tag_lens_panel.dart';
+import 'constellation_tag_row.dart';
 import 'constellation_viewport_overlay.dart';
 
 class _CancelPlacementIntent extends Intent {
@@ -92,6 +98,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
   final _graphStackKey = GlobalKey();
   final _mapFocus = FocusNode(debugLabel: 'ConstellationMap');
+
+  // Where the pointer last was, to tell a drop on a tag chip from a pin.
+  Offset? _lastPointerGlobal;
 
   // Single owner of pin zoom detail: per-node history would diverge when a
   // node is recreated inside the hysteresis band.
@@ -821,86 +830,91 @@ class _ConstellationBodyState extends State<ConstellationBody>
                           },
                         ),
                   },
-                  child: Focus(
-                    focusNode: _mapFocus,
-                    autofocus: true,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (!state.isComposing) ...[
-                          const ConstellationFieldNotices(),
-                          const ConstellationEmptyFilterBanner(),
-                          const ConstellationNoContactsBanner(),
-                          const ConstellationVisibilityBar(),
-                        ],
-                        if (_selectionUnavailableMessage != null)
-                          Material(
-                            color: theme.colorScheme.errorContainer,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: tt.screenHPadding,
-                                vertical: tt.tightGap,
-                              ),
-                              child: Text(
-                                _selectionUnavailableMessage!,
-                                key: const Key(
-                                  'constellation.selection_unavailable',
+                  child: Listener(
+                    onPointerDown: (e) => _lastPointerGlobal = e.position,
+                    onPointerMove: (e) => _lastPointerGlobal = e.position,
+                    child: Focus(
+                      focusNode: _mapFocus,
+                      autofocus: true,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (!state.isComposing) ...[
+                            const ConstellationFieldNotices(),
+                            const ConstellationEmptyFilterBanner(),
+                            const ConstellationNoContactsBanner(),
+                            const ConstellationVisibilityBar(),
+                          ],
+                          if (_selectionUnavailableMessage != null)
+                            Material(
+                              color: theme.colorScheme.errorContainer,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: tt.screenHPadding,
+                                  vertical: tt.tightGap,
                                 ),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onErrorContainer,
-                                ),
-                              ),
-                            ),
-                          ),
-                        Expanded(
-                          child: IndexedStack(
-                            index: state.viewMode == ConstellationViewMode.map
-                                ? 0
-                                : 1,
-                            sizing: StackFit.expand,
-                            children: [
-                              ValueListenableBuilder<int>(
-                                valueListenable:
-                                    cubit.graphController.topologyRevision,
-                                // Labels and chips drawn near the top edge
-                                // pass under the chip row, as edges do: the
-                                // clip stops their paint and hits at the
-                                // map's edge (#675).
-                                builder: (context, _, _) => ClipRect(
-                                  child: _buildGraphStack(
-                                    context,
-                                    cubit,
-                                    cubit.state,
-                                    cubit.graphSceneLayoutAlgorithm,
-                                    panelVisible,
+                                child: Text(
+                                  _selectionUnavailableMessage!,
+                                  key: const Key(
+                                    'constellation.selection_unavailable',
+                                  ),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onErrorContainer,
                                   ),
                                 ),
                               ),
-                              // The map stack hosts the preview overlay; the
-                              // text view needs its own or a tapped card shows
-                              // nothing (#354).
-                              Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  // Not mounted while hidden: its Pin
-                                  // buttons would keep running pin layouts
-                                  // on every map recompose.
-                                  if (state.viewMode ==
-                                      ConstellationViewMode.text) ...[
-                                    const ConstellationTextView(),
-                                    if (panelVisible)
-                                      _buildContextOverlay(
-                                        context,
-                                        cubit,
-                                        state,
-                                      ),
+                            ),
+                          if (!state.isComposing) _buildTagRow(context),
+                          Expanded(
+                            child: IndexedStack(
+                              index: state.viewMode == ConstellationViewMode.map
+                                  ? 0
+                                  : 1,
+                              sizing: StackFit.expand,
+                              children: [
+                                ValueListenableBuilder<int>(
+                                  valueListenable:
+                                      cubit.graphController.topologyRevision,
+                                  // Labels and chips drawn near the top edge
+                                  // pass under the chip row, as edges do: the
+                                  // clip stops their paint and hits at the
+                                  // map's edge (#675).
+                                  builder: (context, _, _) => ClipRect(
+                                    child: _buildGraphStack(
+                                      context,
+                                      cubit,
+                                      cubit.state,
+                                      cubit.graphSceneLayoutAlgorithm,
+                                      panelVisible,
+                                    ),
+                                  ),
+                                ),
+                                // The map stack hosts the preview overlay; the
+                                // text view needs its own or a tapped card shows
+                                // nothing (#354).
+                                Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    // Not mounted while hidden: its Pin
+                                    // buttons would keep running pin layouts
+                                    // on every map recompose.
+                                    if (state.viewMode ==
+                                        ConstellationViewMode.text) ...[
+                                      const ConstellationTextView(),
+                                      if (panelVisible)
+                                        _buildContextOverlay(
+                                          context,
+                                          cubit,
+                                          state,
+                                        ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -908,6 +922,201 @@ class _ConstellationBodyState extends State<ConstellationBody>
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTagRow(BuildContext context) {
+    final store = _peopleTags;
+    final lensCubit = maybeConstellationTagLens(context);
+    if (store == null || lensCubit == null) return const SizedBox.shrink();
+    final tt = context.tt;
+    return Material(
+      type: MaterialType.transparency,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.tightGap,
+        ),
+        child: StreamBuilder<void>(
+          stream: store.changes,
+          builder: (context, _) =>
+              BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+                bloc: lensCubit,
+                builder: (context, filter) => ConstellationTagRow(
+                  ownTags: store.tags,
+                  autoTags: ConstellationAutoTagKind.values,
+                  filter: filter,
+                  onToggleOwn: lensCubit.toggleOwn,
+                  onToggleAuto: lensCubit.toggleAuto,
+                  onModeChanged: lensCubit.setMode,
+                  onAddTag: () => unawaited(
+                    showTagEditorDialog(
+                      context,
+                      onSave: (name, glyph, color) => store.createTag(
+                        name: name,
+                        glyph: glyph,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+        ),
+      ),
+    );
+  }
+
+  /// Scene background of the map: the tag hulls, then the composer circle.
+  Widget _buildCanvasBackground(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationComposerCubit? composer,
+  ) {
+    final store = _peopleTags;
+    final lensCubit = maybeConstellationTagLens(context);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (store != null && lensCubit != null)
+          StreamBuilder<void>(
+            stream: store.changes,
+            builder: (context, _) =>
+                BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+                  bloc: lensCubit,
+                  builder: (context, filter) => ConstellationTagHullLayer(
+                    controller: cubit.graphController,
+                    tags: [
+                      for (final tag in store.tags)
+                        if (filter.selectedOwn.contains(tag.id)) tag,
+                    ],
+                    peopleOf: store.peopleInTag,
+                  ),
+                ),
+          ),
+        if (composer != null) ConstellationComposerCircle(composer: composer),
+      ],
+    );
+  }
+
+  /// The lens summary and "Forward a request…", while a tag is selected.
+  Widget _buildTagLensPanel(BuildContext context, ConstellationCubit cubit) {
+    final store = _peopleTags;
+    final lensCubit = maybeConstellationTagLens(context);
+    if (store == null || lensCubit == null) return const SizedBox.shrink();
+    final l10n = L10n.of(context)!;
+    return StreamBuilder<void>(
+      stream: store.changes,
+      builder: (context, _) =>
+          BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+            bloc: lensCubit,
+            builder: (context, filter) {
+              if (filter.isEmpty || cubit.state.isComposing) {
+                return const SizedBox.shrink();
+              }
+              final field = cubit.state.field;
+              final lens = _tagLensFor(cubit, lensCubit, filter);
+              final people = {
+                for (final person
+                    in field?.peers ?? const <ConstellationPerson>[])
+                  if (lens.brightPersonIds.contains(person.id)) person.id,
+              };
+              final tags = [
+                for (final tag in store.tags)
+                  if (filter.selectedOwn.contains(tag.id)) tag.name,
+                for (final kind in filter.selectedAuto)
+                  constellationAutoTagName(l10n, kind),
+              ];
+              return ConstellationTagLensPanel(
+                tagNames: tags,
+                peopleCount: people.length,
+                requestCount: [
+                  for (final request
+                      in field?.requests ?? const <ConstellationRequest>[])
+                    if (people.contains(request.authorId)) request,
+                ].length,
+                onForward: () => unawaited(
+                  _forwardFromTagLens(
+                    context,
+                    cubit,
+                    filter.selectedOwn,
+                  ),
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  Future<void> _forwardFromTagLens(
+    BuildContext context,
+    ConstellationCubit cubit,
+    Set<String> ownTagIds,
+  ) async {
+    final mine = [
+      for (final request
+          in cubit.state.field?.requests ?? const <ConstellationRequest>[])
+        if (request.isMine &&
+            BeaconStatus.fromSmallint(request.status).isOpenFamily)
+          request,
+    ];
+    final picked = await showConstellationTagLensRequestPicker(context, mine);
+    if (picked == null || !context.mounted) return;
+    await context.router.push(
+      ForwardBeaconRoute(
+        beaconId: picked.id,
+        tags: ownTagIds.isEmpty ? null : ownTagIds.join(','),
+      ),
+    );
+  }
+
+  /// A person node let go over a tag chip joins that tag instead of being
+  /// pinned. True when the drop was taken.
+  bool _dropOnTagChip(
+    BuildContext context,
+    ConstellationCubit cubit,
+    FieldPersonNode node,
+  ) {
+    final store = _peopleTags;
+    final pointer = _lastPointerGlobal;
+    if (store == null || pointer == null || node.person.id == cubit.viewerId) {
+      return false;
+    }
+    final tagId = constellationTagChipDropAt(context, pointer);
+    if (tagId == null) return false;
+    cubit.cancelPlacement(suppressLateGestureEnd: false);
+    unawaited(_addDroppedToTag(context, store, tagId, node.person.id));
+    return true;
+  }
+
+  Future<void> _addDroppedToTag(
+    BuildContext context,
+    PeopleTagsCase store,
+    String tagId,
+    String personId,
+  ) async {
+    final tag = store.tags.where((t) => t.id == tagId).firstOrNull;
+    if (tag == null) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final l10n = L10n.of(context)!;
+    try {
+      await store.applyMembership([
+        PersonTagMemberOp(tagId: tagId, personId: personId, add: true),
+      ]);
+    } on Object catch (error) {
+      messenger?.showSnackBar(SnackBar(content: Text(error.toString())));
+      return;
+    }
+    if (!context.mounted) return;
+    showUndoSnackBar(
+      context,
+      text: l10n.peopleTagsDroppedOnChip(tag.name),
+      onUndo: () => unawaited(
+        store
+            .applyMembership([
+              PersonTagMemberOp(tagId: tagId, personId: personId, add: false),
+            ])
+            .catchError((Object _) {}),
       ),
     );
   }
@@ -965,9 +1174,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
             child: GraphView<NodeDetails, EdgeDetails>(
               controller: cubit.graphController,
               canvasSize: ConstellationBody._canvasSize,
-              canvasBackgroundBuilder: composer == null
-                  ? null
-                  : (_) => ConstellationComposerCircle(composer: composer),
+              canvasBackgroundBuilder: (context) =>
+                  _buildCanvasBackground(context, cubit, composer),
               // A click on an empty spot clears the selection (#680); a pan
               // or a long press never counts as one.
               onCanvasTap: composer == null
@@ -1026,6 +1234,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   cubit.endComposerDrag(node, position);
                   _syncComposerPersonPositions(cubit, composer);
                   composer?.personDropped(node.id);
+                  return;
+                }
+                if (node is FieldPersonNode &&
+                    _dropOnTagChip(context, cubit, node)) {
                   return;
                 }
                 final target = cubit.anchorTargetForNode(node);
@@ -1181,30 +1393,27 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 // The semantics label changes only with the pin state, so a
                 // move or a phase change leaves the node subtree alone.
                 final anchorTarget = cubit.anchorTargetForNode(node);
-                Widget build(List<PersonTag> ownTags) =>
-                    BlocSelector<ConstellationCubit, ConstellationState, bool>(
-                      bloc: cubit,
-                      selector: (_) =>
-                          anchorTarget != null &&
-                          cubit.isAnchored(anchorTarget),
-                      builder: (context, _) =>
-                          ConstellationPersonPresenceBuilder(
-                            personId: node is FieldPersonNode
-                                ? node.person.id
-                                : null,
-                            builder: (context, online) =>
-                                _wrapConstellationMapNodeSemantics(
-                                  context: context,
-                                  cubit: cubit,
-                                  state: state,
-                                  node: node,
-                                  panelVisible: panelVisible,
-                                  mapNode: mapNode.withOwnTags(ownTags),
-                                  online: online,
-                                  ownTags: ownTags,
-                                ),
-                          ),
-                    );
+                Widget build(
+                  List<PersonTag> ownTags,
+                ) => BlocSelector<ConstellationCubit, ConstellationState, bool>(
+                  bloc: cubit,
+                  selector: (_) =>
+                      anchorTarget != null && cubit.isAnchored(anchorTarget),
+                  builder: (context, _) => ConstellationPersonPresenceBuilder(
+                    personId: node is FieldPersonNode ? node.person.id : null,
+                    builder: (context, online) =>
+                        _wrapConstellationMapNodeSemantics(
+                          context: context,
+                          cubit: cubit,
+                          state: state,
+                          node: node,
+                          panelVisible: panelVisible,
+                          mapNode: mapNode.withOwnTags(ownTags),
+                          online: online,
+                          ownTags: ownTags,
+                        ),
+                  ),
+                );
                 final store = _peopleTags;
                 if (store == null || node is! FieldPersonNode) {
                   return build(const []);
@@ -1318,7 +1527,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
           bottom: panelVisible && context.windowClass == WindowClass.compact
               ? null
               : 0,
-          child: SafeArea(child: ConstellationSelectionBar(cubit: cubit)),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTagLensPanel(context, cubit),
+                ConstellationSelectionBar(cubit: cubit),
+              ],
+            ),
+          ),
         ),
         // Text mode draws its own copy over the text view (#354).
         if (panelVisible && state.viewMode == ConstellationViewMode.map)

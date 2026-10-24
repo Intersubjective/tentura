@@ -11371,5 +11371,33 @@
   "peopleTagsDeleted": "Tag deleted",
   "@peopleTagsDeleted": {
     "description": "Undo snackbar text after deleting a tag"
+  },
+  "peopleTagsDroppedOnChip": "Added to {tag}",
+  "@peopleTagsDroppedOnChip": {
+    "description": "Undo snackbar text after a person node was dropped on a tag chip of the Field",
+    "placeholders": {
+      "tag": {"type": "String"}
+    }
+  },
+  "constellationTagLensSummary": "{tags} · {people, plural, one{1 person} other{{people} people}} · {requests, plural, one{1 Request} other{{requests} Requests}}",
+  "@constellationTagLensSummary": {
+    "description": "Bottom panel of the Field tag lens: the selected tags, how many people they cover and how many Requests those people have",
+    "placeholders": {
+      "tags": {"type": "String"},
+      "people": {"type": "int"},
+      "requests": {"type": "int"}
+    }
+  },
+  "constellationTagLensForward": "Forward a request…",
+  "@constellationTagLensForward": {
+    "description": "Bottom panel of the Field tag lens: pick one of your open Requests to forward to the selected tags"
+  },
+  "constellationTagLensPickRequest": "Forward which Request?",
+  "@constellationTagLensPickRequest": {
+    "description": "Title of the list of the viewer's open Requests offered by the Field tag lens panel"
+  },
+  "constellationTagLensNoRequests": "You have no open Requests to forward.",
+  "@constellationTagLensNoRequests": {
+    "description": "Shown instead of the Request list when the viewer has no open Request"
   }
 }

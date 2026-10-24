@@ -7533,5 +7533,10 @@
   "peopleTagsMoveUp": "Выше",
   "peopleTagsMoveDown": "Ниже",
   "peopleTagsDelete": "Удалить",
-  "peopleTagsDeleted": "Тег удалён"
+  "peopleTagsDeleted": "Тег удалён",
+  "peopleTagsDroppedOnChip": "Добавлено в «{tag}»",
+  "constellationTagLensSummary": "{tags} · {people, plural, one{{people} человек} few{{people} человека} many{{people} человек} other{{people} человека}} · {requests, plural, one{{requests} запрос} few{{requests} запроса} many{{requests} запросов} other{{requests} запроса}}",
+  "constellationTagLensForward": "Переслать запрос…",
+  "constellationTagLensPickRequest": "Какой запрос переслать?",
+  "constellationTagLensNoRequests": "У вас нет открытых запросов для пересылки."
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 
@@ -11,16 +12,24 @@ import '../widget/forward_recipient_picker.dart';
 class ForwardBeaconScreen extends StatelessWidget implements AutoRouteWrapper {
   const ForwardBeaconScreen({
     @PathParam('id') this.beaconId = '',
+    @QueryParam(kQueryForwardTags) this.tags,
     super.key,
   });
 
   final String beaconId;
+
+  /// Own tag ids from the tag lens, comma-separated.
+  final String? tags;
 
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
     create: (_) => ForwardCubit(
       beaconId: beaconId,
       context: context.read<ContextCubit>().state.selected,
+      initialTagIds: {
+        for (final id in (tags ?? '').split(','))
+          if (id.isNotEmpty) id,
+      },
     ),
     child: this,
   );

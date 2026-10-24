@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart' show HitTestResult;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderMetaData;
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
@@ -14,6 +16,35 @@ String constellationAutoTagName(L10n l10n, ConstellationAutoTagKind kind) =>
       ConstellationAutoTagKind.iTrust => l10n.constellationAutoTagITrust,
       ConstellationAutoTagKind.trustsMe => l10n.constellationAutoTagTrustsMe,
     };
+
+/// Marks the chip of own tag [tagId] as a place a person node can be dropped.
+@immutable
+class ConstellationTagChipDrop {
+  const ConstellationTagChipDrop(this.tagId);
+
+  final String tagId;
+}
+
+/// The own tag whose chip is under [globalPosition], or null.
+String? constellationTagChipDropAt(
+  BuildContext context,
+  Offset globalPosition,
+) {
+  final result = HitTestResult();
+  WidgetsBinding.instance.hitTestInView(
+    result,
+    globalPosition,
+    View.of(context).viewId,
+  );
+  for (final entry in result.path) {
+    final target = entry.target;
+    if (target is RenderMetaData &&
+        target.metaData is ConstellationTagChipDrop) {
+      return (target.metaData as ConstellationTagChipDrop).tagId;
+    }
+  }
+  return null;
+}
 
 /// The Field's tag row: the viewer's own tags, then the automatic ones.
 /// Tapping a chip toggles it in the tag lens.
@@ -58,13 +89,17 @@ class ConstellationTagRow extends StatelessWidget {
           )
         else
           for (final tag in ownTags)
-            _Toggle(
-              selected: filter.selectedOwn.contains(tag.id),
-              onTap: () => onToggleOwn(tag.id),
-              child: PersonTagChip(
-                glyph: tag.glyph,
-                name: tag.name,
-                colorIndex: tag.color,
+            MetaData(
+              metaData: ConstellationTagChipDrop(tag.id),
+              behavior: HitTestBehavior.translucent,
+              child: _Toggle(
+                selected: filter.selectedOwn.contains(tag.id),
+                onTap: () => onToggleOwn(tag.id),
+                child: PersonTagChip(
+                  glyph: tag.glyph,
+                  name: tag.name,
+                  colorIndex: tag.color,
+                ),
               ),
             ),
         for (final kind in autoTags)

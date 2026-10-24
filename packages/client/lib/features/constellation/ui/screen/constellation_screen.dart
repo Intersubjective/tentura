@@ -15,6 +15,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
@@ -38,6 +39,7 @@ import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_presence_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
+import '../bloc/constellation_tag_lens_cubit.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../widget/constellation_camera_controls.dart';
@@ -90,6 +92,13 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
           child: MultiBlocProvider(
             providers: [
               BlocProvider(create: (_) => ConstellationSelectionCubit()),
+              BlocProvider(
+                create: (_) => GetIt.I.isRegistered<PeopleTagsCase>()
+                    ? ConstellationTagLensCubit(
+                        ownTagIdsOf: GetIt.I<PeopleTagsCase>().tagsOfPerson,
+                      )
+                    : ConstellationTagLensCubit(),
+              ),
               // Friends' presence on the field: watched for the people on
               // it, re-diffed only when the field or its composition change.
               BlocProvider(

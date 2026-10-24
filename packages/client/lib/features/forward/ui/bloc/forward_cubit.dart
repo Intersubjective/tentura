@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/util/availability_presets.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -31,6 +32,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     @visibleForTesting ForwardState? debugInitialState,
     this.preselectLineageSuggestions = false,
     this.initialSelectedIds = const {},
+    this.initialTagIds = const {},
     Map<String, String> initialNotes = const {},
     this.embedded = false,
     DateTime Function()? clock,
@@ -62,6 +64,10 @@ class ForwardCubit extends Cubit<ForwardState> {
   /// User-explicit recipient ids passed from profile → new request flow.
   final Set<String> initialSelectedIds;
 
+  /// Own tags opened from the tag lens: once the candidates have loaded,
+  /// their eligible people are selected as if each tag chip had been tapped.
+  final Set<String> initialTagIds;
+
   /// When true, [forward] does not emit [NavigateBack] (beacon-create tab host).
   final bool embedded;
 
@@ -73,6 +79,7 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   bool _appliedInitialLineagePreselect = false;
   bool _appliedInitialUserPreselect = false;
+  bool _appliedInitialTags = false;
   bool _suppressForwardChangeReload = false;
 
   StreamSubscription<String>? _forwardChangesSub;
@@ -278,6 +285,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           status: const StateIsSuccess(),
         ),
       );
+      _applyInitialTags();
     } catch (e) {
       if (isInitialLoad) {
         if (!isClosed) {
@@ -291,6 +299,16 @@ class ForwardCubit extends Cubit<ForwardState> {
       } else {
         _emitSnackError(e);
       }
+    }
+  }
+
+  void _applyInitialTags() {
+    if (_appliedInitialTags || initialTagIds.isEmpty || isClosed) return;
+    _appliedInitialTags = true;
+    if (!GetIt.I.isRegistered<PeopleTagsCase>()) return;
+    final peopleTags = GetIt.I<PeopleTagsCase>();
+    for (final tagId in initialTagIds) {
+      toggleTag(tagId, peopleTags.peopleInTag(tagId));
     }
   }
 

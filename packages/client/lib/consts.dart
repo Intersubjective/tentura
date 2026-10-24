@@ -165,6 +165,9 @@ const kQueryProfileEntry = 'entry';
 /// [kQueryProfileEntry] value: opened from My people.
 const kProfileEntryPeople = 'people';
 
+/// Forward screen query: own tag ids (comma-separated) to preselect.
+const kQueryForwardTags = 'tags';
+
 /// [kQueryBeaconEntry] string values (snake_case).
 const kBeaconEntryMyWork = 'my_work';
 const kBeaconEntryInbox = 'inbox';
