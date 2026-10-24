@@ -89,8 +89,14 @@ void main() {
     );
     expect(en.profileVisibilityNeither, 'No two-way visibility');
     expect(ru.profileVisibilityNeither, 'Нет двусторонней видимости');
-    expect(en.profileRequestUnavailable, 'Request unavailable');
-    expect(ru.profileRequestUnavailable, 'Запрос недоступен');
+    expect(
+      en.profileRequestUnavailable,
+      'They don’t see you yet, so you can’t send them Requests.',
+    );
+    expect(
+      ru.profileRequestUnavailable,
+      'Вас пока не видят, поэтому отправлять запросы нельзя.',
+    );
     expect(en.profileRequestOptions, 'Request options');
     expect(ru.profileRequestOptions, 'Варианты отправки запроса');
     expect(en.graphShowMoreConnections(5), 'Show 5 more connections');

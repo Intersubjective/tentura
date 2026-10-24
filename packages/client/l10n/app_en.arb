@@ -2039,9 +2039,9 @@
   "@profileVisibilitySharedContextNote": {
     "context": "ProfileViewBody — explains the co-participant bond lasts until the Request review window closes"
   },
-  "profileRequestUnavailable": "Request unavailable",
+  "profileRequestUnavailable": "They don’t see you yet, so you can’t send them Requests.",
   "@profileRequestUnavailable": {
-    "context": "ProfileViewBody — direct send blocked for one-way visibility"
+    "context": "ProfileViewBody / graph person panel — reason a trusted contact cannot be sent Requests: they do not see the viewer yet (#679)"
   },
   "profileRequestOptions": "Request options",
   "@profileRequestOptions": {

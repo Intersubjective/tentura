@@ -243,7 +243,7 @@ class GraphPersonContextPanel extends StatelessWidget {
       case PersonPrimaryAction.trust:
         break;
       case PersonPrimaryAction.none:
-        if (policy.showRequestOptions && policy.viewerExplicitlyTrustsSubject) {
+        if (policy.showSubjectCantSeeViewerReason) {
           addGap();
           children.add(
             Text(
