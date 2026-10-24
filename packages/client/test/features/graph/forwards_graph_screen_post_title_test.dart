@@ -5,6 +5,8 @@
 // The same holds for the rest of the screen chrome: the focused-node
 // "Open …" action in the top bar and the forwards legend.
 
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,12 +55,17 @@ class _EmptyGraphSource extends GraphSourceRepository {
 }
 
 class _BeaconRepositoryFake implements BeaconRepository {
-  _BeaconRepositoryFake(this.beacon);
+  _BeaconRepositoryFake(this.beacon, {this.pending});
 
   final Beacon beacon;
 
+  /// When set, the beacon read never answers while the test looks (a slow
+  /// network): the screen has only the route to go by.
+  final Completer<Beacon>? pending;
+
   @override
-  Future<Beacon> fetchBeaconById(String id) async => beacon;
+  Future<Beacon> fetchBeaconById(String id) async =>
+      pending == null ? beacon : pending!.future;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -107,6 +114,8 @@ Future<GraphCubit> _pumpScreen(
   WidgetTester tester, {
   required Beacon beacon,
   Locale locale = const Locale('en'),
+  String? routeKind,
+  Completer<Beacon>? pendingBeacon,
 }) async {
   await tester.binding.setSurfaceSize(const Size(900, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -117,7 +126,7 @@ Future<GraphCubit> _pumpScreen(
     graphSourceRepository: _EmptyGraphSource(),
     forwardsGraphBeaconId: beacon.id,
     edgeColors: _edgeColors,
-    beaconRepository: _BeaconRepositoryFake(beacon),
+    beaconRepository: _BeaconRepositoryFake(beacon, pending: pendingBeacon),
     profileRepository: _ProfileRepositoryFake(),
     effects: FakeUiEffectPort(),
   );
@@ -138,7 +147,7 @@ Future<GraphCubit> _pumpScreen(
             BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
             BlocProvider<ProfileCubit>.value(value: _FakeProfileCubit()),
           ],
-          child: ForwardsGraphScreen(focus: beacon.id),
+          child: ForwardsGraphScreen(focus: beacon.id, kind: routeKind),
         ),
       ),
     ),
@@ -311,6 +320,91 @@ void main() {
         _legendText((t) => t.toLowerCase().contains('пересыл')),
         findsWidgets,
       );
+    });
+  });
+
+  group('forwards graph opened from a Post, before the post loads (#501)', () {
+    testWidgets('the title names the post while the beacon is still loading', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.post, id: 'Bpost1'),
+        routeKind: BeaconKind.post.name,
+        pendingBeacon: Completer<Beacon>(),
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text(l10n.forwardsGraphViewPost), findsOneWidget);
+      expect(_topBarText(_requestWord.hasMatch), findsNothing);
+    });
+
+    testWidgets('Russian: «пост» while the beacon is still loading', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.post, id: 'Bpost1'),
+        locale: const Locale('ru'),
+        routeKind: BeaconKind.post.name,
+        pendingBeacon: Completer<Beacon>(),
+      );
+
+      expect(
+        _topBarText((t) => t.toLowerCase().contains('запрос')),
+        findsNothing,
+      );
+      expect(
+        _topBarText((t) => t.toLowerCase().contains('пост')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the title does not flip once the post has loaded', (
+      tester,
+    ) async {
+      final pending = Completer<Beacon>();
+      final beacon = _beacon(kind: BeaconKind.post, id: 'Bpost1');
+      await _pumpScreen(
+        tester,
+        beacon: beacon,
+        routeKind: BeaconKind.post.name,
+        pendingBeacon: pending,
+      );
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.text(l10n.forwardsGraphViewPost), findsOneWidget);
+
+      pending.complete(beacon);
+      await _settle(tester);
+
+      expect(find.text(l10n.forwardsGraphViewPost), findsOneWidget);
+      expect(find.text(l10n.forwardsGraphView), findsNothing);
+    });
+
+    testWidgets('without a kind on the route the loading title keeps the '
+        'request wording (guard)', (tester) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.request, id: 'Breq1'),
+        pendingBeacon: Completer<Beacon>(),
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text(l10n.forwardsGraphView), findsOneWidget);
+    });
+
+    testWidgets('the loaded beacon wins over a stale route kind', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.request, id: 'Breq1'),
+        routeKind: BeaconKind.post.name,
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text(l10n.forwardsGraphView), findsOneWidget);
+      expect(_topBarText(_postWord.hasMatch), findsNothing);
     });
   });
 

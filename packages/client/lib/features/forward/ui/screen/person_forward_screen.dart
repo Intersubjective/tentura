@@ -47,7 +47,7 @@ class PersonForwardPage extends StatelessWidget {
       builder: (context, state) {
         final person = state.person;
         final title = person == null
-            ? l10n.forwardBeaconTitle
+            ? l10n.labelForward
             : l10n.beaconForwardToPersonTitle(person.shownName);
         return Scaffold(
           backgroundColor: tt.bg,

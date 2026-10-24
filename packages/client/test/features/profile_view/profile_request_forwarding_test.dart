@@ -100,15 +100,16 @@ void main() {
       (tester) async {
         await pumpProfile(tester, reachablePerson);
 
-        expect(l10n.forwardBeaconTitle, 'Переслать запрос');
-        expect(find.text(l10n.forwardBeaconTitle), findsOneWidget);
+        // #501: the action opens a list of Requests and Posts alike.
+        expect(l10n.labelForward, 'Переслать');
+        expect(find.text(l10n.labelForward), findsOneWidget);
       },
     );
 
     testWidgets('own profile hides the forward request action', (tester) async {
       await pumpProfile(tester, viewer);
 
-      expect(find.text(l10n.forwardBeaconTitle), findsNothing);
+      expect(find.text(l10n.labelForward), findsNothing);
       expect(effects.emitted.whereType<NavigatePush>(), isEmpty);
     });
 
@@ -128,7 +129,7 @@ void main() {
           ),
         );
 
-        expect(find.text(l10n.forwardBeaconTitle), findsNothing);
+        expect(find.text(l10n.labelForward), findsNothing);
         expect(effects.emitted.whereType<NavigatePush>(), isEmpty);
       });
     }
@@ -145,7 +146,7 @@ void main() {
         ),
       );
 
-      expect(find.text(l10n.forwardBeaconTitle), findsNothing);
+      expect(find.text(l10n.labelForward), findsNothing);
     });
 
     testWidgets('limited recipient still shows the forward request action', (
@@ -158,7 +159,7 @@ void main() {
         ),
       );
 
-      expect(find.text(l10n.forwardBeaconTitle), findsOneWidget);
+      expect(find.text(l10n.labelForward), findsOneWidget);
     });
 
     testWidgets(
@@ -166,7 +167,7 @@ void main() {
       (tester) async {
         await pumpProfile(tester, reachablePerson);
 
-        final action = find.text(l10n.forwardBeaconTitle);
+        final action = find.text(l10n.labelForward);
         expect(action, findsOneWidget);
         await tester.ensureVisible(action);
         await tester.tap(action);
@@ -207,7 +208,7 @@ void main() {
           logger: Logger('ProfileRequestForwardingTest'),
         );
 
-        final action = find.text(l10n.forwardBeaconTitle);
+        final action = find.text(l10n.labelForward);
         expect(action, findsOneWidget);
         await tester.ensureVisible(action);
         await tester.tap(action);

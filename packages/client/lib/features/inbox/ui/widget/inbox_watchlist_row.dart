@@ -173,8 +173,9 @@ class InboxWatchlistRow extends StatelessWidget {
                     }
                   : null,
               onForward: onTap,
-              onForwardsGraph: () =>
-                  context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+              onForwardsGraph: () => context
+                  .read<ScreenCubit>()
+                  .showForwardsGraphFor(beacon.id, kind: beacon.kind),
               onWatch: onWatch,
               onStopWatching: onStopWatching,
               onCantHelp: onCantHelp,

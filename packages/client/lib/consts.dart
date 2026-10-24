@@ -20,6 +20,10 @@ const kPathInviteGenealogy = '/invite-genealogy';
 /// viewer and this target user id (else the viewer's own genealogy).
 const kQueryGenealogyWith = 'with';
 const kPathForwardsGraph = '/graph/forwards';
+
+/// Query on [kPathForwardsGraph]: the beacon kind's name (`post`), so the
+/// title names a Post correctly before the beacon has loaded (#501).
+const kQueryForwardsGraphKind = 'kind';
 const kPathRating = '/rating';
 const kPathSignIn = '/sign/in';
 const kPathSignUp = '/sign/up';

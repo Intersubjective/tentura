@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 
 import '../effect/ui_effect.dart';
 import '../effect/ui_effect_bus.dart';
@@ -33,8 +34,16 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showGraphFor(String id) => _navigateTo('$kPathGraph/$id');
 
-  void showForwardsGraphFor(String id) =>
-      _navigateTo('$kPathForwardsGraph/$id');
+  /// [kind] lets the forwards graph name a Post as a post before the beacon
+  /// itself has loaded (#501); omitted, the screen waits for the beacon.
+  void showForwardsGraphFor(String id, {BeaconKind? kind}) {
+    final path = '$kPathForwardsGraph/$id';
+    _navigateTo(
+      kind == BeaconKind.post
+          ? '$path?$kQueryForwardsGraphKind=${BeaconKind.post.name}'
+          : path,
+    );
+  }
 
   void showHelpOffererForwardPathFor({
     required String beaconId,

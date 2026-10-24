@@ -5641,7 +5641,7 @@
   "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
   "beaconRoomAttachmentOpenShare": "Поделиться файлом",
   "profileTrustNotYet": "Вы пока не доверяете этому человеку",
-  "profileEyeOpen": "Вы видите друг друга и можете пересылать запросы",
+  "profileEyeOpen": "Вы видите друг друга и можете пересылать друг другу",
   "profileEyeClosed": "Пока не видите друг друга",
   "profileEyeInfoTitle": "Кто кого видит",
   "profileEyeReasonMutualTrust": "Потому что вы доверяете друг другу.",

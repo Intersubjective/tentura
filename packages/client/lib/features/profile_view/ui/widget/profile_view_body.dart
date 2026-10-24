@@ -357,7 +357,7 @@ class _ProfileSecondaryActions extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => screenCubit.showForwardToPerson(profile.id),
           icon: const Icon(Icons.forward_outlined),
-          label: Text(l10n.forwardBeaconTitle),
+          label: Text(l10n.labelForward),
         ),
       );
     }

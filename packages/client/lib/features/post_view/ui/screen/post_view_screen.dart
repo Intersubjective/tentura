@@ -7,6 +7,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
@@ -153,7 +154,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
       case PostAction.unpin:
         await cubit.unpin();
       case PostAction.forwardsGraph:
-        screenCubit.showForwardsGraphFor(id);
+        screenCubit.showForwardsGraphFor(id, kind: BeaconKind.post);
       case PostAction.showOnField:
         ConstellationFocusRequest.instance.requested = id;
         screenCubit.showConstellation();
