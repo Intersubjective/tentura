@@ -56,15 +56,16 @@ class MyWorkEmptyBody extends StatelessWidget {
 
   /// One explaining sentence for the non-Active filters (#430).
   String? _body(L10n l10n) => switch (filter) {
-    MyWorkFilter.active || MyWorkFilter.all => null,
+    MyWorkFilter.active => null,
+    MyWorkFilter.all => l10n.myWorkEmptyAllBody,
     MyWorkFilter.authored => l10n.myWorkEmptyAuthoredBody,
     MyWorkFilter.helpOffered => l10n.myWorkEmptyHelpOfferedBody,
     MyWorkFilter.drafts => l10n.myWorkEmptyDraftsBody,
     MyWorkFilter.archived => l10n.myWorkEmptyArchivedBody,
   };
 
-  /// Authored / Drafts lead to creating a request; Help offered / Archived
-  /// lead to the Field.
+  /// Authored / Drafts lead to creating a request; Help offered / Archived /
+  /// All lead to the Field.
   bool get _ctaCreates =>
       filter == MyWorkFilter.authored || filter == MyWorkFilter.drafts;
 
