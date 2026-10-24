@@ -242,7 +242,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       perRecipientNotes: cubit.state.perRecipientNotes,
       skippedPersonalNoteIds: cubit.state.skippedPersonalNoteIds,
     );
-    if (widget.promptUncoveredNotes && uncovered.isNotEmpty) {
+    if (widget.promptUncoveredNotes &&
+        uncovered.isNotEmpty &&
+        cubit.state.selectedIds.length == 1) {
+      // With one person a «shared» note is just the personal note they
+      // already left empty inline, so do not ask a second time (#669).
+      uncovered.forEach(cubit.skipPersonalNote);
+    } else if (widget.promptUncoveredNotes && uncovered.isNotEmpty) {
       final sent = await _showUncoveredRecipientsSheet(
         context: context,
         cubit: cubit,
