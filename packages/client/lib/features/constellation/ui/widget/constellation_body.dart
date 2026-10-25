@@ -37,6 +37,7 @@ import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_selection_cubit.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
 import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
@@ -446,10 +447,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
     });
   }
 
-  /// A press on the map gives the map keyboard focus, so Escape after a
-  /// mouse click closes the panel (#680). Focus already on the map or in its
-  /// panels stays where it is, and a text field keeps its focus.
-  void _focusMapOnPointerDown() {
+  /// A press on the map, or select mode turned on from the toolbar, gives the
+  /// map keyboard focus, so Escape then closes the panel or leaves select
+  /// mode (#680). Focus already on the map or in its panels stays where it
+  /// is, and a text field keeps its focus.
+  void _takeMapFocus() {
     final focus = FocusManager.instance.primaryFocus;
     if (focus != null) {
       if (focus == _mapFocus || focus.ancestors.contains(_mapFocus)) return;
@@ -473,9 +475,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
         state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
+    // Select mode and the sector own the map's taps. Nodes still selected
+    // after select mode was turned off do not: the click closes the panel.
     final selection = maybeConstellationSelection(context);
     if (selection != null &&
-        (selection.state.isActive ||
+        (selection.state.selecting ||
             selection.state.sector != null ||
             ConstellationSelectionCubit.modifierHeld)) {
       return;
@@ -773,6 +777,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
             cubit.selectRequest(null);
           },
         ),
+        // Select mode turned on from the toolbar: Escape leaves it (#680).
+        if (maybeConstellationSelection(context) case final selection?)
+          BlocListener<
+            ConstellationSelectionCubit,
+            ConstellationMultiSelection
+          >(
+            bloc: selection,
+            listenWhen: (previous, current) =>
+                !previous.selecting && current.selecting,
+            listener: (_, _) => _takeMapFocus(),
+          ),
         BlocListener<GraphPersonContextCubit, GraphPersonContextState>(
           listenWhen: (previous, current) =>
               previous.dismissedFocusId != current.dismissedFocusId &&
@@ -890,13 +905,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     _CancelPlacementIntent:
                         CallbackAction<_CancelPlacementIntent>(
                           onInvoke: (_) {
+                            // Select mode and the sector step back first;
+                            // nodes left selected after select mode only
+                            // once the open panel is closed (#680).
+                            final selection = maybeConstellationSelection(
+                              context,
+                            );
+                            final panelOpen =
+                                cubit.state.selectedPersonId != null ||
+                                cubit.state.selectedRequestId != null;
                             if (!cubit.state.isComposing &&
                                 cubit.state.placementPhase ==
                                     ConstellationPlacementPhase.idle &&
-                                (maybeConstellationSelection(
-                                      context,
-                                    )?.escape() ??
-                                    false)) {
+                                selection != null &&
+                                (selection.state.selecting ||
+                                    selection.state.sector != null ||
+                                    !panelOpen) &&
+                                selection.escape()) {
                               return null;
                             }
                             final composer = maybeConstellationComposer(
@@ -1342,7 +1367,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
           onPointerDown: (_) {
             _pointersDown++;
             _stopReveal();
-            _focusMapOnPointerDown();
+            _takeMapFocus();
           },
           onPointerUp: (_) => _pointersDown = math.max(0, _pointersDown - 1),
           onPointerCancel: (_) =>
@@ -1358,8 +1383,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
               canvasBackgroundBuilder: (context) =>
                   _buildCanvasBackground(context, cubit, composer),
               // A click on an empty spot clears the selection (#680); a pan
-              // or a long press never counts as one.
-              onCanvasTap: composer == null
+              // or a long press never counts as one. The Field screen always
+              // provides a composer, so only a composing session turns it off.
+              onCanvasTap: composer == null || composer.createCubit == null
                   ? (_) => _onEmptyMapTap(context, cubit)
                   : null,
               onCanvasSecondaryTap:
