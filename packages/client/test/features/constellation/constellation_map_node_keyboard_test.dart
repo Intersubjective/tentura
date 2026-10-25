@@ -16,21 +16,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_selection_layers.dart'
+    show ConstellationSelectionToggle;
 import 'package:tentura/features/constellation/ui/widget/constellation_post_preview_sheet.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/web_default_shortcuts.dart';
@@ -129,11 +135,21 @@ Future<ConstellationCubit> _loadCubit({bool withBob = false}) async {
 
 const _size = Size(1200, 900);
 
+/// The composer the Field screen always provides, with no session running.
+ConstellationComposerCubit _idleComposer() => ConstellationComposerCubit(
+  positions: const {},
+  eligible: const {},
+  createCubitFactory: (kind) => BeaconCreateCubit(kind: kind),
+  forwardCubitFactory: (beaconId) =>
+      ForwardCubit(beaconId: beaconId, embedded: true),
+);
+
 Future<void> _pumpBody(
   WidgetTester tester,
   ConstellationCubit cubit, {
   Map<ShortcutActivator, Intent>? shortcuts,
   ConstellationSelectionCubit? selection,
+  ConstellationComposerCubit? composer,
   Widget? outside,
 }) async {
   const size = _size;
@@ -161,6 +177,10 @@ Future<void> _pumpBody(
               if (selection != null)
                 BlocProvider<ConstellationSelectionCubit>.value(
                   value: selection,
+                ),
+              if (composer != null)
+                BlocProvider<ConstellationComposerCubit>.value(
+                  value: composer,
                 ),
             ],
             child: outside == null
@@ -911,6 +931,203 @@ void main() {
 
       expect(selection.state.selecting, isTrue);
       expect(cubit.state.selectedPersonId, 'a');
+    });
+  });
+
+  // QA on 7.50.7 (#680): on the Field screen a click on empty map still
+  // cleared nothing, Escape after a node click needed two presses, and
+  // Escape did not leave select mode turned on from the toolbar.
+  group('on the Field screen, which always provides a composer (#680)', () {
+    testWidgets('a click on empty map closes the person panel', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final composer = _idleComposer();
+      addTearDown(composer.close);
+      await _pumpBody(tester, cubit, composer: composer);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('a')));
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+
+      await _click(
+        tester,
+        _emptyMapPoint(tester, const ['ego', 'a', 'post-a']),
+      );
+
+      expect(cubit.state.selectedPersonId, isNull);
+      expect(find.byType(GraphPersonContextPanel), findsNothing);
+    });
+
+    testWidgets('a click on empty map closes the Post panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final composer = _idleComposer();
+      addTearDown(composer.close);
+      await _pumpBody(tester, cubit, composer: composer);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('post-a')));
+      expect(cubit.state.selectedRequestId, 'post-a');
+
+      await _click(
+        tester,
+        _emptyMapPoint(tester, const ['ego', 'a', 'post-a']),
+      );
+
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+    });
+
+    testWidgets('a drag on empty map pans and keeps the selection', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final composer = _idleComposer();
+      addTearDown(composer.close);
+      await _pumpBody(tester, cubit, composer: composer);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('a')));
+      expect(cubit.state.selectedPersonId, 'a');
+      final start = _emptyMapPoint(tester, const ['ego', 'a', 'post-a']);
+      final cameraBefore = cubit.graphController.cameraRevision.value;
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: start);
+      await mouse.down(start);
+      await tester.pump();
+      for (var i = 0; i < 6; i++) {
+        await mouse.moveBy(const Offset(15, 10));
+        await tester.pump();
+      }
+      await mouse.up();
+      await mouse.removePointer();
+      await tester.pumpAndSettle();
+
+      expect(
+        cubit.graphController.cameraRevision.value,
+        greaterThan(cameraBefore),
+        reason: 'the drag pans the camera',
+      );
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+    });
+
+    testWidgets('with nodes left selected after select mode, Escape closes '
+        'the panel first and then clears them', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final selection = ConstellationSelectionCubit()
+        ..toggle(ConstellationAnchorTarget.person('a'));
+      addTearDown(selection.close);
+      final composer = _idleComposer();
+      addTearDown(composer.close);
+      await _pumpBody(
+        tester,
+        cubit,
+        selection: selection,
+        composer: composer,
+      );
+      await tester.pumpAndSettle();
+      await _focusOffMap(tester);
+      await _click(tester, tester.getCenter(_node('post-a')));
+      expect(cubit.state.selectedRequestId, 'post-a');
+      expect(selection.state.isEmpty, isFalse);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(cubit.state.selectedRequestId, isNull, reason: 'first Escape');
+      expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+      expect(selection.state.isEmpty, isFalse);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(selection.state.isEmpty, isTrue, reason: 'second Escape');
+    });
+
+    testWidgets('with nodes left selected after select mode, a click on '
+        'empty map closes the panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final selection = ConstellationSelectionCubit()
+        ..toggle(ConstellationAnchorTarget.person('a'));
+      addTearDown(selection.close);
+      final composer = _idleComposer();
+      addTearDown(composer.close);
+      await _pumpBody(
+        tester,
+        cubit,
+        selection: selection,
+        composer: composer,
+      );
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('post-a')));
+      expect(cubit.state.selectedRequestId, 'post-a');
+
+      await _click(
+        tester,
+        _emptyMapPoint(tester, const ['ego', 'a', 'post-a']),
+      );
+
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+    });
+
+    testWidgets('Select several turned on from the toolbar: Escape leaves '
+        'it', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final selection = ConstellationSelectionCubit();
+      addTearDown(selection.close);
+      final composer = _idleComposer();
+      addTearDown(composer.close);
+      await _pumpBody(
+        tester,
+        cubit,
+        selection: selection,
+        composer: composer,
+        outside: const ConstellationSelectionToggle(),
+      );
+      await tester.pumpAndSettle();
+      await _focusOffMap(tester);
+
+      await _click(
+        tester,
+        tester.getCenter(find.byKey(const Key('constellation.app_bar.select'))),
+      );
+      expect(selection.state.selecting, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(selection.state.selecting, isFalse);
+      expect(selection.state.isActive, isFalse);
+    });
+
+    testWidgets('Select several turned on keeps focus in a text field', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final selection = ConstellationSelectionCubit();
+      addTearDown(selection.close);
+      final field = FocusNode(debugLabel: 'outside text field');
+      addTearDown(field.dispose);
+      await _pumpBody(
+        tester,
+        cubit,
+        selection: selection,
+        outside: TextField(focusNode: field),
+      );
+      await tester.pumpAndSettle();
+      field.requestFocus();
+      await tester.pump();
+
+      selection.setSelecting(true);
+      await tester.pumpAndSettle();
+
+      expect(field.hasPrimaryFocus, isTrue);
     });
   });
 
