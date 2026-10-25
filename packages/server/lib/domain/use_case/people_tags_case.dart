@@ -38,7 +38,10 @@ final class PeopleTagsCase extends UseCaseBase {
     required String clientOpId,
     String? glyph,
     int? color,
+    int? fromAutoKind,
+    String? fromBeaconId,
   }) async {
+    if (fromAutoKind != null && fromBeaconId != null) throw _invalidTag();
     final trimmed = _validName(name);
     final tagGlyph = glyph == null
         ? _defaultGlyph(trimmed)
@@ -46,10 +49,20 @@ final class PeopleTagsCase extends UseCaseBase {
     return _tags.create(
       ownerId: ownerId,
       clientOpId: clientOpId,
-      fingerprint: _fingerprint('create', [name, glyph, color]),
+      fingerprint: _fingerprint('create', [
+        name,
+        glyph,
+        color,
+        if (fromAutoKind != null || fromBeaconId != null) ...[
+          fromAutoKind,
+          fromBeaconId,
+        ],
+      ]),
       name: trimmed,
       glyph: tagGlyph,
       color: color == null ? null : _validColor(color),
+      fromAutoKind: fromAutoKind == null ? null : _validKind(fromAutoKind),
+      fromBeaconId: fromBeaconId,
     );
   }
 

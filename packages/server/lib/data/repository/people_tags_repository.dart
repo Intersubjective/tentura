@@ -76,6 +76,8 @@ class PeopleTagsRepository implements PeopleTagsRepositoryPort {
     required String name,
     required String glyph,
     int? color,
+    int? fromAutoKind,
+    String? fromBeaconId,
   }) => _idempotent(
     ownerId,
     clientOpId,
@@ -85,6 +87,11 @@ class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       final tags = await _list(ownerId);
       _checkRoom(tags);
       await _checkNameFree(ownerId, name);
+      final copied = await _sourcePeople(
+        ownerId,
+        fromAutoKind: fromAutoKind,
+        fromBeaconId: fromBeaconId,
+      );
       final tag = PersonTag(
         id: generateId('PT'),
         name: name,
@@ -93,7 +100,28 @@ class PeopleTagsRepository implements PeopleTagsRepositoryPort {
         ord: tags.length + 1,
       );
       await _insert(ownerId, tag);
-      return tag;
+      if (copied != null) {
+        await _database.customStatement(
+          r'''
+INSERT INTO public.person_tag_member (tag_id, owner_id, person_id, source)
+SELECT $1::text, $2::text, p, $4::int FROM unnest($3::text[]) AS p
+''',
+          [
+            tag.id,
+            ownerId,
+            TypedValue(Type.textArray, copied.personIds),
+            copied.source,
+          ],
+        );
+      }
+      return PersonTag(
+        id: tag.id,
+        name: tag.name,
+        glyph: tag.glyph,
+        color: tag.color,
+        ord: tag.ord,
+        count: copied?.personIds.length ?? 0,
+      );
     },
     encode: (t) => t.toJson(),
   );
@@ -521,12 +549,15 @@ VALUES ($1) ON CONFLICT (owner_id) DO NOTHING
 ''',
         [ownerId],
       );
-      await _database.customStatement(switch (outcome) {
-        'skipped' => _skippedSql,
-        'accepted' => _acceptedSql,
-        'disabled' => _disabledSql,
-        _ => _enabledSql,
-      }, [ownerId]);
+      await _database.customStatement(
+        switch (outcome) {
+          'skipped' => _skippedSql,
+          'accepted' => _acceptedSql,
+          'disabled' => _disabledSql,
+          _ => _enabledSql,
+        },
+        [ownerId],
+      );
       return suggestionState(ownerId);
     },
     encode: (s) => s.toJson(),
@@ -659,6 +690,85 @@ SELECT l.tag_id,
       peopleTagsCode: PeopleTagsExceptionCode.tagNotFound,
     ),
   );
+
+  /// The people a new tag is pre-filled with, or null for an empty tag.
+  /// Blocked people (either direction) and the owner are left out; more than
+  /// 1000 left throws memberLimitReached instead of truncating.
+  Future<({List<String> personIds, int source})?> _sourcePeople(
+    String ownerId, {
+    int? fromAutoKind,
+    String? fromBeaconId,
+  }) async {
+    if (fromAutoKind == null && fromBeaconId == null) return null;
+    final int source;
+    final List<String> candidates;
+    if (fromAutoKind != null) {
+      source = 2;
+      candidates = await autoTagMembers(ownerId, fromAutoKind);
+    } else {
+      source = 3;
+      final beacon = await _database
+          .customSelect(
+            r'''
+SELECT EXISTS (
+  SELECT 1 FROM public.beacon b
+    JOIN public.beacon_member me
+      ON me.beacon_id = b.id AND me.user_id = $2
+   WHERE b.id = $1 AND b.kind = 0) AS ok
+''',
+            variables: [
+              Variable.withString(fromBeaconId!),
+              Variable.withString(ownerId),
+            ],
+          )
+          .getSingle();
+      if (!beacon.read<bool>('ok')) {
+        throw PeopleTagsException(
+          peopleTagsCode: PeopleTagsExceptionCode.invalidTag,
+        );
+      }
+      final rows = await _database
+          .customSelect(
+            r'''
+SELECT DISTINCT user_id FROM public.beacon_member
+ WHERE beacon_id = $1 AND user_id <> $2
+ ORDER BY user_id
+''',
+            variables: [
+              Variable.withString(fromBeaconId),
+              Variable.withString(ownerId),
+            ],
+          )
+          .get();
+      candidates = [for (final r in rows) r.read<String>('user_id')];
+    }
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT p AS person_id FROM unnest($2::text[]) AS m(p)
+ WHERE p <> $1
+   AND NOT EXISTS (
+     SELECT 1 FROM public.user_block ub
+      WHERE (ub.blocker_id = $1 AND ub.blocked_id = m.p)
+         OR (ub.blocker_id = m.p AND ub.blocked_id = $1))
+ ORDER BY p
+''',
+          variables: [
+            Variable.withString(ownerId),
+            Variable(TypedValue(Type.textArray, candidates)),
+          ],
+        )
+        .get();
+    if (rows.length > _maxMembers) {
+      throw PeopleTagsException(
+        peopleTagsCode: PeopleTagsExceptionCode.memberLimitReached,
+      );
+    }
+    return (
+      personIds: [for (final r in rows) r.read<String>('person_id')],
+      source: source,
+    );
+  }
 
   void _checkRoom(List<PersonTag> tags) {
     if (tags.length >= _maxTags) {

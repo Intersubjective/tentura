@@ -17,6 +17,8 @@ final class MutationPeopleTags extends GqlNodeBase {
   static final _color = InputFieldInt(fieldName: 'color');
   static final _ord = InputFieldInt(fieldName: 'ord');
   static final _kind = InputFieldInt(fieldName: 'kind');
+  static final _fromAutoKind = InputFieldInt(fieldName: 'fromAutoKind');
+  static final _fromBeaconId = InputFieldString(fieldName: 'fromBeaconId');
   static final _showInFilters = InputFieldBool(fieldName: 'showInFilters');
   static final _outcome = InputFieldString(fieldName: 'outcome');
   static final _clientOpId = InputFieldString(fieldName: 'clientOpId');
@@ -49,6 +51,8 @@ final class MutationPeopleTags extends GqlNodeBase {
           _name.field,
           _glyph.fieldNullable,
           _color.fieldNullable,
+          _fromAutoKind.fieldNullable,
+          _fromBeaconId.fieldNullable,
           _clientOpId.field,
         ],
         resolve: (_, args) async => (await _case.create(
@@ -56,6 +60,8 @@ final class MutationPeopleTags extends GqlNodeBase {
           name: _name.fromArgsNonNullable(args),
           glyph: _glyph.fromArgs(args),
           color: _color.fromArgs(args),
+          fromAutoKind: _fromAutoKind.fromArgs(args),
+          fromBeaconId: _fromBeaconId.fromArgs(args),
           clientOpId: _clientOpId.fromArgsNonNullable(args),
         )).toGraphQL(),
       );

@@ -20,6 +20,8 @@ class PeopleTagsRepositoryMock implements PeopleTagsRepositoryPort {
     required String name,
     required String glyph,
     int? color,
+    int? fromAutoKind,
+    String? fromBeaconId,
   }) => throw UnimplementedError();
 
   @override

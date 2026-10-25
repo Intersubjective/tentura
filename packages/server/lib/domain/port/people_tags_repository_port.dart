@@ -7,7 +7,12 @@ import 'package:tentura_server/domain/entity/person_tag.dart';
 abstract interface class PeopleTagsRepositoryPort {
   Future<List<PersonTag>> list(String ownerId);
 
-  /// [color] defaults to the number of own tags modulo 8.
+  /// [color] defaults to the number of own tags modulo 8. [fromAutoKind]
+  /// pre-fills the tag with the people that automatic tag has now (source 2);
+  /// [fromBeaconId] with the other members of that Request (source 3), never
+  /// a Post. Blocked people are skipped. A source the owner may not copy
+  /// throws invalidTag; one over 1000 people throws memberLimitReached and
+  /// creates nothing.
   Future<PersonTag> create({
     required String ownerId,
     required String clientOpId,
@@ -15,6 +20,8 @@ abstract interface class PeopleTagsRepositoryPort {
     required String name,
     required String glyph,
     int? color,
+    int? fromAutoKind,
+    String? fromBeaconId,
   });
 
   Future<PersonTag> update({
