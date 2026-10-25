@@ -11,6 +11,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'own_paused_chip.dart';
 import 'profile_navbar_item.dart';
 
 /// The account avatar: opens the viewer's profile (Home's Me tab), and on a
@@ -69,10 +70,29 @@ class HomeAccountAvatarButton extends StatelessWidget {
 
 /// The account entry for a Home tab's top bar ([TenturaTopBar.account]):
 /// compact windows only — wider ones carry it at the rail's foot.
+/// While the viewer has paused new requests, [OwnPausedChip] sits beside it,
+/// capped at [kTopBarPausedChipWidthShare] of the window so a long date
+/// ellipsizes instead of crowding the title.
 Widget? homeTopBarAccount(BuildContext context) =>
     context.windowClass == WindowClass.compact
-    ? const HomeAccountAvatarButton()
+    ? Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth:
+                  MediaQuery.sizeOf(context).width *
+                  kTopBarPausedChipWidthShare,
+            ),
+            child: const OwnPausedChip(),
+          ),
+          const HomeAccountAvatarButton(),
+        ],
+      )
     : null;
+
+/// Share of the window width the top bar's paused chip may take (#267).
+const kTopBarPausedChipWidthShare = 0.4;
 
 /// Opens Home's Me tab, from inside Home or from a route pushed above it.
 void openMyProfile(BuildContext context) {

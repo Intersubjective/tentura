@@ -7101,6 +7101,23 @@
   "@availabilityResumeNow": {
     "description": "Own-profile action to clear an active pause immediately."
   },
+  "availabilityPausedChip": "Paused until {when}",
+  "@availabilityPausedChip": {
+    "description": "Chip beside the viewer's own avatar in the top bar (or at the rail's foot) while they have paused new requests; tapping it offers to resume.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "availabilityResumeConfirmTitle": "Take new requests again?",
+  "@availabilityResumeConfirmTitle": {
+    "description": "Title of the confirmation shown after tapping the own paused chip."
+  },
+  "availabilityResumeConfirmBody": "People will be able to send you new requests right away.",
+  "@availabilityResumeConfirmBody": {
+    "description": "Body of the confirmation shown after tapping the own paused chip."
+  },
   "availabilityDeliveredPartial": "Delivered to {n} of {m} — {name} isn't taking new requests right now.",
   "@availabilityDeliveredPartial": {
     "description": "Forward delivery snackbar when one recipient was skipped for availability.",
