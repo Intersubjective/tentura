@@ -9,6 +9,7 @@
 // x-axis title, the ticks and the legend never cover a person at rank 0.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -51,6 +52,7 @@ Future<void> _pumpScatter(
   List<Profile> profiles, {
   Size size = const Size(1280, 800),
   Locale locale = const Locale('en'),
+  double textScale = 1,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -61,6 +63,12 @@ Future<void> _pumpScatter(
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       theme: TenturaTheme.light(),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: MultiBlocProvider(
         providers: [
           BlocProvider<RatingCubit>.value(value: _RatingCubitStub()),
@@ -204,6 +212,59 @@ void main() {
         moreOrLessEquals(plot.center.dx, epsilon: 1),
       );
     });
+  });
+
+  // #462 / #615 review: the tick gutters were fixed boxes, so at a large
+  // text scale "100" was clipped or ran into the plot.
+  group('#462 Scatter ticks at large text scale', () {
+    for (final scale in const [1.0, 2.0]) {
+      for (final size in const [Size(1280, 800), Size(360, 740)]) {
+        testWidgets('labels are whole and clear of the plot (x$scale, $size)', (
+          tester,
+        ) async {
+          await _pumpScatter(tester, _spread, size: size, textScale: scale);
+
+          final plot = _plotRect(tester);
+          final l10n = lookupL10n(const Locale('en'));
+          final titles = [
+            tester.getRect(_inScatter(find.text(l10n.rankToYou))),
+            tester.getRect(_inScatter(find.text(l10n.rankFromYou))),
+          ];
+          for (final v in ['0', '50', '100']) {
+            final finder = _inScatter(find.text(v));
+            expect(finder, findsNWidgets(2), reason: v);
+            for (var i = 0; i < 2; i++) {
+              final paragraph = tester.renderObject<RenderParagraph>(
+                finder.at(i),
+              );
+              final width = paragraph.getMaxIntrinsicWidth(double.infinity);
+              final height = paragraph.getMaxIntrinsicHeight(double.infinity);
+              expect(
+                paragraph.size.width,
+                greaterThanOrEqualTo(width - 0.5),
+                reason: '"$v" is cut sideways',
+              );
+              expect(
+                paragraph.size.height,
+                greaterThanOrEqualTo(height - 0.5),
+                reason: '"$v" is cut vertically',
+              );
+              final rect = tester.getRect(finder.at(i));
+              expect(_intersects(rect, plot), isFalse, reason: '"$v" vs plot');
+              for (final title in titles) {
+                expect(_intersects(rect, title), isFalse, reason: '"$v"');
+              }
+            }
+          }
+          // One label on each axis, outside the plot.
+          for (final v in ['0', '50', '100']) {
+            _xTick(tester, v);
+            _yTick(tester, v);
+          }
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
   });
 
   group('#462 Scatter badge legend', () {

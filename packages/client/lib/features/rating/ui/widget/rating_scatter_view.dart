@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_spacing.dart';
+import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -30,6 +31,7 @@ const _avatarLabelGap = 2.0;
 const _zoomDuration = Duration(milliseconds: 250);
 
 /// Axis ticks (#462): the ranks labelled on both axes and their gutters.
+/// The gutters grow with the widest label at the current text scale.
 const _tickValues = [0.0, 50.0, 100.0];
 const _yTickGutter = 32.0;
 const _xTickGutter = 16.0;
@@ -199,18 +201,35 @@ class _RatingScatterViewState extends State<RatingScatterView>
   /// gutter (#462). The labels follow the zoom / pan and hide once their
   /// rank is scrolled out of the plot.
   Widget _buildPlotWithTicks(BuildContext context, Size size) {
-    final plotSize = Size(
-      max(0.0, size.width - _yTickGutter),
-      max(0.0, size.height - _xTickGutter),
-    );
     final theme = Theme.of(context);
-    final tickStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
+    final tickStyle = TenturaText.labelSmall(
+      theme.colorScheme.onSurfaceVariant,
+    );
+    // Gutters fit the widest label ("100") at the reader's text scale, so a
+    // large font neither clips the label nor pushes it into the plot.
+    final widest = TextPainter(
+      text: TextSpan(
+        text: _tickValues.last.round().toString(),
+        style: DefaultTextStyle.of(context).style.merge(tickStyle),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final labelWidth = widest.width.ceilToDouble();
+    final labelHeight = widest.height.ceilToDouble();
+    widest.dispose();
+    final yTickGutter = max(_yTickGutter, labelWidth + _tickLabelGap);
+    final xTickGutter = max(_xTickGutter, labelHeight);
+    final xTickLabelWidth = max(_xTickLabelWidth, labelWidth);
+    final yTickLabelHeight = max(_yTickLabelHeight, labelHeight);
+    final plotSize = Size(
+      max(0, size.width - yTickGutter),
+      max(0, size.height - xTickGutter),
     );
     return Stack(
       children: [
         Positioned(
-          left: _yTickGutter,
+          left: yTickGutter,
           top: 0,
           width: plotSize.width,
           height: plotSize.height,
@@ -237,10 +256,10 @@ class _RatingScatterViewState extends State<RatingScatterView>
                 if (x >= -0.5 && x <= plotSize.width + 0.5) {
                   labels.add(
                     Positioned(
-                      left: _yTickGutter + x - _xTickLabelWidth / 2,
+                      left: yTickGutter + x - xTickLabelWidth / 2,
                       top: plotSize.height,
-                      width: _xTickLabelWidth,
-                      height: _xTickGutter,
+                      width: xTickLabelWidth,
+                      height: xTickGutter,
                       child: Align(alignment: Alignment.topCenter, child: text),
                     ),
                   );
@@ -256,9 +275,9 @@ class _RatingScatterViewState extends State<RatingScatterView>
                   labels.add(
                     Positioned(
                       left: 0,
-                      top: y - _yTickLabelHeight / 2,
-                      width: _yTickGutter - _tickLabelGap,
-                      height: _yTickLabelHeight,
+                      top: y - yTickLabelHeight / 2,
+                      width: yTickGutter - _tickLabelGap,
+                      height: yTickLabelHeight,
                       child: Align(
                         alignment: Alignment.centerRight,
                         child: text,
@@ -470,8 +489,8 @@ class _RatingScatterViewState extends State<RatingScatterView>
     );
   }
 
-  /// "+N" chip tap (#462 review): zoom in around the cluster, far enough
-  /// that its members' columns stop overlapping, instead of opening the lead.
+  /// Zoom in around the cluster (#462 review; since #615 from the cluster
+  /// sheet), far enough that its members' columns stop overlapping.
   void _zoomIntoCluster(_ScatterCluster c) {
     final plot = _plotSize;
     final fit = _fitScale(plot);
@@ -504,6 +523,90 @@ class _RatingScatterViewState extends State<RatingScatterView>
       );
     _zoomTween = Matrix4Tween(begin: _transformController.value, end: end);
     _zoomAnimation.forward(from: 0);
+  }
+
+  /// "+N" chip tap (#615): a sheet listing everyone in the cluster (the lead
+  /// and the people behind the chip) with both scores; a row opens that
+  /// profile, and zooming into the cluster stays one tap away.
+  Future<void> _showClusterSheet(
+    BuildContext context,
+    _ScatterCluster c,
+    String myId,
+  ) {
+    final rating = context.read<RatingCubit>();
+    final members = [c.lead, ...c.hidden];
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final l10n = L10n.of(sheetContext)!;
+        final theme = Theme.of(sheetContext);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: TenturaSpacing.screenH,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.ratingScatterClusterSheetTitle(members.length),
+                        style: TenturaText.title(theme.colorScheme.onSurface),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        _zoomIntoCluster(c);
+                      },
+                      icon: const Icon(Icons.zoom_in),
+                      label: Text(l10n.ratingScatterClusterZoomIn),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final p in members)
+                        ListTile(
+                          leading: TenturaAvatar(
+                            profile: p,
+                            size: _avatarSize,
+                            withRating: true,
+                            isSelf: SelfUserHighlight.profileIsSelf(p, myId),
+                          ),
+                          title: Text(
+                            SelfUserHighlight.displayName(l10n, p, myId),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            l10n.ratingScatterClusterMemberScores(
+                              p.score.toStringAsFixed(0),
+                              p.rScore.toStringAsFixed(0),
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            rating.showProfile(p.id);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// Avatar + name column for a cluster lead, with a "+N" chip when others
@@ -552,7 +655,7 @@ class _RatingScatterViewState extends State<RatingScatterView>
                         excludeSemantics: true,
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: () => _zoomIntoCluster(c),
+                          onTap: () => _showClusterSheet(context, c, myId),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: TenturaSpacing.tight * 2,
@@ -761,9 +864,7 @@ class _ScatterBadgeLegend extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
-    final style = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
+    final style = TenturaText.bodySmall(theme.colorScheme.onSurfaceVariant);
     Widget item(Profile sample, String label) => MergeSemantics(
       child: Row(
         mainAxisSize: MainAxisSize.min,
