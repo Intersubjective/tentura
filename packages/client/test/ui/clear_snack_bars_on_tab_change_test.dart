@@ -47,6 +47,32 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
+  // #448: the request page's Now pane has its own messenger; a tab change
+  // left its bar up, so it could sit beside an app-wide bar.
+  testWidgets('a Home tab change also clears a pane messenger bar', (
+    tester,
+  ) async {
+    await _showPaneBar(tester);
+    final observer = _appObserver() as AutoRouterObserver;
+
+    observer.didChangeTabRoute(_tab(1), _tab(4));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('a push also clears a pane messenger bar', (tester) async {
+    await _showPaneBar(tester);
+
+    _appObserver().didPush(
+      MaterialPageRoute<void>(builder: (_) => const SizedBox()),
+      MaterialPageRoute<void>(builder: (_) => const SizedBox()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
   testWidgets('initial Home tab setup does not clear the visible bar', (
     tester,
   ) async {
@@ -94,4 +120,45 @@ Future<void> _showBar(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump();
   expect(find.byType(SnackBar), findsOneWidget);
+}
+
+/// Raises a bar on a pane-local messenger ([PaneScaffoldMessenger]), not on
+/// the app-wide [snackbarKey].
+Future<void> _showPaneBar(WidgetTester tester) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: TenturaTheme.light(),
+      scaffoldMessengerKey: snackbarKey,
+      home: Scaffold(
+        body: Row(
+          children: [
+            const Expanded(child: SizedBox()),
+            SizedBox(
+              width: 300,
+              child: PaneScaffoldMessenger(
+                child: Scaffold(
+                  body: Builder(
+                    builder: (context) => Center(
+                      child: ElevatedButton(
+                        onPressed: () => ScaffoldMessenger.of(context)
+                            .showSnackBar(
+                              const SnackBar(content: Text('Plan saved')),
+                            ),
+                        child: const Text('Show'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Show'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+  await tester.pump();
+  expect(find.text('Plan saved'), findsOneWidget);
 }
