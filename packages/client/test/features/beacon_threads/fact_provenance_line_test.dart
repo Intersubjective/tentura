@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// Any compact relative-time token (`3d`, `2h ago`, `5m`) or "Just now".
 final _anyTime = RegExp(r'\d+\s*[mhd]\b|just now', caseSensitive: false);
@@ -82,9 +83,19 @@ void _collectLeaves(
 }
 
 void main() {
-  final now = DateTime.now();
-  final threeDaysAgo = now.subtract(const Duration(days: 3));
+  // Pin the reported fall-back evening; elapsed 72h lands on another date.
+  final now = DateTime(2026, 10, 25, 23, 36);
+  final threeDaysAgo = DateTime(
+    now.year,
+    now.month,
+    now.day - 3,
+    now.hour,
+    now.minute,
+  );
   final twoHoursAgo = now.subtract(const Duration(hours: 2));
+
+  setUp(() => RelativeTimestampTicker.debugClock = () => now);
+  tearDown(() => RelativeTimestampTicker.debugClock = null);
 
   testWidgets('never edited: pinner name and pin time', (tester) async {
     await tester.pumpWidget(_harness(_fact(createdAt: threeDaysAgo)));

@@ -7,6 +7,10 @@ import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
+
+// Match the reported fall-back evening, independently of the machine clock.
+final _now = DateTime(2026, 10, 25, 23, 36);
 
 BeaconFactCard _fact({int revisionSeq = 1}) => BeaconFactCard(
   id: 'f1',
@@ -15,7 +19,14 @@ BeaconFactCard _fact({int revisionSeq = 1}) => BeaconFactCard(
   visibility: BeaconFactCardVisibilityBits.public,
   pinnedBy: 'Uanna',
   pinnedByTitle: 'Anna',
-  createdAt: DateTime.now().subtract(const Duration(days: 3)),
+  // The label counts calendar days, rather than elapsed 24-hour periods.
+  createdAt: DateTime(
+    _now.year,
+    _now.month,
+    _now.day - 3,
+    _now.hour,
+    _now.minute,
+  ),
   status: revisionSeq > 1
       ? BeaconFactCardStatusBits.corrected
       : BeaconFactCardStatusBits.active,
@@ -23,7 +34,7 @@ BeaconFactCard _fact({int revisionSeq = 1}) => BeaconFactCard(
   lastEditedBy: revisionSeq > 1 ? 'Uanna' : null,
   lastEditedByTitle: revisionSeq > 1 ? 'Anna' : '',
   lastEditedAt: revisionSeq > 1
-      ? DateTime.now().subtract(const Duration(hours: 2))
+      ? _now.subtract(const Duration(hours: 2))
       : null,
 );
 
@@ -51,13 +62,15 @@ Future<void> _openSheet(
                 ctx,
                 fact: fact,
                 canMutate: canMutate,
-                onCorrect: ({
-                  required factCardId,
-                  required newText,
-                  String? attachmentsJson,
-                }) async {},
+                onCorrect:
+                    ({
+                      required factCardId,
+                      required newText,
+                      String? attachmentsJson,
+                    }) async {},
                 onRemove: ({required factCardId}) async {},
-                onSetVisibility: ({required factCardId, required visibility}) async {},
+                onSetVisibility:
+                    ({required factCardId, required visibility}) async {},
                 onEditHistory: onEditHistory ?? (_) {},
                 onQuoteInChat: onQuoteInChat ?? (_) {},
               ),
@@ -73,6 +86,9 @@ Future<void> _openSheet(
 }
 
 void main() {
+  setUp(() => RelativeTimestampTicker.debugClock = () => _now);
+  tearDown(() => RelativeTimestampTicker.debugClock = null);
+
   testWidgets('header shows the full provenance line naming the pinner', (
     tester,
   ) async {
