@@ -316,11 +316,14 @@ final class ForwardCase extends UseCaseBase {
     if (inv.withdrawnIds.contains(userId)) {
       return CandidateInvolvement.withdrawn;
     }
+    // A recipient who dismissed the request shows as declined even when the
+    // viewer forwarded it to them (#730).
+    if (inv.rejectedIds.contains(userId) ||
+        (inv.myForwardedRecipientRejected[userId] ?? false)) {
+      return CandidateInvolvement.declined;
+    }
     if (inv.myForwardedRecipientNotes.containsKey(userId)) {
       return CandidateInvolvement.forwardedByMe;
-    }
-    if (inv.rejectedIds.contains(userId)) {
-      return CandidateInvolvement.declined;
     }
     if (inv.onwardForwarderIds.contains(userId)) {
       return CandidateInvolvement.forwarded;
