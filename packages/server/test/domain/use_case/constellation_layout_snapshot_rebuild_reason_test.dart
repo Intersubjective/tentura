@@ -96,4 +96,11 @@ class _RecordingRepository
     required String snapshotId,
     required String clientOpId,
   }) => throw UnimplementedError();
+
+  @override
+  Future<void> restoreFavourite({
+    required String viewerId,
+    required String snapshotId,
+    required String clientOpId,
+  }) => throw UnimplementedError();
 }

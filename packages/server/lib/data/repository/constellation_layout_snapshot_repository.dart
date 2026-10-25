@@ -120,9 +120,7 @@ RETURNING 1
 /// the viewer's batch lock, idempotent by `(viewerId, clientOpId)`.
 @LazySingleton(as: ConstellationLayoutSnapshotRepositoryPort)
 class ConstellationLayoutSnapshotRepository
-    implements
-        ConstellationLayoutSnapshotRepositoryPort,
-        ConstellationLayoutFavouriteRepositoryPort {
+    implements ConstellationLayoutSnapshotRepositoryPort {
   const ConstellationLayoutSnapshotRepository(this._db);
 
   final TenturaDb _db;

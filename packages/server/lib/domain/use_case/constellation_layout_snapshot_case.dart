@@ -62,12 +62,11 @@ final class ConstellationLayoutSnapshotCase extends UseCaseBase {
     required String clientOpId,
   }) {
     _checkOpId(clientOpId);
-    return (_repository as ConstellationLayoutFavouriteRepositoryPort)
-        .restoreFavourite(
-          viewerId: viewerId,
-          snapshotId: snapshotId,
-          clientOpId: clientOpId,
-        );
+    return _repository.restoreFavourite(
+      viewerId: viewerId,
+      snapshotId: snapshotId,
+      clientOpId: clientOpId,
+    );
   }
 
   void _checkOpId(String clientOpId) {

@@ -8,7 +8,7 @@ part of '_migrations.dart';
 /// is private to its viewer and reachable only through the V2 API, so Hasura
 /// never tracks the table.
 final m0265 = Migration('0265', [
-  r'''
+  '''
 CREATE TABLE public.constellation_layout_snapshot (
     id text NOT NULL,
     viewer_id text NOT NULL,

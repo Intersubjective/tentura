@@ -156,9 +156,7 @@ mutation($op: String!) {
 }
 
 class _RecordingRepository
-    implements
-        ConstellationLayoutSnapshotRepositoryPort,
-        ConstellationLayoutFavouriteRepositoryPort {
+    implements ConstellationLayoutSnapshotRepositoryPort {
   List<ConstellationLayoutSnapshotAnchor> anchors = const [];
   (String, String, String)? favouriteRestored;
 
