@@ -28,6 +28,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_location_actions.dart';
 import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/utils/snack_bar_clearance.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 
@@ -124,11 +125,16 @@ class BeaconShowcaseSurface extends StatelessWidget {
                 ),
               ),
             ),
-            _ShowcaseBottomPanel(
-              state: state,
-              beaconViewCubit: beaconViewCubit,
-              screenCubit: screenCubit,
-              isPreview: isPreview,
+            // Notice bars (e.g. «Help offered! Forward it to someone?»)
+            // float above this panel instead of covering Offer help /
+            // Forward (#406, #605).
+            SnackBarClearance(
+              child: _ShowcaseBottomPanel(
+                state: state,
+                beaconViewCubit: beaconViewCubit,
+                screenCubit: screenCubit,
+                isPreview: isPreview,
+              ),
             ),
           ],
         );
