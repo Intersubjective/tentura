@@ -539,6 +539,93 @@ UpdatesFeedRowCopy? planReceiptDisplayCopy({
   );
 }
 
+/// Author-invite answers and the invitee's own invitation (#736): the
+/// server titles the row with the person's name only, so the event comes
+/// from the locale. The body is the person's note, else the Request title.
+/// The name is [actorName] when the caller knows the person, else the
+/// receipt [title]. Null for any other receipt.
+UpdatesFeedRowCopy? authorInviteReceiptDisplayCopy({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
+  final kind = switch (type) {
+    'authorInviteReceived' || 'author_invite_received' => 'received',
+    'authorInviteAccepted' || 'author_invite_accepted' => 'accepted',
+    'authorInviteDeclined' || 'author_invite_declined' => 'declined',
+    _ => null,
+  };
+  if (kind == null) return null;
+  final request = beaconTitleFromPresentationPayload(presentationPayloadJson);
+  final t = title.trim();
+  final name =
+      _nonBlank(actorName) ??
+      (t.isEmpty || t == request || _isServerCannedTitle(t) ? null : t);
+  final headline = switch (kind) {
+    'received' =>
+      name == null
+          ? l10n.updatesAuthorInviteReceived
+          : l10n.attentionCardInviteReceived(name),
+    'accepted' =>
+      name == null
+          ? l10n.updatesFallbackTitleInviteAccepted
+          : l10n.attentionCardInviteAccepted(name),
+    _ =>
+      name == null
+          ? l10n.updatesFallbackTitleForwardDeclined
+          : l10n.attentionCardInviteDeclined(name),
+  };
+  final note = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  final words = note == request ? '' : note;
+  return UpdatesFeedRowCopy(
+    headline: headline,
+    body: request == null
+        ? words
+        : words.isEmpty
+        ? request
+        : l10n.updatesRequestNoteBody(request, words),
+  );
+}
+
+/// Closure receipts and the quiet-request nudge (#700): the server writes
+/// fixed English copy («Request closed», «The results are in.»), so both
+/// lines come from the locale by event. Null for any other receipt.
+UpdatesFeedRowCopy? closureReceiptDisplayCopy({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
+  return switch (type) {
+    'closureOpened' ||
+    'closure_opened' ||
+    'closure_opened_bookmark_only' => UpdatesFeedRowCopy(
+      headline: l10n.updatesClosureOpenedTitle,
+      body: l10n.updatesClosureOpenedBody,
+    ),
+    'closureDraftReminder' || 'closure_draft_reminder' => UpdatesFeedRowCopy(
+      headline: l10n.updatesClosureDraftReminderTitle,
+      body: l10n.updatesClosureDraftReminderBody,
+    ),
+    'closureFinalized' || 'closure_finalized' => UpdatesFeedRowCopy(
+      headline: l10n.updatesClosureFinalizedTitle,
+      body: l10n.updatesClosureFinalizedBody,
+    ),
+    'closureCancelled' || 'closure_cancelled' => UpdatesFeedRowCopy(
+      headline: l10n.updatesClosureCancelledTitle,
+      body: l10n.updatesClosureCancelledBody,
+    ),
+    'requestStale' || 'request_stale' => UpdatesFeedRowCopy(
+      headline: l10n.updatesRequestStaleTitle,
+      body: l10n.updatesRequestStaleBody,
+    ),
+    _ => null,
+  };
+}
+
 /// Maps server title/body + payload into a non-duplicating two-line row.
 UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   required String title,
@@ -558,6 +645,28 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     actorName: actorName,
   );
   if (baton != null) return baton;
+  final eventCopy =
+      authorInviteReceiptDisplayCopy(
+        title: title,
+        presentationKey: presentationKey,
+        presentationPayloadJson: presentationPayloadJson,
+        l10n: l10n,
+        actorName: actorName,
+      ) ??
+      closureReceiptDisplayCopy(
+        presentationKey: presentationKey,
+        presentationPayloadJson: presentationPayloadJson,
+        l10n: l10n,
+      );
+  if (eventCopy != null) {
+    final override = headlineOverride?.trim();
+    return UpdatesFeedRowCopy(
+      headline: override != null && override.isNotEmpty
+          ? override
+          : eventCopy.headline,
+      body: eventCopy.body,
+    );
+  }
   final whoDidWhatRequestTitle = beaconTitleFromPresentationPayload(
     presentationPayloadJson,
   );
@@ -842,6 +951,29 @@ RequestScopedEventCopy requestScopedEventCopy({
   );
   if (plan != null) {
     return RequestScopedEventCopy(event: plan.headline, excerpt: plan.body);
+  }
+  final invite = authorInviteReceiptDisplayCopy(
+    title: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    actorName: actorName,
+  );
+  if (invite != null) {
+    // The header already names the Request; only the person's note stays.
+    final note = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+    return RequestScopedEventCopy(
+      event: invite.headline,
+      excerpt: requestTitles.contains(note) ? '' : note,
+    );
+  }
+  final closure = closureReceiptDisplayCopy(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+  );
+  if (closure != null) {
+    return RequestScopedEventCopy(event: closure.headline, excerpt: '');
   }
   if (isQuestionsMessageReceipt(
     presentationKey: presentationKey,

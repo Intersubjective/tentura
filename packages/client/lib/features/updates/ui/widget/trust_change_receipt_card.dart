@@ -14,6 +14,7 @@ class TrustChangeReceiptCard extends StatelessWidget {
     required this.onMarkUnseen,
     this.onSettle,
     this.actor,
+    this.unreadView = false,
     super.key,
   });
 
@@ -24,6 +25,9 @@ class TrustChangeReceiptCard extends StatelessWidget {
   final VoidCallback? onSettle;
   final Profile? actor;
 
+  /// Passed to [UpdatesFeedTile.unreadView] (#736).
+  final bool unreadView;
+
   @override
   Widget build(BuildContext context) => UpdatesFeedTile(
     receipt: receipt,
@@ -32,5 +36,6 @@ class TrustChangeReceiptCard extends StatelessWidget {
     onMarkSeen: onMarkSeen,
     onMarkUnseen: onMarkUnseen,
     onSettle: onSettle,
+    unreadView: unreadView,
   );
 }
