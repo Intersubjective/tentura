@@ -214,11 +214,20 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         restoredDraftBeaconId: state.draftId,
       );
       if (isClosed) return;
+      final seed = session.descriptionSeed;
+      // A one-line source message also gives the title, cut by the same rule
+      // as a Post bud (#735); the message stays the description as before,
+      // and a longer message gives no title.
+      final prefill =
+          seed != null && !seed.trim().contains('\n') && state.title.isEmpty
+          ? MessagePrefillCase.fromText(seed)
+          : null;
       emit(
         state.copyWith(
           clientCommandId: session.clientCommandId,
           promotionSource: session.promotionSource,
-          description: session.descriptionSeed ?? state.description,
+          title: prefill?.title ?? state.title,
+          description: seed ?? state.description,
           status: const StateIsSuccess(),
         ),
       );
