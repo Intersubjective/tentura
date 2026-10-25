@@ -26,6 +26,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
@@ -85,6 +86,45 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName}');
+}
+
+class _SignedInAuthLocal extends EmptyAuthLocal {
+  @override
+  Stream<String> currentAccountChanges() => Stream.value('account-1');
+}
+
+/// One pending people invite and one pending invite to a request.
+class _PendingInvitesRepository extends _FakeInvitationRepository {
+  static final _at = DateTime.utc(2026, 10, 20, 12);
+
+  static final pending = [
+    InvitationEntity(
+      id: 'I0000000000a',
+      createdAt: _at,
+      updatedAt: _at,
+      addresseeName: 'Ann',
+    ),
+    InvitationEntity(
+      id: 'I0000000000b',
+      createdAt: _at.add(const Duration(minutes: 1)),
+      updatedAt: _at.add(const Duration(minutes: 1)),
+      addresseeName: 'Bob',
+      beaconId: 'B000000000001',
+      beaconTitle: 'Move on Saturday',
+    ),
+  ];
+
+  @override
+  Future<InvitationsFetchResult> fetchMine({
+    int pendingOffset = 0,
+    int pendingLimit = 0,
+    int acceptedOffset = 0,
+    int acceptedLimit = 0,
+  }) async => (
+    pending: pendingOffset == 0 ? pending : <InvitationEntity>[],
+    accepted: <InvitationEntity>[],
+    pendingCount: pending.length,
+  );
 }
 
 Future<void> _pumpFriendsAppBarActions(
@@ -393,11 +433,146 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.fling(find.byType(TabBarView), const Offset(-400, 0), 1000);
+        await tester.fling(
+          find.byType(TabBarView),
+          const Offset(-400, 0),
+          1000,
+        );
         await tester.pumpAndSettle();
 
         expect(find.text(entry.value), findsOneWidget);
       });
     }
+  });
+
+  // #605 (from #452): re-opening a pending invite to a request from the
+  // Invitations tab titled the share dialog «Invitation code», as for a plain
+  // people invite.
+  group('FriendsScreen re-opened invite', () {
+    late FakeUiEffectPort effects;
+    late ScreenCubit screenCubit;
+    late ContactsCase contactsCase;
+    late TestRealtimeSyncPort realtimePort;
+
+    setUp(() {
+      effects = FakeUiEffectPort();
+      screenCubit = ScreenCubit.local(effects);
+      final authCase = buildTestAuthCase(
+        _SignedInAuthLocal(),
+        EmptyAuthRemote(),
+      );
+      final realtime = buildTestRealtimeSync();
+      realtimePort = realtime.port;
+      contactsCase = ContactsCase(
+        FakeContactsRepository(),
+        authCase,
+        ContactNameStore(),
+        realtime.case_,
+        env: const Env(),
+        logger: Logger('test'),
+      );
+      GetIt.I
+        ..registerSingleton<FriendsCubit>(_MockFriendsCubit())
+        ..registerSingleton<AuthCase>(authCase)
+        ..registerSingleton<InvitationRepository>(_PendingInvitesRepository())
+        ..registerSingleton<FriendsCase>(
+          FriendsCase(
+            _FakeCapabilityRepository(),
+            _FakeInvitationRepository(),
+            _FakeLikeRemoteRepository(),
+            _FakeFriendsRemoteRepository(),
+            _FakePresenceRepository(),
+            contactsCase,
+            authCase,
+            realtime.case_,
+            FakeBlockCase(),
+            env: const Env(),
+            logger: Logger('test'),
+          ),
+        )
+        ..registerSingleton<UiEffectPort>(effects);
+    });
+
+    tearDown(() async {
+      await screenCubit.close();
+      await GetIt.I.reset();
+      await contactsCase.dispose();
+      await realtimePort.dispose();
+    });
+
+    Future<void> openInvite(
+      WidgetTester tester, {
+      required String name,
+      Locale locale = const Locale('en'),
+    }) async {
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          locale: locale,
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ScreenCubit>.value(value: screenCubit),
+              BlocProvider<ProfileCubit>.value(
+                value: _MockProfileCubit(
+                  const Profile(id: 'account-1', displayName: 'Me'),
+                ),
+              ),
+            ],
+            child: const FriendsScreen(initialTab: kHomeTabInvitations),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Precondition: both pending invites are listed.
+      expect(find.text('Ann'), findsOneWidget);
+      expect(find.text('Bob'), findsOneWidget);
+
+      await tester.tap(find.text(name));
+      await tester.pumpAndSettle();
+      expect(find.byType(ShareCodeDialog), findsOneWidget);
+    }
+
+    Finder dialogText(String text) => find.descendant(
+      of: find.byType(ShareCodeDialog),
+      matching: find.text(text),
+    );
+
+    for (final (locale, header, plainHeader) in [
+      (const Locale('en'), 'Request invite', 'Invitation code'),
+      (const Locale('ru'), 'Приглашение к запросу', 'Код приглашения'),
+    ]) {
+      testWidgets(
+        'a request invite re-opens with the request header '
+        '(${locale.languageCode})',
+        (tester) async {
+          await openInvite(tester, name: 'Bob', locale: locale);
+
+          expect(dialogText(header), findsOneWidget);
+          expect(dialogText(plainHeader), findsNothing);
+          expect(
+            find.descendant(
+              of: find.byType(ShareCodeDialog),
+              matching: find.textContaining('I0000000000b'),
+            ),
+            findsOneWidget,
+          );
+        },
+      );
+    }
+
+    testWidgets('a people invite still re-opens as Invitation code', (
+      tester,
+    ) async {
+      await openInvite(tester, name: 'Ann');
+
+      expect(dialogText('Invitation code'), findsOneWidget);
+      expect(dialogText('Request invite'), findsNothing);
+    });
   });
 }
