@@ -1,3 +1,7 @@
+// Inserting 1000+ Request members fires per-row triggers; on a loaded CI
+// runner that alone passed the default 30 s, and the timed-out statement then
+// deadlocked the next test's TRUNCATE.
+@Timeout(Duration(minutes: 3))
 @Tags(['pg'])
 library;
 

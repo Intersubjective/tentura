@@ -1,3 +1,6 @@
+@Tags(['repo-files'])
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -100,7 +103,8 @@ void main() {
     test('the manifest maps wire kind person_tag to the personTag client kind, '
         'its server publisher, an impact and the parse evidence', () {
       final contract =
-          jsonDecode(_contractFile().readAsStringSync()) as Map<String, dynamic>;
+          jsonDecode(_contractFile().readAsStringSync())
+              as Map<String, dynamic>;
       final entry = (contract['kinds']! as List)
           .cast<Map<String, dynamic>>()
           .singleWhere(
