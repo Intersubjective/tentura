@@ -51,6 +51,7 @@ import 'constellation_drag_ring_overlay.dart';
 import 'constellation_composer_sheet.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
+import 'constellation_minimap.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
@@ -145,6 +146,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // The screen's single zoom-level owner, shared with the viewport overlay.
   late final ConstellationZoomLevelController _zoom;
   ConstellationZoomLevelController? _ownZoom;
+  // Outlives the minimap widget, which leaves at the close level.
+  final _minimapExpanded = ValueNotifier<bool>(true);
   int _pointersDown = 0;
   ConstellationDetailLevel get _detail => _zoom.value;
 
@@ -187,6 +190,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
+    _minimapExpanded.dispose();
     _reveal.dispose();
     _edgeStrokeScale.dispose();
     _mapFocus.dispose();
@@ -1752,6 +1756,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
             ),
           ),
         ),
+        if (_detail != ConstellationDetailLevel.close &&
+            !(panelVisible && context.windowClass == WindowClass.compact))
+          Positioned(
+            right: cameraRightInset,
+            bottom: 0,
+            child: SafeArea(
+              left: false,
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.all(tt.rowGap),
+                child: ConstellationMinimap(
+                  controller: cubit.graphController,
+                  expanded: _minimapExpanded,
+                ),
+              ),
+            ),
+          ),
         if (widget.legendExpanded && !state.isComposing)
           Positioned(
             left: 0,

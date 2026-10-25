@@ -11657,5 +11657,7 @@
         "type": "int"
       }
     }
-  }
+  },
+  "constellationMinimapShow": "Show minimap",
+  "constellationMinimapHide": "Hide minimap"
 }
