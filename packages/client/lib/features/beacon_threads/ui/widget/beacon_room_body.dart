@@ -1364,6 +1364,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 right: ctx.tt.screenHPadding,
                 top: ctx.tt.rowGap,
               ),
+              // Says what is being chosen (#737).
               child: Text(
                 l10n.beaconRoomPinFactTitle,
                 style: Theme.of(ctx).textTheme.titleMedium,
@@ -1394,6 +1395,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   ),
                 );
               },
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: ctx.tt.screenHPadding),
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(l10n.buttonCancel),
+                ),
+              ),
             ),
           ],
         ),

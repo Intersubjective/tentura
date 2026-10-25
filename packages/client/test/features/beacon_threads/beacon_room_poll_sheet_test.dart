@@ -1,6 +1,10 @@
 // The room's poll sheet keeps the draft when the server refuses the poll
 // (including the duplicate-options code 1346, shown localized), and each option
 // row keeps its own text when an option above it is removed.
+//
+// #737: the sheet had no Cancel or close button; the only exit was Escape.
+// #728: «Send poll» was enabled on an empty form and answered with the
+// app-wide error bar «Too short question».
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,13 +58,17 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   }
 }
 
-Future<void> _openSheet(WidgetTester tester, RoomCubit cubit) async {
+Future<void> _openSheet(
+  WidgetTester tester,
+  RoomCubit cubit, {
+  Locale locale = const Locale('en'),
+}) async {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       theme: TenturaTheme.light(),
@@ -133,6 +141,9 @@ void main() {
         // must still keep the draft and show the localized message.
         await tester.enterText(fields.at(1), 'Option A');
         await tester.enterText(fields.at(2), 'Option B');
+        // Send is enabled once the form has a question and two options
+        // (#728); let that rebuild land before tapping it.
+        await tester.pump();
         final send = find.widgetWithText(
           FilledButton,
           l10n.beaconRoomSendPollButton,
@@ -216,5 +227,139 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Poll options must be distinct'), findsWidgets);
+  });
+
+  group('#737 #728 close and send', () {
+    FilledButton sendButton(WidgetTester tester, L10n l10n) =>
+        tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, l10n.beaconRoomSendPollButton),
+        );
+
+    testWidgets('the close button closes an untouched sheet', (tester) async {
+      await _openSheet(tester, _MockRoomCubit(result: true));
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      expect(find.text(l10n.beaconRoomCreatePoll), findsOneWidget);
+
+      await tester.tap(find.byTooltip(l10n.buttonClose));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.beaconRoomCreatePoll), findsNothing);
+    });
+
+    testWidgets('Cancel closes an untouched sheet', (tester) async {
+      await _openSheet(tester, _MockRoomCubit(result: true));
+      final l10n = await L10n.delegate.load(const Locale('en'));
+
+      final cancel = find.widgetWithText(TextButton, l10n.buttonCancel);
+      await tester.ensureVisible(cancel);
+      await tester.tap(cancel);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.beaconRoomCreatePoll), findsNothing);
+    });
+
+    testWidgets('closing a started poll asks before discarding it', (
+      tester,
+    ) async {
+      await _openSheet(tester, _MockRoomCubit(result: true));
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      await tester.enterText(_field(0), 'When do we meet?');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip(l10n.buttonClose));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.composerDiscardTitle), findsOneWidget);
+      await tester.tap(find.text(l10n.composerDiscardKeepEditing));
+      await tester.pumpAndSettle();
+      expect(find.text('When do we meet?'), findsOneWidget);
+
+      await tester.tap(find.byTooltip(l10n.buttonClose));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.composerDiscardConfirm));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.beaconRoomCreatePoll), findsNothing);
+    });
+
+    testWidgets('Send poll waits for a question and two options', (
+      tester,
+    ) async {
+      final cubit = _MockRoomCubit(result: true);
+      await _openSheet(tester, cubit);
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      expect(sendButton(tester, l10n).onPressed, isNull);
+
+      await tester.enterText(_field(1), 'Monday');
+      await tester.enterText(_field(2), 'Tuesday');
+      await tester.pumpAndSettle();
+      expect(sendButton(tester, l10n).onPressed, isNull, reason: 'no question');
+
+      await tester.enterText(_field(0), 'When do we meet?');
+      await tester.enterText(_field(2), '  ');
+      await tester.pumpAndSettle();
+      expect(sendButton(tester, l10n).onPressed, isNull, reason: 'one option');
+
+      await tester.enterText(_field(2), 'Tuesday');
+      await tester.pumpAndSettle();
+      expect(sendButton(tester, l10n).onPressed, isNotNull);
+      expect(cubit.createPollCalls, 0);
+    });
+
+    // #784 review: the disabled Send poll gave no reason until a field was
+    // touched; a helper line says what is missing.
+    testWidgets('an empty form says what Send poll needs', (tester) async {
+      await _openSheet(tester, _MockRoomCubit(result: true));
+      expect(find.text('Add a question and two options'), findsOneWidget);
+
+      await tester.enterText(_field(0), 'When do we meet?');
+      await tester.enterText(_field(1), 'Monday');
+      await tester.pumpAndSettle();
+      expect(find.text('Add a question and two options'), findsOneWidget);
+
+      await tester.enterText(_field(2), 'Tuesday');
+      await tester.pumpAndSettle();
+      expect(find.text('Add a question and two options'), findsNothing);
+    });
+
+    testWidgets('ru: an empty form says what Send poll needs', (tester) async {
+      await _openSheet(
+        tester,
+        _MockRoomCubit(result: true),
+        locale: const Locale('ru'),
+      );
+      expect(
+        find.text('Добавьте вопрос и два варианта ответа'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a too short question is marked on the field, not in a '
+        'snack bar', (tester) async {
+      final cubit = _MockRoomCubit(result: true);
+      await _openSheet(tester, cubit);
+      final l10n = await L10n.delegate.load(const Locale('en'));
+
+      await tester.enterText(_field(0), 'When?');
+      await tester.enterText(_field(1), 'Monday');
+      await tester.enterText(_field(2), 'Tuesday');
+      await tester.pumpAndSettle();
+      final send = find.widgetWithText(
+        FilledButton,
+        l10n.beaconRoomSendPollButton,
+      );
+      await tester.ensureVisible(send);
+      await tester.tap(send);
+      await tester.pumpAndSettle();
+
+      expect(cubit.createPollCalls, 0);
+      expect(find.byType(SnackBar), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(TextFormField).first,
+          matching: find.text('Too short question'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 }

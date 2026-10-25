@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/polling.dart';
-import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
@@ -89,27 +90,26 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
     _variantKeys.removeAt(index);
   });
 
+  /// A question and at least two options are filled in (#728). Until then
+  /// Send stays disabled instead of answering with an error bar.
+  bool get _canSend =>
+      _question.trim().isNotEmpty &&
+      _variants.where((v) => v.trim().isNotEmpty).length >= 2;
+
+  Future<void> _requestClose() => TenturaSheetDismissGuard.requestClose(
+    context,
+    isDirty: _isDirty,
+    useRootNavigator: true,
+  );
+
   Future<void> _send() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    // Too short a question or option is marked on its own field (#728).
+    if (!_canSend || !(_formKey.currentState?.validate() ?? false)) return;
     final q = _question.trim();
     final vs = _variants
         .map((v) => v.trim())
         .where((v) => v.isNotEmpty)
         .toList();
-    PollingInputExceptions? invalid;
-    if (q.isEmpty) {
-      invalid = const PollingQuestionTooShortException();
-    } else if (vs.length < 2) {
-      invalid = const PollingTooFewVariantsException();
-    }
-    if (invalid != null) {
-      showSnackBar(
-        context,
-        isError: true,
-        text: invalid.toL10n(L10n.of(context)!.localeName),
-      );
-      return;
-    }
 
     setState(() => _sending = true);
     try {
@@ -164,9 +164,21 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  l10n.beaconRoomCreatePoll,
-                  style: theme.textTheme.titleMedium,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.beaconRoomCreatePoll,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    // Same discard check as the scrim and Escape (#737).
+                    IconButton(
+                      tooltip: l10n.buttonClose,
+                      onPressed: () => unawaited(_requestClose()),
+                      icon: Icon(Icons.close, size: tt.iconSize),
+                    ),
+                  ],
                 ),
                 SizedBox(height: tt.sectionGap),
                 PollingQuestionInput(
@@ -248,9 +260,23 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                 ),
 
                 SizedBox(height: tt.rowGap),
-                FilledButton(
-                  onPressed: _sending ? null : _send,
-                  child: Text(l10n.beaconRoomSendPollButton),
+                // Says why Send poll is disabled before any field is touched
+                // (#728), as the recipients step does (#720).
+                if (!_canSend) ...[
+                  Text(
+                    l10n.beaconRoomPollSendHint,
+                    textAlign: TextAlign.center,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
+                  SizedBox(height: tt.rowGap / 2),
+                ],
+                TenturaSheetActions(
+                  cancelLabel: l10n.buttonCancel,
+                  onCancel: () => unawaited(_requestClose()),
+                  primaryLabel: l10n.beaconRoomSendPollButton,
+                  onPrimary: _sending || !_canSend
+                      ? null
+                      : () => unawaited(_send()),
                 ),
               ],
             ),
