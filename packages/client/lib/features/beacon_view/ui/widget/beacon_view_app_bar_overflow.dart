@@ -12,6 +12,7 @@ import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
@@ -31,6 +32,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
 import 'beacon_hud_author_confirm_sheets.dart';
+import 'beacon_view_constants.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
 
@@ -318,6 +320,59 @@ Widget beaconViewAppBarOverflow({
   /// and the discussion pane, so it carries both action sets.
   bool combineSplitPanes = false,
 }) {
+  Widget menu({VoidCallback? onAddPlan}) => _beaconViewAppBarOverflowMenu(
+    context: context,
+    state: state,
+    cubit: cubit,
+    screenCubit: screenCubit,
+    l10n: l10n,
+    onAuthorManageStatus: onAuthorManageStatus,
+    onActivityLog: onActivityLog,
+    inRoomSurface: inRoomSurface,
+    onItemsTabRefresh: onItemsTabRefresh,
+    roomCubit: roomCubit,
+    onPreviewAsOthers: onPreviewAsOthers,
+    combineSplitPanes: combineSplitPanes,
+    onAddPlan: onAddPlan,
+  );
+
+  // #546: a Request without a plan step has no Plan tab; an editor of the
+  // plan (author / steward) starts one here, in the plan editor.
+  final planCubit = context.read<PlanCubit?>();
+  final pages = BeaconPlanPageScope.maybeOf(context);
+  final showsManagement = !inRoomSurface || combineSplitPanes;
+  if (planCubit == null || pages == null || !showsManagement) return menu();
+  bool canAddPlan(PlanState s) {
+    final plan = s.plan;
+    return plan != null && plan.editable && !beaconPlanHasSteps(plan);
+  }
+
+  return BlocBuilder<PlanCubit, PlanState>(
+    bloc: planCubit,
+    buildWhen: (p, c) => canAddPlan(p) != canAddPlan(c),
+    builder: (context, planState) => menu(
+      onAddPlan: canAddPlan(planState)
+          ? () => pages.open(BeaconPlanPage.edit)
+          : null,
+    ),
+  );
+}
+
+Widget _beaconViewAppBarOverflowMenu({
+  required BuildContext context,
+  required BeaconViewState state,
+  required BeaconViewCubit cubit,
+  required ScreenCubit screenCubit,
+  required L10n l10n,
+  required Future<void> Function() onAuthorManageStatus,
+  required VoidCallback onActivityLog,
+  required bool inRoomSurface,
+  required VoidCallback onItemsTabRefresh,
+  required RoomCubit? roomCubit,
+  required VoidCallback? onPreviewAsOthers,
+  required bool combineSplitPanes,
+  required VoidCallback? onAddPlan,
+}) {
   final b = state.beacon;
   final beaconId = b.id;
   // The Request's plan (#220), loaded only for a viewer inside it; offers
@@ -384,6 +439,7 @@ Widget beaconViewAppBarOverflow({
           : null,
       onCreatePromise: onCreatePromise,
       onUpdatePlan: onUpdatePlan,
+      onAddPlan: onAddPlan,
       onForward: onForward,
       onDelete: showBeaconManagementOverflow
           ? () async {
@@ -422,6 +478,7 @@ Widget beaconViewAppBarOverflow({
     onActivityLog: onActivityLog,
     onCreatePromise: onCreatePromise,
     onUpdatePlan: onUpdatePlan,
+    onAddPlan: onAddPlan,
     onForward: onForward,
     onOfferHelp:
         !hideOfferHelpWithdraw &&

@@ -12,6 +12,9 @@ import 'package:tentura/ui/test_ids.dart';
 import 'beacon_view_constants.dart';
 
 /// Surface tab row for the request detail screen (NOW / CHAT / People).
+///
+/// The Plan tab shows only once the Request's plan has a step (#546), or
+/// while [selectedSurface] is the plan (the host leaves an empty one).
 class BeaconSurfaceTabs extends StatelessWidget {
   const BeaconSurfaceTabs({
     required this.isSplit,
@@ -70,14 +73,6 @@ class BeaconSurfaceTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final visible = beaconVisibleSurfaces(isSplit: isSplit);
-
-    var selectedIndex = visible.indexOf(selectedSurface);
-    if (selectedIndex < 0) {
-      selectedIndex = visible.indexOf(BeaconSurface.now);
-    }
-
-    final peopleIndex = visible.indexOf(BeaconSurface.people);
 
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
       buildWhen: (p, c) =>
@@ -106,7 +101,17 @@ class BeaconSurfaceTabs extends StatelessWidget {
                 ? threadsState.threadsTabUnreadCount
                 : null;
 
-            Widget tabs(BeaconPlanTabBadge plan) {
+            Widget tabs(BeaconPlanTabBadge plan, {required bool hasPlan}) {
+              final visible = beaconVisibleSurfaces(
+                isSplit: isSplit,
+                hasPlan: hasPlan || selectedSurface == BeaconSurface.plan,
+              );
+              var selectedIndex = visible.indexOf(selectedSurface);
+              if (selectedIndex < 0) {
+                selectedIndex = visible.indexOf(BeaconSurface.now);
+              }
+              final peopleIndex = visible.indexOf(BeaconSurface.people);
+
               final badges = visible.map((surface) {
                 return switch (surface) {
                   BeaconSurface.room => threadsTabBadge,
@@ -149,12 +154,10 @@ class BeaconSurfaceTabs extends StatelessWidget {
 
             // The Request plan (#220) from the host: the Plan tab shows the
             // viewer's overdue count (danger) or a dot for a current step /
-            // changes to confirm.
+            // changes to confirm. No plan step: no Plan tab (#546).
             final planCubit = context.read<PlanCubit?>();
-            if (planCubit == null ||
-                !visible.contains(BeaconSurface.plan) ||
-                beaconState.isRoomAdmissionBlocked) {
-              return tabs(BeaconPlanTabBadge.none);
+            if (planCubit == null || beaconState.isRoomAdmissionBlocked) {
+              return tabs(BeaconPlanTabBadge.none, hasPlan: false);
             }
             return BlocBuilder<PlanCubit, PlanState>(
               bloc: planCubit,
@@ -163,6 +166,7 @@ class BeaconSurfaceTabs extends StatelessWidget {
                 clock: clock,
                 builder: (context, now) => tabs(
                   BeaconPlanTabBadge.of(planState, now),
+                  hasPlan: beaconPlanHasSteps(planState.plan),
                 ),
               ),
             );

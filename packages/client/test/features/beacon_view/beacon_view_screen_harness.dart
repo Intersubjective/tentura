@@ -48,6 +48,14 @@ final kBeaconViewHarnessSeenAt = DateTime.utc(2026, 8, 14, 10);
 const kBeaconViewHarnessCompact = Size(390, 844);
 const kBeaconViewHarnessExpanded = Size(1280, 900);
 
+/// A Request plan with one untimed step: the Plan tab shows (#546).
+const kBeaconViewHarnessOneStepPlan = BeaconPlan(
+  beaconId: kBeaconViewHarnessBeaconId,
+  editable: true,
+  tickable: true,
+  steps: [PlanStep(id: 'PS-harness-1', index: 1, title: 'Harness step')],
+);
+
 class BeaconViewHarnessRouter extends Mock implements RootStackRouter {
   int pushCount = 0;
   int popCount = 0;
@@ -105,8 +113,7 @@ class BeaconViewHarnessRouter extends Mock implements RootStackRouter {
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      false;
+  }) => false;
 }
 
 class BeaconViewHarness {
@@ -303,51 +310,49 @@ class BeaconViewResizableMediaQueryState
 BeaconViewState beaconViewHarnessAuthorState({
   String beaconId = kBeaconViewHarnessBeaconId,
   String authorId = kBeaconViewHarnessAuthorId,
-}) =>
-    BeaconViewState(
-      beacon: Beacon(
-        id: beaconId,
-        title: 'Harness request',
-        author: Profile(id: authorId, displayName: 'Author'),
-        createdAt: kBeaconViewHarnessNow,
-        updatedAt: kBeaconViewHarnessNow,
-      ),
-      myProfile: Profile(id: authorId, displayName: 'Author'),
-      beaconContentLoaded: true,
-      roomParticipantsLoaded: true,
-      roomParticipants: [
-        BeaconParticipant(
-          id: 'p-author',
-          beaconId: beaconId,
-          userId: authorId,
-          role: 0,
-          status: 0,
-          roomAccess: RoomAccessBits.admitted,
-          createdAt: kBeaconViewHarnessNow,
-          updatedAt: kBeaconViewHarnessNow,
-        ),
-      ],
-    );
+}) => BeaconViewState(
+  beacon: Beacon(
+    id: beaconId,
+    title: 'Harness request',
+    author: Profile(id: authorId, displayName: 'Author'),
+    createdAt: kBeaconViewHarnessNow,
+    updatedAt: kBeaconViewHarnessNow,
+  ),
+  myProfile: Profile(id: authorId, displayName: 'Author'),
+  beaconContentLoaded: true,
+  roomParticipantsLoaded: true,
+  roomParticipants: [
+    BeaconParticipant(
+      id: 'p-author',
+      beaconId: beaconId,
+      userId: authorId,
+      role: 0,
+      status: 0,
+      roomAccess: RoomAccessBits.admitted,
+      createdAt: kBeaconViewHarnessNow,
+      updatedAt: kBeaconViewHarnessNow,
+    ),
+  ],
+);
 
 ThreadsState beaconViewHarnessThreadsState({
   List<RequestThread>? threads,
   String authorId = kBeaconViewHarnessAuthorId,
-}) =>
-    ThreadsState(
-      threads:
-          threads ??
-          [
-            RequestThread(
-              threadId: RequestThread.generalId,
-              kind: RequestThreadKind.general,
-              unreadCount: 0,
-              lastSeenAt: kBeaconViewHarnessSeenAt,
-            ),
-          ],
-      resolvedUnreadByThreadId: const {},
-      myUserId: authorId,
-      status: const StateIsSuccess(),
-    );
+}) => ThreadsState(
+  threads:
+      threads ??
+      [
+        RequestThread(
+          threadId: RequestThread.generalId,
+          kind: RequestThreadKind.general,
+          unreadCount: 0,
+          lastSeenAt: kBeaconViewHarnessSeenAt,
+        ),
+      ],
+  resolvedUnreadByThreadId: const {},
+  myUserId: authorId,
+  status: const StateIsSuccess(),
+);
 
 ThreadHostCubit beaconViewHarnessHost({
   BeaconViewRoomCubitRecorder? recorder,
@@ -356,13 +361,13 @@ ThreadHostCubit beaconViewHarnessHost({
   final factoryRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   return ThreadHostCubit(
     beaconId: beaconId,
-    roomCubitFactory: ({
-      required String beaconId,
-      String? threadItemId,
-      DateTime? initialUnreadAnchorAt,
-      RoomCapabilities? capabilities,
-    }) =>
-        factoryRecorder.call(
+    roomCubitFactory:
+        ({
+          required String beaconId,
+          String? threadItemId,
+          DateTime? initialUnreadAnchorAt,
+          RoomCapabilities? capabilities,
+        }) => factoryRecorder.call(
           beaconId: beaconId,
           threadItemId: threadItemId,
           initialUnreadAnchorAt: initialUnreadAnchorAt,
@@ -451,6 +456,9 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   // Runs after the harness registered its GetIt fakes, before the pump: a
   // test swaps one of them for its own.
   FutureOr<void> Function()? afterGetItRegistered,
+  // The Request plan (#220) the host's PlanCubit serves; null: no PlanCubit
+  // (and so no Plan tab, #546). See [kBeaconViewHarnessOneStepPlan].
+  BeaconPlan? plan,
 }) async {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
@@ -465,6 +473,17 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
 
   await registerBeaconViewHarnessGetIt(profile: beaconState.myProfile);
   await afterGetItRegistered?.call();
+
+  PlanCubit? planCubit;
+  if (plan != null) {
+    final cubit = planCubit = PlanCubit(
+      beaconId: beaconState.beacon.id,
+      viewerId: beaconState.myProfile.id,
+      planCase: planCaseFor(FakeBeaconPlanRepository(plan)),
+    );
+    await tester.runAsync(cubit.load);
+    addTearDown(() => tester.runAsync(cubit.close));
+  }
 
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -494,6 +513,8 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
               BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
               BlocProvider<ThreadsCubit>.value(value: harnessThreadsCubit),
               BlocProvider<ThreadHostCubit>.value(value: harnessHost),
+              if (planCubit != null)
+                BlocProvider<PlanCubit>.value(value: planCubit),
               BlocProvider<BeaconHierarchyCubit>(
                 create: (_) => BeaconHierarchyCubit(
                   beaconId: beaconState.beacon.id,

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
+import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
@@ -22,6 +24,27 @@ class _StaticThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+class _StaticPlanCubit extends Cubit<PlanState> implements PlanCubit {
+  _StaticPlanCubit(super.initialState);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// The Request plan (#220) with one untimed step: the Plan tab shows.
+const _planWithStep = BeaconPlan(
+  beaconId: 'parent-1',
+  editable: true,
+  steps: [PlanStep(id: 'S1', index: 1, title: 'Bring boards')],
+);
+
+PlanState _planState(BeaconPlan? plan) => PlanState(
+  beaconId: 'parent-1',
+  viewerId: 'auth',
+  plan: plan,
+  status: const StateIsSuccess(),
+);
 
 class _StaticBeaconViewCubit extends Cubit<BeaconViewState>
     implements BeaconViewCubit {
@@ -91,6 +114,7 @@ Widget _harness({
   required double width,
   BeaconViewState? beaconState,
   ThreadsState? threadsState,
+  PlanState? planState,
 }) {
   final wc = windowClassForWidth(width);
   final baseTheme = TenturaTheme.light();
@@ -120,6 +144,9 @@ Widget _harness({
               value: _StaticThreadsCubit(
                 threadsState ?? _threadsState(unread: 5),
               ),
+            ),
+            BlocProvider<PlanCubit>.value(
+              value: _StaticPlanCubit(planState ?? _planState(_planWithStep)),
             ),
           ],
           child: SizedBox(width: width, child: child),
@@ -376,5 +403,98 @@ void main() {
     expect(peopleSemantics.label, contains('People'));
     expect(peopleSemantics.hasFlag(SemanticsFlag.isButton), isTrue);
     expect(peopleSemantics.hasFlag(SemanticsFlag.isSelected), isTrue);
+  });
+
+  group('#546: no Plan tab until the Request has a plan step', () {
+    Future<void> pumpTabs(
+      WidgetTester tester, {
+      required PlanState planState,
+      BeaconSurface selected = BeaconSurface.now,
+      bool isSplit = false,
+    }) async {
+      await tester.pumpWidget(
+        _harness(
+          width: 720,
+          planState: planState,
+          child: BeaconSurfaceTabs(
+            isSplit: isSplit,
+            selectedSurface: selected,
+            onSurfaceSelected: (_) {},
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    final planTab = find.byKey(TestIds.key(TestIds.beaconTabPlan));
+
+    testWidgets('no plan: no Plan tab, three tabs left', (tester) async {
+      await pumpTabs(tester, planState: _planState(null));
+
+      expect(planTab, findsNothing);
+      expect(find.text('Plan'), findsNothing);
+      final tabs = tester.widget<TenturaUnderlineTabs>(
+        find.byType(TenturaUnderlineTabs),
+      );
+      expect(tabs.tabs, hasLength(3));
+      expect(find.byKey(TestIds.key(TestIds.beaconTabNow)), findsOneWidget);
+      expect(find.byKey(TestIds.key(TestIds.beaconTabRoom)), findsOneWidget);
+      expect(find.byKey(TestIds.key(TestIds.beaconTabPeople)), findsOneWidget);
+    });
+
+    testWidgets('a plan with no steps (all removed): no Plan tab', (
+      tester,
+    ) async {
+      await pumpTabs(
+        tester,
+        planState: _planState(
+          const BeaconPlan(beaconId: 'parent-1', editable: true),
+        ),
+      );
+
+      expect(planTab, findsNothing);
+    });
+
+    testWidgets('split window without a plan: Now and People only', (
+      tester,
+    ) async {
+      await pumpTabs(tester, planState: _planState(null), isSplit: true);
+
+      final tabs = tester.widget<TenturaUnderlineTabs>(
+        find.byType(TenturaUnderlineTabs),
+      );
+      expect(tabs.tabs, hasLength(2));
+      expect(planTab, findsNothing);
+    });
+
+    testWidgets('a plan with a step: the Plan tab is back (guard)', (
+      tester,
+    ) async {
+      await pumpTabs(tester, planState: _planState(_planWithStep));
+
+      expect(planTab, findsOneWidget);
+    });
+
+    testWidgets('tapping People without a plan still emits People', (
+      tester,
+    ) async {
+      final selected = <BeaconSurface>[];
+      await tester.pumpWidget(
+        _harness(
+          width: 720,
+          planState: _planState(null),
+          child: BeaconSurfaceTabs(
+            isSplit: false,
+            selectedSurface: BeaconSurface.now,
+            onSurfaceSelected: selected.add,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
+      await tester.pump();
+      expect(selected, [BeaconSurface.people]);
+    });
   });
 }

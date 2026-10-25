@@ -136,6 +136,7 @@ void main() {
     testWidgets('PopScope.canPop is true on NOW', (tester) async {
       await pumpBeaconViewHarness(
         tester,
+        plan: kBeaconViewHarnessOneStepPlan,
         size: kBeaconViewHarnessCompact,
         beaconState: beaconViewHarnessAuthorState(),
         threadsState: beaconViewHarnessThreadsState(),
@@ -150,6 +151,7 @@ void main() {
       final router = BeaconViewHarnessRouter();
       await pumpBeaconViewHarness(
         tester,
+        plan: kBeaconViewHarnessOneStepPlan,
         size: kBeaconViewHarnessCompact,
         beaconState: beaconViewHarnessAuthorState(),
         threadsState: beaconViewHarnessThreadsState(),
@@ -176,6 +178,7 @@ void main() {
       final router = BeaconViewHarnessRouter();
       await pumpBeaconViewHarness(
         tester,
+        plan: kBeaconViewHarnessOneStepPlan,
         size: kBeaconViewHarnessCompact,
         beaconState: beaconViewHarnessAuthorState(),
         threadsState: beaconViewHarnessThreadsState(),
@@ -273,6 +276,7 @@ void main() {
 
         final harness = await pumpBeaconViewHarness(
           tester,
+          plan: kBeaconViewHarnessOneStepPlan,
           size: kBeaconViewHarnessExpanded,
           beaconState: beaconViewHarnessAuthorState(),
           threadsState: beaconViewHarnessThreadsState(threads: threads),
@@ -321,6 +325,7 @@ void main() {
       final recorder = BeaconViewRoomCubitRecorder();
       final harness = await pumpBeaconViewHarness(
         tester,
+        plan: kBeaconViewHarnessOneStepPlan,
         size: kBeaconViewHarnessCompact,
         beaconState: beaconViewHarnessAuthorState(),
         threadsState: beaconViewHarnessThreadsState(threads: threads),
@@ -352,6 +357,7 @@ void main() {
       final recorder = BeaconViewRoomCubitRecorder();
       final harness = await pumpBeaconViewHarness(
         tester,
+        plan: kBeaconViewHarnessOneStepPlan,
         size: kBeaconViewHarnessExpanded,
         beaconState: beaconViewHarnessAuthorState(),
         threadsState: beaconViewHarnessThreadsState(threads: threads),

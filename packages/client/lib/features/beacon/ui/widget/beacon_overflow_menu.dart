@@ -53,6 +53,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onCreateFrom,
     this.onCreatePromise,
     this.onUpdatePlan,
+    this.onAddPlan,
     this.onOfferHelp,
     this.onWithdraw,
     this.onForward,
@@ -83,6 +84,9 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onCreateFrom;
   final VoidCallback? onCreatePromise;
   final VoidCallback? onUpdatePlan;
+
+  /// Starts the Request plan (#546): opens the plan editor.
+  final VoidCallback? onAddPlan;
   final Future<void> Function()? onOfferHelp;
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
@@ -125,6 +129,7 @@ class BeaconOverflowMenu extends StatelessWidget {
               TestIds.beaconOverflowRequestStatus,
             ),
             'activity_log' => TestIds.key(TestIds.beaconOverflowActivity),
+            'add_plan' => TestIds.key(TestIds.beaconOverflowAddPlan),
             'forward' => TestIds.key(TestIds.beaconForward),
             _ => null,
           },
@@ -199,6 +204,13 @@ class BeaconOverflowMenu extends StatelessWidget {
         'update_plan',
         Icons.edit_note_outlined,
         l10n.beaconRoomActionUpdatePlan,
+      );
+    }
+    if (onAddPlan != null) {
+      add(
+        'add_plan',
+        Icons.checklist_outlined,
+        l10n.beaconOverflowAddPlan,
       );
     }
     if (onOfferHelp != null) {
@@ -299,6 +311,7 @@ class BeaconOverflowMenu extends StatelessWidget {
           ),
           'create_promise' => _deferSync(context, onCreatePromise),
           'update_plan' => _deferSync(context, onUpdatePlan),
+          'add_plan' => _deferSync(context, onAddPlan),
           'offerHelp' => unawaited(_deferPopupAction(context, onOfferHelp)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),
