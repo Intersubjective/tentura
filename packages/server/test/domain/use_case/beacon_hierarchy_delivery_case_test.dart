@@ -20,6 +20,9 @@ final class _InMemoryDeliveryOutbox implements BeaconHierarchyOutboxPort {
   final events = <String, BeaconHierarchyEvent>{};
   final destinationStatus = <String, BeaconStatus?>{};
   final rows = <String, _DeliveryRow>{};
+  final kinds = <String, BeaconKind>{};
+  final titles = <String, String>{};
+  final noticeSourceTitles = <String, String?>{};
   var failOnNoticeInsert = false;
   var failOnMarkDelivered = false;
   int scheduleRetryCalls = 0;
@@ -87,7 +90,13 @@ final class _InMemoryDeliveryOutbox implements BeaconHierarchyOutboxPort {
 
   @override
   Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId) async =>
-      destinationStatus.containsKey(targetBeaconId) ? BeaconKind.request : null;
+      kinds[targetBeaconId] ??
+      (destinationStatus.containsKey(targetBeaconId)
+          ? BeaconKind.request
+          : null);
+
+  @override
+  Future<String?> loadBeaconTitle(String beaconId) async => titles[beaconId];
 
   @override
   Future<String> insertHierarchyLifecycleNotice({
@@ -98,10 +107,12 @@ final class _InMemoryDeliveryOutbox implements BeaconHierarchyOutboxPort {
     required DateTime occurredAt,
     required String noticeBody,
     required bool sourceDeleted,
+    String? sourceTitle,
   }) async {
     if (failOnNoticeInsert) {
       throw StateError('NoticeInsertFailure injected');
     }
+    noticeSourceTitles[rowKey(eventId, targetBeaconId)] = sourceTitle;
     return 'R-notice-$eventId-$targetBeaconId';
   }
 
@@ -259,6 +270,79 @@ void main() {
 
       expect(outbox.rows['HE-del::B-target']!.state, 'suppressed');
       expect(harness.recorded, isEmpty);
+    });
+
+    // #450b: a Post notice payload names the request that changed status.
+    test('Post target notice carries the source request title', () async {
+      final outbox = _InMemoryDeliveryOutbox();
+      final event = _event(
+        eventId: 'HE-post',
+        sourceBeaconId: 'B-src',
+        sourceSequence: 1,
+      );
+      outbox
+        ..seedDelivery(
+          event: event,
+          targetBeaconId: 'B-post',
+          direction: BeaconHierarchyDeliveryDirection.child,
+          destination: BeaconStatus.open,
+        )
+        ..destinationStatus['B-src'] = BeaconStatus.closed
+        ..kinds['B-post'] = BeaconKind.post
+        ..titles['B-src'] = '  Garden cleanup Saturday ';
+
+      await _case(outbox: outbox).runDue(
+        workerId: 'worker-a',
+        now: DateTime.utc(2026, 3, 2),
+      );
+
+      expect(outbox.rows['HE-post::B-post']!.state, 'delivered');
+      expect(
+        outbox.noticeSourceTitles['HE-post::B-post'],
+        'Garden cleanup Saturday',
+      );
+    });
+
+    test('Request target and deleted source notices carry no title', () async {
+      final outbox = _InMemoryDeliveryOutbox();
+      final toRequest = _event(
+        eventId: 'HE-req',
+        sourceBeaconId: 'B-src',
+        sourceSequence: 1,
+      );
+      final deleted = _event(
+        eventId: 'HE-gone',
+        sourceBeaconId: 'B-gone',
+        sourceSequence: 1,
+        toStatus: BeaconStatus.deleted,
+      );
+      outbox
+        ..seedDelivery(
+          event: toRequest,
+          targetBeaconId: 'B-request',
+          destination: BeaconStatus.open,
+        )
+        ..seedDelivery(
+          event: deleted,
+          targetBeaconId: 'B-post',
+          direction: BeaconHierarchyDeliveryDirection.child,
+          destination: BeaconStatus.open,
+        )
+        ..destinationStatus['B-src'] = BeaconStatus.closed
+        ..destinationStatus['B-gone'] = BeaconStatus.deleted
+        ..kinds['B-post'] = BeaconKind.post
+        ..titles['B-src'] = 'Visible title'
+        ..titles['B-gone'] = 'Erased title';
+
+      await _case(outbox: outbox).runDue(
+        workerId: 'worker-a',
+        now: DateTime.utc(2026, 3, 2),
+      );
+
+      expect(outbox.rows['HE-req::B-request']!.state, 'delivered');
+      expect(outbox.rows['HE-gone::B-post']!.state, 'delivered');
+      expect(outbox.noticeSourceTitles['HE-req::B-request'], isNull);
+      expect(outbox.noticeSourceTitles['HE-gone::B-post'], isNull);
     });
 
     test('successful delivery records attention and marks delivered', () async {

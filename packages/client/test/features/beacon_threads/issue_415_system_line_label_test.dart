@@ -50,6 +50,10 @@ RoomMessage _message({
   systemPayloadJson: jsonEncode(payload),
 );
 
+/// Today for the notice: pinned, so the date line does not depend on the
+/// calendar the test runs on.
+final _today = DateTime(2026, 6);
+
 Future<void> _pump(WidgetTester tester, RoomMessage message) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -62,7 +66,7 @@ Future<void> _pump(WidgetTester tester, RoomMessage message) async {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ElevatedButton(onPressed: () {}, child: const Text(_before)),
-            BeaconHierarchyNotice(message: message),
+            BeaconHierarchyNotice(message: message, clock: () => _today),
             ElevatedButton(onPressed: () {}, child: const Text(_after)),
           ],
         ),
@@ -206,11 +210,12 @@ void main() {
 
   testWidgets('#415 lifecycle line: says its text once', (tester) async {
     final handle = tester.ensureSemantics();
-    const dated = 'A child request was cancelled on 2026-02-02';
+    final year = _today.year;
+    const dated = 'A child request was cancelled on Feb 2';
     await _pump(
       tester,
       _message(
-        body: dated,
+        body: 'A child request was cancelled on $year-02-02',
         systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
         payload: {
           'version': 1,
@@ -219,7 +224,7 @@ void main() {
           'targetBeaconId': 'b1',
           'direction': 'child',
           'toStatus': 'cancelled',
-          'occurredAt': '2026-02-02T00:00:00Z',
+          'occurredAt': '$year-02-02T12:00:00Z',
           'sourceDeleted': false,
         },
       ),

@@ -428,6 +428,11 @@
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
+  "friendsRequestInviteDialogTitle": "Приглашение к запросу",
+  "@friendsRequestInviteDialogTitle": {
+    "context": "FriendsScreen",
+    "description": "Header of the share dialog re-opened from a pending invite to a request or post (not a plain invitation code)"
+  },
   "friendsInvitesSegmentPending": "Ожидают",
   "@friendsInvitesSegmentPending": {
     "context": "FriendsScreen"
@@ -4543,6 +4548,9 @@
   "beaconLegacyThreadUnavailable": "Эта тема обсуждения больше недоступна. Откройте обзор запроса, чтобы продолжить.",
   "beaconHierarchyNoticeChildCreated": "Создан дочерний запрос",
   "beaconHierarchyNoticeUnknown": "Активность запроса",
+  "beaconHierarchyLifecycleChild": "Дочерний запрос {status, select, reviewOpen{перешёл к подведению итогов} closed{закрыт} cancelled{отменён} deleted{удалён} other{сменил статус}} {date}",
+  "beaconHierarchyLifecycleAncestor": "Вышестоящий запрос {status, select, reviewOpen{перешёл к подведению итогов} closed{закрыт} cancelled{отменён} deleted{удалён} other{сменил статус}} {date}",
+  "beaconHierarchyLifecycleTitled": "Запрос «{title}» {status, select, reviewOpen{перешёл к подведению итогов} closed{закрыт} cancelled{отменён} deleted{удалён} other{сменил статус}} {date}",
   "beaconPromotionAlreadyExists": "Это сообщение уже преобразовано в дочерний запрос",
   "beaconChildFooterUnavailable": "Запрос недоступен",
   "beaconChildCardWithHelper": "С {name}",
@@ -5840,6 +5848,10 @@
   },
   "beaconRoomCreatePoll": "Создать опрос",
   "beaconRoomSendPollButton": "Отправить опрос",
+  "beaconRoomPollSendHint": "Добавьте вопрос и два варианта ответа",
+  "@beaconRoomPollSendHint": {
+    "context": "PollEditor"
+  },
   "beaconRoomPollTypeSingle": "Один",
   "@beaconRoomPollTypeSingle": {
     "context": "PollEditor"

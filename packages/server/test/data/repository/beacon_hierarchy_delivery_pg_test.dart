@@ -73,6 +73,7 @@ final class _FailingNoticeOutbox implements BeaconHierarchyOutboxPort {
     required DateTime occurredAt,
     required String noticeBody,
     required bool sourceDeleted,
+    String? sourceTitle,
   }) async {
     if (failNextNoticeInsert) {
       failNextNoticeInsert = false;
@@ -86,8 +87,13 @@ final class _FailingNoticeOutbox implements BeaconHierarchyOutboxPort {
       occurredAt: occurredAt,
       noticeBody: noticeBody,
       sourceDeleted: sourceDeleted,
+      sourceTitle: sourceTitle,
     );
   }
+
+  @override
+  Future<String?> loadBeaconTitle(String beaconId) =>
+      _inner.loadBeaconTitle(beaconId);
 
   @override
   Future<BeaconHierarchyEvent> recordEvent({

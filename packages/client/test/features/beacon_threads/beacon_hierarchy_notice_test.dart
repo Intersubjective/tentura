@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
@@ -48,13 +49,34 @@ RoomMessage _message({
   systemPayloadJson: payload == null ? null : jsonEncode(payload),
 );
 
-Widget _harness(RoomMessage message) => BlocProvider<ProfileCubit>.value(
+Map<String, Object?> _lifecyclePayload({
+  required String direction,
+  required String toStatus,
+  required String occurredAt,
+  bool sourceDeleted = false,
+  String? sourceTitle,
+}) => {
+  'version': 1,
+  'kind': 'hierarchyLifecycle',
+  'eventId': 'e1',
+  'targetBeaconId': 'b1',
+  'direction': direction,
+  'toStatus': toStatus,
+  'occurredAt': occurredAt,
+  'sourceDeleted': sourceDeleted,
+  'sourceTitle': ?sourceTitle,
+};
+
+Widget _harness(
+  RoomMessage message, {
+  Locale locale = const Locale('en'),
+}) => BlocProvider<ProfileCubit>.value(
   value: _MockProfileCubit(),
   child: MaterialApp(
     theme: TenturaTheme.light(),
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
-    locale: const Locale('en'),
+    locale: locale,
     home: Scaffold(
       body: BeaconHierarchyNotice(message: message),
     ),
@@ -101,30 +123,155 @@ void main() {
   });
 
   group('BeaconHierarchyNotice', () {
-    testWidgets('lifecycle notice shows the server-generated body verbatim', (
+    // #450a: the line is built on the client from the payload — locale date,
+    // lower-case status, translated — not the server's ISO-dated English body.
+    testWidgets('lifecycle line is localized with a locale date', (
       tester,
     ) async {
-      const dated = 'An ancestor request was closed on 2026-01-04';
+      final year = DateTime.now().year;
       await tester.pumpWidget(
         _harness(
           _message(
-            body: dated,
+            body: 'A child request was closed on $year-03-15',
             systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
-            payload: {
-              'version': 1,
-              'kind': 'hierarchyLifecycle',
-              'eventId': 'e1',
-              'targetBeaconId': 'b1',
-              'direction': 'ancestor',
-              'toStatus': 'closed',
-              'occurredAt': '2026-01-04T00:00:00Z',
-              'sourceDeleted': false,
-            },
+            payload: _lifecyclePayload(
+              direction: 'child',
+              toStatus: 'closed',
+              occurredAt: '$year-03-15T12:00:00Z',
+            ),
           ),
         ),
       );
 
-      expect(find.text(dated), findsOneWidget);
+      expect(find.text('A child request was closed on Mar 15'), findsOneWidget);
+      expect(find.textContaining('$year-03-15'), findsNothing);
+    });
+
+    testWidgets('final check reads lower-case mid-sentence', (tester) async {
+      final year = DateTime.now().year;
+      await tester.pumpWidget(
+        _harness(
+          _message(
+            body: 'A child request entered Final check on $year-03-15',
+            systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
+            payload: _lifecyclePayload(
+              direction: 'child',
+              toStatus: 'reviewOpen',
+              occurredAt: '$year-03-15T12:00:00Z',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('A child request entered final check on Mar 15'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('ancestor lifecycle line is localized in Russian', (
+      tester,
+    ) async {
+      final year = DateTime.now().year;
+      await tester.pumpWidget(
+        _harness(
+          _message(
+            body: 'An ancestor request was cancelled on $year-03-15',
+            systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
+            payload: _lifecyclePayload(
+              direction: 'ancestor',
+              toStatus: 'cancelled',
+              occurredAt: '$year-03-15T12:00:00Z',
+            ),
+          ),
+          locale: const Locale('ru'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final ru = await L10n.delegate.load(const Locale('ru'));
+      final date = DateFormat.MMMd('ru').format(
+        DateTime.utc(year, 3, 15, 12).toLocal(),
+      );
+      expect(
+        find.text(ru.beaconHierarchyLifecycleAncestor('cancelled', date)),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Вышестоящий запрос отменён'), findsOneWidget);
+      expect(find.textContaining('ancestor'), findsNothing);
+    });
+
+    // #450b: a Post notice names the request when the payload carries its
+    // title snapshot.
+    testWidgets('lifecycle notice names the request from its payload title', (
+      tester,
+    ) async {
+      final year = DateTime.now().year;
+      await tester.pumpWidget(
+        _harness(
+          _message(
+            body: 'A child request was closed on $year-03-15',
+            systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
+            payload: _lifecyclePayload(
+              direction: 'child',
+              toStatus: 'closed',
+              occurredAt: '$year-03-15T12:00:00Z',
+              sourceTitle: 'Garden cleanup Saturday',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Request ‘Garden cleanup Saturday’ was closed on Mar 15'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a deleted source never shows its title', (tester) async {
+      final year = DateTime.now().year;
+      await tester.pumpWidget(
+        _harness(
+          _message(
+            body: 'A child request was deleted on $year-03-15',
+            systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
+            payload: _lifecyclePayload(
+              direction: 'child',
+              toStatus: 'deleted',
+              occurredAt: '$year-03-15T12:00:00Z',
+              sourceDeleted: true,
+              sourceTitle: 'Secret thing',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('A child request was deleted on Mar 15'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Secret thing'), findsNothing);
+    });
+
+    testWidgets('an unknown direction keeps the server body as fallback', (
+      tester,
+    ) async {
+      const body = 'A sibling request was closed on 2026-01-04';
+      await tester.pumpWidget(
+        _harness(
+          _message(
+            body: body,
+            systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
+            payload: _lifecyclePayload(
+              direction: 'sibling',
+              toStatus: 'closed',
+              occurredAt: '2026-01-04T00:00:00Z',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text(body), findsOneWidget);
     });
 
     testWidgets(
@@ -221,22 +368,18 @@ void main() {
     testWidgets('exposes a semantics label matching the displayed line', (
       tester,
     ) async {
-      const dated = 'A child request was cancelled on 2026-02-02';
+      final year = DateTime.now().year;
+      const dated = 'A child request was cancelled on Feb 2';
       await tester.pumpWidget(
         _harness(
           _message(
-            body: dated,
+            body: 'A child request was cancelled on $year-02-02',
             systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
-            payload: {
-              'version': 1,
-              'kind': 'hierarchyLifecycle',
-              'eventId': 'e2',
-              'targetBeaconId': 'b1',
-              'direction': 'child',
-              'toStatus': 'cancelled',
-              'occurredAt': '2026-02-02T00:00:00Z',
-              'sourceDeleted': false,
-            },
+            payload: _lifecyclePayload(
+              direction: 'child',
+              toStatus: 'cancelled',
+              occurredAt: '$year-02-02T12:00:00Z',
+            ),
           ),
         ),
       );

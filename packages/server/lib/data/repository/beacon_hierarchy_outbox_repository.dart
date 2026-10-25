@@ -281,6 +281,24 @@ WHERE id = $1
   }
 
   @override
+  Future<String?> loadBeaconTitle(String beaconId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT title
+FROM public.beacon
+WHERE id = $1
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.single.read<String>('title');
+  }
+
+  @override
   Future<String> insertHierarchyLifecycleNotice({
     required String eventId,
     required String targetBeaconId,
@@ -289,6 +307,7 @@ WHERE id = $1
     required DateTime occurredAt,
     required String noticeBody,
     required bool sourceDeleted,
+    String? sourceTitle,
   }) async {
     final messageId = generateId('R');
     final identity = 'hierarchy:$eventId:$targetBeaconId';
@@ -301,6 +320,7 @@ WHERE id = $1
       'toStatus': toStatus.name,
       'occurredAt': occurredAt.toUtc().toIso8601String(),
       'sourceDeleted': sourceDeleted,
+      'sourceTitle': ?sourceTitle,
     };
     await _database.customStatement(
       r'''

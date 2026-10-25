@@ -152,6 +152,18 @@ final class BeaconHierarchyDeliveryCase extends UseCaseBase {
           sourceDeleted: sourceDeleted,
         );
 
+        final destinationKind = await _outbox.loadDestinationBeaconKind(
+          target.targetBeaconId,
+        );
+
+        // #450b: a Post notice names the request (title snapshot, like the
+        // Post bud payload) — Post members who are not observers of the child
+        // cannot read it. Never for a deleted source or a Request target.
+        final sourceTitle =
+            destinationKind == BeaconKind.post && !sourceDeleted
+            ? (await _outbox.loadBeaconTitle(event.sourceBeaconId))?.trim()
+            : null;
+
         final noticeMessageId = await _outbox.insertHierarchyLifecycleNotice(
           eventId: target.eventId,
           targetBeaconId: target.targetBeaconId,
@@ -160,13 +172,13 @@ final class BeaconHierarchyDeliveryCase extends UseCaseBase {
           occurredAt: event.occurredAt,
           noticeBody: noticeBody,
           sourceDeleted: sourceDeleted,
+          sourceTitle: sourceTitle == null || sourceTitle.isEmpty
+              ? null
+              : sourceTitle,
         );
 
         // A Post target keeps the notice row but gets no attention: live Post
         // members are not the child's audience (Arch §4.2, design §5.5).
-        final destinationKind = await _outbox.loadDestinationBeaconKind(
-          target.targetBeaconId,
-        );
         if (destinationKind != BeaconKind.post) {
           final occurrenceKey =
               'hierarchy:${target.eventId}:${target.targetBeaconId}';
