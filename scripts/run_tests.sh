@@ -84,6 +84,44 @@ run() {
   "$WRAP" --timeout "$timeout" -- "$@"
 }
 
+# `dart test` keeps every compiled kernel (~20-25 MB per test file) in TMPDIR
+# until it exits, and TMPDIR is RAM (see run_with_test_cleanup.sh): a full
+# server run in one call held 15-20 GB. Big file lists therefore run in
+# chunks of TENTURA_TEST_CHUNK files (default 80, ~2 GB); every chunk runs
+# even after a failure, and the profile fails if any chunk did.
+# Usage: run_chunked <timeout> <dart test args...> -- <files...>
+run_chunked() {
+  local timeout="$1"; shift
+  local -a args=() files=()
+  while [[ $# -gt 0 && "$1" != "--" ]]; do args+=("$1"); shift; done
+  [[ "${1:-}" == "--" ]] && shift
+  files=("$@")
+  local size="${TENTURA_TEST_CHUNK:-80}" total="${#files[@]}" i=0 n=0 rc=0 failed=()
+  local chunks=$(( (total + size - 1) / size ))
+  while (( i < total )); do
+    n=$((n + 1))
+    log "chunk $n/$chunks (${#files[@]} files total)"
+    if ! run "$timeout" "${args[@]}" "${files[@]:i:size}"; then
+      rc=1
+      failed+=("$n")
+    fi
+    i=$((i + size))
+  done
+  (( rc == 0 )) || log "failed chunks: ${failed[*]} of $chunks"
+  return "$rc"
+}
+
+# Test files under packages/server/test that carry none of the given tags.
+server_files_without_tags() {
+  local -A skip=()
+  local tag f
+  for tag in "$@"; do
+    while IFS= read -r f; do skip["$f"]=1; done < <(server_tagged_files "$tag")
+  done
+  (cd "$ROOT/packages/server" && find test -name '*_test.dart' | sort) |
+    while IFS= read -r f; do [[ -n "${skip[$f]:-}" ]] || echo "$f"; done
+}
+
 server_tagged_files() {
   (cd "$ROOT/packages/server" && python3 "$SELECT" test --tag "$1")
 }
@@ -131,7 +169,7 @@ server_files() {
     if grep -qE "['\"]mr['\"]" "$ROOT/packages/server/$f" 2>/dev/null; then mr+=("$f"); else rest+=("$f"); fi
   done
   if (( ${#rest[@]} > 0 )); then
-    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 30m dart test -j "$j" "${rest[@]}")
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run_chunked 30m dart test -j "$j" -- "${rest[@]}")
   fi
   if (( ${#mr[@]} > 0 )); then
     (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 30m dart test -j 1 "${mr[@]}")
@@ -141,7 +179,9 @@ server_files() {
 server_unit() {
   local j; j="$(concurrency server-unit)"
   # toolchain suites re-run the analyzer gates; server-gates runs those directly.
-  (cd "$ROOT/packages/server" && run 25m dart test -j "$j" --exclude-tags pg -x toolchain)
+  local -a files; mapfile -t files < <(server_files_without_tags pg toolchain)
+  (cd "$ROOT/packages/server" && \
+    run_chunked 25m dart test -j "$j" --exclude-tags pg -x toolchain -- "${files[@]}")
 }
 
 gates() {
@@ -155,13 +195,13 @@ server_pg() {
   local j; j="$(concurrency server-pg)"
   local -a files; mapfile -t files < <(server_tagged_files pg)
   (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && \
-    run 40m dart test -j "$j" --tags pg -x mr -x perf -x load "${files[@]}")
+    run_chunked 40m dart test -j "$j" --tags pg -x mr -x perf -x load -- "${files[@]}")
 }
 
 server_mr() {
   local -a files; mapfile -t files < <(server_tagged_files mr)
   (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && \
-    run 45m dart test -j 1 --tags mr -x perf -x load "${files[@]}")
+    run_chunked 45m dart test -j 1 --tags mr -x perf -x load -- "${files[@]}")
 }
 
 client_run() {

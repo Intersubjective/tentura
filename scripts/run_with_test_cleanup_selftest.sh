@@ -281,25 +281,29 @@ if [[ -d "$NT/tentura-st-live-B" ]]; then ok "nested TMPDIR of a live process ke
 if [[ -d "$NT/tentura-st-fresh-C" ]]; then ok "fresh nested TMPDIR kept"; else bad "fresh nested TMPDIR deleted"; fi
 if [[ -d "$NT/tentura-st-foreign-D" ]]; then ok "tentura-* dir without nested signature kept"; else bad "foreign tentura-* dir deleted"; fi
 
-# --- 13. unset TMPDIR uses disk cache; explicit values survive unchanged ---
-TEMP_HOME="$NT/cache-home"
-TEMP_CACHE="$NT/xdg cache"
-for cache_mode in home xdg; do
-  if [[ "$cache_mode" == home ]]; then
-    cache_env=(-u XDG_CACHE_HOME)
-    expected_tmp="$TEMP_HOME/.cache/tentura-test-tmp"
-  else
-    cache_env=("XDG_CACHE_HOME=$TEMP_CACHE")
-    expected_tmp="$TEMP_CACHE/tentura-test-tmp"
-  fi
-  if env -u TMPDIR "${cache_env[@]}" HOME="$TEMP_HOME" \
+# --- 13. unset TMPDIR uses a RAM tmpfs, never disk; explicit values survive ---
+RUNTIME_DIR="$NT/runtime"
+mkdir -p "$RUNTIME_DIR"
+if [[ "$(stat -f -c %T "$RUNTIME_DIR")" == "tmpfs" ]]; then
+  if env -u TMPDIR XDG_RUNTIME_DIR="$RUNTIME_DIR" TENTURA_TEST_TMP_MIN_MB=1 \
     "$WRAP" --timeout 10s -- bash -c \
-    '[[ "$TMPDIR" == "$1" && -d "$TMPDIR" ]]' bash "$expected_tmp"; then
-    ok "unset TMPDIR uses and creates $cache_mode cache"
+    '[[ "$TMPDIR" == "$1" && -d "$TMPDIR" ]]' bash "$RUNTIME_DIR/tentura-test-tmp"; then
+    ok "unset TMPDIR uses and creates the runtime tmpfs dir"
   else
-    bad "unset TMPDIR failed with $cache_mode cache"
+    bad "unset TMPDIR did not use \$XDG_RUNTIME_DIR/tentura-test-tmp"
   fi
-done
+else
+  ok "unset TMPDIR runtime-tmpfs case skipped (selftest dir is not tmpfs)"
+fi
+DISK_HOME="$NT/disk-home"
+rc=0
+env -u TMPDIR HOME="$DISK_HOME" XDG_RUNTIME_DIR="$RUNTIME_DIR" TENTURA_TEST_TMP_MIN_MB=999999999 \
+  "$WRAP" --timeout 10s -- true >/dev/null 2>&1 || rc=$?
+if [[ "$rc" -eq 75 && ! -e "$DISK_HOME/.cache/tentura-test-tmp" ]]; then
+  ok "no tmpfs with room: refuses (75) instead of using disk"
+else
+  bad "no tmpfs with room: rc=$rc, disk dir $(ls -d "$DISK_HOME/.cache/tentura-test-tmp" 2>/dev/null || echo absent)"
+fi
 EXPLICIT_TMP="$NT/explicit tmp"
 mkdir -p "$EXPLICIT_TMP"
 if TMPDIR="$EXPLICIT_TMP" "$WRAP" --timeout 10s -- bash -c \

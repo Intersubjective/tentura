@@ -28,9 +28,15 @@ breaking each other. CI is unaffected (ephemeral runners, its own selection).
    `server-regression` = `server-gates` + `server-unit` + `server-pg`, plus
    `server-mr` only when the change touches Field / visibility / trust /
    MeritRank code or a migration.
-4. **Kernels live on disk.** With `TMPDIR` unset the wrapper uses
-   `~/.cache/tentura-test-tmp`; `/tmp` is a RAM tmpfs with a user quota and a
-   full pg run compiles ~14 GB of kernels.
+4. **Test temp files stay in RAM, never on disk.** Every test file compiles to
+   a full kernel: client ~184 MB (deleted right after its test, so a full
+   client run peaks at about -j × 184 MB but writes ~220 GB in total), server
+   ~20-25 MB (kept by `dart test` until the call exits). With `TMPDIR` unset
+   the wrapper uses `$XDG_RUNTIME_DIR/tentura-test-tmp` (per-user tmpfs, no
+   usrquota), then `/tmp`, whichever has `TENTURA_TEST_TMP_MIN_MB` (3072)
+   free, and refuses to start rather than use disk. `run_tests.sh` runs big
+   server file lists in chunks of `TENTURA_TEST_CHUNK` (80) files, so one
+   `dart test` call holds ~2 GB of kernels instead of 15-20 GB.
 
 ## Profiles
 
