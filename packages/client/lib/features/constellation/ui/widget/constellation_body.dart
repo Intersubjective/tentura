@@ -1515,6 +1515,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 );
               },
               edgePainter: ConstellationEdgePainter(
+                overview: _detail == ConstellationDetailLevel.overview,
                 edgeKindByPair: cubit.edgeKindByPair,
                 edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
                 tt: context.tt,
@@ -1679,6 +1680,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             child: ConstellationViewportOverlay(
               cubit: cubit,
               frameHolder: _frameHolder,
+              peopleTags: _peopleTags,
             ),
           ),
         ),
@@ -2297,6 +2299,7 @@ class ConstellationEdgePainter
     required this.repaint,
     required this.cameraScale,
     this.edgeFadeBySemanticId = const {},
+    this.overview = false,
   });
 
   final Map<String, ConstellationEdgeKind> edgeKindByPair;
@@ -2306,6 +2309,7 @@ class ConstellationEdgePainter
   @override
   final Listenable repaint;
   final double Function() cameraScale;
+  final bool overview;
 
   /// Dash geometry per edge, rebuilt only when the edge's trimmed endpoints or
   /// dash pattern change (a drag moves a few edges per frame, not all).
@@ -2319,6 +2323,7 @@ class ConstellationEdgePainter
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ConstellationEdgePainter &&
+          overview == other.overview &&
           repaint == other.repaint &&
           tt.graphEdgePath == other.tt.graphEdgePath &&
           scheme.tertiary == other.scheme.tertiary &&
@@ -2331,6 +2336,7 @@ class ConstellationEdgePainter
 
   @override
   int get hashCode => Object.hash(
+    overview,
     repaint,
     tt.graphEdgePath,
     scheme.tertiary,
@@ -2351,6 +2357,7 @@ class ConstellationEdgePainter
     Offset src,
     Offset dst,
   ) {
+    if (overview) return;
     final kind = edgeKindByPair[edge.semanticId];
     if (kind == null) {
       return;

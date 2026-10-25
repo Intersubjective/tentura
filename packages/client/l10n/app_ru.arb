@@ -7589,5 +7589,6 @@
   "beaconPeopleLensParticipationEndedHeading": "Участие завершено",
   "requestAccessViaParentPost": "Вы видите этот запрос, потому что участвуете в посте «{title}», из которого он вырос.",
   "requestAccessViaParentPostUntitled": "Вы видите этот запрос, потому что участвуете в посте, из которого он вырос.",
-  "requestAccessOpenParentPost": "Открыть пост"
+  "requestAccessOpenParentPost": "Открыть пост",
+  "constellationClusterPeople": "{n} чел."
 }

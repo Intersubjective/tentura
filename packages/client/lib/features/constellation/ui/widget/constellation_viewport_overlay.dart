@@ -7,6 +7,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/constellation_trust_badge.dart';
@@ -19,6 +20,7 @@ import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
+import 'constellation_overview_layer.dart';
 
 Size measureConstellationLabelPlate({
   required String text,
@@ -46,11 +48,13 @@ class ConstellationViewportOverlay extends StatefulWidget {
   const ConstellationViewportOverlay({
     required this.cubit,
     required this.frameHolder,
+    this.peopleTags,
     super.key,
   });
 
   final ConstellationCubit cubit;
   final ConstellationPresentationFrameHolder frameHolder;
+  final PeopleTagsCase? peopleTags;
 
   @override
   State<ConstellationViewportOverlay> createState() =>
@@ -757,6 +761,14 @@ class _ConstellationViewportOverlayState
 
                 return Stack(
                   children: [
+                    if (_detail == ConstellationDetailLevel.overview)
+                      Positioned.fill(
+                        child: ConstellationOverviewLayer(
+                          frame: frame,
+                          viewerId: viewerId,
+                          peopleTags: widget.peopleTags,
+                        ),
+                      ),
                     // Presence halos under the trust rings; they repaint on
                     // their own, never with the rings or the labels.
                     if (presence != null)

@@ -11350,14 +11350,18 @@
   "@constellationNodeOwnTagsSemantics": {
     "description": "Screen-reader part of a Field person's label: the viewer's own tags on them, in tag order",
     "placeholders": {
-      "names": {"type": "String"}
+      "names": {
+        "type": "String"
+      }
     }
   },
   "constellationNodeAutoTagsSemantics": "automatic: {names}",
   "@constellationNodeAutoTagsSemantics": {
     "description": "Screen-reader part of a Field person's label: the automatic tags they carry",
     "placeholders": {
-      "names": {"type": "String"}
+      "names": {
+        "type": "String"
+      }
     }
   },
   "peopleTagsYourTags": "Your tags",
@@ -11449,7 +11453,9 @@
   "@peopleTagsRemovePerson": {
     "description": "Tooltip of the × on a person row of a tag screen",
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "peopleTagsMakeMine": "Make it my tag",
@@ -11460,16 +11466,24 @@
   "@peopleTagsDroppedOnChip": {
     "description": "Undo snackbar text after a person node was dropped on a tag chip of the Field",
     "placeholders": {
-      "tag": {"type": "String"}
+      "tag": {
+        "type": "String"
+      }
     }
   },
   "constellationTagLensSummary": "{tags} · {people, plural, one{1 person} other{{people} people}} · {requests, plural, one{1 Request} other{{requests} Requests}}",
   "@constellationTagLensSummary": {
     "description": "Bottom panel of the Field tag lens: the selected tags, how many people they cover and how many Requests those people have",
     "placeholders": {
-      "tags": {"type": "String"},
-      "people": {"type": "int"},
-      "requests": {"type": "int"}
+      "tags": {
+        "type": "String"
+      },
+      "people": {
+        "type": "int"
+      },
+      "requests": {
+        "type": "int"
+      }
     }
   },
   "constellationTagLensForward": "Forward a request…",
@@ -11492,8 +11506,12 @@
   "@constellationTagViewHeader": {
     "description": "Tag view header: the viewed tags and how many people they cover",
     "placeholders": {
-      "tags": {"type": "String"},
-      "count": {"type": "int"}
+      "tags": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "constellationTagViewExit": "Exit",
@@ -11631,5 +11649,13 @@
   "requestAccessOpenParentPost": "Open the post",
   "@requestAccessOpenParentPost": {
     "description": "Link on the banner that opens the Post the Request grew from (#724)"
+  },
+  "constellationClusterPeople": "{n} people",
+  "@constellationClusterPeople": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   }
 }
