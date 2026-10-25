@@ -1,38 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:tentura_root/domain/entity/beacon_access.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../domain/request_access_reason.dart';
+
 /// Informational line for observers whose access comes only from a related
-/// (parent/child) request. Applied and forwarded access are explained
-/// elsewhere, so they take priority and hide this banner.
+/// (parent/child) request or the Post the Request grew from. Applied and
+/// forwarded access are explained elsewhere, so they take priority and hide
+/// this banner.
 class RequestAccessReasonBanner extends StatelessWidget {
   const RequestAccessReasonBanner({
     required this.beacon,
+    this.parent,
     super.key,
   });
 
   final Beacon beacon;
 
+  /// The Request's lineage parent when it was read (#724): a Post parent is
+  /// named, with a way to open it.
+  final Beacon? parent;
+
+  static const openParentKey = Key('request-access-reason-open-parent');
+
   @override
   Widget build(BuildContext context) {
-    if (beacon.accessLevel != BeaconAccessLevel.observer) {
-      return const SizedBox.shrink();
-    }
-
-    final reasons = BeaconAccessReason.decode(beacon.accessReasons);
-    if (reasons.contains(BeaconAccessReason.applied) ||
-        reasons.contains(BeaconAccessReason.forwarded) ||
-        !(reasons.contains(BeaconAccessReason.contextChild) ||
-            reasons.contains(BeaconAccessReason.contextAncestor))) {
-      return const SizedBox.shrink();
-    }
+    if (!requestAccessViaRelated(beacon)) return const SizedBox.shrink();
 
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
+    final parent = this.parent;
+    final post =
+        parent != null &&
+            parent.kind == BeaconKind.post &&
+            parent.id == beacon.lineageParentBeaconId &&
+            requestAccessViaParent(beacon)
+        ? parent
+        : null;
+    final postTitle = post?.title.trim() ?? '';
+    final text = post == null
+        ? l10n.requestAccessViaRelatedRequest
+        : postTitle.isEmpty
+        ? l10n.requestAccessViaParentPostUntitled
+        : l10n.requestAccessViaParentPost(postTitle);
 
     return Padding(
       padding: EdgeInsets.only(bottom: tt.cardGap),
@@ -47,9 +62,22 @@ class RequestAccessReasonBanner extends StatelessWidget {
             ),
             SizedBox(width: tt.iconTextGap),
             Expanded(
-              child: Text(
-                l10n.requestAccessViaRelatedRequest,
-                style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    text,
+                    style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                  ),
+                  if (post != null)
+                    TenturaTextAction(
+                      key: openParentKey,
+                      label: l10n.requestAccessOpenParentPost,
+                      flushStart: true,
+                      onPressed: () =>
+                          context.router.push(BeaconViewRoute(id: post.id)),
+                    ),
+                ],
               ),
             ),
           ],
