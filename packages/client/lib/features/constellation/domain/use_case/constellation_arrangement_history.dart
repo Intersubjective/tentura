@@ -1,5 +1,6 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../layout/layout_geometry.dart';
 import '../port/constellation_anchor_repository_port.dart';
 
 /// Most entries the screen-session history keeps; the oldest falls off.
@@ -64,6 +65,14 @@ final class SnapshotRestoreEntry extends ArrangementEntry {
   final String snapshotId;
 }
 
+/// A «Tidy up»: the post-layout offsets before and after it.
+final class TidyOffsetEntry extends ArrangementEntry {
+  const TidyOffsetEntry({required this.before, required this.after});
+
+  final Map<String, LPoint> before;
+  final Map<String, LPoint> after;
+}
+
 /// Bounded undo / redo stack of Field arrangement for one screen session.
 final class ConstellationArrangementHistory {
   ConstellationArrangementHistory({
@@ -73,6 +82,7 @@ final class ConstellationArrangementHistory {
     required this.flushPlacementOutbox,
     required this.saveSnapshot,
     required this.newOpId,
+    this.applyTidyOffsets,
   });
 
   /// Sends one batch; false when the server rejected it.
@@ -85,6 +95,7 @@ final class ConstellationArrangementHistory {
   final Future<void> Function() flushPlacementOutbox;
   final Future<String> Function(String reason) saveSnapshot;
   final String Function() newOpId;
+  final Future<void> Function(Map<String, LPoint> offsets)? applyTidyOffsets;
 
   static const _batchCap = 400;
 
@@ -150,6 +161,9 @@ final class ConstellationArrangementHistory {
         return e;
       case final LocalLayoutEntry e:
         await applyLocalLayout(undo ? e.before : e.after);
+        return e;
+      case final TidyOffsetEntry e:
+        await applyTidyOffsets?.call(undo ? e.before : e.after);
         return e;
       case final SnapshotRestoreEntry e:
         final written = await restoreSnapshot(e.snapshotId);

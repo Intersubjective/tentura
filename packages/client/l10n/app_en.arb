@@ -11424,5 +11424,14 @@
   "constellationTagLensNoRequests": "You have no open Requests to forward.",
   "@constellationTagLensNoRequests": {
     "description": "Shown instead of the Request list when the viewer has no open Request"
+  },
+  "constellationTidied": "Tidied up: {n} people moved",
+  "@constellationTidied": {
+    "description": "Undo snackbar after Tidy up on the Field map",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   }
 }

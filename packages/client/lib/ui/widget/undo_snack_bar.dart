@@ -15,6 +15,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoSnackBar(
   required String text,
   required VoidCallback onUndo,
   Duration duration = kUndoSnackBarDuration,
+  AnimationStyle? animationStyle,
 }) {
   final messenger =
       ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState;
@@ -22,6 +23,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoSnackBar(
   var undone = false;
   messenger.clearSnackBars();
   return messenger.showSnackBar(
+    snackBarAnimationStyle: animationStyle,
     SnackBar(
       content: Text(text),
       duration: duration,
