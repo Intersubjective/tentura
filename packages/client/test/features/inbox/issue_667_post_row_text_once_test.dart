@@ -55,14 +55,15 @@ void main() {
           of: find.byType(PostConversationRow),
           matching: find.byWidgetPredicate(
             (w) =>
-                w is Semantics && (w.properties.label?.contains(_root) ?? false),
+                w is Semantics &&
+                (w.properties.label?.contains(_root) ?? false),
           ),
         ),
       )
       .properties
       .label!;
 
-  Finder age() => find.text(l10n.relativeTimeMinutesAgo(5));
+  Finder age() => find.text(l10n.relativeTimeCompactMinutes(5));
 
   group('#667 Posts list row', () {
     testWidgets('a root-only Post shows its text once and keeps the age', (
@@ -96,7 +97,10 @@ void main() {
       expect(find.text(_reply), findsOneWidget);
       expect(age(), findsOneWidget);
       expect(rowLabel(tester), contains(_reply));
-      expect(rowLabel(tester), contains(l10n.postConversationAddressed('Theo')));
+      expect(
+        rowLabel(tester),
+        contains(l10n.postConversationAddressed('Theo')),
+      );
     });
   });
 }

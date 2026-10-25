@@ -161,11 +161,12 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Just now'), findsOneWidget);
+    // The card's short age (#476), as on the tombstone below.
+    expect(find.text('now'), findsOneWidget);
 
     await advance(tester, const Duration(minutes: 2));
-    expect(find.text('Just now'), findsNothing);
-    expect(find.text('2m ago'), findsOneWidget);
+    expect(find.text('now'), findsNothing);
+    expect(find.text('2m'), findsOneWidget);
   });
 
   testWidgets('a tombstone age keeps counting while open', (tester) async {
