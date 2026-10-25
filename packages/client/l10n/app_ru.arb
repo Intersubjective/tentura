@@ -7551,5 +7551,7 @@
   "constellationTagViewOthersHide": "Скрыть остальных",
   "constellationTagViewOthersDots": "Остальные точками",
   "constellationTagViewOthersAsIs": "Остальные как есть",
-  "constellationTidied": "Причёсано: сдвинуто {n}"
+  "constellationTidied": "Причёсано: сдвинуто {n}",
+  "peopleTagsWorkingTogether": "Вместе в запросе «{title}»",
+  "peopleTagsTemporary": "Временно: вы видите друг друга, пока открыт запрос «{title}»"
 }

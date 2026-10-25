@@ -57,6 +57,8 @@ import 'constellation_node_semantics.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
 import 'constellation_post_preview_sheet.dart';
+import 'constellation_presence_line.dart';
+import 'constellation_temporary_outline.dart';
 import 'constellation_text_view.dart';
 import 'constellation_trust_chain_line.dart';
 import 'constellation_visibility_bar.dart';
@@ -87,6 +89,7 @@ class ConstellationBody extends StatefulWidget {
     this.presentationFrameHolder,
     this.arrangeV2Enabled = kFieldArrangeV2Enabled,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
+    this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
     super.key,
   });
 
@@ -100,6 +103,10 @@ class ConstellationBody extends StatefulWidget {
   /// With [arrangeV2Enabled], the tag lens panel offers the tag view
   /// (`kPeopleTagsEnabled`).
   final bool peopleTagsEnabled;
+
+  /// A temporary person's dashed outline and the bond / temporary line in the
+  /// person panel (`kFieldMembershipV2Enabled`).
+  final bool fieldMembershipV2Enabled;
 
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
@@ -666,7 +673,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
         child: GraphPersonContextPanel(
           profile: profile,
           focusedNode: UserNode(user: profile),
-          subtitle: ConstellationTrustChainLine(personId: personId),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.fieldMembershipV2Enabled)
+                ConstellationPresenceLine(personId: personId),
+              ConstellationTrustChainLine(personId: personId),
+            ],
+          ),
           discoverableRequests: cubit.discoverableRequestsForPerson(personId),
           requestsExpanded: state.expandedPersonIds.contains(personId),
           onToggleRequestsExpanded: () =>
@@ -1481,6 +1496,24 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               camera: cubit.graphController.cameraRevision,
                               scale: () => cubit.graphController.cameraScale,
                             ),
+                      temporaryOutline:
+                          widget.fieldMembershipV2Enabled &&
+                              cubit
+                                      .fieldPersonById(person.id)
+                                      ?.fieldMembership ==
+                                  ConstellationFieldMembership.temporary
+                          ? ConstellationTemporaryOutline(
+                              key: TestIds.key(
+                                TestIds.constellationTemporaryOutline(
+                                  person.id,
+                                ),
+                              ),
+                              color: tt.graphEdgePath,
+                              dash: tt.tightGap * 1.5,
+                              gap: tt.tightGap,
+                              strokeWidth: tt.tightGap / 2,
+                            )
+                          : null,
                       pinBadge:
                           cubit.isAnchored(
                             ConstellationAnchorTarget.person(person.id),
@@ -2109,6 +2142,7 @@ class _ConstellationMapNode extends StatelessWidget {
     required this.child,
     required this.detail,
     this.dot,
+    this.temporaryOutline,
     this.pinBadge,
     this.statusBadge,
     this.ownTags = const [],
@@ -2122,6 +2156,10 @@ class _ConstellationMapNode extends StatelessWidget {
 
   /// Set for a person who is drawn as a bare dot at the overview.
   final _OverviewDotSpec? dot;
+
+  /// Dashed ring of a temporary person, drawn over the node (not at the
+  /// overview, where the node is a dot).
+  final Widget? temporaryOutline;
   final Widget? pinBadge;
   final Widget? statusBadge;
   final List<PersonTag> ownTags;
@@ -2130,6 +2168,7 @@ class _ConstellationMapNode extends StatelessWidget {
       _ConstellationMapNode(
         detail: detail,
         dot: dot,
+        temporaryOutline: temporaryOutline,
         pinBadge: pinBadge,
         statusBadge: statusBadge,
         ownTags: ownTags,
@@ -2157,6 +2196,8 @@ class _ConstellationMapNode extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         shown,
+        if (temporaryOutline != null && identical(shown, child))
+          Positioned.fill(child: temporaryOutline!),
         if (statusBadge != null)
           PositionedDirectional(
             top: -overhang,

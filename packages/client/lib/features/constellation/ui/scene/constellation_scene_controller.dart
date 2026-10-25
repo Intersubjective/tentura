@@ -40,6 +40,10 @@ enum ConstellationEdgeKind {
   /// both ways (explicit trust marks only). Drawn over the scene, never laid
   /// out.
   mutualTrust,
+
+  /// A temporary person → the Request that made them visible (field
+  /// membership v2).
+  temporaryPresence,
 }
 
 const kConstellationLayoutMaxHops = 3;
@@ -448,6 +452,7 @@ class ConstellationSceneController {
     ConstellationTrustChain? trustChain,
     Set<String> mutualTrustIds = const {},
     Set<String> hiddenPersonIds = const {},
+    bool fieldMembershipV2Enabled = false,
   }) {
     final peersById = {
       for (final peer in field.peers) peer.id: peer,
@@ -606,6 +611,7 @@ class ConstellationSceneController {
           ConstellationEdgeKind.draftRecipient ||
           ConstellationEdgeKind.grewFrom ||
           ConstellationEdgeKind.mutualTrust => 1.5,
+          ConstellationEdgeKind.temporaryPresence => 1,
         },
         semanticId:
             '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
@@ -752,6 +758,25 @@ class ConstellationSceneController {
         kind: ConstellationEdgeKind.grewFrom,
         fade: postFade[parentId],
       );
+    }
+
+    // addEdge drops the link unless both the person and the Request are on
+    // the field.
+    if (fieldMembershipV2Enabled) {
+      for (final peerId in keptSorted) {
+        final peer = peersById[peerId];
+        final requestId = peer?.temporaryBeaconId;
+        if (peer?.fieldMembership != ConstellationFieldMembership.temporary ||
+            requestId == null ||
+            requestId.isEmpty) {
+          continue;
+        }
+        addEdge(
+          srcId: peerId,
+          dstId: requestId,
+          kind: ConstellationEdgeKind.temporaryPresence,
+        );
+      }
     }
 
     if (composing) {

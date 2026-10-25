@@ -11469,5 +11469,23 @@
         "type": "int"
       }
     }
+  },
+  "peopleTagsWorkingTogether": "Working together on “{title}”",
+  "@peopleTagsWorkingTogether": {
+    "description": "Field person panel: the Request the viewer and a bond person work on together",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleTagsTemporary": "Temporary: you see each other while “{title}” is open",
+  "@peopleTagsTemporary": {
+    "description": "Field person panel: a temporary person is visible only through this Request",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
   }
 }

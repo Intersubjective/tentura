@@ -58,6 +58,31 @@ Path? constellationEdgeDashPath(
   return path;
 }
 
+/// One [Path] holding the dashes of the circle of [radius] around [center]:
+/// each [dash] long, [gap] apart, starting at the right-most point and going
+/// clockwise. The dash length is stretched so a whole number of dashes closes
+/// the circle; a circle with no radius draws nothing.
+Path constellationDashedCirclePath(
+  Offset center,
+  double radius, {
+  required double dash,
+  required double gap,
+}) {
+  final path = Path();
+  if (radius <= 0 || dash <= 0) {
+    return path;
+  }
+  final circumference = 2 * math.pi * radius;
+  final count = math.max(1, (circumference / (dash + gap)).round());
+  final step = 2 * math.pi / count;
+  final sweep = step * dash / (dash + gap);
+  final rect = Rect.fromCircle(center: center, radius: radius);
+  for (var i = 0; i < count; i++) {
+    path.addArc(rect, i * step, sweep);
+  }
+  return path;
+}
+
 /// Strokes `a → b` the way the edge style says, with [paint] already carrying the
 /// color and (camera-scaled) stroke width. Shared by the Constellation canvas
 /// and its legend so samples match the graph.
@@ -190,6 +215,16 @@ ConstellationEdgeStyle constellationEdgeStyle(
     color: scheme.secondary,
     width: 1.5,
     dash: 6,
+    gap: 4,
+    endDots: false,
+    twin: false,
+  ),
+  // A temporary person to the Request that made them visible: thin, dashed,
+  // in the colour of the person's dashed outline.
+  ConstellationEdgeKind.temporaryPresence => (
+    color: tt.graphEdgePath,
+    width: 1,
+    dash: 4,
     gap: 4,
     endDots: false,
     twin: false,

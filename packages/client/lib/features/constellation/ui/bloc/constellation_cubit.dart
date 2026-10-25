@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
@@ -132,6 +133,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._mutualTrustCase,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
+    this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
     this._composePresentation = composeConstellationPresentation,
     ConstellationSceneController? scene,
   }) : _scene = scene ?? ConstellationSceneController(),
@@ -159,6 +161,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationVisibilityCase? _visibilityCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
   final Profile _viewer;
+
+  /// Draws the presence of bond and temporary people (`kFieldMembershipV2Enabled`).
+  final bool fieldMembershipV2Enabled;
 
   /// Lazily fetched member webs per selected Request id (kept for the
   /// cubit's lifetime; a field reload does not invalidate it).
@@ -2922,6 +2927,28 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return null;
   }
 
+  /// The field's own record of [personId] (membership, temporary Request,
+  /// bond contexts), or null when they are not on the field.
+  ConstellationPerson? fieldPersonById(String personId) {
+    final field = state.field;
+    if (field == null) {
+      return null;
+    }
+    final projection = field.resolvedAnchorProjection;
+    for (final peers in [
+      field.peers,
+      projection.pinnedPeers,
+      projection.supportPeers,
+    ]) {
+      for (final peer in peers) {
+        if (peer.id == personId) {
+          return peer;
+        }
+      }
+    }
+    return null;
+  }
+
   Profile? profileForPersonId(String personId) {
     if (personId == _viewer.id) {
       return _viewer;
@@ -3373,6 +3400,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       requestWebsById: _requestWebsById,
       footprintMetrics: _footprintMetrics,
       profileFromPeer: _profileFromPeer,
+      fieldMembershipV2Enabled: fieldMembershipV2Enabled,
       hiddenPersonIds: {
         ...?state.tagView?.scope.hiddenIds,
         ...?state.tagView?.scope.dotIds,

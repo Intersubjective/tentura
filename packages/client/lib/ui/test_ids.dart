@@ -220,6 +220,8 @@ abstract final class TestIds {
       'constellation.app_bar.view_mode.text';
   static String constellationTextRequest(String requestId) =>
       'constellation.text.request.$requestId';
+  static String constellationTemporaryOutline(String personId) =>
+      'constellation.temporary_outline.$personId';
   static const constellationPinTarget = 'constellation.pin_target';
   static const constellationUnpinTarget = 'constellation.unpin_target';
   static const constellationFilterShowClosed =
