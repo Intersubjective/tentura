@@ -324,8 +324,11 @@ class _CredentialsScreenState extends State<CredentialsScreen>
             credential.identifier.length > 16
         ? '${credential.identifier.substring(0, 16)}…'
         : credential.identifier;
+    // #467: a device key also names the device/browser it was added on.
+    final label = credential.deviceLabel;
+    final head = label == null ? identifier : '$label · $identifier';
     final created = credential.createdAt;
-    if (created == null) return identifier;
+    if (created == null) return head;
     final now = DateTime.now();
     final relative = compactRelativeTimeAgo(
       when: created,
@@ -333,10 +336,10 @@ class _CredentialsScreenState extends State<CredentialsScreen>
       l10n: l10n,
     );
     if (now.difference(created).inDays < 7) {
-      return '$identifier · $relative';
+      return '$head · $relative';
     }
     final locale = l10n.localeName;
     final formatted = DateFormat.yMMMd(locale).format(created.toLocal());
-    return '$identifier · $formatted';
+    return '$head · $formatted';
   }
 }
