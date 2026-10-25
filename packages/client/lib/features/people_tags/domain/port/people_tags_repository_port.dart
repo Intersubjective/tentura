@@ -18,6 +18,9 @@ abstract interface class PeopleTagsRepositoryPort {
     required String clientOpId,
     String? glyph,
     int? color,
+
+    /// Snapshot the people of this automatic tag kind into the new tag.
+    int? fromAutoKind,
   });
 
   Future<PersonTag> personTagUpdate({

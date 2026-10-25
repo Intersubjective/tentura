@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
@@ -94,6 +94,9 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
                     TenturaSectionHeader(label: l10n.peopleTagsAutomatic),
                     for (final a in auto)
                       ListTile(
+                        onTap: () => unawaited(
+                          context.router.push(PeopleAutoTagRoute(kind: a.kind)),
+                        ),
                         title: Text(personAutoTagName(l10n, a.kind)),
                         subtitle: Text(l10n.peopleTagsShowInFilters),
                         leading: Text('${a.count}'),
@@ -149,6 +152,7 @@ class _TagRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return ListTile(
+      onTap: () => unawaited(context.router.push(PeopleTagRoute(tagId: tag.id))),
       leading: TagGlyph(glyph: tag.glyph, colorIndex: tag.color),
       title: Text(tag.name),
       subtitle: tag.countOffField > 0

@@ -1,5 +1,5 @@
-mutation PersonTagCreate($name: String!, $glyph: String, $color: Int, $clientOpId: String!) {
-  personTagCreate(name: $name, glyph: $glyph, color: $color, clientOpId: $clientOpId) {
+mutation PersonTagCreate($name: String!, $glyph: String, $color: Int, $fromAutoKind: Int, $clientOpId: String!) {
+  personTagCreate(name: $name, glyph: $glyph, color: $color, fromAutoKind: $fromAutoKind, clientOpId: $clientOpId) {
     id
     name
     glyph

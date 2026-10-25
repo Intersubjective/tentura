@@ -14,29 +14,32 @@ typedef TagEditorSave =
     Future<PersonTag> Function(String name, String? glyph, int color);
 
 /// Name, glyph (a letter or an emoji from the platform keyboard) and one of
-/// the eight colours of a new tag. Pops with the saved tag, null on cancel.
+/// the eight colours of a new tag, or of the [initial] tag being edited. Pops
+/// with the saved tag, null on cancel.
 Future<PersonTag?> showTagEditorDialog(
   BuildContext context, {
   required TagEditorSave onSave,
+  PersonTag? initial,
 }) => showDialog<PersonTag>(
   context: context,
-  builder: (_) => _TagEditorDialog(onSave: onSave),
+  builder: (_) => _TagEditorDialog(onSave: onSave, initial: initial),
 );
 
 class _TagEditorDialog extends StatefulWidget {
-  const _TagEditorDialog({required this.onSave});
+  const _TagEditorDialog({required this.onSave, this.initial});
 
   final TagEditorSave onSave;
+  final PersonTag? initial;
 
   @override
   State<_TagEditorDialog> createState() => _TagEditorDialogState();
 }
 
 class _TagEditorDialogState extends State<_TagEditorDialog> {
-  final _name = TextEditingController();
-  final _glyph = TextEditingController();
+  late final _name = TextEditingController(text: widget.initial?.name);
+  late final _glyph = TextEditingController(text: widget.initial?.glyph);
 
-  int _color = 0;
+  late int _color = widget.initial?.color ?? 0;
   bool _busy = false;
   String? _error;
 
@@ -86,7 +89,11 @@ class _TagEditorDialogState extends State<_TagEditorDialog> {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     return AlertDialog(
-      title: Text(l10n.peopleTagsEditorTitle),
+      title: Text(
+        widget.initial == null
+            ? l10n.peopleTagsEditorTitle
+            : l10n.peopleTagsEditTitle,
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

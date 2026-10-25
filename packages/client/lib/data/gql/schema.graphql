@@ -3874,7 +3874,7 @@ type mutation_root {
   closureSetMark(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): Boolean!
   closureSkip(beaconId: String!, expectedEpoch: Int!): Boolean!
   personAutoTagPrefSet(kind: Int!, showInFilters: Boolean!): v2_PersonAutoTag!
-  personTagCreate(clientOpId: String!, color: Int, glyph: String, name: String!): v2_PersonTag!
+  personTagCreate(clientOpId: String!, color: Int, fromAutoKind: Int, glyph: String, name: String!): v2_PersonTag!
   personTagDelete(clientOpId: String!, id: String!): v2_PersonTagSnapshot!
   personTagMembersApply(clientOpId: String!, ops: [v2_PersonTagMemberOpInput!]!): Boolean!
   personTagRestore(clientOpId: String!, snapshot: v2_PersonTagSnapshotInput!): v2_PersonTag!

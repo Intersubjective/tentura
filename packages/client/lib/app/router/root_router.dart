@@ -216,6 +216,28 @@ class RootRouter extends RootStackRouter {
     ),
 
     AutoRoute(
+      page: PeopleAutoTagRoute.page,
+      path: kPathPeopleAutoTag,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _introPending ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
+      ],
+    ),
+
+    AutoRoute(
+      page: PeopleTagRoute.page,
+      path: kPathPeopleTag,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _introPending ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
+      ],
+    ),
+
+    AutoRoute(
       page: DebugSettingsRoute.page,
       path: kPathDebugSettings,
       guards: [

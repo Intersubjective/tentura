@@ -68,6 +68,7 @@ final class _FakePeopleTagsRepository implements PeopleTagsRepositoryPort {
     required String clientOpId,
     String? glyph,
     int? color,
+    int? fromAutoKind,
   }) async {
     await onCreate?.call(name);
     createdNames.add(name);

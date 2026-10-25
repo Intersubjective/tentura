@@ -11397,6 +11397,29 @@
   "@peopleTagsDeleted": {
     "description": "Undo snackbar text after deleting a tag"
   },
+  "peopleTagsEditTitle": "Edit tag",
+  "@peopleTagsEditTitle": {
+    "description": "Title and tooltip of the editor of an existing people tag"
+  },
+  "peopleTagsAddPeople": "Add people",
+  "@peopleTagsAddPeople": {
+    "description": "Button on a tag screen: pick people from the Field to put into the tag"
+  },
+  "peopleTagsSearchPeople": "Search people",
+  "@peopleTagsSearchPeople": {
+    "description": "Search field label of the Add people sheet"
+  },
+  "peopleTagsRemovePerson": "Remove {name} from the tag",
+  "@peopleTagsRemovePerson": {
+    "description": "Tooltip of the × on a person row of a tag screen",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "peopleTagsMakeMine": "Make it my tag",
+  "@peopleTagsMakeMine": {
+    "description": "Button on an automatic tag screen: create an own tag holding these people"
+  },
   "peopleTagsDroppedOnChip": "Added to {tag}",
   "@peopleTagsDroppedOnChip": {
     "description": "Undo snackbar text after a person node was dropped on a tag chip of the Field",

@@ -146,19 +146,49 @@ final class PeopleTagsCase extends UseCaseBase {
     PersonTagMemberOp(tagId: tagId, personId: personId, add: false),
   ]);
 
-  /// Creates an own tag and puts it last in the list.
+  /// Creates an own tag and puts it last in the list. With [fromAutoKind]
+  /// the server fills it with the people of that automatic tag, so the
+  /// membership index is reloaded.
   Future<PersonTag> createTag({
     required String name,
     String? glyph,
     int? color,
+    int? fromAutoKind,
   }) async {
     final tag = await _repository.personTagCreate(
       name: name,
       glyph: glyph,
       color: color,
+      fromAutoKind: fromAutoKind,
       clientOpId: _uuid.v4(),
     );
-    _tags = [..._tags, tag]..sort((a, b) => a.ord.compareTo(b.ord));
+    if (fromAutoKind != null) {
+      await load();
+    } else {
+      _tags = [..._tags, tag]..sort((a, b) => a.ord.compareTo(b.ord));
+      _emit();
+    }
+    return tag;
+  }
+
+  /// Renames or recolours own tag [id].
+  Future<PersonTag> updateTag({
+    required String id,
+    String? name,
+    String? glyph,
+    int? color,
+  }) async {
+    final tag = await _repository.personTagUpdate(
+      id: id,
+      name: name,
+      glyph: glyph,
+      color: color,
+      clientOpId: _uuid.v4(),
+    );
+    _tags = [
+      for (final t in _tags)
+        if (t.id == id) tag else t,
+    ];
     _emit();
     return tag;
   }
