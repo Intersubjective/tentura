@@ -2007,6 +2007,31 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
+  "ratingScatterClusterSheetTitle": "{count, plural, one{Здесь {count} человек} few{Здесь {count} человека} many{Здесь {count} человек} other{Здесь {count} человека}}",
+  "@ratingScatterClusterSheetTitle": {
+    "context": "RatingScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingScatterClusterMemberScores": "Ранг от вас {fromYou} · ваш ранг у них {toYou}",
+  "@ratingScatterClusterMemberScores": {
+    "context": "RatingScreen",
+    "placeholders": {
+      "fromYou": {
+        "type": "String"
+      },
+      "toYou": {
+        "type": "String"
+      }
+    }
+  },
+  "ratingScatterClusterZoomIn": "Приблизить сюда",
+  "@ratingScatterClusterZoomIn": {
+    "context": "RatingScreen"
+  },
   "ratingScatterClusterMore": "{count, plural, one{Ещё {count} человек здесь} few{Ещё {count} человека здесь} many{Ещё {count} человек здесь} other{Ещё {count} человека здесь}}",
   "@ratingScatterClusterMore": {
     "context": "RatingScreen",

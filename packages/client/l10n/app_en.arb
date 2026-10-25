@@ -2099,6 +2099,31 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
+  "ratingScatterClusterSheetTitle": "{count, plural, one{{count} person here} other{{count} people here}}",
+  "@ratingScatterClusterSheetTitle": {
+    "context": "RatingScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ratingScatterClusterMemberScores": "Rank from you {fromYou} · rank to you {toYou}",
+  "@ratingScatterClusterMemberScores": {
+    "context": "RatingScreen",
+    "placeholders": {
+      "fromYou": {
+        "type": "String"
+      },
+      "toYou": {
+        "type": "String"
+      }
+    }
+  },
+  "ratingScatterClusterZoomIn": "Zoom in here",
+  "@ratingScatterClusterZoomIn": {
+    "context": "RatingScreen"
+  },
   "ratingScatterClusterMore": "{count, plural, one{{count} more person here} other{{count} more people here}}",
   "@ratingScatterClusterMore": {
     "context": "RatingScreen",

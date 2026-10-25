@@ -7,9 +7,9 @@
 //     Observed through `RatingScatterView.debugClusterComputations`, a
 //     @visibleForTesting counter bumped once per clustering pass.
 // (4) The "+N" chip reads to a screen reader as "N more people here"
-//     (l10n `ratingScatterClusterMore`, ICU plural, en + ru), and tapping it
-//     zooms into that cluster so its members split apart, instead of only
-//     opening the lead's profile.
+//     (l10n `ratingScatterClusterMore`, ICU plural, en + ru), and zooming
+//     into that cluster (since #615 from the sheet the chip opens) splits its
+//     members apart, instead of only opening the lead's profile.
 // (5) The y-axis title ("Rank from you") does not sit on top of the avatars
 //     in the rank-to-you = 0 column, also on a phone-width viewport.
 
@@ -275,7 +275,9 @@ void main() {
       });
     }
 
-    testWidgets('tapping the chip zooms into the cluster and splits it', (
+    // Since #615 the chip opens a list of the cluster; the zoom is the
+    // sheet's "Zoom in here" action.
+    testWidgets('zooming into the chip cluster splits it', (
       tester,
     ) async {
       _setView(tester, const Size(1280, 800));
@@ -292,6 +294,10 @@ void main() {
       );
 
       await tester.tap(_inScatter(find.text(biggest.key)).first);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text(lookupL10n(const Locale('en')).ratingScatterClusterZoomIn),
+      );
       await tester.pumpAndSettle();
 
       expect(
