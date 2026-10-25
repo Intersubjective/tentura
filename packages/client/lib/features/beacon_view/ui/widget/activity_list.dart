@@ -248,11 +248,11 @@ class _ActivityEntryTile extends StatelessWidget {
           Icon(iconData, size: kCoordinationLogEventIconSize, color: iconColor),
           const SizedBox(width: kSpacingSmall),
           Expanded(
+            // One body weight for every line, as in the Log (#449); the
+            // tier shows on the icon colour only.
             child: Text(
               _line(l10n, entry),
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: tier == _ActivityTier.high ? FontWeight.w600 : null,
-              ),
+              style: theme.textTheme.bodySmall,
             ),
           ),
           Text(
