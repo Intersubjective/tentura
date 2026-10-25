@@ -3208,9 +3208,10 @@
       }
     }
   },
-  "selectRecipients": "Select recipients",
+  "selectRecipients": "Select at least one recipient",
   "@selectRecipients": {
-    "context": "ForwardBeaconScreen"
+    "context": "ForwardBeaconScreen",
+    "description": "Helper line under the disabled send button on a recipients step while nobody is picked (#720)."
   },
   "forwardFilterAll": "All",
   "@forwardFilterAll": {
@@ -5516,7 +5517,7 @@
   "beaconFactsComposerEmptyError": "Add some text or a photo first.",
   "beaconRoomFactPickerPinFirst": "Pin your first fact",
   "beaconPinnedFactNewBadge": "New",
-  "beaconRoomPinFactTitle": "Pin as fact",
+  "beaconRoomPinFactTitle": "Who can see this fact?",
   "beaconRoomPinFactPublic": "Public — visible beyond the discussion",
   "beaconRoomPinFactRoomOnly": "Discussion only",
   "beaconRoomPinFactDisabledEmpty": "Add text or an attachment before pinning.",
@@ -8067,6 +8068,10 @@
   "postParticipantsInvite": "Invite",
   "@postParticipantsInvite": {
     "description": "Participants screen button that opens the forward flow."
+  },
+  "postParticipantsInviteSemantics": "Invite someone to this post",
+  "@postParticipantsInviteSemantics": {
+    "description": "Screen reader name of the participants screen Invite button, distinct from the rows' «invited by» text (#723)."
   },
   "postParticipantsForwardsGraph": "How the post reached people",
   "@postParticipantsForwardsGraph": {

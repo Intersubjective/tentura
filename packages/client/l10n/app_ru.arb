@@ -3051,7 +3051,7 @@
       }
     }
   },
-  "selectRecipients": "Выберите получателей",
+  "selectRecipients": "Выберите хотя бы одного получателя",
   "@selectRecipients": {
     "context": "ForwardBeaconScreen"
   },
@@ -5172,7 +5172,7 @@
   "beaconFactsComposerEmptyError": "Сначала добавьте текст или фото.",
   "beaconRoomFactPickerPinFirst": "Закрепите первый факт",
   "beaconPinnedFactNewBadge": "Новое",
-  "beaconRoomPinFactTitle": "Закрепить как факт",
+  "beaconRoomPinFactTitle": "Кто увидит этот факт?",
   "beaconRoomPinFactPublic": "Публично — видно за пределами обсуждения",
   "beaconRoomPinFactRoomOnly": "Только обсуждение",
   "beaconRoomPinFactDisabledEmpty": "Добавьте текст или вложение перед закреплением.",
@@ -6736,6 +6736,7 @@
   },
   "postParticipantsForwardingOpen": "Можно пересылать",
   "postParticipantsInvite": "Позвать",
+  "postParticipantsInviteSemantics": "Позвать кого-нибудь в этот пост",
   "postParticipantsForwardsGraph": "Как пост дошёл до людей",
   "roomConvertedToRequestNotice": "{author} превратил пост в запрос",
   "@roomConvertedToRequestNotice": {
