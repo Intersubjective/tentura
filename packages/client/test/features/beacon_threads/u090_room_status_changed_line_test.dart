@@ -215,4 +215,19 @@ void main() {
       findsOneWidget,
     );
   });
+  testWidgets('the line is announced once to a screen reader', (tester) async {
+    // #702: the Semantics label and the Text both carried the line, so the
+    // merged node read it twice.
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(_harness(_statusLine(from: 0, to: 8)));
+    await tester.pumpAndSettle();
+
+    const line = 'Tab QA changed the status: Open → Enough help';
+    final node = tester.getSemantics(
+      find.textContaining(line, findRichText: true),
+    );
+    expect(node.label, contains(line));
+    expect(line.allMatches(node.label).length, 1);
+    handle.dispose();
+  });
 }
