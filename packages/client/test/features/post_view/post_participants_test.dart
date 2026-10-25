@@ -491,6 +491,26 @@ void main() {
       expect(h.inviteTaps, 1);
     });
 
+    // #723: the button was announced as a bare «Invite», the same word the
+    // rows use for «invited by …».
+    testWidgets('«Позвать» has its own screen reader name', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final h = await _pump(tester);
+
+      final invite = find.semantics.byLabel('Позвать кого-нибудь в этот пост');
+      expect(invite, findsOne);
+      expect(
+        invite.evaluate().single,
+        isSemantics(isButton: true, hasTapAction: true),
+      );
+      expect(find.semantics.byLabel('Позвать'), findsNothing);
+
+      tester.semantics.tap(invite);
+      await tester.pump();
+      expect(h.inviteTaps, 1);
+      semantics.dispose();
+    });
+
     testWidgets('offers no «Позвать» to a member who may not forward', (
       tester,
     ) async {
