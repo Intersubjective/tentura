@@ -240,9 +240,17 @@ ON CONFLICT DO NOTHING
     await insertMutualVote(carolId, veraId);
     await insertMutualVote(p1Id, p2Id);
 
-    await insertTrustEdge(subject: aliceId, object: bobId, prevSentWeight: 0.60);
+    await insertTrustEdge(
+      subject: aliceId,
+      object: bobId,
+      prevSentWeight: 0.60,
+    );
     await insertTrustEdge(subject: aliceId, object: p1Id, prevSentWeight: 0.20);
-    await insertTrustEdge(subject: bobId, object: aliceId, prevSentWeight: 0.50);
+    await insertTrustEdge(
+      subject: bobId,
+      object: aliceId,
+      prevSentWeight: 0.50,
+    );
   }
 
   Future<Set<String>> cascadeCandidateIds({
@@ -355,7 +363,10 @@ SELECT public.block_cascade_unattached($1, $2, $3) AS unattached
 
       expect(candidates, {p1Id, p2Id, p3Id});
       expect(candidates, isNot(contains(bobId)));
-      expect(candidates.intersection({carolId, daveId, erinId, veraId}), isEmpty);
+      expect(
+        candidates.intersection({carolId, daveId, erinId, veraId}),
+        isEmpty,
+      );
     },
     skip: skipReason,
   );
@@ -461,10 +472,12 @@ VALUES ('$aliceId', '$bobId', 2)
         throwsA(anything),
       );
 
-      final rows = await db.customSelect(
-        "SELECT 1 FROM public.user_block_intent "
-        "WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'",
-      ).get();
+      final rows = await db
+          .customSelect(
+            "SELECT 1 FROM public.user_block_intent "
+            "WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'",
+          )
+          .get();
       expect(rows, isEmpty);
     },
     skip: skipReason,
@@ -492,7 +505,11 @@ VALUES ('$aliceId', '$bobId', 2)
     'X2: self-vote on P1 does not attach P1 via clause (b)',
     () async {
       await seedCanonicalFixture();
-      await insertDirectedVote(p1Id, p1Id);
+      // Since m0267 the schema refuses a self vote outright.
+      await expectLater(
+        insertDirectedVote(p1Id, p1Id),
+        throwsA(isA<ServerException>().having((e) => e.code, 'code', '23514')),
+      );
 
       expect(await cascadeUnattached(aliceId, bobId, p1Id), isTrue);
       expect(
