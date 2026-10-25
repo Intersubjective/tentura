@@ -236,7 +236,7 @@ Replace `ForwardTopBar` (`features/forward/ui/screen/forward_beacon_screen.dart:
 - The bar currently sits **inside a body `Column`** under `AbsorbPointer(absorbing: actionLoading)` — that must keep covering the bar. Keep the bar in the Column (an `AppBar` renders fine outside `Scaffold.appBar`; `preferredSize` is only consulted by `Scaffold`) and just swap `ForwardTopBar` → `TenturaTopBar.of(context, tone: surface, ...)`. Keep the `TenturaHairlineDivider` below it.
 - Mapping: `leading:` = the close `IconButton` with the existing `canPop ? maybePop : navigate(closeFallbackRoute)` logic **copied verbatim** (web-refresh fallback matters); `title:` = the existing two-line title/subtitle `Column`; `actions:` = search / filter `IconButton`s. `content` alignment — the bar aligns with the recipient list column.
 - Keep the `forwardBeaconSubtitle(...)` helper (move it beside the screen), then delete the `ForwardTopBar` class.
-- **Caveat:** `forward_search_overlay.dart` may position itself relative to the old bar's intrinsic height in the Stack — check for hardcoded offsets and retest opening/closing search.
+- **Caveat (historical):** `forward_search_overlay.dart` was positioned relative to the old bar's intrinsic height in the Stack. It no longer exists: search now filters the recipient list in place from the header (#453), and back closes it.
 
 ---
 
@@ -261,5 +261,5 @@ Replace `ForwardTopBar` (`features/forward/ui/screen/forward_beacon_screen.dart:
    - ~390px (compact): bars 56, full width, title inset ≈ `screenHPadding`, icon-led bars' back glyph ≈ 4-5dp box edge (compensation working); bottom nav still hides on pushed details (unchanged shell logic).
    - Push BeaconView from MyWork; back from room surface (compact) and browser back on web — exercises the preserved `PopScope` wiring.
    - Profile + ProfileView: pull-to-refresh, overflow menus.
-   - Forward screen: close button, search overlay open/close.
+   - Forward screen: close button, in-place search open/close (header search field; Android back closes the search, #453).
 5. Loading strips: refresh Friends/Settings — 4dp strip animates full-pane width, bar height doesn't jump.

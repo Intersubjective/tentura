@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -206,7 +208,88 @@ Future<void> _searchSelectsAndKeepsFooter(
   expect(tester.widget<OutlinedButton>(_forwardButton).onPressed, isNotNull);
 }
 
+final _homeKey = GlobalKey(debugLabel: 'home');
+
+/// Forward pushed over a home page, as the app opens it, so a system back
+/// has a route to pop.
+Future<void> _pumpForwardPushed(WidgetTester tester) async {
+  tester.view
+    ..physicalSize = _phone
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
+  GetIt.I
+    ..registerSingleton<InvitationRepository>(_FakeInvitationRepository())
+    ..registerSingleton<UiEffectPort>(FakeUiEffectPort());
+  addTearDown(GetIt.I.reset);
+
+  final cubit = _cubit();
+  addTearDown(cubit.close);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      theme: TenturaTheme.light(),
+      home: Scaffold(key: _homeKey, body: const SizedBox()),
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  unawaited(
+    Navigator.of(tester.element(find.byKey(_homeKey))).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<ForwardCubit>.value(value: cubit),
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+          ],
+          child: const ForwardBeaconPage(beaconId: 'b1'),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  expect(find.byType(ForwardBeaconPage), findsOneWidget);
+}
+
 void main() {
+  testWidgets('Android back while searching closes the search and stays on '
+      'Forward', (tester) async {
+    await _pumpForwardPushed(tester);
+    await _openSearchAndType(tester, 'cla');
+    expect(_row('Zed'), findsNothing);
+
+    // The system back button (Android), not the header back arrow.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ForwardBeaconPage), findsOneWidget);
+    expect(_searchField, findsNothing);
+    // The whole list is back, as when the search is closed by hand.
+    expect(_row('Clara'), findsOneWidget);
+    expect(_row('Zed'), findsOneWidget);
+
+    // With no search open, back leaves Forward as before.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(ForwardBeaconPage), findsNothing);
+    expect(find.byKey(_homeKey), findsOneWidget);
+  });
+
+  testWidgets('Android back with no search open leaves Forward', (
+    tester,
+  ) async {
+    await _pumpForwardPushed(tester);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ForwardBeaconPage), findsNothing);
+    expect(find.byKey(_homeKey), findsOneWidget);
+  });
+
   testWidgets('desktop: Forward search filters in place, one row, footer '
       'Forward button usable', (tester) async {
     await _searchSelectsAndKeepsFooter(tester, _desktop);
