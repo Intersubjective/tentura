@@ -169,22 +169,30 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     required TenturaTokens tt,
     required L10n l10n,
   }) {
-    return Row(
-      children: [
-        Icon(Icons.search, size: 20, color: tt.textMuted),
-        SizedBox(width: tt.iconTextGap),
-        Expanded(
-          child: TextField(
-            controller: _searchController,
-            autofocus: true,
-            style: TenturaText.body(tt.text),
-            decoration: InputDecoration.collapsed(
-              hintText: l10n.forwardOverlaySearchHint,
-              hintStyle: TenturaText.bodySmall(tt.textFaint),
+    // Mounted only while searching: Android/system back closes the search,
+    // as the header back arrow does, instead of leaving Forward (#453).
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _closeSearch();
+      },
+      child: Row(
+        children: [
+          Icon(Icons.search, size: 20, color: tt.textMuted),
+          SizedBox(width: tt.iconTextGap),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              style: TenturaText.body(tt.text),
+              decoration: InputDecoration.collapsed(
+                hintText: l10n.forwardOverlaySearchHint,
+                hintStyle: TenturaText.bodySmall(tt.textFaint),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
