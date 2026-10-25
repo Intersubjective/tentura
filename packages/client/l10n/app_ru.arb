@@ -7080,6 +7080,7 @@
   "planEmptyBody": "Распишите, кто что делает и когда, и каждый увидит свой шаг.",
   "planEmptyCta": "Составить план",
   "planEmptyHistoryLink": "История плана ›",
+  "beaconOverflowAddPlan": "Добавить план",
   "planStepCheckboxDone": "Отметить выполненным: {step}",
   "planStepCheckboxUndone": "Снять отметку: {step}",
   "planStepOverdueSemantics": "Просрочено: {step}",

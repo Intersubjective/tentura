@@ -203,6 +203,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   /// The deep-linked plan step ([BeaconViewScreen.stepId]) was opened once.
   bool _planStepHandled = false;
 
+  /// A leave from an empty Plan surface is scheduled (#546).
+  bool _leavePlanScheduled = false;
+
   /// The open plan page was opened from here (a browser history entry of
   /// ours), so closing it goes back rather than replacing the URL.
   bool _planPageOpenedHere = false;
@@ -815,9 +818,45 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
+  /// The surface actually shown for [_selectedSurface] (#546): the Plan
+  /// surface needs a plan with a step (or one still loading, or a plan page
+  /// being opened over it); otherwise the default surface stands in.
+  BeaconSurface _shownSurface(PlanState? planState) {
+    if (_selectedSurface != BeaconSurface.plan) return _selectedSurface;
+    if (_planPageOpenedHere ||
+        BeaconPlanPage.tryParse(widget.planPage) != null) {
+      return BeaconSurface.plan;
+    }
+    if (planState != null &&
+        beaconPlanSurfaceAvailable(
+          plan: planState.plan,
+          loading: planState.isLoading,
+        )) {
+      return BeaconSurface.plan;
+    }
+    return BeaconSurface.now;
+  }
+
+  /// A Plan surface without a plan (a `tab=plan` link, the last step
+  /// removed): go to the default surface and say so in the URL (#546).
+  void _leaveEmptyPlanSurface() {
+    if (_leavePlanScheduled) return;
+    _leavePlanScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _leavePlanScheduled = false;
+      if (!mounted || _selectedSurface != BeaconSurface.plan) return;
+      if (_shownSurface(context.read<PlanCubit?>()?.state) ==
+          BeaconSurface.plan) {
+        return;
+      }
+      _switchToSurface(BeaconSurface.now);
+    });
+  }
+
   Widget _buildTabRow({
     required bool isSplit,
     required TenturaTokens tt,
+    required BeaconSurface shownSurface,
   }) {
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -829,7 +868,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       // whole row fell back to icons only.
       child: BeaconSurfaceTabs(
         isSplit: isSplit,
-        selectedSurface: _selectedSurface,
+        selectedSurface: shownSurface,
         onSurfaceSelected: _switchToSurface,
         onSurfaceReselected: _onSurfaceReselected,
         peopleTabAttentionActive: _peopleTabAttentionActive,
@@ -843,10 +882,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required BeaconViewState beaconState,
     required bool isSplit,
     required BeaconRoomLease roomLease,
+    required BeaconSurface shownSurface,
   }) {
-    final surface = isSplit && _selectedSurface == BeaconSurface.room
+    final surface = isSplit && shownSurface == BeaconSurface.room
         ? BeaconSurface.now
-        : _selectedSurface;
+        : shownSurface;
 
     switch (surface) {
       case BeaconSurface.now:
@@ -901,22 +941,41 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required bool isSplit,
     required BeaconRoomLease roomLease,
   }) {
-    return TenturaContentColumn(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildTabRow(isSplit: isSplit, tt: context.tt),
-          Expanded(
-            child: _buildSelectedSurface(
-              beaconViewCubit: beaconViewCubit,
-              screenCubit: screenCubit,
-              beaconState: beaconState,
+    Widget content(PlanState? planState) {
+      final shownSurface = _shownSurface(planState);
+      if (shownSurface != _selectedSurface) _leaveEmptyPlanSurface();
+      return TenturaContentColumn(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildTabRow(
               isSplit: isSplit,
-              roomLease: roomLease,
+              tt: context.tt,
+              shownSurface: shownSurface,
             ),
-          ),
-        ],
-      ),
+            Expanded(
+              child: _buildSelectedSurface(
+                beaconViewCubit: beaconViewCubit,
+                screenCubit: screenCubit,
+                beaconState: beaconState,
+                isSplit: isSplit,
+                roomLease: roomLease,
+                shownSurface: shownSurface,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final planCubit = context.read<PlanCubit?>();
+    if (planCubit == null) return content(null);
+    // Rebuilt only when the plan comes or goes (#546), not on every tick.
+    return BlocBuilder<PlanCubit, PlanState>(
+      bloc: planCubit,
+      buildWhen: (p, c) =>
+          (p.plan?.isEmpty, p.isLoading) != (c.plan?.isEmpty, c.isLoading),
+      builder: (context, planState) => content(planState),
     );
   }
 

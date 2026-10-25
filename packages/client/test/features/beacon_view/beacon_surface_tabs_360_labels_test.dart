@@ -34,6 +34,7 @@ void main() {
     ) async {
       await pumpBeaconViewHarness(
         tester,
+        plan: kBeaconViewHarnessOneStepPlan,
         size: const Size(360, 800),
         beaconState: beaconViewHarnessAuthorState(),
         threadsState: beaconViewHarnessThreadsState(),

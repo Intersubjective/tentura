@@ -169,6 +169,7 @@ abstract final class TestIds {
   static const beaconOverflowClose = 'beacon.overflow.close';
   static const beaconOverflowRequestStatus = 'beacon.overflow.request_status';
   static const beaconOverflowActivity = 'beacon.overflow.activity';
+  static const beaconOverflowAddPlan = 'beacon.overflow.add_plan';
   static const beaconCloseConfirm = 'beacon.close.confirm';
 
   /// Confirm action of the shared close-now sheet, shown from every author

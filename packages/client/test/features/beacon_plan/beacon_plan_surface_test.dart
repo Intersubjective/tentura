@@ -179,13 +179,13 @@ void main() {
   });
 
   test('Plan tab sits after Now; split hides only Chat', () {
-    expect(beaconVisibleSurfaces(isSplit: false), [
+    expect(beaconVisibleSurfaces(isSplit: false, hasPlan: true), [
       BeaconSurface.now,
       BeaconSurface.plan,
       BeaconSurface.room,
       BeaconSurface.people,
     ]);
-    expect(beaconVisibleSurfaces(isSplit: true), [
+    expect(beaconVisibleSurfaces(isSplit: true, hasPlan: true), [
       BeaconSurface.now,
       BeaconSurface.plan,
       BeaconSurface.people,

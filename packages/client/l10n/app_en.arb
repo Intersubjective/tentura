@@ -9161,6 +9161,10 @@
   "@planEmptyHistoryLink": {
     "description": "Link to the plan history when every step was removed."
   },
+  "beaconOverflowAddPlan": "Add plan",
+  "@beaconOverflowAddPlan": {
+    "description": "Request overflow menu: start the Request plan (opens the plan editor). Shown to plan editors while the Request has no plan steps."
+  },
   "planStepCheckboxDone": "Mark done: {step}",
   "@planStepCheckboxDone": {
     "description": "Semantics: tick checkbox of a step.",
