@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:injectable/injectable.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
@@ -11,6 +12,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:uuid/uuid.dart';
 
 import '../entity/constellation_field.dart';
+import '../entity/constellation_layout_snapshot.dart';
 import '../entity/placement_outbox.dart';
 import '../placement_overlay.dart';
 import '../port/constellation_anchor_repository_port.dart';
@@ -31,6 +33,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     this._clock,
     this._wakeUp, {
     required RealtimeSyncCase realtime,
+    @ignoreParam this.recordAutomaticHistory = kFieldArrangeV2Enabled,
     required super.env,
     required super.logger,
   }) : _state = PlacementOutboxState(
@@ -53,6 +56,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
   static const _maxReplayJitter = Duration(seconds: 5);
   static const _uuid = Uuid();
 
+  final bool recordAutomaticHistory;
   final ConstellationAnchorRepositoryPort _repository;
   final ConstellationFieldStoreCase _store;
   final ClockPort _clock;
@@ -89,10 +93,56 @@ final class ConstellationPlacementCase extends UseCaseBase {
     applyOps: _applyHistoryOps,
     restoreSnapshot: _restoreSnapshot,
     applyLocalLayout: (_) async {},
-    flushPlacementOutbox: () async {},
+    flushPlacementOutbox: flushPendingPlacements,
     saveSnapshot: _saveSnapshot,
     newOpId: _uuid.v4,
+    restoreFavourite: (id) =>
+        _snapshots.restoreFavourite(snapshotId: id, clientOpId: _uuid.v4()),
   );
+
+  ConstellationLayoutSnapshotRepositoryPort get _snapshots =>
+      _repository as ConstellationLayoutSnapshotRepositoryPort;
+
+  Future<List<ConstellationLayoutSnapshot>> listLayoutSnapshots() =>
+      _snapshots.listLayoutSnapshots();
+
+  Future<void> saveFavourite() async {
+    await flushPendingPlacements();
+    final previous = (await listLayoutSnapshots())
+        .where((s) => s.kind == 0)
+        .firstOrNull;
+    final saved = await _snapshots.saveFavourite(clientOpId: _uuid.v4());
+    history.record(
+      FavouriteSnapshotEntry(beforeId: previous?.id ?? '', afterId: saved),
+    );
+  }
+
+  Future<bool> restoreLayoutSnapshot(String id) async {
+    await flushPendingPlacements();
+    final inverse = await _restoreSnapshot(id);
+    if (inverse == null) return false;
+    history.record(SnapshotRestoreEntry(snapshotId: inverse));
+    return true;
+  }
+
+  /// Await the actual acknowledgements, including queued writes coalesced in
+  /// this turn. Unknown outcomes cannot be captured safely by a bulk action.
+  Future<void> flushPendingPlacements() async {
+    while (_flushing) {
+      await _flushCompletion?.future;
+    }
+    if (_state.targets.values.any(
+      (t) =>
+          t.inFlight != null ||
+          t.latestPending?.status == PlacementSlotStatus.queued,
+    )) {
+      throw StateError('Placements have not been acknowledged');
+    }
+  }
+
+  Completer<void>? _flushCompletion;
+  DateTime? _lastManualSnapshotAt;
+  bool _manualSnapshotDue = false;
 
   Future<bool> undo() => history.undo();
   Future<bool> redo() => history.redo();
@@ -144,16 +194,11 @@ final class ConstellationPlacementCase extends UseCaseBase {
   Future<String?> _restoreSnapshot(String snapshotId) async {
     final applying = _applyBarrier;
     if (applying != null) await applying.future;
-    final generation = _store.current.generation;
     try {
-      final written = await _repository.restoreLayoutSnapshot(
+      return _repository.restoreLayoutSnapshot(
         snapshotId: snapshotId,
         clientOpId: _uuid.v4(),
       );
-      if (!_disposed && _store.current.generation == generation) {
-        unawaited(_store.requestRefresh(ConstellationRefreshReason.load));
-      }
-      return written;
     } on Object catch (error, stackTrace) {
       logger.warning('Constellation layout restore failed', error, stackTrace);
       return null;
@@ -207,6 +252,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
       })
     >
     companions,
+    bool saveManualHistory = true,
     ConstellationPerson? grabbedPerson,
     ConstellationRequest? grabbedRequest,
   }) {
@@ -259,6 +305,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
         ),
     ];
     _record(positions, ops);
+    _manualSnapshotDue |= saveManualHistory && recordAutomaticHistory;
     _enqueue(ops);
   }
 
@@ -513,6 +560,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
   void _kick() {
     if (_flushing || _resetting) return;
     _flushing = true;
+    _flushCompletion = Completer<void>();
     final token = _loopToken = Object();
     // Coalesce synchronous inputs without a real-time timer.
     scheduleMicrotask(() => unawaited(_flush(token)));
@@ -568,8 +616,29 @@ final class ConstellationPlacementCase extends UseCaseBase {
   }
 
   Future<void> _flush(Object token) async {
+    final completed = _flushCompletion!;
     try {
       while (_isLive(token)) {
+        if (_manualSnapshotDue) {
+          _manualSnapshotDue = false;
+          final now = _clock.now();
+          if (_lastManualSnapshotAt == null ||
+              now.difference(_lastManualSnapshotAt!) >=
+                  const Duration(minutes: 10)) {
+            try {
+              await _saveSnapshot('manual');
+              if (!_isLive(token)) return;
+              _lastManualSnapshotAt = now;
+            } on Object catch (error, stackTrace) {
+              logger.warning(
+                'Could not save manual layout history',
+                error,
+                stackTrace,
+              );
+            }
+          }
+        }
+
         final (slots: batch, :retry) = _nextBatch();
         if (retry) _dueIds.removeAll(batch.map((slot) => slot.op.clientOpId));
         _releaseBarrier();
@@ -656,6 +725,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
         }
       }
     } finally {
+      completed.complete();
       if (identical(token, _loopToken)) {
         _loopToken = null;
         _flushing = false;
@@ -759,6 +829,8 @@ final class ConstellationPlacementCase extends UseCaseBase {
 
   void _syncGeneration() {
     if (_store.current.generation == _state.generation) return;
+    _lastManualSnapshotAt = null;
+    _manualSnapshotDue = false;
     // Another account: drop its writes, wake-ups and in-flight completions.
     _retryHandle?.cancel();
     _retryHandle = null;

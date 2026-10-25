@@ -1666,7 +1666,16 @@ class ConstellationSelectionBar extends StatelessWidget {
           ],
         ),
         if (!state.isEmpty)
-          Align(alignment: AlignmentDirectional.centerEnd, child: arrange),
+          Wrap(
+            alignment: WrapAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => cubit.gather(state.targets),
+                child: Text(l10n.constellationGather),
+              ),
+              arrange,
+            ],
+          ),
       ],
     );
   }

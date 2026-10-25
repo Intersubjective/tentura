@@ -24,3 +24,12 @@ abstract interface class ConstellationLayoutSnapshotRepositoryPort {
     required String clientOpId,
   });
 }
+
+/// Favourite-only writes leave live anchors untouched.
+abstract interface class ConstellationLayoutFavouriteRepositoryPort {
+  Future<void> restoreFavourite({
+    required String viewerId,
+    required String snapshotId,
+    required String clientOpId,
+  });
+}

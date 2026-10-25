@@ -178,5 +178,15 @@ Map<String, dynamic> constellationLayoutSnapshotToGqlMap(
   'kind': snapshot.kind.index,
   'reason': snapshot.reason.index,
   'anchorCount': snapshot.anchorCount,
+  'anchors': [
+    for (final a in snapshot.anchors)
+      {
+        'targetKind': a.targetKind.name.toUpperCase(),
+        'targetId': a.targetId,
+        'xUnits': a.x,
+        'yUnits': a.y,
+        'coordinateSpaceVersion': a.coordinateSpaceVersion,
+      },
+  ],
   'createdAt': snapshot.createdAt.toIso8601String(),
 };

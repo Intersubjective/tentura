@@ -1216,11 +1216,28 @@ final gqlTypeConstellationAnchorsResetResult =
         field('replayed', graphQLBoolean.nonNullable()),
       ]);
 
-/// A saved Field layout of the JWT viewer, without its anchors; `kind` and
+/// A saved coordinate independent of a live anchor's revision.
+final gqlTypeConstellationLayoutSnapshotAnchor =
+    GraphQLObjectType('ConstellationLayoutSnapshotAnchor', null)
+      ..fields.addAll([
+        field('targetKind', gqlEnumConstellationAnchorTargetKind.nonNullable()),
+        field('targetId', graphQLString.nonNullable()),
+        field('xUnits', graphQLFloat.nonNullable()),
+        field('yUnits', graphQLFloat.nonNullable()),
+        field('coordinateSpaceVersion', graphQLInt.nonNullable()),
+      ]);
+
+/// A saved Field layout of the JWT viewer, including its anchors; `kind` and
 /// `reason` are the stored enum indexes.
 final gqlTypeConstellationLayoutSnapshot =
     GraphQLObjectType('ConstellationLayoutSnapshot', null)
       ..fields.addAll([
+        field(
+          'anchors',
+          GraphQLListType(
+            gqlTypeConstellationLayoutSnapshotAnchor.nonNullable(),
+          ).nonNullable(),
+        ),
         field('id', graphQLString.nonNullable()),
         field('kind', graphQLInt.nonNullable()),
         field('reason', graphQLInt.nonNullable()),

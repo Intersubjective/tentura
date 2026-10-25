@@ -3885,6 +3885,7 @@ type mutation_root {
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
   constellationAnchorsReset(clientOpId: String!, saveHistory: Boolean): v2_ConstellationAnchorsResetResult!
   constellationLayoutSnapshotRestore(clientOpId: String, snapshotId: String): v2_ConstellationLayoutSnapshot!
+  constellationLayoutFavouriteRestore(snapshotId: String!, clientOpId: String!): Boolean!
   constellationLayoutSnapshotSave(clientOpId: String, kind: Int!, reason: Int!): v2_ConstellationLayoutSnapshot!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
@@ -8184,7 +8185,16 @@ enum v2_ConstellationAnchorTargetKind {
   PERSON
 }
 
+type v2_ConstellationLayoutSnapshotAnchor {
+  targetKind: v2_ConstellationAnchorTargetKind!
+  targetId: String!
+  xUnits: Float!
+  yUnits: Float!
+  coordinateSpaceVersion: Int!
+}
+
 type v2_ConstellationLayoutSnapshot {
+  anchors: [v2_ConstellationLayoutSnapshotAnchor!]!
   anchorCount: Int!
   createdAt: String!
   id: String!

@@ -1,0 +1,3 @@
+mutation ConstellationLayoutFavouriteRestore($snapshotId: String!, $clientOpId: String!) {
+  constellationLayoutFavouriteRestore(snapshotId: $snapshotId, clientOpId: $clientOpId)
+}

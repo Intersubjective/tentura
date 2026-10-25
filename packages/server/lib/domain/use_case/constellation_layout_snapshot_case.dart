@@ -56,6 +56,20 @@ final class ConstellationLayoutSnapshotCase extends UseCaseBase {
     );
   }
 
+  Future<void> restoreFavourite({
+    required String viewerId,
+    required String snapshotId,
+    required String clientOpId,
+  }) {
+    _checkOpId(clientOpId);
+    return (_repository as ConstellationLayoutFavouriteRepositoryPort)
+        .restoreFavourite(
+          viewerId: viewerId,
+          snapshotId: snapshotId,
+          clientOpId: clientOpId,
+        );
+  }
+
   void _checkOpId(String clientOpId) {
     if (clientOpId.isEmpty || clientOpId.length > 64) {
       throw ConstellationException(

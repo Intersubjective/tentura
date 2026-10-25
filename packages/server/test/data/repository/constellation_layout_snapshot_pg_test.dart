@@ -219,6 +219,78 @@ VALUES ('$id', '$id', 'pk-$id') ON CONFLICT (id) DO NOTHING
       });
     });
 
+    test('list returns saved coordinates only to their viewer', () async {
+      await pin(personA, -3.25, 4.5);
+      final saved = await saveHistory('read-anchors');
+      await pin(personA, 9, 9);
+
+      final listed = (await snapshots.list(viewer)).single;
+      expect(listed.id, saved.id);
+      expect(
+        {
+          for (final a in listed.anchors)
+            a.targetId: (a.targetKind, a.x, a.y, a.coordinateSpaceVersion),
+        },
+        {
+          personA: (ConstellationAnchorTargetKind.person, -3.25, 4.5, 1),
+          personB: (ConstellationAnchorTargetKind.person, 2.0, 2.0, 1),
+        },
+      );
+      expect(await snapshots.list(otherViewer), isEmpty);
+    });
+
+    test(
+      'favourite undo restores only the favourite and replays safely',
+      () async {
+        final previous = await saveFavourite('fav-before');
+        for (var i = 0; i < 20; i++) {
+          await saveHistory('between-favourites-$i');
+        }
+        await pin(personA, 6, 7);
+        await saveFavourite('fav-after');
+        await snapshots.restoreFavourite(
+          viewerId: viewer,
+          snapshotId: previous.id,
+          clientOpId: 'fav-undo',
+        );
+        final favourite = (await snapshots.list(viewer)).singleWhere(
+          (s) => s.kind == ConstellationLayoutSnapshotKind.favourite,
+        );
+        expect(await payload(favourite.id), {
+          personA: (1.0, 1.0),
+          personB: (2.0, 2.0),
+        });
+        expect((await pinned())[personA], (6.0, 7.0));
+        await snapshots.restoreFavourite(
+          viewerId: viewer,
+          snapshotId: '',
+          clientOpId: 'fav-clear',
+        );
+        final newer = await saveFavourite('fav-newer');
+        await snapshots.restoreFavourite(
+          viewerId: viewer,
+          snapshotId: '',
+          clientOpId: 'fav-clear',
+        );
+        expect(
+          (await snapshots.list(viewer))
+              .singleWhere(
+                (s) => s.kind == ConstellationLayoutSnapshotKind.favourite,
+              )
+              .id,
+          newer.id,
+        );
+        await expectLater(
+          snapshots.restoreFavourite(
+            viewerId: otherViewer,
+            snapshotId: previous.id,
+            clientOpId: 'foreign-fav',
+          ),
+          throwsA(isA<PeopleTagsException>()),
+        );
+      },
+    );
+
     test('the 21st history snapshot drops the oldest', () async {
       final ids = <String>[];
       for (var i = 0; i < 21; i++) {

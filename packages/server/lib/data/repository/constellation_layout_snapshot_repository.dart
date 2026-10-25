@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/domain/entity/constellation_layout_snapshot.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -15,13 +16,28 @@ import 'constellation_viewer_tx.dart';
 const _historyLimit = 20;
 
 const _columns =
-    'id, kind, reason, anchor_count, created_at::text AS created_at';
+    'id, kind, reason, anchor_count, created_at::text AS created_at, '
+    'anchors::text AS anchors';
 
 ConstellationLayoutSnapshot _fromRow(QueryRow row) =>
     ConstellationLayoutSnapshot(
       id: row.read<String>('id'),
       kind: ConstellationLayoutSnapshotKind.values[row.read<int>('kind')],
       reason: ConstellationLayoutSnapshotReason.values[row.read<int>('reason')],
+      anchors: [
+        for (final a
+            in (jsonDecode(row.read<String>('anchors')) as List)
+                .cast<Map<String, dynamic>>())
+          ConstellationLayoutSnapshotAnchor(
+            targetKind: ConstellationAnchorTargetKind.values.byName(
+              a['targetKind'] as String,
+            ),
+            targetId: a['targetId'] as String,
+            x: (a['x'] as num).toDouble(),
+            y: (a['y'] as num).toDouble(),
+            coordinateSpaceVersion: a['coordinateSpaceVersion'] as int,
+          ),
+      ],
       anchorCount: row.read<int>('anchor_count'),
       createdAt: DateTime.parse(row.read<String>('created_at')).toUtc(),
     );
@@ -40,7 +56,7 @@ Future<ConstellationLayoutSnapshot> insertConstellationLayoutSnapshot(
     await db
         .customSelect(
           r'''
-DELETE FROM public.constellation_layout_snapshot
+UPDATE public.constellation_layout_snapshot SET kind = 1, created_at = clock_timestamp()
 WHERE viewer_id = $1 AND kind = 0
 RETURNING 1
 ''',
@@ -79,10 +95,9 @@ RETURNING $_columns
         ],
       )
       .getSingle();
-  if (kind == ConstellationLayoutSnapshotKind.history) {
-    await db
-        .customSelect(
-          r'''
+  await db
+      .customSelect(
+        r'''
 DELETE FROM public.constellation_layout_snapshot
 WHERE viewer_id = $1 AND kind = 1 AND id NOT IN (
   SELECT id FROM public.constellation_layout_snapshot
@@ -92,13 +107,12 @@ WHERE viewer_id = $1 AND kind = 1 AND id NOT IN (
 )
 RETURNING 1
 ''',
-          variables: [
-            Variable<String>(viewerId),
-            const Variable<int>(_historyLimit),
-          ],
-        )
-        .get();
-  }
+        variables: [
+          Variable<String>(viewerId),
+          const Variable<int>(_historyLimit),
+        ],
+      )
+      .get();
   return _fromRow(row);
 }
 
@@ -106,7 +120,9 @@ RETURNING 1
 /// the viewer's batch lock, idempotent by `(viewerId, clientOpId)`.
 @LazySingleton(as: ConstellationLayoutSnapshotRepositoryPort)
 class ConstellationLayoutSnapshotRepository
-    implements ConstellationLayoutSnapshotRepositoryPort {
+    implements
+        ConstellationLayoutSnapshotRepositoryPort,
+        ConstellationLayoutFavouriteRepositoryPort {
   const ConstellationLayoutSnapshotRepository(this._db);
 
   final TenturaDb _db;
@@ -156,7 +172,7 @@ ORDER BY kind ASC, created_at DESC, id DESC
     final row = await _db
         .customSelect(
           '''
-SELECT $_columns, anchors::text AS anchors
+SELECT $_columns
 FROM public.constellation_layout_snapshot
 WHERE id = \$1 AND viewer_id = \$2
 ''',
@@ -191,6 +207,62 @@ WHERE id = \$1 AND viewer_id = \$2
           .cast<Map<String, dynamic>>(),
     );
     return snapshot;
+  });
+
+  /// Changes only the favourite, never the live Field anchors. Previous
+  /// favourites remain in history so a screen can undo a favourite save.
+  @override
+  Future<void> restoreFavourite({
+    required String viewerId,
+    required String snapshotId,
+    required String clientOpId,
+  }) => _db.withMutatingRepeatableRead(viewerId, () async {
+    await lockConstellationViewerBatch(_db, viewerId);
+    if (await _byOpId(viewerId, clientOpId) != null) return;
+    final source = snapshotId.isEmpty
+        ? null
+        : await _db
+              .customSelect(
+                'SELECT $_columns FROM public.constellation_layout_snapshot '
+                r'WHERE viewer_id = $1 AND id = $2',
+                variables: [
+                  Variable<String>(viewerId),
+                  Variable<String>(snapshotId),
+                ],
+              )
+              .getSingleOrNull();
+    if (snapshotId.isNotEmpty && source == null) {
+      throw PeopleTagsException(
+        peopleTagsCode: PeopleTagsExceptionCode.snapshotNotFound,
+      );
+    }
+    await _db.customStatement(
+      'UPDATE public.constellation_layout_snapshot SET kind = 1, created_at = clock_timestamp() '
+      r'WHERE viewer_id = $1 AND kind = 0',
+      [viewerId],
+    );
+    // An operation receipt also covers clearing an absent favourite; replay
+    // must not clear a newer favourite saved in the meantime.
+    await insertConstellationLayoutSnapshot(
+      _db,
+      viewerId: viewerId,
+      kind: ConstellationLayoutSnapshotKind.history,
+      reason: ConstellationLayoutSnapshotReason.restore,
+      clientOpId: clientOpId,
+    );
+    if (source == null) return;
+    await _db.customStatement(
+      'INSERT INTO public.constellation_layout_snapshot '
+      '(id, viewer_id, kind, reason, anchors, anchor_count, client_op_id) '
+      r'VALUES ($1, $2, 0, 1, $3::jsonb, $4, $5)',
+      [
+        generateId('LS'),
+        viewerId,
+        source.read<String>('anchors'),
+        source.read<int>('anchor_count'),
+        generateId('LS'),
+      ],
+    );
   });
 
   Future<ConstellationLayoutSnapshot?> _byOpId(

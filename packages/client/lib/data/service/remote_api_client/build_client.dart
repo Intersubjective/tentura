@@ -377,6 +377,8 @@ class _V2RoutingLink extends Link {
     'ConstellationAnchorsApply',
     'ConstellationAnchorsReset',
     'ConstellationLayoutSnapshotRestore',
+    'ConstellationLayoutSnapshotSave',
+    'ConstellationLayoutFavouriteRestore',
     'ConstellationLayoutSnapshots',
     'UserBlock',
     'UserUnblock',

@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../entity/constellation_anchor_projection.dart';
+import '../entity/constellation_layout_snapshot.dart';
 
 part 'constellation_anchor_repository_port.freezed.dart';
 
@@ -99,6 +100,16 @@ abstract interface class ConstellationAnchorRepositoryPort {
   /// first and its id returned, so the restore can itself be undone.
   /// [kLatestLayoutSnapshotId] stands for the newest saved layout.
   Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  });
+}
+
+/// Read-only snapshot browsing and favourite writes, separate from placements.
+abstract interface class ConstellationLayoutSnapshotRepositoryPort {
+  Future<List<ConstellationLayoutSnapshot>> listLayoutSnapshots();
+  Future<String> saveFavourite({required String clientOpId});
+  Future<void> restoreFavourite({
     required String snapshotId,
     required String clientOpId,
   });

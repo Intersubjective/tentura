@@ -3,6 +3,7 @@ import 'package:graphql_server2/graphql_server2.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_constellation_layout_snapshot.dart';
@@ -71,6 +72,44 @@ query { constellationLayoutSnapshots { id kind reason anchorCount } }
     expect(repository.listedFor, viewer);
   });
 
+  test(
+    'snapshot anchors expose typed coordinates without a live revision',
+    () async {
+      repository.anchors = const [
+        ConstellationLayoutSnapshotAnchor(
+          targetKind: ConstellationAnchorTargetKind.person,
+          targetId: 'person',
+          x: -3.25,
+          y: 4.5,
+          coordinateSpaceVersion: 1,
+        ),
+      ];
+      final data = await run(
+        'query { constellationLayoutSnapshots { anchors { targetKind targetId xUnits yUnits coordinateSpaceVersion } } }',
+      );
+      final listed =
+          (data['constellationLayoutSnapshots'] as List).single as Map;
+      expect(listed['anchors'], [
+        {
+          'targetKind': 'PERSON',
+          'targetId': 'person',
+          'xUnits': -3.25,
+          'yUnits': 4.5,
+          'coordinateSpaceVersion': 1,
+        },
+      ]);
+    },
+  );
+
+  test('favourite-only restore uses the JWT viewer', () async {
+    final data = await run(
+      'mutation { constellationLayoutFavouriteRestore(snapshotId: "LS_old", clientOpId: "fav-undo") }',
+    );
+    expect(data['constellationLayoutFavouriteRestore'], isTrue);
+    expect(repository.favouriteRestored, (viewer, 'LS_old', 'fav-undo'));
+    expect(repository.restored, isEmpty);
+  });
+
   test('constellationLayoutSnapshotSave saves for the JWT viewer', () async {
     final data = await run(
       r'''
@@ -117,7 +156,21 @@ mutation($op: String!) {
 }
 
 class _RecordingRepository
-    implements ConstellationLayoutSnapshotRepositoryPort {
+    implements
+        ConstellationLayoutSnapshotRepositoryPort,
+        ConstellationLayoutFavouriteRepositoryPort {
+  List<ConstellationLayoutSnapshotAnchor> anchors = const [];
+  (String, String, String)? favouriteRestored;
+
+  @override
+  Future<void> restoreFavourite({
+    required String viewerId,
+    required String snapshotId,
+    required String clientOpId,
+  }) async {
+    favouriteRestored = (viewerId, snapshotId, clientOpId);
+  }
+
   String? listedFor;
   final saved =
       <
@@ -135,7 +188,8 @@ class _RecordingRepository
         id: id,
         kind: ConstellationLayoutSnapshotKind.history,
         reason: ConstellationLayoutSnapshotReason.manual,
-        anchorCount: 0,
+        anchorCount: anchors.length,
+        anchors: anchors,
         createdAt: DateTime.utc(2026),
       );
 

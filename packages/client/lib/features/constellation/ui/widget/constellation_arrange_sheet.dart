@@ -4,6 +4,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
+import 'constellation_layout_history_sheet.dart';
+import 'constellation_tidied_snack_bar.dart';
 
 Future<void> showConstellationArrangeSheet(
   BuildContext context, {
@@ -44,54 +46,97 @@ class ConstellationArrangeSheet extends StatelessWidget {
           right: tt.screenHPadding,
           bottom: tt.rowGap,
         ),
-        child: TenturaMenuGroup(
-          title: l10n.constellationArrange,
-          children: [
-            TenturaMenuTile(
-              icon: Icons.undo,
-              title: l10n.constellationUndo,
-              opensPage: false,
-              onTap: close(
-                cubit.canUndoArrangement,
-                cubit.undoArrangement,
+        child: SingleChildScrollView(
+          child: TenturaMenuGroup(
+            title: l10n.constellationArrange,
+            children: [
+              TenturaMenuTile(
+                icon: Icons.undo,
+                title: l10n.constellationUndo,
+                opensPage: false,
+                onTap: close(
+                  cubit.canUndoArrangement,
+                  cubit.undoArrangement,
+                ),
               ),
-            ),
-            TenturaMenuTile(
-              icon: Icons.redo,
-              title: l10n.constellationRedo,
-              opensPage: false,
-              onTap: close(
-                cubit.canRedoArrangement,
-                cubit.redoArrangement,
+              TenturaMenuTile(
+                icon: Icons.redo,
+                title: l10n.constellationRedo,
+                opensPage: false,
+                onTap: close(
+                  cubit.canRedoArrangement,
+                  cubit.redoArrangement,
+                ),
               ),
-            ),
-            TenturaMenuTile(
-              icon: Icons.auto_fix_high,
-              title: l10n.constellationRearrange,
-              opensPage: false,
-              onTap: close(true, cubit.rearrangeFreeNodes),
-            ),
-            TenturaMenuTile(
-              icon: Icons.shuffle,
-              title: l10n.constellationRearrangeEveryone,
-              opensPage: false,
-              onTap: close(true, cubit.previewRearrangeAll),
-            ),
-            TenturaMenuTile(
-              icon: Icons.restart_alt,
-              title: l10n.constellationResetPositions,
-              opensPage: false,
-              onTap: close(true, () async {
-                if (!await cubit.resetAllPositions(saveHistory: true)) {
-                  messenger?.showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.constellationResetPositionsFailed),
-                    ),
-                  );
-                }
-              }),
-            ),
-          ],
+              TenturaMenuTile(
+                icon: Icons.cleaning_services_outlined,
+                title: l10n.constellationTidyUp,
+                opensPage: false,
+                onTap: close(true, () async {
+                  final snackbarContext = messenger?.context;
+                  final count = await cubit.tidyUp();
+                  if (count > 0 &&
+                      snackbarContext != null &&
+                      snackbarContext.mounted) {
+                    showConstellationTidiedSnackBar(
+                      snackbarContext,
+                      count: count,
+                      onUndo: cubit.undoArrangement,
+                    );
+                  }
+                }),
+              ),
+              TenturaMenuTile(
+                icon: Icons.favorite_outline,
+                title: l10n.constellationSaveFavourite,
+                opensPage: false,
+                onTap: close(true, cubit.saveFavouriteLayout),
+              ),
+              TenturaMenuTile(
+                icon: Icons.restore,
+                title: l10n.constellationRestoreFavourite,
+                opensPage: false,
+                onTap: close(true, cubit.restoreFavouriteLayout),
+              ),
+              TenturaMenuTile(
+                icon: Icons.history,
+                title: l10n.constellationLayoutHistory,
+                onTap: close(
+                  true,
+                  () => showConstellationLayoutHistorySheet(
+                    navigator.context,
+                    cubit: cubit,
+                  ),
+                ),
+              ),
+              TenturaMenuTile(
+                icon: Icons.auto_fix_high,
+                title: l10n.constellationRearrange,
+                opensPage: false,
+                onTap: close(true, cubit.rearrangeFreeNodes),
+              ),
+              TenturaMenuTile(
+                icon: Icons.shuffle,
+                title: l10n.constellationRearrangeEveryone,
+                opensPage: false,
+                onTap: close(true, cubit.previewRearrangeAll),
+              ),
+              TenturaMenuTile(
+                icon: Icons.restart_alt,
+                title: l10n.constellationResetPositions,
+                opensPage: false,
+                onTap: close(true, () async {
+                  if (!await cubit.resetAllPositions(saveHistory: true)) {
+                    messenger?.showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.constellationResetPositionsFailed),
+                      ),
+                    );
+                  }
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );

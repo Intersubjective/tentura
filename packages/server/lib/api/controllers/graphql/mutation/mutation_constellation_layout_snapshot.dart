@@ -22,7 +22,23 @@ final class MutationConstellationLayoutSnapshot extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     constellationLayoutSnapshotSave,
     constellationLayoutSnapshotRestore,
+    constellationLayoutFavouriteRestore,
   ];
+
+  GraphQLObjectField<dynamic, dynamic>
+  get constellationLayoutFavouriteRestore => GraphQLObjectField(
+    'constellationLayoutFavouriteRestore',
+    graphQLBoolean.nonNullable(),
+    arguments: [_snapshotId.field, _clientOpId.field],
+    resolve: (_, args) async {
+      await _case.restoreFavourite(
+        viewerId: getCredentials(args).sub,
+        snapshotId: _snapshotId.fromArgsNonNullable(args),
+        clientOpId: _clientOpId.fromArgsNonNullable(args),
+      );
+      return true;
+    },
+  );
 
   GraphQLObjectField<dynamic, dynamic> get constellationLayoutSnapshotSave =>
       GraphQLObjectField(

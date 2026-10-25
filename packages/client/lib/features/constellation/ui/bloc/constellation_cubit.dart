@@ -19,6 +19,11 @@ import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/constellation_rearrange_all.dart';
+import '../../domain/constellation_tidy_action.dart';
+import '../../domain/constellation_tidy_offset_layer.dart';
+import '../../domain/entity/constellation_layout_snapshot.dart';
+import '../../domain/use_case/constellation_arrangement_history.dart';
+import '../scene/constellation_arrangement_layout.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
 import '../../domain/constellation_mutual_trust.dart';
@@ -142,6 +147,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
        _viewer = viewer,
        _forwardCaseOverride = forwardCase,
        super(const ConstellationState()) {
+    _placementCase?.history.applyTidyOffsets = (offsets) async {
+      if (isClosed) return;
+      _tidyOffsets.replaceAll(offsets);
+      _reconcileLayout(immediateHandoff: true);
+    };
     _anchorLifecycleToken = _anchorCase?.activate(viewerAccountId: viewer.id);
     _storeLease = _case.lease();
     _storeSub = _case.changes.listen(_onStoreChanged);
@@ -346,13 +356,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   int get writeCount => _writeCount;
 
-  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm => _scene.layoutAlgorithm(
-    graphRevision: state.graphRevision,
-    viewerId: _viewer.id,
-    statePaths: state.paths,
-    stateKeptPeerIds: state.keptPeerIds,
-    forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
-  );
+  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
+      _layoutPreviewAlgorithm ??
+      _withTidyOffsets(
+        _scene.layoutAlgorithm(
+          graphRevision: state.graphRevision,
+          viewerId: _viewer.id,
+          statePaths: state.paths,
+          stateKeptPeerIds: state.keptPeerIds,
+          forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
+        ),
+      );
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm =>
       _scene.constellationAlgorithm(
@@ -1432,6 +1446,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
     TimelineTask? ackSpan,
+    bool saveManualHistory = true,
     List<
           ({
             ConstellationAnchorTarget target,
@@ -1462,6 +1477,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         parent: batch.first.target,
         position: batch.first.position,
         companions: batch.sublist(1),
+        saveManualHistory: saveManualHistory,
       );
     }
     if (!kReleaseMode) {
@@ -2068,11 +2084,284 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             .any((anchor) => anchor.target == target);
   }
 
+  final _tidyOffsets = ConstellationTidyOffsetLayer();
+  final _tidyPriors = <String, ScenePoint>{};
+  SceneLayoutAlgorithm? _layoutPreviewAlgorithm;
+  Map<String, ScenePoint>? _positionsBeforeLayoutPreview;
+
+  SceneLayoutAlgorithm _withTidyOffsets(SceneLayoutAlgorithm base) {
+    final pinned = {
+      for (final a
+          in state.composition?.anchorOverlay.anchors ??
+              <ConstellationAnchor>[])
+        a.target.id,
+    };
+    _tidyOffsets.clear(pinned);
+    if (_tidyOffsets.isEmpty || state.tagView != null) return base;
+    return ConstellationOffsetLayout(
+      base,
+      {
+        for (final e in _tidyOffsets.offsets.entries)
+          'fp:${e.key}': ScenePoint(x: e.value.x, y: e.value.y),
+      },
+      {
+        for (final id in _tidyOffsets.offsets.keys)
+          'fp:$id': ?_tidyPriors['fp:$id'],
+      },
+    );
+  }
+
+  void _clearArrangementPriors() {
+    _tidyOffsets.clearAll();
+    _tidyPriors.clear();
+    _layoutPriorHints = null;
+    _scene.ephemeralOwnedLayoutAlgorithm = null;
+    _forgetPriorHintNodeIds = {
+      for (final node in graphController.nodes)
+        tenturaLayoutDomainId(tenturaGraphNodeId(node)),
+    };
+  }
+
+  Future<bool> _saveBulkHistory(String reason) async {
+    final placement = _placementCase;
+    if (placement == null) return false;
+    if (!placement.recordAutomaticHistory) return true;
+    try {
+      await placement.history.saveSnapshotBeforeBulkAction(reason);
+      return !isClosed;
+    } on Object catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+      return false;
+    }
+  }
+
+  Future<List<ConstellationLayoutSnapshot>> listLayoutSnapshots() =>
+      _placementCase?.listLayoutSnapshots() ?? Future.value(const []);
+
+  Future<void> saveFavouriteLayout() async {
+    try {
+      await _placementCase?.saveFavourite();
+    } on Object catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+    }
+  }
+
+  Future<bool> restoreFavouriteLayout() async {
+    final favourite = (await listLayoutSnapshots())
+        .where((s) => s.kind == 0)
+        .firstOrNull;
+    return favourite != null && await restoreLayout(favourite);
+  }
+
+  /// Previews use a separate layout algorithm; neither the store nor the
+  /// confirmed anchor projection is changed.
+  void previewLayout(ConstellationLayoutSnapshot snapshot) {
+    final field = state.field;
+    if (isClosed || field == null) return;
+    _positionsBeforeLayoutPreview ??= {
+      for (final id in graphController.renderSnapshot.topology.nodesById.keys)
+        id: ?graphController.renderSnapshot.resolvePosition(id),
+    };
+    final old = field.resolvedAnchorProjection;
+    final projection = ConstellationAnchorProjection(
+      revision: old.revision,
+      anchors: [
+        for (final e in snapshot.anchors.entries)
+          ConstellationAnchor(
+            target: e.key,
+            position: e.value,
+            revision: old.revision,
+            placedAt: snapshot.createdAt,
+          ),
+      ],
+      pinnedPeers: old.pinnedPeers,
+      pinnedRequests: old.pinnedRequests,
+      supportPeers: old.supportPeers,
+      supportEdges: old.supportEdges,
+      serverFilteredBeaconIds: old.serverFilteredBeaconIds,
+      serverFilteredBeaconCount: old.serverFilteredBeaconCount,
+    );
+    final composed = _composePresentation(
+      viewerId: viewerId,
+      field: field.copyWith(anchorProjection: projection),
+      localFilters: state.filters,
+      asOfUtc: state.loadedAt ?? field.loadedAt,
+      labelBudget: _currentLabelBudget(),
+      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: _holderWebs,
+      extraKeptPeerIds: _extraKeptPeerIds,
+    );
+    emit(
+      state.copyWith(
+        composition: composed,
+        paths: composed.paths,
+        keptPeerIds: composed.keptPeerIds,
+        capped: composed.renderBudgetCapped,
+      ),
+    );
+    droppedHolderIds = composed.droppedHolderIds;
+    _reconcileSelection(composed);
+    _tidyOffsets.clearAll();
+    _tidyPriors.clear();
+    _layoutPriorHints = null;
+    final input = layoutInputFromComposition(
+      viewerId: viewerId,
+      composition: composed,
+      labelPlan: composed.labelPlan,
+      nodeSizes: const {},
+      spacing: 16,
+      footprints: layoutFootprints,
+    );
+    _layoutPreviewAlgorithm = ConstellationSceneLayoutAlgorithm(
+      egoId: viewerId,
+      paths: composed.paths,
+      keptPeerIds: composed.keptPeerIds,
+      maxHops: input.maxHops,
+      visibleRequestsByAuthor: input.satelliteRequestIdsByAuthor,
+      egoOwnRequestIds: input.egoOwnRequestIds,
+      pinnedPersonIds: {
+        for (final target in snapshot.anchors.keys)
+          if (target.kind == ConstellationAnchorTargetKind.person) target.id,
+      },
+      pinnedRequestIds: {
+        for (final target in snapshot.anchors.keys)
+          if (target.kind == ConstellationAnchorTargetKind.beacon) target.id,
+      },
+      supportPersonIds: input.supportPersonIds,
+      anchorByNodeId: input.anchorByNodeId,
+      footprints: input.footprints,
+      forgetPriorHintNodeIds: {
+        for (final node in graphController.nodes)
+          tenturaLayoutDomainId(tenturaGraphNodeId(node)),
+      },
+    );
+    _reconcileLayout(immediateHandoff: true);
+  }
+
+  void cancelLayoutPreview() {
+    final positions = _positionsBeforeLayoutPreview;
+    _layoutPreviewAlgorithm = null;
+    _positionsBeforeLayoutPreview = null;
+    if (isClosed || positions == null) return;
+    final field = state.field;
+    if (field != null) {
+      final presentationField = _desiredField(field);
+      _lastPresentationField = presentationField;
+      final composition = _composePresentation(
+        viewerId: viewerId,
+        field: _composerField(presentationField),
+        localFilters: state.filters,
+        asOfUtc: state.loadedAt ?? field.loadedAt,
+        labelBudget: _currentLabelBudget(),
+        expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+        selectedRequestWebs: _holderWebs,
+        extraKeptPeerIds: _extraKeptPeerIds,
+      );
+      emit(
+        state.copyWith(
+          composition: composition,
+          paths: composition.paths,
+          keptPeerIds: composition.keptPeerIds,
+          capped: composition.renderBudgetCapped,
+        ),
+      );
+      droppedHolderIds = composition.droppedHolderIds;
+      _reconcileSelection(composition);
+    }
+    _scene.requestLayout(
+      releaseOnTerminal: _scene.activePresentationReleaseTokens(),
+      algorithm: ConstellationFixedLayout(positions),
+    );
+  }
+
+  Future<bool> restoreLayout(ConstellationLayoutSnapshot snapshot) async {
+    final placement = _placementCase;
+    if (placement == null) return false;
+    final restored = await placement.restoreLayoutSnapshot(snapshot.id);
+    if (!restored || isClosed) return false;
+    _positionsBeforeLayoutPreview = null;
+    _layoutPreviewAlgorithm = null;
+    _clearArrangementPriors();
+    await _case.requestRefresh(ConstellationRefreshReason.load);
+    if (isClosed) return false;
+    _reconcileLayout(immediateHandoff: true);
+    return true;
+  }
+
+  Future<int> tidyUp({Set<String>? selection}) async {
+    final placement = _placementCase;
+    if (placement == null || !await _saveBulkHistory('rebuild')) return 0;
+    final snap = graphController.renderSnapshot;
+    final ego = snap.resolvePosition('fp:$viewerId');
+    if (ego == null) return 0;
+    final nodes = [
+      for (final e in snap.topology.nodesById.entries)
+        if (graphController.nodePayloadForId(e.key)
+            case final FieldPersonNode node)
+          if (snap.resolvePosition(e.key) case final p?)
+            (
+              id: node.id,
+              position: (x: p.x, y: p.y),
+              radius: node.size / 2,
+              labelSize: (w: e.value.size.width, h: e.value.size.height),
+              pinned:
+                  node.id == viewerId ||
+                  isAnchored(ConstellationAnchorTarget.person(node.id)),
+            ),
+    ];
+    for (final n in nodes) {
+      _tidyPriors.putIfAbsent(
+        'fp:${n.id}',
+        () => ScenePoint(x: n.position.x, y: n.position.y),
+      );
+    }
+    final result = ConstellationTidyAction(
+      layer: _tidyOffsets,
+      history: placement.history,
+    ).tidy(ego: (x: ego.x, y: ego.y), nodes: nodes, selection: selection);
+    if (result == null) return 0;
+    _reconcileLayout(immediateHandoff: true);
+    return result.movedCount;
+  }
+
+  bool gather(Set<ConstellationAnchorTarget> targets) {
+    final positioned = {
+      for (final t in targets)
+        t: ?graphController.getPositionOrNullForId(
+          constellationGraphNodeIdForTarget(t),
+        ),
+    };
+    if (positioned.length < 2) return false;
+    final centre =
+        positioned.values.reduce((a, b) => a + b) /
+        positioned.length.toDouble();
+    final spacing =
+        graphController.renderSnapshot.topology.nodesById.values.fold<double>(
+          0,
+          (v, n) => math.max(v, n.size.width),
+        ) +
+        16;
+    final columns = math.sqrt(positioned.length).ceil();
+    final ordered = positioned.keys.toList()
+      ..sort((a, b) => a.mapKey.compareTo(b.mapKey));
+    return placeArrangement({
+      for (var i = 0; i < ordered.length; i++)
+        ordered[i]:
+            centre +
+            Offset(
+              (i % columns - (columns - 1) / 2) * spacing,
+              (i ~/ columns - (columns - 1) / 2) * spacing,
+            ),
+    });
+  }
+
   /// Re-lays out the nodes the user has not placed as a fresh plan, with no
   /// session inertia to stay close to. Anchored nodes keep their stored
   /// positions (the anchors, not prior hints, fix them); nothing is written.
-  void rearrangeFreeNodes() {
+  Future<void> rearrangeFreeNodes() async {
     if (isClosed || state.composition == null) return;
+    if (!await _saveBulkHistory('rebuild')) return;
+    _clearArrangementPriors();
     _forgetPriorHintNodeIds = {
       for (final node in graphController.nodes)
         tenturaLayoutDomainId(tenturaGraphNodeId(node)),
@@ -2163,10 +2452,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           in preview.pinnedWrites.entries)
         (target: target, position: position),
     ];
-    if (writes.isEmpty) {
-      rearrangeFreeNodes();
-      return true;
-    }
+
     _writeCount++;
     try {
       await placement.history.saveSnapshotBeforeBulkAction('rebuild');
@@ -2175,14 +2461,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return false;
     }
     if (isClosed) return false;
-    _forgetPriorHintNodeIds = {
-      for (final node in graphController.nodes)
-        tenturaLayoutDomainId(tenturaGraphNodeId(node)),
-    };
+    _clearArrangementPriors();
+    if (writes.isEmpty) {
+      _reconcileLayout(immediateHandoff: true);
+      return true;
+    }
     _submitUpsert(
       target: writes.first.target,
       position: writes.first.position,
       companions: writes.sublist(1),
+      saveManualHistory: false,
     );
     return true;
   }
@@ -2200,6 +2488,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _writeCount++;
     try {
+      if (saveHistory) await placement.flushPendingPlacements();
+      _clearArrangementPriors();
       await placement.resetAll(saveHistory: saveHistory);
       return true;
     } on Object catch (error, stackTrace) {
@@ -2214,23 +2504,28 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Takes back the last drag, unpin or reset. False when there is nothing to
   /// undo or the server refused.
-  Future<bool> undoArrangement() =>
-      _runHistory((placement) => placement.undo());
+  Future<bool> undoArrangement() => _runHistory(redo: false);
 
   /// Applies the last undone arrangement action again.
-  Future<bool> redoArrangement() =>
-      _runHistory((placement) => placement.redo());
+  Future<bool> redoArrangement() => _runHistory(redo: true);
 
-  Future<bool> _runHistory(
-    Future<bool> Function(ConstellationPlacementCase placement) run,
-  ) async {
+  Future<bool> _runHistory({required bool redo}) async {
     final placement = _placementCase;
     if (isClosed || placement == null) {
       return false;
     }
     _writeCount++;
     try {
-      return await run(placement);
+      final entry = redo
+          ? placement.history.nextRedo
+          : placement.history.nextUndo;
+      final result = await (redo ? placement.redo() : placement.undo());
+      if (result && entry is SnapshotRestoreEntry && !isClosed) {
+        _clearArrangementPriors();
+        await load();
+        _reconcileLayout(immediateHandoff: true);
+      }
+      return result;
     } on Object catch (error, stackTrace) {
       if (!isClosed) addError(error, stackTrace);
       return false;
@@ -2327,11 +2622,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     )) {
       return false;
     }
-    _submitUpsert(
-      target: writes.first.target,
-      position: writes.first.position,
-      companions: writes.sublist(1),
-    );
+    unawaited(() async {
+      if (!await _saveBulkHistory('rebuild') || isClosed) return;
+      _submitUpsert(
+        target: writes.first.target,
+        position: writes.first.position,
+        companions: writes.sublist(1),
+        saveManualHistory: false,
+      );
+    }());
     return true;
   }
 

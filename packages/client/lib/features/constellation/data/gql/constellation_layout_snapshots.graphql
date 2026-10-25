@@ -2,6 +2,15 @@ query ConstellationLayoutSnapshots {
   constellationLayoutSnapshots {
     id
     kind
+    reason
+    anchorCount
+    anchors {
+      targetKind
+      targetId
+      xUnits
+      yUnits
+      coordinateSpaceVersion
+    }
     createdAt
   }
 }

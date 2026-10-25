@@ -5,10 +5,12 @@ import 'package:tentura/data/service/remote_api_service.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
+import '../../domain/entity/constellation_layout_snapshot.dart';
 import '../../domain/port/constellation_anchor_repository_port.dart';
 import '../gql/_g/constellation_anchors_apply.data.gql.dart';
 import '../gql/_g/constellation_anchors_apply.req.gql.dart';
 import '../gql/_g/constellation_anchors_reset.req.gql.dart';
+import '../gql/_g/constellation_layout_favourite_restore.req.gql.dart';
 import '../gql/_g/constellation_layout_snapshot_restore.req.gql.dart';
 import '../gql/_g/constellation_layout_snapshot_save.req.gql.dart';
 import '../gql/_g/constellation_layout_snapshots.req.gql.dart';
@@ -20,7 +22,9 @@ import '../model/constellation_field_mapper.dart';
   order: 1,
 )
 final class ConstellationAnchorRepository
-    implements ConstellationAnchorRepositoryPort {
+    implements
+        ConstellationAnchorRepositoryPort,
+        ConstellationLayoutSnapshotRepositoryPort {
   ConstellationAnchorRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
@@ -97,6 +101,73 @@ final class ConstellationAnchorRepository
             .constellationLayoutSnapshotSave
             .id,
       );
+
+  @override
+  Future<List<ConstellationLayoutSnapshot>> listLayoutSnapshots() =>
+      _remoteApiService
+          .request(GConstellationLayoutSnapshotsReq())
+          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .then(
+            (response) => [
+              for (final s
+                  in response
+                      .dataOrThrow(label: 'ConstellationLayoutSnapshots')
+                      .constellationLayoutSnapshots)
+                ConstellationLayoutSnapshot(
+                  id: s.id,
+                  kind: s.kind,
+                  createdAt: DateTime.parse(s.createdAt),
+                  anchors: {
+                    for (final a in s.anchors)
+                      (a.targetKind == Gv2_ConstellationAnchorTargetKind.PERSON
+                          ? ConstellationAnchorTarget.person(a.targetId)
+                          : ConstellationAnchorTarget.beacon(
+                              a.targetId,
+                            )): ConstellationAnchorPosition(
+                        xUnits: a.xUnits,
+                        yUnits: a.yUnits,
+                        coordinateSpaceVersion: a.coordinateSpaceVersion,
+                      ),
+                  },
+                ),
+            ],
+          );
+
+  @override
+  Future<String> saveFavourite({required String clientOpId}) =>
+      _remoteApiService
+          .request(
+            GConstellationLayoutSnapshotSaveReq(
+              (b) => b.vars
+                ..kind = 0
+                ..reason = 0
+                ..clientOpId = clientOpId,
+            ),
+          )
+          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .then(
+            (response) => response
+                .dataOrThrow(label: 'ConstellationLayoutSnapshotSave')
+                .constellationLayoutSnapshotSave
+                .id,
+          );
+
+  @override
+  Future<void> restoreFavourite({
+    required String snapshotId,
+    required String clientOpId,
+  }) async {
+    final response = await _remoteApiService
+        .request(
+          GConstellationLayoutFavouriteRestoreReq(
+            (b) => b.vars
+              ..snapshotId = snapshotId
+              ..clientOpId = clientOpId,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link);
+    response.dataOrThrow(label: 'ConstellationLayoutFavouriteRestore');
+  }
 
   /// The server returns the layout it put back; the one it saved of the
   /// layout it replaced is the newest history snapshot, whose id undoes it.

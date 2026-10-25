@@ -11547,5 +11547,12 @@
         "type": "String"
       }
     }
-  }
+  },
+  "constellationTidyUp": "Tidy up",
+  "constellationSaveFavourite": "Save as favourite",
+  "constellationRestoreFavourite": "Restore favourite",
+  "constellationLayoutHistory": "Layout history",
+  "constellationFavouriteLayout": "Favourite",
+  "constellationRestoreLayout": "Restore this",
+  "constellationGather": "Gather"
 }

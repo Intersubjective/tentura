@@ -65,6 +65,13 @@ final class SnapshotRestoreEntry extends ArrangementEntry {
   final String snapshotId;
 }
 
+/// Replacing a favourite changes no live anchors.
+final class FavouriteSnapshotEntry extends ArrangementEntry {
+  const FavouriteSnapshotEntry({required this.beforeId, required this.afterId});
+  final String beforeId;
+  final String afterId;
+}
+
 /// A «Tidy up»: the post-layout offsets before and after it.
 final class TidyOffsetEntry extends ArrangementEntry {
   const TidyOffsetEntry({required this.before, required this.after});
@@ -83,6 +90,7 @@ final class ConstellationArrangementHistory {
     required this.saveSnapshot,
     required this.newOpId,
     this.applyTidyOffsets,
+    this.restoreFavourite,
   });
 
   /// Sends one batch; false when the server rejected it.
@@ -95,7 +103,9 @@ final class ConstellationArrangementHistory {
   final Future<void> Function() flushPlacementOutbox;
   final Future<String> Function(String reason) saveSnapshot;
   final String Function() newOpId;
-  final Future<void> Function(Map<String, LPoint> offsets)? applyTidyOffsets;
+  Future<void> Function(Map<String, LPoint> offsets)? applyTidyOffsets;
+
+  final Future<void> Function(String snapshotId)? restoreFavourite;
 
   static const _batchCap = 400;
 
@@ -103,6 +113,8 @@ final class ConstellationArrangementHistory {
   final _redo = <ArrangementEntry>[];
 
   int get length => _undo.length;
+  ArrangementEntry? get nextUndo => _undo.lastOrNull;
+  ArrangementEntry? get nextRedo => _redo.lastOrNull;
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
@@ -164,6 +176,9 @@ final class ConstellationArrangementHistory {
         return e;
       case final TidyOffsetEntry e:
         await applyTidyOffsets?.call(undo ? e.before : e.after);
+        return e;
+      case final FavouriteSnapshotEntry e:
+        await restoreFavourite?.call(undo ? e.beforeId : e.afterId);
         return e;
       case final SnapshotRestoreEntry e:
         final written = await restoreSnapshot(e.snapshotId);

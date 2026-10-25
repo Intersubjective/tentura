@@ -7566,5 +7566,12 @@
   "constellationRearrangeEveryone": "Расставить всех заново, включая закреплённых",
   "constellationRearrangePreview": "Сдвинется {n} чел. · текущая расстановка сохранится в истории",
   "peopleTagsWorkingTogether": "Вместе в запросе «{title}»",
-  "peopleTagsTemporary": "Временно: вы видите друг друга, пока открыт запрос «{title}»"
+  "peopleTagsTemporary": "Временно: вы видите друг друга, пока открыт запрос «{title}»",
+  "constellationTidyUp": "Прибрать",
+  "constellationSaveFavourite": "Сохранить как любимую",
+  "constellationRestoreFavourite": "Вернуть любимую",
+  "constellationLayoutHistory": "История раскладок",
+  "constellationFavouriteLayout": "Любимая раскладка",
+  "constellationRestoreLayout": "Восстановить эту",
+  "constellationGather": "Собрать"
 }

@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -293,7 +294,11 @@ Future<ArrangeHarness> arrangeHarness({
   return (cubit: cubit, placement: placement, anchors: anchors);
 }
 
-Widget _shell(ConstellationCubit cubit, Widget child) => MaterialApp(
+Widget _shell(
+  ConstellationCubit cubit,
+  Widget child, {
+  ConstellationSelectionCubit? selection,
+}) => MaterialApp(
   locale: const Locale('en'),
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
@@ -302,6 +307,8 @@ Widget _shell(ConstellationCubit cubit, Widget child) => MaterialApp(
     child: MultiBlocProvider(
       providers: [
         BlocProvider<ConstellationCubit>.value(value: cubit),
+        if (selection != null)
+          BlocProvider<ConstellationSelectionCubit>.value(value: selection),
         BlocProvider<GraphPersonContextCubit>(
           create: (_) => _StubContextCubit(),
         ),
@@ -319,6 +326,7 @@ Future<void> pumpArrangeBody(
   WidgetTester tester,
   ConstellationCubit cubit, {
   required bool arrangeV2Enabled,
+  ConstellationSelectionCubit? selection,
 }) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -330,6 +338,7 @@ Future<void> pumpArrangeBody(
         onToggleLegend: () {},
         arrangeV2Enabled: arrangeV2Enabled,
       ),
+      selection: selection,
     ),
   );
   await tester.pump();
