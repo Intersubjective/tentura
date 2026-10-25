@@ -3576,8 +3576,11 @@ class _CenteredSystemNotice extends StatelessWidget {
         horizontal: tt.screenHPadding,
         vertical: tt.tightGap,
       ),
+      // excludeSemantics: the Text would add its own copy of the line, and a
+      // screen reader announced it twice (#702).
       child: Semantics(
         label: text,
+        excludeSemantics: true,
         child: Text(
           text,
           textAlign: TextAlign.center,
