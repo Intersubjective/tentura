@@ -20,6 +20,9 @@ import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
 import '../../domain/constellation_mutual_trust.dart';
 import '../../domain/constellation_shown_field.dart';
+import '../../domain/constellation_tag_filter.dart';
+import '../../domain/constellation_tag_view_scope.dart';
+import '../../domain/layout/constellation_tag_view_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -39,6 +42,7 @@ import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
 import '../scene/constellation_interaction_controller.dart';
 import '../scene/constellation_scene_controller.dart';
+import '../scene/constellation_tag_view_field_layout.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_state.dart';
 
@@ -47,6 +51,7 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export '../scene/constellation_scene_controller.dart'
     show ConstellationEdgeKind, kConstellationLayoutMaxHops;
 export 'constellation_state.dart';
+export '../../domain/constellation_tag_view_scope.dart';
 
 /// Server `HelpOfferCoordinationExceptionCode.offerKindChanged` wire code.
 const kOfferKindChangedCoordinationCode = 1516;
@@ -3136,6 +3141,149 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  Set<String> Function(String personId) _tagViewOwnTagIdsOf =
+      _noTagViewOwnTags;
+  static Set<String> _noTagViewOwnTags(String personId) => const {};
+
+  /// Where the Field had every node when the tag view opened.
+  Map<GraphNodeId, Offset> _tagViewFieldPositions = const {};
+
+  /// The scene is being rebuilt for the tag view (not by anything else).
+  bool _tagViewBuilding = false;
+
+  /// The tag view was just left and the Field has not been laid out since.
+  bool _tagViewLeaving = false;
+
+  /// The tag view is open, or the Field is still moving back from it.
+  bool get tagViewMotionActive => state.tagView != null || _tagViewLeaving;
+
+  /// Where the dots of the people the tag view shows as dots are drawn.
+  Map<String, Offset> get tagViewDotPositions => {
+    for (final id in state.tagView?.scope.dotIds ?? const <String>{})
+      id: ?_tagViewFieldPositions['fp:$id'],
+  };
+
+  /// Opens the tag view of [filter]: a separate look at the people it matches.
+  /// The Field's composition and anchors are left alone; nothing is written.
+  void enterTagView({
+    required ConstellationTagFilter filter,
+    required Set<String> Function(String personId) ownTagIdsOf,
+  }) {
+    final field = state.field;
+    if (isClosed || field == null || state.isComposing || filter.isEmpty) {
+      return;
+    }
+    _tagViewOwnTagIdsOf = ownTagIdsOf;
+    if (state.tagView == null) {
+      _tagViewFieldPositions = {
+        for (final id in graphController.renderSnapshot.topology.nodesById.keys)
+          id: ?graphController.getPositionOrNullForId(id),
+      };
+    }
+    _applyTagView(
+      filter,
+      state.tagView?.others ?? ConstellationTagViewOthers.dots,
+    );
+  }
+
+  void setTagViewOthers(ConstellationTagViewOthers others) {
+    final view = state.tagView;
+    if (isClosed || view == null || view.others == others) return;
+    _applyTagView(view.filter, others);
+  }
+
+  void exitTagView() {
+    if (isClosed || state.tagView == null) return;
+    // Back to exactly the places the Field had: the Field is not laid out
+    // again, so nothing in it moves.
+    _scene.tagViewAlgorithm = ConstellationTagViewFieldLayoutAlgorithm(
+      egoGraphId: 'fp:${_viewer.id}',
+      tagIds: const [],
+      members: const [],
+      fieldPositions: _tagViewFieldPositions,
+      followers: const {},
+    );
+    _tagViewFieldPositions = const {};
+    _tagViewLeaving = true;
+    emit(state.copyWith(tagView: null));
+    _reconcileTagView();
+  }
+
+  /// A person dragged in the tag view only follows the pointer; on release
+  /// they return to their place and nothing is written.
+  void endTagViewDrag(NodeDetails node) =>
+      graphController.clearPresentationForNodeId(node.graphNodeId);
+
+  void _applyTagView(
+    ConstellationTagFilter filter,
+    ConstellationTagViewOthers others,
+  ) {
+    final field = state.field!;
+    final scope = resolveConstellationTagViewScope(
+      filter: filter,
+      people: field.peers,
+      ownTagIdsOf: _tagViewOwnTagIdsOf,
+      others: others,
+    );
+    final egoId = 'fp:${_viewer.id}';
+    final ego = _tagViewFieldPositions[egoId];
+    final tagIds = [
+      ...filter.selectedOwn.toList()..sort(),
+      ...[for (final kind in filter.selectedAuto) 'auto:${kind.name}']..sort(),
+    ];
+    final members = <TagViewPerson>[];
+    for (final person in field.peers) {
+      final at = _tagViewFieldPositions['fp:${person.id}'];
+      if (at == null || !scope.memberIds.contains(person.id)) continue;
+      final from = ego ?? at;
+      final paths = state.paths;
+      members.add((
+        id: 'fp:${person.id}',
+        angle: math.atan2(at.dy - from.dy, at.dx - from.dx),
+        depth: paths == null || paths.ring.contains(person.id)
+            ? kConstellationLayoutMaxHops + 1
+            : paths.depth[person.id] ?? kConstellationLayoutMaxHops,
+        tagIds: {
+          for (final tagId in filter.selectedOwn)
+            if (_tagViewOwnTagIdsOf(person.id).contains(tagId)) tagId,
+          for (final kind in filter.selectedAuto)
+            if (person.autoTagKinds.contains(kind)) 'auto:${kind.name}',
+        },
+      ));
+    }
+    final followers = <GraphNodeId, GraphNodeId>{};
+    for (final id in _tagViewFieldPositions.keys) {
+      final node = graphController.nodePayloadForId(id);
+      if (node is FieldBeaconNode) followers[id] = 'fp:${node.userId}';
+    }
+    _scene.tagViewAlgorithm = ConstellationTagViewFieldLayoutAlgorithm(
+      egoGraphId: egoId,
+      tagIds: tagIds,
+      members: members,
+      fieldPositions: _tagViewFieldPositions,
+      followers: followers,
+    );
+    emit(
+      state.copyWith(
+        tagView: ConstellationTagView(
+          filter: filter,
+          others: others,
+          scope: scope,
+        ),
+      ),
+    );
+    _reconcileTagView();
+  }
+
+  void _reconcileTagView() {
+    _tagViewBuilding = true;
+    try {
+      _reconcileLayout(immediateHandoff: true);
+    } finally {
+      _tagViewBuilding = false;
+    }
+  }
+
   void _reconcileLayout({
     bool deferAutomaticReflow = false,
     bool immediateHandoff = false,
@@ -3157,6 +3305,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void _rebuildGraphWithoutLayout() => _buildGraphScene(layout: false);
 
   void _buildGraphScene({bool layout = true}) {
+    // The Field lays itself out again after anything but the tag view.
+    if (!_tagViewBuilding && state.tagView == null) {
+      _scene.tagViewAlgorithm = null;
+      _tagViewLeaving = false;
+    }
     // Every build draws the latest mutual trust answer, and asks for one when
     // the selected person has none for this field.
     _mutualTrustRedrawPending = false;
@@ -3198,6 +3351,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       requestWebsById: _requestWebsById,
       footprintMetrics: _footprintMetrics,
       profileFromPeer: _profileFromPeer,
+      hiddenPersonIds: {
+        ...?state.tagView?.scope.hiddenIds,
+        ...?state.tagView?.scope.dotIds,
+      },
     );
     final nodes = built.nodes;
     final previousNodeIds = built.previousNodeIds;

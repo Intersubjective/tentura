@@ -13,6 +13,7 @@ class ConstellationTagLensPanel extends StatelessWidget {
     required this.peopleCount,
     required this.requestCount,
     required this.onForward,
+    this.onOpenTagView,
     super.key,
   });
 
@@ -20,6 +21,9 @@ class ConstellationTagLensPanel extends StatelessWidget {
   final int peopleCount;
   final int requestCount;
   final VoidCallback onForward;
+
+  /// Opens the tag view; null where it is not offered.
+  final VoidCallback? onOpenTagView;
 
   @override
   Widget build(BuildContext context) {
@@ -43,24 +47,36 @@ class ConstellationTagLensPanel extends StatelessWidget {
                 horizontal: tt.screenHPadding,
                 vertical: tt.tightGap,
               ),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        l10n.constellationTagLensSummary(
-                          tagNames.join(', '),
-                          peopleCount,
-                          requestCount,
-                        ),
-                        style: Theme.of(context).textTheme.bodyMedium,
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      l10n.constellationTagLensSummary(
+                        tagNames.join(', '),
+                        peopleCount,
+                        requestCount,
                       ),
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
-                  TextButton(
-                    onPressed: onForward,
-                    child: Text(l10n.constellationTagLensForward),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Wrap(
+                      children: [
+                        if (onOpenTagView != null)
+                          TextButton(
+                            onPressed: onOpenTagView,
+                            child: Text(l10n.constellationTagViewOpen),
+                          ),
+                        TextButton(
+                          onPressed: onForward,
+                          child: Text(l10n.constellationTagLensForward),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

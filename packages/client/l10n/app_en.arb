@@ -11425,6 +11425,42 @@
   "@constellationTagLensNoRequests": {
     "description": "Shown instead of the Request list when the viewer has no open Request"
   },
+  "constellationTagViewOpen": "Open tag view",
+  "@constellationTagViewOpen": {
+    "description": "Field tag lens panel: open the tag view of the selected tags"
+  },
+  "constellationTagViewHeader": "{tags} · {count}",
+  "@constellationTagViewHeader": {
+    "description": "Tag view header: the viewed tags and how many people they cover",
+    "placeholders": {
+      "tags": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "constellationTagViewExit": "Exit",
+  "@constellationTagViewExit": {
+    "description": "Tag view header: leave the tag view and return to the Field"
+  },
+  "constellationTagViewFind": "Find in tag",
+  "@constellationTagViewFind": {
+    "description": "Tag view header: look a member of the viewed tags up by name"
+  },
+  "constellationTagViewFindHint": "Name",
+  "@constellationTagViewFindHint": {
+    "description": "Hint of the name field of Find in tag"
+  },
+  "constellationTagViewOthersHide": "Hide others",
+  "@constellationTagViewOthersHide": {
+    "description": "Tag view: people outside the viewed tags are not shown"
+  },
+  "constellationTagViewOthersDots": "Others as dots",
+  "@constellationTagViewOthersDots": {
+    "description": "Tag view: people outside the viewed tags are drawn as small dots"
+  },
+  "constellationTagViewOthersAsIs": "Others as is",
+  "@constellationTagViewOthersAsIs": {
+    "description": "Tag view: people outside the viewed tags stay as the Field shows them"
+  },
   "constellationTidied": "Tidied up: {n} people moved",
   "@constellationTidied": {
     "description": "Undo snackbar after Tidy up on the Field map",

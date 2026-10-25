@@ -2,6 +2,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_filters.dart';
+import '../../domain/constellation_tag_view_scope.dart';
 import '../../domain/constellation_visibility.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -57,6 +58,10 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
     /// What the field shows (#645); kept per viewer on this device.
     @Default(ConstellationVisibility.all) ConstellationVisibility visibility,
+
+    /// The tag view over the Field, null on the Field itself; it never
+    /// touches the composition.
+    ConstellationTagView? tagView,
   }) = _ConstellationState;
 
   const ConstellationState._();

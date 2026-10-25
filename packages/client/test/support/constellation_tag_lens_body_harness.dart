@@ -210,6 +210,10 @@ Future<TagLensBodyHarness> mountTagLensBody(
   /// Hosts the body in a router that knows the forward route, so a push to
   /// it can be observed on the returned router.
   bool withRouter = false,
+
+  /// Replaces the default [ConstellationBody], e.g. to turn feature flags on
+  /// or wrap it in a media query.
+  Widget Function()? bodyBuilder,
 }) async {
   final rig = await PeopleTagsTestRig.create(
     FakePeopleTagsRepository(
@@ -264,7 +268,9 @@ Future<TagLensBodyHarness> mountTagLensBody(
     ),
   );
   Widget body() => Scaffold(
-    body: ConstellationBody(legendExpanded: false, onToggleLegend: () {}),
+    body:
+        bodyBuilder?.call() ??
+        ConstellationBody(legendExpanded: false, onToggleLegend: () {}),
   );
   RootStackRouter? router;
   if (withRouter) {

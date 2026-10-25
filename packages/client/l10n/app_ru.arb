@@ -7543,5 +7543,13 @@
   "constellationTagLensForward": "Переслать запрос…",
   "constellationTagLensPickRequest": "Какой запрос переслать?",
   "constellationTagLensNoRequests": "У вас нет открытых запросов для пересылки.",
+  "constellationTagViewOpen": "Открыть вид тега",
+  "constellationTagViewHeader": "{tags} · {count}",
+  "constellationTagViewExit": "Выйти",
+  "constellationTagViewFind": "Найти в теге",
+  "constellationTagViewFindHint": "Имя",
+  "constellationTagViewOthersHide": "Скрыть остальных",
+  "constellationTagViewOthersDots": "Остальные точками",
+  "constellationTagViewOthersAsIs": "Остальные как есть",
   "constellationTidied": "Причёсано: сдвинуто {n}"
 }

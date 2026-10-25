@@ -115,6 +115,9 @@ class ConstellationSceneController {
 
   SceneLayoutAlgorithm? testSceneLayoutAlgorithmOverride;
 
+  /// The tag view's layout while one is open; takes over from the Field's.
+  SceneLayoutAlgorithm? tagViewAlgorithm;
+
   /// One-shot algorithm for an owned layout request (tests); not used after recovery.
   SceneLayoutAlgorithm? ephemeralOwnedLayoutAlgorithm;
 
@@ -180,6 +183,7 @@ class ConstellationSceneController {
     required Set<String> stateKeptPeerIds,
     required Set<String> forgetPriorHintNodeIds,
   }) =>
+      tagViewAlgorithm ??
       ephemeralOwnedLayoutAlgorithm ??
       testSceneLayoutAlgorithmOverride ??
       constellationAlgorithm(
@@ -443,6 +447,7 @@ class ConstellationSceneController {
     required Profile Function(ConstellationPerson peer) profileFromPeer,
     ConstellationTrustChain? trustChain,
     Set<String> mutualTrustIds = const {},
+    Set<String> hiddenPersonIds = const {},
   }) {
     final peersById = {
       for (final peer in field.peers) peer.id: peer,
@@ -467,7 +472,10 @@ class ConstellationSceneController {
       }
     }
     final drawnRequests = [
-      for (final id in drawnRequestIds) ?requestsById[id],
+      for (final id in drawnRequestIds)
+        if (requestsById[id] case final request?
+            when !hiddenPersonIds.contains(request.authorId))
+          request,
     ]..sort((a, b) => a.id.compareTo(b.id));
 
     layoutEgoId = viewer.id;
@@ -539,7 +547,7 @@ class ConstellationSceneController {
     final keptSorted = keptPeerIds.toList()..sort();
     for (final peerId in keptSorted) {
       final peer = peersById[peerId];
-      if (peer == null) {
+      if (peer == null || hiddenPersonIds.contains(peerId)) {
         continue;
       }
       final ring = paths.ring.contains(peerId)
@@ -559,7 +567,9 @@ class ConstellationSceneController {
     }
     final drawnPosts = [
       for (final spec in composition?.beaconNodes ?? const <LayoutNodeSpec>[])
-        if (spec.post != null && drawnRequestIds.contains(spec.id))
+        if (spec.post != null &&
+            drawnRequestIds.contains(spec.id) &&
+            !hiddenPersonIds.contains(spec.post!.authorId))
           FieldBeaconNode(post: spec.post, pinned: spec.pinned),
     ];
     nodes.addAll(drawnPosts);

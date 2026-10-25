@@ -30,6 +30,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import '../../domain/constellation_tag_view_scope.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
@@ -63,6 +64,7 @@ import 'constellation_selection_layers.dart';
 import 'constellation_tag_hull_layer.dart';
 import 'constellation_tag_lens_panel.dart';
 import 'constellation_tag_row.dart';
+import 'constellation_tag_view_header.dart';
 import 'constellation_viewport_overlay.dart';
 
 class _CancelPlacementIntent extends Intent {
@@ -83,6 +85,7 @@ class ConstellationBody extends StatefulWidget {
     required this.onToggleLegend,
     this.presentationFrameHolder,
     this.arrangeV2Enabled = kFieldArrangeV2Enabled,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
@@ -92,6 +95,10 @@ class ConstellationBody extends StatefulWidget {
   /// The Arrange menu, Ctrl/Cmd+Z undo / redo and the nearest-ring caption
   /// while dragging (`kFieldArrangeV2Enabled`).
   final bool arrangeV2Enabled;
+
+  /// With [arrangeV2Enabled], the tag lens panel offers the tag view
+  /// (`kPeopleTagsEnabled`).
+  final bool peopleTagsEnabled;
 
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
@@ -104,6 +111,11 @@ class ConstellationBody extends StatefulWidget {
 
 class _ConstellationBodyState extends State<ConstellationBody>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  static const _layoutTransitionDuration = Duration(milliseconds: 350);
+
+  /// A Field ↔ tag view move takes 400–500 ms.
+  static const _tagViewTransitionDuration = Duration(milliseconds: 450);
+
   static const _revealDuration = Duration(milliseconds: 280);
 
   Size? _lastLabelBudgetViewport;
@@ -749,6 +761,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             previous.selectedRequestId != current.selectedRequestId ||
             previous.expandedPersonIds != current.expandedPersonIds ||
             previous.viewMode != current.viewMode ||
+            previous.tagView != current.tagView ||
             previous.loadedAt != current.loadedAt ||
             previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
             previous.filterLocation != current.filterLocation ||
@@ -912,6 +925,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               ),
                             ),
                           if (!state.isComposing) _buildTagRow(context),
+                          if (state.tagView case final view?)
+                            _buildTagViewHeader(context, cubit, view),
                           Expanded(
                             child: IndexedStack(
                               index: state.viewMode == ConstellationViewMode.map
@@ -1014,6 +1029,42 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
   }
 
+  Widget _buildTagViewHeader(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationTagView view,
+  ) {
+    final store = _peopleTags;
+    final l10n = L10n.of(context)!;
+    final ownTags = [
+      for (final tag in store?.tags ?? const <PersonTag>[])
+        if (view.filter.selectedOwn.contains(tag.id)) tag,
+    ];
+    final names = [
+      for (final tag in ownTags) tag.name,
+      for (final kind in view.filter.selectedAuto)
+        constellationAutoTagName(l10n, kind),
+    ];
+    return ConstellationTagViewHeader(
+      title: l10n.constellationTagViewHeader(
+        names.join(', '),
+        view.scope.memberIds.length,
+      ),
+      colorIndex: ownTags.isEmpty ? 0 : ownTags.first.color,
+      others: view.others,
+      members: [
+        for (final person in cubit.fieldPeople)
+          if (view.scope.memberIds.contains(person.id)) person,
+      ],
+      onOthers: cubit.setTagViewOthers,
+      onFound: cubit.selectPerson,
+      onForward: () => unawaited(
+        _forwardFromTagLens(context, cubit, view.filter.selectedOwn),
+      ),
+      onExit: cubit.exitTagView,
+    );
+  }
+
   /// Scene background of the map: the tag hulls, then the composer circle.
   Widget _buildCanvasBackground(
     BuildContext context,
@@ -1041,10 +1092,38 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ),
                 ),
           ),
+        BlocBuilder<ConstellationCubit, ConstellationState>(
+          bloc: cubit,
+          buildWhen: (previous, current) => previous.tagView != current.tagView,
+          builder: (context, _) => Stack(
+            fit: StackFit.expand,
+            children: [
+              for (final MapEntry(:key, :value)
+                  in cubit.tagViewDotPositions.entries)
+                Positioned(
+                  key: Key('constellation-tag-view-dot-$key'),
+                  left: value.dx - _tagViewDotRadius,
+                  top: value.dy - _tagViewDotRadius,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: _tagViewDotRadius * 2,
+                      height: _tagViewDotRadius * 2,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         if (composer != null) ConstellationComposerCircle(composer: composer),
       ],
     );
   }
+
+  static const _tagViewDotRadius = 6.0;
 
   /// The lens summary and "Forward a request…", while a tag is selected.
   Widget _buildTagLensPanel(BuildContext context, ConstellationCubit cubit) {
@@ -1058,9 +1137,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
           BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
             bloc: lensCubit,
             builder: (context, filter) {
-              if (filter.isEmpty || cubit.state.isComposing) {
+              // The tag view carries its own summary and forward action.
+              if (filter.isEmpty ||
+                  cubit.state.isComposing ||
+                  cubit.state.tagView != null) {
                 return const SizedBox.shrink();
               }
+              final canOpenTagView =
+                  constellationTagViewEntryAvailable(
+                    peopleTagsEnabled: widget.peopleTagsEnabled,
+                    arrangeV2Enabled: widget.arrangeV2Enabled,
+                  );
               final field = cubit.state.field;
               final lens = _tagLensFor(cubit, lensCubit, filter);
               final people = {
@@ -1082,6 +1169,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       in field?.requests ?? const <ConstellationRequest>[])
                     if (people.contains(request.authorId)) request,
                 ].length,
+                onOpenTagView: canOpenTagView
+                    ? () => cubit.enterTagView(
+                        filter: filter,
+                        ownTagIdsOf: store.tagsOfPerson,
+                      )
+                    : null,
                 onForward: () => unawaited(
                   _forwardFromTagLens(
                     context,
@@ -1243,10 +1336,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
               // transition; reduced motion lands every node at once.
               layoutTransitionDuration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
-                  : const Duration(milliseconds: 350),
+                  : cubit.tagViewMotionActive
+                  ? _tagViewTransitionDuration
+                  : _layoutTransitionDuration,
               canDragNode: cubit.canDragNode,
               transformNodeDragPosition: cubit.clampClusterDragPosition,
               onNodeDragStart: (node, position) {
+                // The tag view only looks; a drag there writes nothing.
+                if (cubit.state.tagView != null) {
+                  return;
+                }
                 // While composing a person is only moved for the session.
                 if (node is FieldPersonNode && cubit.isComposerDrag(node)) {
                   cubit.beginComposerDrag(node);
@@ -1277,6 +1376,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 _syncComposerPersonPositions(cubit, composer);
               },
               onNodeDragEnd: (node, position) {
+                if (cubit.state.tagView != null) {
+                  cubit.endTagViewDrag(node);
+                  return;
+                }
                 if (node is FieldPersonNode && cubit.isComposerDragActive) {
                   cubit.endComposerDrag(node, position);
                   _syncComposerPersonPositions(cubit, composer);
