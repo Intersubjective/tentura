@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
@@ -9,6 +10,8 @@ import 'package:tentura/features/constellation/domain/port/constellation_anchor_
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_apply_via_writes.dart';
@@ -216,6 +219,84 @@ ConstellationAnchorPosition _sentPosition(_Harness harness) =>
     harness.server.calls.single.ops.single.position!;
 
 void main() {
+  group('Field view after an unpin settles', () {
+    for (final acknowledged in [false, true]) {
+      testWidgets(
+        'keeps its layout through a graph redraw and a person selection '
+        '${acknowledged ? 'once the server confirmed the unpin' : 'while the unpin is unconfirmed'}',
+        (tester) async {
+          final harness = await _mountPinned(tester);
+          final cubit = harness.cubit;
+          final controller = cubit.graphController;
+
+          await cubit.unpinAnchor(target: _person);
+          await _settleFrames(tester);
+          if (acknowledged) {
+            harness.server.ack(0);
+            await _settleFrames(tester);
+          }
+          await tester.pumpAndSettle();
+          expect(_composedHasPerson(cubit), isFalse);
+          expect(controller.isLayoutSettling, isFalse);
+
+          SceneLayoutAlgorithm mountedAlgorithm() => tester
+              .widget<GraphView<NodeDetails, EdgeDetails>>(
+                find.byWidgetPredicate(
+                  (widget) => widget is GraphView<NodeDetails, EdgeDetails>,
+                ),
+              )
+              .layoutAlgorithm;
+          Map<String, Offset?> positions() => {
+            for (final id in controller.renderSnapshot.topology.nodesById.keys)
+              id: controller.getPositionOrNullForId(id),
+          };
+          final settledAlgorithm = mountedAlgorithm();
+          final layoutRuns = controller.relayoutInvocationCount;
+          final before = positions();
+          expect(before, contains('fp:am'));
+          expect(before.values, everyElement(isNotNull));
+
+          // A redraw of the graph that changes nothing about the layout: the
+          // forgotten prior position of the unpinned node was only meant for
+          // the layout that has just settled, so the view must not start
+          // another one because of it.
+          cubit.requestConstellationLayoutForTest();
+          await tester.pumpAndSettle();
+          expect(
+            mountedAlgorithm(),
+            equals(settledAlgorithm),
+            reason: 'A redraw must hand the view the algorithm it already has',
+          );
+          expect(
+            controller.relayoutInvocationCount,
+            layoutRuns,
+            reason: 'A redraw after the unpin settled must not lay out again',
+          );
+          expect(positions(), equals(before));
+
+          for (final selectedId in <String?>['am', null]) {
+            cubit.selectPerson(selectedId);
+            await tester.pumpAndSettle();
+
+            final action = selectedId == null ? 'Clearing' : 'Selecting';
+            expect(cubit.state.selectedPersonId, selectedId);
+            expect(mountedAlgorithm(), equals(settledAlgorithm));
+            expect(
+              controller.relayoutInvocationCount,
+              layoutRuns,
+              reason: '$action a person must not start a scene layout',
+            );
+            expect(
+              positions(),
+              equals(before),
+              reason: '$action a person must not move any node',
+            );
+          }
+        },
+      );
+    }
+  });
+
   group('Server acknowledgement of a placement', () {
     testWidgets(
       'does not re-run layout when a drop is acknowledged unchanged',

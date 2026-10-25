@@ -218,31 +218,43 @@ class ConstellationSceneController {
       return cached;
     }
     _constellationLayoutAlgorithmRevision = graphRevision;
-    return _constellationLayoutAlgorithm = ConstellationSceneLayoutAlgorithm(
-      egoId: layoutEgoId.isEmpty ? viewerId : layoutEgoId,
-      paths:
-          layoutPaths ??
-          statePaths ??
-          resolveConstellationPaths(
-            egoId: viewerId,
-            visiblePeerIds: const {},
-            holderIds: {viewerId},
-            edges: const [],
-          ),
-      keptPeerIds: layoutKeptPeerIds.isEmpty
-          ? stateKeptPeerIds
-          : layoutKeptPeerIds,
-      maxHops: kConstellationLayoutMaxHops,
-      visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
-      egoOwnRequestIds: layoutEgoOwnRequestIds,
-      pinnedPersonIds: layoutPinnedPersonIds,
-      pinnedRequestIds: layoutPinnedRequestIds,
-      supportPersonIds: layoutSupportPersonIds,
-      anchorByNodeId: layoutAnchorByNodeId,
-      forgetPriorHintNodeIds: forgetPriorHintNodeIds,
-      footprints: layoutFootprints,
-      slicer: _slicer,
-    );
+    ConstellationSceneLayoutAlgorithm build(Set<String> forgetPriorHints) =>
+        ConstellationSceneLayoutAlgorithm(
+          egoId: layoutEgoId.isEmpty ? viewerId : layoutEgoId,
+          paths:
+              layoutPaths ??
+              statePaths ??
+              resolveConstellationPaths(
+                egoId: viewerId,
+                visiblePeerIds: const {},
+                holderIds: {viewerId},
+                edges: const [],
+              ),
+          keptPeerIds: layoutKeptPeerIds.isEmpty
+              ? stateKeptPeerIds
+              : layoutKeptPeerIds,
+          maxHops: kConstellationLayoutMaxHops,
+          visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
+          egoOwnRequestIds: layoutEgoOwnRequestIds,
+          pinnedPersonIds: layoutPinnedPersonIds,
+          pinnedRequestIds: layoutPinnedRequestIds,
+          supportPersonIds: layoutSupportPersonIds,
+          anchorByNodeId: layoutAnchorByNodeId,
+          forgetPriorHintNodeIds: forgetPriorHints,
+          footprints: layoutFootprints,
+          slicer: _slicer,
+        );
+    // The forgotten prior hints only matter to the layout that consumed them.
+    // Once they are cleared, an otherwise identical algorithm is the one the
+    // view already runs; a different instance would make it lay out again.
+    final consumedHints = cached?.forgetPriorHintNodeIds ?? const <String>{};
+    if (cached != null &&
+        forgetPriorHintNodeIds.isEmpty &&
+        consumedHints.isNotEmpty &&
+        build(consumedHints) == cached) {
+      return cached;
+    }
+    return _constellationLayoutAlgorithm = build(forgetPriorHintNodeIds);
   }
 
   Set<GraphPresentationToken> activePresentationReleaseTokens() {
