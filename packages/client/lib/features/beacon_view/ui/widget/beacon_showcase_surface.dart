@@ -94,7 +94,10 @@ class BeaconShowcaseSurface extends StatelessWidget {
                         state.myProfile.id,
                       ),
                     ),
-                    RequestAccessReasonBanner(beacon: beacon),
+                    RequestAccessReasonBanner(
+                      beacon: beacon,
+                      parent: state.accessParent,
+                    ),
                     SizedBox(height: tt.rowGap),
                     BeaconShowcaseDescription(text: beacon.description),
                     _ShowcaseFacts(beacon: beacon),

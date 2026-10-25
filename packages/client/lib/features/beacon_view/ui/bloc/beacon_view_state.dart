@@ -328,6 +328,10 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Server returned no readable beacon (gated `beacon_by_pk` null).
     @Default(false) bool beaconUnavailable,
 
+    /// The Request's lineage parent, fetched only when the viewer sees the
+    /// Request through it (#724): the access banner names a Post parent.
+    Beacon? accessParent,
+
     Object? loadError,
   }) = _BeaconViewState;
 

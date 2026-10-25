@@ -41,6 +41,7 @@ import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart'
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 
 import '../../domain/help_offer_row_record.dart';
+import '../../domain/request_access_reason.dart';
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
@@ -66,10 +67,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     required Profile myProfile,
     BeaconViewCase? beaconViewCase,
     UiEffectPort? effects,
-    PostMembershipRepository? postMembershipRepository,
+    this._postMembershipRepository,
   }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
-       _postMembershipRepository = postMembershipRepository,
        super(_idToState(id, myProfile)) {
     final seen = _case.pinnedFactsSeenAt(id, myProfile.id);
     if (seen != null) {
@@ -1388,6 +1388,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           ),
         );
       }
+      unawaited(_loadAccessParent(beacon));
 
       // Involvement (offers / Plan activity) stays behind canReadInvolvement.
       // Room participants / room state / Chat-adjacent APIs are member/author only.
@@ -1609,6 +1610,25 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       } else if (!background) {
         _showSnackError(e);
       }
+    }
+  }
+
+  /// #724: someone who sees the Request only through the Post it grew from
+  /// is told so by name; the banner needs the parent's kind and title. One
+  /// read per parent; a failed read leaves the general wording.
+  Future<void> _loadAccessParent(Beacon beacon) async {
+    final parentId = beacon.lineageParentBeaconId?.trim() ?? '';
+    if (parentId.isEmpty ||
+        !requestAccessViaParent(beacon) ||
+        state.accessParent?.id == parentId) {
+      return;
+    }
+    try {
+      final parent = await _case.fetchBeaconById(parentId);
+      if (isClosed || state.beacon.lineageParentBeaconId != parentId) return;
+      emit(state.copyWith(accessParent: parent));
+    } on Object {
+      // Not readable: the banner keeps its general wording.
     }
   }
 
