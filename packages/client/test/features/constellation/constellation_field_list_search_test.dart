@@ -358,7 +358,6 @@ void main() {
               ConstellationTrustEdgeEntity(src: 'ego', dst: 'p$i', tier: 1),
           ],
           directContactIds: [for (var i = 0; i < 205; i++) 'p$i'],
-          requests: const [],
         ),
       );
       addTearDown(cubit.close);

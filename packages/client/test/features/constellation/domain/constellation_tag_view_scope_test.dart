@@ -103,7 +103,7 @@ void main() {
     });
 
     test('dots: non-members become dots and none is hidden', () {
-      final scope = _scope(garden, others: ConstellationTagViewOthers.dots);
+      final scope = _scope(garden);
 
       expect(scope.dotIds, {'cid', 'dan'});
       expect(scope.hiddenIds, isEmpty);

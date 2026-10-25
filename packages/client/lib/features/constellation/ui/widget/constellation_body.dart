@@ -28,10 +28,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import '../../domain/constellation_tag_view_scope.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
@@ -1273,14 +1273,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ) async {
     final tag = store.tags.where((t) => t.id == tagId).firstOrNull;
     if (tag == null) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
     final l10n = L10n.of(context)!;
     try {
       await store.applyMembership([
         PersonTagMemberOp(tagId: tagId, personId: personId, add: true),
       ]);
     } on Object catch (error) {
-      messenger?.showSnackBar(SnackBar(content: Text(error.toString())));
+      if (context.mounted) {
+        showSnackBar(context, text: error.toString(), isError: true);
+      }
       return;
     }
     if (!context.mounted) return;

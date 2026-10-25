@@ -662,7 +662,7 @@ class _RequestTile extends StatelessWidget {
         card.title,
         ?meta,
         if (connectionLabel != null) connectionLabel,
-        if (held != null) held,
+        ?held,
         ...markerSemantics,
       ].join('. '),
       child: Material(

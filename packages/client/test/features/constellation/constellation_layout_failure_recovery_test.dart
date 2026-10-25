@@ -77,7 +77,7 @@ void _logMemory(String label) {
   }
 }
 
-final _ego = Profile(id: 'ego', displayName: 'Ego');
+const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 13, 12);
 
 ConstellationField _field() => ConstellationField(
@@ -86,7 +86,6 @@ ConstellationField _field() => ConstellationField(
   peers: const [
     ConstellationPerson(id: 'p1', displayName: 'Peer'),
   ],
-  requests: const [],
   anchorProjection: ConstellationAnchorProjection(
     revision: ConstellationAnchorRevision(BigInt.one),
     anchors: const [],

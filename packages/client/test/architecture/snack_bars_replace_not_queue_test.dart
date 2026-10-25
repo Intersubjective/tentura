@@ -16,6 +16,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// reaches 0 is removed.
 const _helper = 'lib/ui/utils/ui_utils.dart';
 
+/// Other helpers with the same replace semantics: they clear the messenger
+/// before showing their bar. `undo_snack_bar.dart` builds the Undo bar
+/// (people tags), which needs `persist: false` and its own animation style.
+const _replacingHelpers = {_helper, 'lib/ui/widget/undo_snack_bar.dart'};
+
 const _legacy = {
   'lib/features/beacon_create/ui/screen/beacon_create_screen.dart': 1,
   'lib/features/constellation/ui/widget/constellation_body.dart': 1,
@@ -63,7 +68,9 @@ void main() {
     for (final entity in root.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final path = entity.path.substring(prefix.length);
-      if (path == _helper || _legacy.containsKey(path)) continue;
+      if (_replacingHelpers.contains(path) || _legacy.containsKey(path)) {
+        continue;
+      }
       for (final line in _directCallLines(entity)) {
         offenders.add('$path:$line');
       }

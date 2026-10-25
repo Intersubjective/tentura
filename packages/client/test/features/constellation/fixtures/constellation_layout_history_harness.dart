@@ -344,7 +344,6 @@ Future<LayoutHistoryHarness> layoutHistoryHarness(LayoutHistoryServer server) =>
         clock,
         FakeWakeUpPort(),
         realtime: sync.case_,
-        recordAutomaticHistory: true,
         env: const Env.fromEnvironment(),
         logger: Logger('LayoutHistoryTest'),
       );

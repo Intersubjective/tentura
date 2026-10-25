@@ -98,8 +98,8 @@ void main() {
       };
       expect(radii[4]! - radii[1]!, lessThanOrEqualTo(1.5 * _unit));
       expect(radii[7]! - radii[4]!, lessThanOrEqualTo(1.5 * _unit));
-      expect(radii[1]!, lessThan(radii[4]!));
-      expect(radii[4]!, lessThan(radii[7]!));
+      expect(radii[1], lessThan(radii[4]!));
+      expect(radii[4], lessThan(radii[7]!));
     });
 
     test('exactly 30 people still use Field directions, not rings', () {

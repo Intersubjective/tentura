@@ -73,7 +73,6 @@ void main() {
         bodyBuilder: () => ConstellationBody(
           legendExpanded: false,
           onToggleLegend: () {},
-          arrangeV2Enabled: true,
           peopleTagsEnabled: true,
         ),
       );

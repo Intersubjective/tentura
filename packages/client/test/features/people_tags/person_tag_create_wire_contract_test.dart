@@ -71,7 +71,7 @@ Future<Map<String, dynamic>> _createVariables({int? fromAutoKind}) async {
           {
             #name: 'Helped me',
             #clientOpId: 'op-1',
-            if (fromAutoKind != null) #fromAutoKind: fromAutoKind,
+            #fromAutoKind: ?fromAutoKind,
           },
         );
         expect((created as PersonTag).id, 'Tnew');

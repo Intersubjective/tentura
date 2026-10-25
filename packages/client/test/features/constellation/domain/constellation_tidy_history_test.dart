@@ -75,9 +75,9 @@ void main() {
               newOpId: () => 'op',
               applyTidyOffsets: (offsets) async => applied.add(offsets),
             )..record(
-              TidyOffsetEntry(
-                before: const {},
-                after: const {'A': (x: 5.0, y: 0.0)},
+              const TidyOffsetEntry(
+                before: {},
+                after: {'A': (x: 5.0, y: 0.0)},
               ),
             );
 

@@ -68,8 +68,6 @@ ConstellationField _fieldWithPinnedAndFreePeople() {
     loadedAt: _loadedAt,
     context: '',
     peers: peers,
-    requests: const [],
-    edges: const [],
     anchorProjection: ConstellationAnchorProjection(
       revision: ConstellationAnchorRevision(BigInt.one),
       anchors: [

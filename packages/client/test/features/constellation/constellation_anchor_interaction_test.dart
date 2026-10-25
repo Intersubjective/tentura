@@ -608,7 +608,6 @@ void main() {
               edges: edges,
               pinnedPeers: const [],
               pinnedRequests: const [],
-              anchors: const [],
             ),
           ],
         );

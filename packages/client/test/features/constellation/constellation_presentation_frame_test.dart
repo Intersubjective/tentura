@@ -85,11 +85,11 @@ void main() {
     });
 
     test('two close nodes get non-overlapping labels', () {
-      final y = 120.0;
+      const y = 120.0;
       final frame = compute(
         nodes: [
-          node(id: 'left', centre: Offset(150, y)),
-          node(id: 'right', centre: Offset(180, y)),
+          node(id: 'left', centre: const Offset(150, y)),
+          node(id: 'right', centre: const Offset(180, y)),
         ],
       );
 
@@ -108,7 +108,6 @@ void main() {
               id: 'ego',
               centre: const Offset(200, 200),
               priority: 1,
-              ring: 0,
               labelCandidate: constellationLabelCandidateForDetail(
                 detail: ConstellationDetailLevel.overview,
                 priority: 1,
@@ -118,7 +117,6 @@ void main() {
             node(
               id: 'peer',
               centre: const Offset(280, 200),
-              priority: 2,
               ring: 1,
               labelCandidate: constellationLabelCandidateForDetail(
                 detail: ConstellationDetailLevel.overview,
@@ -129,7 +127,6 @@ void main() {
             node(
               id: 'far',
               centre: const Offset(200, 280),
-              priority: 2,
               ring: 3,
               labelCandidate: constellationLabelCandidateForDetail(
                 detail: ConstellationDetailLevel.overview,
@@ -177,7 +174,7 @@ void main() {
       final frame = compute(
         nodes: [author, neighbour],
         chips: [
-          ConstellationFrameChipInput(
+          const ConstellationFrameChipInput(
             authorId: 'in',
             authorGraphId: 'author',
             size: chipSize,
@@ -341,7 +338,7 @@ void main() {
     });
 
     test('later paint order wins for overlapping bodies', () {
-      final centre = const Offset(200, 200);
+      const centre = Offset(200, 200);
       final frame = compute(
         nodes: [
           node(id: 'first', centre: centre),
@@ -378,10 +375,10 @@ void main() {
     });
 
     test('21px outside body radius still hits expanded tap target (R06)', () {
-      final centre = const Offset(200, 200);
+      const centre = Offset(200, 200);
       final frame = compute(
         nodes: [
-          node(id: 'req', centre: centre, bodyDiameter: 40),
+          node(id: 'req', centre: centre),
         ],
       );
       final body = frame.bodies['req']!;
@@ -392,7 +389,7 @@ void main() {
     });
 
     test('overlapping nodes at same centre prefer later paint order (D21)', () {
-      final centre = const Offset(200, 200);
+      const centre = Offset(200, 200);
       final frame = compute(
         nodes: [
           node(id: 'req-in-1', centre: centre),
@@ -440,10 +437,10 @@ void main() {
           ),
         ],
         chips: [
-          ConstellationFrameChipInput(
+          const ConstellationFrameChipInput(
             authorId: 'ego',
             authorGraphId: 'ego',
-            size: const Size(40, 20),
+            size: Size(40, 20),
           ),
         ],
         gap: gap,

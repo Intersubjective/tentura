@@ -214,7 +214,7 @@ Future<void> _pumpWithContext(
       home: Directionality(
         textDirection: TextDirection.ltr,
         child: MediaQuery(
-          data: MediaQueryData(size: size),
+          data: const MediaQueryData(size: size),
           child: TenturaResponsiveScope(
             child: MultiBlocProvider(
               providers: [
@@ -286,12 +286,12 @@ void main() {
         expect(
           cubit.edgeKinds.entries.where(
             (entry) =>
-                entry.key.endsWith('\0h') &&
+                entry.key.endsWith('0h') &&
                 entry.value != ConstellationEdgeKind.ringStub,
           ),
           isEmpty,
         );
-        expect(cubit.edgeKinds.containsKey('a\0h'), isFalse);
+        expect(cubit.edgeKinds.containsKey('a0h'), isFalse);
       },
     );
 
@@ -978,7 +978,6 @@ void main() {
         final effects = await _pumpBody(
           tester,
           cubit,
-          size: const Size(1200, 900),
         );
 
         await tester.tap(_personNodeFinder('a'));
@@ -1083,13 +1082,13 @@ void main() {
           target: ConstellationAnchorTarget.beacon('req-in-1'),
           position: shared,
           revision: ConstellationAnchorRevision(BigInt.one),
-          placedAt: DateTime.utc(2026, 1, 1),
+          placedAt: DateTime.utc(2026),
         );
         final later = ConstellationAnchor(
           target: ConstellationAnchorTarget.beacon('req-in-2'),
           position: shared,
           revision: ConstellationAnchorRevision(BigInt.one),
-          placedAt: DateTime.utc(2026, 6, 1),
+          placedAt: DateTime.utc(2026, 6),
         );
         expect(
           ConstellationAnchor.comparePaintOrder(earlier, later),

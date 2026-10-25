@@ -63,7 +63,6 @@ ConstellationField _field({
   loadedAt: _loadedAt,
   context: '',
   peers: peers,
-  requests: const [],
   anchorProjection: ConstellationAnchorProjection(
     revision: ConstellationAnchorRevision(BigInt.one),
     anchors: anchors,
@@ -572,7 +571,7 @@ void main() {
                 )
                 as FieldPersonNode;
         final refreshedPeer = FieldPersonNode(
-          person: Profile(id: 'p1', displayName: 'Renamed peer'),
+          person: const Profile(id: 'p1', displayName: 'Renamed peer'),
           ring: peer.ring,
           isKept: peer.isKept,
         );

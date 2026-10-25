@@ -9,14 +9,14 @@ void main() {
 
   group('tidy move trails', () {
     test('are fully visible when the tidy up has just happened', () {
-      final trails = ConstellationMoveTrails({'A': trail});
+      const trails = ConstellationMoveTrails({'A': trail});
 
       expect(trails.opacityAt(Duration.zero), 1.0);
       expect(trails.isVisibleAt(Duration.zero), isTrue);
     });
 
     test('fade steadily and are gone after 1.5 seconds', () {
-      final trails = ConstellationMoveTrails({'A': trail});
+      const trails = ConstellationMoveTrails({'A': trail});
 
       final early = trails.opacityAt(const Duration(milliseconds: 300));
       final late = trails.opacityAt(const Duration(milliseconds: 1200));
@@ -29,7 +29,7 @@ void main() {
     });
 
     test('remember where each person came from and went to', () {
-      final trails = ConstellationMoveTrails({'A': trail});
+      const trails = ConstellationMoveTrails({'A': trail});
 
       expect(trails.trails['A'], trail);
     });
@@ -43,7 +43,7 @@ void main() {
         ConstellationMoveTrails.nodeAnimationDuration(reducedMotion: false),
         greaterThan(Duration.zero),
       );
-      final trails = ConstellationMoveTrails({'A': trail});
+      const trails = ConstellationMoveTrails({'A': trail});
       expect(trails.opacityAt(Duration.zero), 1.0);
       expect(trails.opacityAt(const Duration(milliseconds: 1500)), 0.0);
     });

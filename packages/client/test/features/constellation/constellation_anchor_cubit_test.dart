@@ -508,7 +508,7 @@ void main() {
               pinnedRequests: const [request],
               anchors: [
                 _anchor(personId: 'p1', revision: BigInt.one),
-                _anchor(personId: 'p2', revision: BigInt.one, x: 2, y: 2),
+                _anchor(personId: 'p2', revision: BigInt.one, x: 2),
                 _beaconAnchor(
                   beaconId: 'B1',
                   revision: BigInt.one,
@@ -619,7 +619,7 @@ void main() {
             pinnedRequests: const [request],
             anchors: [
               _anchor(personId: 'p1', revision: BigInt.one),
-              _beaconAnchor(beaconId: 'B2', revision: BigInt.one, x: 2, y: 2),
+              _beaconAnchor(beaconId: 'B2', revision: BigInt.one, x: 2),
             ],
           ),
         ],
@@ -665,7 +665,6 @@ void main() {
         _field(
           revision: BigInt.two,
           peers: const [ConstellationPerson(id: 'p1', displayName: 'Peer')],
-          anchors: const [],
         ),
       );
       harness.port.emitChange(
@@ -785,7 +784,6 @@ void main() {
               peers: const [
                 ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
               ],
-              anchors: const [],
             ),
           ],
         );
@@ -815,8 +813,6 @@ void main() {
       harness.fieldRepo.fields.add(
         _field(
           revision: BigInt.two,
-          peers: const [],
-          anchors: const [],
         ),
       );
       harness.port.emitChange(
@@ -887,9 +883,7 @@ void main() {
         final harness = await _harness(
           fields: [
             _field(
-              peers: const [],
               pinnedPeers: const [],
-              requests: const [],
               anchors: [_beaconAnchor(beaconId: 'B-pin', revision: BigInt.one)],
               pinnedRequests: const [request],
               supportPeers: const [author],
@@ -1003,9 +997,7 @@ void main() {
       final harness = await _harness(
         fields: [
           _field(
-            peers: const [],
             pinnedPeers: const [],
-            requests: const [],
             anchors: [_beaconAnchor(beaconId: 'B-pin', revision: BigInt.one)],
             pinnedRequests: const [request],
             supportPeers: const [
@@ -1032,7 +1024,7 @@ void main() {
         final loadedAt = _loadedAt;
         final harness = await _harness(
           fields: [
-            _field(peers: const [], anchors: const []),
+            _field(),
           ],
         );
         addTearDown(harness.cubit.close);
@@ -1047,7 +1039,6 @@ void main() {
         harness.fieldRepo.fields.add(
           _field(
             revision: BigInt.two,
-            peers: const [],
             pinnedPeers: const [
               ConstellationPerson(id: 'p-remote', displayName: 'Remote'),
             ],
@@ -1074,7 +1065,7 @@ void main() {
         );
 
         harness.fieldRepo.fields.add(
-          _field(revision: BigInt.from(3), peers: const [], anchors: const []),
+          _field(revision: BigInt.from(3)),
         );
         harness.port.emitChange(
           const RealtimeEntityChange(
@@ -1116,12 +1107,11 @@ void main() {
             requests: const [pinned, floating],
             pinnedRequests: const [pinned],
             anchors: [
-              _anchor(personId: 'p1', revision: BigInt.one, x: 1, y: 1),
+              _anchor(personId: 'p1', revision: BigInt.one, y: 1),
               _beaconAnchor(
                 beaconId: 'B-pin',
                 revision: BigInt.one,
                 x: 2,
-                y: 2,
               ),
             ],
           ),
@@ -1129,8 +1119,8 @@ void main() {
       );
       addTearDown(harness.cubit.close);
       final target = ConstellationAnchorTarget.person('p1');
-      final companionGraphId = '${TenturaGraphNodeKind.fieldRequest}:B-pin';
-      final freeGraphId = '${TenturaGraphNodeKind.fieldRequest}:B-free';
+      const companionGraphId = '${TenturaGraphNodeKind.fieldRequest}:B-pin';
+      const freeGraphId = '${TenturaGraphNodeKind.fieldRequest}:B-free';
       harness.cubit.beginDragExisting(target: target);
 
       final companionBefore = harness.cubit.graphController
@@ -1187,7 +1177,7 @@ void main() {
               pinnedRequests: const [request],
               anchors: [
                 _anchor(personId: 'p1', revision: BigInt.one),
-                _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2, y: 2),
+                _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2),
               ],
             ),
             _field(
@@ -1241,7 +1231,7 @@ void main() {
             pinnedRequests: const [request],
             anchors: [
               _anchor(personId: 'p1', revision: BigInt.one),
-              _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2, y: 2),
+              _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2),
             ],
           ),
         ],
@@ -1289,7 +1279,7 @@ void main() {
             pinnedRequests: const [request],
             anchors: [
               _anchor(personId: 'p1', revision: BigInt.one),
-              _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2, y: 2),
+              _beaconAnchor(beaconId: 'B1', revision: BigInt.one, x: 2),
             ],
           ),
         ],

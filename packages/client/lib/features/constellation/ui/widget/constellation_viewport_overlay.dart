@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -757,7 +756,6 @@ class _ConstellationViewportOverlayState
                 }
 
                 return Stack(
-                  clipBehavior: Clip.hardEdge,
                   children: [
                     // Presence halos under the trust rings; they repaint on
                     // their own, never with the rings or the labels.

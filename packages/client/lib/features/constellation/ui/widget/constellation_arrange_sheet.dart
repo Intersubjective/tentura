@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -126,11 +127,14 @@ class ConstellationArrangeSheet extends StatelessWidget {
                 title: l10n.constellationResetPositions,
                 opensPage: false,
                 onTap: close(true, () async {
-                  if (!await cubit.resetAllPositions(saveHistory: true)) {
-                    messenger?.showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.constellationResetPositionsFailed),
-                      ),
+                  final snackbarContext = messenger?.context;
+                  if (!await cubit.resetAllPositions(saveHistory: true) &&
+                      snackbarContext != null &&
+                      snackbarContext.mounted) {
+                    showSnackBar(
+                      snackbarContext,
+                      text: l10n.constellationResetPositionsFailed,
+                      isError: true,
                     );
                   }
                 }),
