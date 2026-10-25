@@ -449,6 +449,59 @@ void main() {
       handle.dispose();
     });
 
+    // #678 (QA on 7.50.5): a Request card read its title, meta and status
+    // twice ("QA684 R1. Your request. Open QA684 R1 Open Your request"): the
+    // card label plus the visible texts. The Pin button stays its own node.
+    testWidgets('request cards are read once, Pin stays its own node', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final field = _multiAuthorField();
+      final cubit = await _loadCubit(
+        field.copyWith(
+          requests: [
+            ...field.requests,
+            const ConstellationRequest(
+              id: 'req-a2',
+              authorId: 'a',
+              title: 'Move a couch',
+              status: 0,
+              needs: ['physical_help'],
+              primaryNeedSlug: 'physical_help',
+            ),
+          ],
+        ),
+      );
+      await _pumpTextView(tester, cubit);
+
+      final l10n = lookupL10n(const Locale('en'));
+      final meta = l10n.capabilityTagPhysicalHelp;
+      final card = tester
+          .getSemantics(find.text('Move a couch'))
+          .getSemanticsData();
+      int count(String text) => text.allMatches(card.label).length;
+
+      expect(card.label, startsWith('Move a couch'));
+      expect(count('Move a couch'), 1, reason: card.label);
+      expect(count(meta), 1, reason: card.label);
+      expect(card.flagsCollection.isButton, isTrue);
+      expect(card.hasAction(SemanticsAction.tap), isTrue);
+      expect(card.label, isNot(contains(l10n.constellationPinTarget)));
+
+      final pin = tester
+          .getSemantics(
+            find.descendant(
+              of: find.byKey(const Key('constellation.text.request.req-a2')),
+              matching: find.text(l10n.constellationPinTarget),
+            ),
+          )
+          .getSemanticsData();
+      expect(pin.label, l10n.constellationPinTarget);
+      expect(pin.flagsCollection.isButton, isTrue);
+      expect(pin.hasAction(SemanticsAction.tap), isTrue);
+      handle.dispose();
+    });
+
     testWidgets('request tiles and overflow controls are keyboard reachable', (
       tester,
     ) async {

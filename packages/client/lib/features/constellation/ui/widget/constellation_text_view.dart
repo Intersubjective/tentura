@@ -556,32 +556,37 @@ class _RequestTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            card.title,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          if (meta != null)
+                // The card is read once, by its label (#678); the visible
+                // title, meta and status are excluded, the Pin button below
+                // stays its own node.
+                ExcludeSemantics(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              meta,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                              card.title,
+                              style: theme.textTheme.bodyMedium,
                             ),
-                        ],
+                            if (meta != null)
+                              Text(
+                                meta,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    ConstellationRequestStatusMarker(
-                      rawStatus: request.status,
-                      isPinned: isPinned,
-                    ),
-                  ],
+                      ConstellationRequestStatusMarker(
+                        rawStatus: request.status,
+                        isPinned: isPinned,
+                      ),
+                    ],
+                  ),
                 ),
                 SizedBox(height: tt.tightGap),
                 ConstellationAnchorTargetButton(
@@ -589,20 +594,24 @@ class _RequestTile extends StatelessWidget {
                 ),
                 if (connectionLabel != null) ...[
                   SizedBox(height: tt.tightGap),
-                  Text(
-                    connectionLabel!,
-                    key: Key('constellation.text.connection.${request.id}'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  ExcludeSemantics(
+                    child: Text(
+                      connectionLabel!,
+                      key: Key('constellation.text.connection.${request.id}'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
                 if (held != null) ...[
                   SizedBox(height: tt.tightGap),
-                  TenturaStatusText(
-                    held,
-                    tone: TenturaTone.info,
-                    maxLines: 2,
+                  ExcludeSemantics(
+                    child: TenturaStatusText(
+                      held,
+                      tone: TenturaTone.info,
+                      maxLines: 2,
+                    ),
                   ),
                 ],
               ],
