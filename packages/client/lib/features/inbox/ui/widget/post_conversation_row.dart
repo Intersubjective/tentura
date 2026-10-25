@@ -122,9 +122,11 @@ class PostConversationRow extends StatelessWidget {
                               ),
                             ),
                             SizedBox(width: tt.iconTextGap),
+                            // #476: the card's short age («7m»), as the
+                            // Request cards and Post rows beside it read.
                             RelativeTimestampTicker(
                               builder: (_) => Text(
-                                compactRelativeTimeAgo(
+                                cardRelativeAge(
                                   when: post.lastActivityAt,
                                   now: RelativeTimestampTicker.now(),
                                   l10n: l10n,
