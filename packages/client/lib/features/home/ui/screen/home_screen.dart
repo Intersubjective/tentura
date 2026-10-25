@@ -14,6 +14,7 @@ import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_attention_reporter.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_tab_reentry_listener.dart';
 import 'package:tentura/features/notification/ui/widget/notification_permission_banner.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
@@ -145,7 +146,10 @@ class _HomeShellState extends State<_HomeShell> {
         final tabsRouter = context.tabsRouter;
         final content = HomePostJoinListener(
           tabsRouter: tabsRouter,
-          child: NotificationPermissionPromptFrame(child: child),
+          child: MyWorkTabReentryListener(
+            tabsRouter: tabsRouter,
+            child: NotificationPermissionPromptFrame(child: child),
+          ),
         );
         return ListenableBuilder(
           // History covers URL-driven nav; [_chrome] covers in-app pops that
