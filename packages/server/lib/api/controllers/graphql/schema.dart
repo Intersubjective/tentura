@@ -143,7 +143,7 @@ class TenturaGraphQL extends GraphQL {
           if (!validation.successful) {
             final errors = <GraphQLExceptionError>[
               GraphQLExceptionError(
-                'Type coercion error for value of argument "$argumentName" of field "$fieldName". ($inputValue)',
+                'Type coercion error for value of argument "$argumentName" of field "$fieldName".',
                 locations: [
                   GraphExceptionErrorLocation.fromSourceLocation(
                     argumentValue.value.span!.start,
@@ -179,7 +179,7 @@ class TenturaGraphQL extends GraphQL {
 
           throw GraphQLException(<GraphQLExceptionError>[
             GraphQLExceptionError(
-              'Type coercion error for value of argument "$argumentName" of field "$fieldName". [$inputValue]',
+              'Type coercion error for value of argument "$argumentName" of field "$fieldName".',
               locations: locations,
             ),
             GraphQLExceptionError(e.toString(), locations: locations),
