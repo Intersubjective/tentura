@@ -7,6 +7,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'own_paused_chip.dart';
 import 'profile_navbar_item.dart';
 
 /// The account at the foot of Home's [NavigationRail] ([NavigationRail.trailing]).
@@ -128,6 +129,12 @@ class HomeRailAccountFooter extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // #267: your own pause, visible on every tab.
+        if (hasAccount)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: tt.cardGap),
+            child: OwnPausedChip(iconOnly: !extended),
+          ),
         SizedBox(
           width: extended ? _extendedRailWidth : _railWidth,
           child: Divider(

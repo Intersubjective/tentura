@@ -6372,6 +6372,23 @@
   "@availabilityResumeNow": {
     "description": "Own-profile action to clear an active pause immediately."
   },
+  "availabilityPausedChip": "Пауза до {when}",
+  "@availabilityPausedChip": {
+    "description": "Chip beside the viewer's own avatar in the top bar (or at the rail's foot) while they have paused new requests; tapping it offers to resume.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "availabilityResumeConfirmTitle": "Снова принимать новые запросы?",
+  "@availabilityResumeConfirmTitle": {
+    "description": "Title of the confirmation shown after tapping the own paused chip."
+  },
+  "availabilityResumeConfirmBody": "Вам сразу снова смогут отправлять новые запросы.",
+  "@availabilityResumeConfirmBody": {
+    "description": "Body of the confirmation shown after tapping the own paused chip."
+  },
   "availabilityDeliveredPartial": "Отправлено {n} из {m} — {name} сейчас не принимает новые запросы.",
   "@availabilityDeliveredPartial": {
     "description": "Forward delivery snackbar when one recipient was skipped for availability.",
