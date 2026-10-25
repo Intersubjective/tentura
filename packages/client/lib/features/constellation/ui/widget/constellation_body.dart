@@ -385,6 +385,46 @@ class _ConstellationBodyState extends State<ConstellationBody>
     });
   }
 
+  /// A press on the map gives the map keyboard focus, so Escape after a
+  /// mouse click closes the panel (#680). Focus already on the map or in its
+  /// panels stays where it is, and a text field keeps its focus.
+  void _focusMapOnPointerDown() {
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus != null) {
+      if (focus == _mapFocus || focus.ancestors.contains(_mapFocus)) return;
+      final focusContext = focus.context;
+      if (focusContext != null &&
+          (focusContext.widget is EditableText ||
+              focusContext.findAncestorWidgetOfExactType<EditableText>() !=
+                  null)) {
+        return;
+      }
+    }
+    _mapFocus.requestFocus();
+  }
+
+  /// A click on an empty spot of the map clears the person or Request
+  /// selection and closes its panel (#680). Placing, composing and the
+  /// multi-select tools keep their own handling of the map.
+  void _onEmptyMapTap(BuildContext context, ConstellationCubit cubit) {
+    final state = cubit.state;
+    if (state.isComposing ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    final selection = maybeConstellationSelection(context);
+    if (selection != null &&
+        (selection.state.isActive ||
+            selection.state.sector != null ||
+            ConstellationSelectionCubit.modifierHeld)) {
+      return;
+    }
+    if (state.selectedPersonId != null) cubit.selectPerson(null);
+    if (cubit.state.selectedRequestId != null) {
+      unawaited(_dismissRequestPreview(cubit));
+    }
+  }
+
   void _openBeacon(
     BuildContext context,
     String beaconId, {
@@ -909,7 +949,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
       children: [
         // A new touch or wheel on the map cancels a running reveal pan.
         Listener(
-          onPointerDown: (_) => _stopReveal(),
+          onPointerDown: (_) {
+            _stopReveal();
+            _focusMapOnPointerDown();
+          },
           onPointerSignal: (_) => _stopReveal(),
           // Tab walks the map markers in the reading order of where they are
           // drawn, as one block of Tab stops (#391).
@@ -921,6 +964,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
               canvasBackgroundBuilder: composer == null
                   ? null
                   : (_) => ConstellationComposerCircle(composer: composer),
+              // A click on an empty spot clears the selection (#680); a pan
+              // or a long press never counts as one.
+              onCanvasTap: composer == null
+                  ? (_) => _onEmptyMapTap(context, cubit)
+                  : null,
               onCanvasSecondaryTap:
                   composer == null || composer.createCubit != null
                   ? null
