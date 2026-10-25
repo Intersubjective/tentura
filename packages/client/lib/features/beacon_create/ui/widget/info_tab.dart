@@ -299,32 +299,45 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                             ),
                           ),
                           Expanded(
-                            child: ListView(
+                            // The groups overflow the sheet on desktop zoom
+                            // too, where nothing showed there is more below
+                            // ("Other" clipped, #436): keep the thumb shown.
+                            child: Scrollbar(
                               controller: scrollController,
-                              padding: EdgeInsets.only(
-                                left: tt.screenHPadding,
-                                right: tt.screenHPadding,
-                                // The compact sheet runs under the home
-                                // indicator; clear it so the last category
-                                // ("Other") scrolls fully into view (#436).
-                                bottom:
-                                    tt.sectionGap * 2 +
-                                    MediaQuery.paddingOf(ctx).bottom,
-                              ),
-                              children: [
-                                Text(
-                                  l10n.beaconRequirementsSheetHint,
-                                  style: TenturaText.bodySmall(
-                                    scheme.onSurfaceVariant,
+                              thumbVisibility: true,
+                              child: ScrollConfiguration(
+                                // One thumb: no second, automatic desktop one.
+                                behavior: ScrollConfiguration.of(
+                                  ctx,
+                                ).copyWith(scrollbars: false),
+                                child: ListView(
+                                  controller: scrollController,
+                                  padding: EdgeInsets.only(
+                                    left: tt.screenHPadding,
+                                    right: tt.screenHPadding,
+                                    // The compact sheet runs under the home
+                                    // indicator; clear it so the last category
+                                    // ("Other") scrolls fully into view (#436).
+                                    bottom:
+                                        tt.sectionGap * 2 +
+                                        MediaQuery.paddingOf(ctx).bottom,
                                   ),
+                                  children: [
+                                    Text(
+                                      l10n.beaconRequirementsSheetHint,
+                                      style: TenturaText.bodySmall(
+                                        scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    SizedBox(height: tt.rowGap),
+                                    CapabilityChipSet(
+                                      selectedSlugs: selected,
+                                      onChanged: (s) =>
+                                          setModalState(() => selected = s),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: tt.rowGap),
-                                CapabilityChipSet(
-                                  selectedSlugs: selected,
-                                  onChanged: (s) =>
-                                      setModalState(() => selected = s),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
@@ -808,7 +821,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     padding: EdgeInsets.only(
       left: tt.cardPadding.left + tt.iconSize + tt.avatarTextGap,
     ),
-    child: const TenturaHairlineDivider(subtle: true),
+    child: const TenturaHairlineDivider(),
   );
 
   String _requirementsSummary(Set<String> needs) {
