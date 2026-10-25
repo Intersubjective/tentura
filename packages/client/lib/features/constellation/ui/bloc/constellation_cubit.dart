@@ -358,6 +358,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @override
   Future<void> close() async {
+    _cancelPersonFocus();
     _storeLease.dispose();
     // Not awaited: the store's broadcast stream has no cancel cleanup, so the
     // returned future is the shared root-zone null future. Awaiting it would
@@ -724,6 +725,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    _cancelPersonFocus();
     if (state.isComposing) exitComposing();
     _storeInputHeld = false;
     _outboxInputHeld = false;
@@ -852,6 +854,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || state.field == null) {
       return;
     }
+    _cancelPersonFocus();
     _composingCandidateIds = candidateIds;
     _composingSelectedIds = selectedIds;
     _composingDraftCentre = draftCentre;
@@ -1704,6 +1707,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    _cancelPersonFocus();
     final previousId = state.selectedRequestId;
     final previousMemberId = _selectedRequestMemberId;
     if (requestId != null) {
@@ -2838,6 +2842,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    _cancelPersonFocus();
     final previousRequestId = state.selectedRequestId;
     final previousMemberId = _selectedRequestMemberId;
     // Keep a selected member after clearing the Request that brought them in.
@@ -2972,13 +2977,27 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     });
   }
 
-  /// Selects [personId] (which highlights the node and opens the person
-  /// panel) and centres the camera on them, keeping the zoom (#253).
+  Timer? _personFocusTimer;
+
+  void _cancelPersonFocus() {
+    _personFocusTimer?.cancel();
+    _personFocusTimer = null;
+  }
+
+  /// Selects [personId] for two seconds (highlighting the node and opening
+  /// the person panel), and centres the camera, keeping the zoom (#253).
+  /// An intentional selection takes over from the temporary search focus.
   void focusPerson(String personId, {required EdgeInsets insets}) {
     if (isClosed || personId == _viewer.id) {
       return;
     }
     selectPerson(personId);
+    _personFocusTimer = Timer(const Duration(seconds: 2), () {
+      _personFocusTimer = null;
+      if (!isClosed && state.selectedPersonId == personId) {
+        selectPerson(null);
+      }
+    });
     if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }

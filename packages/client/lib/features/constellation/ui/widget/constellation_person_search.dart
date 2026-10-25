@@ -9,10 +9,10 @@ import '../bloc/constellation_cubit.dart';
 import 'constellation_camera_controls.dart';
 
 /// Most people a name search lists at once; typing narrows it further.
-const kConstellationPersonSearchLimit = 50;
+const kConstellationPersonSearchLimit = 200;
 
 /// The map's name search (#253): finds a person on the field and centres the
-/// map on them, selected (highlighted, with their panel open).
+/// map on them, selected for two seconds (highlighted, with their panel open).
 class ConstellationPersonSearchButton extends StatelessWidget {
   const ConstellationPersonSearchButton({super.key});
 

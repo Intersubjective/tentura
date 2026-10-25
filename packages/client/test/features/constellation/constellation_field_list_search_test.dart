@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_text_view.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_person_search.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -115,10 +116,10 @@ ConstellationField _field() => ConstellationField(
   directContactIds: const ['ann', 'olga', 'quiet'],
 );
 
-Future<ConstellationCubit> _loadCubit() async {
+Future<ConstellationCubit> _loadCubit({ConstellationField? field}) async {
   final cubit = ConstellationCubit(
     case_: ConstellationStoreFixture(
-      _StubRepository(_field()),
+      _StubRepository(field ?? _field()),
       accountId: 'ego',
     ).store,
     viewer: _ego,
@@ -341,6 +342,123 @@ void main() {
   });
 
   group('map search', () {
+    testWidgets('returns up to 200 matches and excludes the viewer', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        field: ConstellationField(
+          loadedAt: _loadedAt,
+          context: '',
+          peers: [
+            for (var i = 0; i < 205; i++)
+              ConstellationPerson(id: 'p$i', displayName: 'Person $i'),
+          ],
+          edges: [
+            for (var i = 0; i < 205; i++)
+              ConstellationTrustEdgeEntity(src: 'ego', dst: 'p$i', tier: 1),
+          ],
+          directContactIds: [for (var i = 0; i < 205; i++) 'p$i'],
+          requests: const [],
+        ),
+      );
+      addTearDown(cubit.close);
+      expect(cubit.fieldPeople, hasLength(206));
+      await tester.pumpWidget(
+        _app(
+          BlocProvider<ConstellationCubit>.value(
+            value: cubit,
+            child: const Scaffold(body: ConstellationPersonSearchButton()),
+          ),
+        ),
+      );
+      final anchor = tester.widget<SearchAnchor>(find.byType(SearchAnchor));
+      final context = tester.element(find.byType(SearchAnchor));
+      final controller = SearchController();
+      addTearDown(controller.dispose);
+      controller.text = '';
+      final suggestions = (await anchor.suggestionsBuilder(
+        context,
+        controller,
+      )).toList();
+      expect(suggestions, hasLength(200));
+      controller.text = 'Person 204';
+      final narrowed = (await anchor.suggestionsBuilder(
+        context,
+        controller,
+      )).toList();
+      expect(narrowed, hasLength(1));
+      await tester.pumpWidget(
+        _app(Scaffold(body: ListView(children: suggestions))),
+      );
+      expect(
+        find.byKey(const Key('constellation.search.person.ego')),
+        findsNothing,
+      );
+      expect(find.text('Person 0'), findsOneWidget);
+
+      await tester.pumpWidget(_app(Scaffold(body: Column(children: narrowed))));
+      expect(find.text('Person 204'), findsOneWidget);
+    });
+
+    testWidgets(
+      'focus centres the camera and clears the highlight after 2 seconds',
+      (tester) async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+        await _pumpMap(tester, cubit);
+        final controller = cubit.graphController;
+        final scale = controller.cameraScale;
+        controller.jumpToPosition(const Offset(10000, 10000));
+        final before = controller.viewportLocalToScene(Offset.zero);
+
+        cubit.focusPerson('quiet', insets: EdgeInsets.zero);
+        expect(cubit.state.selectedPersonId, 'quiet');
+        expect(controller.viewportLocalToScene(Offset.zero), isNot(before));
+        expect(controller.cameraScale, scale);
+        await tester.pump(const Duration(milliseconds: 1999));
+        expect(cubit.state.selectedPersonId, 'quiet');
+        await tester.pump(const Duration(milliseconds: 1));
+        expect(cubit.state.selectedPersonId, isNull);
+      },
+    );
+
+    testWidgets('a second focus restarts the highlight deadline', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      cubit.focusPerson('quiet', insets: EdgeInsets.zero);
+      await tester.pump(const Duration(seconds: 1));
+      cubit.focusPerson('ann', insets: EdgeInsets.zero);
+      await tester.pump(const Duration(seconds: 1));
+      expect(cubit.state.selectedPersonId, 'ann');
+      await tester.pump(const Duration(seconds: 1));
+      expect(cubit.state.selectedPersonId, isNull);
+    });
+
+    testWidgets('manual selection survives the old focus deadline', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      cubit.focusPerson('quiet', insets: EdgeInsets.zero);
+      await tester.pump(const Duration(seconds: 1));
+      cubit.selectPerson('quiet');
+      await tester.pump(const Duration(seconds: 2));
+      expect(cubit.state.selectedPersonId, 'quiet');
+    });
+
+    testWidgets('closing during focus cancels the pending highlight', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      cubit.focusPerson('quiet', insets: EdgeInsets.zero);
+      await cubit.close();
+      await tester.pump(const Duration(seconds: 2));
+      expect(cubit.isClosed, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('choosing a person selects them', (tester) async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
@@ -360,6 +478,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(cubit.state.selectedPersonId, 'quiet');
+      await tester.pump(const Duration(seconds: 2));
+      expect(cubit.state.selectedPersonId, isNull);
     });
 
     testWidgets('the search button is on the map only', (tester) async {
