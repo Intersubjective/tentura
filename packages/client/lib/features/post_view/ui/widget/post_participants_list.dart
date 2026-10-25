@@ -93,7 +93,12 @@ class _PostParticipantsListState extends State<PostParticipantsList> {
                 TextButton.icon(
                   onPressed: onInvite,
                   icon: const Icon(Icons.person_add_alt_outlined),
-                  label: Text(l10n.postParticipantsInvite),
+                  // A distinct name for screen readers: rows read «invited
+                  // by …», so a bare «Invite» matched both (#723).
+                  label: Text(
+                    l10n.postParticipantsInvite,
+                    semanticsLabel: l10n.postParticipantsInviteSemantics,
+                  ),
                 ),
             ],
           ),

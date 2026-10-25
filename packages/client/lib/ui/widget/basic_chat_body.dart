@@ -956,6 +956,57 @@ class BeaconRoomComposer extends StatefulWidget {
 @visibleForTesting
 bool Function()? debugComposerTextInputHasPlatformFocus;
 
+/// One semantics node for a composer button: name, tap, identifier and its
+/// keyboard focus (#723: a wrapper that only added `button` was read twice;
+/// #415: the node must say it has focus when Tab lands on the button).
+class _OneNodeButton extends StatefulWidget {
+  const _OneNodeButton({
+    required this.identifier,
+    required this.enabled,
+    required this.label,
+    required this.onTap,
+    required this.child,
+  });
+
+  final String identifier;
+  final bool enabled;
+  final String label;
+  final VoidCallback? onTap;
+  final Widget child;
+
+  @override
+  State<_OneNodeButton> createState() => _OneNodeButtonState();
+}
+
+class _OneNodeButtonState extends State<_OneNodeButton> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    identifier: widget.identifier,
+    container: true,
+    button: true,
+    enabled: widget.enabled,
+    focusable: true,
+    focused: _focused,
+    label: widget.label,
+    onTap: widget.onTap,
+    excludeSemantics: true,
+    // Follows the button's own focus without taking a Tab stop of its own.
+    child: Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: (focused) {
+        if (mounted && focused != _focused) {
+          setState(() => _focused = focused);
+        }
+      },
+      child: widget.child,
+    ),
+  );
+}
+
 class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     with PendingAttachmentsMixin {
   static final _composerBorder = OutlineInputBorder(
@@ -1487,13 +1538,18 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   Widget _pasteImageButton(L10n l10n, ThemeData theme, bool busy) {
     final readOnly = widget.readOnlyHint != null;
     final enabled = !busy && !readOnly && remainingAttachmentSlots > 0;
-    return Semantics(
+    final onPressed = enabled ? () => unawaited(pasteImageAttachment()) : null;
+    // One node with name, tap and identifier: a wrapper that only added
+    // `button` showed a second button around this one (#723).
+    return _OneNodeButton(
       identifier: TestIds.roomMessagePaste,
-      button: true,
+      enabled: enabled,
+      label: l10n.beaconRoomAttachPasteImage,
+      onTap: onPressed,
       child: IconButton(
         key: const ValueKey('paste'),
         tooltip: l10n.beaconRoomAttachPasteImage,
-        onPressed: enabled ? () => unawaited(pasteImageAttachment()) : null,
+        onPressed: onPressed,
         icon: Icon(
           Icons.content_paste_rounded,
           color: theme.colorScheme.onSurfaceVariant,
@@ -1551,7 +1607,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
         if (onCreatePoll != null)
           PopupMenuItem(
             value: 'poll',
-            child: Text(l10n.beaconRoomAttachCreatePoll),
+            // A full name for screen readers, not a bare «Poll» (#737).
+            child: Text(
+              l10n.beaconRoomAttachCreatePoll,
+              semanticsLabel: l10n.beaconRoomCreatePoll,
+            ),
           ),
         if (onCreateBaton != null)
           PopupMenuItem(
@@ -1587,6 +1647,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     final isCompact = context.windowClass == WindowClass.compact;
     final showAttach =
         widget.enableAttachments && !readOnly && !(isCompact && _hasText);
+    final onSend = locked || !widget.sendEnabled
+        ? null
+        : () => unawaited(_submit());
     final showUnsent =
         (widget.sendFailedOffline || widget.sendUnconfirmed) &&
         !readOnly &&
@@ -1720,16 +1783,18 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
             // Part of the field's tap region so tapping Send does not count
             // as a tap outside the composer (which would unfocus it).
             TextFieldTapRegion(
-              child: Semantics(
+              // One node with name, tap and identifier: a wrapper that only
+              // added `button` showed «Send» twice, nested (#723).
+              child: _OneNodeButton(
                 identifier: TestIds.roomMessageSend,
-                button: true,
+                enabled: onSend != null,
+                label: l10n.tooltipSendMessage,
+                onTap: onSend,
                 child: IconButton(
                   key: TestIds.key(TestIds.roomMessageSend),
                   icon: const Icon(Icons.send_rounded),
-                  tooltip: L10n.of(context)?.tooltipSendMessage,
-                  onPressed: locked || !widget.sendEnabled
-                      ? null
-                      : () => unawaited(_submit()),
+                  tooltip: l10n.tooltipSendMessage,
+                  onPressed: onSend,
                 ),
               ),
             ),
