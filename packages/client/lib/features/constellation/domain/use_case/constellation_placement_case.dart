@@ -14,6 +14,7 @@ import '../entity/constellation_field.dart';
 import '../entity/placement_outbox.dart';
 import '../placement_overlay.dart';
 import '../port/constellation_anchor_repository_port.dart';
+import 'constellation_arrangement_history.dart';
 import 'constellation_field_store_case.dart';
 
 /// Most placements one [ConstellationPlacementCase.place] call (one cluster,
@@ -83,6 +84,84 @@ final class ConstellationPlacementCase extends UseCaseBase {
   /// apply batch in flight (whose echo may beat its acknowledgement) settles.
   Completer<void>? _applyBarrier;
 
+  /// Screen-session undo / redo of drags and unpins.
+  late final history = ConstellationArrangementHistory(
+    applyOps: _applyHistoryOps,
+    restoreSnapshot: (_) async => null,
+    applyLocalLayout: (_) async {},
+    flushPlacementOutbox: () async {},
+    saveSnapshot: (_) async =>
+        throw UnsupportedError('Layout snapshots are not wired to placement'),
+    newOpId: _uuid.v4,
+  );
+
+  Future<bool> undo() => history.undo();
+  Future<bool> redo() => history.redo();
+
+  /// Outcome (true = accepted) of each in-flight write, by client op id.
+  final _outcomes = <String, Completer<bool>>{};
+
+  Future<bool> _watch(Iterable<PlacementOp> ops) async {
+    final watchers = [
+      for (final op in ops)
+        (_outcomes[op.clientOpId] = Completer<bool>()).future,
+    ];
+    return (await Future.wait(watchers)).every((ok) => ok);
+  }
+
+  /// Undo / redo writes go through the same outbox as the original drag.
+  Future<bool> _applyHistoryOps(List<ConstellationAnchorApplyOp> ops) {
+    final clusterId = _uuid.v4();
+    final placementOps = [
+      for (final op in ops)
+        switch (op.kind) {
+          ConstellationAnchorOpKind.upsert => PlacementOp.upsert(
+            clientOpId: op.clientOpId,
+            clusterId: clusterId,
+            target: op.target,
+            position: op.position!,
+            baseRevision: _baseRevision,
+          ),
+          ConstellationAnchorOpKind.delete => PlacementOp.delete(
+            clientOpId: op.clientOpId,
+            clusterId: clusterId,
+            target: op.target,
+            baseRevision: _baseRevision,
+          ),
+        },
+    ];
+    final outcome = _watch(placementOps);
+    _enqueue(placementOps);
+    return outcome;
+  }
+
+  /// Records [ops] as one history step and marks it failed if any is rejected.
+  void _record(
+    Map<ConstellationAnchorTarget, ConstellationAnchorPosition?> after,
+    List<PlacementOp> ops,
+  ) {
+    final confirmed = {
+      for (final anchor
+          in _store.current.field?.resolvedAnchorProjection.anchors ??
+              <ConstellationAnchor>[])
+        anchor.target: anchor.position,
+    };
+    final handle = history.record(
+      AnchorBatchEntry.placement(
+        changes: {
+          for (final entry in after.entries)
+            entry.key: (before: confirmed[entry.key], after: entry.value),
+        },
+        newOpId: _uuid.v4,
+      ),
+    );
+    unawaited(
+      _watch(ops).then((ok) {
+        if (!ok) history.markFailed(handle);
+      }),
+    );
+  }
+
   PlacementOutboxState get current => _state;
   Stream<PlacementOutboxState> get changes => _changes.stream;
 
@@ -135,7 +214,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
       );
     }
     final clusterId = _uuid.v4();
-    _enqueue([
+    final ops = [
       for (final entry in positions.entries)
         PlacementOp.upsert(
           clientOpId: _uuid.v4(),
@@ -153,18 +232,20 @@ final class ConstellationPlacementCase extends UseCaseBase {
                     requests[entry.key.id]
               : null,
         ),
-    ]);
+    ];
+    _record(positions, ops);
+    _enqueue(ops);
   }
 
   void unpin(ConstellationAnchorTarget target) {
-    _enqueue([
-      PlacementOp.delete(
-        clientOpId: _uuid.v4(),
-        clusterId: _uuid.v4(),
-        target: target,
-        baseRevision: _baseRevision,
-      ),
-    ]);
+    final op = PlacementOp.delete(
+      clientOpId: _uuid.v4(),
+      clusterId: _uuid.v4(),
+      target: target,
+      baseRevision: _baseRevision,
+    );
+    _record({target: null}, [op]);
+    _enqueue([op]);
   }
 
   /// The account anchor revision the user is looking at; a write based on
@@ -241,7 +322,16 @@ final class ConstellationPlacementCase extends UseCaseBase {
     }
   }
 
+  void _failOutcomes() {
+    final pending = _outcomes.values.toList();
+    _outcomes.clear();
+    for (final outcome in pending) {
+      outcome.complete(false);
+    }
+  }
+
   void _dropAllWrites() {
+    _failOutcomes();
     _retryHandle?.cancel();
     _retryHandle = null;
     _replayScheduled = false;
@@ -636,6 +726,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _replayScheduled = false;
     _dueIds.clear();
     _cancelOverdue();
+    _failOutcomes();
     _loopToken = null;
     _flushing = false;
     _replayBarrier?.complete();
@@ -673,6 +764,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
       final outcome = results[slot?.op.clientOpId];
       if (slot == null || outcome == null) continue;
       final rejected = outcome.status == ConstellationAnchorOpStatus.rejected;
+      _outcomes.remove(slot.op.clientOpId)?.complete(!rejected);
       final pending =
           target.latestPending ??
           (slot.discardOnSettle
@@ -738,6 +830,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
 
   Future<void> dispose() async {
     _disposed = true;
+    _failOutcomes();
     _retryHandle?.cancel();
     _retryHandle = null;
     _cancelOverdue();
