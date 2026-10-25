@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
+import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -50,6 +52,39 @@ BeaconCreateCubit _standaloneCubit({
   ),
   effects: effects ?? FakeUiEffectPort(),
 );
+
+/// A child composer opened from room message [text] (#735).
+Future<BeaconCreateCubit> _openFromMessage(String text) async {
+  final write = FakeBeaconWritePort();
+  final cubit = BeaconCreateCubit(
+    beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+    hierarchyCase: buildBeaconHierarchyCaseForTest(
+      FakeBeaconHierarchyRepositoryPort(
+        promotionSource: BeaconPromotionSource(
+          sourceBeaconId: _parentId,
+          sourceMessageId: 'msg-1',
+          textPreview: text,
+          author: const BeaconHierarchyOwnerSummary(
+            id: 'author-1',
+            displayName: 'Bob',
+          ),
+        ),
+      ),
+      createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+      beacons: write,
+      commandStore: InMemoryBeaconChildCommandStore(),
+    ),
+    childCreationContext: const BeaconCreationContextPromotedChild(
+      parentBeaconId: _parentId,
+      sourceMessageId: 'msg-1',
+    ),
+    postBuddingEnabled: false,
+    effects: FakeUiEffectPort(),
+  );
+  addTearDown(cubit.close);
+  await cubit.stream.firstWhere((s) => s.clientCommandId != null);
+  return cubit;
+}
 
 void _fillRequired(BeaconCreateCubit cubit) {
   cubit
@@ -198,6 +233,34 @@ void main() {
 
       expect(cubit.state.isLive, isTrue);
       expect(write.publishedIds, ['B1']);
+    });
+  });
+
+  group('child request from a room message (#735)', () {
+    test(
+      'a one-line message becomes the title and stays the description',
+      () async {
+        final cubit = await _openFromMessage('Need to borrow a truck ramp');
+        expect(cubit.state.title, 'Need to borrow a truck ramp');
+        expect(cubit.state.description, 'Need to borrow a truck ramp');
+      },
+    );
+
+    test(
+      'a long one-line message: a short title, the whole text below',
+      () async {
+        final text = List.filled(20, 'ramp').join(' ');
+        final cubit = await _openFromMessage(text);
+        expect(cubit.state.title, endsWith('ramp…'));
+        expect(cubit.state.title.length, lessThanOrEqualTo(60));
+        expect(cubit.state.description, text);
+      },
+    );
+
+    test('a message of several lines stays the description only', () async {
+      final cubit = await _openFromMessage('Truck ramp\nFor Saturday');
+      expect(cubit.state.title, isEmpty);
+      expect(cubit.state.description, 'Truck ramp\nFor Saturday');
     });
   });
 }
