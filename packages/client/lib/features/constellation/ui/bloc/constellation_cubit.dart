@@ -24,6 +24,7 @@ import '../../domain/constellation_tidy_offset_layer.dart';
 import '../../domain/entity/constellation_layout_snapshot.dart';
 import '../../domain/use_case/constellation_arrangement_history.dart';
 import '../scene/constellation_arrangement_layout.dart';
+import '../scene/constellation_community_scene_layout.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
 import '../../domain/constellation_mutual_trust.dart';
@@ -140,6 +141,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
+    this.semanticZoomEnabled = kFieldSemanticZoomEnabled,
     this._composePresentation = composeConstellationPresentation,
     ConstellationSceneController? scene,
   }) : _scene = scene ?? ConstellationSceneController(),
@@ -175,6 +177,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Draws the presence of bond and temporary people (`kFieldMembershipV2Enabled`).
   final bool fieldMembershipV2Enabled;
+
+  /// Overview community geometry (`kFieldSemanticZoomEnabled`).
+  final bool semanticZoomEnabled;
+  final _communityLayouts = ConstellationCommunitySceneLayouts();
+  bool _overviewLayout = false;
+
+  /// The screen's zoom-level owner selects geometry as well as presentation.
+  void setOverviewLayout(bool overview) {
+    if (_overviewLayout == overview) return;
+    _overviewLayout = overview;
+    if (semanticZoomEnabled && !state.isComposing && state.tagView == null) {
+      _scene.awaitingLayoutOutcome = true;
+    }
+  }
 
   /// Lazily fetched member webs per selected Request id (kept for the
   /// cubit's lifetime; a field reload does not invalidate it).
@@ -357,17 +373,39 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   int get writeCount => _writeCount;
 
-  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
-      _layoutPreviewAlgorithm ??
-      _withTidyOffsets(
-        _scene.layoutAlgorithm(
-          graphRevision: state.graphRevision,
-          viewerId: _viewer.id,
-          statePaths: state.paths,
-          stateKeptPeerIds: state.keptPeerIds,
-          forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
-        ),
-      );
+  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm {
+    final normal =
+        _layoutPreviewAlgorithm ??
+        _withTidyOffsets(
+          _scene.layoutAlgorithm(
+            graphRevision: state.graphRevision,
+            viewerId: _viewer.id,
+            statePaths: state.paths,
+            stateKeptPeerIds: state.keptPeerIds,
+            forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
+          ),
+        );
+    final field = state.field;
+    if (!semanticZoomEnabled ||
+        field == null ||
+        state.isComposing ||
+        state.tagView != null ||
+        _layoutPreviewAlgorithm != null ||
+        _scene.tagViewAlgorithm != null ||
+        _scene.testSceneLayoutAlgorithmOverride != null ||
+        _scene.ephemeralOwnedLayoutAlgorithm != null) {
+      return normal;
+    }
+    return _communityLayouts.select(
+      normal: normal,
+      field: field,
+      egoId: viewerId,
+      anchors: _scene.layoutAnchorByNodeId,
+      initialPositions:
+          graphController.renderSnapshot.layout?.positions ?? const {},
+      overview: _overviewLayout,
+    );
+  }
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm =>
       _scene.constellationAlgorithm(
@@ -763,6 +801,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _cancelPersonFocus();
+    _communityLayouts.clear();
     if (state.isComposing) exitComposing();
     _storeInputHeld = false;
     _outboxInputHeld = false;

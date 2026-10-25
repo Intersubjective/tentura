@@ -124,6 +124,7 @@ class ConstellationBody extends StatefulWidget {
 class _ConstellationBodyState extends State<ConstellationBody>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   static const _layoutTransitionDuration = Duration(milliseconds: 350);
+  static const _overviewTransitionDuration = Duration(milliseconds: 500);
 
   /// A Field ↔ tag view move takes 400–500 ms.
   static const _tagViewTransitionDuration = Duration(milliseconds: 450);
@@ -168,6 +169,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _zoom = _readZoomOrOwn()
       ..update(_graphController.cameraScale, gestureActive: false)
       ..addListener(_onZoomLevel);
+    context.read<ConstellationCubit>().setOverviewLayout(
+      _detail == ConstellationDetailLevel.overview,
+    );
     _edgeStrokeScale = ValueNotifier(_strokeScale());
     _reveal = AnimationController(vsync: this, duration: _revealDuration)
       ..addListener(_onRevealTick);
@@ -224,8 +228,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
   }
 
-  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
-  void _onZoomLevel() => setState(() {});
+  // Geometry and detail change together, using the screen's one level owner.
+  void _onZoomLevel() {
+    context.read<ConstellationCubit>().setOverviewLayout(
+      _detail == ConstellationDetailLevel.overview,
+    );
+    setState(() {});
+  }
 
   void _onRevealTick() {
     final pan = _revealPan;
@@ -1415,6 +1424,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ? Duration.zero
                   : cubit.tagViewMotionActive
                   ? _tagViewTransitionDuration
+                  : cubit.semanticZoomEnabled
+                  ? _overviewTransitionDuration
                   : _layoutTransitionDuration,
               canDragNode: cubit.canDragNode,
               transformNodeDragPosition: cubit.clampClusterDragPosition,
