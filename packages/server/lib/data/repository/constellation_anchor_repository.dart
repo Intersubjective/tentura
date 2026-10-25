@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show ServerException, Type, TypedValue;
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_server/domain/entity/constellation_layout_snapshot.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
@@ -12,6 +13,9 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import 'constellation_layout_snapshot_repository.dart'
+    show insertConstellationLayoutSnapshot;
+import 'constellation_viewer_tx.dart';
 
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository
@@ -45,8 +49,12 @@ class ConstellationAnchorRepository
     viewerId,
     maxAttempts: applyBatchMaxAttempts,
     () async {
-      await _lockViewerBatch(viewerId);
-      final (watermark: before, :resetRevision) = await _lockViewerCursor(
+      await lockConstellationViewerBatch(_db, viewerId);
+      final (
+        watermark: before,
+        :resetRevision,
+      ) = await lockConstellationViewerCursor(
+        _db,
         viewerId,
       );
       final existingTargets = await _existingUpsertTargets(ops);
@@ -446,12 +454,17 @@ WHERE viewer_id = $1
   Future<AnchorResetResult> resetAll({
     required String viewerId,
     required String clientOpId,
+    bool saveHistory = false,
   }) => _db.withMutatingRepeatableRead(
     viewerId,
     maxAttempts: applyBatchMaxAttempts,
     () async {
-      await _lockViewerBatch(viewerId);
-      final (watermark: before, resetRevision: _) = await _lockViewerCursor(
+      await lockConstellationViewerBatch(_db, viewerId);
+      final (
+        watermark: before,
+        resetRevision: _,
+      ) = await lockConstellationViewerCursor(
+        _db,
         viewerId,
       );
       final recorded = await _db
@@ -483,6 +496,16 @@ WHERE viewer_id = $1 AND client_op_id = $2
           ),
           clearedCount: result['cleared']! as int,
           replayed: true,
+        );
+      }
+
+      if (saveHistory) {
+        await insertConstellationLayoutSnapshot(
+          _db,
+          viewerId: viewerId,
+          kind: ConstellationLayoutSnapshotKind.history,
+          reason: ConstellationLayoutSnapshotReason.reset,
+          clientOpId: clientOpId,
         );
       }
 
@@ -587,74 +610,6 @@ RETURNING 1
       );
     },
   );
-
-  /// Serializes this viewer's batches (lock-first order). Waiting means the
-  /// previous holder committed after this transaction's snapshot, so the
-  /// cursor lock would fail with 40001 after a wasted preparation: fail now.
-  Future<void> _lockViewerBatch(String viewerId) async {
-    const key = r"hashtextextended('constellation_anchor_apply:' || $1, 4242)";
-    final acquired = await _db
-        .customSelect(
-          'SELECT pg_try_advisory_xact_lock($key) AS acquired',
-          variables: [Variable<String>(viewerId)],
-        )
-        .getSingle();
-    if (acquired.read<bool>('acquired')) return;
-    await _db
-        .customSelect(
-          'SELECT pg_advisory_xact_lock($key) IS NULL AS waited',
-          variables: [Variable<String>(viewerId)],
-        )
-        .getSingle();
-    throw PostgresSnapshotUnavailableException(
-      StateError('waited for the viewer batch lock; snapshot predates it'),
-    );
-  }
-
-  Future<
-    ({
-      ConstellationAnchorWatermark watermark,
-      ConstellationAnchorRevision resetRevision,
-    })
-  >
-  _lockViewerCursor(String viewerId) async {
-    Future<QueryRow?> lock() => _db
-        .customSelect(
-          r'''
-SELECT revision, reset_revision
-FROM public.constellation_anchor_cursor
-WHERE viewer_id = $1
-FOR UPDATE
-''',
-          variables: [Variable<String>(viewerId)],
-        )
-        .getSingleOrNull();
-    // The cursor row exists after the viewer's first write; create it once.
-    var row = await lock();
-    if (row == null) {
-      await _ensureViewerCursor(viewerId);
-      row = await lock();
-    }
-    return (
-      watermark: ConstellationAnchorWatermark(
-        ConstellationAnchorRevision(row!.read<BigInt>('revision')),
-      ),
-      resetRevision: ConstellationAnchorRevision(
-        row.read<BigInt>('reset_revision'),
-      ),
-    );
-  }
-
-  Future<void> _ensureViewerCursor(String viewerId) async {
-    await _db.customStatement(
-      r'''
-INSERT INTO public.constellation_anchor_cursor (viewer_id)
-VALUES ($1)
-ON CONFLICT (viewer_id) DO NOTHING
-''',
-      [viewerId],
-    );
-  }
 }
 
 /// The decided operations of one batch, sent to

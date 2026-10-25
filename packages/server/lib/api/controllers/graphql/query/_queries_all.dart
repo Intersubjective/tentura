@@ -19,6 +19,7 @@ import 'query_coordination.dart';
 import 'query_fact_card.dart';
 import 'query_forward_candidates.dart';
 import 'query_constellation_field.dart';
+import 'query_constellation_layout_snapshots.dart';
 import 'query_constellation_field_requests.dart';
 import 'query_constellation_mutual_trust.dart';
 import 'query_forward_candidate_context.dart';
@@ -73,6 +74,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryLineageSuggestions().all,
   ...QueryNotificationPreferences().all,
   ...QueryPeopleTags().all,
+  ...QueryConstellationLayoutSnapshots().all,
   ...QueryOfferAcceptedDismissal().all,
   ...QueryPersonSharedContexts().all,
   ...QueryTrustPreference().all,

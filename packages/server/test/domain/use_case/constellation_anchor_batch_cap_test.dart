@@ -83,5 +83,6 @@ final class _CountingRepository implements ConstellationAnchorRepositoryPort {
   Future<AnchorResetResult> resetAll({
     required String viewerId,
     required String clientOpId,
+    bool saveHistory = false,
   }) => throw UnimplementedError('not used by this test');
 }

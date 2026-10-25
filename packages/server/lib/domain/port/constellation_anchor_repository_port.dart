@@ -111,9 +111,12 @@ abstract interface class ConstellationAnchorRepositoryPort {
   /// Removes every anchor of [viewerId] (all target kinds, tombstones too) in
   /// one transaction under the viewer's locks, advances the cursor (one
   /// realtime anchor hint) and stamps the reset watermark. Idempotent per
-  /// [clientOpId]: a retry returns the recorded outcome.
+  /// [clientOpId]: a retry returns the recorded outcome. With [saveHistory]
+  /// the cleared layout is first saved as a `reset` history snapshot in the
+  /// same transaction, so a failed save leaves every anchor in place.
   Future<AnchorResetResult> resetAll({
     required String viewerId,
     required String clientOpId,
+    bool saveHistory = false,
   });
 }

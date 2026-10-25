@@ -110,6 +110,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
   Future<AnchorResetResult> reset({
     required String viewerId,
     required String clientOpId,
+    bool saveHistory = false,
   }) {
     if (clientOpId.isEmpty || clientOpId.length > 64) {
       throw ConstellationException(
@@ -117,7 +118,11 @@ final class ConstellationAnchorCase extends UseCaseBase {
         description: 'A reset needs an operation id of 1 to 64 characters',
       );
     }
-    return _repository.resetAll(viewerId: viewerId, clientOpId: clientOpId);
+    return _repository.resetAll(
+      viewerId: viewerId,
+      clientOpId: clientOpId,
+      saveHistory: saveHistory,
+    );
   }
 
   ConstellationAnchorRevision _parseRevision(String wire) {

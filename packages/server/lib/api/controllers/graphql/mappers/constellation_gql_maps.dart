@@ -1,6 +1,7 @@
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
+import 'package:tentura_server/domain/entity/constellation_layout_snapshot.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 
 import 'gql_public_user_maps.dart';
@@ -168,4 +169,14 @@ Map<String, dynamic> constellationMemberWebToGqlMap(
   'beaconId': web.beaconId,
   'personId': web.personId,
   'state': web.state.name.toUpperCase(),
+};
+
+Map<String, dynamic> constellationLayoutSnapshotToGqlMap(
+  ConstellationLayoutSnapshot snapshot,
+) => {
+  'id': snapshot.id,
+  'kind': snapshot.kind.index,
+  'reason': snapshot.reason.index,
+  'anchorCount': snapshot.anchorCount,
+  'createdAt': snapshot.createdAt.toIso8601String(),
 };

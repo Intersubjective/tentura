@@ -501,6 +501,7 @@ final class _RecordingBatchRepository
   Future<AnchorResetResult> resetAll({
     required String viewerId,
     required String clientOpId,
+    bool saveHistory = false,
   }) async {
     lastViewerId = viewerId;
     lastResetOpId = clientOpId;

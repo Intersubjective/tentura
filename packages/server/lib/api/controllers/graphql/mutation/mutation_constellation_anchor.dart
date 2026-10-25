@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/use_case/constellation_anchor_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
+import '../input/_input_types.dart';
 import '../mappers/constellation_gql_maps.dart';
 
 /// `[ConstellationAnchorOpInput!]` typed over `dynamic`, so a decoded
@@ -30,6 +31,8 @@ final class MutationConstellationAnchor extends GqlNodeBase {
     graphQLString.nonNullable(),
   );
 
+  static final _saveHistory = InputFieldBool(fieldName: 'saveHistory');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     constellationAnchorsApply,
     constellationAnchorsReset,
@@ -40,11 +43,12 @@ final class MutationConstellationAnchor extends GqlNodeBase {
       GraphQLObjectField(
         'constellationAnchorsReset',
         gqlTypeConstellationAnchorsResetResult.nonNullable(),
-        arguments: [_clientOpId],
+        arguments: [_clientOpId, _saveHistory.fieldNullable],
         resolve: (_, args) => _constellationAnchorCase
             .reset(
               viewerId: getCredentials(args).sub,
               clientOpId: args[_clientOpId.name]! as String,
+              saveHistory: _saveHistory.fromArgsNonNullable(args),
             )
             .then(constellationAnchorsResetResultToGqlMap),
       );

@@ -123,6 +123,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeAuthorInviteResult,
   gqlTypePendingAuthorInvite,
   gqlTypeBeaconAuthorInvite,
+  gqlTypeConstellationLayoutSnapshot,
   gqlTypePersonTag,
   gqlTypePersonTagSnapshot,
   gqlInputPersonTag,
@@ -1215,6 +1216,18 @@ final gqlTypeConstellationAnchorsResetResult =
         field('replayed', graphQLBoolean.nonNullable()),
       ]);
 
+/// A saved Field layout of the JWT viewer, without its anchors; `kind` and
+/// `reason` are the stored enum indexes.
+final gqlTypeConstellationLayoutSnapshot =
+    GraphQLObjectType('ConstellationLayoutSnapshot', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('kind', graphQLInt.nonNullable()),
+        field('reason', graphQLInt.nonNullable()),
+        field('anchorCount', graphQLInt.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+      ]);
+
 /// Full constellation field snapshot for the JWT viewer.
 final gqlTypeConstellationField =
     GraphQLObjectType(
@@ -2226,11 +2239,12 @@ final gqlTypePersonAutoTagOf = GraphQLObjectType('PersonAutoTagOf', null)
 
 /// Whether the "Tag them?" prompt may be shown, and why not.
 final gqlTypePersonTagSuggestionState =
-    GraphQLObjectType('PersonTagSuggestionState', null)..fields.addAll([
-      field('canSuggest', graphQLBoolean.nonNullable()),
-      field('silencedUntil', graphQLDate),
-      field('disabled', graphQLBoolean.nonNullable()),
-    ]);
+    GraphQLObjectType('PersonTagSuggestionState', null)
+      ..fields.addAll([
+        field('canSuggest', graphQLBoolean.nonNullable()),
+        field('silencedUntil', graphQLDate),
+        field('disabled', graphQLBoolean.nonNullable()),
+      ]);
 
 /// `[T!]!` typed over `dynamic`, so a decoded `List<dynamic>` passes
 /// validation on executors that do not re-type variable lists.
