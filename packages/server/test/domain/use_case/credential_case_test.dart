@@ -29,8 +29,7 @@ final class _FakeOidcProvider implements OidcProviderPort {
     required String state,
     required String codeChallenge,
     required String nonce,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<OidcIdentity> exchangeGoogleCode({
@@ -38,15 +37,13 @@ final class _FakeOidcProvider implements OidcProviderPort {
     required String redirectUri,
     required String codeVerifier,
     required String expectedNonce,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<OidcIdentity> verifyGoogleIdToken(
     String idToken, {
     String? expectedNonce,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 // Reuse the server's default Ed25519 key pair as a test "device key" (the pair
@@ -138,7 +135,36 @@ void main() {
     verify(userRepo.listCredentials(accountId: 'Uacc')).called(1);
   });
 
-  test('linkDevice verifies the auth-request and links the device key', () async {
+  test(
+    'linkDevice verifies the auth-request and links the device key',
+    () async {
+      when(
+        userRepo.addCredential(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+        ),
+      ).thenAnswer((_) async => _credential(identifier: _pkB64));
+
+      final result = await case_.linkDevice(
+        accountId: 'Uacc',
+        authRequestToken: _authRequestToken(),
+      );
+
+      expect(result.identifier, _pkB64);
+      verify(
+        userRepo.addCredential(
+          accountId: 'Uacc',
+          type: CredentialType.ed25519Device,
+          identifier: _pkB64,
+        ),
+      ).called(1);
+    },
+  );
+
+  // #467: a device key row should say which device/browser it was added on.
+  test('linkDevice keeps the device label in public_data', () async {
     when(
       userRepo.addCredential(
         accountId: anyNamed('accountId'),
@@ -148,19 +174,67 @@ void main() {
       ),
     ).thenAnswer((_) async => _credential(identifier: _pkB64));
 
-    final result = await case_.linkDevice(
+    await case_.linkDevice(
       accountId: 'Uacc',
       authRequestToken: _authRequestToken(),
+      deviceLabel: '  Chrome on\nLinux ',
     );
 
-    expect(result.identifier, _pkB64);
     verify(
       userRepo.addCredential(
         accountId: 'Uacc',
         type: CredentialType.ed25519Device,
         identifier: _pkB64,
+        publicData: {'deviceLabel': 'Chrome on Linux'},
       ),
     ).called(1);
+  });
+
+  test(
+    'linkDevice stores no public_data for a blank or non-text label',
+    () async {
+      when(
+        userRepo.addCredential(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+        ),
+      ).thenAnswer((_) async => _credential(identifier: _pkB64));
+
+      for (final label in <Object?>['   ', 42, null]) {
+        await case_.linkDevice(
+          accountId: 'Uacc',
+          authRequestToken: _authRequestToken(),
+          deviceLabel: label,
+        );
+      }
+
+      verify(
+        userRepo.addCredential(
+          accountId: 'Uacc',
+          type: CredentialType.ed25519Device,
+          identifier: _pkB64,
+        ),
+      ).called(3);
+    },
+  );
+
+  test('a long device label is cut to the stored maximum', () {
+    final label = AccountCredentialEntity.normalizeDeviceLabel('x' * 500);
+    expect(label, hasLength(AccountCredentialEntity.kDeviceLabelMaxLength));
+  });
+
+  test('deviceLabel reads the label back from public_data', () {
+    const withLabel = AccountCredentialEntity(
+      id: 'C1',
+      accountId: 'Uacc',
+      type: CredentialType.ed25519Device,
+      identifier: 'pk',
+      publicData: {'deviceLabel': 'Firefox on Windows'},
+    );
+    expect(withLabel.deviceLabel, 'Firefox on Windows');
+    expect(_credential().deviceLabel, isNull);
   });
 
   test('linkDevice propagates a conflict from the repository', () async {
@@ -197,17 +271,20 @@ void main() {
     ).called(1);
   });
 
-  test('remove propagates the last-credential guard from the repository', () async {
-    when(
-      userRepo.removeCredential(
-        accountId: anyNamed('accountId'),
-        credentialId: anyNamed('credentialId'),
-      ),
-    ).thenThrow(const LastCredentialException());
+  test(
+    'remove propagates the last-credential guard from the repository',
+    () async {
+      when(
+        userRepo.removeCredential(
+          accountId: anyNamed('accountId'),
+          credentialId: anyNamed('credentialId'),
+        ),
+      ).thenThrow(const LastCredentialException());
 
-    expect(
-      () => case_.remove(accountId: 'Uacc', credentialId: 'Cabc'),
-      throwsA(isA<LastCredentialException>()),
-    );
-  });
+      expect(
+        () => case_.remove(accountId: 'Uacc', credentialId: 'Cabc'),
+        throwsA(isA<LastCredentialException>()),
+      );
+    },
+  );
 }

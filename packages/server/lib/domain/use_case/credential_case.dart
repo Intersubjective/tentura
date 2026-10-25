@@ -47,14 +47,24 @@ final class CredentialCase extends UseCaseBase {
 
   /// Link a new `ed25519_device` credential. [authRequestToken] is an EdDSA
   /// auth-request JWT signed by the new device key (same shape as sign-in).
+  /// [deviceLabel] names the device/browser it was added on ("Chrome on
+  /// Linux"); it is kept in the credential's `public_data` when usable.
   Future<AccountCredentialEntity> linkDevice({
     required String accountId,
     required String authRequestToken,
-  }) => _userRepository.addCredential(
-    accountId: accountId,
-    type: CredentialType.ed25519Device,
-    identifier: _authCase.verifyDeviceAuthRequest(authRequestToken),
-  );
+    Object? deviceLabel,
+  }) {
+    final identifier = _authCase.verifyDeviceAuthRequest(authRequestToken);
+    final label = AccountCredentialEntity.normalizeDeviceLabel(deviceLabel);
+    return _userRepository.addCredential(
+      accountId: accountId,
+      type: CredentialType.ed25519Device,
+      identifier: identifier,
+      publicData: label == null
+          ? null
+          : {AccountCredentialEntity.kDeviceLabelKey: label},
+    );
+  }
 
   /// Link a Google identity proven by a native `google_sign_in` [idToken]
   /// (verified directly — no redirect). Strict-links `oidc:google` to

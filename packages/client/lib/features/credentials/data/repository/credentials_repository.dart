@@ -13,6 +13,7 @@ import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import '../../domain/entity/credential_entity.dart';
+import '../service/device_label.dart';
 import '../service/google_link_platform.dart';
 
 /// REST client for the authenticated `/api/v2/accounts/me/credentials` endpoints
@@ -57,7 +58,7 @@ class CredentialsRepository extends RemoteRepository {
     try {
       await remoteApiService.postAuthenticatedJson(
         _base,
-        body: {'authRequestToken': authRequestToken},
+        body: linkSeedBody(authRequestToken, currentDeviceLabel()),
       );
     } on ServerStatusException catch (e) {
       throw mapLinkStatus(e.statusCode);
@@ -83,7 +84,9 @@ class CredentialsRepository extends RemoteRepository {
 
   /// Web: mint a signed link token and return the top-level navigation URL.
   Future<String> fetchGoogleLinkStartUrl() async {
-    final json = await remoteApiService.postAuthenticatedJson(_googleLinkIntent);
+    final json = await remoteApiService.postAuthenticatedJson(
+      _googleLinkIntent,
+    );
     final url = json['url'] as String? ?? '';
     if (url.isEmpty) {
       throw const ServerUnknownException();
@@ -112,6 +115,17 @@ class CredentialsRepository extends RemoteRepository {
       throw mapRemoveStatus(e.statusCode);
     }
   }
+
+  /// POST body for linking a device key: the auth-request plus, when known,
+  /// the device/browser it is being added on (#467).
+  static Map<String, Object> linkSeedBody(
+    String authRequestToken,
+    String? deviceLabel,
+  ) => {
+    'authRequestToken': authRequestToken,
+    if (deviceLabel != null && deviceLabel.trim().isNotEmpty)
+      'deviceLabel': deviceLabel.trim(),
+  };
 
   static String _generateSeed() => base64UrlEncode(
     Uint8List.fromList(

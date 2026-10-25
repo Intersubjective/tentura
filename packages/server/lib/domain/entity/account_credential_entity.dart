@@ -47,4 +47,32 @@ class AccountCredentialEntity {
   final Map<String, Object?>? publicData;
 
   final DateTime? createdAt;
+
+  /// [publicData] key holding the device/browser a device key was added on
+  /// ("Chrome on Linux"), as sent by the client when linking it.
+  static const kDeviceLabelKey = 'deviceLabel';
+
+  /// Longest device label kept; longer input is cut.
+  static const kDeviceLabelMaxLength = 64;
+
+  /// The device/browser this credential was added on, when one was recorded.
+  String? get deviceLabel => switch (publicData?[kDeviceLabelKey]) {
+    final String label when label.trim().isNotEmpty => label,
+    _ => null,
+  };
+
+  /// Clean a client-sent device label for storage: control characters are
+  /// dropped, whitespace collapsed, the result cut to [kDeviceLabelMaxLength].
+  /// Returns null when nothing usable is left.
+  static String? normalizeDeviceLabel(Object? raw) {
+    if (raw is! String) return null;
+    final cleaned = raw
+        .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) return null;
+    return cleaned.length > kDeviceLabelMaxLength
+        ? cleaned.substring(0, kDeviceLabelMaxLength).trimRight()
+        : cleaned;
+  }
 }

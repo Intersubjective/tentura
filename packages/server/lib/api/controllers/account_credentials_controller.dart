@@ -14,7 +14,8 @@ import 'package:tentura_server/domain/use_case/credential_case.dart';
 /// in `root_router`.
 ///
 /// - `GET`    — list the account's credentials.
-/// - `POST`   — link a new `ed25519_device` credential; body `{authRequestToken}`.
+/// - `POST`   — link a new `ed25519_device` credential; body
+///              `{authRequestToken, deviceLabel?}` (label kept in public_data).
 ///              Conflict (pair already linked) → 409.
 /// - `DELETE /<credentialId>` — remove a credential; last one → 409, unknown → 404.
 @Injectable(order: 3)
@@ -58,6 +59,7 @@ final class AccountCredentialsController {
       final credential = await _credentialCase.linkDevice(
         accountId: accountId,
         authRequestToken: authRequestToken,
+        deviceLabel: body['deviceLabel'],
       );
       return _json(_credentialToMap(credential));
     } on CredentialConflictException catch (e) {
@@ -143,6 +145,7 @@ final class AccountCredentialsController {
     'type': c.type.wire,
     'identifier': c.identifier,
     'createdAt': c.createdAt?.toIso8601String(),
+    'deviceLabel': c.deviceLabel,
   };
 
   Response _json(Object body, {int status = 200}) => Response(
