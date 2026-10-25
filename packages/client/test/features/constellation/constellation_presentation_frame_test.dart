@@ -37,7 +37,7 @@ void main() {
   ConstellationPresentationFrame compute({
     required List<ConstellationFrameNodeInput> nodes,
     List<ConstellationFrameChipInput> chips = const [],
-    ConstellationDetailLevel detail = ConstellationDetailLevel.normal,
+    ConstellationDetailLevel detail = ConstellationDetailLevel.close,
     bool rtl = false,
   }) {
     return computeConstellationPresentationFrame(
@@ -99,7 +99,7 @@ void main() {
     });
 
     test(
-      'overview suppresses Request labels but keeps ego and ring<=1 people',
+      'overview suppresses far people but keeps ego, ring<=1 people and Requests',
       () {
         final frame = compute(
           detail: ConstellationDetailLevel.overview,
@@ -127,14 +127,14 @@ void main() {
               ),
             ),
             node(
-              id: 'req',
+              id: 'far',
               centre: const Offset(200, 280),
-              priority: 3,
-              ring: 0,
+              priority: 2,
+              ring: 3,
               labelCandidate: constellationLabelCandidateForDetail(
                 detail: ConstellationDetailLevel.overview,
-                priority: 3,
-                ring: 0,
+                priority: 2,
+                ring: 3,
               ),
             ),
           ],
@@ -142,7 +142,7 @@ void main() {
 
         expect(frame.labels.containsKey('ego'), isTrue);
         expect(frame.labels.containsKey('peer'), isTrue);
-        expect(frame.labels.containsKey('req'), isFalse);
+        expect(frame.labels.containsKey('far'), isFalse);
       },
     );
 
@@ -150,7 +150,7 @@ void main() {
       final frame = computeConstellationPresentationFrame(
         snapshot: snapshot,
         cameraRevision: 1,
-        detail: ConstellationDetailLevel.normal,
+        detail: ConstellationDetailLevel.close,
         viewport: const Size(120, 120),
         nodesInPaintOrder: [
           node(
@@ -227,7 +227,7 @@ void main() {
       return computeConstellationPresentationFrame(
         snapshot: snapshot,
         cameraRevision: 1,
-        detail: ConstellationDetailLevel.normal,
+        detail: ConstellationDetailLevel.close,
         viewport: viewport,
         nodesInPaintOrder: crowdedAuthor(priority: priority),
         chips: const [
@@ -311,7 +311,7 @@ void main() {
       final frame = ConstellationPresentationFrame(
         snapshot: snapshot,
         cameraRevision: 1,
-        detail: ConstellationDetailLevel.normal,
+        detail: ConstellationDetailLevel.close,
         paintOrder: const ['bodyOnly', 'labelNode'],
         bodies: {
           'labelNode': Rect.fromCenter(
@@ -403,22 +403,7 @@ void main() {
     });
   });
 
-  group('bare detail below the small zoom (#595)', () {
-    test('no node is a label candidate, whatever its priority', () {
-      for (var priority = 0; priority <= 3; priority++) {
-        for (var ring = 0; ring <= 3; ring++) {
-          expect(
-            constellationLabelCandidateForDetail(
-              detail: ConstellationDetailLevel.bare,
-              priority: priority,
-              ring: ring,
-            ),
-            isFalse,
-          );
-        }
-      }
-    });
-
+  group('bare map below the small zoom with semantic zoom off (#595)', () {
     test('zooming out never adds a candidate', () {
       for (var priority = 0; priority <= 3; priority++) {
         for (var ring = 0; ring <= 3; ring++) {
@@ -428,11 +413,11 @@ void main() {
                 priority: priority,
                 ring: ring,
               );
-          if (at(ConstellationDetailLevel.bare)) {
-            expect(at(ConstellationDetailLevel.overview), isTrue);
-          }
           if (at(ConstellationDetailLevel.overview)) {
-            expect(at(ConstellationDetailLevel.normal), isTrue);
+            expect(at(ConstellationDetailLevel.district), isTrue);
+          }
+          if (at(ConstellationDetailLevel.district)) {
+            expect(at(ConstellationDetailLevel.close), isTrue);
           }
         }
       }
@@ -442,7 +427,8 @@ void main() {
       final frame = computeConstellationPresentationFrame(
         snapshot: snapshot,
         cameraRevision: 1,
-        detail: ConstellationDetailLevel.bare,
+        detail: ConstellationDetailLevel.overview,
+        bare: true,
         viewport: const Size(120, 120),
         nodesInPaintOrder: [
           node(
@@ -450,6 +436,7 @@ void main() {
             centre: const Offset(60, 60),
             priority: 1,
             labelSize: const Size(100, 50),
+            labelCandidate: false,
           ),
         ],
         chips: [
@@ -491,47 +478,6 @@ void main() {
 
       expect(frame.forcedLabels, isEmpty);
       expect(frame.labels.containsKey('ego'), isFalse);
-    });
-
-    test('the cut-off is the same from either direction', () {
-      for (final previous in ConstellationDetailLevel.values) {
-        expect(
-          nextConstellationDetailLevel(0.2, previous),
-          ConstellationDetailLevel.bare,
-        );
-        expect(
-          nextConstellationDetailLevel(
-            kConstellationBareDetailScale,
-            previous,
-          ),
-          isNot(ConstellationDetailLevel.bare),
-        );
-      }
-      expect(
-        nextConstellationDetailLevel(0.77, ConstellationDetailLevel.bare),
-        ConstellationDetailLevel.overview,
-      );
-    });
-  });
-
-  group('nextConstellationDetailLevel', () {
-    test('scale thresholds and hysteresis band', () {
-      expect(
-        nextConstellationDetailLevel(0.9, ConstellationDetailLevel.overview),
-        ConstellationDetailLevel.normal,
-      );
-      expect(
-        nextConstellationDetailLevel(0.6, ConstellationDetailLevel.normal),
-        ConstellationDetailLevel.overview,
-      );
-      expect(
-        nextConstellationDetailLevel(0.77, ConstellationDetailLevel.normal),
-        ConstellationDetailLevel.normal,
-      );
-      expect(
-        nextConstellationDetailLevel(0.77, ConstellationDetailLevel.overview),
-        ConstellationDetailLevel.overview,
-      );
     });
   });
 }

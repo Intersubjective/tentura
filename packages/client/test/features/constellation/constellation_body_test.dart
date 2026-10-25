@@ -481,7 +481,7 @@ void main() {
       final status = inRequestNode(TestIds.constellationRequestStatusMarker);
       expect(
         cubit.graphController.cameraScale,
-        greaterThanOrEqualTo(kConstellationNormalDetailScale),
+        greaterThanOrEqualTo(kConstellationCloseDetailScale),
       );
       expect(pin, findsOneWidget);
       expect(status, findsOneWidget);
@@ -490,7 +490,7 @@ void main() {
         tester,
         cubit,
         0.8,
-        (s) => s < kConstellationOverviewDetailScale,
+        (s) => s < kConstellationDistrictDetailScale,
       );
       expect(pin, findsNothing);
       expect(status, findsOneWidget);
@@ -499,7 +499,7 @@ void main() {
         tester,
         cubit,
         1.25,
-        (s) => s >= kConstellationNormalDetailScale,
+        (s) => s >= kConstellationCloseDetailScale,
       );
       expect(pin, findsOneWidget);
       expect(status, findsOneWidget);
@@ -540,14 +540,14 @@ void main() {
           tester,
           cubit,
           0.8,
-          (s) => s < kConstellationOverviewDetailScale,
+          (s) => s < kConstellationDistrictDetailScale,
         );
         expect(requestPin, findsNothing);
         expect(personPin, findsNothing);
 
         bool inBand(double s) =>
-            s >= kConstellationOverviewDetailScale &&
-            s < kConstellationNormalDetailScale;
+            s >= kConstellationDistrictDetailScale &&
+            s < kConstellationCloseDetailScale;
         await zoomUntil(tester, cubit, 1.02, inBand);
         expect(requestPin, findsNothing);
         expect(personPin, findsNothing);

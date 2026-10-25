@@ -259,3 +259,8 @@ const kFieldMembershipV2Enabled = false;
 /// one-call action, and Ctrl/Cmd+Z undo / redo shortcuts and the nearest-ring
 /// caption while dragging are on. The phase-1 release unit flips it.
 const kFieldArrangeV2Enabled = false;
+
+/// Gate for semantic zoom (people tags #699, unit E1): the close / district /
+/// overview levels reach the whole map and the below-0.3 «bare» cut-off goes.
+/// Off, the map keeps its previous presentation per scale.
+const kFieldSemanticZoomEnabled = false;

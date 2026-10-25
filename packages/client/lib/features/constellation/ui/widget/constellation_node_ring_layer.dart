@@ -407,7 +407,7 @@ class ConstellationNodeRingPainter extends CustomPainter {
     ConstellationTrustBadge badge,
     Rect body,
   ) {
-    if (frame.detail != ConstellationDetailLevel.normal) {
+    if (frame.detail != ConstellationDetailLevel.close) {
       // Zoomed out the fixed-size disc would cover the node: a muted rim on
       // the node's own edge, scaling with it, says the same quietly.
       if (constellationTrustRimOf(badge, body, scheme) case final rim?) {
@@ -616,7 +616,7 @@ class ConstellationTrustBadgeSwatch extends StatelessWidget {
                 frame: ConstellationPresentationFrame(
                   snapshot: badge,
                   cameraRevision: 0,
-                  detail: ConstellationDetailLevel.normal,
+                  detail: ConstellationDetailLevel.close,
                   paintOrder: const ['swatch'],
                   bodies: {'swatch': body},
                   labels: const {},

@@ -82,7 +82,7 @@ ConstellationField _field() => ConstellationField(
 
 ConstellationPresentationFrame _frameOf(
   List<(GraphNodeId, Offset, double)> nodes, {
-  ConstellationDetailLevel detail = ConstellationDetailLevel.bare,
+  ConstellationDetailLevel detail = ConstellationDetailLevel.overview,
   bool cullToViewport = true,
 }) => computeConstellationPresentationFrame(
   snapshot: const Object(),
@@ -483,7 +483,7 @@ void main() {
     ) async {
       final frame = _frameOf([
         ('p', const Offset(200, 200), 40),
-      ], detail: ConstellationDetailLevel.normal);
+      ], detail: ConstellationDetailLevel.close);
       await pumpLayer(
         tester,
         frame: frame,

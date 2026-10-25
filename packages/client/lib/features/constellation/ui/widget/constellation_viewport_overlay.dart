@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
@@ -59,7 +60,8 @@ class ConstellationViewportOverlay extends StatefulWidget {
 
 class _ConstellationViewportOverlayState
     extends State<ConstellationViewportOverlay> {
-  ConstellationDetailLevel _detail = ConstellationDetailLevel.normal;
+  late final ConstellationZoomLevelController _zoom;
+  ConstellationDetailLevel get _detail => _zoom.value;
   final Map<(String, int, double, double), Size> _labelMeasureCache = {};
   Locale? _cacheLocale;
   Brightness? _cacheBrightness;
@@ -95,6 +97,7 @@ class _ConstellationViewportOverlayState
   @override
   void initState() {
     super.initState();
+    _zoom = context.read<ConstellationZoomLevelController>();
     final controller = widget.cubit.graphController;
     _cameraShape = ValueNotifier(_shapeOf(controller));
     _seenSnapshot = controller.renderSnapshot;
@@ -264,7 +267,11 @@ class _ConstellationViewportOverlayState
         }
         final controller = widget.cubit.graphController;
         return ListenableBuilder(
-          listenable: Listenable.merge([_structure, _cameraShape]),
+          listenable: Listenable.merge([
+            _structure,
+            _cameraShape,
+            _zoom.changes,
+          ]),
           builder: (context, _) {
             if (!controller.canLayout) {
               widget.frameHolder.frame = null;
@@ -278,7 +285,7 @@ class _ConstellationViewportOverlayState
 
             final snapshot = controller.renderSnapshot;
             final scale = controller.cameraScale;
-            _detail = nextConstellationDetailLevel(scale, _detail);
+            final bare = constellationBareAtScale(scale);
 
             final configuredOrder = widget.cubit.orderedNodeIdsForPaint();
             final order = controller.orderedRenderNodeIds(
@@ -361,11 +368,13 @@ class _ConstellationViewportOverlayState
                 _ => 0,
               };
 
-              final labelCandidate = constellationLabelCandidateForDetail(
-                detail: _detail,
-                priority: priority,
-                ring: ring,
-              );
+              final labelCandidate =
+                  !bare &&
+                  constellationLabelCandidateForDetail(
+                    detail: _detail,
+                    priority: priority,
+                    ring: ring,
+                  );
 
               final (labelText, maxLines, plateWidth) = switch (node) {
                 FieldPersonNode(:final person) => (
@@ -475,6 +484,7 @@ class _ConstellationViewportOverlayState
               scale,
               viewport,
               _detail,
+              bare,
               rtl,
               gap,
               Theme.of(context),
@@ -528,6 +538,7 @@ class _ConstellationViewportOverlayState
                 snapshot: snapshot,
                 cameraRevision: controller.cameraRevision.value,
                 detail: _detail,
+                bare: bare,
                 viewport: viewport,
                 nodesInPaintOrder: inputs,
                 chips: chipInputs,
@@ -702,8 +713,7 @@ class _ConstellationViewportOverlayState
                 ];
 
                 final postChipWidgets = <Widget>[];
-                if (selectedRequestId != null &&
-                    _detail != ConstellationDetailLevel.bare) {
+                if (selectedRequestId != null && !bare) {
                   final count =
                       widget
                           .cubit

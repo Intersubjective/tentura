@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
@@ -8,6 +9,7 @@ import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/ui/widget/lazy_write_timeout_notice.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -176,6 +178,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   late final GraphController<NodeDetails, EdgeDetails> _graphController;
 
+  // The one zoom-level owner the map body and its overlay both read.
+  final _zoomLevel = ConstellationZoomLevelController();
+
   @override
   void initState() {
     super.initState();
@@ -214,6 +219,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     _homeTabs?.removeListener(_syncVisibility);
     _history?.removeListener(_syncVisibility);
     _focusRequest.pending.removeListener(_takeFocusRequest);
+    _zoomLevel.dispose();
     super.dispose();
   }
 
@@ -372,10 +378,13 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         body: GraphTrustWriteNotices(
           child: LazyWriteTimeoutNotice(
             notices: context.read<ConstellationCubit>().lazyWriteNotices,
-            child: TenturaFullBleed(
-              child: ConstellationBody(
-                legendExpanded: _legendExpanded,
-                onToggleLegend: _toggleLegend,
+            child: RepositoryProvider<ConstellationZoomLevelController>.value(
+              value: _zoomLevel,
+              child: TenturaFullBleed(
+                child: ConstellationBody(
+                  legendExpanded: _legendExpanded,
+                  onToggleLegend: _toggleLegend,
+                ),
               ),
             ),
           ),

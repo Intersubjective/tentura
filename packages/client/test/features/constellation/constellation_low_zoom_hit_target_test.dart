@@ -20,7 +20,7 @@ void main() {
 
   ConstellationPresentationFrame frameOf(
     List<(GraphNodeId, Offset, double)> nodes, {
-    ConstellationDetailLevel detail = ConstellationDetailLevel.bare,
+    ConstellationDetailLevel detail = ConstellationDetailLevel.overview,
   }) => computeConstellationPresentationFrame(
     snapshot: const Object(),
     cameraRevision: 1,
@@ -99,7 +99,7 @@ void main() {
       final frame = frameOf([
         ('near', const Offset(200, 200), 40),
         ('later', const Offset(225, 200), 40),
-      ], detail: ConstellationDetailLevel.normal);
+      ], detail: ConstellationDetailLevel.close);
       const p = Offset(208, 200);
       expect(frame.bodies['near']!.contains(p), isTrue);
       expect(frame.bodies['later']!.contains(p), isTrue);
@@ -112,7 +112,7 @@ void main() {
         final frame = frameOf([
           ('big', const Offset(200, 200), 40),
           ('tiny', const Offset(226, 200), lowZoomBody),
-        ], detail: ConstellationDetailLevel.normal);
+        ], detail: ConstellationDetailLevel.close);
         // Inside big's body, nearer tiny's centre, outside tiny's body.
         const p = Offset(218, 200);
         expect(frame.bodies['tiny']!.contains(p), isFalse);
@@ -380,7 +380,7 @@ void main() {
       ) async {
         final frame = frameOf([
           ('p', const Offset(200, 200), 40),
-        ], detail: ConstellationDetailLevel.normal);
+        ], detail: ConstellationDetailLevel.close);
         await pumpLayer(tester, frame: frame, trust: {'p': badge});
         final context = tester.element(rings());
         final tt = context.tt;
@@ -428,7 +428,7 @@ void main() {
         ('on', const Offset(100, 200), 40),
         ('off1', const Offset(200, 300), 40),
         ('off2', const Offset(300, 200), 40),
-      ], detail: ConstellationDetailLevel.normal);
+      ], detail: ConstellationDetailLevel.close);
       const trust = {
         'on': ConstellationTrustBadge.mutual,
         'off1': ConstellationTrustBadge.mutual,
@@ -496,8 +496,8 @@ void main() {
     // Zoomed out the fixed-size disc would cover the node: a muted rim on
     // the node's own edge shows the relation instead, scaling with it.
     for (final detail in const [
+      ConstellationDetailLevel.district,
       ConstellationDetailLevel.overview,
-      ConstellationDetailLevel.bare,
     ]) {
       testWidgets('at ${detail.name} detail a muted rim, no disc', (
         tester,
@@ -614,7 +614,7 @@ void main() {
     ) async {
       final frame = frameOf([
         ('p', const Offset(200, 200), 60),
-      ], detail: ConstellationDetailLevel.normal);
+      ], detail: ConstellationDetailLevel.close);
       await pumpLayer(tester, frame: frame, selected: 'p');
       expect(rings(), isNot(paints..circle()));
     });

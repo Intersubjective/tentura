@@ -9,6 +9,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
@@ -129,10 +130,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // Where the pointer last was, to tell a drop on a tag chip from a pin.
   Offset? _lastPointerGlobal;
 
-  // Single owner of pin zoom detail: per-node history would diverge when a
-  // node is recreated inside the hysteresis band.
   late final GraphController<NodeDetails, EdgeDetails> _graphController;
-  late ConstellationDetailLevel _detail;
+  // The screen's single zoom-level owner, shared with the viewport overlay.
+  late final ConstellationZoomLevelController _zoom;
+  ConstellationZoomLevelController? _ownZoom;
+  int _pointersDown = 0;
+  ConstellationDetailLevel get _detail => _zoom.value;
 
   // Edges only depend on the camera through the stroke compensation (zoom
   // below 1), so pans and zooms above 1 must not repaint them.
@@ -148,10 +151,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     super.initState();
     if (!kReleaseMode) ConstellationPerf.startFrameReporting();
     _graphController = context.read<ConstellationCubit>().graphController;
-    _detail = nextConstellationDetailLevel(
-      _graphController.cameraScale,
-      ConstellationDetailLevel.normal,
-    );
+    _zoom = _readZoomOrOwn()
+      ..update(_graphController.cameraScale, gestureActive: false)
+      ..addListener(_onZoomLevel);
     _edgeStrokeScale = ValueNotifier(_strokeScale());
     _reveal = AnimationController(vsync: this, duration: _revealDuration)
       ..addListener(_onRevealTick);
@@ -159,10 +161,21 @@ class _ConstellationBodyState extends State<ConstellationBody>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  // The screen provides the owner; a body mounted bare owns its own.
+  ConstellationZoomLevelController _readZoomOrOwn() {
+    try {
+      return context.read<ConstellationZoomLevelController>();
+    } on ProviderNotFoundException {
+      return _ownZoom = ConstellationZoomLevelController();
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _graphController.cameraRevision.removeListener(_onCamera);
+    _zoom.removeListener(_onZoomLevel);
+    _ownZoom?.dispose();
     _reveal.dispose();
     _edgeStrokeScale.dispose();
     _mapFocus.dispose();
@@ -190,14 +203,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
       _stopReveal();
     }
     _edgeStrokeScale.value = _strokeScale();
-    final next = nextConstellationDetailLevel(
+    _zoom.update(
       _graphController.cameraScale,
-      _detail,
+      gestureActive: _pointersDown > 0,
     );
-    if (next != _detail) {
-      setState(() => _detail = next);
-    }
   }
+
+  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
+  void _onZoomLevel() => setState(() {});
 
   void _onRevealTick() {
     final pan = _revealPan;
@@ -1143,11 +1156,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   cubit.state.tagView != null) {
                 return const SizedBox.shrink();
               }
-              final canOpenTagView =
-                  constellationTagViewEntryAvailable(
-                    peopleTagsEnabled: widget.peopleTagsEnabled,
-                    arrangeV2Enabled: widget.arrangeV2Enabled,
-                  );
+              final canOpenTagView = constellationTagViewEntryAvailable(
+                peopleTagsEnabled: widget.peopleTagsEnabled,
+                arrangeV2Enabled: widget.arrangeV2Enabled,
+              );
               final field = cubit.state.field;
               final lens = _tagLensFor(cubit, lensCubit, filter);
               final people = {
@@ -1303,9 +1315,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
         // A new touch or wheel on the map cancels a running reveal pan.
         Listener(
           onPointerDown: (_) {
+            _pointersDown++;
             _stopReveal();
             _focusMapOnPointerDown();
           },
+          onPointerUp: (_) => _pointersDown = math.max(0, _pointersDown - 1),
+          onPointerCancel: (_) =>
+              _pointersDown = math.max(0, _pointersDown - 1),
           onPointerSignal: (_) => _stopReveal(),
           // Tab walks the map markers in the reading order of where they are
           // drawn, as one block of Tab stops (#391).
@@ -1577,9 +1593,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
           ),
         ),
         Positioned.fill(
-          child: ConstellationViewportOverlay(
-            cubit: cubit,
-            frameHolder: _frameHolder,
+          child: RepositoryProvider<ConstellationZoomLevelController>.value(
+            value: _zoom,
+            child: ConstellationViewportOverlay(
+              cubit: cubit,
+              frameHolder: _frameHolder,
+            ),
           ),
         ),
         Positioned.fill(
@@ -2085,7 +2104,7 @@ class _ConstellationMapNode extends StatelessWidget {
             child: statusBadge,
           ),
         if ((pinBadge != null || ownTags.isNotEmpty) &&
-            detail == ConstellationDetailLevel.normal)
+            detail == ConstellationDetailLevel.close)
           PositionedDirectional(
             top: -overhang,
             end: -overhang,

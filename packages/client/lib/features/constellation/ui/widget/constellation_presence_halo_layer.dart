@@ -334,7 +334,7 @@ class ConstellationPresenceHaloSwatch extends StatelessWidget {
                 frame: ConstellationPresentationFrame(
                   snapshot: 'presenceSwatch',
                   cameraRevision: 0,
-                  detail: ConstellationDetailLevel.normal,
+                  detail: ConstellationDetailLevel.close,
                   paintOrder: const ['swatch'],
                   bodies: {'swatch': body},
                   labels: const {},
