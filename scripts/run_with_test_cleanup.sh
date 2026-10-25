@@ -16,8 +16,14 @@
 # Preserves: `flutter run` web compilers (`--target=dartdevc`),
 # tentura-server, Serena language-server, Chrome, Cursor.
 #
-# When TMPDIR is unset, use the on-disk user cache: /tmp's usrquota can
-# reject test kernels with "Disk quota exceeded" even when df shows space.
+# Test temp files never touch the disk. Every test file compiles to a full
+# kernel (client ~184 MB, server ~20-25 MB): a full client run writes ~220 GB
+# of them (each deleted right after its test), a server `dart test` call keeps
+# all of its kernels until it exits. When TMPDIR is unset the run uses the
+# per-user runtime tmpfs ($XDG_RUNTIME_DIR, no usrquota), then /tmp, whichever
+# first has TENTURA_TEST_TMP_MIN_MB free (default 3072); if neither has, the
+# run refuses to start rather than fall back to disk. scripts/run_tests.sh
+# keeps server runs within that by running big file lists in chunks.
 # Explicit TMPDIR values (including sandbox-provided ones) are preserved.
 # The leftover sweep covers both /tmp and the effective TMPDIR.
 #
@@ -37,8 +43,28 @@
 set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+# A RAM-backed (tmpfs) directory with at least TENTURA_TEST_TMP_MIN_MB free.
+pick_ram_tmpdir() {
+  local min_mb="${TENTURA_TEST_TMP_MIN_MB:-3072}" base free_mb
+  for base in "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" /tmp; do
+    [[ -d "$base" && -w "$base" ]] || continue
+    [[ "$(stat -f -c %T "$base" 2>/dev/null)" == "tmpfs" ]] || continue
+    free_mb="$(df --output=avail -m "$base" 2>/dev/null | tail -1 | tr -d ' ')"
+    [[ -n "$free_mb" && "$free_mb" -ge "$min_mb" ]] || continue
+    echo "$base/tentura-test-tmp"
+    return 0
+  done
+  return 1
+}
+
 if [[ -z "${TMPDIR+x}" ]]; then
-  export TMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/tentura-test-tmp"
+  if ! TMPDIR="$(pick_ram_tmpdir)"; then
+    echo "[test-cleanup] no tmpfs with ${TENTURA_TEST_TMP_MIN_MB:-3072} MB free" \
+      "(\$XDG_RUNTIME_DIR, /tmp); refusing to put test kernels on disk." \
+      "Free RAM-backed space or set TMPDIR explicitly." >&2
+    exit 75
+  fi
+  export TMPDIR
   mkdir -p "$TMPDIR"
 fi
 STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
