@@ -202,6 +202,7 @@ abstract class RoomMessage with _$RoomMessage {
           final toStatus = decoded['toStatus'];
           final occurredAt = decoded['occurredAt'];
           final sourceDeleted = decoded['sourceDeleted'];
+          final sourceTitle = decoded['sourceTitle'];
           if (eventId is! String ||
               targetBeaconId is! String ||
               direction is! String ||
@@ -219,6 +220,9 @@ abstract class RoomMessage with _$RoomMessage {
             toStatus: toStatus,
             occurredAt: parsedAt,
             sourceDeleted: sourceDeleted,
+            sourceTitle: sourceTitle is String && sourceTitle.trim().isNotEmpty
+                ? sourceTitle.trim()
+                : null,
           );
         default:
           return null;

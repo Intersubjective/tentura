@@ -428,6 +428,11 @@
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
+  "friendsRequestInviteDialogTitle": "Request invite",
+  "@friendsRequestInviteDialogTitle": {
+    "context": "FriendsScreen",
+    "description": "Header of the share dialog re-opened from a pending invite to a request or post (not a plain invitation code)"
+  },
   "friendsInvitesSegmentPending": "Pending",
   "@friendsInvitesSegmentPending": {
     "context": "FriendsScreen"
@@ -4799,6 +4804,45 @@
   "beaconLegacyThreadUnavailable": "This discussion thread is no longer available. Open the request overview to continue.",
   "beaconHierarchyNoticeChildCreated": "Child request created",
   "beaconHierarchyNoticeUnknown": "Request activity",
+  "beaconHierarchyLifecycleChild": "A child request {status, select, reviewOpen{entered final check} closed{was closed} cancelled{was cancelled} deleted{was deleted} other{changed status}} on {date}",
+  "@beaconHierarchyLifecycleChild": {
+    "description": "Room system line (#450a): a child request changed status. status is a request status wire value; date is a locale-formatted day.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHierarchyLifecycleAncestor": "An ancestor request {status, select, reviewOpen{entered final check} closed{was closed} cancelled{was cancelled} deleted{was deleted} other{changed status}} on {date}",
+  "@beaconHierarchyLifecycleAncestor": {
+    "description": "Room system line (#450a): an ancestor request changed status. status is a request status wire value; date is a locale-formatted day.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconHierarchyLifecycleTitled": "Request ‘{title}’ {status, select, reviewOpen{entered final check} closed{was closed} cancelled{was cancelled} deleted{was deleted} other{changed status}} on {date}",
+  "@beaconHierarchyLifecycleTitled": {
+    "description": "Post system line (#450b): the named request changed status. title is the request title; status is a request status wire value; date is a locale-formatted day.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "beaconPromotionAlreadyExists": "This message was already promoted to a child request",
   "beaconChildFooterUnavailable": "Request unavailable",
   "beaconChildCardWithHelper": "With {name}",
@@ -6373,6 +6417,11 @@
   },
   "beaconRoomCreatePoll": "Create poll",
   "beaconRoomSendPollButton": "Send poll",
+  "beaconRoomPollSendHint": "Add a question and two options",
+  "@beaconRoomPollSendHint": {
+    "context": "PollEditor",
+    "description": "Helper line above the disabled Send poll button until the poll has a question and two options (#728)."
+  },
   "beaconRoomPollTypeSingle": "Single",
   "@beaconRoomPollTypeSingle": {
     "context": "PollEditor"

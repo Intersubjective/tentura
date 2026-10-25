@@ -146,11 +146,11 @@ void main() {
     testWidgets('a hierarchy lifecycle notice keeps its one-line notice', (
       tester,
     ) async {
-      const line = 'Дочерний запрос закрыт 2026-01-04';
+      final year = DateTime.now().year;
       await _pumpTile(
         tester,
         _message(
-          body: line,
+          body: 'Дочерний запрос закрыт $year-01-04',
           systemMessageKind: BeaconRoomSystemMessageKind.hierarchyLifecycle,
           systemPayloadJson: jsonEncode({
             'version': 1,
@@ -159,14 +159,14 @@ void main() {
             'targetBeaconId': 'b1',
             'direction': 'child',
             'toStatus': 'closed',
-            'occurredAt': '2026-01-04T00:00:00Z',
+            'occurredAt': '$year-01-04T12:00:00Z',
             'sourceDeleted': false,
           }),
         ),
       );
 
       expect(find.byType(BeaconHierarchyNotice), findsOneWidget);
-      expect(find.text(line), findsOneWidget);
+      expect(find.textContaining('Дочерний запрос закрыт 4'), findsOneWidget);
       expect(find.textContaining('превратил пост в запрос'), findsNothing);
     });
 

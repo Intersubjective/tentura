@@ -33,6 +33,9 @@ abstract class BeaconHierarchyOutboxPort {
   /// Null when the beacon row is gone.
   Future<BeaconKind?> loadDestinationBeaconKind(String targetBeaconId);
 
+  /// Current title of [beaconId]; null when the row is gone (#450b).
+  Future<String?> loadBeaconTitle(String beaconId);
+
   Future<String> insertHierarchyLifecycleNotice({
     required String eventId,
     required String targetBeaconId,
@@ -41,6 +44,10 @@ abstract class BeaconHierarchyOutboxPort {
     required DateTime occurredAt,
     required String noticeBody,
     required bool sourceDeleted,
+
+    /// Title snapshot of the source request, written into the JSON payload
+    /// only (#450b); omitted from the payload when null.
+    String? sourceTitle,
   });
 
   Future<List<BeaconHierarchyDeliveryTarget>> claimDueDeliveries({

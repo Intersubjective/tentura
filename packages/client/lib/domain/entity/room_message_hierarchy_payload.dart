@@ -48,6 +48,7 @@ final class RoomMessageHierarchyLifecycle extends RoomMessageHierarchyPayload {
     required this.toStatus,
     required this.occurredAt,
     required this.sourceDeleted,
+    this.sourceTitle,
   });
 
   final String eventId;
@@ -56,4 +57,8 @@ final class RoomMessageHierarchyLifecycle extends RoomMessageHierarchyPayload {
   final String toStatus;
   final DateTime occurredAt;
   final bool sourceDeleted;
+
+  /// Title snapshot of the request whose status changed (#450b). Set by the
+  /// server only for a Post destination whose source is not deleted.
+  final String? sourceTitle;
 }

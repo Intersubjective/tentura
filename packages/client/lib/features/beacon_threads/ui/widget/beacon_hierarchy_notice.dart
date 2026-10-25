@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 import 'child_beacon_preview_loader.dart';
@@ -25,10 +26,15 @@ class BeaconHierarchyNotice extends StatelessWidget {
   const BeaconHierarchyNotice({
     required this.message,
     this.actorName = '',
+    this.clock,
     super.key,
   });
 
   final RoomMessage message;
+
+  /// Today, for the year rule of the lifecycle date; [DateTime.now] when
+  /// null. Lets a test pin the calendar.
+  final DateTime Function()? clock;
 
   /// Display name of the budder for a Post bud notice (the row author).
   final String actorName;
@@ -39,6 +45,38 @@ class BeaconHierarchyNotice extends StatelessWidget {
       m.systemMessageKind == BeaconRoomSystemMessageKind.hierarchyLifecycle ||
       m.systemMessageKind == BeaconRoomSystemMessageKind.childCreated ||
       m.systemMessageKind == BeaconRoomSystemMessageKind.postClosed;
+
+  /// Localized lifecycle line built from the structured payload (#450a):
+  /// locale date, ARB copy, and the source title when the server sent one
+  /// (#450b). A direction this client does not know keeps the server body.
+  static String _lifecycleLine(
+    L10n l10n,
+    RoomMessageHierarchyLifecycle payload, {
+    required String fallback,
+    required DateTime now,
+  }) {
+    final status = switch (payload.toStatus) {
+      'reviewOpen' || 'closed' || 'cancelled' || 'deleted' => payload.toStatus,
+      _ => 'other',
+    };
+    final date = formatScheduleDate(
+      payload.occurredAt,
+      localeName: l10n.localeName,
+      now: now,
+    );
+    final title = payload.sourceTitle;
+    if (title != null && !payload.sourceDeleted) {
+      return l10n.beaconHierarchyLifecycleTitled(title, status, date);
+    }
+    return switch (payload.direction) {
+      'child' => l10n.beaconHierarchyLifecycleChild(status, date),
+      'ancestor' => l10n.beaconHierarchyLifecycleAncestor(status, date),
+      _ =>
+        fallback.trim().isNotEmpty
+            ? fallback
+            : l10n.beaconHierarchyNoticeUnknown,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +120,12 @@ class BeaconHierarchyNotice extends StatelessWidget {
     }
 
     final line = switch (payload) {
-      RoomMessageHierarchyLifecycle() => message.body,
+      final RoomMessageHierarchyLifecycle lifecycle => _lifecycleLine(
+        l10n,
+        lifecycle,
+        fallback: message.body,
+        now: (clock ?? DateTime.now)(),
+      ),
       null => l10n.beaconHierarchyNoticeUnknown,
       RoomMessageHierarchyChildCreated() =>
         l10n.beaconHierarchyNoticeChildCreated,

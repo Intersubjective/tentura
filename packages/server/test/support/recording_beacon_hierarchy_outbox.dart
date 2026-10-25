@@ -76,6 +76,9 @@ final class RecordingBeaconHierarchyOutbox implements BeaconHierarchyOutboxPort 
       null;
 
   @override
+  Future<String?> loadBeaconTitle(String beaconId) async => null;
+
+  @override
   Future<String> insertHierarchyLifecycleNotice({
     required String eventId,
     required String targetBeaconId,
@@ -84,6 +87,7 @@ final class RecordingBeaconHierarchyOutbox implements BeaconHierarchyOutboxPort 
     required DateTime occurredAt,
     required String noticeBody,
     required bool sourceDeleted,
+    String? sourceTitle,
   }) async =>
       'R-notice';
 
@@ -208,6 +212,7 @@ final class ThrowingBeaconHierarchyOutbox extends BeaconHierarchyOutboxPort {
     required DateTime occurredAt,
     required String noticeBody,
     required bool sourceDeleted,
+    String? sourceTitle,
   }) =>
       _inner.insertHierarchyLifecycleNotice(
         eventId: eventId,
@@ -217,7 +222,12 @@ final class ThrowingBeaconHierarchyOutbox extends BeaconHierarchyOutboxPort {
         occurredAt: occurredAt,
         noticeBody: noticeBody,
         sourceDeleted: sourceDeleted,
+        sourceTitle: sourceTitle,
       );
+
+  @override
+  Future<String?> loadBeaconTitle(String beaconId) =>
+      _inner.loadBeaconTitle(beaconId);
 
   @override
   Future<void> scheduleDeliveryRetry({
