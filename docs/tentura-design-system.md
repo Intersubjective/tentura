@@ -137,7 +137,7 @@ These flows keep a **single-pane / bottom-sheet** UX on compact and add a wider 
 
 | Flow | Compact | Regular / expanded |
 |------|---------|-------------------|
-| Forward recipient search | Single column + inline notes | Master–detail split ([`forward_search_overlay.dart`](../packages/client/lib/features/forward/ui/widget/forward_search_overlay.dart)) |
+| Forward recipient search | In place: the header turns into a search field that filters the recipient list (active tab only); back closes the search ([`forward_recipient_picker.dart`](../packages/client/lib/features/forward/ui/widget/forward_recipient_picker.dart), #453) | Same, in the content column; no overlay or detail pane (the old `forward_search_overlay.dart` is gone) |
 | Connect | `showModalBottomSheet` | Centered `Dialog` ([`connect_bottom_sheet.dart`](../packages/client/lib/features/connect/ui/widget/connect_bottom_sheet.dart)) |
 | Beacon create images | Gallery on Info tab (`ImageTab` body in sheet on compact/regular, inline on expanded) | 2- / 3-column grid ([`image_tab.dart`](../packages/client/lib/features/beacon_create/ui/widget/image_tab.dart)); not a top-level TabBar tab |
 | Beacon definition media | Fixed-height band | Taller band + max-width centering ([`beacon_definition_body.dart`](../packages/client/lib/features/beacon_view/ui/widget/beacon_definition_body.dart)) |

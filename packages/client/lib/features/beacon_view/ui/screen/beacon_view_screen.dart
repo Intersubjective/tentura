@@ -27,6 +27,7 @@ import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../widget/beacon_activity_sheet.dart';
@@ -1052,7 +1053,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 child: FocusTraversalOrder(
                   order: const NumericFocusOrder(2),
                   child: FocusTraversalGroup(
-                    child: ScaffoldMessenger(
+                    child: PaneScaffoldMessenger(
                       child: Scaffold(
                         primary: false,
                         backgroundColor: Colors.transparent,

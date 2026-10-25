@@ -113,6 +113,31 @@ void main() {
     await tester.runAsync(cubit.close);
   });
 
+  // #448: the controls Row (filter, Mine, History, Edit) overflowed at
+  // phone widths once the filter showed a longer label.
+  testWidgets('plan controls fit a 320px pane without overflow', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(320, 800)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repo = FakeBeaconPlanRepository(BeaconPlan.decode(planJson()));
+    final cubit = await _pump(tester, repo);
+
+    cubit.setFilter(const PlanFilter.unassigned());
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(BeaconPlanView.historyKey), findsOneWidget);
+    expect(find.byKey(BeaconPlanView.editKey), findsOneWidget);
+    final right = tester.getTopRight(find.byKey(BeaconPlanView.editKey)).dx;
+    expect(right, lessThanOrEqualTo(320));
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(cubit.close);
+  });
+
   testWidgets('tick box ticks optimistically', (tester) async {
     final repo = FakeBeaconPlanRepository(BeaconPlan.decode(planJson()));
     final cubit = await _pump(tester, repo);

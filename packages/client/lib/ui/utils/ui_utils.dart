@@ -78,8 +78,48 @@ class ClearSnackBarsOnPushObserver extends AutoRouterObserver {
 
   // Clear before the next pointer frame. A post-frame clear races Firefox
   // trackpad pan-zoom hit tests against SnackBar's Dismissible overlay.
-  static void _clear() =>
-      scheduleMicrotask(() => snackbarKey.currentState?.clearSnackBars());
+  static void _clear() => scheduleMicrotask(() {
+    snackbarKey.currentState?.clearSnackBars();
+    // #448: a pane's own messenger is not under [snackbarKey]; without this
+    // its bar outlived the move and could sit beside an app-wide bar.
+    for (final pane in _paneMessengers.toList()) {
+      pane.currentState?.clearSnackBars();
+    }
+  });
+}
+
+final _paneMessengers = <GlobalKey<ScaffoldMessengerState>>{};
+
+/// A pane-local [ScaffoldMessenger] (e.g. the request page's Now pane, #448)
+/// whose bars are cleared together with the app-wide ones by
+/// [ClearSnackBarsOnPushObserver] on a push or a Home tab change.
+class PaneScaffoldMessenger extends StatefulWidget {
+  const PaneScaffoldMessenger({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  State<PaneScaffoldMessenger> createState() => _PaneScaffoldMessengerState();
+}
+
+class _PaneScaffoldMessengerState extends State<PaneScaffoldMessenger> {
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _paneMessengers.add(_messengerKey);
+  }
+
+  @override
+  void dispose() {
+    _paneMessengers.remove(_messengerKey);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      ScaffoldMessenger(key: _messengerKey, child: widget.child);
 }
 
 /// Display-only formatters: always render the viewer's local wall-clock

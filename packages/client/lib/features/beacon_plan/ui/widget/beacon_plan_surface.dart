@@ -459,50 +459,61 @@ class _PlanControls extends StatelessWidget {
     };
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+      // #448: the filter buttons give way (their labels wrap) at narrow
+      // widths so History and Edit keep their place instead of overflowing.
       child: Row(
         children: [
-          PopupMenuButton<PlanFilter>(
-            key: BeaconPlanView.personFilterKey,
-            tooltip: l10n.planFilterAll,
-            onSelected: cubit.setFilter,
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: const PlanFilter.all(),
-                child: Text(l10n.planFilterAll),
-              ),
-              for (final id in assigneeIds)
-                PopupMenuItem(
-                  value: PlanFilter.person(id),
-                  child: Text(people.nameOf(id, l10n)),
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: PopupMenuButton<PlanFilter>(
+                    key: BeaconPlanView.personFilterKey,
+                    tooltip: l10n.planFilterAll,
+                    onSelected: cubit.setFilter,
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: const PlanFilter.all(),
+                        child: Text(l10n.planFilterAll),
+                      ),
+                      for (final id in assigneeIds)
+                        PopupMenuItem(
+                          value: PlanFilter.person(id),
+                          child: Text(people.nameOf(id, l10n)),
+                        ),
+                      if (hasUnassigned)
+                        PopupMenuItem(
+                          value: const PlanFilter.unassigned(),
+                          child: Text(l10n.planFilterUnassigned),
+                        ),
+                    ],
+                    child: IgnorePointer(
+                      child: TenturaCommandButton(
+                        label: '$personLabel ▾',
+                        selected:
+                            filter.kind == PlanFilterKind.person ||
+                            filter.kind == PlanFilterKind.unassigned,
+                        onPressed: () {},
+                      ),
+                    ),
+                  ),
                 ),
-              if (hasUnassigned)
-                PopupMenuItem(
-                  value: const PlanFilter.unassigned(),
-                  child: Text(l10n.planFilterUnassigned),
+                SizedBox(width: tt.rowGap),
+                Flexible(
+                  child: TenturaCommandButton(
+                    key: BeaconPlanView.mineKey,
+                    label: l10n.planFilterMine,
+                    selected: filter.kind == PlanFilterKind.mine,
+                    onPressed: () => cubit.setFilter(
+                      filter.kind == PlanFilterKind.mine
+                          ? const PlanFilter.all()
+                          : const PlanFilter.mine(),
+                    ),
+                  ),
                 ),
-            ],
-            child: IgnorePointer(
-              child: TenturaCommandButton(
-                label: '$personLabel ▾',
-                selected:
-                    filter.kind == PlanFilterKind.person ||
-                    filter.kind == PlanFilterKind.unassigned,
-                onPressed: () {},
-              ),
+              ],
             ),
           ),
-          SizedBox(width: tt.rowGap),
-          TenturaCommandButton(
-            key: BeaconPlanView.mineKey,
-            label: l10n.planFilterMine,
-            selected: filter.kind == PlanFilterKind.mine,
-            onPressed: () => cubit.setFilter(
-              filter.kind == PlanFilterKind.mine
-                  ? const PlanFilter.all()
-                  : const PlanFilter.mine(),
-            ),
-          ),
-          const Spacer(),
           TenturaTextAction(
             key: BeaconPlanView.historyKey,
             label: l10n.planHistoryAction,
