@@ -534,9 +534,10 @@ run_reaper() {
   rm -rf "$marker"
 }
 
-# Holds the machine-wide test lock on fd 9 for the rest of the wrapper's life
-# (the wrapped command inherits it, so a SIGKILLed wrapper's orphaned suite
-# keeps the queue blocked until the reaper ends it).
+# Holds the machine-wide test lock on fd 9 in the wrapper and detached reaper,
+# so a SIGKILLed wrapper's suite keeps the queue blocked until the reaper ends it.
+# Wrapped commands must not inherit it: long-lived analyzer daemons can retain
+# the descriptor after a completed lint run and block the queue indefinitely.
 acquire_test_lock() {
   local wait_secs="$1"
   local lock="${TENTURA_TEST_LOCK:-${XDG_CACHE_HOME:-$HOME/.cache}/tentura-tests.lock}"
@@ -650,7 +651,7 @@ main() {
   # environ even if they later reparent to PID 1.
   set +e
   setsid -f -w timeout --kill-after="$KILL_AFTER" -- "$timeout" \
-    env TENTURA_TEST_CLEANUP_RUN="$run_id" "${cmd[@]}"
+    env TENTURA_TEST_CLEANUP_RUN="$run_id" "${cmd[@]}" 9>&-
   rc=$?
   set -e
 
