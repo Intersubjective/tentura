@@ -15,27 +15,27 @@ BeaconInvolvementData _involvement({
   Set<String> watchingIds = const {},
   Set<String> onwardForwarderIds = const {},
   Map<String, String> myForwardedRecipientNotes = const {},
-}) =>
-    (
-      beacon: Beacon.empty.copyWith(author: Profile(id: authorId)),
-      forwardedToIds: forwardedToIds,
-      helpOfferedIds: helpOfferedIds,
-      withdrawnIds: withdrawnIds,
-      rejectedIds: rejectedIds,
-      watchingIds: watchingIds,
-      onwardForwarderIds: onwardForwarderIds,
-      myForwardedRecipientNotes: myForwardedRecipientNotes,
-      myForwardedRecipientEdgeIds: const {},
-      myForwardedRecipientReadAts: const {},
-      myForwardedRecipientHasOnwardChild: const {},
-      myForwardedRecipientRejected: const {},
-    );
+  Map<String, bool> myForwardedRecipientRejected = const {},
+}) => (
+  beacon: Beacon.empty.copyWith(author: Profile(id: authorId)),
+  forwardedToIds: forwardedToIds,
+  helpOfferedIds: helpOfferedIds,
+  withdrawnIds: withdrawnIds,
+  rejectedIds: rejectedIds,
+  watchingIds: watchingIds,
+  onwardForwarderIds: onwardForwarderIds,
+  myForwardedRecipientNotes: myForwardedRecipientNotes,
+  myForwardedRecipientEdgeIds: const {},
+  myForwardedRecipientReadAts: const {},
+  myForwardedRecipientHasOnwardChild: const {},
+  myForwardedRecipientRejected: myForwardedRecipientRejected,
+);
 
 void main() {
   group('ForwardCase.computeInvolvement', () {
     test('author', () {
       const userId = 'author';
-      final inv = _involvement(authorId: userId);
+      final inv = _involvement();
       expect(
         ForwardCase.computeInvolvement(userId, inv),
         CandidateInvolvement.author,
@@ -117,7 +117,6 @@ void main() {
     test('author beats all lower-priority signals', () {
       const userId = 'author';
       final inv = _involvement(
-        authorId: userId,
         helpOfferedIds: {userId},
         withdrawnIds: {userId},
         myForwardedRecipientNotes: {userId: 'note'},
@@ -154,6 +153,43 @@ void main() {
       final inv = _involvement(
         forwardedToIds: {userId},
         myForwardedRecipientNotes: {userId: 'sent by me'},
+      );
+      expect(
+        ForwardCase.computeInvolvement(userId, inv),
+        CandidateInvolvement.forwardedByMe,
+      );
+    });
+
+    test('declined wins over forwardedByMe when the recipient dismissed', () {
+      const userId = 'u1';
+      final inv = _involvement(
+        myForwardedRecipientNotes: {userId: 'please help'},
+        rejectedIds: {userId},
+        forwardedToIds: {userId},
+      );
+      expect(
+        ForwardCase.computeInvolvement(userId, inv),
+        CandidateInvolvement.declined,
+      );
+    });
+
+    test('declined from the forward edge rejected flag', () {
+      const userId = 'u1';
+      final inv = _involvement(
+        myForwardedRecipientNotes: {userId: 'please help'},
+        myForwardedRecipientRejected: {userId: true},
+      );
+      expect(
+        ForwardCase.computeInvolvement(userId, inv),
+        CandidateInvolvement.declined,
+      );
+    });
+
+    test('forwardedByMe stays when the edge is not rejected', () {
+      const userId = 'u1';
+      final inv = _involvement(
+        myForwardedRecipientNotes: {userId: 'please help'},
+        myForwardedRecipientRejected: {userId: false},
       );
       expect(
         ForwardCase.computeInvolvement(userId, inv),
