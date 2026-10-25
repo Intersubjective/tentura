@@ -108,6 +108,7 @@ final class _Server implements ConstellationAnchorRepositoryPort {
     required List<ConstellationAnchorApplyOp> ops,
     required ConstellationFieldMembershipFilters params,
   }) async {
+    historyAndWrites.add('apply');
     applies.add(List.of(ops));
     final before = revision;
     final results = <ConstellationAnchorOpResult>[];
@@ -167,11 +168,18 @@ final class _Server implements ConstellationAnchorRepositoryPort {
     );
   }
 
+  final savedHistory = <String>[];
+  final historyAndWrites = <String>[];
+
   @override
   Future<String> saveLayoutSnapshot({
     required String reason,
     required String clientOpId,
-  }) => throw UnimplementedError('snapshots are not used by this test');
+  }) async {
+    historyAndWrites.add('history');
+    savedHistory.add(reason);
+    return 'history-${savedHistory.length}';
+  }
 
   @override
   Future<String> restoreLayoutSnapshot({
@@ -1295,6 +1303,8 @@ void main() {
 
       await apply(tester);
 
+      expect(h.server.savedHistory, ['rebuild']);
+      expect(h.server.historyAndWrites, ['history', 'apply']);
       expect(h.server.applies, hasLength(1), reason: 'one batch');
       final ops = h.server.applies.single;
       expect(ops.map((op) => op.target), unorderedEquals([_ann, _bob]));
@@ -1491,6 +1501,8 @@ void main() {
 
       await apply(tester);
 
+      expect(h.server.savedHistory, ['rebuild']);
+      expect(h.server.historyAndWrites, ['history', 'apply']);
       expect(h.server.applies, hasLength(1), reason: 'one batch');
       expect(h.server.outOfRange, isEmpty, reason: 'nothing refused');
       final ops = h.server.applies.single;

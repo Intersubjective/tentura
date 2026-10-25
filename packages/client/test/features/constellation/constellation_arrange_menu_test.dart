@@ -26,8 +26,21 @@ Future<void> _openSheet(WidgetTester tester) async {
 }
 
 void main() {
-  test('the Arrange gate ships switched off', () {
-    expect(kFieldArrangeV2Enabled, isFalse);
+  testWidgets('the released Field opens the Arrange menu', (tester) async {
+    final harness = await arrangeHarness();
+    await pumpArrangeControls(
+      tester,
+      harness.cubit,
+      arrangeV2Enabled: kFieldArrangeV2Enabled,
+    );
+
+    expect(_arrangeButton(), findsOneWidget);
+    expect(_oldRearrangeButton(), findsNothing);
+    expect(_oldResetButton(), findsNothing);
+
+    await _openSheet(tester);
+    expect(find.byType(ConstellationArrangeSheet), findsOneWidget);
+    expect(find.text(_en.constellationResetPositions), findsOneWidget);
   });
 
   group('Arrange copy', () {

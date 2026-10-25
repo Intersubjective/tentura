@@ -54,10 +54,19 @@ void main() {
       '\\n  $type\\(([\\s\\S]*?)\\)\\s*(?::|\\{|;)',
     ).firstMatch(source);
     expect(constructor, isNotNull, reason: '$type constructor not found');
+    // Injectable omits @ignoreParam options and uses their constructor defaults.
+    final injectedParameters = constructor!
+        .group(1)!
+        .split(',')
+        .where(
+          (parameter) =>
+              !RegExp(r'@(?:\w+\.)?ignoreParam\b').hasMatch(parameter),
+        )
+        .join(',');
     final types = <String>[];
     for (final match in RegExp(
       r'this\.(\w+)|required\s+super\.(\w+)|required\s+([\w<>?]+)\s+\w+',
-    ).allMatches(constructor!.group(1)!)) {
+    ).allMatches(injectedParameters)) {
       final String? resolved;
       if (match.group(1) != null) {
         resolved = fieldType(source, match.group(1)!);
@@ -75,6 +84,24 @@ void main() {
     }
     return types..sort();
   }
+
+  test(
+    'constructor parser omits ignored options but keeps injected fields',
+    () {
+      const source = '''
+class Example {
+  Example(this.repository, { @ignoreParam this.option = false, required this.enabled });
+  final Repository repository;
+  final bool option;
+  final bool enabled;
+}
+''';
+      expect(declaredDependencyTypes(source, 'Example'), [
+        'Repository',
+        'bool',
+      ]);
+    },
+  );
 
   group('constellation use case registrations', () {
     for (final (type, file) in [

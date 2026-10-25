@@ -138,11 +138,16 @@ final class _Server implements ConstellationAnchorRepositoryPort {
     );
   }
 
+  final savedHistory = <String>[];
+
   @override
   Future<String> saveLayoutSnapshot({
     required String reason,
     required String clientOpId,
-  }) => throw UnimplementedError('snapshots are not used by this test');
+  }) async {
+    savedHistory.add(reason);
+    return 'history-${savedHistory.length}';
+  }
 
   @override
   Future<String> restoreLayoutSnapshot({
@@ -567,6 +572,7 @@ void main() {
     );
     await _flushWrites(tester);
 
+    expect(h.server.savedHistory, ['rebuild']);
     var ops = {for (final op in h.server.applies.last) op.target: op};
     expect(ops.keys, unorderedEquals([_ann, _bob, _postA]));
     expectOffset(_written(ops[_postA]!), postStart + (annTarget - annStart));
@@ -581,6 +587,10 @@ void main() {
     );
     await _flushWrites(tester);
 
+    expect(
+      h.server.savedHistory.where((reason) => reason == 'rebuild'),
+      hasLength(2),
+    );
     ops = {for (final op in h.server.applies.last) op.target: op};
     expect(
       h.server.applies.last.where((op) => op.target == _postA),

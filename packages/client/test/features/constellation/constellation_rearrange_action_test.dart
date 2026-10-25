@@ -89,11 +89,16 @@ final class _HarnessAnchorRepository implements ConstellationWriteFake {
   final resetIds = <String>[];
   Object? resetError;
 
+  final savedHistory = <String>[];
+
   @override
   Future<String> saveLayoutSnapshot({
     required String reason,
     required String clientOpId,
-  }) => throw UnimplementedError('snapshots are not used by this test');
+  }) async {
+    savedHistory.add(reason);
+    return 'history-${savedHistory.length}';
+  }
 
   @override
   Future<String> restoreLayoutSnapshot({
@@ -321,6 +326,7 @@ Future<void> _pumpShell(
   ConstellationCubit cubit, {
   Size surface = const Size(1200, 900),
   double textScale = 1,
+  bool arrangeV2Enabled = true,
 }) async {
   await tester.binding.setSurfaceSize(surface);
   await tester.pumpWidget(
@@ -348,6 +354,7 @@ Future<void> _pumpShell(
           ],
           child: Scaffold(
             body: ConstellationBody(
+              arrangeV2Enabled: arrangeV2Enabled,
               legendExpanded: false,
               onToggleLegend: () {},
             ),
@@ -459,6 +466,7 @@ Future<Map<String, Offset>> _positionsAfterFreshPlacementAndRearrange(
   try {
     await _pumpShell(tester, harness.cubit);
     await _placeTwoNodes(tester, harness.cubit);
+    await _openArrange(tester);
     await tester.tap(_rearrangeButton());
     await tester.pump();
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -469,8 +477,12 @@ Future<Map<String, Offset>> _positionsAfterFreshPlacementAndRearrange(
   }
 }
 
-Finder _rearrangeButton() =>
-    find.byKey(TestIds.key(TestIds.constellationRearrange));
+Future<void> _openArrange(WidgetTester tester) async {
+  await tester.tap(find.byTooltip(L10nEn().constellationArrange));
+  await tester.pumpAndSettle();
+}
+
+Finder _rearrangeButton() => find.text(L10nEn().constellationRearrange);
 
 /// The user drops a person and a request somewhere other than the automatic
 /// spot and lets the placement settle.
@@ -520,7 +532,8 @@ void main() {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
       expect(_resetButton(), findsNothing);
 
       await _placeTwoNodes(tester, harness.cubit);
@@ -532,7 +545,8 @@ void main() {
       final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
 
       await tester.tap(_resetButton());
       await tester.pumpAndSettle();
@@ -550,7 +564,8 @@ void main() {
       final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
 
       await tester.tap(_resetButton());
       await tester.pumpAndSettle();
@@ -560,7 +575,10 @@ void main() {
       expect(harness.anchorRepo.resetIds, hasLength(1));
       expect(harness.cubit.state.hasUserPlacements, isFalse);
       expect(_resetButton(), findsNothing);
-      expect(_rearrangeButton(), findsNothing);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsNothing,
+      );
     });
 
     testWidgets('a failed reset says so and keeps the placements', (
@@ -570,7 +588,8 @@ void main() {
       harness.anchorRepo.resetError = StateError('offline');
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
 
       await tester.tap(_resetButton());
       await tester.pumpAndSettle();
@@ -592,9 +611,13 @@ void main() {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
 
-      expect(_rearrangeButton(), findsNothing);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsNothing,
+      );
       // The other camera actions are present, so absence is about this action.
       expect(
         find.byKey(TestIds.key(TestIds.constellationFitAll)),
@@ -606,14 +629,24 @@ void main() {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
-      expect(_rearrangeButton(), findsNothing);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsNothing,
+      );
 
       await _placeTwoNodes(tester, harness.cubit);
 
-      expect(_rearrangeButton(), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsOneWidget,
+      );
       // Visible and reachable by a pointer, not merely present in the tree.
-      expect(_rearrangeButton().hitTestable(), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)).hitTestable(),
+        findsOneWidget,
+      );
     });
 
     testWidgets('is shown for a field that already holds placements', (
@@ -622,9 +655,13 @@ void main() {
       final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
 
-      expect(_rearrangeButton(), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('disappears once the user has removed every placement', (
@@ -633,23 +670,33 @@ void main() {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
       await _placeTwoNodes(tester, harness.cubit);
-      expect(_rearrangeButton(), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsOneWidget,
+      );
 
       await harness.cubit.unpinAnchor(
         target: ConstellationAnchorTarget.person('p1'),
       );
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       // One placement is still left, so the action stays.
-      expect(_rearrangeButton(), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsOneWidget,
+      );
 
       await harness.cubit.unpinAnchor(
         target: ConstellationAnchorTarget.beacon('req-2'),
       );
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
 
-      expect(_rearrangeButton(), findsNothing);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsNothing,
+      );
       expect(
         find.byKey(TestIds.key(TestIds.constellationFitAll)),
         findsOneWidget,
@@ -678,6 +725,7 @@ void main() {
       final lastPositionBefore = harness.anchorRepo.lastPosition;
       expect(confirmedBefore, hasLength(2));
 
+      await _openArrange(tester);
       await tester.tap(_rearrangeButton());
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -711,9 +759,11 @@ void main() {
       final upserts = harness.anchorRepo.upsertCount;
       final deletes = harness.anchorRepo.deleteCount;
       final fetches = harness.fieldRepo.fetchCount;
+      final historyCount = harness.anchorRepo.savedHistory.length;
       expect(upserts, greaterThan(0));
       expect(applies, greaterThan(0));
 
+      await _openArrange(tester);
       await tester.tap(_rearrangeButton());
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -722,6 +772,7 @@ void main() {
       expect(harness.anchorRepo.upsertCount, upserts);
       expect(harness.anchorRepo.deleteCount, deletes);
       expect(harness.fieldRepo.fetchCount, fetches);
+      expect(harness.anchorRepo.savedHistory.skip(historyCount), ['rebuild']);
     });
 
     testWidgets(
@@ -761,6 +812,7 @@ void main() {
         await _placeTwoNodes(tester, harness.cubit);
         final placements = harness.anchorRepo.confirmedPositions;
         expect(placements, hasLength(2));
+        await _openArrange(tester);
         await tester.tap(_rearrangeButton());
         await tester.pump();
         await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -794,11 +846,13 @@ void main() {
       await _pumpShell(tester, harness.cubit);
       await _placeTwoNodes(tester, harness.cubit);
 
+      await _openArrange(tester);
       await tester.tap(_rearrangeButton());
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final first = _allNodePositions(harness.cubit);
 
+      await _openArrange(tester);
       await tester.tap(_rearrangeButton());
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -830,6 +884,7 @@ void main() {
         tester.element(find.byType(ConstellationBody)),
       )!.constellationRearrange;
 
+      await _openArrange(tester);
       expect(label.trim(), isNotEmpty);
       expect(tester.getSemantics(_rearrangeButton()).label, contains(label));
       // Disposed here: the framework checks for open handles before teardowns.
@@ -843,10 +898,14 @@ void main() {
       final harness = await _harness(fields: [_fieldWithStoredPlacements()]);
       addTearDown(harness.cubit.close);
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpShell(tester, harness.cubit);
+      // V1-only camera controls remain covered explicitly after R2.
+      await _pumpShell(tester, harness.cubit, arrangeV2Enabled: false);
 
       final l10n = L10n.of(tester.element(find.byType(ConstellationBody)))!;
-      expect(_rearrangeButton(), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationRearrange)),
+        findsOneWidget,
+      );
       expect(_resetButton(), findsOneWidget);
       for (final label in [
         l10n.constellationRearrange,

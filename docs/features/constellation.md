@@ -86,10 +86,24 @@ Tier-2 edges are visually distinct and carry **no label** about what evidence pr
 - **Camera recovery:** "Show whole field" fits every currently placed node into view (never above scale 1.0); "Center view" recentres on the viewer at scale 1.0. Neither moves pins, filters, selection, or expansion state. Opening the Field, changing filters, expanding/collapsing an author, and switching Map/Text never move the camera on their own.
 - **Pin controls:** dropping an unpinned person or request pins it immediately at the drop coordinate. Moving an already pinned target saves its final position on drop; unpin removes only that account's placement and re-layouts that node into the automatic layer.
 - **Continuous interaction:** dragging, panning, selecting, and opening previews remain available while placement writes and field refreshes run. An active drag keeps its grabbed geometry until release; arriving data is reconciled without taking over the gesture.
-- **Re-arrange:** re-lays out free nodes while preserving user-placed pins. It appears after the viewer has moved something in the field.
+- **Arrange:** opens the arrangement menu, including before anything is pinned; see Arrangement below.
 - **Placement recovery:** a dropped placement appears immediately and is sent in the background. A failed write leaves the node where it was dropped with a **not saved** marker and **Retry** / **Discard my move** actions. Transport retries reuse the operation identity; refresh does not erase local intent. Discarding a write with an unknown outcome reconciles that outcome before restoring the prior placement, without overwriting a newer placement from another session.
 - **Slow acknowledgement:** after 15 seconds without acknowledgement, a non-blocking notice explains that the displayed change is still unconfirmed and retries continue. The map remains interactive. Acknowledgement confirms the write without waiting for a fresh field read.
 - Actions revalidate current permissions and request state before offer/forward submission (UX8); stale snapshot shows recovery copy and refresh.
+
+### Arrangement
+
+The phase-2 arrangement controls ship in client **7.52.0** (`kFieldArrangeV2Enabled = true`).
+**Arrange** replaces the separate Rearrange and Reset buttons.
+
+- **Undo / Redo** reverse arrangement actions during the current Field session, with up to 50 history entries. A new action clears Redo. Desktop shortcuts are **Ctrl/Cmd+Z** and **Ctrl/Cmd+Shift+Z**.
+- **Tidy up** resolves overlaps among unpinned people while preserving their rings and angular order. Its offsets persist locally on the device across data refreshes; they do not become pins. Move trails show the changes, and the result offers Undo.
+- **Rearrange** re-lays out free nodes while preserving pins. **Rearrange everyone, including pinned** first previews the moves; Cancel writes nothing, while Apply saves history and updates the pinned positions as one undoable action. Free people remain unpinned.
+- **Save as favourite / Restore favourite / Layout history** keep an account-owned favourite and the latest 20 history snapshots across devices. History offers a preview before **Restore this**. Bulk changes save the current layout first, after pending placement writes finish; manual drags save history at most once every ten minutes. Restoring clears local layout hints and Tidy offsets so the saved placement is reproduced.
+- **Reset positions** immediately clears pins without a confirmation dialog and saves the previous layout atomically. **Undo** restores it (#251).
+- While dragging, the nearest ring is highlighted with a trust-step caption. Camera recovery remains independent of arrangement.
+
+When people tags are enabled as well, **Open tag view** provides a separate automatic layout for own or automatic tags. Other people can be hidden, shown as dots (the default), or shown as usual. Tag view offers search and forwarding, hides Arrange, and never pins on drag. Leaving restores the main Field's positions and camera. Reduced motion makes entry and exit instant.
 
 ### Pinned placement and request state
 

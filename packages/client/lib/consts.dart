@@ -259,8 +259,8 @@ const kFieldMembershipV2Enabled = false;
 /// Gate for the Field Arrange menu (people tags #699, unit D2): the Arrange
 /// sheet replaces the Rearrange / Reset buttons, Reset becomes an undoable
 /// one-call action, and Ctrl/Cmd+Z undo / redo shortcuts and the nearest-ring
-/// caption while dragging are on. The phase-1 release unit flips it.
-const kFieldArrangeV2Enabled = false;
+/// caption while dragging are on. Enabled by the phase-2 release (R2).
+const kFieldArrangeV2Enabled = true;
 
 /// Gate for semantic zoom (people tags #699, unit E1): the close / district /
 /// overview levels reach the whole map and the below-0.3 «bare» cut-off goes.
