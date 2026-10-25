@@ -112,7 +112,12 @@ class HelpOfferTile extends StatelessWidget {
         !isWithdrawn &&
         !isAdmitted &&
         helpOffer.admissionAction == null;
-    final helpTypeSlugs = helpOfferTypeSlugs(helpOffer.helpType);
+    // #731: the room row carries the active offer's capabilities too; an
+    // admitted helper keeps them when the offer row has none.
+    final offeredSlugs = helpOfferTypeSlugs(helpOffer.helpType);
+    final helpTypeSlugs = offeredSlugs.isNotEmpty || isWithdrawn
+        ? offeredSlugs
+        : helpOfferTypeSlugs(participant?.helpType);
     final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
     final showForwardPathButton =
         !isWithdrawn && helpOffer.user.id != beaconAuthorId;

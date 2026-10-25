@@ -46,5 +46,9 @@ abstract class BeaconPeopleSections with _$BeaconPeopleSections {
     @Default([]) List<BeaconPeopleRow> activeHelpers,
     @Default([]) List<BeaconPeopleRow> willingToHelp,
     @Default([]) List<BeaconPeopleRow> notFitting,
+
+    /// Helpers whose part the author ended (#701): their participation was
+    /// ended or they were removed from the discussion. Not a declined offer.
+    @Default([]) List<BeaconPeopleRow> participationEnded,
   }) = _BeaconPeopleSections;
 }

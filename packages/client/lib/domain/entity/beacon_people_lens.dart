@@ -2,6 +2,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 /// Room participant rows filtered for the Beacon view **People** lens (Phase 4).
@@ -105,7 +106,6 @@ List<BeaconPeopleRow> activeHelpersFromAdmittedRoster({
           userId: helper.id,
           profile: profileFor(helper.id, helper),
           participant: participantByUserId[helper.id],
-          isAuthor: false,
         ),
   ];
 }
@@ -198,6 +198,15 @@ BeaconPeopleSections classifyBeaconPeopleSections({
 
   final willingToHelp = <BeaconPeopleRow>[];
   final notFitting = <BeaconPeopleRow>[];
+  final participationEnded = <BeaconPeopleRow>[];
+  // #701: the author's last word on these offers was "remove" — ending a
+  // helper's participation is one — so they were never declined.
+  final endedUserIds = {
+    for (final ho in helpOffers)
+      if (!ho.isWithdrawn &&
+          ho.admissionAction == HelpOfferAdmissionAction.remove)
+        ho.userId,
+  };
   final notFittingUserIds = {
     for (final ho in helpOffers)
       if (!ho.isWithdrawn && ho.coordinationResponse != null) ho.userId,
@@ -209,7 +218,9 @@ BeaconPeopleSections classifyBeaconPeopleSections({
   for (final ho in helpOffers) {
     if (ho.isWithdrawn || !assignedUserIds.add(ho.userId)) continue;
     final row = rowFor(ho.userId, isAuthor: false);
-    if (!notFittingUserIds.contains(ho.userId)) {
+    if (endedUserIds.contains(ho.userId)) {
+      participationEnded.add(row);
+    } else if (!notFittingUserIds.contains(ho.userId)) {
       willingToHelp.add(row);
     } else {
       notFitting.add(row);
@@ -220,5 +231,6 @@ BeaconPeopleSections classifyBeaconPeopleSections({
     activeHelpers: resolvedActiveHelpers,
     willingToHelp: willingToHelp,
     notFitting: notFitting,
+    participationEnded: participationEnded,
   );
 }
