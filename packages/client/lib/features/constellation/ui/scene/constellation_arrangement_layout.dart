@@ -1,13 +1,41 @@
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 /// A local post-layout layer. Baseline priors keep refreshes from adding the
 /// same offset repeatedly to already tidied positions.
+@immutable
 class ConstellationOffsetLayout implements SceneLayoutAlgorithm {
-  const ConstellationOffsetLayout(this.base, this.offsets, this.priors);
+  ConstellationOffsetLayout(
+    this.base,
+    Map<String, ScenePoint> offsets,
+    Map<String, ScenePoint> priors,
+  ) : offsets = Map.unmodifiable(offsets),
+      priors = Map.unmodifiable(priors);
 
   final SceneLayoutAlgorithm base;
   final Map<String, ScenePoint> offsets;
   final Map<String, ScenePoint> priors;
+
+  static const _pointsEquality = MapEquality<String, ScenePoint>();
+
+  // GraphView compares algorithms on rebuild to decide whether to lay out.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationOffsetLayout &&
+          runtimeType == other.runtimeType &&
+          base == other.base &&
+          _pointsEquality.equals(offsets, other.offsets) &&
+          _pointsEquality.equals(priors, other.priors);
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    base,
+    _pointsEquality.hash(offsets),
+    _pointsEquality.hash(priors),
+  );
 
   @override
   Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {

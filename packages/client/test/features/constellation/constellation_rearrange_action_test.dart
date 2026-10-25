@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -15,6 +18,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_arrangement_layout.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -525,6 +529,68 @@ int _timesAnnounced(String text) => find.semantics
     .fold(0, (sum, count) => sum + count);
 
 void main() {
+  testWidgets('person selection after Tidy up preserves the layout', (
+    tester,
+  ) async {
+    final harness = await _harness();
+    final cubit = harness.cubit;
+    addTearDown(cubit.close);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpShell(tester, cubit);
+    await tester.pumpAndSettle();
+    final controller = cubit.graphController;
+
+    // Put two unpinned people on the same ring at overlapping positions so
+    // Tidy up must install its offset layer rather than take the no-op path.
+    final ego = controller.getPositionForId('fp:ego');
+    final first = controller.beginNodePresentationDragForId(
+      'fp:p1',
+      ego + const Offset(200, 0),
+    );
+    final second = controller.beginNodePresentationDragForId(
+      'fp:p2',
+      ego + const Offset(200, 1),
+    );
+    // tidyUp awaits the history write; let real async work finish outside
+    // the widget test's fake clock.
+    final moved = await tester.runAsync(cubit.tidyUp);
+    expect(moved, greaterThan(0));
+    controller
+      ..cancelNodePresentationDrag(first)
+      ..cancelNodePresentationDrag(second);
+    await tester.pumpAndSettle();
+
+    final algorithm = cubit.graphSceneLayoutAlgorithm;
+    expect(algorithm, isA<ConstellationOffsetLayout>());
+    expect(cubit.graphSceneLayoutAlgorithm, equals(algorithm));
+    expect(cubit.graphSceneLayoutAlgorithm.hashCode, algorithm.hashCode);
+    final positions = _allNodePositions(cubit);
+    expect(positions, isNotEmpty);
+    final layoutRuns = controller.relayoutInvocationCount;
+    final reconciliations = cubit.layoutReconciliationCount;
+
+    for (final selectedId in <String?>['p1', null]) {
+      cubit.selectPerson(selectedId);
+      await tester.pumpAndSettle();
+      expect(cubit.state.selectedPersonId, selectedId);
+      expect(cubit.graphSceneLayoutAlgorithm, equals(algorithm));
+      expect(controller.relayoutInvocationCount, layoutRuns);
+      expect(cubit.layoutReconciliationCount, reconciliations);
+      expect(_allNodePositions(cubit), equals(positions));
+      expect(
+        tester
+            .widget<GraphView<NodeDetails, EdgeDetails>>(
+              find.byWidgetPredicate(
+                (widget) => widget is GraphView<NodeDetails, EdgeDetails>,
+              ),
+            )
+            .layoutAlgorithm,
+        equals(algorithm),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   group('Reset positions (#251)', () {
     testWidgets('is offered beside re-arrange once something was moved', (
       tester,
