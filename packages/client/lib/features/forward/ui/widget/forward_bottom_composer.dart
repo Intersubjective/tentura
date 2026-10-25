@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/snack_bar_clearance.dart';
+import 'package:tentura/ui/widget/one_node_button.dart';
 
 import 'forward_input_decoration.dart';
 
@@ -17,7 +18,6 @@ class ForwardBottomComposer extends StatelessWidget {
     required this.onForward,
     this.showSuggestedNoteHelper = false,
     this.sendLabel,
-    this.countWhenDisabled = false,
     super.key,
   });
 
@@ -30,13 +30,10 @@ class ForwardBottomComposer extends StatelessWidget {
   final VoidCallback? onForward;
   final bool showSuggestedNoteHelper;
 
-  /// Label of the enabled send button for `count` recipients; defaults to
-  /// «Forward to {count}».
+  /// Label of the send button for `count` recipients; defaults to
+  /// «Forward to {count}». It stays on the disabled button too («Send to 0»,
+  /// #441, #720): the hint to pick someone is a line above it.
   final String Function(int count)? sendLabel;
-
-  /// Keeps the count label («Send to 0») on the disabled button instead of
-  /// «Select recipients». The author's new-Request step sets it (#441).
-  final bool countWhenDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +41,7 @@ class ForwardBottomComposer extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final l10n = L10n.of(context)!;
     final enabled = onForward != null;
+    final label = (sendLabel ?? l10n.forwardToCount)(selectedIds.length);
 
     // Notice bars float above this composer instead of covering «Forward to
     // N» (#406).
@@ -100,12 +98,29 @@ class ForwardBottomComposer extends StatelessWidget {
                 ),
                 SizedBox(height: tt.rowGap),
               ],
+              // Nobody picked: say what is missing beside the disabled
+              // button instead of on it (#720).
+              if (selectedIds.isEmpty) ...[
+                Text(
+                  l10n.selectRecipients,
+                  textAlign: TextAlign.center,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
+                SizedBox(height: tt.rowGap / 2),
+              ],
               SizedBox(
                 height: tt.buttonHeight,
-                child: Semantics(
+                // The identifier sits on the button's own node: a wrapper
+                // that also said `button` showed a second «Send» button
+                // around the real one (#723), as in help_offer_tile.dart.
+                // It also reports focus when Tab lands on it (#415), and a
+                // screen reader hears why it is disabled (#720).
+                child: OneNodeButton(
                   identifier: TestIds.forwardSubmit,
-                  button: true,
                   enabled: enabled,
+                  label: label,
+                  hint: enabled ? null : l10n.selectRecipients,
+                  onTap: onForward,
                   child: OutlinedButton(
                     key: TestIds.key(TestIds.forwardSubmit),
                     onPressed: onForward,
@@ -145,11 +160,7 @@ class ForwardBottomComposer extends StatelessWidget {
                         ),
                         SizedBox(width: tt.rowGap),
                         Text(
-                          enabled || countWhenDisabled
-                              ? (sendLabel ?? l10n.forwardToCount)(
-                                  selectedIds.length,
-                                )
-                              : l10n.selectRecipients,
+                          label,
                           style: TenturaText.command(
                             enabled ? scheme.onPrimary : tt.textMuted,
                           ),

@@ -50,9 +50,9 @@ import 'fake_beacon_ports.dart';
 // viewport and the send button (the same hairline the create screen's own
 // bottom bar starts with), the list never running under the footer, and the
 // disabled send button keeping a visible outline and its label «Send to 0»
-// (ru «Отправить (0)»). Forward and new-Post keep «Select recipients»; that
-// side is pinned by forward_recipient_picker_test.dart and
-// post_create_screen_test.dart.
+// (ru «Отправить (0)»). Since #720 Forward and new-Post keep their count
+// label too, with a helper line beside the button
+// (issue_720_723_forward_send_button_test.dart).
 
 class _ContextRepositoryFake extends Fake implements ContextRepository {
   @override

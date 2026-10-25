@@ -53,7 +53,6 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.recipientNoteHint,
     this.promptUncoveredNotes = true,
     this.copyProfile,
-    this.countWhenDisabled = false,
     super.key,
   });
 
@@ -97,10 +96,6 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// defaults to [ForwardState.profile]. The Post composer sets it, as its
   /// draft is not a loaded beacon.
   final ForwardTargetProfile? copyProfile;
-
-  /// Whether the disabled send button keeps its count label («Send to 0»)
-  /// instead of «Select recipients»; see [ForwardBottomComposer].
-  final bool countWhenDisabled;
 
   /// «Your connections» header (#440).
   static const directSectionKey = Key('ForwardRecipientPicker.directSection');
@@ -897,34 +892,39 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             ],
                           ),
                         ),
-                        // Marks where the scrolling list ends and the send
-                        // footer begins, so a cut-off row does not look
-                        // like it slides under the footer (#441).
-                        const TenturaHairlineDivider(),
-                        ForwardBottomComposer(
-                          sendLabel: widget.sendLabel,
-                          countWhenDisabled: widget.countWhenDisabled,
-                          selectedIds: state.selectedIds,
-                          noteExpanded: _noteExpanded,
-                          onToggleNoteExpanded: _toggleNote,
-                          sharedNoteController: _sharedNoteController,
-                          onSharedNoteChanged: cubit.setNote,
-                          showSuggestedNoteHelper:
-                              state.lineageSuggestions.isNotEmpty &&
-                              state.note.trim().isNotEmpty &&
-                              _noteExpanded,
-                          onForward: widget.onSendPressed != null
-                              ? (widget.sendEnabled
-                                    ? () => unawaited(
-                                        _handleForwardPressed(context),
-                                      )
-                                    : null)
-                              : (!widget.embedded && state.selectedCount > 0
-                                    ? () => unawaited(
-                                        _handleForwardPressed(context),
-                                      )
-                                    : null),
-                        ),
+                        // An embedded picker without its host's send action has
+                        // no send footer of its own (#720 keeps the count label
+                        // on the disabled button, so it must not show here).
+                        if (!widget.embedded ||
+                            widget.onSendPressed != null) ...[
+                          // Marks where the scrolling list ends and the send
+                          // footer begins, so a cut-off row does not look
+                          // like it slides under the footer (#441).
+                          const TenturaHairlineDivider(),
+                          ForwardBottomComposer(
+                            sendLabel: widget.sendLabel,
+                            selectedIds: state.selectedIds,
+                            noteExpanded: _noteExpanded,
+                            onToggleNoteExpanded: _toggleNote,
+                            sharedNoteController: _sharedNoteController,
+                            onSharedNoteChanged: cubit.setNote,
+                            showSuggestedNoteHelper:
+                                state.lineageSuggestions.isNotEmpty &&
+                                state.note.trim().isNotEmpty &&
+                                _noteExpanded,
+                            onForward: widget.onSendPressed != null
+                                ? (widget.sendEnabled
+                                      ? () => unawaited(
+                                          _handleForwardPressed(context),
+                                        )
+                                      : null)
+                                : (!widget.embedded && state.selectedCount > 0
+                                      ? () => unawaited(
+                                          _handleForwardPressed(context),
+                                        )
+                                      : null),
+                          ),
+                        ],
                       ],
                     ),
                   ),

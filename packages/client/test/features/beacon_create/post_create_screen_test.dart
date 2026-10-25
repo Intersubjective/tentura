@@ -504,9 +504,11 @@ void main() {
 
       await _goToRecipients(tester);
 
-      expect(find.textContaining('Отправить ('), findsNothing);
-      expect(find.text('Выберите получателей'), findsOneWidget);
-      await tester.tap(find.text('Выберите получателей'));
+      // #720: the disabled button keeps its action label; the hint to pick
+      // someone is a line beside it, not the button's label.
+      expect(find.text('Выберите хотя бы одного получателя'), findsOneWidget);
+      expect(find.text('Отправить (0)'), findsOneWidget);
+      await tester.tap(find.text('Отправить (0)'));
       await _settle(tester);
       expect(h.port.bodies, isEmpty);
     });

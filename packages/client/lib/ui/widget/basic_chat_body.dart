@@ -33,6 +33,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widget
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/one_node_button.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -956,57 +957,6 @@ class BeaconRoomComposer extends StatefulWidget {
 @visibleForTesting
 bool Function()? debugComposerTextInputHasPlatformFocus;
 
-/// One semantics node for a composer button: name, tap, identifier and its
-/// keyboard focus (#723: a wrapper that only added `button` was read twice;
-/// #415: the node must say it has focus when Tab lands on the button).
-class _OneNodeButton extends StatefulWidget {
-  const _OneNodeButton({
-    required this.identifier,
-    required this.enabled,
-    required this.label,
-    required this.onTap,
-    required this.child,
-  });
-
-  final String identifier;
-  final bool enabled;
-  final String label;
-  final VoidCallback? onTap;
-  final Widget child;
-
-  @override
-  State<_OneNodeButton> createState() => _OneNodeButtonState();
-}
-
-class _OneNodeButtonState extends State<_OneNodeButton> {
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    identifier: widget.identifier,
-    container: true,
-    button: true,
-    enabled: widget.enabled,
-    focusable: true,
-    focused: _focused,
-    label: widget.label,
-    onTap: widget.onTap,
-    excludeSemantics: true,
-    // Follows the button's own focus without taking a Tab stop of its own.
-    child: Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      includeSemantics: false,
-      onFocusChange: (focused) {
-        if (mounted && focused != _focused) {
-          setState(() => _focused = focused);
-        }
-      },
-      child: widget.child,
-    ),
-  );
-}
-
 class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     with PendingAttachmentsMixin {
   static final _composerBorder = OutlineInputBorder(
@@ -1541,7 +1491,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     final onPressed = enabled ? () => unawaited(pasteImageAttachment()) : null;
     // One node with name, tap and identifier: a wrapper that only added
     // `button` showed a second button around this one (#723).
-    return _OneNodeButton(
+    return OneNodeButton(
       identifier: TestIds.roomMessagePaste,
       enabled: enabled,
       label: l10n.beaconRoomAttachPasteImage,
@@ -1785,7 +1735,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
             TextFieldTapRegion(
               // One node with name, tap and identifier: a wrapper that only
               // added `button` showed «Send» twice, nested (#723).
-              child: _OneNodeButton(
+              child: OneNodeButton(
                 identifier: TestIds.roomMessageSend,
                 enabled: onSend != null,
                 label: l10n.tooltipSendMessage,
