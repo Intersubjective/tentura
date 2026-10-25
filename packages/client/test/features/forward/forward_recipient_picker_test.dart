@@ -466,9 +466,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Select recipients'), findsOneWidget);
-      expect(find.text('Forward to 1'), findsNothing);
-      await tester.tap(find.text('Select recipients'));
+      // The button keeps its label while disabled (#720).
+      expect(find.text('Forward to 1'), findsOneWidget);
+      await tester.tap(find.text('Forward to 1'));
       await tester.pump();
       expect(sendPressed, isFalse);
     },

@@ -396,7 +396,7 @@ void main() {
 
       await _writeAndGoToRecipients(tester);
 
-      expect(find.text('Выберите получателей'), findsOneWidget);
+      expect(find.text('Выберите хотя бы одного получателя'), findsOneWidget);
       expect(port.recipients, isEmpty);
     });
   });
@@ -472,7 +472,7 @@ void main() {
       expect(find.byType(PostCreateScreen), findsOneWidget);
       await _writeAndGoToRecipients(tester);
 
-      expect(find.text('Выберите получателей'), findsOneWidget);
+      expect(find.text('Выберите хотя бы одного получателя'), findsOneWidget);
       expect(port.recipients, isEmpty);
     });
 
