@@ -14,6 +14,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_mutual_trust_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_arrangement_layout.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -310,9 +311,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
-    // Selecting a person may itself re-lay the field out (the profile panel
-    // takes room); what the edges must never do is move anything when they
-    // arrive or leave.
+    // Mutual trust overlays never move nodes when answers arrive or leave.
     testWidgets('arriving never moves a node or starts a layout', (
       tester,
     ) async {
@@ -349,8 +348,17 @@ void main() {
       await pumpConstellationBody(tester, cubit);
       await settle(tester);
 
-      // Opening the profile panel re-lays this field out.
+      // Selection preserves layout, so start an explicit moving layout.
       cubit.selectPerson('a');
+      cubit.requestConstellationLayoutForTest(
+        algorithm: ConstellationFixedLayout({
+          for (final entry in _positions(cubit).entries)
+            entry.key: ScenePoint(
+              x: entry.value!.x + 40,
+              y: entry.value!.y + 20,
+            ),
+        }),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
       expect(cubit.graphController.isLayoutSettling, isTrue);

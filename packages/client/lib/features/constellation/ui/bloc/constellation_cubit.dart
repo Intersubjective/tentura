@@ -326,6 +326,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationLabelBudget? _appliedLabelBudget;
   bool _labelBudgetRecomposePending = false;
   ConstellationFootprintMetrics? _footprintMetrics;
+  bool _footprintMetricsPending = false;
 
   @visibleForTesting
   double get labelBudgetTextScaleForTest => _labelBudgetTextScale;
@@ -491,6 +492,21 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     if (outcome is GraphLayoutOutcomeSucceeded) {
       _runPendingOverflowRefit();
+      if (_footprintMetricsPending) {
+        // Scene notifications cannot rebuild topology reentrantly.
+        scheduleMicrotask(() {
+          if (isClosed ||
+              !_footprintMetricsPending ||
+              _scene.awaitingLayoutOutcome) {
+            return;
+          }
+          // Let the view reuse this request when it adopts the new algorithm.
+          _reconcileLayout(
+            deferAutomaticReflow: true,
+            immediateHandoff: true,
+          );
+        });
+      }
       _layoutRecoveryAttempted = false;
       if (_forgetPriorHintNodeIds.isNotEmpty) {
         _forgetPriorHintNodeIds = {};
@@ -2030,6 +2046,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     if (_scene.awaitingLayoutOutcome) {
+      _footprintMetricsPending = true;
       return;
     }
     _reconcileLayout(deferAutomaticReflow: true);
@@ -3789,6 +3806,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         pinnedRequestIds: const {},
       );
     }
+    if (layout) _footprintMetricsPending = false;
     final built = _scene.buildGraphScene(
       viewer: _viewer,
       field: field,
@@ -3814,6 +3832,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     final nodes = built.nodes;
     final previousNodeIds = built.previousNodeIds;
+    if (!layout) {
+      _scene.retainLayoutAlgorithmForNextRevision(state.graphRevision);
+    }
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
     if (state.isComposing) {
       _scene.placeComposerNodes(

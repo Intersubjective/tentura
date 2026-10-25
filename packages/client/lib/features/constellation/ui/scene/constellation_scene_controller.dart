@@ -198,6 +198,13 @@ class ConstellationSceneController {
         forgetPriorHintNodeIds: forgetPriorHintNodeIds,
       );
 
+  /// Selection redraws advance the graph revision without changing layout.
+  void retainLayoutAlgorithmForNextRevision(int graphRevision) {
+    if (_constellationLayoutAlgorithmRevision == graphRevision) {
+      _constellationLayoutAlgorithmRevision = graphRevision + 1;
+    }
+  }
+
   ConstellationSceneLayoutAlgorithm constellationAlgorithm({
     required int graphRevision,
     required String viewerId,

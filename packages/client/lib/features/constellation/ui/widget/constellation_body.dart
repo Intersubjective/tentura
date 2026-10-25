@@ -131,6 +131,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   Size? _lastLabelBudgetViewport;
   double? _lastLabelBudgetTextScale;
   (Brightness, Locale, double)? _lastFootprintSyncKey;
+  SceneLayoutAlgorithm? _mountedLayoutAlgorithm;
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
   final _graphStackKey = GlobalKey();
@@ -799,6 +800,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
       ],
       child: BlocBuilder<ConstellationCubit, ConstellationState>(
         buildWhen: (previous, current) =>
+            (previous.graphRevision != current.graphRevision &&
+                context.read<ConstellationCubit>().graphSceneLayoutAlgorithm !=
+                    _mountedLayoutAlgorithm) ||
             previous.status != current.status ||
             previous.loadError != current.loadError ||
             previous.selectedPersonId != current.selectedPersonId ||
@@ -1330,6 +1334,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     SceneLayoutAlgorithm layoutAlgorithm,
     bool panelVisible,
   ) {
+    _mountedLayoutAlgorithm = layoutAlgorithm;
     final cameraInsets = ConstellationCameraControls.cameraViewportInsets(
       context,
       contextPanelVisible: panelVisible,

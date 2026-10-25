@@ -336,6 +336,7 @@ Future<void> _pumpShell(
           ],
           child: Scaffold(
             body: ConstellationBody(
+              key: ObjectKey(cubit),
               legendExpanded: false,
               onToggleLegend: () {},
             ),
