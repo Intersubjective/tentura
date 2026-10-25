@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -431,6 +432,96 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
 
       expect(_openDetailsTooltip(tester), l10n.openBeacon);
+    });
+  });
+
+  group('the screen title is a heading for screen readers (#601)', () {
+    SemanticsFinder headerNode(bool Function(SemanticsData data) test) =>
+        find.semantics.byPredicate(
+          (n) =>
+              !n.isMergedIntoParent &&
+              n.getSemanticsData().flagsCollection.isHeader &&
+              test(n.getSemanticsData()),
+        );
+
+    testWidgets('request: "How this request spread" is a header', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.request, id: 'Breq1'),
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(
+        headerNode((d) => d.label == l10n.forwardsGraphView),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('post: "How this post spread" is a header', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.post, id: 'Bpost1'),
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(
+        headerNode((d) => d.label == l10n.forwardsGraphViewPost),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('post: the title is a header while the post still loads', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.post, id: 'Bpost1'),
+        routeKind: BeaconKind.post.name,
+        pendingBeacon: Completer<Beacon>(),
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(
+        headerNode((d) => d.label == l10n.forwardsGraphViewPost),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    // The AppBar itself marks its whole title slot a header (Flutter's
+    // default), so the beacon title sits in that node; what matters is that
+    // the screen title is its own header, not merged with the beacon title.
+    testWidgets('the beacon title is not part of the title heading (guard)', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.request, id: 'Breq1'),
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(
+        headerNode((d) => d.label == l10n.forwardsGraphView),
+        findsOneWidget,
+      );
+      expect(
+        headerNode(
+          (d) =>
+              d.label.contains(l10n.forwardsGraphView) &&
+              d.label.contains('Weekend picnic'),
+        ),
+        findsNothing,
+      );
+      expect(find.bySemanticsLabel('Weekend picnic'), findsWidgets);
+      semantics.dispose();
     });
   });
 }
