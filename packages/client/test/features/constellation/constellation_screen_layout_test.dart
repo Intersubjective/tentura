@@ -115,6 +115,7 @@ Future<void> _pumpScreen(
   ConstellationComposerCubit? composer,
 }) async {
   await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),

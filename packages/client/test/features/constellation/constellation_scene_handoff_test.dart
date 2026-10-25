@@ -254,6 +254,7 @@ Future<void> _pumpConstellationMap(
   ConstellationCubit cubit,
 ) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
