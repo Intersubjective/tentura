@@ -17,6 +17,11 @@
 // it were lost (as #688). Spec: the ✕ is tagged so the web keeps the browser
 // focus on the field when it is pressed, and if the browser focus has left
 // the field anyway, Close (or a click on the field) re-attaches it.
+//
+// Follow-up (QA 7.50.7): still lost after Close. Close checked the browser
+// focus while the ✕ was still on screen; the focus can leave the input in
+// the frame that takes the ✕ away. Spec: Close checks again once that frame
+// is drawn, and re-attaches the field if the focus has gone by then.
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/gestures.dart';
@@ -335,6 +340,41 @@ void main() {
 
         // The field reconnects its text input, the way a click into it does,
         // so the browser puts focus back on its input.
+        expect(
+          methodsAfterClose(tester),
+          containsAllInOrder(['TextInput.setClient', 'TextInput.show']),
+        );
+        expect(_fieldHasFocus(tester), isTrue);
+        tester.testTextInput.enterText('mi');
+        await tester.pump();
+        expect(_fieldText(tester), 'mi');
+        expect(cubit.state.searchFilter, 'mi');
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+
+    testWidgets(
+      'Close re-attaches the field if the browser focus goes with the ✕',
+      (tester) async {
+        // The browser focus is still on the input while the ✕ is pressed
+        // and leaves it in the frame that takes the ✕ away (QA 7.50.7).
+        debugRatingSearchTextInputHasPlatformFocus = () =>
+            find.byIcon(Icons.clear_rounded).evaluate().isNotEmpty;
+        addTearDown(() => debugRatingSearchTextInputHasPlatformFocus = null);
+        final cubit = await _pumpRating(tester);
+        await tester.enterText(find.byType(TextField), 'jas');
+        await tester.pump();
+        tester.testTextInput.log.clear();
+
+        await tester.tap(
+          find.byIcon(Icons.clear_rounded),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+
+        expect(find.byIcon(Icons.clear_rounded), findsNothing);
         expect(
           methodsAfterClose(tester),
           containsAllInOrder(['TextInput.setClient', 'TextInput.show']),

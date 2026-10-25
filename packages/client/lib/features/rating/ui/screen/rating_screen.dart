@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/app/platform/text_input_focus.dart';
 
@@ -251,6 +250,13 @@ class _RatingScreenState extends State<RatingScreen> {
                         onPressed: () {
                           cubit.clearSearchFilter();
                           _keepSearchFocus();
+                          // The clear takes the ✕ out of the tree on the
+                          // next frame, and the browser focus can leave the
+                          // field's input then, after the check above passed
+                          // (QA 7.50.7). Look again once that frame is drawn.
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _keepSearchFocus();
+                          });
                         },
                       ),
                     ),
