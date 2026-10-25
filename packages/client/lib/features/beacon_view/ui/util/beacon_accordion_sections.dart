@@ -12,6 +12,7 @@ abstract final class BeaconPeopleAccordionSection {
   static const activeHelpers = 'activeHelpers';
   static const willingToHelp = 'willingToHelp';
   static const notFitting = 'notFitting';
+  static const participationEnded = 'participationEnded';
   static const withdrawn = 'withdrawn';
 }
 
@@ -65,6 +66,9 @@ String? peopleTabAccordionSectionId({
     }
     if (_sectionContainsUser(sections.notFitting, focus)) {
       return BeaconPeopleAccordionSection.notFitting;
+    }
+    if (_sectionContainsUser(sections.participationEnded, focus)) {
+      return BeaconPeopleAccordionSection.participationEnded;
     }
     if (showWithdrawn) {
       return BeaconPeopleAccordionSection.withdrawn;

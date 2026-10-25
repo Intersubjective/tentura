@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 Beacon _beacon({required String authorId}) {
@@ -52,6 +53,37 @@ BeaconPeopleHelpOfferInput _offer({
 );
 
 void main() {
+  test('a helper whose participation the author ended is not a declined '
+      'offer (#701)', () {
+    final sections = classifyBeaconPeopleSections(
+      beacon: _beacon(authorId: 'auth'),
+      helpOffers: const [
+        BeaconPeopleHelpOfferInput(
+          userId: 'ended',
+          profile: Profile(id: 'ended', displayName: 'Helper Two'),
+          isWithdrawn: false,
+          roomAccess: RoomAccessBits.none,
+          coordinationResponse: CoordinationResponseType.useful,
+          admissionAction: HelpOfferAdmissionAction.remove,
+          lastRemoveReason: 'Plans changed',
+        ),
+        BeaconPeopleHelpOfferInput(
+          userId: 'declined',
+          profile: Profile(id: 'declined', displayName: 'Declined'),
+          isWithdrawn: false,
+          coordinationResponse: CoordinationResponseType.notSuitable,
+          admissionAction: HelpOfferAdmissionAction.decline,
+        ),
+      ],
+      roomParticipants: const [],
+      viewerUserId: 'auth',
+    );
+    expect(sections.notFitting.map((r) => r.userId), ['declined']);
+    expect(sections.participationEnded.map((r) => r.userId), ['ended']);
+    expect(sections.willingToHelp, isEmpty);
+    expect(sections.activeHelpers.map((r) => r.userId), ['auth']);
+  });
+
   test('each user has one helper bucket with not fitting before pending', () {
     for (final reverse in [false, true]) {
       final offers = [
@@ -177,7 +209,7 @@ void main() {
     final sections = classifyBeaconPeopleSections(
       beacon: _beacon(authorId: 'auth'),
       helpOffers: [
-        BeaconPeopleHelpOfferInput(
+        const BeaconPeopleHelpOfferInput(
           userId: 'h1',
           profile: Profile(id: 'h1', displayName: 'h1'),
           isWithdrawn: true,

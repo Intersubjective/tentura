@@ -10,11 +10,13 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
+import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -1502,6 +1504,145 @@ void main() {
         ).needsTrailForDirectForward,
         isFalse,
       );
+    });
+  });
+
+  testWidgets('a helper whose participation the author ended is listed '
+      'under Participation ended, not Declined offers (#701)', (tester) async {
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h2', displayName: 'Helper Two'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+          coordinationResponse: CoordinationResponseType.useful,
+          roomAccess: RoomAccessBits.none,
+          admissionAction: HelpOfferAdmissionAction.remove,
+          lastRemoveReason: 'Plans changed',
+          stakeState: CommitmentStakeState.released,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: lookupL10n(const Locale('en')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Declined offers'), findsNothing);
+    expect(find.text('Participation ended (1)'), findsOneWidget);
+    await tester.tap(find.text('Participation ended (1)'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(HelpOfferTile),
+        matching: find.text('Helper Two'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  group('accepted helper keeps the capability chips they offered (#731)', () {
+    const offered = '["transport","support"]';
+    final admitted = TimelineHelpOffer(
+      user: const Profile(id: 'h1', displayName: 'Dave'),
+      message: 'I have a truck',
+      createdAt: _t,
+      updatedAt: _t,
+      helpType: offered,
+      coordinationResponse: CoordinationResponseType.useful,
+      roomAccess: RoomAccessBits.admitted,
+      admissionAction: HelpOfferAdmissionAction.accept,
+    );
+
+    Future<void> pump(WidgetTester tester) async {
+      await tester.pumpWidget(
+        _wrapPeople(
+          BeaconPeopleTabBody(
+            state: _state,
+            beaconViewCubit: _MockBeaconViewCubit(),
+            l10n: lookupL10n(const Locale('en')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('guard: the author sees the chips on the admitted card', (
+      tester,
+    ) async {
+      _state = _peopleState(
+        helpOffers: [admitted],
+        admittedHelperRoster: const [Profile(id: 'h1', displayName: 'Dave')],
+      );
+      await pump(tester);
+
+      final chips = find.byType(ForwardCapabilityChips);
+      expect(chips, findsOneWidget);
+      expect(tester.widget<ForwardCapabilityChips>(chips).slugs, [
+        'transport',
+        'support',
+      ]);
+    });
+
+    testWidgets('the room row carries the chips when the offer row has none', (
+      tester,
+    ) async {
+      _state = _peopleState(
+        helpOffers: [
+          TimelineHelpOffer(
+            user: const Profile(id: 'h1', displayName: 'Dave'),
+            message: 'I have a truck',
+            createdAt: _t,
+            updatedAt: _t,
+            roomAccess: RoomAccessBits.admitted,
+          ),
+        ],
+        roomParticipants: [
+          BeaconParticipant(
+            id: 'p-h1',
+            beaconId: 'B1',
+            userId: 'h1',
+            userTitle: 'Dave',
+            role: BeaconParticipantRoleBits.helper,
+            status: BeaconParticipantStatusBits.committed,
+            roomAccess: RoomAccessBits.admitted,
+            createdAt: _t,
+            updatedAt: _t,
+            helpType: offered,
+          ),
+        ],
+        admittedHelperRoster: const [Profile(id: 'h1', displayName: 'Dave')],
+      );
+      await pump(tester);
+
+      expect(find.byType(ForwardCapabilityChips), findsOneWidget);
+    });
+
+    testWidgets('an observer sees the chips on the read-only helper row', (
+      tester,
+    ) async {
+      _state = _peopleState(
+        accessLevel: BeaconAccessLevel.observer,
+        myProfile: const Profile(id: 'obs', displayName: 'Observer'),
+        helpOffers: [admitted],
+        admittedHelperRoster: const [Profile(id: 'h1', displayName: 'Dave')],
+      );
+      await pump(tester);
+
+      expect(find.text('Dave'), findsOneWidget);
+      final chips = find.byType(ForwardCapabilityChips);
+      expect(chips, findsOneWidget);
+      expect(tester.widget<ForwardCapabilityChips>(chips).slugs, [
+        'transport',
+        'support',
+      ]);
     });
   });
 }

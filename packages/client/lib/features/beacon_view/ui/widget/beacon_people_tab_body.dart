@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/domain/plan_assignable_people.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/decline_remaining_offers_flow.dart';
@@ -28,6 +29,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_from_participants_button.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
+import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
@@ -177,6 +179,18 @@ class BeaconPeopleTabBody extends StatelessWidget {
 
     final isObserver = beacon.accessLevel == BeaconAccessLevel.observer;
 
+    // #731: what a helper offered (Transport, Support…) stays on their card
+    // for every viewer, after the author accepts them too.
+    String? offeredHelpType(String userId) {
+      for (final c in state.helpOffers) {
+        if (c.user.id == userId && !c.isWithdrawn) return c.helpType;
+      }
+      for (final p in state.roomParticipants) {
+        if (p.userId == userId) return p.helpType;
+      }
+      return null;
+    }
+
     // B077: the helper whose offer was accepted sees it here too, as the same
     // dismissible event sub-card as on their Requests tab, by the same rule
     // (isViewerOfferAccepted).
@@ -264,6 +278,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       peopleTagsEnabled: peopleTagsEnabled,
                       row: observerRows[i],
                       viewerId: state.myProfile.id,
+                      helpType: offeredHelpType(observerRows[i].userId),
                       onOpenProfile: () => context
                           .read<ScreenCubit>()
                           .showProfile(observerRows[i].userId),
@@ -289,6 +304,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     final assignedUserIds = {
       for (final row in sections.activeHelpers) row.userId,
       for (final row in sections.notFitting) row.userId,
+      for (final row in sections.participationEnded) row.userId,
       for (final row in sections.willingToHelp) row.userId,
     };
     final backupOffers = state.helpOffers
@@ -355,6 +371,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
       activeHelpers: sections.activeHelpers,
       willingToHelp: sortDirectForwardUp(sections.willingToHelp),
       notFitting: sections.notFitting,
+      participationEnded: sections.participationEnded,
     );
 
     final showWithdrawn = withdrawn.isNotEmpty;
@@ -751,6 +768,18 @@ class BeaconPeopleTabBody extends StatelessWidget {
                     rows: peopleSections.notFitting,
                     initiallyExpanded: false,
                   ),
+                  if ((peopleSections.activeHelpers.isNotEmpty ||
+                          peopleSections.willingToHelp.isNotEmpty ||
+                          peopleSections.notFitting.isNotEmpty) &&
+                      peopleSections.participationEnded.isNotEmpty)
+                    SizedBox(height: tt.rowGap),
+                  // #701: ended by the author, not declined.
+                  peopleSectionFold(
+                    sectionId: BeaconPeopleAccordionSection.participationEnded,
+                    title: l10n.beaconPeopleLensParticipationEndedHeading,
+                    rows: peopleSections.participationEnded,
+                    initiallyExpanded: false,
+                  ),
                   if (backupOffers.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -845,12 +874,16 @@ class _ObserverActiveHelperTile extends StatelessWidget {
     required this.row,
     required this.viewerId,
     required this.onOpenProfile,
+    this.helpType,
   });
 
   final bool peopleTagsEnabled;
   final BeaconPeopleRow row;
   final String viewerId;
   final VoidCallback onOpenProfile;
+
+  /// The helper's offered capabilities (`help_type` wire), shown as chips.
+  final String? helpType;
 
   @override
   Widget build(BuildContext context) {
@@ -866,6 +899,27 @@ class _ObserverActiveHelperTile extends StatelessWidget {
     final hasPersonMenu =
         peopleTagsEnabled &&
         !SelfUserHighlight.profileIsSelf(row.profile, viewerId);
+    final slugs = row.isAuthor
+        ? const <String>[]
+        : helpOfferTypeSlugs(helpType);
+    final nameRow = Row(
+      children: [
+        SelfAwareAvatar.medium(
+          profile: row.profile,
+          showAuthorStar: row.isAuthor,
+        ),
+        SizedBox(width: context.tt.rowGap),
+        Expanded(
+          child: Text(
+            name,
+            style: nameStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (hasPersonMenu) PersonMenuButton(personId: row.userId),
+      ],
+    );
 
     return PersonMenuGestures(
       enabled: hasPersonMenu,
@@ -875,24 +929,16 @@ class _ObserverActiveHelperTile extends StatelessWidget {
         child: InkWell(
           onTap: onOpenProfile,
           borderRadius: BorderRadius.circular(TenturaRadii.card),
-          child: Row(
-            children: [
-              SelfAwareAvatar.medium(
-                profile: row.profile,
-                showAuthorStar: row.isAuthor,
-              ),
-              SizedBox(width: context.tt.rowGap),
-              Expanded(
-                child: Text(
-                  name,
-                  style: nameStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: slugs.isEmpty
+              ? nameRow
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    nameRow,
+                    SizedBox(height: context.tt.tightGap),
+                    ForwardCapabilityChips(slugs: slugs),
+                  ],
                 ),
-              ),
-              if (hasPersonMenu) PersonMenuButton(personId: row.userId),
-            ],
-          ),
         ),
       ),
     );
