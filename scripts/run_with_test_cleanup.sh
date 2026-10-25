@@ -57,7 +57,11 @@ pick_ram_tmpdir() {
   return 1
 }
 
-if [[ -z "${TMPDIR+x}" ]]; then
+if [[ -z "${TMPDIR+x}" && -n "${CI:-}" ]]; then
+  # Ephemeral CI runners: their /tmp is fine, whatever backs it.
+  export TMPDIR=/tmp/tentura-test-tmp
+  mkdir -p "$TMPDIR"
+elif [[ -z "${TMPDIR+x}" ]]; then
   if ! TMPDIR="$(pick_ram_tmpdir)"; then
     echo "[test-cleanup] no tmpfs with ${TENTURA_TEST_TMP_MIN_MB:-3072} MB free" \
       "(\$XDG_RUNTIME_DIR, /tmp); refusing to put test kernels on disk." \
