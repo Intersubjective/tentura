@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -515,6 +516,62 @@ void main() {
 
     await tester.pump(const Duration(seconds: 7));
     await tester.pumpAndSettle();
+    semantics.dispose();
+  });
+
+  // #678 (QA on 7.50.5): the hint rows were buttons for a screen reader but
+  // never took keyboard focus (no tabindex on the web), so a keyboard user
+  // could not show the explanation.
+  testWidgets('field legend hints take keyboard focus and show on Enter', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+    const hint =
+        'You and this person have each marked the other as someone you trust.';
+
+    Tristate focusState() => tester
+        .getSemantics(find.text('Mutual trust'))
+        .getSemanticsData()
+        .flagsCollection
+        .isFocused;
+
+    // Focusable (a tab stop), not focused yet.
+    expect(focusState(), Tristate.isFalse);
+
+    for (var i = 0; i < 30 && focusState() != Tristate.isTrue; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(focusState(), Tristate.isTrue);
+    expect(find.text(hint), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(hint), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    expect(find.text(hint), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(hint), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    semantics.dispose();
+  });
+
+  // Guard: rows without a hint stay plain text, not tab stops.
+  testWidgets('legend rows without a hint are not focusable', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    final data = tester.getSemantics(find.text('Open')).getSemanticsData();
+    expect(data.label, 'Open');
+    expect(data.flagsCollection.isFocused, Tristate.none);
+    expect(data.flagsCollection.isButton, isFalse);
     semantics.dispose();
   });
 

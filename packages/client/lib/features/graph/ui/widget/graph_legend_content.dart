@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -472,6 +474,20 @@ class _LegendRow extends StatefulWidget {
 class _LegendRowState extends State<_LegendRow> {
   final _tooltipKey = GlobalKey<TooltipState>();
 
+  final _focusNode = FocusNode(debugLabel: 'legendRow');
+
+  /// Whether the keyboard focus highlight is on this row.
+  bool _highlighted = false;
+
+  Timer? _hideTimer;
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -510,26 +526,69 @@ class _LegendRowState extends State<_LegendRow> {
         child: row,
       );
     }
-    // A focusable button whose hint is the explanation; activating it shows
-    // the same tooltip a tap does (#678).
+    // A focusable button whose hint is the explanation; activating it —
+    // by tap, or Enter/Space once focused with the keyboard — shows the same
+    // tooltip a tap does (#678). Focus semantics are set here so the one
+    // row node is focusable (a tab stop on the web).
     return Tooltip(
       key: _tooltipKey,
       message: hintText,
       triggerMode: TooltipTriggerMode.tap,
       showDuration: _legendHintShowDuration,
       excludeFromSemantics: true,
-      child: Semantics(
-        container: true,
-        button: true,
-        label: label,
-        hint: hintText,
-        excludeSemantics: true,
-        onTap: () {
-          _tooltipKey.currentState?.ensureTooltipVisible();
+      child: FocusableActionDetector(
+        focusNode: _focusNode,
+        includeFocusSemantics: false,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) => _showHint(),
+          ),
+          // On the web Enter maps to ButtonActivateIntent.
+          ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
+            onInvoke: (_) => _showHint(),
+          ),
         },
-        child: row,
+        onFocusChange: (focused) {
+          if (!focused && _hideTimer != null) _hideHint();
+          setState(() {});
+        },
+        onShowFocusHighlight: (value) => setState(() => _highlighted = value),
+        child: Semantics(
+          container: true,
+          button: true,
+          focusable: true,
+          focused: _focusNode.hasFocus,
+          onFocus: _focusNode.requestFocus,
+          label: label,
+          hint: hintText,
+          excludeSemantics: true,
+          onTap: _showHint,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: _highlighted ? Theme.of(context).focusColor : null,
+              borderRadius: BorderRadius.circular(tt.cardRadius),
+            ),
+            child: row,
+          ),
+        ),
       ),
     );
+  }
+
+  /// Shows the hint for keyboard and screen-reader activation. Unlike a tap,
+  /// such a tooltip has no show duration of its own and stays until the next
+  /// pointer press, so it is hidden again after the same duration or when
+  /// the row loses focus.
+  bool _showHint() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(_legendHintShowDuration, _hideHint);
+    return _tooltipKey.currentState?.ensureTooltipVisible() ?? false;
+  }
+
+  void _hideHint() {
+    _hideTimer?.cancel();
+    _hideTimer = null;
+    Tooltip.dismissAllToolTips();
   }
 }
 
