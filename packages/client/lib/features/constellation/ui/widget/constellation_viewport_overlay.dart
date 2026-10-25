@@ -285,7 +285,10 @@ class _ConstellationViewportOverlayState
 
             final snapshot = controller.renderSnapshot;
             final scale = controller.cameraScale;
-            final bare = constellationBareAtScale(scale);
+            // The overview is bare: dots only, no label, chip or forced label (#595).
+            final bare =
+                constellationBareAtScale(scale) ||
+                _detail == ConstellationDetailLevel.overview;
 
             final configuredOrder = widget.cubit.orderedNodeIdsForPaint();
             final order = controller.orderedRenderNodeIds(
@@ -348,7 +351,12 @@ class _ConstellationViewportOverlayState
               final centre = controller.sceneToViewportLocal(
                 Offset(scenePoint.x, scenePoint.y),
               );
-              final bodyDiameter = node.size * scale;
+              final bodyDiameter =
+                  _detail == ConstellationDetailLevel.overview &&
+                      node is FieldPersonNode &&
+                      node.ring != 0
+                  ? kConstellationOverviewDotDiameter
+                  : node.size * scale;
 
               final priority = switch (node) {
                 FieldPersonNode(:final person)

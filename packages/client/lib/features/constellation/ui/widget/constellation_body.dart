@@ -1474,6 +1474,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   FieldPersonNode(:final ring, :final person) =>
                     _ConstellationMapNode(
                       detail: _detail,
+                      dot: ring == 0
+                          ? null
+                          : _OverviewDotSpec(
+                              sceneSize: node.size,
+                              camera: cubit.graphController.cameraRevision,
+                              scale: () => cubit.graphController.cameraScale,
+                            ),
                       pinBadge:
                           cubit.isAnchored(
                             ConstellationAnchorTarget.person(person.id),
@@ -2059,10 +2066,49 @@ class _ConstellationMapNodeFocusState
   }
 }
 
+@immutable
+class _OverviewDotSpec {
+  const _OverviewDotSpec({
+    required this.sceneSize,
+    required this.camera,
+    required this.scale,
+  });
+
+  final double sceneSize;
+  final Listenable camera;
+  final double Function() scale;
+}
+
+/// A [kConstellationOverviewDotDiameter] dot on screen whatever the camera
+/// scale, centred in the node's own scene box.
+class _OverviewDot extends StatelessWidget {
+  const _OverviewDot({required this.spec, required this.color, super.key});
+
+  final _OverviewDotSpec spec;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: spec.sceneSize,
+    child: Center(
+      child: ListenableBuilder(
+        listenable: spec.camera,
+        builder: (_, _) => SizedBox.square(
+          dimension: kConstellationOverviewDotDiameter / spec.scale(),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _ConstellationMapNode extends StatelessWidget {
   const _ConstellationMapNode({
     required this.child,
     required this.detail,
+    this.dot,
     this.pinBadge,
     this.statusBadge,
     this.ownTags = const [],
@@ -2073,6 +2119,9 @@ class _ConstellationMapNode extends StatelessWidget {
 
   final Widget child;
   final ConstellationDetailLevel detail;
+
+  /// Set for a person who is drawn as a bare dot at the overview.
+  final _OverviewDotSpec? dot;
   final Widget? pinBadge;
   final Widget? statusBadge;
   final List<PersonTag> ownTags;
@@ -2080,6 +2129,7 @@ class _ConstellationMapNode extends StatelessWidget {
   _ConstellationMapNode withOwnTags(List<PersonTag> ownTags) =>
       _ConstellationMapNode(
         detail: detail,
+        dot: dot,
         pinBadge: pinBadge,
         statusBadge: statusBadge,
         ownTags: ownTags,
@@ -2089,6 +2139,16 @@ class _ConstellationMapNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final dot = this.dot;
+    final shown = dot != null && detail == ConstellationDetailLevel.overview
+        ? _OverviewDot(
+            key: child.key,
+            spec: dot,
+            color: ownTags.isEmpty
+                ? HSLColor.fromColor(tt.textMuted).withSaturation(0).toColor()
+                : context.tagColors.swatchFor(ownTags.first.color).accent,
+          )
+        : child;
     final overhang = constellationMarkerBadgeOverhang(tt);
     final pinBadge = this.pinBadge;
     final statusBadge = this.statusBadge;
@@ -2096,7 +2156,7 @@ class _ConstellationMapNode extends StatelessWidget {
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        child,
+        shown,
         if (statusBadge != null)
           PositionedDirectional(
             top: -overhang,

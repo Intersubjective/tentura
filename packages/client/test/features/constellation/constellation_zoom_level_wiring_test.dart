@@ -278,8 +278,12 @@ void gateOffPresentationTests() {
       expect(holder.frame!.chips, isEmpty);
       expect(pinBadge(), findsNothing);
 
-      // Just above 0.3, a fitted map keeps its labels.
+      // The overview (below 0.45) draws dots only (#595).
       await zoomTo(tester, cubit, (s) => s >= 0.35 && s < 0.45, 1.05);
+      expect(holder.frame!.labels, isEmpty);
+
+      // From the district scale up the labels are back.
+      await zoomTo(tester, cubit, (s) => s >= 0.45 && s < 0.6, 1.05);
       expect(holder.frame!.labels, isNotEmpty);
 
       await zoomTo(tester, cubit, (s) => s >= 0.9, 1.1);

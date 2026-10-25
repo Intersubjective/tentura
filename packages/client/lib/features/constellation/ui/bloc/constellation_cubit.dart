@@ -9,6 +9,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
+import '../utils/constellation_presentation_frame.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_density.dart';
@@ -2584,6 +2585,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       refit.insets,
       include: (graphId) =>
           graphId == refit.authorGraphId || !refit.idsBefore.contains(graphId),
+      // The overview shows no chips: never strand the expanded chip there.
+      minScale: kConstellationDistrictDetailScale,
     );
   }
 

@@ -14,6 +14,9 @@ enum ConstellationDetailLevel { close, district, overview }
 const kConstellationCloseDetailScale = 0.85;
 const kConstellationDistrictDetailScale = 0.45;
 
+/// Screen diameter of a person's dot at the overview (#595).
+const kConstellationOverviewDotDiameter = 5.0;
+
 /// With semantic zoom gated off, a map below this scale is a clean overview
 /// of shapes and edges: no label and no overflow chip at all (#595). Fitting
 /// a modest field already lands near 0.4, so a fitted map keeps its labels.

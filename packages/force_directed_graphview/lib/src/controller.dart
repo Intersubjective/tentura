@@ -622,6 +622,7 @@ class GraphController<N, E> with ChangeNotifier {
     double padding = 48,
     EdgeInsets viewportInsets = EdgeInsets.zero,
     double? maxScale,
+    double? minScale,
   }) {
     final transformation = _transformationController;
     final pixel = _viewportPixelSize;
@@ -638,9 +639,12 @@ class GraphController<N, E> with ChangeNotifier {
     final minBound = _boundaryMinScale();
     final maxBound =
         maxScale == null ? _maxScale : math.min(maxScale, _maxScale);
-    final rawScale = math.min(
-      usable.width / padded.width,
-      usable.height / padded.height,
+    final rawScale = math.max(
+      minScale ?? 0,
+      math.min(
+        usable.width / padded.width,
+        usable.height / padded.height,
+      ),
     );
     final scale = rawScale
         .clamp(math.min(minBound, maxBound), math.max(minBound, maxBound))

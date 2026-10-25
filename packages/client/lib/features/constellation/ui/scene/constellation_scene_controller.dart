@@ -846,7 +846,14 @@ class ConstellationSceneController {
 
   /// Fits the camera (never zooming past 1) to the placed footprints of the
   /// nodes [include] accepts, or of every node when [include] is null.
-  void fitNodes(EdgeInsets insets, {bool Function(GraphNodeId)? include}) {
+  ///
+  /// [minScale] keeps the fit from landing below it (the content may then
+  /// overflow the viewport).
+  void fitNodes(
+    EdgeInsets insets, {
+    bool Function(GraphNodeId)? include,
+    double? minScale,
+  }) {
     if (!graphController.canLayout) {
       return;
     }
@@ -886,6 +893,7 @@ class ConstellationSceneController {
       bounds,
       viewportInsets: insets,
       maxScale: 1,
+      minScale: minScale,
     );
   }
 

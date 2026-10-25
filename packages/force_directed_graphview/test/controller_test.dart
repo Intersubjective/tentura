@@ -344,6 +344,41 @@ void main() {
     graphController.dispose();
   });
 
+  testWidgets('fitToRect never lands below minScale', (tester) async {
+    final graphController = testIntGraphController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 800,
+          height: 600,
+          child: GraphView<Node<int>, Edge<Node<int>, void>>(
+            controller: graphController,
+            minScale: 0.1,
+            maxScale: 2,
+            canvasSize: const GraphCanvasSize.fixed(Size(4000, 4000)),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
+            nodeBuilder: (context, node) => const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+    testAddNode(graphController, const Node<int>(data: 1, size: 50));
+    await tester.pumpAndSettle();
+
+    final wide = Rect.fromCenter(
+      center: const Offset(2000, 2000),
+      width: 3000,
+      height: 3000,
+    );
+    graphController.fitToRect(wide, maxScale: 1);
+    expect(graphController.cameraScale, lessThan(0.45));
+
+    graphController.fitToRect(wide, maxScale: 1, minScale: 0.45);
+    expect(graphController.cameraScale, closeTo(0.45, 1e-9));
+
+    graphController.dispose();
+  });
+
   testWidgets('default fitToRect and jumpToPosition match legacy matrix formula',
       (tester) async {
     final graphController = testIntGraphController();
