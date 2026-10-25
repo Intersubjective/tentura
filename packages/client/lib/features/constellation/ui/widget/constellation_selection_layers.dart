@@ -7,8 +7,10 @@ import 'package:flutter/services.dart' show HardwareKeyboard;
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/people_tags/ui/widget/add_to_tag_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/constellation/constellation_geometry.dart';
@@ -19,6 +21,7 @@ import '../../domain/layout/layout_geometry.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
 import '../util/layout_geometry_adapters.dart';
+import 'constellation_tidied_snack_bar.dart';
 import '../utils/constellation_graph_scene.dart';
 
 export '../bloc/constellation_selection_cubit.dart'
@@ -1487,9 +1490,16 @@ class _SectorPainter extends CustomPainter {
 /// Bottom bar of the selection: the count, «Arrange in a sector» and
 /// «Clear selection»; while editing a sector, its controls.
 class ConstellationSelectionBar extends StatelessWidget {
-  const ConstellationSelectionBar({required this.cubit, super.key});
+  const ConstellationSelectionBar({
+    required this.cubit,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
+    super.key,
+  });
 
   final ConstellationCubit cubit;
+
+  /// «Add to tag…» is offered for the selected people.
+  final bool peopleTagsEnabled;
 
   /// One turn of the rotate buttons.
   static const rotateStep = math.pi / 12;
@@ -1527,6 +1537,17 @@ class ConstellationSelectionBar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _tidyUp(BuildContext context, Set<String> people) async {
+    final count = await cubit.tidyUp(selection: people);
+    if (count > 0 && context.mounted) {
+      showConstellationTidiedSnackBar(
+        context,
+        count: count,
+        onUndo: cubit.undoArrangement,
+      );
+    }
   }
 
   void _apply(BuildContext context, ConstellationSelectionCubit selection) {
@@ -1625,6 +1646,10 @@ class ConstellationSelectionBar extends StatelessWidget {
         ),
       ),
     );
+    final peopleIds = [
+      for (final target in state.targets)
+        if (target.kind == ConstellationAnchorTargetKind.person) target.id,
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1673,6 +1698,22 @@ class ConstellationSelectionBar extends StatelessWidget {
                 onPressed: () => cubit.gather(state.targets),
                 child: Text(l10n.constellationGather),
               ),
+              if (peopleIds.isNotEmpty && peopleTagsEnabled)
+                TextButton(
+                  onPressed: () =>
+                      showAddPeopleToTagSheet(context, personIds: peopleIds),
+                  child: Text(l10n.peopleTagsAddToTag),
+                ),
+              if (peopleIds.isNotEmpty)
+                TextButton(
+                  onPressed: () => _tidyUp(context, peopleIds.toSet()),
+                  child: Text(l10n.constellationTidyUp),
+                ),
+              if (state.targets.any(cubit.isAnchored))
+                TextButton(
+                  onPressed: () => cubit.unpinAnchors(state.targets),
+                  child: Text(l10n.constellationUnpinTarget),
+                ),
               arrange,
             ],
           ),

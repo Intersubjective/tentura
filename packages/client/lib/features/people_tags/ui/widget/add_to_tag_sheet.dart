@@ -15,9 +15,22 @@ import 'tag_editor_dialog.dart';
 Future<void> showAddToTagSheet(
   BuildContext context, {
   required String personId,
+}) => showAddPeopleToTagSheet(context, personIds: [personId]);
+
+/// [showAddToTagSheet] for several people at once: a tag is ticked when every
+/// one of [personIds] is in it, and the change closing the sheet makes (a tag
+/// ticked or unticked) goes to all of them in one batch.
+Future<void> showAddPeopleToTagSheet(
+  BuildContext context, {
+  required Iterable<String> personIds,
 }) async {
+  final people = personIds.toSet();
   final peopleTags = GetIt.I<PeopleTagsCase>();
-  final initial = peopleTags.tagsOfPerson(personId);
+  final initial = {
+    for (final tag in peopleTags.tags)
+      if (people.every((id) => peopleTags.tagsOfPerson(id).contains(tag.id)))
+        tag.id,
+  };
   final checked = {...initial};
   await showTenturaAdaptiveSheet<void>(
     context: context,
@@ -28,9 +41,12 @@ Future<void> showAddToTagSheet(
   );
   final ops = [
     for (final id in checked.difference(initial))
-      PersonTagMemberOp(tagId: id, personId: personId, add: true),
+      for (final personId in people)
+        if (!peopleTags.tagsOfPerson(personId).contains(id))
+          PersonTagMemberOp(tagId: id, personId: personId, add: true),
     for (final id in initial.difference(checked))
-      PersonTagMemberOp(tagId: id, personId: personId, add: false),
+      for (final personId in people)
+        PersonTagMemberOp(tagId: id, personId: personId, add: false),
   ];
   if (ops.isEmpty) return;
   try {

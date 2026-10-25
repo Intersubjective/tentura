@@ -1821,7 +1821,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTagLensPanel(context, cubit),
-                ConstellationSelectionBar(cubit: cubit),
+                ConstellationSelectionBar(
+                  cubit: cubit,
+                  peopleTagsEnabled: widget.peopleTagsEnabled,
+                ),
               ],
             ),
           ),

@@ -15,6 +15,7 @@ import '../utils/constellation_presentation_frame.dart';
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
+import '../../domain/constellation_gather.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
@@ -1445,6 +1446,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _placementCase.unpin(target);
   }
 
+  /// Unpins the pinned ones of [targets] as one batch and one undo step;
+  /// false when none of them was pinned.
+  bool unpinAnchors(Iterable<ConstellationAnchorTarget> targets) {
+    final pinned = targets.where(isAnchored).toList();
+    if (isClosed || _placementCase == null || pinned.isEmpty) return false;
+    _writeCount++;
+    _placementCase.unpinAll(pinned);
+    return true;
+  }
+
   /// Fires whenever a placement write changes state; empty without a case.
   Stream<PlacementOutboxState> get placementChanges =>
       _placementCase?.changes ?? const Stream.empty();
@@ -2388,26 +2399,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ),
     };
     if (positioned.length < 2) return false;
-    final centre =
-        positioned.values.reduce((a, b) => a + b) /
-        positioned.length.toDouble();
     final spacing =
         graphController.renderSnapshot.topology.nodesById.values.fold<double>(
           0,
           (v, n) => math.max(v, n.size.width),
         ) +
         16;
-    final columns = math.sqrt(positioned.length).ceil();
-    final ordered = positioned.keys.toList()
-      ..sort((a, b) => a.mapKey.compareTo(b.mapKey));
+    final byKey = {for (final t in positioned.keys) t.mapKey: t};
+    final gathered = arrangeConstellationGather(
+      members: [
+        for (final MapEntry(key: target, value: at) in positioned.entries)
+          (id: target.mapKey, position: at.lPoint),
+      ],
+      spacing: spacing,
+    );
     return placeArrangement({
-      for (var i = 0; i < ordered.length; i++)
-        ordered[i]:
-            centre +
-            Offset(
-              (i % columns - (columns - 1) / 2) * spacing,
-              (i ~/ columns - (columns - 1) / 2) * spacing,
-            ),
+      for (final MapEntry(key: id, value: point) in gathered.entries)
+        byKey[id]!: point.offset,
     });
   }
 

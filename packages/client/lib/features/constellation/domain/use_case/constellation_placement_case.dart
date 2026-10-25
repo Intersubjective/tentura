@@ -320,6 +320,23 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _enqueue([op]);
   }
 
+  /// Unpins every one of [targets] as one batch and one history step.
+  void unpinAll(Iterable<ConstellationAnchorTarget> targets) {
+    final clusterId = _uuid.v4();
+    final ops = [
+      for (final target in targets)
+        PlacementOp.delete(
+          clientOpId: _uuid.v4(),
+          clusterId: clusterId,
+          target: target,
+          baseRevision: _baseRevision,
+        ),
+    ];
+    if (ops.isEmpty) return;
+    _record({for (final op in ops) op.target: null}, ops);
+    _enqueue(ops);
+  }
+
   /// The account anchor revision the user is looking at; a write based on
   /// one older than a reset is refused by the server (#251).
   ConstellationAnchorRevision? get _baseRevision =>
