@@ -32,6 +32,7 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
     this.activityOfferBoundedShell = false,
     this.activityRow = false,
     this.onDismiss,
+    this.unreadView = false,
     super.key,
   });
 
@@ -52,6 +53,9 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
   /// when the row sits in the Activity list.
   final bool activityRow;
   final VoidCallback? onDismiss;
+
+  /// Passed to [UpdatesFeedTile.unreadView] (#736).
+  final bool unreadView;
 
   @override
   State<InviteAcceptedReceiptCard> createState() =>
@@ -260,6 +264,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       action: action,
       activityRow: widget.activityRow,
       onDismiss: widget.onDismiss,
+      unreadView: widget.unreadView,
     );
   }
 }

@@ -377,6 +377,9 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     final actorId = receipt.actorUserId?.trim() ?? '';
     final actor = actorId.isEmpty ? null : actors[actorId];
     final settleCallback = receipt.isUserSettleable ? onSettle : null;
+    // #736: on Unread the dots mark what the view's count counts.
+    final unreadView =
+        context.read<UpdatesFeedCubit>().state.view == AttentionView.unread;
     if (isTrustChangePresentationKey(receipt.presentationKey)) {
       return TrustChangeReceiptCard(
         key: ValueKey(receipt.id),
@@ -386,6 +389,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
         onMarkSeen: onMarkSeen,
         onMarkUnseen: onMarkUnseen,
         onSettle: settleCallback,
+        unreadView: unreadView,
       );
     }
     if (isInviteAcceptedPresentationKey(receipt.presentationKey)) {
@@ -405,6 +409,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
             onTap: onTap,
             onMarkSeen: () => _markSeen(receipt.id),
             onMarkUnseen: onMarkUnseen,
+            unreadView: unreadView,
           );
         },
       );
@@ -417,6 +422,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
       onMarkSeen: onMarkSeen,
       onMarkUnseen: onMarkUnseen,
       onSettle: settleCallback,
+      unreadView: unreadView,
     );
   }
 

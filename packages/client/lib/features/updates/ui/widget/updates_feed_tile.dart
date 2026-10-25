@@ -102,6 +102,7 @@ class UpdatesFeedTile extends StatefulWidget {
     this.actor,
     this.activityRow = false,
     this.onDismiss,
+    this.unreadView = false,
     super.key,
   });
 
@@ -128,7 +129,15 @@ class UpdatesFeedTile extends StatefulWidget {
   /// obligation, whose way out is «Mark done»).
   final VoidCallback? onDismiss;
 
+  /// #736: the row sits on the Unread view, whose count is every row on it
+  /// (the clear axis). A row there keeps its dot until it is cleared, even
+  /// once it has been opened, so the dots add up to the count.
+  final bool unreadView;
+
   static const requestTitleKey = Key('updates-feed-tile-request-title');
+
+  /// The unread dot on the row's avatar or glyph.
+  static const unreadDotKey = Key('updates-feed-tile-unread-dot');
 
   @override
   State<UpdatesFeedTile> createState() => _UpdatesFeedTileState();
@@ -137,11 +146,17 @@ class UpdatesFeedTile extends StatefulWidget {
 class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
   bool _hovering = false;
 
+  /// The read axis: bold title, mark toggle and the overflow menu.
   bool get _isUnread => !widget.receipt.isSeen;
 
+  /// #736: the dot. On the Unread view a read row that is not cleared keeps
+  /// its dot, so the dots add up to the count; nothing else changes for it.
+  bool get _showDot =>
+      _isUnread || (widget.unreadView && isInUnreadView(widget.receipt));
+
   /// #711: a read optional row can still be on Unread (it is not cleared), so
-  /// its menu offers the clear too, not only "Mark unread". [onMarkSeen] is
-  /// the read-and-clear action.
+  /// its menu offers the clear too, not only "Mark unread".
+  /// [UpdatesFeedTile.onMarkSeen] is the read-and-clear action.
   /// An Activity row ([UpdatesFeedTile.activityRow]) has its own × instead.
   bool get _canDismissRead =>
       !widget.activityRow &&
@@ -288,8 +303,8 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         );
 
     final leading = profile != null
-        ? _LeadingAvatar(profile: profile, unread: isUnread)
-        : _LeadingGlyph(glyph: glyph, unread: isUnread);
+        ? _LeadingAvatar(profile: profile, showDot: _showDot)
+        : _LeadingGlyph(glyph: glyph, unread: isUnread, showDot: _showDot);
 
     final bodyColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,10 +688,15 @@ class _ActivityDismissControl extends StatelessWidget {
 }
 
 class _LeadingGlyph extends StatelessWidget {
-  const _LeadingGlyph({required this.glyph, required this.unread});
+  const _LeadingGlyph({
+    required this.glyph,
+    required this.unread,
+    required this.showDot,
+  });
 
   final UpdatesFeedGlyph glyph;
   final bool unread;
+  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -695,11 +715,12 @@ class _LeadingGlyph extends StatelessWidget {
               child: Icon(glyph.icon, size: tt.iconSize, color: glyph.color),
             ),
           ),
-          if (unread)
+          if (showDot)
             Positioned(
               right: 0,
               top: 0,
               child: DecoratedBox(
+                key: UpdatesFeedTile.unreadDotKey,
                 decoration: BoxDecoration(
                   color: tt.info,
                   shape: BoxShape.circle,
@@ -715,10 +736,10 @@ class _LeadingGlyph extends StatelessWidget {
 }
 
 class _LeadingAvatar extends StatelessWidget {
-  const _LeadingAvatar({required this.profile, required this.unread});
+  const _LeadingAvatar({required this.profile, required this.showDot});
 
   final Profile profile;
-  final bool unread;
+  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -732,11 +753,12 @@ class _LeadingAvatar extends StatelessWidget {
             profile: profile,
             onTap: () => context.read<ScreenCubit>().showProfile(profile.id),
           ),
-          if (unread)
+          if (showDot)
             Positioned(
               right: 0,
               top: 0,
               child: DecoratedBox(
+                key: UpdatesFeedTile.unreadDotKey,
                 decoration: BoxDecoration(
                   color: tt.info,
                   shape: BoxShape.circle,

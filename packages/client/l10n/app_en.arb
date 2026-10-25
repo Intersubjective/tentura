@@ -6851,6 +6851,18 @@
       }
     }
   },
+  "updatesRequestNoteBody": "{title} — “{note}”",
+  "@updatesRequestNoteBody": {
+    "context": "Updates row body for an invite answer or invite: the request title, then the person's note (#736)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "updatesFallbackTitleOfferRemoved": "Removed from the discussion",
   "updatesFallbackBodyOfferRemoved": "You were removed from a request discussion.",
   "updatesFallbackTitleRoomMessagePosted": "New thread message",
@@ -11554,5 +11566,70 @@
   "constellationLayoutHistory": "Layout history",
   "constellationFavouriteLayout": "Favourite",
   "constellationRestoreLayout": "Restore this",
-  "constellationGather": "Gather"
+  "constellationGather": "Gather",
+  "updatesAuthorInviteReceived": "Invitation to help",
+  "@updatesAuthorInviteReceived": {
+    "description": "Updates row headline for an author invitation when the inviter has no name (#736)"
+  },
+  "updatesClosureOpenedTitle": "Time to sum up",
+  "@updatesClosureOpenedTitle": {
+    "description": "Updates row headline: the Request's final check has opened (#700)"
+  },
+  "updatesClosureOpenedBody": "The closing window is open.",
+  "@updatesClosureOpenedBody": {
+    "description": "Updates row text under «Time to sum up» (#700)"
+  },
+  "updatesClosureDraftReminderTitle": "Finish your review",
+  "@updatesClosureDraftReminderTitle": {
+    "description": "Updates row headline: reminder that the viewer's final-check draft is not sent yet (#700)"
+  },
+  "updatesClosureDraftReminderBody": "Your draft has not been committed. The window closes within a day.",
+  "@updatesClosureDraftReminderBody": {
+    "description": "Updates row text under «Finish your review» (#700)"
+  },
+  "updatesClosureFinalizedTitle": "Request closed",
+  "@updatesClosureFinalizedTitle": {
+    "description": "Updates row headline: the Request was closed after the final check (#700)"
+  },
+  "updatesClosureFinalizedBody": "The results are in.",
+  "@updatesClosureFinalizedBody": {
+    "description": "Updates row text under «Request closed» (#700)"
+  },
+  "updatesClosureCancelledTitle": "Evaluation cancelled",
+  "@updatesClosureCancelledTitle": {
+    "description": "Updates row headline: the final check was cancelled (#700)"
+  },
+  "updatesClosureCancelledBody": "The closing was cancelled.",
+  "@updatesClosureCancelledBody": {
+    "description": "Updates row text under «Evaluation cancelled» (#700)"
+  },
+  "updatesRequestStaleTitle": "Your request has gone quiet",
+  "@updatesRequestStaleTitle": {
+    "description": "Updates row headline: nothing has happened on the author's Request for a while (#700)"
+  },
+  "updatesRequestStaleBody": "Close it, extend it or post an update.",
+  "@updatesRequestStaleBody": {
+    "description": "Updates row text under «Your request has gone quiet» (#700)"
+  },
+  "beaconPeopleLensParticipationEndedHeading": "Participation ended",
+  "@beaconPeopleLensParticipationEndedHeading": {
+    "description": "People tab section: helpers whose participation the author ended or who were removed from the discussion (#701)"
+  },
+  "requestAccessViaParentPost": "You can see this request because you're in the post «{title}» it grew from.",
+  "@requestAccessViaParentPost": {
+    "description": "Banner on a Request for someone who sees it only because they are in the Post it was made from (#724)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "requestAccessViaParentPostUntitled": "You can see this request because you're in the post it grew from.",
+  "@requestAccessViaParentPostUntitled": {
+    "description": "Same banner when the Post has no readable title (#724)"
+  },
+  "requestAccessOpenParentPost": "Open the post",
+  "@requestAccessOpenParentPost": {
+    "description": "Link on the banner that opens the Post the Request grew from (#724)"
+  }
 }
