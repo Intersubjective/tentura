@@ -25,6 +25,7 @@ import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_from_participants_button.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -260,6 +261,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                   focusWrap(
                     observerRows[i].userId,
                     _ObserverActiveHelperTile(
+                      peopleTagsEnabled: peopleTagsEnabled,
                       row: observerRows[i],
                       viewerId: state.myProfile.id,
                       onOpenProfile: () => context
@@ -405,6 +407,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
             viewerIsAuthorOrSteward: state.isAuthorOrSteward,
           );
       return HelpOfferTile(
+        peopleTagsEnabled: peopleTagsEnabled,
         helpOffer: state.offerOnForwardTrail(c),
         beaconId: beacon.id,
         beaconAuthor: beacon.author,
@@ -675,6 +678,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
           SizedBox(height: tt.tightGap),
           for (final row in postOriginRows) ...[
             _ObserverActiveHelperTile(
+              peopleTagsEnabled: peopleTagsEnabled,
               row: row,
               viewerId: viewerId,
               onOpenProfile: () =>
@@ -764,6 +768,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       focusWrap(
                         backupOffers[k].user.id,
                         HelpOfferTile(
+                          peopleTagsEnabled: peopleTagsEnabled,
                           helpOffer: state.offerOnForwardTrail(
                             backupOffers[k],
                           ),
@@ -808,6 +813,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                         for (var j = 0; j < withdrawn.length; j++) ...[
                           if (j != 0) const SizedBox(height: 12),
                           HelpOfferTile(
+                            peopleTagsEnabled: peopleTagsEnabled,
                             helpOffer: state.offerOnForwardTrail(
                               withdrawn[j],
                             ),
@@ -835,11 +841,13 @@ class BeaconPeopleTabBody extends StatelessWidget {
 /// Read-only Active helper row for observers (no offer actions / forward path).
 class _ObserverActiveHelperTile extends StatelessWidget {
   const _ObserverActiveHelperTile({
+    required this.peopleTagsEnabled,
     required this.row,
     required this.viewerId,
     required this.onOpenProfile,
   });
 
+  final bool peopleTagsEnabled;
   final BeaconPeopleRow row;
   final String viewerId;
   final VoidCallback onOpenProfile;
@@ -855,27 +863,36 @@ class _ObserverActiveHelperTile extends StatelessWidget {
       SelfUserHighlight.profileIsSelf(row.profile, viewerId),
     );
 
-    return TenturaTechCardStatic(
-      showShadow: true,
-      child: InkWell(
-        onTap: onOpenProfile,
-        borderRadius: BorderRadius.circular(TenturaRadii.card),
-        child: Row(
-          children: [
-            SelfAwareAvatar.medium(
-              profile: row.profile,
-              showAuthorStar: row.isAuthor,
-            ),
-            SizedBox(width: context.tt.rowGap),
-            Expanded(
-              child: Text(
-                name,
-                style: nameStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    final hasPersonMenu =
+        peopleTagsEnabled &&
+        !SelfUserHighlight.profileIsSelf(row.profile, viewerId);
+
+    return PersonMenuGestures(
+      enabled: hasPersonMenu,
+      personId: row.userId,
+      child: TenturaTechCardStatic(
+        showShadow: true,
+        child: InkWell(
+          onTap: onOpenProfile,
+          borderRadius: BorderRadius.circular(TenturaRadii.card),
+          child: Row(
+            children: [
+              SelfAwareAvatar.medium(
+                profile: row.profile,
+                showAuthorStar: row.isAuthor,
               ),
-            ),
-          ],
+              SizedBox(width: context.tt.rowGap),
+              Expanded(
+                child: Text(
+                  name,
+                  style: nameStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (hasPersonMenu) PersonMenuButton(personId: row.userId),
+            ],
+          ),
         ),
       ),
     );

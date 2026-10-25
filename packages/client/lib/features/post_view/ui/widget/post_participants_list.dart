@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
@@ -23,6 +25,7 @@ class PostParticipantsList extends StatefulWidget {
     required this.onForwardsGraph,
     this.onInvite,
     this.profileViewCubitFactory,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
@@ -39,6 +42,10 @@ class PostParticipantsList extends StatefulWidget {
   /// Creates the per-person cubit that answers «in contacts» and adds a
   /// contact; defaults to a real [ProfileViewCubit].
   final ProfileViewCubit Function(String id)? profileViewCubitFactory;
+
+  /// Offers the person menu ("Add to tag…") on other people's rows; off with
+  /// the feature gate.
+  final bool peopleTagsEnabled;
 
   @override
   State<PostParticipantsList> createState() => _PostParticipantsListState();
@@ -124,6 +131,7 @@ class _PostParticipantsListState extends State<PostParticipantsList> {
       isViewer: isViewer,
       broughtBy: edge?.sender.shownName ?? '',
       cubit: showContactState && !isViewer ? _cubitFor(p.userId) : null,
+      hasPersonMenu: widget.peopleTagsEnabled && !isViewer,
     );
   }
 }
@@ -155,6 +163,7 @@ class _PersonRow extends StatelessWidget {
     required this.isViewer,
     required this.broughtBy,
     required this.cubit,
+    required this.hasPersonMenu,
   });
 
   final BeaconParticipant participant;
@@ -164,6 +173,10 @@ class _PersonRow extends StatelessWidget {
 
   /// `null` when the row has no contact state (viewer, not opened yet).
   final ProfileViewCubit? cubit;
+
+  /// Offers the person menu ("Add to tag…"): not for the viewer, not with
+  /// the feature off.
+  final bool hasPersonMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +189,7 @@ class _PersonRow extends StatelessWidget {
         : broughtBy.isNotEmpty && !isViewer
         ? l10n.postParticipantBroughtBy(broughtBy)
         : '';
-    return InkWell(
+    final row = InkWell(
       onTap: () => context.router.root.push(
         ProfileViewRoute(id: participant.userId),
       ),
@@ -229,9 +242,15 @@ class _PersonRow extends StatelessWidget {
                   ),
                 ),
               ),
+            if (hasPersonMenu) PersonMenuButton(personId: participant.userId),
           ],
         ),
       ),
+    );
+    return PersonMenuGestures(
+      enabled: hasPersonMenu,
+      personId: participant.userId,
+      child: row,
     );
   }
 }

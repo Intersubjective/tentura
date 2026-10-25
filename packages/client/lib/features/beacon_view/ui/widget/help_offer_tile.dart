@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -7,6 +8,7 @@ import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
+import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -46,8 +48,13 @@ class HelpOfferTile extends StatelessWidget {
     this.showAuthorStar = false,
     this.hasHelpOffer = true,
     this.showBackupHint = true,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
+
+  /// Offers the person menu ("Add to tag…") on other people's cards; off with
+  /// the feature gate.
+  final bool peopleTagsEnabled;
 
   final TimelineHelpOffer helpOffer;
   final String beaconId;
@@ -137,7 +144,12 @@ class HelpOfferTile extends StatelessWidget {
           : () => context.read<ScreenCubit>().showProfile(helpOffer.user.id),
     );
 
-    return TenturaTechCardStatic(
+    final hasPersonMenu =
+        peopleTagsEnabled &&
+        !isMine &&
+        helpOffer.user.id != context.read<ProfileCubit>().state.profile.id;
+
+    final card = TenturaTechCardStatic(
       isOwned: isMine && !isWithdrawn,
       showShadow: !isWithdrawn,
       surfaceOverride: isWithdrawn ? tt.bg : null,
@@ -248,6 +260,7 @@ class HelpOfferTile extends StatelessWidget {
                         helpOffererName: helpOffer.user.shownName,
                       ),
                 ),
+              if (hasPersonMenu) PersonMenuButton(personId: helpOffer.user.id),
             ],
           ),
           if (showHelpTypeChips) ...[
@@ -405,6 +418,11 @@ class HelpOfferTile extends StatelessWidget {
           ],
         ],
       ),
+    );
+    return PersonMenuGestures(
+      enabled: hasPersonMenu,
+      personId: helpOffer.user.id,
+      child: card,
     );
   }
 }

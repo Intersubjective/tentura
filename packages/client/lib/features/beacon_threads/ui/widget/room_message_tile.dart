@@ -8,6 +8,7 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/services.dart';
 import 'package:readmore/readmore.dart' show Annotation;
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_focus_ring.dart';
@@ -51,6 +52,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_plan_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
+import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -113,10 +115,15 @@ class RoomMessageTile extends StatelessWidget {
     this.receipt,
     this.capabilities = const RoomCapabilities.request(),
     this.pollsClosed = false,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
   final RoomMessage message;
+
+  /// Offers the author menu (Profile, "Add to tag…") on other people's
+  /// messages; off with the feature gate.
+  final bool peopleTagsEnabled;
 
   /// The hosting Request is final (read-only): a poll on this message shows
   /// its results to everyone and takes no votes (#609).
@@ -1993,6 +2000,13 @@ class RoomMessageTile extends StatelessWidget {
       },
     );
 
+    final hasAuthorMenu = peopleTagsEnabled && !isMine && isGroupEnd;
+    final authorMenuLeading = <PopupMenuEntry<void>>[
+      PopupMenuItem<void>(
+        onTap: () => context.read<ScreenCubit>().showProfile(message.author.id),
+        child: Text(l10n.profile),
+      ),
+    ];
     final row = isMine
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -2014,14 +2028,19 @@ class RoomMessageTile extends StatelessWidget {
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          PresenceAvatar.medium(
-                            profile: message.author,
-                            userId: message.author.id,
-                            size: tt.avatarGutter,
-                            onTap: () =>
-                                context.read<ScreenCubit>().showProfile(
-                                  message.author.id,
-                                ),
+                          PersonMenuGestures(
+                            enabled: hasAuthorMenu,
+                            personId: message.author.id,
+                            leading: authorMenuLeading,
+                            child: PresenceAvatar.medium(
+                              profile: message.author,
+                              userId: message.author.id,
+                              size: tt.avatarGutter,
+                              onTap: () =>
+                                  context.read<ScreenCubit>().showProfile(
+                                    message.author.id,
+                                  ),
+                            ),
                           ),
                           if (capabilities.commitmentSheet &&
                               authorParticipant != null &&
@@ -2040,6 +2059,11 @@ class RoomMessageTile extends StatelessWidget {
                     : const SizedBox.shrink(),
               ),
               Expanded(child: measuredBubble),
+              if (hasAuthorMenu)
+                PersonMenuButton(
+                  personId: message.author.id,
+                  leading: authorMenuLeading,
+                ),
             ],
           );
 
