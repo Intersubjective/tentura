@@ -304,6 +304,7 @@ final class _Harness {
         ForwardEdgeRepository(db),
         helpOffers,
         FakeBeaconAccessGuard(),
+        room,
         env: env,
         logger: logger,
       ),

@@ -791,6 +791,7 @@ final class _Harness {
         ForwardEdgeRepository(db),
         helpOfferRepository,
         access,
+        roomRepository,
         env: env,
         logger: logger,
       ),

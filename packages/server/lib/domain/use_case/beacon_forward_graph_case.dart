@@ -1,12 +1,15 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
@@ -28,7 +31,8 @@ final class BeaconForwardGraphCase extends UseCaseBase {
     this._beaconRepository,
     this._forwardEdgeRepository,
     this._helpOfferRepository,
-    this._guard, {
+    this._guard,
+    this._roomRepository, {
     required super.env,
     required super.logger,
   });
@@ -37,6 +41,7 @@ final class BeaconForwardGraphCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconAccessGuard _guard;
+  final BeaconRoomRepositoryPort _roomRepository;
 
   Future<ForwardGraphResult> asMap({
     required String beaconId,
@@ -71,12 +76,36 @@ final class BeaconForwardGraphCase extends UseCaseBase {
       for (final e in allEdges) e.id: e,
     };
 
+    // A Post has no help offers: show how each current room member got in,
+    // e.g. a member who joined through another member's invite (#718).
+    // The member list is room-only, so only the author, a steward or an
+    // admitted member gets these seeds; a viewer who only holds a forward
+    // edge or who left the chat sees just their own chain.
+    var roomMemberIds = const <String>{};
+    if (beacon.kind == BeaconKind.post) {
+      final admittedIds = (await _roomRepository.listParticipants(beaconId))
+          .where((p) => p.roomAccess == RoomAccessBits.admitted)
+          .map((p) => p.userId)
+          .toSet();
+      if (currentUserId == authorId ||
+          admittedIds.contains(currentUserId) ||
+          await _roomRepository.isBeaconSteward(
+            beaconId: beaconId,
+            userId: currentUserId,
+          )) {
+        roomMemberIds = admittedIds;
+      }
+    }
+
     final seedIds = <String>{};
     for (final e in allEdges) {
       if (e.senderId == currentUserId || e.recipientId == currentUserId) {
         seedIds.add(e.id);
       }
       if (helpOffererIds.contains(e.recipientId)) {
+        seedIds.add(e.id);
+      }
+      if (roomMemberIds.contains(e.recipientId)) {
         seedIds.add(e.id);
       }
     }
