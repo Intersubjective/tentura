@@ -350,6 +350,12 @@ final class _Field implements ConstellationRepositoryPort {
 /// Acknowledges every op after [_ackDelay], like a fast server.
 final class _DelayedAckAnchors implements ConstellationAnchorRepositoryPort {
   @override
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  }) => throw UnimplementedError('snapshots are not used by this test');
+
+  @override
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,

@@ -3885,6 +3885,7 @@ type mutation_root {
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
   constellationAnchorsReset(clientOpId: String!, saveHistory: Boolean): v2_ConstellationAnchorsResetResult!
   constellationLayoutSnapshotRestore(clientOpId: String, snapshotId: String): v2_ConstellationLayoutSnapshot!
+  constellationLayoutSnapshotSave(clientOpId: String, kind: Int!, reason: Int!): v2_ConstellationLayoutSnapshot!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!

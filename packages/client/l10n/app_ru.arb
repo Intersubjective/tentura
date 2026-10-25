@@ -7563,6 +7563,8 @@
   "constellationTagViewOthersDots": "Остальные точками",
   "constellationTagViewOthersAsIs": "Остальные как есть",
   "constellationTidied": "Причёсано: сдвинуто {n}",
+  "constellationRearrangeEveryone": "Расставить всех заново, включая закреплённых",
+  "constellationRearrangePreview": "Сдвинется {n} чел. · текущая расстановка сохранится в истории",
   "peopleTagsWorkingTogether": "Вместе в запросе «{title}»",
   "peopleTagsTemporary": "Временно: вы видите друг друга, пока открыт запрос «{title}»"
 }

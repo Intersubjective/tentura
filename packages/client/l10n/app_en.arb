@@ -11517,6 +11517,19 @@
       }
     }
   },
+  "constellationRearrangeEveryone": "Rearrange everyone, including pinned",
+  "@constellationRearrangeEveryone": {
+    "description": "Field map Arrange menu: re-lay out every person, moving pinned ones too, after a preview"
+  },
+  "constellationRearrangePreview": "{n} people will move · your current layout is saved to history",
+  "@constellationRearrangePreview": {
+    "description": "Field map: preview bar of «Rearrange everyone»; the layout it replaces is kept as a history snapshot",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "peopleTagsWorkingTogether": "Working together on “{title}”",
   "@peopleTagsWorkingTogether": {
     "description": "Field person panel: the Request the viewer and a bond person work on together",

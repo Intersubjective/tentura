@@ -25,6 +25,22 @@ enum ConstellationPlacementPhase {
   composing,
 }
 
+/// What «Rearrange everyone» would do, computed without moving or writing
+/// anything: how many people end up elsewhere and where each pinned node goes.
+@immutable
+final class ConstellationRearrangePreview {
+  const ConstellationRearrangePreview({
+    required this.movingCount,
+    required this.pinnedWrites,
+  });
+
+  final int movingCount;
+
+  /// The new stored position of every pinned node Apply writes.
+  final Map<ConstellationAnchorTarget, ConstellationAnchorPosition>
+  pinnedWrites;
+}
+
 @freezed
 abstract class ConstellationState extends StateBase with _$ConstellationState {
   const factory ConstellationState({
@@ -62,6 +78,9 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     /// The tag view over the Field, null on the Field itself; it never
     /// touches the composition.
     ConstellationTagView? tagView,
+
+    /// A previewed «Rearrange everyone»; the Field is not touched until Apply.
+    ConstellationRearrangePreview? rearrangePreview,
   }) = _ConstellationState;
 
   const ConstellationState._();

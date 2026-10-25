@@ -72,6 +72,12 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 /// A server that records writes and never answers them.
 final class _SilentAnchorRepository implements ConstellationWriteFake {
   @override
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  }) => throw UnimplementedError('snapshots are not used by this test');
+
+  @override
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,

@@ -143,6 +143,12 @@ final class ArrangeAnchorRepository
     );
   }
 
+  @override
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  }) => throw UnimplementedError('snapshots are not used by this harness');
+
   /// Puts a saved layout back in one step; the layout it replaces is saved
   /// first and its id returned, so the restore can itself be undone.
   ///

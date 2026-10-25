@@ -18,6 +18,7 @@ import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
+import '../../domain/constellation_rearrange_all.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
 import '../../domain/constellation_mutual_trust.dart';
@@ -2079,6 +2080,113 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileLayout(immediateHandoff: true);
   }
 
+  /// «Rearrange everyone, including pinned»: works out a full re-layout that
+  /// ignores pins and shows how many people it would move. Nothing is moved
+  /// or written until [applyRearrangePreview]; [cancelRearrangePreview]
+  /// leaves the Field as it was.
+  void previewRearrangeAll() {
+    final composition = state.composition;
+    if (isClosed ||
+        composition == null ||
+        state.isComposing ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    final snapshot = graphController.renderSnapshot;
+    final input = layoutInputFromComposition(
+      viewerId: _viewer.id,
+      composition: composition,
+      labelPlan: composition.labelPlan,
+      nodeSizes: {
+        for (final MapEntry(:key, :value)
+            in snapshot.topology.nodesById.entries)
+          tenturaLayoutDomainId(key): (
+            width: value.size.width,
+            height: value.size.height,
+          ),
+      },
+      spacing: 16,
+      footprints: layoutFootprints,
+    );
+    final rearranged = computeConstellationRearrangeAll(input);
+    var moving = 0;
+    for (final id in {
+      ...input.automaticKeptPeerIds,
+      ...input.pinnedPersonIds,
+      ...input.supportPersonIds,
+    }) {
+      final from = snapshot.resolvePosition(
+        constellationGraphNodeIdForTarget(ConstellationAnchorTarget.person(id)),
+      );
+      final to = rearranged.layout.positions[id];
+      if (id != _viewer.id &&
+          from != null &&
+          to != null &&
+          math.sqrt(math.pow(to.x - from.x, 2) + math.pow(to.y - from.y, 2)) >
+              0.5) {
+        moving++;
+      }
+    }
+    emit(
+      state.copyWith(
+        rearrangePreview: ConstellationRearrangePreview(
+          movingCount: moving,
+          pinnedWrites: {
+            for (final anchor in composition.anchorOverlay.anchors)
+              if (rearranged.pinned[anchor.target.graphNodeId]
+                  case final point?)
+                anchor.target: constellationPointToV1Anchor(point),
+          },
+        ),
+      ),
+    );
+  }
+
+  void cancelRearrangePreview() {
+    if (isClosed || state.rearrangePreview == null) return;
+    emit(state.copyWith(rearrangePreview: null));
+  }
+
+  /// Applies the previewed arrangement: saves the layout it replaces as a
+  /// history snapshot, writes every pinned node's new place as one batch (one
+  /// entry [undoArrangement] takes back) and lays the unpinned people out
+  /// afresh. False when nothing was applied.
+  Future<bool> applyRearrangePreview() async {
+    final preview = state.rearrangePreview;
+    final placement = _placementCase;
+    if (isClosed || preview == null || placement == null) {
+      return false;
+    }
+    emit(state.copyWith(rearrangePreview: null));
+    final writes = [
+      for (final MapEntry(key: target, value: position)
+          in preview.pinnedWrites.entries)
+        (target: target, position: position),
+    ];
+    if (writes.isEmpty) {
+      rearrangeFreeNodes();
+      return true;
+    }
+    _writeCount++;
+    try {
+      await placement.history.saveSnapshotBeforeBulkAction('rebuild');
+    } on Object catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+      return false;
+    }
+    if (isClosed) return false;
+    _forgetPriorHintNodeIds = {
+      for (final node in graphController.nodes)
+        tenturaLayoutDomainId(tenturaGraphNodeId(node)),
+    };
+    _submitUpsert(
+      target: writes.first.target,
+      position: writes.first.position,
+      companions: writes.sublist(1),
+    );
+    return true;
+  }
+
   /// «Сбросить позиции» (#251): removes every user-placed position of the
   /// account, hidden and off-screen ones included; the moved nodes return to
   /// the automatic layout here and, through the anchor hint, on the account's
@@ -3190,8 +3298,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
-  Set<String> Function(String personId) _tagViewOwnTagIdsOf =
-      _noTagViewOwnTags;
+  Set<String> Function(String personId) _tagViewOwnTagIdsOf = _noTagViewOwnTags;
   static Set<String> _noTagViewOwnTags(String personId) => const {};
 
   /// Where the Field had every node when the tag view opened.

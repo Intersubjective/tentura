@@ -90,8 +90,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     restoreSnapshot: _restoreSnapshot,
     applyLocalLayout: (_) async {},
     flushPlacementOutbox: () async {},
-    saveSnapshot: (_) async =>
-        throw UnsupportedError('Layout snapshots are not wired to placement'),
+    saveSnapshot: _saveSnapshot,
     newOpId: _uuid.v4,
   );
 
@@ -134,6 +133,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _enqueue(placementOps);
     return outcome;
   }
+
+  /// The layout about to be replaced, saved as a history snapshot of [reason].
+  Future<String> _saveSnapshot(String reason) =>
+      _repository.saveLayoutSnapshot(reason: reason, clientOpId: _uuid.v4());
 
   /// Undo / redo of a reset or restore: the server puts the saved layout back
   /// in one step; the id of the layout it replaced undoes it, null when the

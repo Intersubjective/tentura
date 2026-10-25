@@ -86,6 +86,12 @@ final class _ApplyCall {
 /// Holds every response until the test settles or fails the call.
 final class _AnchorRepository implements ConstellationWriteFake {
   @override
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  }) => throw UnimplementedError('snapshots are not used by this test');
+
+  @override
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,

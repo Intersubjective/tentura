@@ -67,6 +67,7 @@ import 'constellation_selection_layers.dart';
 import 'constellation_tag_hull_layer.dart';
 import 'constellation_tag_lens_panel.dart';
 import 'constellation_tag_row.dart';
+import 'constellation_rearrange_preview_bar.dart';
 import 'constellation_tag_view_header.dart';
 import 'constellation_viewport_overlay.dart';
 
@@ -790,6 +791,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             previous.expandedPersonIds != current.expandedPersonIds ||
             previous.viewMode != current.viewMode ||
             previous.tagView != current.tagView ||
+            previous.rearrangePreview != current.rearrangePreview ||
             previous.loadedAt != current.loadedAt ||
             previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
             previous.filterLocation != current.filterLocation ||
@@ -955,6 +957,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
                           if (!state.isComposing) _buildTagRow(context),
                           if (state.tagView case final view?)
                             _buildTagViewHeader(context, cubit, view),
+                          if (state.rearrangePreview case final preview?)
+                            ConstellationRearrangePreviewBar(
+                              movingCount: preview.movingCount,
+                              onApply: () =>
+                                  unawaited(cubit.applyRearrangePreview()),
+                              onCancel: cubit.cancelRearrangePreview,
+                            ),
                           Expanded(
                             child: IndexedStack(
                               index: state.viewMode == ConstellationViewMode.map

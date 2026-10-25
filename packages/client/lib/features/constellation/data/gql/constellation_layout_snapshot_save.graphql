@@ -1,0 +1,5 @@
+mutation ConstellationLayoutSnapshotSave($kind: Int!, $reason: Int!, $clientOpId: String!) {
+  constellationLayoutSnapshotSave(kind: $kind, reason: $reason, clientOpId: $clientOpId) {
+    id
+  }
+}

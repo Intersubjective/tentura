@@ -139,6 +139,12 @@ final class _Server implements ConstellationAnchorRepositoryPort {
   }
 
   @override
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  }) => throw UnimplementedError('snapshots are not used by this test');
+
+  @override
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,

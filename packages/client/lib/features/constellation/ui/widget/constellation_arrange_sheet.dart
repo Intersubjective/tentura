@@ -72,6 +72,12 @@ class ConstellationArrangeSheet extends StatelessWidget {
               onTap: close(true, cubit.rearrangeFreeNodes),
             ),
             TenturaMenuTile(
+              icon: Icons.shuffle,
+              title: l10n.constellationRearrangeEveryone,
+              opensPage: false,
+              onTap: close(true, cubit.previewRearrangeAll),
+            ),
+            TenturaMenuTile(
               icon: Icons.restart_alt,
               title: l10n.constellationResetPositions,
               opensPage: false,

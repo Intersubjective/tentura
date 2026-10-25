@@ -5,7 +5,7 @@ import 'package:meta/meta.dart';
 enum ConstellationLayoutSnapshotKind { favourite, history }
 
 /// Why a snapshot was written; stored as the enum index.
-enum ConstellationLayoutSnapshotReason { manual, restore, reset }
+enum ConstellationLayoutSnapshotReason { manual, restore, reset, rebuild }
 
 /// A saved Field layout of one viewer, without its anchors.
 @immutable

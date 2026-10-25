@@ -10,6 +10,7 @@ import '../gql/_g/constellation_anchors_apply.data.gql.dart';
 import '../gql/_g/constellation_anchors_apply.req.gql.dart';
 import '../gql/_g/constellation_anchors_reset.req.gql.dart';
 import '../gql/_g/constellation_layout_snapshot_restore.req.gql.dart';
+import '../gql/_g/constellation_layout_snapshot_save.req.gql.dart';
 import '../gql/_g/constellation_layout_snapshots.req.gql.dart';
 import '../model/constellation_field_mapper.dart';
 
@@ -71,6 +72,31 @@ final class ConstellationAnchorRepository
           replayed: payload.replayed,
         );
       });
+
+  /// Wire values of the server's `ConstellationLayoutSnapshotReason` enum.
+  static const _snapshotReasons = ['manual', 'restore', 'reset', 'rebuild'];
+
+  /// Kind 1 is history (kind 0 is the single favourite).
+  @override
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  }) => _remoteApiService
+      .request(
+        GConstellationLayoutSnapshotSaveReq((b) {
+          b.vars
+            ..kind = 1
+            ..reason = _snapshotReasons.indexOf(reason)
+            ..clientOpId = clientOpId;
+        }),
+      )
+      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .then(
+        (response) => response
+            .dataOrThrow(label: 'ConstellationLayoutSnapshotSave')
+            .constellationLayoutSnapshotSave
+            .id,
+      );
 
   /// The server returns the layout it put back; the one it saved of the
   /// layout it replaced is the newest history snapshot, whose id undoes it.

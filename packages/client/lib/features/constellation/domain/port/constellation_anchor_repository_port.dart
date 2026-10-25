@@ -86,6 +86,14 @@ abstract interface class ConstellationAnchorRepositoryPort {
     bool saveHistory = false,
   });
 
+  /// Saves the viewer's current layout as a history snapshot of [reason]
+  /// (`manual`, `restore`, `reset` or `rebuild`) and returns its id; a retry
+  /// with the same [clientOpId] saves nothing again.
+  Future<String> saveLayoutSnapshot({
+    required String reason,
+    required String clientOpId,
+  });
+
   /// Puts the saved layout [snapshotId] back in one step; a retry with the
   /// same [clientOpId] writes nothing again. The layout it replaces is saved
   /// first and its id returned, so the restore can itself be undone.
