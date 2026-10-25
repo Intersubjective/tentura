@@ -1,0 +1,5 @@
+mutation ConstellationLayoutSnapshotRestore($snapshotId: String!, $clientOpId: String!) {
+  constellationLayoutSnapshotRestore(snapshotId: $snapshotId, clientOpId: $clientOpId) {
+    id
+  }
+}

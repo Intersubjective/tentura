@@ -253,3 +253,9 @@ const kPeopleTagsEnabled = false;
 /// the render cap follows the tag priority. The phase-1 release unit flips
 /// it.
 const kFieldMembershipV2Enabled = false;
+
+/// Gate for the Field Arrange menu (people tags #699, unit D2): the Arrange
+/// sheet replaces the Rearrange / Reset buttons, Reset becomes an undoable
+/// one-call action, and Ctrl/Cmd+Z undo / redo shortcuts and the nearest-ring
+/// caption while dragging are on. The phase-1 release unit flips it.
+const kFieldArrangeV2Enabled = false;

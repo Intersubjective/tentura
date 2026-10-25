@@ -62,8 +62,16 @@ final class _ApplyCall {
 
 final class _AnchorRepository implements ConstellationWriteFake {
   @override
-  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
-      throw UnimplementedError('reset is not used by this test');
+  Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  }) => throw UnimplementedError('restore is not used by this test');
+
+  @override
+  Future<ConstellationAnchorResetResult> reset({
+    required String clientOpId,
+    bool saveHistory = false,
+  }) => throw UnimplementedError('reset is not used by this test');
 
   final calls = <_ApplyCall>[];
   var revision = 0;

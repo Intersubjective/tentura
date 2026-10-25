@@ -68,6 +68,10 @@ abstract class ConstellationAnchorResetResult
   }) = _ConstellationAnchorResetResult;
 }
 
+/// The newest saved layout: what a reset that saved history has just written,
+/// whose id the reset does not return.
+const kLatestLayoutSnapshotId = '';
+
 abstract interface class ConstellationAnchorRepositoryPort {
   Future<ConstellationAnchorApplyResult> apply({
     required List<ConstellationAnchorApplyOp> ops,
@@ -75,6 +79,19 @@ abstract interface class ConstellationAnchorRepositoryPort {
   });
 
   /// Removes every user-placed position of the account; a retry with the
-  /// same [clientOpId] returns the recorded outcome.
-  Future<ConstellationAnchorResetResult> reset({required String clientOpId});
+  /// same [clientOpId] returns the recorded outcome. With [saveHistory] the
+  /// layout it clears is saved in the same call, so the reset can be undone.
+  Future<ConstellationAnchorResetResult> reset({
+    required String clientOpId,
+    bool saveHistory = false,
+  });
+
+  /// Puts the saved layout [snapshotId] back in one step; a retry with the
+  /// same [clientOpId] writes nothing again. The layout it replaces is saved
+  /// first and its id returned, so the restore can itself be undone.
+  /// [kLatestLayoutSnapshotId] stands for the newest saved layout.
+  Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  });
 }

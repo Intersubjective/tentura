@@ -1,0 +1,7 @@
+query ConstellationLayoutSnapshots {
+  constellationLayoutSnapshots {
+    id
+    kind
+    createdAt
+  }
+}

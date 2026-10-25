@@ -9,6 +9,8 @@ import '../../domain/port/constellation_anchor_repository_port.dart';
 import '../gql/_g/constellation_anchors_apply.data.gql.dart';
 import '../gql/_g/constellation_anchors_apply.req.gql.dart';
 import '../gql/_g/constellation_anchors_reset.req.gql.dart';
+import '../gql/_g/constellation_layout_snapshot_restore.req.gql.dart';
+import '../gql/_g/constellation_layout_snapshots.req.gql.dart';
 import '../model/constellation_field_mapper.dart';
 
 @LazySingleton(
@@ -46,25 +48,67 @@ final class ConstellationAnchorRepository
       });
 
   @override
-  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
-      _remoteApiService
-          .request(
-            GConstellationAnchorsResetReq(
-              (b) => b.vars.clientOpId = clientOpId,
-            ),
-          )
-          .firstWhere((response) => response.dataSource == DataSource.Link)
-          .then((response) {
-            final payload = response
-                .dataOrThrow(label: 'ConstellationAnchorsReset')
-                .constellationAnchorsReset;
-            return ConstellationAnchorResetResult(
-              beforeRevision: _parseRevision(payload.beforeRevision),
-              afterRevision: _parseRevision(payload.afterRevision),
-              clearedCount: payload.clearedCount,
-              replayed: payload.replayed,
-            );
-          });
+  Future<ConstellationAnchorResetResult> reset({
+    required String clientOpId,
+    bool saveHistory = false,
+  }) => _remoteApiService
+      .request(
+        GConstellationAnchorsResetReq((b) {
+          b.vars
+            ..clientOpId = clientOpId
+            ..saveHistory = saveHistory;
+        }),
+      )
+      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .then((response) {
+        final payload = response
+            .dataOrThrow(label: 'ConstellationAnchorsReset')
+            .constellationAnchorsReset;
+        return ConstellationAnchorResetResult(
+          beforeRevision: _parseRevision(payload.beforeRevision),
+          afterRevision: _parseRevision(payload.afterRevision),
+          clearedCount: payload.clearedCount,
+          replayed: payload.replayed,
+        );
+      });
+
+  /// The server returns the layout it put back; the one it saved of the
+  /// layout it replaced is the newest history snapshot, whose id undoes it.
+  @override
+  Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  }) async {
+    final source = snapshotId == kLatestLayoutSnapshotId
+        ? await _newestHistorySnapshotId()
+        : snapshotId;
+    await _remoteApiService
+        .request(
+          GConstellationLayoutSnapshotRestoreReq((b) {
+            b.vars
+              ..snapshotId = source
+              ..clientOpId = clientOpId;
+          }),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then(
+          (response) => response.dataOrThrow(
+            label: 'ConstellationLayoutSnapshotRestore',
+          ),
+        );
+    return _newestHistorySnapshotId();
+  }
+
+  /// Favourite first, then history newest first (kind 1 is history).
+  Future<String> _newestHistorySnapshotId() => _remoteApiService
+      .request(GConstellationLayoutSnapshotsReq())
+      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .then((response) {
+        final snapshots = response
+            .dataOrThrow(label: 'ConstellationLayoutSnapshots')
+            .constellationLayoutSnapshots;
+        return snapshots.firstWhere((snapshot) => snapshot.kind == 1).id;
+      });
 
   static Gv2_ConstellationAnchorOpInput _opToWire(
     ConstellationAnchorApplyOp op,

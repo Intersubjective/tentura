@@ -23,7 +23,17 @@ class ConstellationInteractionController {
   GraphController<NodeDetails, EdgeDetails> get _graphController =>
       _scene.graphController;
 
-  String? draggingNodeId;
+  String? _draggingNodeId;
+
+  String? get draggingNodeId => _draggingNodeId;
+
+  set draggingNodeId(String? nodeId) {
+    _draggingNodeId = nodeId;
+    if (nodeId == null) dragCentre.value = null;
+  }
+
+  /// Scene centre the dragged node is held at; null when no node is dragged.
+  final dragCentre = ValueNotifier<Offset?>(null);
   bool suppressLateGestureEnd = false;
 
   final Set<GraphNodeId> placementClusterGraphIds = {};
@@ -107,6 +117,7 @@ class ConstellationInteractionController {
     ConstellationAnchorTarget target,
     Offset sceneCentre,
   ) {
+    dragCentre.value = sceneCentre;
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     if (placementClusterGraphIds.isEmpty) {
       _scene.updateSingleNodePresentation(parentGraphId, sceneCentre);

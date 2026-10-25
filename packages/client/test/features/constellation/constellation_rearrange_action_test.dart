@@ -90,8 +90,15 @@ final class _HarnessAnchorRepository implements ConstellationWriteFake {
   Object? resetError;
 
   @override
+  Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  }) => throw UnimplementedError('restore is not used by this test');
+
+  @override
   Future<ConstellationAnchorResetResult> reset({
     required String clientOpId,
+    bool saveHistory = false,
   }) async {
     resetIds.add(clientOpId);
     final error = resetError;

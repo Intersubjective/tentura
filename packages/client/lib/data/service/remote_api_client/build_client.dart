@@ -376,6 +376,8 @@ class _V2RoutingLink extends Link {
     'ConstellationMutualTrustFetch',
     'ConstellationAnchorsApply',
     'ConstellationAnchorsReset',
+    'ConstellationLayoutSnapshotRestore',
+    'ConstellationLayoutSnapshots',
     'UserBlock',
     'UserUnblock',
     'UserBlockPromote',

@@ -3883,7 +3883,8 @@ type mutation_root {
   closureToggleSupport(beaconId: String!, expectedEpoch: Int!, on: Boolean!, targetId: String!): v2_ClosureToggleResult!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
-  constellationAnchorsReset(clientOpId: String!): v2_ConstellationAnchorsResetResult!
+  constellationAnchorsReset(clientOpId: String!, saveHistory: Boolean): v2_ConstellationAnchorsResetResult!
+  constellationLayoutSnapshotRestore(clientOpId: String, snapshotId: String): v2_ConstellationLayoutSnapshot!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
@@ -5113,6 +5114,7 @@ type query_root {
   personTagsOf(personId: String!): v2_PersonTagsOf!
   closureState(beaconId: String!): v2_ClosureState!
   constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
+  constellationLayoutSnapshots: [v2_ConstellationLayoutSnapshot!]!
   constellationFieldRequests(ids: [String!]!, participatedOnly: Boolean! = false, showClosed: Boolean! = false): [v2_ConstellationRequest!]!
   constellationMutualTrust(personId: String!): [String!]!
 
@@ -8179,6 +8181,14 @@ type v2_ConstellationAnchorProjection {
 enum v2_ConstellationAnchorTargetKind {
   BEACON
   PERSON
+}
+
+type v2_ConstellationLayoutSnapshot {
+  anchorCount: Int!
+  createdAt: String!
+  id: String!
+  kind: Int!
+  reason: Int!
 }
 
 type v2_ConstellationAnchorsResetResult {

@@ -78,8 +78,16 @@ final class _ApplyCall {
 /// Holds every response until the test releases it, exposing overlapping calls.
 final class _AnchorRepository implements ConstellationWriteFake {
   @override
-  Future<ConstellationAnchorResetResult> reset({required String clientOpId}) =>
-      throw UnimplementedError('reset is not used by this test');
+  Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  }) => throw UnimplementedError('restore is not used by this test');
+
+  @override
+  Future<ConstellationAnchorResetResult> reset({
+    required String clientOpId,
+    bool saveHistory = false,
+  }) => throw UnimplementedError('reset is not used by this test');
 
   final calls = <_ApplyCall>[];
   final confirmed = <ConstellationAnchorTarget, ConstellationAnchor>{};
@@ -405,7 +413,10 @@ void main() {
               hasLength(next + 1),
               reason: 'Only the currently released batch can be dispatched',
             );
-            expect(anchors.calls[next].ops.length, inInclusiveRange(1, kConstellationPlacementBatchCap));
+            expect(
+              anchors.calls[next].ops.length,
+              inInclusiveRange(1, kConstellationPlacementBatchCap),
+            );
             anchors.settle(next);
             next++;
             await _drain();

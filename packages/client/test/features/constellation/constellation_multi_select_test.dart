@@ -168,8 +168,15 @@ final class _Server implements ConstellationAnchorRepositoryPort {
   }
 
   @override
+  Future<String> restoreLayoutSnapshot({
+    required String snapshotId,
+    required String clientOpId,
+  }) => throw UnimplementedError('restore is not used by this test');
+
+  @override
   Future<ConstellationAnchorResetResult> reset({
     required String clientOpId,
+    bool saveHistory = false,
   }) async {
     final before = revision;
     final cleared = anchors.length;

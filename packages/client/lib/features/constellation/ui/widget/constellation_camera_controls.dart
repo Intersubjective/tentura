@@ -5,17 +5,26 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/constellation_cubit.dart';
+import 'constellation_arrange_sheet.dart';
 
 /// Floating camera recovery actions for the Constellation map (UI-08).
 class ConstellationCameraControls extends StatelessWidget {
   const ConstellationCameraControls({
     required this.cubit,
     required this.viewportInsets,
+    this.arrangeV2Enabled = false,
+    this.tagViewActive = false,
     super.key,
   });
 
   final ConstellationCubit cubit;
   final EdgeInsets viewportInsets;
+
+  /// The Arrange sheet replaces the Rearrange and Reset buttons.
+  final bool arrangeV2Enabled;
+
+  /// The Arrange sheet is not offered in the tag view.
+  final bool tagViewActive;
 
   /// Viewport insets passed to [ConstellationCubit.fitWholeField] /
   /// [ConstellationCubit.centerOnEgo], excluding this control column and any
@@ -103,7 +112,23 @@ class ConstellationCameraControls extends StatelessWidget {
               icon: const Icon(Icons.my_location),
               constraints: buttonSize,
             ),
-            if (state.hasUserPlacements) ...[
+            if (arrangeV2Enabled) ...[
+              if (!tagViewActive) ...[
+                SizedBox(height: tt.tightGap * 2),
+                IconButton.filledTonal(
+                  key: const Key('constellation.camera.arrange'),
+                  tooltip: l10n.constellationArrange,
+                  onPressed: enabled
+                      ? () => showConstellationArrangeSheet(
+                          context,
+                          cubit: cubit,
+                        )
+                      : null,
+                  icon: const Icon(Icons.tune),
+                  constraints: buttonSize,
+                ),
+              ],
+            ] else if (state.hasUserPlacements) ...[
               SizedBox(height: tt.tightGap * 2),
               // The icon's label names the button; the tooltip is visual
               // only, so it is not read twice (#678).

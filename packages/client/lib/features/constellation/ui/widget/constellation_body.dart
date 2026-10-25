@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
@@ -42,6 +43,7 @@ import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
 import 'constellation_composer_radius.dart';
+import 'constellation_drag_ring_overlay.dart';
 import 'constellation_composer_sheet.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
@@ -67,16 +69,29 @@ class _CancelPlacementIntent extends Intent {
   const _CancelPlacementIntent();
 }
 
+class _UndoArrangementIntent extends Intent {
+  const _UndoArrangementIntent();
+}
+
+class _RedoArrangementIntent extends Intent {
+  const _RedoArrangementIntent();
+}
+
 class ConstellationBody extends StatefulWidget {
   const ConstellationBody({
     required this.legendExpanded,
     required this.onToggleLegend,
     this.presentationFrameHolder,
+    this.arrangeV2Enabled = kFieldArrangeV2Enabled,
     super.key,
   });
 
   final bool legendExpanded;
   final VoidCallback onToggleLegend;
+
+  /// The Arrange menu, Ctrl/Cmd+Z undo / redo and the nearest-ring caption
+  /// while dragging (`kFieldArrangeV2Enabled`).
+  final bool arrangeV2Enabled;
 
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
@@ -791,12 +806,44 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   state.selectedRequestId != null;
 
               return Shortcuts(
-                shortcuts: const {
-                  SingleActivator(LogicalKeyboardKey.escape):
-                      _CancelPlacementIntent(),
+                shortcuts: {
+                  const SingleActivator(LogicalKeyboardKey.escape):
+                      const _CancelPlacementIntent(),
+                  if (widget.arrangeV2Enabled) ...{
+                    for (final (control, meta) in const [
+                      (true, false),
+                      (false, true),
+                    ]) ...{
+                      SingleActivator(
+                        LogicalKeyboardKey.keyZ,
+                        control: control,
+                        meta: meta,
+                      ): const _UndoArrangementIntent(),
+                      SingleActivator(
+                        LogicalKeyboardKey.keyZ,
+                        control: control,
+                        meta: meta,
+                        shift: true,
+                      ): const _RedoArrangementIntent(),
+                    },
+                  },
                 },
                 child: Actions(
                   actions: {
+                    _UndoArrangementIntent:
+                        CallbackAction<_UndoArrangementIntent>(
+                          onInvoke: (_) {
+                            unawaited(cubit.undoArrangement());
+                            return null;
+                          },
+                        ),
+                    _RedoArrangementIntent:
+                        CallbackAction<_RedoArrangementIntent>(
+                          onInvoke: (_) {
+                            unawaited(cubit.redoArrangement());
+                            return null;
+                          },
+                        ),
                     _CancelPlacementIntent:
                         CallbackAction<_CancelPlacementIntent>(
                           onInvoke: (_) {
@@ -1468,6 +1515,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   ),
           ),
+        if (widget.arrangeV2Enabled)
+          Positioned.fill(child: ConstellationDragRingOverlay(cubit: cubit)),
         Positioned(
           top: 0,
           left: 0,
@@ -1491,6 +1540,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               child: ConstellationCameraControls(
                 cubit: cubit,
                 viewportInsets: cameraInsets,
+                arrangeV2Enabled: widget.arrangeV2Enabled,
               ),
             ),
           ),

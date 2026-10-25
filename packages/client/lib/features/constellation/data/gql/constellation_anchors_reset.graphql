@@ -1,5 +1,5 @@
-mutation ConstellationAnchorsReset($clientOpId: String!) {
-  constellationAnchorsReset(clientOpId: $clientOpId) {
+mutation ConstellationAnchorsReset($clientOpId: String!, $saveHistory: Boolean) {
+  constellationAnchorsReset(clientOpId: $clientOpId, saveHistory: $saveHistory) {
     beforeRevision
     afterRevision
     clearedCount

@@ -263,6 +263,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   GraphController<NodeDetails, EdgeDetails> get graphController =>
       _scene.graphController;
 
+  /// Scene centre the dragged node is held at; null when nothing is dragged.
+  ValueListenable<Offset?> get dragCentre => _interaction.dragCentre;
+
   Map<GraphEdgeId, ConstellationEdgeKind> get edgeKinds => _scene.edgeKinds;
 
   Map<String, ConstellationEdgeKind> get edgeKindByPair =>
@@ -2065,15 +2068,46 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// account, hidden and off-screen ones included; the moved nodes return to
   /// the automatic layout here and, through the anchor hint, on the account's
   /// other devices. False when the reset could not be confirmed.
-  Future<bool> resetAllPositions() async {
+  /// With [saveHistory] the server saves the cleared layout, so the reset is
+  /// one entry [undoArrangement] takes back.
+  Future<bool> resetAllPositions({bool saveHistory = false}) async {
     final placement = _placementCase;
     if (isClosed || placement == null) {
       return false;
     }
     _writeCount++;
     try {
-      await placement.resetAll();
+      await placement.resetAll(saveHistory: saveHistory);
       return true;
+    } on Object catch (error, stackTrace) {
+      if (!isClosed) addError(error, stackTrace);
+      return false;
+    }
+  }
+
+  bool get canUndoArrangement => _placementCase?.history.canUndo ?? false;
+
+  bool get canRedoArrangement => _placementCase?.history.canRedo ?? false;
+
+  /// Takes back the last drag, unpin or reset. False when there is nothing to
+  /// undo or the server refused.
+  Future<bool> undoArrangement() =>
+      _runHistory((placement) => placement.undo());
+
+  /// Applies the last undone arrangement action again.
+  Future<bool> redoArrangement() =>
+      _runHistory((placement) => placement.redo());
+
+  Future<bool> _runHistory(
+    Future<bool> Function(ConstellationPlacementCase placement) run,
+  ) async {
+    final placement = _placementCase;
+    if (isClosed || placement == null) {
+      return false;
+    }
+    _writeCount++;
+    try {
+      return await run(placement);
     } on Object catch (error, stackTrace) {
       if (!isClosed) addError(error, stackTrace);
       return false;

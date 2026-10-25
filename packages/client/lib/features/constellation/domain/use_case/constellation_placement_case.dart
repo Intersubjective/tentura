@@ -84,10 +84,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
   /// apply batch in flight (whose echo may beat its acknowledgement) settles.
   Completer<void>? _applyBarrier;
 
-  /// Screen-session undo / redo of drags and unpins.
+  /// Screen-session undo / redo of drags, unpins and resets.
   late final history = ConstellationArrangementHistory(
     applyOps: _applyHistoryOps,
-    restoreSnapshot: (_) async => null,
+    restoreSnapshot: _restoreSnapshot,
     applyLocalLayout: (_) async {},
     flushPlacementOutbox: () async {},
     saveSnapshot: (_) async =>
@@ -133,6 +133,28 @@ final class ConstellationPlacementCase extends UseCaseBase {
     final outcome = _watch(placementOps);
     _enqueue(placementOps);
     return outcome;
+  }
+
+  /// Undo / redo of a reset or restore: the server puts the saved layout back
+  /// in one step; the id of the layout it replaced undoes it, null when the
+  /// server refused.
+  Future<String?> _restoreSnapshot(String snapshotId) async {
+    final applying = _applyBarrier;
+    if (applying != null) await applying.future;
+    final generation = _store.current.generation;
+    try {
+      final written = await _repository.restoreLayoutSnapshot(
+        snapshotId: snapshotId,
+        clientOpId: _uuid.v4(),
+      );
+      if (!_disposed && _store.current.generation == generation) {
+        unawaited(_store.requestRefresh(ConstellationRefreshReason.load));
+      }
+      return written;
+    } on Object catch (error, stackTrace) {
+      logger.warning('Constellation layout restore failed', error, stackTrace);
+      return null;
+    }
   }
 
   /// Records [ops] as one history step and marks it failed if any is rejected.
@@ -267,13 +289,19 @@ final class ConstellationPlacementCase extends UseCaseBase {
   /// the reset runs are kept and sent after it, based on the reset revision.
   /// The reset is retried under one operation id, so a retry never resets
   /// twice; concurrent calls share one reset; a change of account abandons
-  /// it before anything more is sent.
-  Future<ConstellationAnchorResetResult> resetAll() =>
-      _resetInFlight ??= _resetAll().whenComplete(() => _resetInFlight = null);
+  /// it before anything more is sent. With [saveHistory] the server saves the
+  /// cleared layout in the same call and the reset becomes one undoable
+  /// history entry.
+  Future<ConstellationAnchorResetResult> resetAll({bool saveHistory = false}) =>
+      _resetInFlight ??= _resetAll(
+        saveHistory: saveHistory,
+      ).whenComplete(() => _resetInFlight = null);
 
   Future<ConstellationAnchorResetResult>? _resetInFlight;
 
-  Future<ConstellationAnchorResetResult> _resetAll() async {
+  Future<ConstellationAnchorResetResult> _resetAll({
+    required bool saveHistory,
+  }) async {
     if (_disposed) {
       throw StateError('The placement case is disposed');
     }
@@ -291,9 +319,17 @@ final class ConstellationPlacementCase extends UseCaseBase {
       for (var attempt = 1; ; attempt++) {
         _requireAccount(generation);
         try {
-          final result = await _repository.reset(clientOpId: clientOpId);
+          final result = await _repository.reset(
+            clientOpId: clientOpId,
+            saveHistory: saveHistory,
+          );
           if (!_disposed && _store.current.generation == generation) {
             _store.applyReset(result.afterRevision);
+            if (saveHistory) {
+              history.record(
+                const SnapshotRestoreEntry(snapshotId: kLatestLayoutSnapshotId),
+              );
+            }
           }
           return result;
         } on Object catch (error, stackTrace) {
