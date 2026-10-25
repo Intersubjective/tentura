@@ -358,4 +358,23 @@ else
   bad "queue: --no-lock run failed"
 fi
 
+# A process that escapes the run's tag (here: clears TENTURA_TEST_CLEANUP_RUN,
+# like a long-lived analyzer daemon outside the cleanup) must not keep the
+# queue's lock fd: the wrapped command does not inherit it (tentura-dckd).
+QDAEMON="$NT/queue-daemon.pid"
+TENTURA_TEST_LOCK="$QLOCK" "$WRAP" --timeout 10s -- bash -c \
+  "env -u TENTURA_TEST_CLEANUP_RUN setsid sleep 60 >/dev/null 2>&1 </dev/null & echo \$! >'$QDAEMON'" \
+  >/dev/null 2>&1 || true
+lock_free=0
+for _ in $(seq 1 50); do
+  if flock -n "$QLOCK" true; then lock_free=1; break; fi
+  sleep 0.2
+done
+if (( lock_free )); then
+  ok "queue: an escaped background process does not hold the lock after the run"
+else
+  bad "queue: lock still held after the run by an escaped background process"
+fi
+[[ -s "$QDAEMON" ]] && kill "$(cat "$QDAEMON")" 2>/dev/null || true
+
 log "done"
