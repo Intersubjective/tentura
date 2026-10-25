@@ -552,10 +552,85 @@ void main() {
     await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
     expect(find.text('Map'), findsOneWidget);
 
-    final data = tester.getSemantics(find.byTooltip('Map')).getSemanticsData();
+    final data = tester
+        .getSemantics(
+          find.ancestor(
+            of: find.text('Map'),
+            matching: find.byType(TextButton),
+          ),
+        )
+        .getSemanticsData();
     final spoken = '${data.label}\n${data.tooltip}';
     expect(RegExp('Map').allMatches(spoken), hasLength(1));
     semantics.dispose();
+  });
+
+  // #678 (QA on 7.50.7): the view toggle was still read "Map Map" and, when
+  // selected, "List List": the tooltip added a second name beside the label.
+  group('the view toggle names each segment once', () {
+    List<SemanticsData> namedNodes(WidgetTester tester, String name) {
+      final found = <SemanticsData>[];
+      bool visit(SemanticsNode node) {
+        // A node merged into its button is read as part of the button.
+        if (node.isMergedIntoParent) return true;
+        final data = node.getSemanticsData();
+        if (data.label.contains(name) ||
+            data.tooltip.contains(name) ||
+            data.value.contains(name) ||
+            data.hint.contains(name)) {
+          found.add(data);
+        }
+        node.visitChildren(visit);
+        return true;
+      }
+
+      visit(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      return found;
+    }
+
+    for (final (mode, size) in [
+      (ConstellationViewMode.map, const Size(900, 800)),
+      (ConstellationViewMode.text, const Size(900, 800)),
+      (ConstellationViewMode.map, const Size(400, 800)),
+    ]) {
+      testWidgets('in ${mode.name} view at ${size.width.toInt()} wide', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+        cubit.setViewMode(mode);
+        await _pumpAppBar(tester, cubit: cubit, size: size);
+
+        for (final name in ['Map', 'List']) {
+          final nodes = namedNodes(tester, name);
+          expect(nodes, hasLength(1), reason: '$name is one node');
+          expect(nodes.single.label, name, reason: '$name is its label');
+          expect(nodes.single.tooltip, isEmpty, reason: '$name, no tooltip');
+        }
+        semantics.dispose();
+      });
+    }
+
+    testWidgets('in Russian', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpAppBar(
+        tester,
+        cubit: cubit,
+        size: const Size(900, 800),
+        locale: const Locale('ru'),
+      );
+
+      for (final name in ['Карта', 'Список']) {
+        final nodes = namedNodes(tester, name);
+        expect(nodes, hasLength(1), reason: '$name is one node');
+        expect(nodes.single.label, name);
+        expect(nodes.single.tooltip, isEmpty);
+      }
+      semantics.dispose();
+    });
   });
 
   // #659: on a phone the degree chips ran off the edge with no hint.
