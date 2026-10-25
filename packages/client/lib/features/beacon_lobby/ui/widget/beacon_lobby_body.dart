@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -13,9 +14,19 @@ import 'beacon_lobby_subtitle.dart';
 /// The Request Questions screen's content under its top bar (internally the
 /// lobby, U088).
 class BeaconLobbyBody extends StatefulWidget {
-  const BeaconLobbyBody({required this.myUserId, super.key});
+  const BeaconLobbyBody({
+    required this.myUserId,
+    this.remountComposerOnSend = kIsWeb,
+    super.key,
+  });
 
   final String myUserId;
+
+  /// Rebuilds the composer as a fresh field after each send (#727). Only on
+  /// the web, where a plain clear left the sent text in the field's
+  /// accessibility value; on Android/iOS a remount ends the IME connection
+  /// and the soft keyboard closes and reopens on every send.
+  final bool remountComposerOnSend;
 
   @override
   State<BeaconLobbyBody> createState() => _BeaconLobbyBodyState();
@@ -24,10 +35,35 @@ class BeaconLobbyBody extends StatefulWidget {
 class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
   final _composer = TextEditingController();
 
+  final _composerFocus = FocusNode();
+
+  /// Bumped after each send to rebuild the field (#727).
+  var _composerGeneration = 0;
+
   @override
   void dispose() {
     _composer.dispose();
+    _composerFocus.dispose();
     super.dispose();
+  }
+
+  /// Empties the composer after a send. On the web the field's
+  /// accessibility value kept the sent text after a plain clear (#727), so
+  /// there the field is rebuilt as a fresh node, keeping the focus for the
+  /// next message.
+  void _resetComposer() {
+    if (!widget.remountComposerOnSend) {
+      _composer.clear();
+      return;
+    }
+    final hadFocus = _composerFocus.hasFocus;
+    _composer.value = TextEditingValue.empty;
+    setState(() => _composerGeneration++);
+    if (hadFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _composerFocus.requestFocus();
+      });
+    }
   }
 
   Future<void> _confirmBan(
@@ -55,7 +91,7 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
     final cubit = context.read<BeaconLobbyCubit>();
     return BlocConsumer<BeaconLobbyCubit, BeaconLobbyState>(
       listenWhen: (p, c) => c.postedCount > p.postedCount,
-      listener: (_, _) => _composer.clear(),
+      listener: (_, _) => _resetComposer(),
       builder: (context, state) {
         if (state.isLoading) {
           return const Center(child: CircularProgressIndicator.adaptive());
@@ -161,23 +197,27 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        key: const Key('beaconLobbyComposer'),
-                        controller: _composer,
-                        minLines: 1,
-                        maxLines: 4,
-                        // Like the Chat composer (#658): Enter sends.
-                        textInputAction: TextInputAction.send,
-                        // Keep the focus for the next message (the default
-                        // would drop it after a send action).
-                        onEditingComplete: () {},
-                        onSubmitted: (text) {
-                          if (!state.sending) unawaited(cubit.post(text));
-                        },
-                        decoration: InputDecoration(
-                          hintText: state.isAuthor
-                              ? l10n.beaconLobbyComposerHintAuthor
-                              : l10n.beaconLobbyComposerHint,
+                      child: KeyedSubtree(
+                        key: ValueKey(_composerGeneration),
+                        child: TextField(
+                          key: const Key('beaconLobbyComposer'),
+                          controller: _composer,
+                          focusNode: _composerFocus,
+                          minLines: 1,
+                          maxLines: 4,
+                          // Like the Chat composer (#658): Enter sends.
+                          textInputAction: TextInputAction.send,
+                          // Keep the focus for the next message (the default
+                          // would drop it after a send action).
+                          onEditingComplete: () {},
+                          onSubmitted: (text) {
+                            if (!state.sending) unawaited(cubit.post(text));
+                          },
+                          decoration: InputDecoration(
+                            hintText: state.isAuthor
+                                ? l10n.beaconLobbyComposerHintAuthor
+                                : l10n.beaconLobbyComposerHint,
+                          ),
                         ),
                       ),
                     ),

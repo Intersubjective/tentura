@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
@@ -22,7 +23,11 @@ Widget _app(Widget child) => MaterialApp(
   home: child,
 );
 
-Widget _lobby(FakeLobbyPort port, String myId) {
+Widget _lobby(
+  FakeLobbyPort port,
+  String myId, {
+  bool remountComposerOnSend = false,
+}) {
   final sync = FakeRealtimeSyncPort();
   return _app(
     Scaffold(
@@ -36,10 +41,24 @@ Widget _lobby(FakeLobbyPort port, String myId) {
           unawaited(cubit.load());
           return cubit;
         },
-        child: BeaconLobbyBody(myUserId: myId),
+        child: BeaconLobbyBody(
+          myUserId: myId,
+          remountComposerOnSend: remountComposerOnSend,
+        ),
       ),
     ),
   );
+}
+
+/// The one text-field node on screen (the Questions composer).
+SemanticsNode _textFieldNode() {
+  final found = find.semantics
+      .byPredicate(
+        (node) => node.getSemanticsData().flagsCollection.isTextField,
+      )
+      .evaluate();
+  expect(found, hasLength(1));
+  return found.single;
 }
 
 void main() {
@@ -602,6 +621,71 @@ void main() {
       expect(find.text('Which Saturday?'), findsOneWidget);
       // Cleared for the next question.
       expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
+    });
+
+    testWidgets('after a send the field is empty for a screen reader too', (
+      tester,
+    ) async {
+      // #727: on the web the textbox kept the sent text as its accessibility
+      // value after a plain clear. The field is rebuilt as a fresh node.
+      final handle = tester.ensureSemantics();
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      await tester.pumpWidget(
+        _lobby(port, 'Unina', remountComposerOnSend: true),
+      );
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      await tester.enterText(composer, 'Do we need gloves?');
+      await tester.pump();
+      final before = _textFieldNode();
+      expect(before.value, 'Do we need gloves?');
+
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pumpAndSettle();
+
+      expect(port.calls, contains('post Do we need gloves?'));
+      final after = _textFieldNode();
+      expect(after.value, isEmpty);
+      expect(after.id, isNot(before.id));
+      // Still focused, ready for the next question.
+      expect(
+        tester.widget<TextField>(composer).focusNode!.hasFocus,
+        isTrue,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('on Android/iOS a send keeps the same field and keyboard', (
+      tester,
+    ) async {
+      // #727 review: the remount is web-only. On a phone it would end the
+      // IME connection, so the soft keyboard closed and reopened per send.
+      // Tests run on the VM, which is not the web: the default is off.
+      expect(
+        const BeaconLobbyBody(myUserId: 'x').remountComposerOnSend,
+        isFalse,
+      );
+      final handle = tester.ensureSemantics();
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      await tester.enterText(composer, 'Do we need gloves?');
+      await tester.pump();
+      final before = _textFieldNode();
+      final fieldState = tester.state(find.byType(EditableText));
+      expect(tester.testTextInput.isVisible, isTrue);
+
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pumpAndSettle();
+
+      expect(port.calls, contains('post Do we need gloves?'));
+      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
+      // The same field state and node: nothing was torn down and remounted.
+      expect(tester.state(find.byType(EditableText)), same(fieldState));
+      expect(_textFieldNode().id, before.id);
+      expect(tester.testTextInput.isVisible, isTrue);
+      handle.dispose();
     });
   });
 }
