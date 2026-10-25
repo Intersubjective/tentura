@@ -10660,6 +10660,14 @@
   "@constellationListOthers": {
     "context": "Field list: section of everyone else on the field (#253)"
   },
+  "constellationListGroupByTags": "By tags",
+  "@constellationListGroupByTags": {
+    "context": "Field list: toggle that groups people into a section per own tag"
+  },
+  "constellationListWithoutOwnTags": "Without own tags",
+  "@constellationListWithoutOwnTags": {
+    "context": "Field list, grouped by tags: last section, people who carry none of the viewer's own tags"
+  },
   "constellationListSemantics": "People on the field with their Requests and Posts",
   "@constellationListSemantics": {
     "context": "Field list: screen-reader name of the list (#253)"

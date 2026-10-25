@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -10,6 +13,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_tag_lens_cubit.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
@@ -23,6 +27,9 @@ import 'constellation_request_status_marker.dart';
 /// Uses the same snapshot, population, filters, and request ids as the map —
 /// not a second query. When [ConstellationCubit.peersCapped] is true,
 /// connection paths are suppressed (plain list recovery mode).
+///
+/// The tag row's selection narrows the list, and a toggle groups it into a
+/// section per own tag.
 class ConstellationTextView extends StatefulWidget {
   const ConstellationTextView({super.key});
 
@@ -33,7 +40,11 @@ class ConstellationTextView extends StatefulWidget {
 class _ConstellationTextViewState extends State<ConstellationTextView> {
   final Set<String> _announcedOverflowAuthors = {};
   final _search = TextEditingController();
+  final PeopleTagsCase? _peopleTags = GetIt.I.isRegistered<PeopleTagsCase>()
+      ? GetIt.I<PeopleTagsCase>()
+      : null;
   String _query = '';
+  bool _groupByTags = false;
 
   @override
   void dispose() {
@@ -43,6 +54,32 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
 
   @override
   Widget build(BuildContext context) {
+    final lensCubit = maybeConstellationTagLens(context);
+    final store = _peopleTags;
+    Widget list(ConstellationTagFilter filter) => _buildList(
+      context,
+      filter: filter,
+      ownTagIdsOf: lensCubit?.ownTagIdsOf ?? store?.tagsOfPerson,
+    );
+    Widget filtered() => lensCubit == null
+        ? list(const ConstellationTagFilter())
+        : BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+            bloc: lensCubit,
+            builder: (context, filter) => list(filter),
+          );
+    return store == null
+        ? filtered()
+        : StreamBuilder<void>(
+            stream: store.changes,
+            builder: (context, _) => filtered(),
+          );
+  }
+
+  Widget _buildList(
+    BuildContext context, {
+    required ConstellationTagFilter filter,
+    required Set<String> Function(String personId)? ownTagIdsOf,
+  }) {
     return BlocConsumer<ConstellationCubit, ConstellationState>(
       listenWhen: (previous, current) =>
           previous.graphRevision != current.graphRevision ||
@@ -144,10 +181,19 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
 
         final suppressConnections = cubit.peersCapped;
         final loadedAt = state.loadedAt ?? field.loadedAt;
+        final lens = ConstellationTagLens(
+          filter: filter,
+          people: field.peers,
+          ownTagIdsOf: ownTagIdsOf ?? (_) => const {},
+          viewerId: cubit.viewerId,
+        );
         final matching = [
           for (final person in people)
-            if (constellationPersonMatches(person, _query)) person,
+            if (constellationPersonMatches(person, _query) &&
+                !lens.isAuthorDimmed(person.id))
+              person,
         ];
+        final store = _peopleTags;
         final direct = [
           for (final person in matching)
             if (!person.isViewer && person.isDirectContact) person,
@@ -185,28 +231,42 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
             Semantics(
               liveRegion: true,
               child: Text(
-                l10n.constellationSearchNoMatch,
+                _query.isEmpty
+                    ? l10n.constellationEmptyFiltered
+                    : l10n.constellationSearchNoMatch,
                 key: const Key('constellation.text.search.no_match'),
                 style: theme.textTheme.bodyMedium,
               ),
             ),
           for (final person in matching)
             if (person.isViewer) personGroup(person),
-          // Sections only when the field has both kinds of people.
-          if (direct.isNotEmpty && others.isNotEmpty)
-            TenturaSectionHeader(
-              key: const Key('constellation.text.section.direct'),
-              label: l10n.constellationListDirectContacts,
-              count: direct.length,
-            ),
-          for (final person in direct) personGroup(person),
-          if (direct.isNotEmpty && others.isNotEmpty)
-            TenturaSectionHeader(
-              key: const Key('constellation.text.section.others'),
-              label: l10n.constellationListOthers,
-              count: others.length,
-            ),
-          for (final person in others) personGroup(person),
+          if (_groupByTags && store != null)
+            ..._tagSections(
+              l10n,
+              store,
+              [
+                for (final person in matching)
+                  if (!person.isViewer) person,
+              ],
+              personGroup,
+            )
+          else ...[
+            // Sections only when the field has both kinds of people.
+            if (direct.isNotEmpty && others.isNotEmpty)
+              TenturaSectionHeader(
+                key: const Key('constellation.text.section.direct'),
+                label: l10n.constellationListDirectContacts,
+                count: direct.length,
+              ),
+            for (final person in direct) personGroup(person),
+            if (direct.isNotEmpty && others.isNotEmpty)
+              TenturaSectionHeader(
+                key: const Key('constellation.text.section.others'),
+                label: l10n.constellationListOthers,
+                count: others.length,
+              ),
+            for (final person in others) personGroup(person),
+          ],
         ];
 
         return Column(
@@ -218,24 +278,40 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
                 top: tt.rowGap,
                 right: tt.screenHPadding,
               ),
-              child: SearchBar(
-                key: const Key('constellation.text.search'),
-                controller: _search,
-                hintText: l10n.constellationSearchHint,
-                leading: const Icon(Icons.search),
-                trailing: [
-                  if (_query.isNotEmpty)
-                    IconButton(
-                      key: const Key('constellation.text.search.clear'),
-                      tooltip: l10n.constellationSearchClear,
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        _search.clear();
-                        setState(() => _query = '');
-                      },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SearchBar(
+                      key: const Key('constellation.text.search'),
+                      controller: _search,
+                      hintText: l10n.constellationSearchHint,
+                      leading: const Icon(Icons.search),
+                      trailing: [
+                        if (_query.isNotEmpty)
+                          IconButton(
+                            key: const Key('constellation.text.search.clear'),
+                            tooltip: l10n.constellationSearchClear,
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _search.clear();
+                              setState(() => _query = '');
+                            },
+                          ),
+                      ],
+                      onChanged: (value) => setState(() => _query = value),
                     ),
+                  ),
+                  if (store != null) ...[
+                    SizedBox(width: tt.iconTextGap),
+                    FilterChip(
+                      key: const Key('constellation.text.group_by_tags'),
+                      label: Text(l10n.constellationListGroupByTags),
+                      selected: _groupByTags,
+                      onSelected: (value) =>
+                          setState(() => _groupByTags = value),
+                    ),
+                  ],
                 ],
-                onChanged: (value) => setState(() => _query = value),
               ),
             ),
             Expanded(
@@ -256,6 +332,53 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         );
       },
     );
+  }
+
+  /// A section per own tag in tag order (a person under every tag they
+  /// carry), then everyone without an own tag.
+  List<Widget> _tagSections(
+    L10n l10n,
+    PeopleTagsCase store,
+    List<ConstellationFieldPerson> people,
+    Widget Function(ConstellationFieldPerson person) personGroup,
+  ) {
+    final tagged = store.taggedIds;
+    final without = [
+      for (final person in people)
+        if (!tagged.contains(person.id)) person,
+    ];
+    return [
+      for (final tag in store.tags)
+        ..._tagSection(tag, store.peopleInTag(tag.id), people, personGroup),
+      if (without.isNotEmpty) ...[
+        TenturaSectionHeader(
+          key: const Key('constellation.text.tag_section.none'),
+          label: l10n.constellationListWithoutOwnTags,
+          count: without.length,
+        ),
+        for (final person in without) personGroup(person),
+      ],
+    ];
+  }
+
+  List<Widget> _tagSection(
+    PersonTag tag,
+    Set<String> memberIds,
+    List<ConstellationFieldPerson> people,
+    Widget Function(ConstellationFieldPerson person) personGroup,
+  ) {
+    final members = [
+      for (final person in people)
+        if (memberIds.contains(person.id)) person,
+    ];
+    return [
+      TenturaSectionHeader(
+        key: Key('constellation.text.tag_section.${tag.id}'),
+        label: tag.name,
+        count: members.length,
+      ),
+      for (final person in members) personGroup(person),
+    ];
   }
 
   bool _hasRows(ConstellationCubit cubit, String personId) =>

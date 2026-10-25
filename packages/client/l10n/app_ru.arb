@@ -7376,6 +7376,8 @@
   "constellationSearchNoMatch": "На поле нет никого с таким именем.",
   "constellationListDirectContacts": "Кому вы доверяете",
   "constellationListOthers": "Остальные на поле",
+  "constellationListGroupByTags": "По тегам",
+  "constellationListWithoutOwnTags": "Без своих тегов",
   "constellationListSemantics": "Люди на поле, их запросы и посты",
   "constellationListPostLabel": "Пост",
   "constellationContactOnlyNote": "Вы им доверяете. Их запросы и посты появятся здесь, когда вы сможете видеть друг друга.",
