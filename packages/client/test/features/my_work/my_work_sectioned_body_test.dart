@@ -557,11 +557,67 @@ void main() {
     expect(cubit.state.sort, MyWorkSort.recent);
     expect(find.byTooltip('Change sort order: Newest first'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.swap_vert));
+    await tester.tap(find.byTooltip('Change sort order: Newest first'));
     await tester.pump();
 
     expect(cubit.state.sort, MyWorkSort.oldest);
     expect(find.byTooltip('Change sort order: Oldest first'), findsOneWidget);
+
+    unawaited(cubit.close());
+    unawaited(homeAttention.close());
+    unawaited(boot.accounts.close());
+  });
+
+  // #431: the sort icon was the same swap arrow for every order; each order
+  // now shows its own icon.
+  testWidgets('each sort order shows its own icon', (tester) async {
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = const [];
+    final myWorkRepo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [_beacon(_beaconActive, 'Only active')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final boot = await _bootAttention(attentionRepo);
+    final cubit = MyWorkCubit(
+      userId: _accountId,
+      myWorkCase: buildTestMyWorkCase(
+        repo: myWorkRepo,
+        attentionCase: boot.attention,
+      ),
+    );
+    final homeAttention = HomeAttentionCubit(
+      boot.attention,
+      boot.accounts,
+      Logger('sort-icon'),
+    );
+
+    await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
+    final bar = find.byType(AppBar);
+    Finder icon(IconData data) =>
+        find.descendant(of: bar, matching: find.byIcon(data));
+
+    expect(cubit.state.sort, MyWorkSort.recent);
+    expect(icon(Icons.arrow_downward), findsOneWidget);
+    expect(icon(Icons.swap_vert), findsNothing);
+
+    await tester.tap(icon(Icons.arrow_downward));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(cubit.state.sort, MyWorkSort.oldest);
+    expect(icon(Icons.arrow_upward), findsOneWidget);
+    expect(icon(Icons.arrow_downward), findsNothing);
+
+    // The button debounces taps on the wall clock: let real time pass.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.tap(icon(Icons.arrow_upward));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(cubit.state.sort, MyWorkSort.alphabetical);
+    expect(icon(Icons.sort_by_alpha), findsOneWidget);
+    expect(icon(Icons.arrow_upward), findsNothing);
 
     unawaited(cubit.close());
     unawaited(homeAttention.close());

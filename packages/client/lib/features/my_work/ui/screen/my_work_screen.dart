@@ -215,7 +215,11 @@ class _MyWorkTitleControls extends StatelessWidget {
                   ],
                 ),
               ),
-              _MyWorkSortButton(label: sortLabel, collapsed: collapseSort),
+              _MyWorkSortButton(
+                label: sortLabel,
+                sort: view.sort,
+                collapsed: collapseSort,
+              ),
             ],
           );
         },
@@ -236,10 +240,22 @@ MyWorkSort _myWorkSortAfter(MyWorkSort current) => switch (current) {
   MyWorkSort.alphabetical => MyWorkSort.recent,
 };
 
+/// #431: the icon names the current order, like the label does.
+IconData _iconForSort(MyWorkSort sort) => switch (sort) {
+  MyWorkSort.recent => Icons.arrow_downward,
+  MyWorkSort.oldest => Icons.arrow_upward,
+  MyWorkSort.alphabetical => Icons.sort_by_alpha,
+};
+
 class _MyWorkSortButton extends StatefulWidget {
-  const _MyWorkSortButton({required this.label, required this.collapsed});
+  const _MyWorkSortButton({
+    required this.label,
+    required this.sort,
+    required this.collapsed,
+  });
 
   final String label;
+  final MyWorkSort sort;
   final bool collapsed;
 
   @override
@@ -264,7 +280,7 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
   @override
   Widget build(BuildContext context) => TenturaTopBarControl(
     label: widget.label,
-    icon: Icons.swap_vert,
+    icon: _iconForSort(widget.sort),
     tooltip: L10n.of(context)!.myWorkSortMenuTooltip,
     collapsed: widget.collapsed,
     onPressed: _onPressed,
