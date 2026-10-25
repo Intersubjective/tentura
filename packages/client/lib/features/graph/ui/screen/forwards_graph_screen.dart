@@ -72,16 +72,22 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
           future: context.read<GraphCubit>().forwardsBeacon,
           builder: (context, snapshot) {
             final beacon = snapshot.data;
-            final title = Text(
-              _titleFor(
-                l10n,
-                state.helpOffererViewerRole,
-                isPost: beacon != null
-                    ? beacon.kind == BeaconKind.post
-                    : kind == BeaconKind.post.name,
+            // A heading for screen readers (#601), its own node so the
+            // beacon title under it is read as plain text.
+            final title = Semantics(
+              header: true,
+              container: true,
+              child: Text(
+                _titleFor(
+                  l10n,
+                  state.helpOffererViewerRole,
+                  isPost: beacon != null
+                      ? beacon.kind == BeaconKind.post
+                      : kind == BeaconKind.post.name,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             );
             final beaconTitle = beacon?.title.trim();
             if (beaconTitle == null || beaconTitle.isEmpty) return title;
