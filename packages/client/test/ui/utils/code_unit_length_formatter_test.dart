@@ -102,4 +102,20 @@ void main() {
     // the insertion alone would keep only the invisible ZWJ.
     expect(type('👨\u200D👩', '👨\u200D👩\u200D👧').text, '👨\u200D👩');
   });
+  test('a keystroke mid-text in a full field is rejected, not inserted', () {
+    // #729 run 2: typing into a title already at its cap must not land a
+    // stray character mid-title.
+    const full = TextEditingValue(
+      text: 'abcdef',
+      selection: TextSelection.collapsed(offset: 3),
+    );
+    final value = formatter.formatEditUpdate(
+      full,
+      const TextEditingValue(
+        text: 'abcXdef',
+        selection: TextSelection.collapsed(offset: 4),
+      ),
+    );
+    expect(value, full);
+  });
 }
