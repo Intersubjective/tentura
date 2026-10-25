@@ -21,6 +21,9 @@ abstract interface class PeopleTagsRepositoryPort {
 
     /// Snapshot the people of this automatic tag kind into the new tag.
     int? fromAutoKind,
+
+    /// Snapshot the other members of this Request into the new tag.
+    String? fromBeaconId,
   });
 
   Future<PersonTag> personTagUpdate({

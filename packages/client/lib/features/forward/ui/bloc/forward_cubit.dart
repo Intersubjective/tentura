@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -434,13 +436,25 @@ class ForwardCubit extends Cubit<ForwardState> {
       return;
     }
     final inWatching = !state.viewerIsAuthor && !state.viewerHasActiveHelpOffer;
+    final tagCandidates = kPeopleTagsEnabled
+        ? PeopleTagSuggestionPlacements.forwardCandidates(
+            outcome.deliveredRecipientIds,
+          )
+        : const <String>[];
     final message = inWatching
         ? ForwardLocationMessage(
             beaconId: state.beaconId,
             skippedName: skippedName,
             skippedCount: skippedCount,
           )
-        : ForwardLocationMyWorkMessage(
+        : tagCandidates.isEmpty
+        ? ForwardLocationMyWorkMessage(
+            skippedName: skippedName,
+            skippedCount: skippedCount,
+          )
+        : ForwardLocationMyWorkAddToTagMessage(
+            beaconId: state.beaconId,
+            recipientIds: tagCandidates,
             skippedName: skippedName,
             skippedCount: skippedCount,
           );

@@ -108,6 +108,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
     String? glyph,
     int? color,
     int? fromAutoKind,
+    String? fromBeaconId,
   }) => _remoteApiService
       .request(
         GPersonTagCreateReq(
@@ -116,6 +117,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ..glyph = glyph
             ..color = color
             ..fromAutoKind = fromAutoKind
+            ..fromBeaconId = fromBeaconId
             ..clientOpId = clientOpId,
         ),
       )

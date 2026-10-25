@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/coordination/viewer_offer_accepted.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -21,6 +23,10 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/people_tags/ui/widget/tag_from_participants_button.dart';
+import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
@@ -39,6 +45,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     required this.l10n,
     this.focusUserId,
     this.peopleTabAttentionActive = false,
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
 
@@ -51,6 +58,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
 
   /// Highlights all unanswered offers; scroll/focus only the first.
   final bool peopleTabAttentionActive;
+
+  /// Shows the private people-tag entry points; off with the gate.
+  final bool peopleTagsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -590,10 +600,36 @@ class BeaconPeopleTabBody extends StatelessWidget {
       forwardsChildren = const [SizedBox.shrink()];
     }
 
+    final acceptedHelperIds = !peopleTagsEnabled
+        ? const <String>[]
+        : [
+            for (final row in sections.activeHelpers)
+              if (row.userId != state.myProfile.id)
+                ?PeopleTagSuggestionPlacements.acceptedHelpCandidate(
+                  viewerIsAuthor: state.isBeaconMine,
+                  helperId: row.userId,
+                  taggedIds: GetIt.I<PeopleTagsCase>().taggedIds,
+                ),
+          ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ?offerAcceptedEvent,
+        if (peopleTagsEnabled)
+          TagFromParticipantsButton(
+            beaconId: beacon.id,
+            isRequest: beacon.isRequest,
+            viewerIsMember: state.isInsideRequest,
+          ),
+        // The author is offered each helper they accepted, once per helper.
+        for (final helperId in acceptedHelperIds)
+          TagSuggestionCard(
+            event: PeopleTagSuggestionEvent.acceptedHelp(
+              '${beacon.id}:$helperId',
+            ),
+            personIds: [helperId],
+          ),
         AccordionExpansionGroup(
           accordionMode: false,
           child: AccordionExpansionTile(

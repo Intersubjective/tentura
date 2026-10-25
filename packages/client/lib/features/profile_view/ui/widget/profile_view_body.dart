@@ -24,6 +24,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
+import 'package:tentura/features/people_tags/ui/widget/mutual_trust_tag_suggestion.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../domain/port/person_shared_context_port.dart';
@@ -142,6 +143,11 @@ class ProfileViewBody extends StatelessWidget {
                   Padding(
                     padding: kPaddingSmallT,
                     child: PersonTagsBlock(personId: profile.id),
+                  ),
+                if (peopleTagsEnabled && !isSelf && profile.id.isNotEmpty)
+                  MutualTrustTagSuggestion(
+                    personId: profile.id,
+                    isMutual: profile.isMutualFriend,
                   ),
                 if (showNetwork) ProfileViewNetworkGroup(profile: profile),
               ],

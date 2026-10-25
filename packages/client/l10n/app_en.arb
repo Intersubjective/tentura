@@ -11234,6 +11234,22 @@
   "@peopleTagsNewTag": {
     "description": "Row in the add-to-tag sheet that opens the tag editor"
   },
+  "peopleTagsSuggestionTitle": "Tag them?",
+  "@peopleTagsSuggestionTitle": {
+    "description": "Title of the suggestion card offering to put people into a tag"
+  },
+  "peopleTagsSuggestionNotNow": "Not now",
+  "@peopleTagsSuggestionNotNow": {
+    "description": "Dismisses the Tag them suggestion card"
+  },
+  "peopleTagsSuggestionAdd": "Add",
+  "@peopleTagsSuggestionAdd": {
+    "description": "Puts the suggested people into the picked tag"
+  },
+  "peopleTagsFromParticipants": "Tag from participants",
+  "@peopleTagsFromParticipants": {
+    "description": "Creates a tag from the members of a Request"
+  },
   "peopleTagsOnlyYouSee": "Only you see your tags.",
   "@peopleTagsOnlyYouSee": {
     "description": "Privacy footer of the add-to-tag sheet"

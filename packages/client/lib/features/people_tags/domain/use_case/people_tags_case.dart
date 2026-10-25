@@ -54,6 +54,9 @@ final class PeopleTagsCase extends UseCaseBase {
   /// Ids of the people in own tag [tagId].
   Set<String> peopleInTag(String tagId) => {...?_members[tagId]};
 
+  /// Ids of everyone who is in at least one own tag.
+  Set<String> get taggedIds => {for (final p in _members.values) ...p};
+
   /// Ids of the own tags [personId] is in.
   Set<String> tagsOfPerson(String personId) => {
     for (final e in _members.entries)
@@ -148,21 +151,24 @@ final class PeopleTagsCase extends UseCaseBase {
 
   /// Creates an own tag and puts it last in the list. With [fromAutoKind]
   /// the server fills it with the people of that automatic tag, so the
-  /// membership index is reloaded.
+  /// membership index is reloaded; likewise with [fromBeaconId], which fills
+  /// it with the other members of that Request.
   Future<PersonTag> createTag({
     required String name,
     String? glyph,
     int? color,
     int? fromAutoKind,
+    String? fromBeaconId,
   }) async {
     final tag = await _repository.personTagCreate(
       name: name,
       glyph: glyph,
       color: color,
       fromAutoKind: fromAutoKind,
+      fromBeaconId: fromBeaconId,
       clientOpId: _uuid.v4(),
     );
-    if (fromAutoKind != null) {
+    if (fromAutoKind != null || fromBeaconId != null) {
       await load();
     } else {
       _tags = [..._tags, tag]..sort((a, b) => a.ord.compareTo(b.ord));
@@ -170,6 +176,13 @@ final class PeopleTagsCase extends UseCaseBase {
     }
     return tag;
   }
+
+  /// Whether "Tag from participants" is offered: only to a member of a
+  /// Request, never on a Post.
+  bool canTagFromParticipants({
+    required bool viewerIsMember,
+    required bool isRequest,
+  }) => viewerIsMember && isRequest;
 
   /// Renames or recolours own tag [id].
   Future<PersonTag> updateTag({

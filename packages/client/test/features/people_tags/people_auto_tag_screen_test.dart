@@ -77,6 +77,7 @@ final class _FakePeopleTagsRepository implements PeopleTagsRepositoryPort {
     String? glyph,
     int? color,
     int? fromAutoKind,
+    String? fromBeaconId,
   }) async {
     created.add((name: name, fromAutoKind: fromAutoKind));
     final tag = PersonTag(

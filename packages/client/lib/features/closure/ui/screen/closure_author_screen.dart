@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -17,7 +22,13 @@ import '../widget/closure_story_field.dart';
 /// Body of the author's «Подвести итоги» screen — extracted for widget tests
 /// (no AutoRouter). Needs a [ClosureAuthorCubit] above it.
 class ClosureAuthorView extends StatelessWidget {
-  const ClosureAuthorView({super.key});
+  const ClosureAuthorView({
+    this.peopleTagsEnabled = kPeopleTagsEnabled,
+    super.key,
+  });
+
+  /// Offers the private "Tag them?" card; off with the gate.
+  final bool peopleTagsEnabled;
 
   @override
   Widget build(BuildContext context) =>
@@ -49,15 +60,16 @@ class ClosureAuthorView extends StatelessWidget {
                     ),
             );
           }
-          return _Body(state: state);
+          return _Body(state: state, peopleTagsEnabled: peopleTagsEnabled);
         },
       );
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.state});
+  const _Body({required this.state, required this.peopleTagsEnabled});
 
   final ClosureAuthorState state;
+  final bool peopleTagsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +83,15 @@ class _Body extends StatelessWidget {
       ...data.members.where((m) => m.departure != null),
     ];
     const gap = SizedBox(height: TenturaSpacing.section);
+    // This screen is the author's own, so viewer and author are one person.
+    final tagCandidates = peopleTagsEnabled
+        ? PeopleTagSuggestionPlacements.closureCandidates(
+            viewerId: '',
+            authorId: '',
+            memberIds: [for (final m in members) m.id],
+            taggedIds: GetIt.I<PeopleTagsCase>().taggedIds,
+          )
+        : const <String>[];
     // ListView builds its children lazily: long rosters stay cheap.
     return ListView(
       padding: context.tt.cardPadding,
@@ -100,6 +121,13 @@ class _Body extends StatelessWidget {
         gap,
         ClosureStoryField(initial: data.story, onSave: cubit.saveStory),
         gap,
+        if (tagCandidates.isNotEmpty) ...[
+          TagSuggestionCard(
+            event: PeopleTagSuggestionEvent.closure(cubit.beaconId),
+            personIds: tagCandidates,
+          ),
+          gap,
+        ],
         ClosureFooter(state: state),
       ],
     );

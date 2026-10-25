@@ -1,7 +1,10 @@
 import 'dart:async' show unawaited;
 
+import 'package:flutter/material.dart' show Dialog, showDialog;
 import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
+import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
 String _forwardLocationPauseSuffixEn({
@@ -177,7 +180,7 @@ Future<void> _openForwardedRequestInWatching(String beaconId) async {
 }
 
 /// Standalone forward success: ego home is My Work (author or active help offer).
-final class ForwardLocationMyWorkMessage extends LocalizableMessage {
+base class ForwardLocationMyWorkMessage extends LocalizableMessage {
   const ForwardLocationMyWorkMessage({
     this.skippedName,
     this.skippedCount,
@@ -199,6 +202,54 @@ final class ForwardLocationMyWorkMessage extends LocalizableMessage {
     skippedName: skippedName,
     skippedCount: skippedCount,
   );
+}
+
+/// [ForwardLocationMyWorkMessage] to two or more people, with an
+/// "Add to tag…" action that offers them the private "Tag them?" card.
+final class ForwardLocationMyWorkAddToTagMessage
+    extends ForwardLocationMyWorkMessage
+    implements LocalizableActionMessage {
+  const ForwardLocationMyWorkAddToTagMessage({
+    required this.beaconId,
+    required this.recipientIds,
+    super.skippedName,
+    super.skippedCount,
+  });
+
+  final String beaconId;
+  final List<String> recipientIds;
+
+  @override
+  LocalizableMessage get label => const _AddToTagLabel();
+
+  @override
+  void Function() get onPressed => () {
+    final context = GetIt.I<RootRouter>().navigatorKey.currentContext;
+    if (context == null) return;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          child: TagSuggestionCard(
+            event: PeopleTagSuggestionEvent.forwardSent(
+              '$beaconId:${([...recipientIds]..sort()).join(',')}',
+            ),
+            personIds: recipientIds,
+          ),
+        ),
+      ),
+    );
+  };
+}
+
+final class _AddToTagLabel extends LocalizableMessage {
+  const _AddToTagLabel();
+
+  @override
+  String get toEn => 'Add to tag…';
+
+  @override
+  String get toRu => 'Добавить в тег…';
 }
 
 final class _OpenInWatchingLabel extends LocalizableMessage {
