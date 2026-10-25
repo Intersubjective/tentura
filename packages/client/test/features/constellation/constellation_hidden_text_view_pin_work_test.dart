@@ -134,6 +134,7 @@ Future<void> _recomposeMap(
 /// field (#253), so the visible tiles are all of them.
 Future<void> _fitAllTiles(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(1280, 1100));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpAndSettle();
 }
 

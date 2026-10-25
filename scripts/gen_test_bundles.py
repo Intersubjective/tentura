@@ -141,7 +141,10 @@ def reset_function(flutter: bool, uses_get_it: bool) -> list[str]:
         body.append("  await GetIt.I.reset();")
     if flutter:
         # Test view size / pixel ratio, text scale, locale, brightness...
-        # set by one file without a matching reset.
+        # set by one file without a matching reset. Not the binding's
+        # setSurfaceSize override: that call only works inside a test, so
+        # each file resets its own (test/architecture/
+        # test_surface_size_reset_test.dart, #754).
         body += [
             "  if (BindingBase.debugBindingType() != null) {",
             "    final binding = TestWidgetsFlutterBinding.instance;",
