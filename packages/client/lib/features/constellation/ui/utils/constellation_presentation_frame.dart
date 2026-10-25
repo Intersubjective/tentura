@@ -17,6 +17,9 @@ const kConstellationDistrictDetailScale = 0.45;
 /// Screen diameter of a person's dot at the overview (#595).
 const kConstellationOverviewDotDiameter = 5.0;
 
+/// Screen diameter of a person's initials circle at the district level (E3).
+const kConstellationDistrictMarkerDiameter = 20.0;
+
 /// With semantic zoom gated off, a map below this scale is a clean overview
 /// of shapes and edges: no label and no overflow chip at all (#595). Fitting
 /// a modest field already lands near 0.4, so a fitted map keeps its labels.
@@ -66,6 +69,7 @@ final class ConstellationFrameNodeInput {
     required this.priority,
     required this.ring,
     required this.labelCandidate,
+    this.labelTier = 0,
   });
 
   final GraphNodeId id;
@@ -76,6 +80,10 @@ final class ConstellationFrameNodeInput {
   final int priority;
   final int ring;
   final bool labelCandidate;
+
+  /// Orders people of the same [priority] under a tight label budget, before
+  /// the [ring] does: lower tiers are named first.
+  final int labelTier;
 }
 
 @immutable
@@ -270,6 +278,8 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
         ..sort((a, b) {
           final pc = a.priority.compareTo(b.priority);
           if (pc != 0) return pc;
+          final tc = a.labelTier.compareTo(b.labelTier);
+          if (tc != 0) return tc;
           final rc = a.ring.compareTo(b.ring);
           if (rc != 0) return rc;
           return a.id.compareTo(b.id);

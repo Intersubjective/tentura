@@ -9,6 +9,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
@@ -1538,6 +1539,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               camera: cubit.graphController.cameraRevision,
                               scale: () => cubit.graphController.cameraScale,
                             ),
+                      districtPerson: ring == 0 ? null : person,
                       temporaryOutline:
                           widget.fieldMembershipV2Enabled &&
                               cubit
@@ -2180,11 +2182,66 @@ class _OverviewDot extends StatelessWidget {
   );
 }
 
+/// A [kConstellationDistrictMarkerDiameter] circle of the person's initials on
+/// screen whatever the camera scale, ringed in the first own-tag colour (no
+/// ring without a tag), centred in the node's own scene box.
+class _DistrictMarker extends StatelessWidget {
+  const _DistrictMarker({
+    required this.spec,
+    required this.person,
+    required this.ringColor,
+    required this.markerKey,
+  });
+
+  final _OverviewDotSpec spec;
+  final Profile person;
+  final Color? ringColor;
+  final Key? markerKey;
+
+  static const _ringWidth = 2.0;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: spec.sceneSize,
+    child: Center(
+      child: ListenableBuilder(
+        listenable: spec.camera,
+        builder: (_, _) {
+          final scale = spec.scale();
+          final diameter = kConstellationDistrictMarkerDiameter / scale;
+          final ringColor = this.ringColor;
+          return SizedBox.square(
+            key: markerKey,
+            dimension: diameter,
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: ringColor == null
+                    ? null
+                    : Border.all(color: ringColor, width: _ringWidth / scale),
+              ),
+              child: ClipOval(
+                child: ProfileAvatarInitials(
+                  lettering: TenturaAvatar.initialsForProfile(person),
+                  size: diameter,
+                  hueKey: person.id,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
 class _ConstellationMapNode extends StatelessWidget {
   const _ConstellationMapNode({
     required this.child,
     required this.detail,
     this.dot,
+    this.districtPerson,
     this.temporaryOutline,
     this.pinBadge,
     this.statusBadge,
@@ -2200,6 +2257,9 @@ class _ConstellationMapNode extends StatelessWidget {
   /// Set for a person who is drawn as a bare dot at the overview.
   final _OverviewDotSpec? dot;
 
+  /// Set for a person who is drawn as an initials circle at the district.
+  final Profile? districtPerson;
+
   /// Dashed ring of a temporary person, drawn over the node (not at the
   /// overview, where the node is a dot).
   final Widget? temporaryOutline;
@@ -2211,6 +2271,7 @@ class _ConstellationMapNode extends StatelessWidget {
       _ConstellationMapNode(
         detail: detail,
         dot: dot,
+        districtPerson: districtPerson,
         temporaryOutline: temporaryOutline,
         pinBadge: pinBadge,
         statusBadge: statusBadge,
@@ -2222,12 +2283,24 @@ class _ConstellationMapNode extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final dot = this.dot;
+    final districtPerson = this.districtPerson;
     final shown = dot != null && detail == ConstellationDetailLevel.overview
         ? _OverviewDot(
             key: child.key,
             spec: dot,
             color: ownTags.isEmpty
                 ? HSLColor.fromColor(tt.textMuted).withSaturation(0).toColor()
+                : context.tagColors.swatchFor(ownTags.first.color).accent,
+          )
+        : dot != null &&
+              districtPerson != null &&
+              detail == ConstellationDetailLevel.district
+        ? _DistrictMarker(
+            spec: dot,
+            person: districtPerson,
+            markerKey: child.key,
+            ringColor: ownTags.isEmpty
+                ? null
                 : context.tagColors.swatchFor(ownTags.first.color).accent,
           )
         : child;

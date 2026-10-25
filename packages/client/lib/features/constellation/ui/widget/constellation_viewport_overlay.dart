@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
@@ -106,6 +109,21 @@ class _ConstellationViewportOverlayState
     _seenSnapshot = controller.renderSnapshot;
     controller.cameraRevision.addListener(_onCamera);
     controller.addListener(_onController);
+    _lens = maybeConstellationTagLens(context);
+    _lensSubscription = _lens?.stream.listen((_) => _structure.value++);
+  }
+
+  ConstellationTagLensCubit? _lens;
+  StreamSubscription<ConstellationTagFilter>? _lensSubscription;
+
+  /// Whether the tag lens is on and holds [personId] (their own tags).
+  bool _matchesSelectedTag(String personId) {
+    final lens = _lens;
+    final person = widget.cubit.fieldPersonById(personId);
+    return lens != null &&
+        person != null &&
+        !lens.state.isEmpty &&
+        lens.state.matches(person, ownTagIds: lens.ownTagIdsOf(personId));
   }
 
   @override
@@ -113,6 +131,7 @@ class _ConstellationViewportOverlayState
     final controller = widget.cubit.graphController;
     controller.cameraRevision.removeListener(_onCamera);
     controller.removeListener(_onController);
+    unawaited(_lensSubscription?.cancel());
     _cameraShape.dispose();
     _structure.dispose();
     _frameTick.dispose();
@@ -359,6 +378,10 @@ class _ConstellationViewportOverlayState
                       node is FieldPersonNode &&
                       node.ring != 0
                   ? kConstellationOverviewDotDiameter
+                  : _detail == ConstellationDetailLevel.district &&
+                        node is FieldPersonNode &&
+                        node.ring != 0
+                  ? kConstellationDistrictMarkerDiameter
                   : node.size * scale;
 
               final priority = switch (node) {
@@ -378,6 +401,21 @@ class _ConstellationViewportOverlayState
                 FieldPersonNode(:final ring) => ring,
                 _ => 0,
               };
+
+              // At the district a tight budget names the pinned, then the
+              // people of the selected tag, then the nearest by path.
+              final labelTier =
+                  _detail == ConstellationDetailLevel.district &&
+                      priority == 2 &&
+                      node is FieldPersonNode
+                  ? widget.cubit.isAnchored(
+                          ConstellationAnchorTarget.person(node.person.id),
+                        )
+                        ? 0
+                        : _matchesSelectedTag(node.person.id)
+                        ? 1
+                        : 2
+                  : 0;
 
               final labelCandidate =
                   !bare &&
@@ -438,6 +476,7 @@ class _ConstellationViewportOverlayState
                   priority: priority,
                   ring: ring,
                   labelCandidate: labelCandidate,
+                  labelTier: labelTier,
                 ),
               );
             }
@@ -511,6 +550,7 @@ class _ConstellationViewportOverlayState
                   input.priority,
                   input.ring,
                   input.labelCandidate,
+                  input.labelTier,
                 ),
               for (final chip in chipInputs)
                 (chip.authorId, chip.authorGraphId, chip.size),
