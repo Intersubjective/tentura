@@ -40,10 +40,32 @@ Future<void> _pumpChipSet(
     ),
   );
   await tester.pumpAndSettle();
-  // Groups start folded; open Logistics like the user in the report did.
-  await tester.tap(find.text(_l10n.capabilityGroupLogistics));
-  await tester.pumpAndSettle();
+  // Groups start folded unless they hold a selected tag (#436); open
+  // Logistics like the user in the report did.
+  if (_chip(CapabilityTag.transport).evaluate().isEmpty) {
+    await tester.tap(find.text(_l10n.capabilityGroupLogistics));
+    await tester.pumpAndSettle();
+  }
 }
+
+Widget _host({
+  Set<String> selected = const {},
+  Set<String> automatic = const {},
+}) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: L10n.localizationsDelegates,
+  supportedLocales: L10n.supportedLocales,
+  theme: TenturaTheme.light(),
+  home: Scaffold(
+    body: SingleChildScrollView(
+      child: CapabilityChipSet(
+        selectedSlugs: selected,
+        automaticSlugs: automatic,
+        onChanged: (_) {},
+      ),
+    ),
+  ),
+);
 
 void main() {
   testWidgets(
@@ -105,5 +127,43 @@ void main() {
     expect(idle.backgroundColor, swatch.container.withValues(alpha: 0.4));
     expect((idle.avatar! as Icon).color, swatch.onContainer);
     expect(idle.labelStyle?.color, swatch.onContainer);
+  });
+
+  group('#436 a group holding a choice starts open', () {
+    testWidgets('a selected tag opens its group, and only that one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(selected: {CapabilityTag.tools.slug}),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_chip(CapabilityTag.tools), findsOneWidget);
+      expect(
+        tester.widget<FilterChip>(_chip(CapabilityTag.tools)).selected,
+        isTrue,
+      );
+      // Accordion: the other groups stay folded.
+      expect(_chip(CapabilityTag.money), findsNothing);
+    });
+
+    testWidgets('a pre-existing tag opens its group', (tester) async {
+      await tester.pumpWidget(
+        _host(automatic: {CapabilityTag.money.slug}),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_chip(CapabilityTag.money), findsOneWidget);
+      expect(_chip(CapabilityTag.tools), findsNothing);
+    });
+
+    testWidgets('guard: with nothing chosen every group is folded', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FilterChip), findsNothing);
+    });
   });
 }

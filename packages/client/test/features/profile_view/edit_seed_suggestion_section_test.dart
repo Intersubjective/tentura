@@ -22,7 +22,10 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: SingleChildScrollView(child: child)),
 );
 
+/// Opens Logistics unless it is open already: a group holding a selected
+/// tag starts open (#436), and a tap there would fold it.
 Future<void> _expandLogisticsGroup(WidgetTester tester) async {
+  if (find.text('Transport').evaluate().isNotEmpty) return;
   final tile = find.text('Logistics');
   await tester.ensureVisible(tile);
   await tester.pumpAndSettle();
@@ -158,8 +161,8 @@ void main() {
       );
       expect(find.text(l10n.profileSeedSuggestionWithdraw), findsOneWidget);
 
-      // Accordion mode keeps collapsed groups' chips out of the tree.
-      // Expand Logistics only — do not tap Transport — then read selected.
+      // The group holding the saved tag starts open (#436); do not tap
+      // Transport, just read selected.
       await _expandLogisticsGroup(tester);
 
       final transportChip = find.byKey(
@@ -230,7 +233,9 @@ void main() {
     );
   });
 
-  testWidgets('skipped with slugs shows edit copy and withdraw', (tester) async {
+  testWidgets('skipped with slugs shows edit copy and withdraw', (
+    tester,
+  ) async {
     await pumpSection(
       tester,
       state: PromptStateValue.skipped,
@@ -245,7 +250,9 @@ void main() {
     expect(find.text(l10n.profileSeedSuggestionWithdraw), findsOneWidget);
   });
 
-  testWidgets('skipped state shows add prompt without withdraw', (tester) async {
+  testWidgets('skipped state shows add prompt without withdraw', (
+    tester,
+  ) async {
     await pumpSection(tester, state: PromptStateValue.skipped);
 
     expect(

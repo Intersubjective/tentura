@@ -51,9 +51,22 @@ class CapabilityChipSet extends StatelessWidget {
     final searching = query.trim().isNotEmpty;
 
     final sections = <Widget>[];
+    // In accordion mode only one group is open, and a tile's own
+    // `initiallyExpanded` is not read there: open the first group that holds
+    // a selected or pre-existing tag, so a reopened picker shows the choice
+    // instead of a folded group with a count badge (#436).
+    String? heldGroupId;
     for (final group in CapabilityGroup.values) {
       final tags = _matchingTags(group, l10n);
       if (tags.isEmpty) continue;
+      if (heldGroupId == null &&
+          tags.any(
+            (t) =>
+                selectedSlugs.contains(t.slug) ||
+                automaticSlugs.contains(t.slug),
+          )) {
+        heldGroupId = group.name;
+      }
       sections.add(
         _GroupSection(
           group: group,
@@ -77,6 +90,7 @@ class CapabilityChipSet extends StatelessWidget {
 
     return AccordionExpansionGroup(
       accordionMode: !searching,
+      initialExpandedId: heldGroupId,
       child: Theme(
         // One interaction theme for the whole set — avoids ThemeData.copyWith
         // per group on every rebuild (was amplifying browse-open jank).
