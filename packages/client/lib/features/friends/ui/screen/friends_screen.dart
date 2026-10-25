@@ -667,14 +667,22 @@ class _InvitesSegmentList extends StatelessWidget {
             await invitationCubit.deleteInvitationById(invitation.id);
           }
         },
-        onTap: () => ShareCodeDialog.show(
-          context,
-          header: l10n.labelInvitationCode,
-          link: inviteShareUri(invitation.id),
-          caption: invitation.beaconId == null || invitation.beaconId!.isEmpty
-              ? l10n.invitationDualPurposeBody
-              : null,
-        ),
+        onTap: () {
+          final forBeacon =
+              invitation.beaconId != null && invitation.beaconId!.isNotEmpty;
+          // A request invite re-opened here is not a bare "Invitation code"
+          // (#605, #452): it says it brings someone into a request.
+          unawaited(
+            ShareCodeDialog.show(
+              context,
+              header: forBeacon
+                  ? l10n.friendsRequestInviteDialogTitle
+                  : l10n.labelInvitationCode,
+              link: inviteShareUri(invitation.id),
+              caption: forBeacon ? null : l10n.invitationDualPurposeBody,
+            ),
+          );
+        },
       ),
     );
   }
