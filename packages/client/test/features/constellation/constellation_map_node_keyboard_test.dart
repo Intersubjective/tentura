@@ -3,10 +3,12 @@
 // only gives a DOM node a tabindex when its semantics node is focusable).
 // Tab walks the nodes in map reading order (not widget-tree order), and a
 // node Tab lands on off screen is brought into view.
-// Issue #680: Escape closes the person or Request panel.
+// Issue #680: Escape closes the person or Request panel, also right after a
+// mouse click, and a click on an empty spot of the map clears the selection.
 // Issue #678: a node's semantics rect is never smaller than a tap target.
 // Issue #675: what the map paints stays under the chip row above it.
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +20,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_post_preview_sheet.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
@@ -130,6 +133,8 @@ Future<void> _pumpBody(
   WidgetTester tester,
   ConstellationCubit cubit, {
   Map<ShortcutActivator, Intent>? shortcuts,
+  ConstellationSelectionCubit? selection,
+  Widget? outside,
 }) async {
   const size = _size;
   await tester.binding.setSurfaceSize(size);
@@ -153,11 +158,27 @@ Future<void> _pumpBody(
               BlocProvider<ScreenCubit>(
                 create: (_) => ScreenCubit(FakeUiEffectPort()),
               ),
+              if (selection != null)
+                BlocProvider<ConstellationSelectionCubit>.value(
+                  value: selection,
+                ),
             ],
-            child: ConstellationBody(
-              legendExpanded: false,
-              onToggleLegend: () {},
-            ),
+            child: outside == null
+                ? ConstellationBody(
+                    legendExpanded: false,
+                    onToggleLegend: () {},
+                  )
+                : Column(
+                    children: [
+                      Material(child: outside),
+                      Expanded(
+                        child: ConstellationBody(
+                          legendExpanded: false,
+                          onToggleLegend: () {},
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -198,6 +219,60 @@ bool _focusIsOnNode(WidgetTester tester, String id, List<String> others) {
     }
   }
   return true;
+}
+
+/// A mouse click (press and release, no movement) at [at].
+Future<void> _click(WidgetTester tester, Offset at) async {
+  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await mouse.addPointer(location: at);
+  await mouse.down(at);
+  await tester.pump();
+  await mouse.up();
+  await tester.pump();
+  await mouse.removePointer();
+  await tester.pumpAndSettle();
+}
+
+/// A point on the map, away from every node and panel, that a pointer
+/// there reaches the map itself (not a control drawn over it).
+Offset _emptyMapPoint(WidgetTester tester, List<String> nodes) {
+  final map = tester.getRect(find.byType(ConstellationViewportOverlay));
+  // In select mode the box-select layer lies over the empty map and takes
+  // its presses; that layer is the map too.
+  final box = find.byKey(const Key('constellation.selection.box'));
+  final targets = {
+    tester.renderObject(find.byType(InteractiveViewer)),
+    if (box.evaluate().isNotEmpty) tester.renderObject(box),
+  };
+  final centres = [
+    for (final id in nodes)
+      if (_node(id).evaluate().isNotEmpty) tester.getCenter(_node(id)),
+  ];
+  final covered = [
+    for (final panel in [
+      find.byType(GraphPersonContextPanel),
+      find.byType(ConstellationPostPreviewSheet),
+    ])
+      if (panel.evaluate().isNotEmpty) tester.getRect(panel).inflate(24),
+  ];
+  for (var y = map.top + 40; y < map.bottom - 40; y += 30) {
+    for (var x = map.left + 40; x < map.right - 40; x += 30) {
+      final p = Offset(x, y);
+      if (centres.any((c) => (c - p).distance < 200)) continue;
+      if (covered.any((r) => r.contains(p))) continue;
+      final hits = tester.hitTestOnBinding(p).path;
+      if (hits.any((entry) => targets.contains(entry.target))) return p;
+    }
+  }
+  fail('no empty spot of the map found');
+}
+
+/// Takes keyboard focus off the map, as on the web page before any click
+/// (QA on #680: the next Tab landed on the first toolbar button).
+Future<void> _focusOffMap(WidgetTester tester) async {
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pump();
+  expect(_focusIsInBody(), isFalse, reason: 'test setup: focus off the map');
 }
 
 /// Presses Tab until map node [id] has focus; returns whether it ever did.
@@ -681,6 +756,161 @@ void main() {
 
       expect(cubit.state.selectedRequestId, isNull);
       expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+    });
+
+    testWidgets('Escape right after a mouse click on a person closes the '
+        'panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      await _focusOffMap(tester);
+
+      await _click(tester, tester.getCenter(_node('a')));
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedPersonId, isNull);
+      expect(find.byType(GraphPersonContextPanel), findsNothing);
+    });
+
+    testWidgets('Escape right after a mouse click on a Post closes the '
+        'panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      await _focusOffMap(tester);
+
+      await _click(tester, tester.getCenter(_node('post-a')));
+      expect(cubit.state.selectedRequestId, 'post-a');
+      expect(find.byType(ConstellationPostPreviewSheet), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+    });
+
+    testWidgets('a click on the map keeps focus in a text field outside it', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final field = FocusNode(debugLabel: 'outside text field');
+      addTearDown(field.dispose);
+      await _pumpBody(
+        tester,
+        cubit,
+        outside: TextField(focusNode: field),
+      );
+      await tester.pumpAndSettle();
+      field.requestFocus();
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+
+      await _click(tester, tester.getCenter(_node('a')));
+
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(field.hasPrimaryFocus, isTrue);
+    });
+  });
+
+  group('a click on empty map clears the selection (#680)', () {
+    testWidgets('closes the person panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('a')));
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+
+      await _click(
+        tester,
+        _emptyMapPoint(tester, const ['ego', 'a', 'post-a']),
+      );
+
+      expect(cubit.state.selectedPersonId, isNull);
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.byType(GraphPersonContextPanel), findsNothing);
+    });
+
+    testWidgets('closes the Post panel', (tester) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('post-a')));
+      expect(cubit.state.selectedRequestId, 'post-a');
+
+      await _click(
+        tester,
+        _emptyMapPoint(tester, const ['ego', 'a', 'post-a']),
+      );
+
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.byType(ConstellationPostPreviewSheet), findsNothing);
+    });
+
+    testWidgets('a drag on empty map pans and keeps the selection', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('a')));
+      expect(cubit.state.selectedPersonId, 'a');
+      final start = _emptyMapPoint(tester, const ['ego', 'a', 'post-a']);
+      final cameraBefore = cubit.graphController.cameraRevision.value;
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: start);
+      await mouse.down(start);
+      await tester.pump();
+      for (var i = 0; i < 6; i++) {
+        await mouse.moveBy(const Offset(15, 10));
+        await tester.pump();
+      }
+      await mouse.up();
+      await mouse.removePointer();
+      await tester.pumpAndSettle();
+
+      expect(
+        cubit.graphController.cameraRevision.value,
+        greaterThan(cameraBefore),
+        reason: 'the drag pans the camera',
+      );
+      expect(cubit.state.selectedPersonId, 'a');
+      expect(find.byType(GraphPersonContextPanel), findsOneWidget);
+    });
+
+    testWidgets('in select mode a click on empty map changes nothing', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      final selection = ConstellationSelectionCubit();
+      addTearDown(selection.close);
+      await _pumpBody(tester, cubit, selection: selection);
+      await tester.pumpAndSettle();
+      await _click(tester, tester.getCenter(_node('a')));
+      expect(cubit.state.selectedPersonId, 'a');
+      selection.setSelecting(true);
+      await tester.pumpAndSettle();
+
+      await _click(
+        tester,
+        _emptyMapPoint(tester, const ['ego', 'a', 'post-a']),
+      );
+
+      expect(selection.state.selecting, isTrue);
+      expect(cubit.state.selectedPersonId, 'a');
     });
   });
 
