@@ -40,6 +40,9 @@ void main() {
     forwardAttributionRepo = MockForwardAttributionRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
+    when(
+      inboxRepo.fetchRejectedUserIdsByBeacon(any),
+    ).thenAnswer((_) async => const <String>[]);
     capabilityEvidence = MockCapabilityEvidencePort();
     beaconRepo = MockBeaconRepositoryPort();
     personVisibilityRepo = MockPersonVisibilityRepositoryPort();
@@ -271,6 +274,75 @@ void main() {
           onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
         ),
       );
+    });
+
+    // #730: the picker kept a person who dismissed the request out of
+    // reach, but a crafted mutation still forwarded it to them.
+    test(
+      'recipient who dismissed the request rejects without side effects',
+      () async {
+        stubPersonVisible({'R1', 'Rdismissed'});
+        when(
+          inboxRepo.fetchRejectedUserIdsByBeacon('B1'),
+        ).thenAnswer((_) async => ['Rdismissed']);
+
+        await expectLater(
+          case_.forward(
+            senderId: 'U1',
+            beaconId: 'B1',
+            recipientIds: ['R1', 'Rdismissed'],
+          ),
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              'Recipient dismissed this request',
+            ),
+          ),
+        );
+        verifyNever(
+          forwardEdgeRepo.createBatch(
+            beaconId: anyNamed('beaconId'),
+            senderId: anyNamed('senderId'),
+            recipientIds: anyNamed('recipientIds'),
+            batchId: anyNamed('batchId'),
+            noteForRecipient: anyNamed('noteForRecipient'),
+            context: anyNamed('context'),
+            parentEdgeId: anyNamed('parentEdgeId'),
+            onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+          ),
+        );
+        expect(attention.recorded, isEmpty);
+      },
+    );
+
+    test('someone else dismissing does not block the others', () async {
+      stubPersonVisible({'R1'});
+      when(
+        inboxRepo.fetchRejectedUserIdsByBeacon('B1'),
+      ).thenAnswer((_) async => ['Rdismissed']);
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1'],
+      );
+
+      final captured =
+          verify(
+                forwardEdgeRepo.createBatch(
+                  beaconId: anyNamed('beaconId'),
+                  senderId: anyNamed('senderId'),
+                  recipientIds: captureAnyNamed('recipientIds'),
+                  batchId: anyNamed('batchId'),
+                  noteForRecipient: anyNamed('noteForRecipient'),
+                  context: anyNamed('context'),
+                  parentEdgeId: anyNamed('parentEdgeId'),
+                  onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+                ),
+              ).captured.single
+              as List<String>;
+      expect(captured, ['R1']);
     });
 
     test('one-way outgoing trust rejects without side effects', () async {

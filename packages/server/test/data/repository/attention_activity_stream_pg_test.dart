@@ -154,6 +154,76 @@ VALUES
 
       final forward = await _singleActivityItem(query);
       expect(forward.forwardOutcome, 'notInterested');
+      // #725: a plain dismissal is not an answer to an invitation.
+      expect(
+        forward.presentationPayload.containsKey('declinedInvite'),
+        isFalse,
+      );
+    });
+
+    // #725: «Не смогу» on an author invitation is the same inbox decline
+    // (`status = 2`) plus a declined invite; the row says which it was, so
+    // the client words it "You said you can't make it".
+    group('#725: a declined invitation is marked on its row', () {
+      Future<void> seedInvite({
+        required String id,
+        required int status,
+        required String createdAt,
+      }) => writer.execute(
+        Sql.named('''
+INSERT INTO public.beacon_author_invite (
+  id, beacon_id, inviter_id, invitee_id, warm, status, created_at
+) VALUES (@id, @b, @inviter, @u, true, @status, @at::timestamptz)
+'''),
+        parameters: {
+          'id': id,
+          'b': _foreignBeaconId,
+          'inviter': _authorId,
+          'u': _viewerId,
+          'status': status,
+          'at': createdAt,
+        },
+      );
+
+      Future<void> seedRejected() => _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 2,
+        latestForwardAt: '2026-08-03T10:00:00Z',
+      );
+
+      test('the latest invite declined: declinedInvite', () async {
+        await seedRejected();
+        await seedInvite(
+          id: 'BI725declined',
+          status: 2,
+          createdAt: '2026-08-03T09:00:00Z',
+        );
+
+        final forward = await _singleActivityItem(query);
+        expect(forward.forwardOutcome, 'notInterested');
+        expect(forward.presentationPayload['declinedInvite'], isTrue);
+      });
+
+      test('a declined invite followed by a newer one is not marked', () async {
+        await seedRejected();
+        await seedInvite(
+          id: 'BI725old',
+          status: 2,
+          createdAt: '2026-08-03T08:00:00Z',
+        );
+        await seedInvite(
+          id: 'BI725new',
+          status: 3,
+          createdAt: '2026-08-03T09:00:00Z',
+        );
+
+        final forward = await _singleActivityItem(query);
+        expect(
+          forward.presentationPayload.containsKey('declinedInvite'),
+          isFalse,
+        );
+      });
     });
 
     // CHANGES IN U09/U10: cross-surface helping forward outcome duplicates My Work responsibility until projections apply D01/D08.

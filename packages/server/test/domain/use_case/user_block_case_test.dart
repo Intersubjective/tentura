@@ -164,6 +164,10 @@ final class _FakeForwardEdges extends Fake
 }
 
 final class _RecordingInbox extends Fake implements InboxRepositoryPort {
+  @override
+  Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) async =>
+      const [];
+
   final upsertWatchingCalls =
       <({String senderId, String beaconId, bool touchForwardOrdering})>[];
   final tombstoneCalls = <({String userId, String beaconId})>[];

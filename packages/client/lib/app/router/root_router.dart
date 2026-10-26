@@ -538,29 +538,29 @@ class RootRouter extends RootStackRouter {
       // Browser back/forward within the detail on top (e.g. a Request's
       // `tab=plan&page=history` → `tab=plan`): update it in place. Pushing
       // a fresh copy adds a history entry, so back would bounce between the
-      // two URLs instead of leaving.
+      // two URLs instead of leaving. Back to a detail lower on the stack
+      // (Questions → its Request, #689) returns to that page, closing what
+      // is above it, rather than pushing a second copy on top.
       return DeepLink(
         [browseStack.detail],
-        navigate: _isTopDetail(browseStack.detail),
+        navigate: _isOnStack(browseStack.detail),
       );
     }
     return deepLink;
   }
 
-  bool _isTopDetail(PageRouteInfo detail) {
-    final stack = stackData;
-    if (stack.isEmpty) return false;
-    final top = stack.last;
-    return top.name == detail.routeName &&
-        top.params.optString('id') == detail.rawPathParams['id'];
-  }
+  bool _isOnStack(PageRouteInfo detail) => stackData.any(
+    (route) =>
+        route.name == detail.routeName &&
+        route.params.optString('id') == detail.rawPathParams['id'],
+  );
 
   Future<Uri> deepLinkTransformer(Uri uri) => SynchronousFuture(
     _transformDeepLink(uri),
   );
 
-  Uri _transformDeepLink(Uri uri) {
-    uri = normalizeBeaconViewThreadDeepLink(uri);
+  Uri _transformDeepLink(Uri link) {
+    final uri = normalizeBeaconViewThreadDeepLink(link);
     final credentialLink = transformCredentialLinkDeepLink(uri: uri);
     if (credentialLink.path == kPathSignInMethods &&
         credentialLink.queryParameters.containsKey(kQueryCredentialLinked)) {
@@ -608,8 +608,8 @@ class RootRouter extends RootStackRouter {
       await replaceAll([home, browseStack.detail]);
       return;
     }
-    final branchTab = preferHomeTab ??
-        (preferUpdatesBranch ? HomeTab.inbox : null);
+    final branchTab =
+        preferHomeTab ?? (preferUpdatesBranch ? HomeTab.inbox : null);
     if (branchTab != null && tabs != null) {
       tabs.setActiveIndex(HomeTabSpec.forTab(branchTab).index);
       if (branchTab == HomeTab.inbox) {
@@ -633,19 +633,19 @@ class RootRouter extends RootStackRouter {
     if (tab == null) return null;
     return switch (tab) {
       HomeTab.inbox => HomeRoute(
-          children: [
-            inboxTabShell(
-              children: [
-                InboxRoute(initialTab: kInboxTabReceipts),
-              ],
-            ),
-          ],
-        ),
+        children: [
+          inboxTabShell(
+            children: [
+              InboxRoute(initialTab: kInboxTabReceipts),
+            ],
+          ),
+        ],
+      ),
       HomeTab.work => HomeRoute(
-          children: [
-            workTabShell(children: [const MyWorkRoute()]),
-          ],
-        ),
+        children: [
+          workTabShell(children: [const MyWorkRoute()]),
+        ],
+      ),
       _ => null,
     };
   }

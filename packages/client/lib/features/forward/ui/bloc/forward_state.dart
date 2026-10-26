@@ -184,10 +184,23 @@ abstract class ForwardState extends StateBase with _$ForwardState {
 
   /// [matchesInvolvedScope] for this beacon: on a Post the author counts as
   /// already involved (listed, still not forwardable). Requests unchanged.
-  bool _inInvolvedScope(ForwardCandidate c) =>
-      matchesInvolvedScope(c) ||
-      (profile == ForwardTargetProfile.post &&
-          c.involvement == CandidateInvolvement.author);
+  ///
+  /// #722: only people the viewer can see as people count and are listed —
+  /// those they trust or rank, or share an active Request with. A count of
+  /// people the tab cannot show reads as a bug or a leak. A Post's author is
+  /// on the Post itself, so they always count.
+  bool _inInvolvedScope(ForwardCandidate c) {
+    final isPostAuthor =
+        profile == ForwardTargetProfile.post &&
+        c.involvement == CandidateInvolvement.author;
+    if (isPostAuthor) return true;
+    return matchesInvolvedScope(c) && viewerCanSeeCandidate(c);
+  }
+
+  /// #722: the viewer can see [c] as a person (trust or a positive rank
+  /// toward them, or a shared active Request).
+  static bool viewerCanSeeCandidate(ForwardCandidate c) =>
+      c.profile.viewerCanSeeSubject || c.profile.sharesActiveContext;
 
   List<ForwardCandidate> _candidatesBase() =>
       List<ForwardCandidate>.from(candidates);

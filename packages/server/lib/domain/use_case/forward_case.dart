@@ -492,6 +492,16 @@ final class ForwardCase extends UseCaseBase {
           description: 'Direct request routing requires mutual visibility',
         );
       }
+      // #730: a person who dismissed the request is not forwarded it again;
+      // the author can still invite them (People › Invite, a separate path).
+      final dismissed = (await _inboxRepository.fetchRejectedUserIdsByBeacon(
+        beaconId,
+      )).toSet();
+      if (recipients.any(dismissed.contains)) {
+        throw const UnauthorizedException(
+          description: 'Recipient dismissed this request',
+        );
+      }
     }
 
     return (

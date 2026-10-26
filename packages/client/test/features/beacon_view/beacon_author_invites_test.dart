@@ -20,6 +20,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_parent_link.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_author_invites_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_surface.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -393,6 +394,40 @@ void main() {
         _inRow('Ucat', find.text('Отозвать приглашение')),
         findsOneWidget,
       );
+    });
+
+    // #734: the row turning into Withdraw was the only sign it worked.
+    test('a sent «Позвать» confirms it, naming the invitee', () async {
+      final cubit = _cubit(port, effects);
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.invite('Ucat');
+
+      final sent = effects.emitted
+          .whereType<ShowMessage>()
+          .map((e) => e.message)
+          .whereType<AuthorInviteSentMessage>();
+      expect(sent.map((m) => m.toRu), ['Приглашение отправлено: Cat']);
+      expect(sent.single.toEn, 'Invitation sent to Cat');
+    });
+
+    test('a refused «Позвать» confirms nothing', () async {
+      port.createOutcome = PostBudInviteOutcome.recipientPaused;
+      final cubit = _cubit(port, effects);
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.invite('Ucat');
+
+      expect(
+        effects.emitted
+            .whereType<ShowMessage>()
+            .map((e) => e.message)
+            .whereType<AuthorInviteSentMessage>(),
+        isEmpty,
+      );
+      expect(cubit.state.notInvited?.userId, 'Ucat');
     });
 
     testWidgets('a refused «Позвать» names the person in a snack', (

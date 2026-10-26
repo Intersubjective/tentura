@@ -191,7 +191,13 @@ class TombstoneRow extends StatelessWidget {
                                 AttentionForwardOutcome.notInterested)
                               TenturaTextAction(
                                 key: TombstoneRow.restoreKey,
-                                label: l10n.activityForwardRestore,
+                                // #725: undoes "You said you can't make it".
+                                label:
+                                    activityForwardDeclinedInvite(
+                                      receipt.presentationPayloadJson,
+                                    )
+                                    ? l10n.activityForwardUndo
+                                    : l10n.activityForwardRestore,
                                 onPressed: onRestore,
                               ),
                           ],

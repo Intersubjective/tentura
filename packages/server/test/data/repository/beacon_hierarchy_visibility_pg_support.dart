@@ -237,6 +237,9 @@ final class HierarchyOnlyViewerHarness {
     ).thenAnswer((_) async => false);
     final inbox = forward_mocks.MockInboxRepositoryPort();
     when(
+      inbox.fetchRejectedUserIdsByBeacon(any),
+    ).thenAnswer((_) async => const <String>[]);
+    when(
       inbox.upsertWatchingForSender(
         senderId: anyNamed('senderId'),
         beaconId: anyNamed('beaconId'),

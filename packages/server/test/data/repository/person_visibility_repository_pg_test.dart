@@ -1,7 +1,6 @@
 @Tags(['pg', 'mr'])
 library;
 
-
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -213,6 +212,10 @@ class _NoopForwardAttribution extends Fake
 
 class _NoopInbox extends Fake implements InboxRepositoryPort {
   @override
+  Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) async =>
+      const [];
+
+  @override
   Future<void> upsertWatchingForSender({
     required String senderId,
     required String beaconId,
@@ -251,4 +254,3 @@ class _StaticBeaconRepo extends Fake implements BeaconRepositoryPort {
     );
   }
 }
-

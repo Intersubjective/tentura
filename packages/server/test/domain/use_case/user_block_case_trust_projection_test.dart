@@ -108,7 +108,11 @@ final class _Contacts extends Fake implements UserContactRepositoryPort {
 
 final class _Beacons extends Fake implements BeaconRepositoryPort {}
 
-final class _Inbox extends Fake implements InboxRepositoryPort {}
+final class _Inbox extends Fake implements InboxRepositoryPort {
+  @override
+  Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) async =>
+      const [];
+}
 
 final class _Evidence extends Fake implements CapabilityEvidencePort {}
 

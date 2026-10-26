@@ -78,6 +78,17 @@ Future<String?> showRejectionDialog(BuildContext context) {
   );
 }
 
+/// «Не смогу» on an author invitation (#725): the dialog keeps the
+/// button's words ("Can't make it?"), not the forward path's "Can't help?".
+Future<String?> showInviteDeclineDialog(BuildContext context) {
+  final l10n = L10n.of(context)!;
+  return _showInboxNoteDialog(
+    context,
+    title: l10n.inviteDeclineDialogTitle,
+    hint: l10n.rejectionDialogHint,
+  );
+}
+
 /// Inbox card dismiss (X) — same reject action, inbox-oriented copy.
 Future<String?> showInboxDismissDialog(BuildContext context) {
   final l10n = L10n.of(context)!;

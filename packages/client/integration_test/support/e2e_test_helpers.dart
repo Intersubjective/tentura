@@ -2277,7 +2277,7 @@ Future<int?> fetchParticipantRoomAccess({
 /// → confirm "Leave".
 Future<void> leavePostConversation(WidgetTester tester) async {
   await tapAndSettle(tester, find.byIcon(Icons.more_vert).first);
-  await tapAndSettle(tester, find.text('Leave chat'));
+  await tapAndSettle(tester, find.text('Leave post'));
   final confirm = find.descendant(
     of: find.byType(AlertDialog),
     matching: find.text('Leave'),

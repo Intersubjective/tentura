@@ -197,6 +197,36 @@ async (page) => {
     expectEq(await hash(), '#/home/work', 'work tab URL');
   });
 
+  // #689: Questions left with its app-bar arrow must not come back on the
+  // next browser Back; that Back leaves the Request for where it was opened.
+  await scenario('D8 work -> beacon -> Questions -> arrow -> browser back', async () => {
+    await boot('#/home/work', desktop);
+    await page.getByRole('button', { name: /Open Request QA publish 526219/ }).first().click();
+    await until(async () => BEACON_VIEW_RE.test(await hash()), 'beacon view');
+    await settle(1500);
+    await page.getByRole('button', { name: /Questions/ }).first().click();
+    await until(async () => /^#\/beacon\/lobby\//.test(await hash()), 'questions open');
+    await settle(1500);
+    await page.getByRole('button', { name: 'Back' }).first().click();
+    await until(async () => BEACON_VIEW_RE.test(await hash()), 'arrow back to beacon view');
+    await settle(1500);
+    await page.goBack();
+    await until(async () => (await hash()) === '#/home/work', 'browser back leaves for home');
+    if (/^#\/beacon\/lobby\//.test(await hash())) throw new Error('browser back returned to Questions');
+  });
+
+  // #689: Questions opened cold has nothing below it; the arrow replaces it
+  // with the Request, so browser Back does not return to Questions.
+  await scenario('D9 cold Questions -> arrow -> browser back', async () => {
+    await boot(`#/beacon/lobby/${BEACON}`, desktop);
+    await page.getByRole('button', { name: 'Back' }).first().click();
+    await until(async () => BEACON_VIEW_RE.test(await hash()), 'arrow to beacon view');
+    await settle(1500);
+    await page.goBack();
+    await settle(2500);
+    if (/^#\/beacon\/lobby\//.test(await hash())) throw new Error('browser back returned to Questions');
+  });
+
   // ---- Compact (<600: bottom bar chrome) ---------------------------------
 
   await scenario('C1 compact: work -> beacon -> back, bottom bar rule', async () => {

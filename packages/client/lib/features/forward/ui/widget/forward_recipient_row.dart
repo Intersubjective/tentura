@@ -42,6 +42,7 @@ class ForwardRecipientRow extends StatelessWidget {
     this.requiredCapabilitySlugs = const {},
     this.todayUtc,
     this.isPost = false,
+    this.viewerIsAuthor = false,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
@@ -52,6 +53,10 @@ class ForwardRecipientRow extends StatelessWidget {
 
   /// The forwarded beacon is a Post: relation lines say «post» (#501).
   final bool isPost;
+
+  /// The viewer wrote this Request: a dismissed row says how they can still
+  /// ask that person (#730).
+  final bool viewerIsAuthor;
 
   final ForwardCandidate candidate;
   final ForwardRecipientRowHost host;
@@ -111,6 +116,7 @@ class ForwardRecipientRow extends StatelessWidget {
       tierEvidenceTone: tierEvidenceTone,
       showPresenceLine: showPresenceLine,
       isPost: isPost,
+      viewerIsAuthor: viewerIsAuthor,
     );
     final nameBaseStyle = TenturaText.titleSmall(
       canSelectNew ? tt.text : tt.textMuted,

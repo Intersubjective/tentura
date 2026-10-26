@@ -514,6 +514,21 @@ page_stream AS (
       END,
       'inviterId', CASE
         WHEN hs.helper_stage = 'accepted' THEN hs.accepted_invite_inviter_id
+      END,
+      -- #725: a 'notInterested' row that is the viewer's answer to an
+      -- author invitation ("Can't make it"), not a dismissed forward: the
+      -- viewer's latest invite to this Request was declined.
+      'declinedInvite', CASE
+        WHEN ef.status = 2
+          AND ef.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
+          AND (
+            SELECT ai.status
+            FROM public.beacon_author_invite ai
+            WHERE ai.beacon_id = ef.beacon_id
+              AND ai.invitee_id = \$1
+            ORDER BY ai.created_at DESC
+            LIMIT 1
+          ) = 2 THEN true
       END
     )) AS presentation_payload,
     NULL::text AS in_app_preference_class,
