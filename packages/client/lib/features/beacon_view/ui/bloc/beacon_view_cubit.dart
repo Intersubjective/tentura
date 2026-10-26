@@ -24,7 +24,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -46,6 +45,8 @@ import '../../domain/help_offer_row_record.dart';
 import '../../domain/request_access_reason.dart';
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_message.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
@@ -70,7 +71,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     BeaconViewCase? beaconViewCase,
     UiEffectPort? effects,
     this._postMembershipRepository,
-    this._hierarchyCase,
   }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(_idToState(id, myProfile)) {
@@ -169,9 +169,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
     return '';
   }
-
-  /// Reads the Request's hierarchy parent for the access banner (#724).
-  BeaconHierarchyCase? _hierarchyCase;
 
   bool _accessParentLoading = false;
 
@@ -1350,14 +1347,26 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         postedMessageId: postedMessageId,
       );
     } on BeaconFactPinAfterMessageException catch (e) {
-      _unpinnedFactPost = (
-        body: messageBody,
-        uploads: List.unmodifiable(uploads),
-        messageId: e.messageId,
-      );
+      // A refusal the server stands by (the message is gone, not allowed)
+      // fails the same way on that message again: Pin again posts afresh.
+      _unpinnedFactPost = e.cause is RemoteApiException
+          ? null
+          : (
+              body: messageBody,
+              uploads: List.unmodifiable(uploads),
+              messageId: e.messageId,
+            );
       _effects.emit(const ShowMessage(BeaconFactPinMessageKeptMessage()));
       return false;
+    } on BeaconFactAlreadyPinnedException {
+      // Someone else's fact is on the posted message (review r1 #4): show it
+      // and post afresh next time.
+      _unpinnedFactPost = null;
+      await _refreshFactCards(state.beacon.id);
+      _effects.emit(const ShowMessage(BeaconFactPinTakenMessage()));
+      return false;
     } on Object catch (e) {
+      _unpinnedFactPost = null;
       _showSnackError(e);
       return false;
     }
@@ -1366,6 +1375,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     _effects.emit(const ShowMessage(BeaconFactPinSuccessMessage()));
     return true;
   }
+
+  /// The Add-fact form closed: a later form posts its own message (#759).
+  void forgetUnpinnedFactPost() => _unpinnedFactPost = null;
 
   static bool _sameUploads(
     List<RoomPendingUpload> a,
@@ -1680,9 +1692,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
     _accessParentLoading = true;
     try {
-      final reference =
-          await (_hierarchyCase ??= GetIt.I<BeaconHierarchyCase>())
-              .fetchParentReference(beaconId: beacon.id);
+      final reference = await _case.fetchParentReference(beacon.id);
       final parentId = reference.beaconId?.trim() ?? '';
       if (isClosed ||
           reference.state != BeaconParentReferenceState.available ||
