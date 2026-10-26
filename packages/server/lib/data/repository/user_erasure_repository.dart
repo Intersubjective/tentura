@@ -88,7 +88,9 @@ ORDER BY id
     await _database.customStatement(
       r'''
 UPDATE public.beacon
-      SET title = $3, description = $4, context = NULL, lat = NULL, long = NULL,
+      SET title = CASE WHEN kind = 1 THEN '' ELSE $3 END,
+        description = CASE WHEN kind = 1 THEN '' ELSE $4 END,
+        context = NULL, lat = NULL, long = NULL,
         address_label = NULL, start_at = NULL, end_at = NULL, tags = '', needs = '',
         primary_need_slug = NULL, cover_image_id = NULL, cover_thumb_image_id = NULL,
         cover_source = 0
