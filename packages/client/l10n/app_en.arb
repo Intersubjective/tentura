@@ -6901,6 +6901,24 @@
       }
     }
   },
+  "updatesOfferReceivedHeadline": "{name} offered help",
+  "@updatesOfferReceivedHeadline": {
+    "description": "Updates feed row headline: someone offered help on the reader's Request (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesOfferAcceptedHeadline": "{name} accepted your offer",
+  "@updatesOfferAcceptedHeadline": {
+    "description": "Updates feed row headline: the author accepted the reader's offer of help (#700)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "updatesRequestNoteBody": "{title} — “{note}”",
   "@updatesRequestNoteBody": {
     "context": "Updates row body for an invite answer or invite: the request title, then the person's note (#736)",

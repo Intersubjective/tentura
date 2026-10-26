@@ -590,6 +590,85 @@ UpdatesFeedRowCopy? authorInviteReceiptDisplayCopy({
   );
 }
 
+/// The English (and Russian) tails written after the actor's name when an
+/// offer receipt title is a sentence («Alice accepted your offer»).
+const _offerAcceptedTitleTails = [
+  ' accepted your offer',
+  ' принял(а) ваше предложение',
+];
+const _offerSubmittedTitleTails = [
+  ' offered help',
+  ' offered to help as backup',
+  ' предложил(а) помощь',
+  ' предложил помощь',
+  ' предложила помощь',
+];
+
+/// Offer receipts in the Updates feed (#736, #700): the author's row for a
+/// help offer (`helpOfferSubmitted`, titled with the helper's name only) and
+/// the helper's row for an accepted offer (`offerAccepted`, titled
+/// «`<name>` accepted your offer» in English) both say what happened in the
+/// reader's language. The name is [actorName] when the caller knows the
+/// person, else read from the receipt [title]. The body is the Request
+/// title, with the helper's note on an offer (the receipt [body] on a row
+/// written before the payload carried `excerpt`). Null for any other receipt.
+UpdatesFeedRowCopy? offerReceiptDisplayCopy({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String body = '',
+  String? actorName,
+}) {
+  final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
+  final accepted = switch (type) {
+    'helpOfferSubmitted' || 'help_offer_submitted' => false,
+    'offerAccepted' || 'offer_accepted' => true,
+    _ => null,
+  };
+  if (accepted == null) return null;
+  final request = beaconTitleFromPresentationPayload(presentationPayloadJson);
+  var t = title.trim();
+  for (final tail
+      in accepted ? _offerAcceptedTitleTails : _offerSubmittedTitleTails) {
+    if (t.endsWith(tail)) {
+      t = t.substring(0, t.length - tail.length).trim();
+      break;
+    }
+  }
+  final name =
+      _nonBlank(actorName) ??
+      (t.isEmpty ||
+              t == request ||
+              _isServerCannedTitle(t) ||
+              _serverWhoDidWhatTitles.contains(t)
+          ? null
+          : t);
+  if (accepted) {
+    return UpdatesFeedRowCopy(
+      headline: name == null
+          ? l10n.updatesFallbackTitleOfferAccepted
+          : l10n.updatesOfferAcceptedHeadline(name),
+      body: request ?? '',
+    );
+  }
+  final legacy = body.trim();
+  final note =
+      excerptFromPresentationPayload(presentationPayloadJson) ??
+      (legacy == title.trim() || _isServerCannedSentence(legacy) ? '' : legacy);
+  final words = note == request ? '' : note;
+  return UpdatesFeedRowCopy(
+    headline: name == null
+        ? l10n.updatesFallbackTitleHelpOfferSubmitted
+        : l10n.updatesOfferReceivedHeadline(name),
+    body: request == null
+        ? words
+        : words.isEmpty
+        ? request
+        : l10n.updatesRequestNoteBody(request, words),
+  );
+}
+
 /// Closure receipts and the quiet-request nudge (#700): the server writes
 /// fixed English copy («Request closed», «The results are in.»), so both
 /// lines come from the locale by event. Null for any other receipt.
@@ -648,6 +727,14 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   final eventCopy =
       authorInviteReceiptDisplayCopy(
         title: title,
+        presentationKey: presentationKey,
+        presentationPayloadJson: presentationPayloadJson,
+        l10n: l10n,
+        actorName: actorName,
+      ) ??
+      offerReceiptDisplayCopy(
+        title: title,
+        body: body,
         presentationKey: presentationKey,
         presentationPayloadJson: presentationPayloadJson,
         l10n: l10n,

@@ -6134,6 +6134,8 @@
   "updatesFallbackTitleOfferDeclined": "Предложение отклонено",
   "updatesFallbackBodyOfferDeclined": "Ваше предложение отклонено.",
   "updatesOfferDeclinedBody": "{title} — «{reason}»",
+  "updatesOfferReceivedHeadline": "{name} предложил(а) помощь",
+  "updatesOfferAcceptedHeadline": "{name} принял(а) ваше предложение",
   "updatesRequestNoteBody": "{title} — «{note}»",
   "updatesFallbackTitleOfferRemoved": "Удаление из обсуждения",
   "updatesFallbackBodyOfferRemoved": "Вы удалены из обсуждения запроса.",

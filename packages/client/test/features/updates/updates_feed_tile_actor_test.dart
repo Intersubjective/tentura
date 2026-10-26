@@ -104,7 +104,7 @@ void main() {
     );
 
     // Tap the headline text (inside the row interaction, not the avatar).
-    await tester.tap(find.textContaining('Offered help'));
+    await tester.tap(find.textContaining('offered help'));
     await tester.pump();
 
     expect(opens, ['request']);

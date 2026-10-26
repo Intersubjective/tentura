@@ -122,7 +122,7 @@ void main() {
       presentationPayloadJson: '{}',
       l10n: l10n,
     );
-    expect(withNote.headline, 'Vadim');
+    expect(withNote.headline, 'Vadim offered help');
     expect(withNote.body, 'I can sew the costume');
 
     final emptyNote = resolveUpdatesFeedRowCopy(
@@ -132,8 +132,9 @@ void main() {
       presentationPayloadJson: '{}',
       l10n: l10n,
     );
-    expect(emptyNote.headline, 'Vadim');
-    expect(emptyNote.body, l10n.updatesFallbackBodyHelpOfferSubmitted);
+    // The headline says what happened (#736); no sentence restates it.
+    expect(emptyNote.headline, 'Vadim offered help');
+    expect(emptyNote.body, isEmpty);
   });
 
   group('requestScopedEventCopy — under a Request header', () {
@@ -204,7 +205,7 @@ void main() {
       expect(copy.body, isEmpty);
     });
 
-    test('a name used as the title stays', () {
+    test('a name used as the title leads the offer event', () {
       final copy = resolveUpdatesFeedRowCopy(
         title: 'Anna',
         body: 'I can sew',
@@ -213,7 +214,7 @@ void main() {
         l10n: l10n,
       );
 
-      expect(copy.headline, 'Anna');
+      expect(copy.headline, 'Anna offered help');
       expect(copy.body, 'I can sew');
     });
 
@@ -296,7 +297,9 @@ void main() {
         l10n: l10n,
       );
 
-      expect(copy.headline, 'Anna');
+      // The headline names the offer (#736); the empty excerpt still wins
+      // over the English body.
+      expect(copy.headline, 'Anna offered help');
       expect(copy.body, isEmpty);
     });
   });
