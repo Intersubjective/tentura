@@ -196,9 +196,9 @@ WHERE beacon_id = '$_child' AND system_message_kind IS NOT NULL
       expect(await status(_child), 0);
     });
 
-    test('refuses a Post that is no longer open', () async {
+    test('leaves a Post that is already closed as it is', () async {
       await closePost();
-      await expectLater(closePost(), throwsA(isA<PostNotOpenException>()));
+      await closePost();
       expect(
         await count('''
 SELECT count(*)::int FROM public.beacon_room_message

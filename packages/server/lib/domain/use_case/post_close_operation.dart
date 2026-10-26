@@ -34,13 +34,22 @@ final class PostCloseOperation {
   /// `BeaconLifecycleEffectsCase.recordEligibleSourceTransition`: that would
   /// deliver a «parent closed» hierarchy notice to the child, which is wrong —
   /// the child is where the conversation continues.
+  ///
+  /// A Post that is already closed stays as it is: no transition and no
+  /// second notice, so a member may bud from an archived Post.
   Future<void> closeForBud({
     required String postId,
     required String childBeaconId,
     required String title,
     required String actorId,
   }) async {
-    final post = await _requireOpenPost(postId);
+    final post = await _beacons.getBeaconById(beaconId: postId);
+    if (post.kind == BeaconKind.post && post.status == BeaconStatus.closed) {
+      return;
+    }
+    if (post.kind != BeaconKind.post || post.status != BeaconStatus.open) {
+      throw const PostNotOpenException();
+    }
     if (post.author.id != actorId) {
       throw const BeaconChildCreateForbiddenException(
         description: 'Only the author of the Post can close it',

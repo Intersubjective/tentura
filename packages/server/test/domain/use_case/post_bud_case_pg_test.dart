@@ -482,10 +482,10 @@ Future<void> main() async {
       expect(await _invitesCount(writer), 1, reason: 'only the seeded one');
     });
 
-    test('a closed Post is rejected', () async {
+    test('a draft Post is rejected', () async {
       await writer.execute(
         'UPDATE public.beacon SET status = '
-        '${BeaconStatus.closed.smallintValue} '
+        '${BeaconStatus.draft.smallintValue} '
         "WHERE id = '$_post'",
       );
       await expectLater(

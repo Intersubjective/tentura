@@ -429,10 +429,10 @@ Future<void> main() async {
         );
       });
 
-      test('a closed Post is not open', () async {
+      test('a draft Post is not open', () async {
         await writer.execute(
           'UPDATE public.beacon SET status = '
-          '${BeaconStatus.closed.smallintValue} '
+          '${BeaconStatus.draft.smallintValue} '
           "WHERE id = '$_post'",
         );
         await expectLater(bud(), throwsA(isA<PostNotOpenException>()));

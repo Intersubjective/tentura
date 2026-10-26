@@ -609,7 +609,9 @@ final class BeaconChildCreateCase extends UseCaseBase
         description: 'Only a Post can be budded',
       );
     }
-    if (post.status != BeaconStatus.open) {
+    // An archived (closed) Post can still be budded from.
+    if (post.status != BeaconStatus.open &&
+        post.status != BeaconStatus.closed) {
       throw const PostNotOpenException();
     }
   }

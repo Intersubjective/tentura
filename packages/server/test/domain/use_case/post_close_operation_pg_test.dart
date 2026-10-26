@@ -272,12 +272,15 @@ WHERE beacon_id = '$_post'
       });
     });
 
-    test('refuses a Post that is already closed, with no second notice',
-        () async {
+    test('leaves a Post that is already closed as it is, with no second '
+        'notice', () async {
+      await closeByAuthor();
+
       await closeForBud();
 
-      await expectLater(closeForBud(), throwsA(isA<PostNotOpenException>()));
+      expect(await status(_post), 6);
       expect(await noticeCount(_post), 1);
+      expect((await onlyNoticePayload())['reason'], 'closedByAuthor');
     });
 
     test('writes no statusChanged chat line for a Post', () async {
