@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
+import 'package:postgres/postgres.dart' show ServerException;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
@@ -15,6 +20,7 @@ import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
@@ -36,17 +42,16 @@ BeaconFactCardEntity testFact({
   String pinnedBy = _userId,
   String factText = 'fact',
   String pinnedByTitle = '',
-}) =>
-    BeaconFactCardEntity(
-      id: id,
-      beaconId: _beaconId,
-      factText: factText,
-      visibility: visibility,
-      pinnedBy: pinnedBy,
-      sourceMessageId: sourceMessageId,
-      createdAt: _now,
-      pinnedByTitle: pinnedByTitle,
-    );
+}) => BeaconFactCardEntity(
+  id: id,
+  beaconId: _beaconId,
+  factText: factText,
+  visibility: visibility,
+  pinnedBy: pinnedBy,
+  sourceMessageId: sourceMessageId,
+  createdAt: _now,
+  pinnedByTitle: pinnedByTitle,
+);
 
 class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   _StubFacts(this.room, this.guard, this.hierarchy);
@@ -56,6 +61,7 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   final _StubHierarchy hierarchy;
   List<BeaconFactCardEntity> rows = const [];
   BeaconFactCardEntity? dupBySource;
+  Object? pinError;
   String? lastPinnedText;
   int? lastPinnedVisibility;
   String? lastPinnedBy;
@@ -70,15 +76,15 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   Future<BeaconFactRoomAccess> loadRoomAccess({
     required String beaconId,
     required String userId,
-  }) async =>
-      BeaconFactRoomAccess(
-        beaconStatus: hierarchy.status?.smallintValue ?? 0,
-        canUseRoom: room.isAuthor ||
-            room.isSteward ||
-            room.participant?.roomAccess == RoomAccessBits.admitted,
-        canReadContent: guard.contentAllowed,
-        exists: true,
-      );
+  }) async => BeaconFactRoomAccess(
+    beaconStatus: hierarchy.status?.smallintValue ?? 0,
+    canUseRoom:
+        room.isAuthor ||
+        room.isSteward ||
+        room.participant?.roomAccess == RoomAccessBits.admitted,
+    canReadContent: guard.contentAllowed,
+    exists: true,
+  );
 
   @override
   Future<List<BeaconFactCardEntity>> listForBeacon({
@@ -88,7 +94,8 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
     listForBeaconCalls++;
     return [
       for (final e in rows)
-        if (includeRoomOnly || e.visibility != BeaconFactCardVisibilityBits.room)
+        if (includeRoomOnly ||
+            e.visibility != BeaconFactCardVisibilityBits.room)
           e,
     ];
   }
@@ -103,6 +110,8 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
     required String pinnedBy,
     String? sourceMessageId,
   }) async {
+    final error = pinError;
+    if (error != null) throw error;
     final dup = dupBySource;
     if (dup != null) {
       throw BeaconFactCardAlreadyPinnedException(existingFactCardId: dup.id);
@@ -141,17 +150,16 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
   Future<Map<String, String>> headAttachmentsJsonByFactIds(
     Iterable<String> factCardIds,
   ) async => {
-        for (final id in factCardIds)
-          if (headAttachmentsByFactId.containsKey(id))
-            id: headAttachmentsByFactId[id]!,
-      };
+    for (final id in factCardIds)
+      if (headAttachmentsByFactId.containsKey(id))
+        id: headAttachmentsByFactId[id]!,
+  };
 
   @override
   Future<String> attachmentsJsonForRevision({
     required String factCardId,
     required int seq,
-  }) async =>
-      headAttachmentsByFactId[factCardId] ?? '[]';
+  }) async => headAttachmentsByFactId[factCardId] ?? '[]';
 
   @override
   Future<bool> remove({
@@ -189,31 +197,28 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      isAuthor;
+  }) async => isAuthor;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      isSteward;
+  }) async => isSteward;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
-  }) async =>
-      participant;
+  }) async => participant;
 
   @override
   Future<Map<String, String>> attachmentsJsonByMessageIds(
     Iterable<String> messageIds,
-  ) async =>
-      {
-        for (final id in messageIds)
-          if (attachmentsByMessageId.containsKey(id)) id: attachmentsByMessageId[id]!,
-      };
+  ) async => {
+    for (final id in messageIds)
+      if (attachmentsByMessageId.containsKey(id))
+        id: attachmentsByMessageId[id]!,
+  };
 
   @override
   Future<Map<String, String>> userTitlesByIds(Iterable<String> userIds) async =>
@@ -222,7 +227,6 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
           if (titlesByUserId.containsKey(id)) id: titlesByUserId[id]!,
       };
 }
-
 
 class _StubHierarchy extends Fake implements BeaconHierarchyRepositoryPort {
   BeaconStatus? status = BeaconStatus.open;
@@ -429,6 +433,250 @@ void main() {
     });
   });
 
+  // #759: a failed pin leaves one structured line in the server log.
+  group('BeaconFactCardCase pin failure logging', () {
+    late List<LogRecord> records;
+    late StreamSubscription<LogRecord> sub;
+
+    BeaconFactCardCase caseWith(Env env) => BeaconFactCardCase(
+      facts,
+      room,
+      _UnusedImage(),
+      _UnusedTasks(),
+      hierarchy,
+      guard,
+      env: env,
+      logger: Logger('BeaconFactCardCaseTest'),
+    );
+
+    setUp(() {
+      records = <LogRecord>[];
+      sub = Logger('BeaconFactCardCaseTest').onRecord.listen(records.add);
+      // The keyed user hash needs a server secret (review r1 #5b).
+      case_ = caseWith(
+        Env(
+          environment: Environment.test,
+          genealogyNodeKeySecret: 'log-key-759',
+        ),
+      );
+    });
+
+    tearDown(() => sub.cancel());
+
+    List<LogRecord> pinFailures() =>
+        records.where((r) => r.message.startsWith('fact_pin_failed')).toList();
+
+    test(
+      'a refused pin logs its type, beacon, message and hashed user',
+      () async {
+        facts.dupBySource = testFact(
+          id: 'Fexisting',
+          sourceMessageId: _messageId,
+        );
+
+        await expectLater(
+          case_.pin(
+            beaconId: _beaconId,
+            factText: 'secret fact words',
+            visibility: BeaconFactCardVisibilityBits.room,
+            userId: _userId,
+            sourceMessageId: _messageId,
+          ),
+          throwsA(isA<BeaconFactCardAlreadyPinnedException>()),
+        );
+
+        final line = pinFailures().single;
+        expect(line.level, Level.WARNING);
+        expect(
+          line.message,
+          allOf([
+            contains('error_type=BeaconFactCardAlreadyPinnedException'),
+            contains('beacon_id=$_beaconId'),
+            contains('source_message_id=$_messageId'),
+            contains('visibility=${BeaconFactCardVisibilityBits.room}'),
+            matches(RegExp(r'user_hash=[0-9a-f]{12} ')),
+            contains('request_id=-'),
+            contains('Fact already pinned for this message'),
+          ]),
+        );
+        expect(line.message, isNot(contains(_userId)));
+        expect(line.message, isNot(contains('secret fact words')));
+        expect(line.message, isNot(contains('\n')));
+        // Review r1 #5b: not a plain SHA-256 of the id, which anyone with
+        // the user table could recompute.
+        expect(
+          line.message,
+          isNot(
+            contains(
+              sha256.convert(utf8.encode(_userId)).toString().substring(0, 12),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('without a server secret the user hash is left out', () async {
+      case_ = caseWith(
+        Env(
+          environment: Environment.test,
+          genealogyNodeKeySecret: '',
+          unsubscribeSigningSecret: '',
+        ),
+      );
+      facts.pinError = StateError('down');
+
+      await expectLater(
+        case_.pin(
+          beaconId: _beaconId,
+          factText: 'fact',
+          visibility: BeaconFactCardVisibilityBits.public,
+          userId: _userId,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(pinFailures().single.message, contains('user_hash=- '));
+    });
+
+    // Review r1 #5a: an unexpected error's text can quote the row (fact
+    // text, raw pinner id), so only its type and SQLSTATE are logged.
+    test(
+      'an unexpected pin error is logged as severe by its type only',
+      () async {
+        final boom = StateError('connection reset\nby peer');
+        facts.pinError = boom;
+
+        await expectLater(
+          case_.pin(
+            beaconId: _beaconId,
+            factText: 'fact',
+            visibility: BeaconFactCardVisibilityBits.public,
+            userId: _userId,
+            sourceMessageId: _messageId,
+          ),
+          throwsA(same(boom)),
+        );
+
+        final line = pinFailures().single;
+        expect(line.level, Level.SEVERE);
+        expect(line.error, isNull);
+        expect(line.stackTrace, isNotNull);
+        expect(
+          line.message,
+          allOf([
+            contains('error_type=StateError'),
+            contains('sqlstate=-'),
+            contains('beacon_id=$_beaconId'),
+          ]),
+        );
+        expect(line.message, isNot(contains('connection reset')));
+        expect(line.message, isNot(contains('\n')));
+      },
+    );
+
+    test('a database error logs its SQLSTATE, never its row detail', () async {
+      final pgError = _PgServerError(
+        code: '23514',
+        text: 'Failing row contains (secret fact words, $_userId)',
+      );
+      facts.pinError = pgError;
+
+      await expectLater(
+        case_.pin(
+          beaconId: _beaconId,
+          factText: 'secret fact words',
+          visibility: BeaconFactCardVisibilityBits.public,
+          userId: _userId,
+          sourceMessageId: _messageId,
+        ),
+        throwsA(same(pgError)),
+      );
+
+      final line = pinFailures().single;
+      expect(line.level, Level.SEVERE);
+      expect(line.error, isNull);
+      expect(line.message, contains('sqlstate=23514'));
+      expect(line.message, isNot(contains('secret fact words')));
+      expect(line.message, isNot(contains(_userId)));
+      expect(line.message, isNot(contains('Failing row')));
+    });
+
+    test('a denied pin without a source message is logged too', () async {
+      denyRoomAccess();
+
+      await expectLater(
+        case_.pin(
+          beaconId: _beaconId,
+          factText: 'nope',
+          visibility: BeaconFactCardVisibilityBits.public,
+          userId: _userId,
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+
+      expect(
+        pinFailures().single.message,
+        allOf([
+          contains('error_type=UnauthorizedException'),
+          contains('source_message_id=-'),
+        ]),
+      );
+    });
+
+    test('the same user gets the same hash on every failure', () async {
+      facts.pinError = StateError('down');
+      for (var i = 0; i < 2; i++) {
+        await expectLater(
+          case_.pin(
+            beaconId: _beaconId,
+            factText: 'fact',
+            visibility: BeaconFactCardVisibilityBits.public,
+            userId: _userId,
+          ),
+          throwsA(isA<StateError>()),
+        );
+      }
+      final hashes = pinFailures()
+          .map((r) => RegExp(r'user_hash=(\w+)').firstMatch(r.message)![1])
+          .toSet();
+      expect(hashes, hasLength(1));
+    });
+
+    test('the line carries the request id when the server has one', () async {
+      facts.pinError = StateError('down');
+      final request = RequestContext(requestId: 'req-759');
+      try {
+        await expectLater(
+          request.run(
+            () => case_.pin(
+              beaconId: _beaconId,
+              factText: 'fact',
+              visibility: BeaconFactCardVisibilityBits.public,
+              userId: _userId,
+            ),
+          ),
+          throwsA(isA<StateError>()),
+        );
+      } finally {
+        request.dispose();
+      }
+
+      expect(pinFailures().single.message, contains('request_id=req-759'));
+    });
+
+    test('a successful pin logs no failure line', () async {
+      await case_.pin(
+        beaconId: _beaconId,
+        factText: 'fine',
+        visibility: BeaconFactCardVisibilityBits.public,
+        userId: _userId,
+        sourceMessageId: _messageId,
+      );
+
+      expect(pinFailures(), isEmpty);
+    });
+  });
+
   group('BeaconFactCardCase mutations', () {
     test('correct delegates to repository when admitted', () async {
       final seq = await case_.correct(
@@ -510,29 +758,31 @@ void main() {
       expect(rows.single['id'], 'Fpub');
     });
 
-    test('stranger without content read is refused before facts load',
-        () async {
-      denyRoomAccess();
-      guard.contentAllowed = false;
-      facts.rows = [
-        testFact(
-          id: 'Fpub',
-          visibility: BeaconFactCardVisibilityBits.public,
-        ),
-      ];
-
-      await expectLater(
-        case_.list(beaconId: _beaconId, userId: _userId),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            'Viewer cannot read request content',
+    test(
+      'stranger without content read is refused before facts load',
+      () async {
+        denyRoomAccess();
+        guard.contentAllowed = false;
+        facts.rows = [
+          testFact(
+            id: 'Fpub',
+            visibility: BeaconFactCardVisibilityBits.public,
           ),
-        ),
-      );
-      expect(facts.listForBeaconCalls, 0);
-    });
+        ];
+
+        await expectLater(
+          case_.list(beaconId: _beaconId, userId: _userId),
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              'Viewer cannot read request content',
+            ),
+          ),
+        );
+        expect(facts.listForBeaconCalls, 0);
+      },
+    );
 
     test('author without participant row sees room facts', () async {
       room
@@ -659,4 +909,20 @@ void main() {
       expect(facts.lastPinnedText, 'still open');
     });
   });
+}
+
+/// A Postgres server error as the driver raises it; its text quotes the row.
+class _PgServerError extends Fake implements ServerException {
+  _PgServerError({required this.code, required this.text});
+
+  @override
+  final String? code;
+
+  final String text;
+
+  @override
+  String get message => text;
+
+  @override
+  String toString() => 'ERROR $code: $text';
 }

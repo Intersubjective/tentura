@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
@@ -20,7 +21,9 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/utils/postgres_sql_state.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 
 import '_use_case_base.dart';
@@ -88,19 +91,82 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String userId,
     String? sourceMessageId,
   }) async {
-    final trimmed = factText.trim();
-    if (trimmed.isEmpty) {
-      throw const BeaconCreateException(description: 'Fact text is empty');
+    try {
+      final trimmed = factText.trim();
+      if (trimmed.isEmpty) {
+        throw const BeaconCreateException(description: 'Fact text is empty');
+      }
+      await _ensureWritableRoomAccess(beaconId: beaconId, userId: userId);
+      final entity = await _facts.pinFact(
+        beaconId: beaconId,
+        factText: trimmed,
+        visibility: visibility,
+        pinnedBy: userId,
+        sourceMessageId: sourceMessageId,
+      );
+      return {'id': entity.id, 'beaconId': entity.beaconId};
+    } on Object catch (e, st) {
+      _logPinFailure(
+        error: e,
+        stackTrace: st,
+        beaconId: beaconId,
+        sourceMessageId: sourceMessageId,
+        visibility: visibility,
+        userId: userId,
+      );
+      rethrow;
     }
-    await _ensureWritableRoomAccess(beaconId: beaconId, userId: userId);
-    final entity = await _facts.pinFact(
-      beaconId: beaconId,
-      factText: trimmed,
-      visibility: visibility,
-      pinnedBy: userId,
-      sourceMessageId: sourceMessageId,
-    );
-    return {'id': entity.id, 'beaconId': entity.beaconId};
+  }
+
+  /// One structured line per failed pin, so the next failure shows up in the
+  /// server logs (#759). Carries no fact text and no raw user id: the user is
+  /// a keyed hash, enough to tell repeat tries of one person apart. An
+  /// unexpected error (a database one can quote the row: fact text, pinner)
+  /// is named only by its type and SQLSTATE; its text and the error object
+  /// stay out of the log.
+  void _logPinFailure({
+    required Object error,
+    required StackTrace stackTrace,
+    required String beaconId,
+    required String? sourceMessageId,
+    required int visibility,
+    required String userId,
+  }) {
+    final detail = error is ExceptionBase
+        ? 'message=${jsonEncode(_oneLine(error.description))}'
+        : 'sqlstate=${postgresSqlState(error) ?? '-'}';
+    final line =
+        'fact_pin_failed error_type=${error.runtimeType} '
+        'beacon_id=$beaconId '
+        'source_message_id=${sourceMessageId ?? '-'} '
+        'visibility=$visibility '
+        'user_hash=${_userLogHash(userId)} '
+        'request_id=${RequestContext.current?.requestId ?? '-'} '
+        '$detail';
+    if (error is ExceptionBase) {
+      logger.warning(line);
+    } else {
+      logger.severe(line, null, stackTrace);
+    }
+  }
+
+  /// HMAC-SHA256 of [userId] under the server secret that already keys user
+  /// pseudonyms (invite-genealogy node keys), so the log cannot be reversed
+  /// from the user table; `-` when no secret is configured.
+  String _userLogHash(String userId) {
+    final secret = env.genealogyNodeKeySecret.isNotEmpty
+        ? env.genealogyNodeKeySecret
+        : env.unsubscribeSigningSecret;
+    if (secret.isEmpty) return '-';
+    return Hmac(sha256, utf8.encode(secret))
+        .convert(utf8.encode('fact_pin_failed:$userId'))
+        .toString()
+        .substring(0, 12);
+  }
+
+  static String _oneLine(String text) {
+    final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return flat.length <= 300 ? flat : '${flat.substring(0, 300)}…';
   }
 
   /// Edits fact text and/or attachments against [baseRevisionSeq]; returns
@@ -325,8 +391,7 @@ final class BeaconFactCardCase extends UseCaseBase {
   /// `canUseRoom` (members only), not `list()`'s `canReadContent`. [before]
   /// is the opaque `'<iso8601UTC>|<entry_key>'` cursor from a prior page's
   /// `nextCursor`.
-  Future<({List<BeaconFactHistoryEntry> entries, String? nextCursor})>
-  history({
+  Future<({List<BeaconFactHistoryEntry> entries, String? nextCursor})> history({
     required String factCardId,
     required String beaconId,
     required String userId,

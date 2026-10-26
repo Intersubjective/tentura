@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -20,6 +21,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
@@ -58,7 +60,9 @@ final class BeaconViewCase extends UseCaseBase {
     required super.env,
     required super.logger,
     required PresenceRepository presenceRepository,
-  }) : _presence = presenceRepository;
+    BeaconHierarchyRepositoryPort? hierarchyRepository,
+  }) : _presence = presenceRepository,
+       _hierarchy = hierarchyRepository;
 
   final BeaconRepository _beaconRepository;
 
@@ -84,10 +88,18 @@ final class BeaconViewCase extends UseCaseBase {
 
   final PresenceRepository _presence;
 
+  final BeaconHierarchyRepositoryPort? _hierarchy;
+
   static final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
   /// In-process seen cursors keyed by `userId\\tbeaconId`.
   final Map<String, DateTime> _pinnedFactsSeenAt = {};
+
+  /// The Request's hierarchy (nesting) parent, for the access banner
+  /// (#724); no parent when no hierarchy repository is wired.
+  Future<BeaconParentReference> fetchParentReference(String beaconId) async =>
+      await _hierarchy?.fetchParentReference(beaconId: beaconId) ??
+      const BeaconParentReference(state: BeaconParentReferenceState.none);
 
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
@@ -425,16 +437,73 @@ final class BeaconViewCase extends UseCaseBase {
         visibility: visibility,
         sourceMessageId: messageId,
       );
-    } on BeaconFactAlreadyPinnedException {
+    } on BeaconFactAlreadyPinnedException catch (e) {
       // The message was posted for this fact alone, so a fact already on it
-      // is this pin, saved on an earlier try whose answer was lost (#759).
-      return;
-    } on Object catch (e) {
+      // with our text is this pin, saved on an earlier try whose answer was
+      // lost (#759). A different fact (pinned by someone from the message
+      // menu) is not ours: say so instead of dropping our text.
+      if (await _isFactWithText(
+        beaconId: beaconId,
+        factCardId: e.factCardId,
+        factText: factText,
+      )) {
+        return;
+      }
+      rethrow;
+    } on Object catch (e, st) {
+      _logPinFailure(
+        error: e,
+        stackTrace: st,
+        beaconId: beaconId,
+        messageId: messageId,
+        visibility: visibility,
+        retriedPost: postedMessageId != null,
+      );
       throw BeaconFactPinAfterMessageException(
         messageId: messageId,
         cause: e,
       );
     }
+  }
+
+  /// [factCardId] is a fact on [beaconId] whose text is [factText]; false
+  /// when it cannot be read.
+  Future<bool> _isFactWithText({
+    required String beaconId,
+    required String factCardId,
+    required String factText,
+  }) async {
+    try {
+      final cards = await _factCards.list(beaconId: beaconId);
+      return cards.any(
+        (c) => c.id == factCardId && c.factText.trim() == factText.trim(),
+      );
+    } on Object {
+      return false;
+    }
+  }
+
+  /// One structured line per failed composer pin (#759): the error, the
+  /// request and the posted message, never the fact text or who pinned it.
+  void _logPinFailure({
+    required Object error,
+    required StackTrace stackTrace,
+    required String beaconId,
+    required String messageId,
+    required int visibility,
+    required bool retriedPost,
+  }) {
+    final message = '$error'.replaceAll(RegExp(r'\s+'), ' ').trim();
+    logger.warning(
+      'fact_pin_failed error_type=${error.runtimeType} '
+      'beacon_id=$beaconId '
+      'source_message_id=$messageId '
+      'visibility=$visibility '
+      'retried_post=$retriedPost '
+      'message=${message.length <= 300 ? message : '${message.substring(0, 300)}…'}',
+      error,
+      stackTrace,
+    );
   }
 
   /// Extra tries of the pin when the server turns it away as busy (#759). A

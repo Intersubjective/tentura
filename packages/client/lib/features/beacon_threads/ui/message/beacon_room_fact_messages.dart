@@ -1,7 +1,8 @@
 import 'package:tentura/ui/message/action_message_base.dart';
 
 /// Snack shown when pinning is blocked — action opens the facts sheet (via cubit hook).
-final class BeaconFactAlreadyPinnedSnackMessage extends LocalizableActionMessage {
+final class BeaconFactAlreadyPinnedSnackMessage
+    extends LocalizableActionMessage {
   BeaconFactAlreadyPinnedSnackMessage({required this._onOpenFacts});
 
   final void Function() _onOpenFacts;
@@ -16,10 +17,12 @@ final class BeaconFactAlreadyPinnedSnackMessage extends LocalizableActionMessage
   void Function() get onPressed => _onOpenFacts;
 
   @override
-  LocalizableMessage get label => const _BeaconFactAlreadyPinnedSnackActionLabel();
+  LocalizableMessage get label =>
+      const _BeaconFactAlreadyPinnedSnackActionLabel();
 }
 
-final class _BeaconFactAlreadyPinnedSnackActionLabel extends LocalizableMessage {
+final class _BeaconFactAlreadyPinnedSnackActionLabel
+    extends LocalizableMessage {
   const _BeaconFactAlreadyPinnedSnackActionLabel();
 
   @override
@@ -49,6 +52,22 @@ final class BeaconFactPinMessageKeptMessage extends LocalizableMessage {
   @override
   String get toRu =>
       'Сообщение в обсуждении отправлено, но закрепить факт не удалось.';
+}
+
+/// Add-fact (#759, review r1 #4): the posted message already carries a
+/// different fact, pinned by someone else; ours was not saved.
+final class BeaconFactPinTakenMessage extends LocalizableMessage {
+  const BeaconFactPinTakenMessage();
+
+  @override
+  String get toEn =>
+      'Posted to the discussion, but that message already has a different '
+      'pinned fact. Your fact was not pinned.';
+
+  @override
+  String get toRu =>
+      'Сообщение в обсуждении отправлено, но к нему уже закреплён другой '
+      'факт. Ваш факт не закреплён.';
 }
 
 final class BeaconFactRemoveSuccessMessage extends LocalizableMessage {

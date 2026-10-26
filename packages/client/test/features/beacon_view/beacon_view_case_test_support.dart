@@ -15,6 +15,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
@@ -473,11 +474,12 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
     this.enrichmentDelay = Duration.zero,
     this.participants = const [],
     BeaconRoomState? roomState,
-  }) : roomState = roomState ??
-            BeaconRoomState(
-              beaconId: '',
-              updatedAt: DateTime.utc(2026, 9, 15),
-            );
+  }) : roomState =
+           roomState ??
+           BeaconRoomState(
+             beaconId: '',
+             updatedAt: DateTime.utc(2026, 9, 15),
+           );
 
   Duration enrichmentDelay;
   List<BeaconParticipant> participants;
@@ -612,6 +614,7 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewRoomRepository? roomRepo,
   RealtimeSyncCase? realtimeSyncCase,
   PresenceRepository? presenceRepository,
+  BeaconHierarchyRepositoryPort? hierarchyRepository,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
@@ -639,6 +642,7 @@ BeaconViewCase buildTestBeaconViewCase({
     env: const Env(),
     logger: Logger('test'),
     presenceRepository: presenceRepository ?? quietTestPresenceRepository(),
+    hierarchyRepository: hierarchyRepository,
   );
 }
 

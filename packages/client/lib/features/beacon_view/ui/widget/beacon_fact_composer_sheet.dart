@@ -31,6 +31,8 @@ Future<bool> showBeaconFactComposerSheet(
       clipboardImageRepository: clipboardImageRepository,
     ),
   );
+  // A posted-but-unpinned message belongs to this form only (#759).
+  cubit.forgetUnpinnedFactPost();
   return saved ?? false;
 }
 

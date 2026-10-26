@@ -5,9 +5,9 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_initial_load_test.dart';
@@ -21,6 +21,9 @@ import 'beacon_view_initial_load_test.dart';
 /// its hierarchy (nesting) parent — `beaconParentReference` — and has no
 /// lineage parent; a declined post member reads it with discovered |
 /// contextChild (32 | 64).
+///
+/// The parent is read through `BeaconViewCase` (review r1 #7: no second use
+/// case pulled from GetIt by the cubit).
 void main() {
   const myProfile = Profile(id: 'Udave', displayName: 'Dave');
   const requestId = 'Bea026c489fab';
@@ -69,9 +72,13 @@ void main() {
     final cubit = BeaconViewCubit(
       id: requestId,
       myProfile: myProfile,
-      beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
+      beaconViewCase: buildTestBeaconViewCase(
+        beaconRepo: beaconRepo,
+        hierarchyRepository: FakeBeaconHierarchyRepositoryPort(
+          parentReference: reference,
+        ),
+      ),
       effects: FakeUiEffectPort(),
-      hierarchyCase: _FakeHierarchyCase(reference),
     );
     addTearDown(cubit.close);
     await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
@@ -111,15 +118,4 @@ void main() {
     expect(cubit.state.accessParent, isNull);
     expect(fetchedIds, isNot(contains(postId)));
   });
-}
-
-class _FakeHierarchyCase extends Fake implements BeaconHierarchyCase {
-  _FakeHierarchyCase(this.reference);
-
-  final BeaconParentReference reference;
-
-  @override
-  Future<BeaconParentReference> fetchParentReference({
-    required String beaconId,
-  }) async => reference;
 }
