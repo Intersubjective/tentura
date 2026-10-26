@@ -158,6 +158,8 @@ Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {
   'id': post.id,
   'authorId': post.authorId,
   'lastActivityAt': post.lastActivityAt.toIso8601String(),
+  'expiresAt': post.expiresAt?.toIso8601String(),
+  'status': post.status,
   'rootExcerpt': post.rootExcerpt,
   'isPinned': post.isPinned,
   'hiddenReachCount': post.hiddenReachCount,

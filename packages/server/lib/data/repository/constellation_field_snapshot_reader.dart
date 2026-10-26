@@ -450,9 +450,9 @@ ORDER BY vu.object
     ];
   }
 
-  /// Posts the viewer authored or was admitted to (role 6), active within the
-  /// last 72 hours or pinned by the viewer, plus their member webs. Members
-  /// outside the viewer's visible peer set are only counted.
+  /// Posts the viewer authored or was admitted to (role 6), open and unexpired
+  /// or pinned by the viewer (including closed Posts), plus their member webs.
+  /// Members outside the viewer's visible peer set are only counted.
   Future<
     ({
       List<ConstellationPostRecord> posts,
@@ -479,6 +479,8 @@ ORDER BY vu.object
 SELECT
   b.id,
   b.user_id AS author_id,
+  b.expires_at,
+  b.status,
   COALESCE(b.last_activity_at, b.published_at, b.created_at) AS last_activity_at,
   left(COALESCE(root.body, ''), \$2::int) AS root_excerpt,
   EXISTS (
@@ -488,7 +490,7 @@ SELECT
 FROM public.beacon b
 LEFT JOIN public.beacon_room_message root ON root.id = b.post_root_message_id
 WHERE b.kind = 1
-  AND b.status = 0
+  AND b.status IN (0, 6)
   AND CASE
     WHEN b.id = ANY(\$3::text[]) THEN true
     WHEN b.id = ANY(\$4::text[]) THEN false
@@ -503,8 +505,7 @@ WHERE b.kind = 1
     )
   )
   AND (
-    COALESCE(b.last_activity_at, b.published_at, b.created_at)
-      > now() - interval '72 hours'
+    (b.status = 0 AND b.expires_at > now())
     OR EXISTS (
       SELECT 1 FROM public.beacon_pinned pin
       WHERE pin.beacon_id = b.id AND pin.user_id = \$1
@@ -595,6 +596,8 @@ ORDER BY m.beacon_id, m.person_id
             rootExcerpt: row.read<String>('root_excerpt'),
             isPinned: row.read<bool>('is_pinned'),
             hiddenReachCount: hiddenByPost[row.read<String>('id')] ?? 0,
+            expiresAt: readCustomSelectTimestamptz(row.data['expires_at']),
+            status: row.read<int>('status'),
           ),
       ],
       memberWebs: memberWebs,

@@ -972,14 +972,17 @@ INSERT INTO public.beacon_pinned (user_id, beacon_id) VALUES ('$egoId', '$id')
       expect(snapshot.posts.map((p) => p.id), [postId]);
     }, skip: skipReason);
 
-    test('Post quiet for 73 hours is absent unless the viewer pinned it',
+    test('expired Post is absent unless the viewer pinned it',
         () async {
       await seedAddresseePost();
-      await setQuietHours(73);
+      await db.customStatement('''
+UPDATE public.beacon SET expires_at = now() - interval '1 minute'
+WHERE id = '$postId'
+''');
 
-      final quiet = await readField(viewerId: egoId);
-      expect(quiet.posts, isEmpty);
-      expect(quiet.memberWebs, isEmpty);
+      final expired = await readField(viewerId: egoId);
+      expect(expired.posts, isEmpty);
+      expect(expired.memberWebs, isEmpty);
 
       await pinPostForViewer();
       final pinned = await readField(viewerId: egoId);

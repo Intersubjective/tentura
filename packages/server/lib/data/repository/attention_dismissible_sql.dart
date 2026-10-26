@@ -182,15 +182,25 @@ eligible_pinned AS (
       'AND (nm.muted_until IS NULL OR nm.muted_until > now()) '
       "AND $alias.kind IS DISTINCT FROM 'roomMention')";
 
+  /// Post attention leaves primary surfaces at expiry, without waiting for a
+  /// closing sweep. Requests and beacon-less receipts keep their eligibility.
+  /// History reads do not apply this predicate.
+  static String postLifecycleExcluded(String alias) =>
+      'NOT EXISTS (SELECT 1 FROM public.beacon lb '
+      'WHERE lb.id = $alias.beacon_id AND lb.kind = 1 '
+      'AND (lb.status = 0 AND lb.expires_at > now()) IS NOT TRUE)';
+
   /// Kind-aware eligibility of a receipt for grouping, previews, counts and
   /// sweeps. A Request's `relay_received` row is the synthetic forward shell
   /// and is excluded; a Post's (`kind = 1`) is its arrival and counts like any
-  /// other child. Receipts of a muted Post are excluded ([postMuteExcluded]).
+  /// other child. Muted and archived Post receipts are excluded by
+  /// [postMuteExcluded] and [postLifecycleExcluded].
   static String relayShellExcluded(String alias) =>
       "(($alias.presentation_key IS DISTINCT FROM 'relay_received' OR "
       'EXISTS (SELECT 1 FROM public.beacon pk WHERE pk.id = $alias.beacon_id '
       'AND pk.kind = 1)) '
-      'AND ${postMuteExcluded(alias)})';
+      'AND ${postMuteExcluded(alias)} '
+      'AND ${postLifecycleExcluded(alias)})';
 
   /// Plan C6 — an `authorInviteReceived` receipt whose invite is still
   /// pending. On the invitee's pinned For-you row for the same Request the

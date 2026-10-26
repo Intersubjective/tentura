@@ -1055,6 +1055,8 @@ final gqlTypeConstellationPost =
         field('id', graphQLString.nonNullable()),
         field('authorId', graphQLString.nonNullable()),
         field('lastActivityAt', graphQLString.nonNullable()),
+        field('expiresAt', graphQLString),
+        field('status', graphQLInt.nonNullable()),
         field('rootExcerpt', graphQLString.nonNullable()),
         field('isPinned', graphQLBoolean.nonNullable()),
         field('hiddenReachCount', graphQLInt.nonNullable()),

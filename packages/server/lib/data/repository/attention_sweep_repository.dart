@@ -318,6 +318,7 @@ UPDATE public.notification_outbox AS receipt
        cleared_by_operation_id = \$2
  WHERE receipt.account_id = \$1
    AND ${AttentionDismissibleSql.activeOptional('receipt')}
+   AND ${AttentionDismissibleSql.relayShellExcluded('receipt')}
    AND receipt.id IN ($placeholders)
 ''',
         variables: variables,

@@ -44,6 +44,7 @@ JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id''';
 $_authorizedReceiptJoin
 WHERE ${AttentionDismissibleSql.activeAttention('receipt')}
   AND ${AttentionDismissibleSql.primaryPlacement('receipt')}
+  AND ${AttentionDismissibleSql.postLifecycleExcluded('receipt')}
   AND receipt.beacon_id IN ($placeholders)''',
           variables: [
             Variable<String>(accountId),
@@ -744,6 +745,7 @@ page_stream AS (
       ON v.beacon_id = ii.beacon_id
      AND ${AttentionDismissibleSql.activeOptional('v')}
      AND ${AttentionDismissibleSql.primaryPlacement('v')}
+     AND ${AttentionDismissibleSql.postLifecycleExcluded('v')}
      AND v.created_at > ii.latest_forward_at
     WHERE ii.user_id = \$1
       AND ii.status = 1
@@ -845,6 +847,7 @@ WITH $_visibleWithSurfaceCte,
 summary AS (
   SELECT COUNT(*) FILTER (
     WHERE ${AttentionDismissibleSql.activeAttention('v')}
+      AND ${AttentionDismissibleSql.postLifecycleExcluded('v')}
       AND (\$4::text IS NULL OR v.surface = \$4)
   )::int AS unread_total,
   COUNT(*) FILTER (
@@ -1321,7 +1324,7 @@ ranked AS (
   WHERE v.surface = 'activity'
     AND v.beacon_id IN ($placeholders)
     AND v.presentation_key IS DISTINCT FROM 'relay_received'
-    AND ${AttentionDismissibleSql.postMuteExcluded('v')}
+    AND ${AttentionDismissibleSql.relayShellExcluded('v')}
     -- #189: optional events only — For You never carries an obligation.
     AND ${AttentionDismissibleSql.activeOptional('v')}
     AND ${AttentionDismissibleSql.forYouEligible('v')}

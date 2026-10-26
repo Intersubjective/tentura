@@ -47,6 +47,8 @@ class ConstellationPostRecord {
     required this.rootExcerpt,
     required this.isPinned,
     required this.hiddenReachCount,
+    required this.expiresAt,
+    required this.status,
   });
 
   final String id;
@@ -54,6 +56,8 @@ class ConstellationPostRecord {
   final DateTime lastActivityAt;
   final String rootExcerpt;
   final bool isPinned;
+  final DateTime? expiresAt;
+  final int status;
 
   /// Members of the Post outside the viewer's visible peer set.
   final int hiddenReachCount;
