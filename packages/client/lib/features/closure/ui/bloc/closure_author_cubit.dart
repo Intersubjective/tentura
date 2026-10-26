@@ -102,7 +102,8 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
     ),
   );
 
-  Future<void> saveStory(String body) => _write(
+  /// Completes with true once the story is saved (#734: the field confirms).
+  Future<bool> saveStory(String body) => _write(
     (epoch) =>
         _case.saveStory(beaconId: beaconId, expectedEpoch: epoch, body: body),
   );
@@ -157,33 +158,38 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
     clearDraft: true,
   );
 
+  /// Runs [action] on the current epoch; true when the write went through.
+  ///
   /// [ends]: a successful [action] finishes the review (Close now, Return to
   /// work). There is nothing left to reload: Return to work cancels the
   /// epoch, so a refetch would only answer not-found.
-  Future<void> _write(
+  Future<bool> _write(
     Future<void> Function(int epoch) action, {
     bool clearDraft = false,
     bool ends = false,
   }) async {
     final data = state.data;
-    if (data == null) return;
+    if (data == null) return false;
     try {
       await action(data.epoch);
-      if (isClosed) return;
+      if (isClosed) return true;
       if (ends) {
         emit(state.copyWith(ended: true));
-        return;
+        return true;
       }
       if (clearDraft) emit(state.copyWith(draft: null));
     } on ClosureStaleEpochException catch (e) {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(state.copyWith(notice: e, noticeTick: state.noticeTick + 1));
+      await fetch();
+      return false;
     } on Object catch (e) {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(state.copyWith(notice: e, noticeTick: state.noticeTick + 1));
-      return;
+      return false;
     }
     await fetch();
+    return true;
   }
 }
 

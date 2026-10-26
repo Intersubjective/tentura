@@ -5,6 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 
@@ -61,6 +62,8 @@ class BeaconClosureConfirmationSummary {
     required this.hasSuccessfulHelpOfferResult,
     required this.requiresReviewWindow,
     this.missingCriteria = const {},
+    this.committedHelperCount,
+    this.hasActiveVoter = true,
   });
 
   final BeaconClosureReadiness readiness;
@@ -77,12 +80,52 @@ class BeaconClosureConfirmationSummary {
   /// maps them to rows (#474).
   final Set<BeaconClosureCriterion> missingCriteria;
 
+  /// Helpers who ever committed (server display status); `null` while it is
+  /// not known, which keeps the final-check copy.
+  final int? committedHelperCount;
+
+  /// Some helper is still committed and could vote ([closureHasActiveVoter]).
+  final bool hasActiveVoter;
+
+  /// Helpers committed, but nobody could vote in a final check (too few of
+  /// them, or none still committed): the server closes the Request straight
+  /// away (#733), and the sheet says why.
+  bool get closesWithoutFinalCheck =>
+      requiresReviewWindow &&
+      committedHelperCount != null &&
+      (committedHelperCount! < kClosureMinMembersForVote || !hasActiveVoter);
+
   /// Every completion check passes: the sheet offers a plain close (or the
   /// start of the final check) with no warning.
   bool get allChecksPass =>
       readiness == BeaconClosureReadiness.readyToClose ||
       (readiness == BeaconClosureReadiness.waitingForReview &&
           missingCriteria.isEmpty);
+}
+
+/// Members a final check needs before anyone can vote: a voter supports
+/// among at least two colleagues (server `ClosureCase`, #733).
+const kClosureMinMembersForVote = 3;
+
+/// A helper who could vote in a final check: still committed, not withdrawn
+/// or released (server `ClosureCase`: active at open, no departure).
+bool closureHelpOfferCanVote(TimelineHelpOffer offer) =>
+    !offer.isWithdrawn &&
+    (offer.stakeState == CommitmentStakeState.acknowledged ||
+        offer.stakeState == CommitmentStakeState.softened);
+
+/// Some helper could still vote in a final check ([closureHelpOfferCanVote]).
+bool closureHasActiveVoter(BeaconViewState state) =>
+    state.helpOffers.any(closureHelpOfferCanVote);
+
+/// Nobody could vote in a final check, so closing does not open one (#733):
+/// fewer than three committed helpers, or none of them still committed — the
+/// server's `ClosureCase.canAnyoneVote` rule. False while the display status
+/// is unknown.
+bool closureFinalCheckHasNoVote(BeaconViewState state) {
+  final count = state.displayStatus?.everAcknowledgedCommitterCount;
+  return count != null &&
+      (count < kClosureMinMembersForVote || !closureHasActiveVoter(state));
 }
 
 bool closeHardGate(BeaconViewState state) {
@@ -107,8 +150,14 @@ BeaconParticipant? beaconParticipantForUser(
 }
 
 bool _hasOpenBlocker(BeaconViewState state) {
+  // Only a blocker item gates closing: the plan is optional, and its steps
+  // (done or not) never hold a close back (#733).
   final coord = state.openCoordinationBlocker;
-  if (coord != null && coord.isOpen) return true;
+  if (coord != null &&
+      coord.kind == CoordinationItemKind.blocker &&
+      coord.isOpen) {
+    return true;
+  }
   final t = state.beaconRoomCue?.openBlockerTitle?.trim();
   return t != null && t.isNotEmpty;
 }
@@ -320,6 +369,8 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
     enoughHelpOffered: enoughHelp,
     hasSuccessfulHelpOfferResult: successfulResult,
     requiresReviewWindow: expectedRequiresReviewWindowForState(state) ?? false,
+    committedHelperCount: state.displayStatus?.everAcknowledgedCommitterCount,
+    hasActiveVoter: closureHasActiveVoter(state),
     missingCriteria: {
       if (judged && !enoughHelp) BeaconClosureCriterion.enoughHelp,
       if (judged && !successfulResult)

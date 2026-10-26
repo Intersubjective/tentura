@@ -348,9 +348,10 @@ void main() {
   testWidgets('two members: explanatory text', (tester) async {
     await _pump(tester, _state(members: [_member('u1'), _member('u2')]));
     expect(
+      // #733: reworded so it parses.
       find.text(
-        'Долю каждого распределяешь ты. Каждый из двоих поймёт по своему '
-        'итогу, как ты разделил',
+        'Доли задаёшь ты. Когда помощников двое, каждый по своему итогу '
+        'поймёт и долю другого',
       ),
       findsOneWidget,
     );
@@ -819,7 +820,10 @@ void main() {
         split: {'u1': 70, 'u2': 20, 'u3': 10},
       ),
     );
-    expect(find.text('если коллеги промолчат'), findsOneWidget);
+    expect(
+      find.text('Что получит каждый, если коллеги промолчат'),
+      findsOneWidget,
+    );
     expect(_name('u1'), findsWidgets);
     _expectRatios(tester, [0.3856, 0.2074, 0.1069]);
   });

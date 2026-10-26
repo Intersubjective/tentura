@@ -24,7 +24,11 @@ Future<bool> showBeaconCloseConfirmSheet({
   final r = summary.allChecksPass
       ? BeaconClosureReadiness.readyToClose
       : summary.readiness;
-  final reviewBranch = summary.requiresReviewWindow;
+  // Fewer than three committed helpers: nobody could vote, so the server
+  // closes at once instead of opening a final check, and the sheet says so
+  // rather than promising an acknowledgement step (#733).
+  final noVote = summary.closesWithoutFinalCheck;
+  final reviewBranch = summary.requiresReviewWindow && !noVote;
 
   final (title, body, branchPreview) = switch ((r, reviewBranch)) {
     (BeaconClosureReadiness.readyToClose, true) => (
@@ -34,7 +38,9 @@ Future<bool> showBeaconCloseConfirmSheet({
     ),
     (BeaconClosureReadiness.readyToClose, false) => (
       l10n.beaconCloseSheetReadyTitle,
-      l10n.beaconCloseSheetReadyImmediateBody,
+      noVote
+          ? l10n.beaconCloseSheetNoVoteBody
+          : l10n.beaconCloseSheetReadyImmediateBody,
       l10n.beaconCloseSheetBranchClosedImmediate,
     ),
     (BeaconClosureReadiness.waitingForReview, _) => (
@@ -184,6 +190,15 @@ Future<bool> showBeaconCloseConfirmSheet({
                   body,
                   style: TenturaText.body(scheme.onSurfaceVariant),
                 ),
+                if (noVote &&
+                    r != BeaconClosureReadiness.readyToClose &&
+                    r != BeaconClosureReadiness.blocked) ...[
+                  SizedBox(height: tt.rowGap),
+                  Text(
+                    l10n.beaconCloseSheetNoVoteBody,
+                    style: TenturaText.body(scheme.onSurfaceVariant),
+                  ),
+                ],
                 if (evidence.isNotEmpty) ...[
                   SizedBox(height: tt.sectionGap),
                   ...evidence,

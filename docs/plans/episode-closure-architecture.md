@@ -233,6 +233,7 @@ open family ──close──▶ reviewOpen (epoch e, status evaluating)
 ```
 
 - **Close-now (P3):** allowed when the author has an **explicit** outcome (not NULL) for every member **and** (every member of the readiness set has a commit row **or** ≥ 48 h since `opened_at`). Readiness set = voters when `|M| ≥ 3`; empty when `|M| ≤ 2` (no voting). The author never learns who is ready (U53).
+- **Nobody can vote → settle at close (#733, Vadim's decision A, 2026-10).** When the snapshot taken at close leaves nobody able to vote — fewer than 3 members, or no member who is active at open with no departure (`ClosureCase.canAnyoneVote`) — `close()` creates the epoch and finalizes it in the same transaction (reason `authorCloseNow`) instead of opening a week-long final check. This is deliberate: the author gets no Done / Not-done step and no story step for that epoch (`saveOutcome` needs a live epoch), every outcome stays NULL, every non-leaver lands in set A (`inAWithoutOutcome`) and gets trust credit. The client mirrors the same rule for its copy (the close sheet and HUD say the Request closes at once). Clients older than 7.56.6 still promise a final check in their copy; that is harmless and does not move the minimum client version.
 - Extend: +7 days, max 2.
 - Reopen: only from an evaluating epoch, `kMaxReviewReopens = 1`; reopen returns to Open (Coordinating); the status sheet's explicit Needs more help still lands in Needs more help. `reviewOpen → needsMoreHelp` and `reviewOpen → open` from the status sheet route to the same operation (P9, #366). Committed supports and commit rows are deleted (drafts kept, U12).
 - No reopen after finalize (P10). After finalize the only writes allowed are the viewer's own bookmarks (U37, U40).
@@ -682,6 +683,7 @@ Pilot metrics (plan §8): effect of supports vs the same episode in silence (fro
 
 ## 15. Review log
 
+- 2026-10-26 — #733 (Vadim, A): `close()` settles the epoch at once when nobody can vote (§5.1); recorded as a decision, not an accident (PR #791 review).
 - rev 6 (2026-09-29) — plan rev 23: U59 support edge (kind 9 `supported_colleague`, §5.9b, migration `m0204`; phase B migration becomes `m0205`); rejected equal-peer all-to-all scheme recorded in plan §1.4.
 - rev 5 (2026-09-29) — plan rev 22: support is the helper's own judgement, not a guess about the author; §5.5.2 self-scaling with vectors; new helper header and (i) text; vote-efficacy and halo metrics; risk row.
 - rev 4 (2026-09-29) — U58 (plan rev 21): kind 8 `worked_with_author`, helper → author at finalize for members present until closure, `count = 1/√|P|`, linear decay over 180 d, excluded from `T_recent`; kind config gets `linear_window_s` and `counts_for_immunity`.

@@ -33,9 +33,19 @@ class _ClosureStoryFieldState extends State<ClosureStoryField> {
     }
   }
 
+  /// A save is under way: a second tap does not send the story again.
+  var _saving = false;
+
   Future<void> _save() async {
+    if (_saving) return;
     final text = _controller.text;
-    final ok = await widget.onSave(text);
+    setState(() => _saving = true);
+    final bool ok;
+    try {
+      ok = await widget.onSave(text);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
     if (!mounted || !ok || _controller.text != text) return;
     setState(() => _savedText = text);
   }
@@ -70,18 +80,19 @@ class _ClosureStoryFieldState extends State<ClosureStoryField> {
           children: [
             FilledButton(
               key: const ValueKey('closure.author.story.save'),
-              onPressed: _save,
+              onPressed: _saving ? null : _save,
               child: Text(l10n.closureAuthorStorySave),
             ),
             if (_savedText != null)
+              // Read as «Saved», not «Saved check mark».
               Semantics(
                 liveRegion: true,
+                label: l10n.closureAuthorStorySavedLabel,
+                excludeSemantics: true,
                 child: Text(
                   l10n.closureAuthorStorySaved,
                   key: const ValueKey('closure.author.story.saved'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+                  style: TenturaText.bodySmall(theme.colorScheme.primary),
                 ),
               ),
           ],

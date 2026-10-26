@@ -89,7 +89,9 @@ import '../../support/user_erasure_test_stack.dart';
 /// `_postAuthor`). Its snapshot observers are `_postAuthor`, `_warm` (a first
 /// responder), `_cold` (forward-visible to `_author`), `_hidden` (not
 /// visible), `_paused` (availability-paused) and `_helper`; `_late` joined the
-/// Post after the bud and is not an observer.
+/// Post after the bud and is not an observer. `_helper2` and `_helper3` are
+/// plain users (not observers) that only the final-check cases admit, so
+/// those Requests have three voters (#733).
 const _postAuthor = 'Uai4postauth';
 const _author = 'Uai4author01';
 const _warm = 'Uai4warm0001';
@@ -109,6 +111,11 @@ const _users = [
   _late,
 ];
 const _observers = [_postAuthor, _warm, _cold, _hidden, _paused, _helper];
+
+// Seeded under their own key namespace: `pgTestPublicKey` has 9 slots.
+const _helper2 = 'Uai4helper02';
+const _helper3 = 'Uai4helper03';
+const _extraHelpers = [_helper2, _helper3];
 
 const _post = 'Bai4post0001';
 const _child = 'Bai4child001';
@@ -754,14 +761,20 @@ WHERE id = '${row.forwardEdgeId}'
     });
 
     group('review and expiry', () {
+      // Three helpers: with fewer nobody could vote, and closing settles at
+      // once instead of opening the final check these cases are about (#733).
+      // `_hidden` and `_paused` cannot be forwarded to, so the other two are
+      // the plain `_helper2` and `_helper3`.
       Future<void> admitHelper() async {
-        await s.forward(_author, _helper);
-        await s.offerHelp(_helper);
-        await s.coordination.acceptHelpOffer(
-          beaconId: _child,
-          offerUserId: _helper,
-          actorUserId: _author,
-        );
+        for (final helper in [_helper, ..._extraHelpers]) {
+          await s.forward(_author, helper);
+          await s.offerHelp(helper);
+          await s.coordination.acceptHelpOffer(
+            beaconId: _child,
+            offerUserId: helper,
+            actorUserId: _author,
+          );
+        }
       }
 
       test(
@@ -1537,6 +1550,18 @@ INSERT INTO public."user" (id, display_name, public_key)
 VALUES (@id, @id, @key)
 '''),
       parameters: {'id': _users[i], 'key': pgTestPublicKey('ai4', i + 1)},
+    );
+  }
+  for (var i = 0; i < _extraHelpers.length; i++) {
+    await writer.execute(
+      Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+'''),
+      parameters: {
+        'id': _extraHelpers[i],
+        'key': pgTestPublicKey('aj4', i + 1),
+      },
     );
   }
   await writer.execute('''

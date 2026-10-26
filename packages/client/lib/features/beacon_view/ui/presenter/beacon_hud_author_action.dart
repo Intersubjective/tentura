@@ -163,10 +163,13 @@ String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
   };
 }
 
+/// [noFinalCheckVote]: too few committed helpers for anyone to vote, so the
+/// close action closes at once instead of starting a final check (#733).
 String effectLineForBeaconHudAuthorAction(
   L10n l10n,
-  BeaconHudAuthorAction action,
-) {
+  BeaconHudAuthorAction action, {
+  bool noFinalCheckVote = false,
+}) {
   return switch (action) {
     BeaconHudAuthorAction.resolveBlocker =>
       l10n.beaconHudActEffectResolveBlocker,
@@ -174,7 +177,9 @@ String effectLineForBeaconHudAuthorAction(
     BeaconHudAuthorAction.markEnoughHelp =>
       l10n.beaconHudActEffectMarkEnoughHelp,
     BeaconHudAuthorAction.wrapUpForReview =>
-      l10n.beaconHudActEffectWrapUpForReview,
+      noFinalCheckVote
+          ? l10n.beaconHudActEffectWrapUpNoVote
+          : l10n.beaconHudActEffectWrapUpForReview,
     BeaconHudAuthorAction.sumUp => l10n.beaconHudActEffectSumUp,
     BeaconHudAuthorAction.closeNow => l10n.beaconHudActEffectCloseNow,
   };
@@ -188,7 +193,11 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
   final action = deriveBeaconHudAuthorAction(state);
   if (action == null) return null;
   final label = labelForBeaconHudAuthorAction(l10n, action);
-  final effectLine = effectLineForBeaconHudAuthorAction(l10n, action);
+  final effectLine = effectLineForBeaconHudAuthorAction(
+    l10n,
+    action,
+    noFinalCheckVote: closureFinalCheckHasNoVote(state),
+  );
   return BeaconHudAuthorActSpec(
     action: action,
     label: label,

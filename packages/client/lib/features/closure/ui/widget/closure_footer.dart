@@ -52,6 +52,14 @@ class ClosureFooter extends StatelessWidget {
             style: theme.textTheme.bodySmall,
           ),
         ],
+        // An enabled «Finish now» does not wait for anyone: say so (#733).
+        if (data.canCloseNow) ...[
+          const SizedBox(height: TenturaSpacing.tight),
+          Text(
+            l10n.closureAuthorCloseNowNote,
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
         const SizedBox(height: TenturaSpacing.row),
         Wrap(
           spacing: TenturaSpacing.row,

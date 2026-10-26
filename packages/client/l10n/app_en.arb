@@ -5043,12 +5043,12 @@
   "beaconCloseSheetEvidenceNoOpenBlocker": "No open blocker",
   "beaconCloseSheetEvidenceWholeBeaconDone": "Whole request marked done",
   "beaconCloseSheetEvidenceEnoughHelp": "Marked: enough help",
-  "beaconCloseSheetEvidenceUsefulOrDone": "Useful or done result present",
+  "beaconCloseSheetEvidenceUsefulOrDone": "An offer was accepted",
   "beaconCloseSheetEvidenceEnoughHelpMissing": "Enough help not marked yet",
   "@beaconCloseSheetEvidenceEnoughHelpMissing": {
     "description": "Close sheet checklist row: the author has not marked that enough help is committed"
   },
-  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "No useful or done result yet",
+  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "No offer accepted yet",
   "@beaconCloseSheetEvidenceUsefulOrDoneMissing": {
     "description": "Close sheet checklist row: no help offer has a useful or done result yet"
   },
@@ -5160,7 +5160,7 @@
   "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to the discussion",
   "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
   "beaconHudActEffectWrapUpForReview": "Starts the final check; helpers can acknowledge",
-  "beaconHudActEffectCloseNow": "Closes the request when everyone has finished the final check",
+  "beaconHudActEffectCloseNow": "Closes the request now, without waiting for the final check",
   "beaconHudActEffectForward": "Shares request; does not change discussion access",
   "beaconHudYouChangeStatusInOverflow": "Change request state in ⋮ menu",
   "beaconHudConfirmMarkEnoughHelpTitle": "Mark enough help?",
@@ -7618,11 +7618,11 @@
       }
     }
   },
-  "closureAuthorPreviewTitle": "if colleagues stay silent",
+  "closureAuthorPreviewTitle": "What each helper gets if colleagues stay silent",
   "@closureAuthorPreviewTitle": {
     "description": "Live preview title."
   },
-  "closureAuthorTwoMembers": "You set each share. Each of the two will understand from their own result how you divided",
+  "closureAuthorTwoMembers": "You set each share. With only two helpers, each of them can work out the other's share from their own result",
   "@closureAuthorTwoMembers": {
     "description": "Note shown when there are two members."
   },
@@ -11801,5 +11801,33 @@
   "forwardDeclinedUseInvite": "They dismissed it — use People › Invite",
   "@forwardDeclinedUseInvite": {
     "description": "Forward picker row for the Request author (#730): this person dismissed the Request; they can still be invited from the People tab."
+  },
+  "beaconCloseSheetNoVoteBody": "With fewer than three helpers there is nothing for them to decide in a final check, so the request closes right away.",
+  "@beaconCloseSheetNoVoteBody": {
+    "description": "Close sheet body (#733): helpers committed, but fewer than three, so nobody can vote and the request closes without a final check."
+  },
+  "beaconHudActEffectWrapUpNoVote": "Closes right away: with fewer than three helpers there is no final check",
+  "@beaconHudActEffectWrapUpNoVote": {
+    "description": "HUD effect of the close action when fewer than three helpers committed, so nobody can vote (#733)."
+  },
+  "closureAuthorStorySaved": "Saved ✓",
+  "@closureAuthorStorySaved": {
+    "description": "Inline confirmation after the closing story was saved (#734)."
+  },
+  "closureAuthorStorySavedLabel": "Saved",
+  "@closureAuthorStorySavedLabel": {
+    "description": "Screen-reader label for the inline «Saved ✓» confirmation, without the check mark (#734)."
+  },
+  "closureAuthorCloseNowNote": "Finish now closes without waiting for the others",
+  "@closureAuthorCloseNowNote": {
+    "description": "Author final-check page (#733): note beside an enabled Finish now."
+  },
+  "closureHelperNothingToDecide": "With only one colleague there is nothing to decide — you're done",
+  "@closureHelperNothingToDecide": {
+    "description": "Member's final-check page with fewer than two colleagues, so there is no support vote (#733)."
+  },
+  "beaconShowcaseFinalCheckNotice": "This request is in its final check",
+  "@beaconShowcaseFinalCheckNotice": {
+    "description": "Request showcase, viewer who is not a member while the request is in its final check: why Offer help and Forward are gone (#733)."
   }
 }
