@@ -163,6 +163,7 @@ WHERE beacon_id = '$_post'
         expect(_json(notices.single[0]), {
           'childBeaconId': _child,
           'title': 'Fix the fence',
+          'reason': 'budded',
         });
         expect(notices.single[1], isNull);
       },

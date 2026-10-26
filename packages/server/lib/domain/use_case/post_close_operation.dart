@@ -3,16 +3,17 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
-/// Closes a Post when a Request buds from it with `closePost` (Arch §2.3,
-/// plan C5).
+/// Closes a Post (status 6): when a Request buds from it with `closePost`
+/// (Arch §2.3, plan C5), when it expires, or when its author closes it.
 ///
-/// A closed Post (status 6) stays readable for its members and stays in their
-/// conversation list; every ordinary write is refused. It is reachable only
-/// through budding, so this is the one place that sets it.
+/// A closed Post stays readable for its members and stays in their
+/// conversation list; every ordinary write is refused. This is the one place
+/// that sets it.
 ///
 /// It runs inside the caller's mutating unit, after the caller took the Post
 /// lock (Arch §4.1); it re-checks that the Post is still an open Post.
@@ -39,15 +40,65 @@ final class PostCloseOperation {
     required String title,
     required String actorId,
   }) async {
-    final post = await _beacons.getBeaconById(beaconId: postId);
-    if (post.kind != BeaconKind.post || post.status != BeaconStatus.open) {
-      throw const PostNotOpenException();
-    }
+    final post = await _requireOpenPost(postId);
     if (post.author.id != actorId) {
       throw const BeaconChildCreateForbiddenException(
         description: 'Only the author of the Post can close it',
       );
     }
+    await _close(
+      post,
+      lifecycleReason: BeaconLifecycleChangeReason.directClose,
+      noticeReason: PostClosedNoticeReason.budded,
+      actorId: actorId,
+      childBeaconId: childBeaconId,
+      title: title,
+    );
+  }
+
+  /// Closes [postId] because its `expires_at` passed; the system is the actor.
+  Future<void> expire({required String postId}) async {
+    await _close(
+      await _requireOpenPost(postId),
+      lifecycleReason: BeaconLifecycleChangeReason.postExpired,
+      noticeReason: PostClosedNoticeReason.expired,
+      actorId: null,
+      endNow: true,
+    );
+  }
+
+  /// Closes [postId] on [actorId]'s request before it expired. The caller
+  /// checks that [actorId] is the Post's author.
+  Future<void> closeByAuthor({
+    required String postId,
+    required String actorId,
+  }) async {
+    await _close(
+      await _requireOpenPost(postId),
+      lifecycleReason: BeaconLifecycleChangeReason.postClosedByAuthor,
+      noticeReason: PostClosedNoticeReason.closedByAuthor,
+      actorId: actorId,
+      endNow: true,
+    );
+  }
+
+  Future<BeaconEntity> _requireOpenPost(String postId) async {
+    final post = await _beacons.getBeaconById(beaconId: postId);
+    if (post.kind != BeaconKind.post || post.status != BeaconStatus.open) {
+      throw const PostNotOpenException();
+    }
+    return post;
+  }
+
+  Future<void> _close(
+    BeaconEntity post, {
+    required String lifecycleReason,
+    required String noticeReason,
+    required String? actorId,
+    String? childBeaconId,
+    String? title,
+    bool endNow = false,
+  }) async {
     final verdict = validateBeaconStatusTransition(
       from: post.status,
       to: BeaconStatus.closed,
@@ -56,14 +107,16 @@ final class PostCloseOperation {
       throw const PostNotOpenException();
     }
     await _beacons.recordBeaconStatusTransition(
-      beaconId: postId,
+      beaconId: post.id,
       fromStatus: post.status,
       toStatus: BeaconStatus.closed,
-      reason: BeaconLifecycleChangeReason.directClose,
+      reason: lifecycleReason,
       actorId: actorId,
     );
+    if (endNow) await _beacons.endPostNow(post.id);
     await _beacons.postClosedMessage(
-      postId: postId,
+      postId: post.id,
+      reason: noticeReason,
       childBeaconId: childBeaconId,
       title: title,
     );

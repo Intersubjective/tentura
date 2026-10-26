@@ -160,14 +160,20 @@ abstract class BeaconRepositoryPort {
     required Duration lifetime,
   });
 
-  /// Inserts the kind-5 system message announcing that [postId] was closed
-  /// and continues in the budded Request [childBeaconId] (payload
-  /// `{childBeaconId, title}`; [title] is a snapshot).
+  /// Inserts the kind-5 system message announcing that [postId] was closed.
+  /// The payload is `{reason}` (`PostClosedNoticeReason`), plus
+  /// `{childBeaconId, title}` when the Post closed by budding into the Request
+  /// [childBeaconId] ([title] is a snapshot).
   Future<void> postClosedMessage({
     required String postId,
-    required String childBeaconId,
-    required String title,
+    required String reason,
+    String? childBeaconId,
+    String? title,
   });
+
+  /// Pulls an open-or-closing Post's `expires_at` back to `now()` when it is
+  /// still in the future, so "when did it end" is readable from the row.
+  Future<void> endPostNow(String postId);
 
   /// Sets `beacon.post_root_message_id` once; a no-op when already set.
   Future<void> setPostRootMessage({

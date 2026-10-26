@@ -299,9 +299,13 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   @override
   Future<void> postClosedMessage({
     required String postId,
-    required String childBeaconId,
-    required String title,
+    required String reason,
+    String? childBeaconId,
+    String? title,
   }) async {}
+
+  @override
+  Future<void> endPostNow(String postId) async {}
 
   @override
   Future<void> setPostLifetime({

@@ -1061,15 +1061,26 @@ class MockBeaconRepositoryPort extends _i1.Mock
   @override
   _i6.Future<void> postClosedMessage({
     required String? postId,
-    required String? childBeaconId,
-    required String? title,
+    required String? reason,
+    String? childBeaconId,
+    String? title,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#postClosedMessage, [], {
               #postId: postId,
+              #reason: reason,
               #childBeaconId: childBeaconId,
               #title: title,
             }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> endPostNow(String? postId) =>
+      (super.noSuchMethod(
+            Invocation.method(#endPostNow, [postId]),
             returnValue: _i6.Future<void>.value(),
             returnValueForMissingStub: _i6.Future<void>.value(),
           )

@@ -661,13 +661,15 @@ WHERE id = $1 AND kind = 1 AND status = 0''',
   @override
   Future<void> postClosedMessage({
     required String postId,
-    required String childBeaconId,
-    required String title,
+    required String reason,
+    String? childBeaconId,
+    String? title,
   }) => _database.customInsert(
     r'''
 INSERT INTO public.beacon_room_message
   (beacon_id, body, system_message_kind, system_payload, created_at)
-VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::text),
+VALUES ($1, '', $2, jsonb_strip_nulls(jsonb_build_object(
+    'reason', $3::text, 'childBeaconId', $4::text, 'title', $5::text)),
   -- After the bud's «made the request» notice of the same transaction
   -- (whose default is now(), the transaction start): equal stamps would
   -- order the two by random id (#666).
@@ -676,9 +678,19 @@ VALUES ($1, '', $2, jsonb_build_object('childBeaconId', $3::text, 'title', $4::t
     variables: [
       Variable<String>(postId),
       Variable<int>(BeaconRoomSystemMessageKind.postClosed),
+      Variable<String>(reason),
       Variable<String>(childBeaconId),
       Variable<String>(title),
     ],
+  );
+
+  @override
+  Future<void> endPostNow(String postId) => _database.customUpdate(
+    r'''
+UPDATE public.beacon SET expires_at = least(expires_at, now())
+WHERE id = $1 AND kind = 1''',
+    variables: [Variable<String>(postId)],
+    updates: {_database.beacons},
   );
 
   @override

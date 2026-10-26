@@ -59,6 +59,20 @@ abstract final class BeaconLifecycleChangeReason {
   /// #380: the author extended the final check; status stays reviewOpen and
   /// `diff.closesAt` carries the new end date. Room visibility only.
   static const closureExtended = 'closureExtended';
+
+  /// A Post reached its `expires_at` and was closed by the system.
+  static const postExpired = 'postExpired';
+
+  /// The author closed their own Post before it expired.
+  static const postClosedByAuthor = 'postClosedByAuthor';
+}
+
+/// `reason` in the payload of the kind-5 `postClosed` room notice: why the
+/// Post ended.
+abstract final class PostClosedNoticeReason {
+  static const expired = 'expired';
+  static const closedByAuthor = 'closedByAuthor';
+  static const budded = 'budded';
 }
 
 /// Matches client [`BeaconActivityEvent.isCoordinationLogEvent`] / Log tab filter.
