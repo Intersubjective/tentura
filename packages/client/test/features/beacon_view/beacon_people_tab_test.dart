@@ -22,6 +22,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -160,7 +161,7 @@ void main() {
   testWidgets('People tab shows willing to help fold with count', (
     tester,
   ) async {
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -205,7 +206,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -253,7 +254,7 @@ void main() {
       forwardsLoaded: true,
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -331,7 +332,7 @@ void main() {
             ],
             forwardsLoaded: true,
           );
-          await tester.pumpWidget(
+          await tester.pumpPeopleTagsWidget(
             _wrapPeople(
               BeaconPeopleTabBody(
                 state: _state,
@@ -393,7 +394,7 @@ void main() {
           viewerForwardEdges: edges,
           forwardsLoaded: true,
         );
-        await tester.pumpWidget(
+        await tester.pumpPeopleTagsWidget(
           _wrapPeople(
             BeaconPeopleTabBody(
               state: _state,
@@ -469,7 +470,7 @@ void main() {
         ],
         forwardsLoaded: true,
       );
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,
@@ -554,7 +555,7 @@ void main() {
         ],
         forwardsLoaded: true,
       );
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,
@@ -621,7 +622,7 @@ void main() {
         ],
         forwardsLoaded: true,
       );
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,
@@ -656,7 +657,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final cubit = _MockBeaconViewCubit();
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       MediaQuery(
         data: const MediaQueryData(size: compact),
         child: _wrapPeople(
@@ -685,7 +686,7 @@ void main() {
   testWidgets('author sees pending offers above active helpers', (
     tester,
   ) async {
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -719,7 +720,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -762,7 +763,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       MediaQuery(
         data: const MediaQueryData(size: compact),
         child: _wrapPeople(
@@ -817,7 +818,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -862,7 +863,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -895,7 +896,7 @@ void main() {
       forwardsLoaded: true,
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -944,7 +945,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -992,7 +993,7 @@ void main() {
       forwardsLoaded: true,
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -1049,7 +1050,7 @@ void main() {
       forwardsLoaded: true,
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -1084,7 +1085,7 @@ void main() {
     ).copyWith(myProfile: helper);
     final cubit = _MockBeaconViewCubit();
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -1131,7 +1132,7 @@ void main() {
         ],
         forwardsLoaded: true,
       );
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,
@@ -1173,7 +1174,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -1205,7 +1206,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -1278,7 +1279,7 @@ void main() {
     }
 
     Future<void> pumpPeople(WidgetTester tester) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,
@@ -1431,7 +1432,7 @@ void main() {
     Future<void> pumpPeople(WidgetTester tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,

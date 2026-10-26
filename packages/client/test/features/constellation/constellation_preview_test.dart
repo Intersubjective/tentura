@@ -22,6 +22,7 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -118,7 +119,7 @@ Future<void> _pumpPreview(
   String connectionThroughName = 'Bob',
 }) async {
   final cubit = await _previewCubit();
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -389,7 +390,7 @@ void main() {
     });
 
     testWidgets('label widget renders no forbidden strings', (tester) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           locale: const Locale('en'),
           theme: TenturaTheme.light(),
@@ -426,7 +427,7 @@ void main() {
         status: 0,
       );
 
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           locale: const Locale('en'),
           theme: TenturaTheme.light(),
@@ -454,7 +455,7 @@ void main() {
       );
       var expanded = false;
 
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           locale: const Locale('en'),
           theme: TenturaTheme.light(),

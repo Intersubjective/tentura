@@ -12,6 +12,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_people_surface.dar
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -125,7 +126,9 @@ void main() {
   setUp(() => cubit = _MockBeaconViewCubit());
 
   testWidgets('mount reports the People surface viewed once', (tester) async {
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: _offers())));
+    await tester.pumpPeopleTagsWidget(
+      _wrap(cubit, _state(helpOffers: _offers())),
+    );
     await tester.pump();
 
     verify(cubit.reportPeopleSurfaceViewed()).called(1);
@@ -133,9 +136,13 @@ void main() {
   });
 
   testWidgets('new helpOffers list instance reports again', (tester) async {
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: _offers())));
+    await tester.pumpPeopleTagsWidget(
+      _wrap(cubit, _state(helpOffers: _offers())),
+    );
     await tester.pump();
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: _offers())));
+    await tester.pumpPeopleTagsWidget(
+      _wrap(cubit, _state(helpOffers: _offers())),
+    );
     await tester.pump();
 
     verify(cubit.reportPeopleSurfaceViewed()).called(2);
@@ -146,9 +153,11 @@ void main() {
     tester,
   ) async {
     final offers = _offers();
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: offers)));
+    await tester.pumpPeopleTagsWidget(_wrap(cubit, _state(helpOffers: offers)));
     await tester.pump();
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: offers), epoch: 1));
+    await tester.pumpPeopleTagsWidget(
+      _wrap(cubit, _state(helpOffers: offers), epoch: 1),
+    );
     await tester.pump();
 
     verify(cubit.reportPeopleSurfaceViewed()).called(1);
@@ -159,11 +168,11 @@ void main() {
     tester,
   ) async {
     final offers = _offers();
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrap(cubit, _state(helpOffers: offers, myId: 'viewer')),
     );
     await tester.pump();
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: offers)));
+    await tester.pumpPeopleTagsWidget(_wrap(cubit, _state(helpOffers: offers)));
     await tester.pump();
 
     verify(cubit.reportPeopleSurfaceViewed()).called(2);
@@ -172,11 +181,11 @@ void main() {
 
   testWidgets('viewer promoted to steward reports again', (tester) async {
     final offers = _offers();
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrap(cubit, _state(helpOffers: offers, myId: 'viewer')),
     );
     await tester.pump();
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrap(
         cubit,
         _state(
@@ -196,9 +205,9 @@ void main() {
     tester,
   ) async {
     final offers = _offers();
-    await tester.pumpWidget(_wrap(cubit, _state(helpOffers: offers)));
+    await tester.pumpPeopleTagsWidget(_wrap(cubit, _state(helpOffers: offers)));
     await tester.pump();
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrap(cubit, _state(helpOffers: offers, myId: 'viewer')),
     );
     await tester.pump();
@@ -210,11 +219,11 @@ void main() {
   testWidgets(
     'new helpOffers list reports again even while viewer is not author/steward',
     (tester) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrap(cubit, _state(helpOffers: _offers(), myId: 'viewer')),
       );
       await tester.pump();
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrap(cubit, _state(helpOffers: _offers(), myId: 'viewer')),
       );
       await tester.pump();

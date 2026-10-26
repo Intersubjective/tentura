@@ -36,8 +36,8 @@ ConstellationComposedPresentation _compose(
 );
 
 void main() {
-  test('field membership gate ships switched off', () {
-    expect(kFieldMembershipV2Enabled, isFalse);
+  test('field membership ships enabled for phase 1', () {
+    expect(kFieldMembershipV2Enabled, isTrue);
   });
 
   group('ConstellationPerson field tag data', () {
@@ -424,7 +424,6 @@ void main() {
         relations: const [
           ConstellationViewerRelation(personId: 'b', viewerTrusts: false),
         ],
-        fieldMembershipV2Enabled: true,
       );
       final peer = patched.peers.singleWhere((p) => p.id == 'b');
       expect(peer.autoTagKinds, {ConstellationAutoTagKind.trustsMe});
@@ -444,7 +443,6 @@ void main() {
         relations: const [
           ConstellationViewerRelation(personId: 'c', viewerTrusts: false),
         ],
-        fieldMembershipV2Enabled: true,
       );
       expect(patched.peers, isEmpty);
     });

@@ -20,9 +20,8 @@ final class _StubRepository implements ConstellationRepositoryPort {
   }) async => ConstellationField(
     loadedAt: DateTime.utc(2026, 10, 7),
     context: '',
-    // peers supplies the graph's profile lookup, not its rendered node set.
+    // Visible peers remain on the Field independently of Request selection.
     // The member has no trust edges, holds no Request, and is not pinned.
-    // Only the selected Request's lazy member web brings them on-field.
     peers: const [
       ConstellationPerson(id: 'author'),
       ConstellationPerson(id: 'member'),
@@ -72,10 +71,10 @@ void _expectMemberSelected(ConstellationCubit cubit) {
   expect(_graphNodeIds(cubit), contains('fp:member'));
 }
 
-void _expectMemberReleased(ConstellationCubit cubit) {
-  expect(cubit.state.composition!.eligiblePersonIds, isNot(contains('member')));
-  expect(cubit.state.composition!.keptPeerIds, isNot(contains('member')));
-  expect(_graphNodeIds(cubit), isNot(contains('fp:member')));
+void _expectVisibleMember(ConstellationCubit cubit) {
+  expect(cubit.state.composition!.eligiblePersonIds, contains('member'));
+  expect(cubit.state.composition!.keptPeerIds, contains('member'));
+  expect(_graphNodeIds(cubit), contains('fp:member'));
 }
 
 void main() {
@@ -97,9 +96,9 @@ void main() {
       );
       addTearDown(cubit.close);
       await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
-      _expectMemberReleased(cubit);
+      _expectVisibleMember(cubit);
       expect(cubit.state.paths!.keep, isNot(contains('member')));
-      expect(cubit.state.paths!.ring, isNot(contains('member')));
+      expect(cubit.state.paths!.ring, contains('member'));
       expect(cubit.state.field!.memberWebs, isEmpty);
       expect(
         cubit.state.field!.edges.where(
@@ -121,7 +120,7 @@ void main() {
     });
 
     test(
-      'keeps the selected member in composition and graph until deselected',
+      'keeps a visible member in composition and graph after deselection',
       () {
         cubit.selectPerson('member');
         _expectMemberSelected(cubit);
@@ -129,11 +128,11 @@ void main() {
         cubit.selectPerson(null);
         expect(cubit.state.selectedPersonId, isNull);
         expect(cubit.state.selectedRequestId, isNull);
-        _expectMemberReleased(cubit);
+        _expectVisibleMember(cubit);
       },
     );
 
-    test('releases the selected member when another person is selected', () {
+    test('keeps a visible member when another person is selected', () {
       cubit.selectPerson('member');
       _expectMemberSelected(cubit);
 
@@ -141,11 +140,11 @@ void main() {
       expect(cubit.state.selectedPersonId, 'author');
       expect(cubit.state.selectedRequestId, isNull);
       expect(_graphNodeIds(cubit), contains('fp:author'));
-      _expectMemberReleased(cubit);
+      _expectVisibleMember(cubit);
     });
 
     test(
-      'releases the selected member when another Request is selected',
+      'keeps a visible member when another Request is selected',
       () async {
         cubit.selectPerson('member');
         _expectMemberSelected(cubit);
@@ -156,7 +155,7 @@ void main() {
         expect(cubit.state.selectedRequestId, 'other-request');
         expect(cubit.state.selectedPersonId, isNull);
         expect(_graphNodeIds(cubit), contains('fr:other-request'));
-        _expectMemberReleased(cubit);
+        _expectVisibleMember(cubit);
       },
     );
   });

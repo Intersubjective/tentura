@@ -45,6 +45,7 @@ import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt;
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _kBeaconId = 'b-activity-sheet';
 const _kAuthorId = 'author-sheet';
@@ -105,42 +106,41 @@ class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
 
 BeaconViewState _authorBeaconState({
   List<BeaconActivityEvent> roomActivityEvents = const [],
-}) =>
-    BeaconViewState(
-      beacon: Beacon(
-        id: _kBeaconId,
-        title: 'Activity sheet beacon',
-        author: const Profile(id: _kAuthorId, displayName: 'Author'),
-        createdAt: _kNow,
-        updatedAt: _kNow,
-      ),
-      myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
-      beaconContentLoaded: true,
-      roomParticipantsLoaded: true,
-      roomParticipants: [
-        BeaconParticipant(
-          id: 'p-author',
-          beaconId: _kBeaconId,
-          userId: _kAuthorId,
-          role: 0,
-          status: 0,
-          roomAccess: RoomAccessBits.admitted,
-          createdAt: _kNow,
-          updatedAt: _kNow,
-        ),
-        BeaconParticipant(
-          id: 'p-helper',
-          beaconId: _kBeaconId,
-          userId: _kHelperId,
-          role: 0,
-          status: 0,
-          roomAccess: RoomAccessBits.admitted,
-          createdAt: _kNow,
-          updatedAt: _kNow,
-        ),
-      ],
-      roomActivityEvents: roomActivityEvents,
-    );
+}) => BeaconViewState(
+  beacon: Beacon(
+    id: _kBeaconId,
+    title: 'Activity sheet beacon',
+    author: const Profile(id: _kAuthorId, displayName: 'Author'),
+    createdAt: _kNow,
+    updatedAt: _kNow,
+  ),
+  myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
+  beaconContentLoaded: true,
+  roomParticipantsLoaded: true,
+  roomParticipants: [
+    BeaconParticipant(
+      id: 'p-author',
+      beaconId: _kBeaconId,
+      userId: _kAuthorId,
+      role: 0,
+      status: 0,
+      roomAccess: RoomAccessBits.admitted,
+      createdAt: _kNow,
+      updatedAt: _kNow,
+    ),
+    BeaconParticipant(
+      id: 'p-helper',
+      beaconId: _kBeaconId,
+      userId: _kHelperId,
+      role: 0,
+      status: 0,
+      roomAccess: RoomAccessBits.admitted,
+      createdAt: _kNow,
+      updatedAt: _kNow,
+    ),
+  ],
+  roomActivityEvents: roomActivityEvents,
+);
 
 BeaconActivityEvent _coordinationEvent({
   required CoordinationItemKind kind,
@@ -149,18 +149,17 @@ BeaconActivityEvent _coordinationEvent({
   String? sourceMessageId,
   String? actorId,
   String? targetUserId,
-}) =>
-    BeaconActivityEvent(
-      id: 'ev-$itemId-${eventKind.value}',
-      beaconId: _kBeaconId,
-      visibility: BeaconActivityEventVisibilityBits.room,
-      type: kind.value * 100 + eventKind.value,
-      createdAt: _kNow,
-      coordinationItemId: itemId,
-      sourceMessageId: sourceMessageId,
-      actorId: actorId,
-      targetUserId: targetUserId,
-    );
+}) => BeaconActivityEvent(
+  id: 'ev-$itemId-${eventKind.value}',
+  beaconId: _kBeaconId,
+  visibility: BeaconActivityEventVisibilityBits.room,
+  type: kind.value * 100 + eventKind.value,
+  createdAt: _kNow,
+  coordinationItemId: itemId,
+  sourceMessageId: sourceMessageId,
+  actorId: actorId,
+  targetUserId: targetUserId,
+);
 
 BeaconActivityEvent _peopleFocusEvent({required String userId}) =>
     BeaconActivityEvent(
@@ -283,13 +282,13 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
   final factoryRecorder = recorder ?? RoomCubitFactoryRecorder();
   return ThreadHostCubit(
     beaconId: _kBeaconId,
-    roomCubitFactory: ({
-      required String beaconId,
-      String? threadItemId,
-      DateTime? initialUnreadAnchorAt,
-      RoomCapabilities? capabilities,
-    }) =>
-        factoryRecorder.call(
+    roomCubitFactory:
+        ({
+          required String beaconId,
+          String? threadItemId,
+          DateTime? initialUnreadAnchorAt,
+          RoomCapabilities? capabilities,
+        }) => factoryRecorder.call(
           beaconId: beaconId,
           threadItemId: threadItemId,
           initialUnreadAnchorAt: initialUnreadAnchorAt,
@@ -301,19 +300,18 @@ CoordinationItem _item({
   required String id,
   CoordinationItemKind kind = CoordinationItemKind.ask,
   String? linkedMessageId,
-}) =>
-    CoordinationItem(
-      id: id,
-      beaconId: _kBeaconId,
-      kind: kind,
-      status: CoordinationItemStatus.open,
-      creatorId: _kAuthorId,
-      createdAt: _kNow,
-      updatedAt: _kNow,
-      published: true,
-      targetPersonId: _kHelperId,
-      linkedMessageId: linkedMessageId,
-    );
+}) => CoordinationItem(
+  id: id,
+  beaconId: _kBeaconId,
+  kind: kind,
+  status: CoordinationItemStatus.open,
+  creatorId: _kAuthorId,
+  createdAt: _kNow,
+  updatedAt: _kNow,
+  published: true,
+  targetPersonId: _kHelperId,
+  linkedMessageId: linkedMessageId,
+);
 
 RequestThread _generalThread() => RequestThread(
   threadId: RequestThread.generalId,
@@ -389,8 +387,7 @@ class _HarnessRouter extends Mock implements RootStackRouter {
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      false;
+  }) => false;
 }
 
 Future<void> _pumpBeaconViewScreen(
@@ -409,7 +406,7 @@ Future<void> _pumpBeaconViewScreen(
     threadsState.copyWith(status: const StateIsLoading()),
   );
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     StackRouterScope(
       controller: _HarnessRouter(),
       stateHash: 0,
@@ -481,7 +478,7 @@ void main() {
     );
     addTearDown(cubit.close);
 
-    await tester.pumpWidget(_sheetHost(cubit: cubit));
+    await tester.pumpPeopleTagsWidget(_sheetHost(cubit: cubit));
     await _openSheet(tester);
 
     final l10n = await L10n.delegate.load(const Locale('en'));
@@ -494,33 +491,39 @@ void main() {
     expect(find.byType(BeaconActivityList), findsOneWidget);
   });
 
-  testWidgets('room activity arriving while the sheet is open updates the list', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(900, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'room activity arriving while the sheet is open updates the list',
+    (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final cubit = _HarnessBeaconViewCubit(_authorBeaconState());
-    addTearDown(cubit.close);
+      final cubit = _HarnessBeaconViewCubit(_authorBeaconState());
+      addTearDown(cubit.close);
 
-    await tester.pumpWidget(_sheetHost(cubit: cubit));
-    await _openSheet(tester);
+      await tester.pumpPeopleTagsWidget(_sheetHost(cubit: cubit));
+      await _openSheet(tester);
 
-    final l10n = await L10n.delegate.load(const Locale('en'));
-    expect(find.text(l10n.beaconNoActivityYetShort), findsOneWidget);
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      expect(find.text(l10n.beaconNoActivityYetShort), findsOneWidget);
 
-    cubit.emitState(
-      _authorBeaconState(
-        roomActivityEvents: [
-          _coordinationEvent(kind: CoordinationItemKind.ask, itemId: 'ask-live'),
-        ],
-      ),
-    );
-    await tester.pump();
+      cubit.emitState(
+        _authorBeaconState(
+          roomActivityEvents: [
+            _coordinationEvent(
+              kind: CoordinationItemKind.ask,
+              itemId: 'ask-live',
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
 
-    expect(find.text(l10n.coordinationSemanticAskOpened), findsOneWidget);
-    expect(find.text(l10n.beaconNoActivityYetShort), findsNothing);
-  });
+      expect(find.text(l10n.coordinationSemanticAskOpened), findsOneWidget);
+      expect(find.text(l10n.beaconNoActivityYetShort), findsNothing);
+    },
+  );
 
   testWidgets('log row tap closes the sheet before invoking the callback', (
     tester,
@@ -529,13 +532,16 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final tapped = <BeaconActivityEvent>[];
-    final event = _coordinationEvent(kind: CoordinationItemKind.ask, itemId: 'a1');
+    final event = _coordinationEvent(
+      kind: CoordinationItemKind.ask,
+      itemId: 'a1',
+    );
     final cubit = _HarnessBeaconViewCubit(
       _authorBeaconState(roomActivityEvents: [event]),
     );
     addTearDown(cubit.close);
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _sheetHost(
         cubit: cubit,
         onTap: tapped.add,
@@ -564,7 +570,7 @@ void main() {
     addTearDown(cubit.close);
     final beacon = cubit.state.beacon;
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
@@ -634,7 +640,9 @@ void main() {
       );
       await pumpAndOpenSheet(
         tester,
-        events: [_coordinationEvent(kind: CoordinationItemKind.ask, itemId: itemId)],
+        events: [
+          _coordinationEvent(kind: CoordinationItemKind.ask, itemId: itemId),
+        ],
         threads: threads,
         host: host,
       );
@@ -644,7 +652,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final tabs = tester.widget<BeaconSurfaceTabs>(find.byType(BeaconSurfaceTabs));
+      final tabs = tester.widget<BeaconSurfaceTabs>(
+        find.byType(BeaconSurfaceTabs),
+      );
       expect(tabs.selectedSurface, BeaconSurface.room);
       expect(find.text(l10n.labelBeaconTabLog), findsNothing);
     });
@@ -680,11 +690,15 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final tabs = tester.widget<BeaconSurfaceTabs>(find.byType(BeaconSurfaceTabs));
+      final tabs = tester.widget<BeaconSurfaceTabs>(
+        find.byType(BeaconSurfaceTabs),
+      );
       expect(tabs.selectedSurface, BeaconSurface.room);
     });
 
-    testWidgets('plan row scrolls Chat to source message and item', (tester) async {
+    testWidgets('plan row scrolls Chat to source message and item', (
+      tester,
+    ) async {
       const planId = 'plan-focus';
       const messageId = 'msg-plan';
       final recorder = RoomCubitFactoryRecorder();
@@ -695,12 +709,15 @@ void main() {
         linkedMessageId: messageId,
       );
       final threads = _threadsState(
-        threads: [_generalThread(), RequestThread(
-          threadId: planId,
-          kind: RequestThreadKind.ask,
-          item: plan,
-          lastSeenAt: _kNow,
-        )],
+        threads: [
+          _generalThread(),
+          RequestThread(
+            threadId: planId,
+            kind: RequestThreadKind.ask,
+            item: plan,
+            lastSeenAt: _kNow,
+          ),
+        ],
       );
       await pumpAndOpenSheet(
         tester,
@@ -744,7 +761,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final tabs = tester.widget<BeaconSurfaceTabs>(find.byType(BeaconSurfaceTabs));
+      final tabs = tester.widget<BeaconSurfaceTabs>(
+        find.byType(BeaconSurfaceTabs),
+      );
       expect(tabs.selectedSurface, BeaconSurface.people);
       expect(find.text(l10n.labelBeaconTabLog), findsNothing);
     });

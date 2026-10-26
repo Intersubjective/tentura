@@ -21,6 +21,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -150,7 +151,7 @@ Future<void> _pumpTextView(
   WidgetTester tester,
   ConstellationCubit cubit,
 ) async {
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -170,7 +171,7 @@ Future<void> _pumpTextView(
 Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -254,7 +255,7 @@ void main() {
         cubit.setFilterCapabilitySlugs({'tools'});
         final mapEligible = _eligibleRequestIds(cubit);
 
-        await tester.tap(find.text('List'));
+        await tester.tap(find.byTooltip('List'));
         await tester.pumpAndSettle();
 
         expect(_eligibleRequestIds(cubit), mapEligible);
@@ -294,7 +295,7 @@ void main() {
         ),
       );
       await _pumpBody(tester, cubit);
-      await tester.tap(find.text('List'));
+      await tester.tap(find.byTooltip('List'));
       await tester.pumpAndSettle();
 
       final l10n = lookupL10n(const Locale('en'));
@@ -324,7 +325,7 @@ void main() {
     testWidgets('tapping a request card opens its preview', (tester) async {
       final cubit = await _loadCubit(_multiAuthorField());
       await _pumpBody(tester, cubit);
-      await tester.tap(find.text('List'));
+      await tester.tap(find.byTooltip('List'));
       await tester.pumpAndSettle();
 
       await tester.tap(
@@ -365,12 +366,12 @@ void main() {
 
       cubit.setFilterCapabilitySlugs({'ride'});
 
-      await tester.tap(find.text('List'));
+      await tester.tap(find.byTooltip('List'));
       await tester.pumpAndSettle();
       expect(cubit.state.viewMode, ConstellationViewMode.text);
       expect(cubit.state.filterCapabilitySlugs, {'ride'});
 
-      await tester.tap(find.text('Map'));
+      await tester.tap(find.byTooltip('Map'));
       await tester.pumpAndSettle();
       expect(cubit.state.viewMode, ConstellationViewMode.map);
       expect(cubit.state.filterCapabilitySlugs, {'ride'});

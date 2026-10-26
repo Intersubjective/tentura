@@ -14,6 +14,7 @@ import 'package:tentura/features/constellation/ui/widget/constellation_text_view
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -58,7 +59,7 @@ Future<void> _pump(
   ConstellationCubit cubit,
   Widget child,
 ) async {
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -140,7 +141,7 @@ void main() {
     expect(find.text('Invite someone you know'), findsOneWidget);
   });
 
-  testWidgets('list view: contacts without requests keep the old line', (
+  testWidgets('list view: visible people without requests remain listed', (
     tester,
   ) async {
     final cubit = await _loadCubit(
@@ -155,6 +156,7 @@ void main() {
       find.byKey(ConstellationNoContactsEmptyState.emptyKey),
       findsNothing,
     );
-    expect(find.byKey(const Key('constellation.text.empty')), findsOneWidget);
+    expect(find.byKey(const Key('constellation.text.empty')), findsNothing);
+    expect(find.text('Ann'), findsOneWidget);
   });
 }

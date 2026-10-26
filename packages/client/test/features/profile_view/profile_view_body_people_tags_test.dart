@@ -266,10 +266,10 @@ void main() {
       expect(find.text('Your tags'), findsNothing);
     });
 
-    testWidgets('is absent by default while the feature gate is off', (
+    testWidgets('is absent when phase 1 is explicitly disabled', (
       tester,
     ) async {
-      await pumpBody(tester);
+      await pumpBody(tester, peopleTagsEnabled: false);
 
       expect(find.byType(PersonTagsBlock), findsNothing);
       expect(find.text('Your tags'), findsNothing);

@@ -26,6 +26,33 @@ typedef ConstellationPresentationComposer =
       Set<String> extraKeptPeerIds,
     });
 
+/// Configures the default composer while retaining the injectable UI seam.
+ConstellationPresentationComposer constellationPresentationComposer({
+  bool semanticZoomEnabled = kFieldSemanticZoomEnabled,
+  bool fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
+}) =>
+    ({
+      required viewerId,
+      required field,
+      required localFilters,
+      required asOfUtc,
+      required labelBudget,
+      expandedSatelliteAuthorIds = const {},
+      selectedRequestWebs = const [],
+      extraKeptPeerIds = const {},
+    }) => composeConstellationPresentation(
+      viewerId: viewerId,
+      field: field,
+      localFilters: localFilters,
+      asOfUtc: asOfUtc,
+      labelBudget: labelBudget,
+      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+      selectedRequestWebs: selectedRequestWebs,
+      extraKeptPeerIds: extraKeptPeerIds,
+      semanticZoomEnabled: semanticZoomEnabled,
+      fieldMembershipV2Enabled: fieldMembershipV2Enabled,
+    );
+
 typedef ConstellationFieldResolved = ({
   ConstellationField field,
   ConstellationComposedPresentation composition,

@@ -18,6 +18,33 @@ A request can appear in Constellation **and** already be held (authored, offered
 
 Alongside the automatic field, each account can pin a person or a request at a chosen map position. Pins are private presentation choices: they do not change discoverability, permissions, discussion admission, or anyone else's Constellation.
 
+### People tags and Field membership (phase 1)
+
+Client **7.54.0** enables private people tags and Field membership V2. Mutually
+visible people (**V**), shared-Request bond peers (**B**) and temporary Request
+forwarding peers (**T**) can appear without a Request satellite of their own.
+This supersedes **D9**: people no longer need to author an active discoverable
+Request or lie on a path to an author to remain on the Field. Existing contact
+and pin rules still apply; blocks exclude people in either direction.
+
+When categories overlap, presence follows `visible > bond > temporary >
+contactOnly > pinnedOnly`. Bond presence shows shared Request context; temporary
+presence ends when its qualifying Request/forward relationship ends. This does
+not expose the temporary author's other Requests.
+
+Own tags, glyphs and memberships are private to their owner and sync across that
+account's sessions. **People tags** manages own and automatic tags; person panels
+and profiles show them, and **Add to tag…** edits own-tag membership. The Field's
+tag row filters a lens, node glyphs identify own tags, and tag chips help select
+eligible forwarding or compose recipients. Automatic tags describe existing
+relationships; hiding one from filters preserves it in person panels.
+
+The server peer cap is **400**. Phase 1 keeps the client render cap at **120**,
+prioritising own-tagged people, direct contacts, bond/temporary peers, then trust
+depth and id, while retaining reserved pins and contacts. Semantic zoom raises
+the render cap in phase 3. Performance measurements are deferred by the
+[owner's release decision](../plans/people-tags-implementation-journal.md).
+
 ## Approved Post + composer amendment (A3–A7)
 
 These are contracts from the [Post + Constellation plan](../plans/post-and-constellation-composer-plan.md), not a statement of release completion. A **Post** is addressed, never discoverable; only Posts readable through existing authorization may appear in the personal field.

@@ -73,7 +73,6 @@ void main() {
         bodyBuilder: () => ConstellationBody(
           legendExpanded: false,
           onToggleLegend: () {},
-          peopleTagsEnabled: true,
         ),
       );
       m.lens.toggleOwn(tagLensNeighbour.id);

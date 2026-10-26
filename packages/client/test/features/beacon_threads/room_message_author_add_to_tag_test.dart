@@ -189,10 +189,10 @@ void main() {
       );
     });
 
-    testWidgets('is absent by default while the feature gate is off', (
+    testWidgets('is absent when phase 1 is explicitly disabled', (
       tester,
     ) async {
-      await pumpTile(tester, author: _peer);
+      await pumpTile(tester, author: _peer, peopleTagsEnabled: false);
 
       expect(overflowButton, findsNothing);
       await expectNoPersonMenuFromGestures(

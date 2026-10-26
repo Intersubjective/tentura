@@ -36,6 +36,7 @@ import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 // Field multi-select (#642): the rubber-band box is the main tool — with the
 // select tool on a one-finger or mouse drag on empty map draws it and two
@@ -316,7 +317,7 @@ Future<_Harness> _mount(
   );
   await tester.binding.setSurfaceSize(_size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),

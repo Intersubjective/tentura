@@ -19,6 +19,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 /// #253: the list shows the map's people (not only Request authors), direct
 /// contacts first, Posts as secondary rows, and a name search that filters
@@ -143,7 +144,7 @@ Widget _app(Widget child) => MaterialApp(
 Future<void> _pumpList(WidgetTester tester, ConstellationCubit cubit) async {
   await tester.binding.setSurfaceSize(const Size(1200, 1400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     _app(
       BlocProvider<ConstellationCubit>.value(
         value: cubit,
@@ -158,7 +159,7 @@ Future<void> _pumpList(WidgetTester tester, ConstellationCubit cubit) async {
 Future<void> _pumpMap(WidgetTester tester, ConstellationCubit cubit) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     _app(
       MultiBlocProvider(
         providers: [
@@ -362,7 +363,7 @@ void main() {
       );
       addTearDown(cubit.close);
       expect(cubit.fieldPeople, hasLength(206));
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _app(
           BlocProvider<ConstellationCubit>.value(
             value: cubit,
@@ -386,7 +387,7 @@ void main() {
         controller,
       )).toList();
       expect(narrowed, hasLength(1));
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _app(Scaffold(body: ListView(children: suggestions))),
       );
       expect(
@@ -395,7 +396,9 @@ void main() {
       );
       expect(find.text('Person 0'), findsOneWidget);
 
-      await tester.pumpWidget(_app(Scaffold(body: Column(children: narrowed))));
+      await tester.pumpPeopleTagsWidget(
+        _app(Scaffold(body: Column(children: narrowed))),
+      );
       expect(find.text('Person 204'), findsOneWidget);
     });
 

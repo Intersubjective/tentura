@@ -22,6 +22,7 @@ import 'package:tentura/features/closure/ui/screen/closure_author_screen.dart';
 import 'package:tentura/features/closure/ui/screen/closure_helper_screen.dart';
 import 'package:tentura/features/closure/ui/screen/closure_review_page.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _beaconId = 'Breopened0001';
 
@@ -156,7 +157,7 @@ Future<void> _pumpHostAndOpen(
     ..physicalSize = const Size(420, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
       locale: const Locale('en'),

@@ -20,6 +20,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
+import '../../../support/people_tags_widget_harness.dart';
 
 /// Test [RoomCubit] that can emit state and record scroll-target clears.
 class RoomBodyHarnessCubit extends Mock implements RoomCubit {
@@ -172,7 +173,7 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
   await tester.binding.setSurfaceSize(Size(width, height));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MultiBlocProvider(
       providers: [
         BlocProvider<RoomCubit>.value(value: roomCubit),

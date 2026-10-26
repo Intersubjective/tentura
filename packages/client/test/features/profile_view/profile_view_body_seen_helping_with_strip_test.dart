@@ -32,6 +32,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 void main() {
   group('ProfileViewBody seen helping with strip', () {
@@ -59,7 +60,7 @@ void main() {
       harness.start(id: subject.id, autoFetch: false);
       harness.cubit.emit(viewState.copyWith(profile: subject));
 
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           locale: const Locale('en'),
           theme: TenturaTheme.light(),

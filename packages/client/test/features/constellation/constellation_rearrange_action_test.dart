@@ -38,6 +38,7 @@ import '../../support/test_realtime_sync.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -333,7 +334,7 @@ Future<void> _pumpShell(
   bool arrangeV2Enabled = true,
 }) async {
   await tester.binding.setSurfaceSize(surface);
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -446,7 +447,7 @@ Future<Map<String, Offset>> _positionsOfFreshLoadWith(
 ) async {
   // A fresh session: unmount whatever an earlier session left on screen, so
   // the body's per-session footprint sync runs again for this cubit.
-  await tester.pumpWidget(const SizedBox());
+  await tester.pumpPeopleTagsWidget(const SizedBox());
   final harness = await _harness(fields: [_fieldWithPlacements(placements)]);
   try {
     await _pumpShell(tester, harness.cubit);
@@ -456,7 +457,7 @@ Future<Map<String, Offset>> _positionsOfFreshLoadWith(
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
     return _allNodePositions(harness.cubit);
   } finally {
-    await tester.pumpWidget(const SizedBox());
+    await tester.pumpPeopleTagsWidget(const SizedBox());
     await harness.cubit.close();
   }
 }
@@ -476,7 +477,7 @@ Future<Map<String, Offset>> _positionsAfterFreshPlacementAndRearrange(
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
     return _allNodePositions(harness.cubit);
   } finally {
-    await tester.pumpWidget(const SizedBox());
+    await tester.pumpPeopleTagsWidget(const SizedBox());
     await harness.cubit.close();
   }
 }

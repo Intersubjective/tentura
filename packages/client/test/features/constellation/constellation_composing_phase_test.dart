@@ -14,6 +14,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../graph/scene_layout_test_support.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 final _loadedAt = DateTime.utc(2026, 10, 3, 12);
 
@@ -34,10 +35,10 @@ const _pinnedPeer = 'p000';
 
 String _padded(int i) => 'p${i.toString().padLeft(3, '0')}';
 
-/// One peer more than the render cap, so exactly one peer is not drawn.
+/// One peer beyond the render cap plus the reserved pin stays off the Field.
 ConstellationField _fieldOverRenderCap() {
   final ids = [
-    for (var i = 0; i <= constellationRenderPeerCap(); i++) _padded(i),
+    for (var i = 0; i <= constellationRenderPeerCap() + 1; i++) _padded(i),
   ];
   return ConstellationField(
     loadedAt: _loadedAt,
@@ -112,11 +113,12 @@ void main() {
   late List<String> toggled;
 
   setUp(() async {
+    registerEmptyPeopleTags();
     cubit = await _load();
     final kept = cubit.state.keptPeerIds;
     shownPeer = kept.first;
     hiddenPeer = [
-      for (var i = 0; i <= constellationRenderPeerCap(); i++) _padded(i),
+      for (var i = 0; i <= constellationRenderPeerCap() + 1; i++) _padded(i),
     ].firstWhere((id) => !kept.contains(id));
     toggled = [];
   });
@@ -191,8 +193,9 @@ void main() {
     test(
       'a scene layout while composing seats every widened candidate',
       () async {
+        expect(cubit.state.keptPeerIds, isNot(contains(hiddenPeer)));
         await enter();
-        expect(cubit.state.paths!.keep, isNot(contains(hiddenPeer)));
+        expect(cubit.state.paths!.keep, contains(hiddenPeer));
         expect(cubit.state.paths!.ring, isNot(contains(hiddenPeer)));
 
         // A layout that runs while composing (a queued handoff, a recovery)

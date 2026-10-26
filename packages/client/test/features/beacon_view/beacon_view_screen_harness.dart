@@ -40,6 +40,7 @@ import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt, unregisterEmptyAuthorInvitesGetIt;
 import '../beacon_plan/beacon_plan_test_support.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const kBeaconViewHarnessBeaconId = 'b-view-harness';
 const kBeaconViewHarnessAuthorId = 'author-harness';
@@ -495,7 +496,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
     messageId: messageId,
   );
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     StackRouterScope(
       controller: harnessRouter,
       stateHash: 0,

@@ -20,6 +20,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../../support/constellation_store_fixture.dart';
+import '../../../support/people_tags_widget_harness.dart';
 
 const kRefEgo = Profile(id: 'ego', displayName: 'Vadim');
 
@@ -241,7 +242,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final fx = effects ?? FakeUiEffectPort();
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: locale,
       theme: theme ?? TenturaTheme.light(),
@@ -270,10 +271,12 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                     value: presence,
                   ),
               ],
-              child: ConstellationBody(
-                legendExpanded: false,
-                onToggleLegend: () {},
-                presentationFrameHolder: presentationFrameHolder,
+              child: Material(
+                child: ConstellationBody(
+                  legendExpanded: false,
+                  onToggleLegend: () {},
+                  presentationFrameHolder: presentationFrameHolder,
+                ),
               ),
             ),
           ),

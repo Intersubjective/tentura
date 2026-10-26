@@ -28,6 +28,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 export 'beacon_view_case_test_support.dart';
 
@@ -248,7 +249,7 @@ BeaconParticipant stewardParticipant() => BeaconParticipant(
 /// state stream the way `BeaconViewScreen` does, so later state changes
 /// (e.g. a realtime patch) update the already-visible surface.
 Future<void> openPeopleSurface(WidgetTester tester, AuthorSeenHarness h) async {
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
@@ -298,7 +299,7 @@ Future<void> pumpPeople(
   tester.view.physicalSize = const Size(800, 1200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,

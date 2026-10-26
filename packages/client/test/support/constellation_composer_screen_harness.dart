@@ -25,6 +25,7 @@ import 'fake_clock_port.dart';
 import 'fake_wake_up_port.dart';
 import 'test_forward_case.dart';
 import 'test_realtime_sync.dart';
+import 'people_tags_widget_harness.dart';
 
 /// Viewer of the composer screen harness.
 const composerHarnessEgo = Profile(id: 'ego', displayName: 'Ego');
@@ -203,7 +204,7 @@ Future<void> pumpComposerHarnessScreen(
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),

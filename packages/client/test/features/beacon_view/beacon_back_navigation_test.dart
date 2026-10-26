@@ -15,6 +15,7 @@ import 'package:tentura/design_system/components/tentura_vertical_resize_handle.
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 Future<void> _tapPeopleTab(WidgetTester tester) async {
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
@@ -210,7 +211,7 @@ void main() {
       await tester.binding.setSurfaceSize(kBeaconViewHarnessCompact);
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           theme: TenturaTheme.light(),
           localizationsDelegates: L10n.localizationsDelegates,

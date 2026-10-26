@@ -22,6 +22,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/offer_accepted_event_subcard.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _helper = Profile(id: 'h1', displayName: 'Helper');
 const _author = Profile(id: 'auth', displayName: 'Author');
@@ -102,7 +103,7 @@ BeaconViewState _state({int? roomAccess, CoordinationResponseType? response}) =>
 
 Future<void> _pump(WidgetTester tester, BeaconViewState state) async {
   final cubit = _MockBeaconViewCubit(state);
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,

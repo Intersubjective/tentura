@@ -797,7 +797,7 @@ void main() {
       },
     );
 
-    test('selection clears when target leaves composed result', () async {
+    test('unpin keeps a visible selection; full removal clears it', () async {
       final harness = await _harness(
         fields: [
           _field(
@@ -825,6 +825,8 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 30));
 
+      expect(harness.cubit.state.selectedPersonId, 'p1');
+      await harness.cubit.load();
       expect(harness.cubit.state.selectedPersonId, isNull);
     });
 

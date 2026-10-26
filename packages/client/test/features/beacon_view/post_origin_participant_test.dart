@@ -34,6 +34,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_initial_load_test.dart' show pumpUntil;
 import 'beacon_view_screen_harness.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   _MockProfileCubit(this.profile);
@@ -171,7 +172,7 @@ Future<void> _pumpHeader(
   VoidCallback? onOfferHelp,
   VoidCallback? onLeavePostChat,
 }) async {
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     _wrap(
       state.myProfile,
       state,
@@ -192,7 +193,7 @@ Future<void> _pumpPeople(WidgetTester tester, BeaconViewState state) async {
   // The tab body is a plain Column; give it room so layout never overflows.
   await tester.binding.setSurfaceSize(const Size(800, 3000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     _wrap(
       state.myProfile,
       state,

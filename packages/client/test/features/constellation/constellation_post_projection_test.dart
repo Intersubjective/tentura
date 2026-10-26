@@ -65,7 +65,8 @@ ConstellationMemberWeb _web(
   String postId,
   String personId, [
   ConstellationMemberWebState state = ConstellationMemberWebState.inside,
-]) => ConstellationMemberWeb(beaconId: postId, personId: personId, state: state);
+]) =>
+    ConstellationMemberWeb(beaconId: postId, personId: personId, state: state);
 
 ConstellationField _field({
   List<ConstellationRequest> requests = const [],
@@ -247,20 +248,26 @@ void main() {
       final composed = _compose(
         _field(requests: [_request()], posts: [_post('post-1')]),
       );
-      expect(composed.labelPlan.drawnRequestIds, containsAll(['req-1', 'post-1']));
+      expect(
+        composed.labelPlan.drawnRequestIds,
+        containsAll(['req-1', 'post-1']),
+      );
       expect(composed.eligibleRequestIds, containsAll(['req-1', 'post-1']));
     });
 
-    test('a composed Post node carries its root excerpt and the Post glyph', () {
-      final composed = _compose(
-        _field(posts: [_post('post-1', rootExcerpt: 'Who has a ladder?')]),
-      );
-      final node = composed.beaconNodes.singleWhere((n) => n.id == 'post-1');
-      expect(node.kind, BeaconKind.post);
-      expect(node.label, 'Who has a ladder?');
-      expect(node.glyph, FieldBeaconGlyph.post);
-      expect(node.hasStatusMarker, isFalse);
-    });
+    test(
+      'a composed Post node carries its root excerpt and the Post glyph',
+      () {
+        final composed = _compose(
+          _field(posts: [_post('post-1', rootExcerpt: 'Who has a ladder?')]),
+        );
+        final node = composed.beaconNodes.singleWhere((n) => n.id == 'post-1');
+        expect(node.kind, BeaconKind.post);
+        expect(node.label, 'Who has a ladder?');
+        expect(node.glyph, FieldBeaconGlyph.post);
+        expect(node.hasStatusMarker, isFalse);
+      },
+    );
 
     test('Requests and Posts share one per-author label budget', () {
       final composed = _compose(
@@ -289,46 +296,53 @@ void main() {
         _field(posts: [_post('post-old', lastActivityAt: _stale)]),
       );
       expect(composed.labelPlan.drawnRequestIds, isNot(contains('post-old')));
-      expect(composed.beaconNodes.map((n) => n.id), isNot(contains('post-old')));
+      expect(
+        composed.beaconNodes.map((n) => n.id),
+        isNot(contains('post-old')),
+      );
       expect(composed.dormantBeaconIds, isNot(contains('post-old')));
     });
 
-    test('a pinned Post past the active window is dormant and keeps its anchor',
-        () {
-      final composed = _compose(
-        _field(
-          posts: [_post('post-old', lastActivityAt: _stale, isPinned: true)],
-          projection: _projectionPinning('post-old'),
-        ),
-      );
-      expect(composed.dormantBeaconIds, contains('post-old'));
-      expect(composed.eligibleRequestIds, contains('post-old'));
-      expect(composed.beaconNodes.map((n) => n.id), contains('post-old'));
-      expect(composed.labelPlan.drawnRequestIds, isNot(contains('post-old')));
+    test(
+      'a pinned Post past the active window is dormant and keeps its anchor',
+      () {
+        final composed = _compose(
+          _field(
+            posts: [_post('post-old', lastActivityAt: _stale, isPinned: true)],
+            projection: _projectionPinning('post-old'),
+          ),
+        );
+        expect(composed.dormantBeaconIds, contains('post-old'));
+        expect(composed.eligibleRequestIds, contains('post-old'));
+        expect(composed.beaconNodes.map((n) => n.id), contains('post-old'));
+        expect(composed.labelPlan.drawnRequestIds, isNot(contains('post-old')));
 
-      final input = _layoutInput(composed);
-      expect(input.pinnedRequestIds, contains('post-old'));
-      final layout = computeConstellationPlacedLayout(input: input);
-      expect(
-        layout.positions['post-old'],
-        constellationV1AnchorToPoint(input.anchorByNodeId['post-old']!),
-      );
-    });
+        final input = _layoutInput(composed);
+        expect(input.pinnedRequestIds, contains('post-old'));
+        final layout = computeConstellationPlacedLayout(input: input);
+        expect(
+          layout.positions['post-old'],
+          constellationV1AnchorToPoint(input.anchorByNodeId['post-old']!),
+        );
+      },
+    );
   });
 
   group('FieldBeaconNode', () {
-    test('a Post node is labelled with the root excerpt and has no status marker',
-        () {
-      final node = FieldBeaconNode(
-        post: _post('post-1', rootExcerpt: 'Who has a ladder?'),
-      );
-      expect(node.kind, BeaconKind.post);
-      expect(node.label, 'Who has a ladder?');
-      expect(node.id, 'post-1');
-      expect(node.userId, 'peer-a');
-      expect(node.glyph, FieldBeaconGlyph.post);
-      expect(node.hasStatusMarker, isFalse);
-    });
+    test(
+      'a Post node is labelled with the root excerpt and has no status marker',
+      () {
+        final node = FieldBeaconNode(
+          post: _post('post-1', rootExcerpt: 'Who has a ladder?'),
+        );
+        expect(node.kind, BeaconKind.post);
+        expect(node.label, 'Who has a ladder?');
+        expect(node.id, 'post-1');
+        expect(node.userId, 'peer-a');
+        expect(node.glyph, FieldBeaconGlyph.post);
+        expect(node.hasStatusMarker, isFalse);
+      },
+    );
 
     test('a Request node keeps its title as label and its status marker', () {
       final node = FieldBeaconNode(request: _request());
@@ -340,17 +354,20 @@ void main() {
   });
 
   group('Post placement', () {
-    test('Post members join the field only while the Post is selected', () {
-      final webs = [_web('post-1', 'peer-b')];
-      final field = _field(posts: [_post('post-1')], memberWebs: webs);
+    test(
+      'visible Post members stay on the Field before and after selection',
+      () {
+        final webs = [_web('post-1', 'peer-b')];
+        final field = _field(posts: [_post('post-1')], memberWebs: webs);
 
-      final idle = _compose(field);
-      expect(idle.keptPeerIds, contains('peer-a'));
-      expect(idle.keptPeerIds, isNot(contains('peer-b')));
+        final idle = _compose(field);
+        expect(idle.keptPeerIds, contains('peer-a'));
+        expect(idle.keptPeerIds, contains('peer-b'));
 
-      final selected = _compose(field, selectedRequestWebs: webs);
-      expect(selected.keptPeerIds, containsAll(['peer-a', 'peer-b']));
-    });
+        final selected = _compose(field, selectedRequestWebs: webs);
+        expect(selected.keptPeerIds, containsAll(['peer-a', 'peer-b']));
+      },
+    );
 
     test('an unanchored Post is a satellite of its author', () {
       final composed = _compose(

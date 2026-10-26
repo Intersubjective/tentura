@@ -26,6 +26,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 // The mini-profile trust toggle of the graph screen flips at once, shows no
 // progress state, and flips back with a Retry snackbar when the write fails.
@@ -136,7 +137,7 @@ Future<GraphTrustWriteFixture> _openBobPanel(WidgetTester tester) async {
   addTearDown(graphCubit.close);
   addTearDown(fixture.dispose);
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     StackRouterScope(
       controller: _StubRouter(),
       stateHash: 0,

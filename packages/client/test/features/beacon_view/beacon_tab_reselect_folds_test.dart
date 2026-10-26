@@ -24,6 +24,7 @@ import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -53,7 +54,8 @@ class _FakeBeaconViewCubit extends Mock implements BeaconViewCubit {
   Future<void> reportPeopleSurfaceViewed() async {}
 }
 
-class _TrackingThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
+class _TrackingThreadsCubit extends Cubit<ThreadsState>
+    implements ThreadsCubit {
   _TrackingThreadsCubit() : super(const ThreadsState(status: StateIsSuccess()));
 
   @override
@@ -132,7 +134,7 @@ void main() {
 
     var peopleFoldEpoch = 0;
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       MediaQuery(
         data: const MediaQueryData(size: compact),
         child: MaterialApp(
@@ -218,7 +220,7 @@ void main() {
 
     var refreshCalls = 0;
 
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       MediaQuery(
         data: const MediaQueryData(size: compact),
         child: MaterialApp(

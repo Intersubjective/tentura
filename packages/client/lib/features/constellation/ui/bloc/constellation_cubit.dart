@@ -149,7 +149,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
        _case = case_,
        _viewer = viewer,
        _composePresentation =
-           composePresentation ?? _defaultComposer(semanticZoomEnabled),
+           composePresentation ??
+           constellationPresentationComposer(
+             semanticZoomEnabled: semanticZoomEnabled,
+             fieldMembershipV2Enabled: fieldMembershipV2Enabled,
+           ),
        _forwardCaseOverride = forwardCase,
        super(const ConstellationState()) {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
@@ -169,30 +173,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     unawaited(_restoreVisibility());
   }
-
-  static ConstellationPresentationComposer _defaultComposer(
-    bool semanticZoomEnabled,
-  ) =>
-      ({
-        required viewerId,
-        required field,
-        required localFilters,
-        required asOfUtc,
-        required labelBudget,
-        expandedSatelliteAuthorIds = const {},
-        selectedRequestWebs = const [],
-        extraKeptPeerIds = const {},
-      }) => composeConstellationPresentation(
-        viewerId: viewerId,
-        field: field,
-        localFilters: localFilters,
-        asOfUtc: asOfUtc,
-        labelBudget: labelBudget,
-        expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
-        selectedRequestWebs: selectedRequestWebs,
-        extraKeptPeerIds: extraKeptPeerIds,
-        semanticZoomEnabled: semanticZoomEnabled,
-      );
 
   final ConstellationFieldStoreCase _case;
   final ConstellationAnchorCase? _anchorCase;

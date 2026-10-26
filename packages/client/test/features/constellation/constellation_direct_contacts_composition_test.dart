@@ -58,18 +58,21 @@ void main() {
     expect(composed.eligiblePersonIds, contains('quiet'));
   });
 
-  test('without the direct contact list the same person is not drawn', () {
-    final field = ConstellationField(
-      loadedAt: _asOf,
-      context: '',
-      peers: const [ConstellationPerson(id: 'quiet')],
-      edges: const [
-        ConstellationTrustEdgeEntity(src: _ego, dst: 'quiet', tier: 1),
-      ],
-    );
+  test(
+    'a visible person stays on the Field without a direct contact entry',
+    () {
+      final field = ConstellationField(
+        loadedAt: _asOf,
+        context: '',
+        peers: const [ConstellationPerson(id: 'quiet')],
+        edges: const [
+          ConstellationTrustEdgeEntity(src: _ego, dst: 'quiet', tier: 1),
+        ],
+      );
 
-    expect(_compose(field).keptPeerIds, isNot(contains('quiet')));
-  });
+      expect(_compose(field).keptPeerIds, contains('quiet'));
+    },
+  );
 
   test('a contact node without content is kept with its single edge', () {
     final field = ConstellationField(
@@ -95,7 +98,7 @@ void main() {
     final directCount = constellationRenderPeerCap() + 180;
     final indirectCount = constellationRenderPeerCap() + 40;
     final direct = [for (var i = 0; i < directCount; i++) _id('d', i)];
-    // Each indirect holder hangs off its own bridge, so it costs two seats.
+    // Every visible bridge and descendant is independently a holder in phase 1.
     final bridges = [for (var i = 0; i < indirectCount; i++) _id('b', i)];
     final indirect = [for (var i = 0; i < indirectCount; i++) _id('i', i)];
     final field = ConstellationField(
@@ -133,7 +136,13 @@ void main() {
 
     expect(composed.keptPeerIds.containsAll(direct), isTrue);
     final keptIndirect = composed.keptPeerIds.intersection(indirect.toSet());
-    expect(keptIndirect.length, constellationRenderPeerCap() ~/ 2);
+    // With every visible person a holder, shallower bridge peers fill the
+    // render budget before their depth-2 descendants.
+    expect(keptIndirect, isEmpty);
+    expect(
+      composed.keptPeerIds.intersection(bridges.toSet()),
+      hasLength(constellationRenderPeerCap()),
+    );
     expect(composed.renderBudgetCapped, isTrue);
   });
 

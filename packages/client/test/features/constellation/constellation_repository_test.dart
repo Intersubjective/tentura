@@ -423,66 +423,69 @@ void main() {
   });
 
   group('store-backed presentation holderIds', () {
-    test('holderIds follow returned request authors plus ego', () async {
-      const ego = 'ego';
-      const authorA = 'author-a';
-      const profileOnlyPeer = 'peer-b';
+    test(
+      'holders include Request authors and visible peers without Requests',
+      () async {
+        const ego = 'ego';
+        const authorA = 'author-a';
+        const profileOnlyPeer = 'peer-b';
 
-      final case_ = ConstellationStoreFixture(
-        _StubRepository(
-          ConstellationField(
-            loadedAt: DateTime.utc(2026, 9, 9),
-            context: '',
-            peers: [
-              ConstellationPerson(id: authorA),
-              ConstellationPerson(id: profileOnlyPeer),
-            ],
-            edges: [
-              ConstellationTrustEdgeEntity(
-                src: ego,
-                dst: authorA,
-                tier: 1,
-              ),
-            ],
-            requests: [
-              ConstellationRequest(
-                id: 'req-1',
-                authorId: authorA,
-                title: 'First',
-                status: 0,
-              ),
-              ConstellationRequest(
-                id: 'req-2',
-                authorId: authorA,
-                title: 'Second',
-                status: 0,
-              ),
-              ConstellationRequest(
-                id: 'req-3',
-                authorId: ego,
-                title: 'Mine',
-                status: 0,
-                isMine: true,
-              ),
-            ],
+        final case_ = ConstellationStoreFixture(
+          _StubRepository(
+            ConstellationField(
+              loadedAt: DateTime.utc(2026, 9, 9),
+              context: '',
+              peers: [
+                ConstellationPerson(id: authorA),
+                ConstellationPerson(id: profileOnlyPeer),
+              ],
+              edges: [
+                ConstellationTrustEdgeEntity(
+                  src: ego,
+                  dst: authorA,
+                  tier: 1,
+                ),
+              ],
+              requests: [
+                ConstellationRequest(
+                  id: 'req-1',
+                  authorId: authorA,
+                  title: 'First',
+                  status: 0,
+                ),
+                ConstellationRequest(
+                  id: 'req-2',
+                  authorId: authorA,
+                  title: 'Second',
+                  status: 0,
+                ),
+                ConstellationRequest(
+                  id: 'req-3',
+                  authorId: ego,
+                  title: 'Mine',
+                  status: 0,
+                  isMine: true,
+                ),
+              ],
+            ),
           ),
-        ),
-        accountId: 'ego',
-      ).store;
+          accountId: 'ego',
+        ).store;
 
-      final cubit = ConstellationCubit(
-        case_: case_,
-        viewer: const Profile(id: ego),
-        loadOnCreate: false,
-      );
-      addTearDown(cubit.close);
-      await cubit.load();
-      final result = cubit.state.resolvedField!;
+        final cubit = ConstellationCubit(
+          case_: case_,
+          viewer: const Profile(id: ego),
+          loadOnCreate: false,
+        );
+        addTearDown(cubit.close);
+        await cubit.load();
+        final result = cubit.state.resolvedField!;
 
-      expect(result.paths.attributed, contains(authorA));
-      expect(result.paths.attributed, isNot(contains(ego)));
-      expect(result.paths.ring, isNot(contains(profileOnlyPeer)));
-    });
+        expect(result.paths.attributed, contains(authorA));
+        expect(result.paths.attributed, isNot(contains(ego)));
+        expect(result.paths.ring, contains(profileOnlyPeer));
+      },
+    );
   });
 }
 

@@ -22,6 +22,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   _StubGraphCubit({
@@ -124,7 +125,7 @@ Future<void> _pumpPanel(
         graphCubit.expandNode(focusedNode);
       };
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),

@@ -250,10 +250,10 @@ void main() {
       );
     });
 
-    testWidgets('is absent by default while the feature gate is off', (
+    testWidgets('is absent when phase 1 is explicitly disabled', (
       tester,
     ) async {
-      await pumpPeopleTab(tester);
+      await pumpPeopleTab(tester, peopleTagsEnabled: false);
 
       expect(find.byIcon(Icons.more_vert), findsNothing);
       await expectNoPersonMenuFromGestures(
@@ -324,7 +324,6 @@ void main() {
           state: state,
           beaconViewCubit: cubit,
           l10n: lookupL10n(const Locale('en')),
-          peopleTagsEnabled: true,
         ),
       );
     }
@@ -408,7 +407,7 @@ void main() {
     ) async {
       await pumpObserverTab(
         tester,
-        peopleTagsEnabled: true,
+
         roster: const [_helper, _observer],
       );
       expect(find.text('You'), findsOneWidget);
@@ -430,10 +429,10 @@ void main() {
       );
     });
 
-    testWidgets('is absent by default while the feature gate is off', (
+    testWidgets('is absent when phase 1 is explicitly disabled', (
       tester,
     ) async {
-      await pumpObserverTab(tester);
+      await pumpObserverTab(tester, peopleTagsEnabled: false);
 
       expect(find.byIcon(Icons.more_vert), findsNothing);
       await expectNoPersonMenuFromGestures(

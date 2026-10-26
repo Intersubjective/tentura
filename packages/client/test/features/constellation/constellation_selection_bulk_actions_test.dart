@@ -122,7 +122,6 @@ Future<ConstellationSelectionCubit> _mount(
             body: ConstellationBody(
               legendExpanded: false,
               onToggleLegend: () {},
-              peopleTagsEnabled: true,
             ),
           ),
         ),

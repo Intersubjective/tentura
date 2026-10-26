@@ -33,6 +33,13 @@ final class FakePeopleTagsRepository implements PeopleTagsRepositoryPort {
   Future<List<PersonTagMembers>> personTagMemberships() async => memberList;
 
   @override
+  Future<List<PersonAutoTag>> personAutoTags() async => const [];
+
+  @override
+  Future<PersonTagSuggestionState> personTagSuggestionState() async =>
+      const PersonTagSuggestionState(canSuggest: false, disabled: false);
+
+  @override
   Future<PersonTagsOf> personTagsOf(String personId) async => PersonTagsOf(
     own: [
       for (final m in memberList)

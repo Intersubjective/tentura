@@ -21,6 +21,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/graph_trust_write_fixture.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _bob = Profile(id: 'Ub', displayName: 'Bob');
 
@@ -78,7 +79,7 @@ Future<({GraphTrustWriteFixture trust, _FieldRepository field})> _openBobPanel(
   constellation.setVisible(true);
   await tester.runAsync(constellation.load);
   expect(constellation.state.status, isA<StateIsSuccess>());
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),

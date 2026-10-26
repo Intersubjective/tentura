@@ -1,6 +1,6 @@
 // The bottom panel of the tag lens summarises the selection in one line
 // ("tags · N people · M Requests") and offers "Forward a request…".
-// "Open tag view" stays hidden until the tag view exists.
+// "Open tag view" is available now that both release flags are enabled.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -138,7 +138,7 @@ void main() {
       expect(_summaryLine(tester), 'Neighbour · 2 people · 3 Requests');
     });
 
-    testWidgets('it offers "Forward a request…" and no "Open tag view"', (
+    testWidgets('it offers "Forward a request…" and "Open tag view"', (
       tester,
     ) async {
       final m = await mountTagLensBody(tester);
@@ -147,7 +147,7 @@ void main() {
       await settleTagLensBody(tester);
 
       expect(_inPanel(find.text(_forwardLabel)), findsOneWidget);
-      expect(find.text('Open tag view'), findsNothing);
+      expect(_inPanel(find.text('Open tag view')), findsOneWidget);
     });
 
     testWidgets('clearing the selection takes the panel away', (tester) async {

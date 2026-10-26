@@ -28,6 +28,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../inbox/author_invite_test_support.dart' show buildActorProfiles;
+import '../../support/people_tags_widget_harness.dart';
 
 const _author = Profile(id: 'auth', displayName: 'Author');
 const _ann = Profile(id: 'Uann', displayName: 'Ann');
@@ -211,7 +212,7 @@ void main() {
     testWidgets('a readable Post parent reads «Вырос из поста»', (
       tester,
     ) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _app(
           const BeaconHierarchyParentLink(
             reference: BeaconParentReference(
@@ -230,7 +231,7 @@ void main() {
     });
 
     testWidgets('a Request parent keeps its plain title link', (tester) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _app(
           const BeaconHierarchyParentLink(
             reference: BeaconParentReference(
@@ -250,7 +251,7 @@ void main() {
     testWidgets('an unreadable parent shows the generic reference', (
       tester,
     ) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _app(
           const BeaconHierarchyParentLink(
             reference: BeaconParentReference.unavailable,
@@ -353,7 +354,7 @@ void main() {
     ) async {
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit),
       );
       await tester.pumpAndSettle();
@@ -378,7 +379,7 @@ void main() {
     ) async {
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit),
       );
       await tester.pumpAndSettle();
@@ -400,7 +401,7 @@ void main() {
       port.createOutcome = PostBudInviteOutcome.recipientPaused;
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit),
       );
       await tester.pumpAndSettle();
@@ -420,7 +421,7 @@ void main() {
     ) async {
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit),
       );
       await tester.pumpAndSettle();
@@ -448,7 +449,7 @@ void main() {
         effects: effects,
       );
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit),
       );
       await tester.pumpAndSettle();
@@ -462,7 +463,7 @@ void main() {
     ) async {
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'Uann'), invites: cubit),
       );
       await tester.pumpAndSettle();
@@ -475,7 +476,7 @@ void main() {
     testWidgets('gate off hides the section from the author', (tester) async {
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit, gate: false),
       );
       await tester.pumpAndSettle();
@@ -492,7 +493,7 @@ void main() {
         ..invites = const [];
       final cubit = _cubit(port, effects);
       addTearDown(cubit.close);
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _surface(_viewState(myId: 'auth'), invites: cubit),
       );
       await tester.pumpAndSettle();

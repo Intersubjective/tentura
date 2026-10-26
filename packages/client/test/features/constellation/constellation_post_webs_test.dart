@@ -21,6 +21,7 @@ import 'package:tentura/features/constellation/ui/widget/constellation_overflow_
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 final _loadedAt = DateTime.utc(2026, 10, 3, 12);
 
@@ -250,7 +251,7 @@ void main() {
       addTearDown(cubit.close);
       var opened = false;
       var closed = false;
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         BlocProvider.value(
           value: cubit,
           child: MaterialApp(
@@ -281,7 +282,7 @@ void main() {
     test('webs go to placed members, not to capped or unknown ones', () async {
       final cubit = await _load(_fieldOverRenderCap(hiddenReachCount: 2));
       addTearDown(cubit.close);
-      expect(cubit.state.keptPeerIds, {_padded(0)});
+      expect(cubit.state.keptPeerIds, hasLength(constellationRenderPeerCap()));
 
       cubit.selectRequest('post-1');
       await Future<void>.delayed(Duration.zero);
@@ -346,22 +347,24 @@ void main() {
       },
     );
 
-    test('members off the field count into the chip until the Post is '
-        'selected', () async {
-      final cubit = await _load();
-      addTearDown(cubit.close);
+    test(
+      'visible members stay on the field independently of Post selection',
+      () async {
+        final cubit = await _load();
+        addTearDown(cubit.close);
 
-      expect(cubit.state.keptPeerIds, {'a'});
-      expect(cubit.postOverflowCountByPostId['post-1'], 1);
+        expect(cubit.state.keptPeerIds, {'a', 'b'});
+        expect(cubit.postOverflowCountByPostId['post-1'] ?? 0, 0);
 
-      cubit.selectRequest('post-1');
-      await Future<void>.delayed(Duration.zero);
-      expect(cubit.state.keptPeerIds, {'a', 'b'});
+        cubit.selectRequest('post-1');
+        await Future<void>.delayed(Duration.zero);
+        expect(cubit.state.keptPeerIds, {'a', 'b'});
 
-      cubit.selectRequest(null);
-      await Future<void>.delayed(Duration.zero);
-      expect(cubit.state.keptPeerIds, {'a'});
-    });
+        cubit.selectRequest(null);
+        await Future<void>.delayed(Duration.zero);
+        expect(cubit.state.keptPeerIds, {'a', 'b'});
+      },
+    );
 
     test('has no chip entry when nothing is hidden or capped', () async {
       final cubit = await _load();
@@ -398,7 +401,7 @@ void main() {
       addTearDown(cubit.close);
       cubit.selectRequest('post-1');
 
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           locale: const Locale('en'),
           theme: TenturaTheme.light(),

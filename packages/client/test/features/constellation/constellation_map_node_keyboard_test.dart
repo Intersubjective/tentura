@@ -41,6 +41,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/web_default_shortcuts.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -155,7 +156,7 @@ Future<void> _pumpBody(
   const size = _size;
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       shortcuts: shortcuts,
       locale: const Locale('en'),

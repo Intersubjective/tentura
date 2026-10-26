@@ -22,6 +22,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -189,7 +190,7 @@ void main() {
     addTearDown(lens.close);
     await tester.binding.setSurfaceSize(const Size(1200, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       MaterialApp(
         locale: const Locale('en'),
         theme: TenturaTheme.light(),

@@ -24,6 +24,7 @@ import 'fixtures/constellation_reference_fixture.dart';
 import 'package:flutter/gestures.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -121,7 +122,7 @@ Future<FakeUiEffectPort> _pumpBody(
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final fx = effects ?? FakeUiEffectPort();
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -205,7 +206,7 @@ Future<void> _pumpWithContext(
   const size = Size(375, 547);
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: locale,
       theme: TenturaTheme.light(),

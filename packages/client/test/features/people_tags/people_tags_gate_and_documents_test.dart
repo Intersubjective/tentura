@@ -118,8 +118,8 @@ String _callArguments(String documents, String op) {
 }
 
 void main() {
-  test('people tags entry points are hidden by default', () {
-    expect(kPeopleTagsEnabled, isFalse);
+  test('people tags entry points are enabled for phase 1', () {
+    expect(kPeopleTagsEnabled, isTrue);
   });
 
   group('people tags GraphQL contract', () {

@@ -44,6 +44,7 @@ import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt;
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _kBeaconId = 'b-adaptive-test';
 
@@ -56,6 +57,7 @@ class _NoopImageRepository implements ImageRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
 const _kAuthorId = 'author-adaptive';
 const _kHelperId = 'helper-adaptive';
 final _kSeenAt = DateTime.utc(2026, 8, 14, 10);
@@ -125,8 +127,7 @@ class _HarnessRouter extends Mock implements RootStackRouter {
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      false;
+  }) => false;
 }
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -274,13 +275,13 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
   final factoryRecorder = recorder ?? RoomCubitFactoryRecorder();
   return ThreadHostCubit(
     beaconId: _kBeaconId,
-    roomCubitFactory: ({
-      required String beaconId,
-      String? threadItemId,
-      DateTime? initialUnreadAnchorAt,
-      RoomCapabilities? capabilities,
-    }) =>
-        factoryRecorder.call(
+    roomCubitFactory:
+        ({
+          required String beaconId,
+          String? threadItemId,
+          DateTime? initialUnreadAnchorAt,
+          RoomCapabilities? capabilities,
+        }) => factoryRecorder.call(
           beaconId: beaconId,
           threadItemId: threadItemId,
           initialUnreadAnchorAt: initialUnreadAnchorAt,
@@ -298,80 +299,76 @@ CoordinationItem _item({
   int unreadCount = 0,
   String title = 'Semantic body',
   String? linkedMessageId,
-}) =>
-    CoordinationItem(
-      id: id,
-      beaconId: _kBeaconId,
-      kind: kind,
-      status: status,
-      creatorId: creatorId,
-      createdAt: _kNow,
-      updatedAt: _kNow,
-      published: published,
-      targetPersonId: targetPersonId,
-      title: title,
-      unreadCount: unreadCount,
-      linkedMessageId: linkedMessageId,
-    );
+}) => CoordinationItem(
+  id: id,
+  beaconId: _kBeaconId,
+  kind: kind,
+  status: status,
+  creatorId: creatorId,
+  createdAt: _kNow,
+  updatedAt: _kNow,
+  published: published,
+  targetPersonId: targetPersonId,
+  title: title,
+  unreadCount: unreadCount,
+  linkedMessageId: linkedMessageId,
+);
 
 RequestThread _generalThread({
   int unreadCount = 0,
   DateTime? lastSeenAt,
-}) =>
-    RequestThread(
-      threadId: RequestThread.generalId,
-      kind: RequestThreadKind.general,
-      unreadCount: unreadCount,
-      lastSeenAt: lastSeenAt ?? _kSeenAt,
-    );
+}) => RequestThread(
+  threadId: RequestThread.generalId,
+  kind: RequestThreadKind.general,
+  unreadCount: unreadCount,
+  lastSeenAt: lastSeenAt ?? _kSeenAt,
+);
 
 RequestThread _semanticThread({
   required CoordinationItem item,
   int unreadCount = 0,
   DateTime? lastSeenAt,
-}) =>
-    RequestThread(
-      threadId: item.id,
-      kind: switch (item.kind) {
-        CoordinationItemKind.ask => RequestThreadKind.ask,
-        CoordinationItemKind.promise => RequestThreadKind.promise,
-        CoordinationItemKind.blocker => RequestThreadKind.blocker,
-        CoordinationItemKind.plan => RequestThreadKind.ask,
-      },
-      unreadCount: unreadCount,
-      item: item,
-      lastSeenAt: lastSeenAt ?? _kSeenAt,
-    );
+}) => RequestThread(
+  threadId: item.id,
+  kind: switch (item.kind) {
+    CoordinationItemKind.ask => RequestThreadKind.ask,
+    CoordinationItemKind.promise => RequestThreadKind.promise,
+    CoordinationItemKind.blocker => RequestThreadKind.blocker,
+    CoordinationItemKind.plan => RequestThreadKind.ask,
+  },
+  unreadCount: unreadCount,
+  item: item,
+  lastSeenAt: lastSeenAt ?? _kSeenAt,
+);
 
 BeaconViewState _authorBeaconState({
   List<BeaconActivityEvent> roomActivityEvents = const [],
   bool beaconContentLoaded = true,
-}) =>
-    BeaconViewState(
-      beacon: Beacon(
-        id: _kBeaconId,
-        title: 'Adaptive request',
-        author: const Profile(id: _kAuthorId, displayName: 'Author'),
-        createdAt: _kNow,
-        updatedAt: _kNow,
-      ),
-      myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
-      beaconContentLoaded: beaconContentLoaded,
-      roomParticipantsLoaded: true,
-      roomParticipants: [
-        BeaconParticipant(
-          id: 'p-author',
-          beaconId: _kBeaconId,
-          userId: _kAuthorId,
-          role: 0,
-          status: 0,
-          roomAccess: RoomAccessBits.admitted,
-          createdAt: _kNow,
-          updatedAt: _kNow,
-        ),
-      ],
-      roomActivityEvents: roomActivityEvents,
-    );
+}) => BeaconViewState(
+  beacon: Beacon(
+    id: _kBeaconId,
+    title: 'Adaptive request',
+    author: const Profile(id: _kAuthorId, displayName: 'Author'),
+    createdAt: _kNow,
+    updatedAt: _kNow,
+  ),
+  myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
+  beaconContentLoaded: beaconContentLoaded,
+  roomParticipantsLoaded: true,
+  roomParticipants: [
+    BeaconParticipant(
+      id: 'p-author',
+      beaconId: _kBeaconId,
+      userId: _kAuthorId,
+      role: 0,
+      status: 0,
+      roomAccess: RoomAccessBits.admitted,
+      createdAt: _kNow,
+      updatedAt: _kNow,
+    ),
+  ],
+  roomActivityEvents: roomActivityEvents,
+);
 
 BeaconViewState _itemOnlyParticipantState({
   required String participantId,
@@ -422,13 +419,12 @@ ThreadsState _threadsState({
   required List<RequestThread> threads,
   Map<String, int>? resolvedUnreadByThreadId,
   String myUserId = _kAuthorId,
-}) =>
-    ThreadsState(
-      threads: threads,
-      resolvedUnreadByThreadId: resolvedUnreadByThreadId ?? const {},
-      myUserId: myUserId,
-      status: const StateIsSuccess(),
-    );
+}) => ThreadsState(
+  threads: threads,
+  resolvedUnreadByThreadId: resolvedUnreadByThreadId ?? const {},
+  myUserId: myUserId,
+  status: const StateIsSuccess(),
+);
 
 class _Harness {
   _Harness({
@@ -499,7 +495,10 @@ Future<_Harness> _pumpHarness(
                 canCreateChild: false,
               ),
             ),
-            createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepository()),
+            createCase: BeaconCreateCase(
+              _NoopBeaconWritePort(),
+              _NoopImageRepository(),
+            ),
             beacons: _NoopBeaconWritePort(),
             commandStore: InMemoryBeaconChildCommandStore(),
           ),
@@ -512,7 +511,7 @@ Future<_Harness> _pumpHarness(
     child: Scaffold(body: screen),
   );
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     StackRouterScope(
       controller: harnessRouter,
       stateHash: 0,
@@ -546,7 +545,11 @@ Future<_Harness> _pumpHarness(
   );
 }
 
-Future<void> _resizeHarness(WidgetTester tester, _Harness harness, Size size) async {
+Future<void> _resizeHarness(
+  WidgetTester tester,
+  _Harness harness,
+  Size size,
+) async {
   await tester.binding.setSurfaceSize(size);
   harness.mediaKey.currentState!.resize(size);
   await tester.pump();
@@ -564,16 +567,15 @@ BeaconActivityEvent _coordinationEvent({
   required String itemId,
   CoordinationItemEventKind eventKind = CoordinationItemEventKind.created,
   String? sourceMessageId,
-}) =>
-    BeaconActivityEvent(
-      id: 'ev-$itemId',
-      beaconId: _kBeaconId,
-      visibility: BeaconActivityEventVisibilityBits.room,
-      type: kind.value * 100 + eventKind.value,
-      createdAt: _kNow,
-      coordinationItemId: itemId,
-      sourceMessageId: sourceMessageId,
-    );
+}) => BeaconActivityEvent(
+  id: 'ev-$itemId',
+  beaconId: _kBeaconId,
+  visibility: BeaconActivityEventVisibilityBits.room,
+  type: kind.value * 100 + eventKind.value,
+  createdAt: _kNow,
+  coordinationItemId: itemId,
+  sourceMessageId: sourceMessageId,
+);
 
 Future<void> _openActivitySheetFromOverflow(WidgetTester tester) async {
   final l10n = await L10n.delegate.load(const Locale('en'));
@@ -598,7 +600,9 @@ Future<void> _setupGetIt({Profile? profile}) async {
     await getIt.unregister<ProfileCubit>();
   }
   getIt.registerSingleton<ProfileCubit>(
-    _MockProfileCubit(profile ?? const Profile(id: _kAuthorId, displayName: 'Author')),
+    _MockProfileCubit(
+      profile ?? const Profile(id: _kAuthorId, displayName: 'Author'),
+    ),
   );
   if (getIt.isRegistered<BeaconThreadsCase>()) {
     await getIt.unregister<BeaconThreadsCase>();
@@ -626,7 +630,11 @@ int? _chatTabBadge(WidgetTester tester) {
 }
 
 class _ResizableMediaQuery extends StatefulWidget {
-  const _ResizableMediaQuery({required this.child, required this.size, super.key});
+  const _ResizableMediaQuery({
+    required this.child,
+    required this.size,
+    super.key,
+  });
 
   final Widget child;
   final Size size;
@@ -716,7 +724,6 @@ void main() {
       expect(recorder.created, hasLength(1));
       expect(recorder.created.single.state.threadItemId, isNull);
     });
-
   });
 
   group('regular adaptive', () {
@@ -824,7 +831,6 @@ void main() {
         isTrue,
       );
     });
-
   });
 
   group('resize transitions', () {
@@ -876,7 +882,7 @@ void main() {
         threads.copyWith(status: const StateIsLoading()),
       );
 
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         StackRouterScope(
           controller: router,
           stateHash: 0,
@@ -985,45 +991,51 @@ void main() {
   });
 
   group('item-only authorization fixture', () {
-    testWidgets('legacy thread id shows unavailable placeholder in ROOM surface', (
-      tester,
-    ) async {
-      final threads = _threadsState(threads: [_generalThread()]);
-      await _pumpHarness(
+    testWidgets(
+      'legacy thread id shows unavailable placeholder in ROOM surface',
+      (
         tester,
-        size: _kCompact,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-        viewTab: kBeaconViewTabThreads,
-        threadId: 'unknown-thread',
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      ) async {
+        final threads = _threadsState(threads: [_generalThread()]);
+        await _pumpHarness(
+          tester,
+          size: _kCompact,
+          beaconState: _authorBeaconState(),
+          threadsState: threads,
+          viewTab: kBeaconViewTabThreads,
+          threadId: 'unknown-thread',
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      expect(find.text(l10n.beaconLegacyThreadUnavailable), findsOneWidget);
-    });
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        expect(find.text(l10n.beaconLegacyThreadUnavailable), findsOneWidget);
+      },
+    );
 
-    testWidgets('empty accessible set shows admission placeholder in ROOM surface', (
-      tester,
-    ) async {
-      final threads = _threadsState(threads: [], myUserId: _kHelperId);
-      await _pumpHarness(
+    testWidgets(
+      'empty accessible set shows admission placeholder in ROOM surface',
+      (
         tester,
-        size: _kCompact,
-        beaconState: _itemOnlyParticipantState(
-          participantId: _kHelperId,
-          waitingForAdmission: true,
-        ),
-        threadsState: threads,
-        viewTab: kBeaconViewTabThreads,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      ) async {
+        final threads = _threadsState(threads: [], myUserId: _kHelperId);
+        await _pumpHarness(
+          tester,
+          size: _kCompact,
+          beaconState: _itemOnlyParticipantState(
+            participantId: _kHelperId,
+            waitingForAdmission: true,
+          ),
+          threadsState: threads,
+          viewTab: kBeaconViewTabThreads,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      expect(find.text(l10n.beaconRoomWaitingForApproval), findsOneWidget);
-    });
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        expect(find.text(l10n.beaconRoomWaitingForApproval), findsOneWidget);
+      },
+    );
   });
 
   group('unread adaptive', () {
@@ -1056,35 +1068,41 @@ void main() {
       expect(_chatTabBadge(tester), 1);
     });
 
-    testWidgets('closed-thread unread stored but excluded from CHAT tab badge', (
-      tester,
-    ) async {
-      final closed = _item(
-        id: 'unread-closed-fold',
-        status: CoordinationItemStatus.resolved,
-        title: 'Closed unread body',
-        unreadCount: 3,
-      );
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: closed, unreadCount: 3)],
-        resolvedUnreadByThreadId: {closed.id: 3},
-      );
-      final harness = await _pumpHarness(
+    testWidgets(
+      'closed-thread unread stored but excluded from CHAT tab badge',
+      (
         tester,
-        size: _kCompact,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-      );
+      ) async {
+        final closed = _item(
+          id: 'unread-closed-fold',
+          status: CoordinationItemStatus.resolved,
+          title: 'Closed unread body',
+          unreadCount: 3,
+        );
+        final threads = _threadsState(
+          threads: [
+            _generalThread(),
+            _semanticThread(item: closed, unreadCount: 3),
+          ],
+          resolvedUnreadByThreadId: {closed.id: 3},
+        );
+        final harness = await _pumpHarness(
+          tester,
+          size: _kCompact,
+          beaconState: _authorBeaconState(),
+          threadsState: threads,
+        );
 
-      expect(_chatTabBadge(tester), isNull);
-      final closedThread = harness.threadsCubit.state.threads.firstWhere(
-        (thread) => thread.threadId == closed.id,
-      );
-      expect(
-        harness.threadsCubit.state.resolvedUnreadFor(closedThread),
-        3,
-      );
-    });
+        expect(_chatTabBadge(tester), isNull);
+        final closedThread = harness.threadsCubit.state.threads.firstWhere(
+          (thread) => thread.threadId == closed.id,
+        );
+        expect(
+          harness.threadsCubit.state.resolvedUnreadFor(closedThread),
+          3,
+        );
+      },
+    );
   });
 
   group('Log adaptive', () {
@@ -1099,7 +1117,10 @@ void main() {
           linkedMessageId: messageId,
         );
         final threads = _threadsState(
-          threads: [_generalThread(), _semanticThread(item: plan)],
+          threads: [
+            _generalThread(),
+            _semanticThread(item: plan),
+          ],
         );
         final recorder = RoomCubitFactoryRecorder();
         final host = _host(recorder: recorder);

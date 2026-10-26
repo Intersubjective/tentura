@@ -35,6 +35,7 @@ import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/features/closure/ui/bloc/closure_author_cubit.dart';
 import 'package:tentura/features/closure/ui/screen/closure_author_screen.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 const _beaconId = 'Bclosure00001';
 const _epoch = 4;
@@ -182,7 +183,7 @@ Future<_FakeClosureRepository> _pump(
     beaconId: _beaconId,
   );
   addTearDown(cubit.close);
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       theme: TenturaTheme.light(),
       locale: const Locale('ru'),

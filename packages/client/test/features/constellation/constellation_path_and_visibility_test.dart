@@ -25,6 +25,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 /// #641: selecting someone who is not a direct contact highlights the
 /// shortest chain of visible trust and names it in the person panel.
@@ -218,7 +219,7 @@ Widget _app(Widget child) => MaterialApp(
 Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
   await tester.binding.setSurfaceSize(const Size(1200, 1400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     _app(
       MultiBlocProvider(
         providers: [

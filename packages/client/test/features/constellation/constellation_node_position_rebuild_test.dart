@@ -8,6 +8,7 @@ import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'fixtures/constellation_reference_fixture.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 /// Identify the node owned by a content or position-subscription element.
 String? _nodeIdForBuildElement(Element element) {
@@ -213,7 +214,7 @@ void main() {
               'A move relays the nodes out; no node subtree is rebuilt for it',
         );
         expect(canvasBuilds, 0, reason: 'A move must not rebuild GraphView');
-        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpPeopleTagsWidget(const SizedBox.shrink());
       },
     );
   });

@@ -271,10 +271,10 @@ void main() {
       );
     });
 
-    testWidgets('is absent by default while the feature gate is off', (
+    testWidgets('is absent when phase 1 is explicitly disabled', (
       tester,
     ) async {
-      await pumpList(tester);
+      await pumpList(tester, peopleTagsEnabled: false);
 
       expect(find.byIcon(Icons.more_vert), findsNothing);
       await expectNoPersonMenuFromGestures(

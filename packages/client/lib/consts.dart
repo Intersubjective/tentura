@@ -246,15 +246,13 @@ const kPostBudInviteWarningAbove = 5;
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;
 
-/// Gate for every client entry point of private people tags (#699); the
-/// phase-1 release unit flips it.
-const kPeopleTagsEnabled = false;
+/// Enables every client entry point of private people tags (#699, phase 1).
+const kPeopleTagsEnabled = true;
 
 /// Gate for field membership without a Request (people tags #699): visible,
 /// bond and temporary people join the Constellation field on their own and
-/// the render cap follows the tag priority. The phase-1 release unit flips
-/// it.
-const kFieldMembershipV2Enabled = false;
+/// the render cap follows the tag priority. Enabled by phase 1.
+const kFieldMembershipV2Enabled = true;
 
 /// Gate for the Field Arrange menu (people tags #699, unit D2): the Arrange
 /// sheet replaces the Rearrange / Reset buttons, Reset becomes an undoable

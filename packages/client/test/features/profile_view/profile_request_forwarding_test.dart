@@ -41,6 +41,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 void main() {
   group('Profile request forwarding action', () {
@@ -70,7 +71,7 @@ void main() {
     Future<void> pumpProfile(WidgetTester tester, Profile subject) async {
       harness = _ProfileViewBodyHarness()..start(id: subject.id);
       harness.cubit.emit(ProfileViewState(profile: subject));
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         MaterialApp(
           locale: locale,
           theme: TenturaTheme.light(),
@@ -230,7 +231,7 @@ void main() {
         addTearDown(forwardCubit.close);
         final router = RootStackRouter.build(routes: []);
         addTearDown(router.dispose);
-        await tester.pumpWidget(
+        await tester.pumpPeopleTagsWidget(
           MaterialApp(
             locale: locale,
             theme: TenturaTheme.light(),

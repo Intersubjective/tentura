@@ -1,4 +1,3 @@
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -197,10 +196,10 @@ void main() {
       expect(find.text('Add to tag…'), findsNothing);
     });
 
-    testWidgets('is absent by default while the feature gate is off', (
+    testWidgets('is absent when phase 1 is explicitly disabled', (
       tester,
     ) async {
-      await pumpCard(tester);
+      await pumpCard(tester, peopleTagsEnabled: false);
 
       expect(overflowButton, findsNothing);
       await tester.longPress(find.text('Peer Person'));

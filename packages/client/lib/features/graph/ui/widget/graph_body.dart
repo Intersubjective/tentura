@@ -189,45 +189,48 @@ class GraphBodyState extends State<GraphBody>
     final legendAtTop =
         panelVisible && context.windowClass == WindowClass.compact;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        _buildGraphView(graphState),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: LinearPiActive.builder(context, graphState.isLoading),
-        ),
-        if (_graphCubit.mode == GraphMode.trust)
-          ListenableBuilder(
-            listenable: _graphCubit.graphController,
-            builder: (context, _) => _isTrustGraphEmpty(graphState)
-                ? _buildTrustEmptyState(context)
-                : const SizedBox.shrink(),
-          ),
-        if (widget.legendExpanded)
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildGraphView(graphState),
           Positioned(
+            top: 0,
             left: 0,
-            top: legendAtTop ? 0 : null,
-            bottom: legendAtTop ? null : 0,
-            child: SafeArea(
-              top: legendAtTop,
-              bottom: !legendAtTop,
-              right: false,
-              child: Padding(
-                padding: EdgeInsets.all(tt.rowGap),
-                child: _buildLegendPanel(
-                  context,
-                  legendAtTop: legendAtTop,
-                  panelVisible: panelVisible,
+            right: 0,
+            child: LinearPiActive.builder(context, graphState.isLoading),
+          ),
+          if (_graphCubit.mode == GraphMode.trust)
+            ListenableBuilder(
+              listenable: _graphCubit.graphController,
+              builder: (context, _) => _isTrustGraphEmpty(graphState)
+                  ? _buildTrustEmptyState(context)
+                  : const SizedBox.shrink(),
+            ),
+          if (widget.legendExpanded)
+            Positioned(
+              left: 0,
+              top: legendAtTop ? 0 : null,
+              bottom: legendAtTop ? null : 0,
+              child: SafeArea(
+                top: legendAtTop,
+                bottom: !legendAtTop,
+                right: false,
+                child: Padding(
+                  padding: EdgeInsets.all(tt.rowGap),
+                  child: _buildLegendPanel(
+                    context,
+                    legendAtTop: legendAtTop,
+                    panelVisible: panelVisible,
+                    viewportHeight: constraints.maxHeight,
+                  ),
                 ),
               ),
             ),
-          ),
-        if (panelVisible)
-          _buildPersonContextOverlay(context, graphState, contextState),
-      ],
+          if (panelVisible)
+            _buildPersonContextOverlay(context, graphState, contextState),
+        ],
+      ),
     );
   }
 
@@ -269,6 +272,7 @@ class GraphBodyState extends State<GraphBody>
     BuildContext context, {
     required bool legendAtTop,
     required bool panelVisible,
+    required double viewportHeight,
   }) {
     final tt = context.tt;
     final legend = GraphLegendPanel(
@@ -281,14 +285,16 @@ class GraphBodyState extends State<GraphBody>
     }
     final media = MediaQuery.of(context);
     final maxHeight =
-        media.size.height *
-            (1 - tt.graphPersonContextCompactMaxHeightFraction) -
+        viewportHeight -
+        media.size.height * tt.graphPersonContextCompactMaxHeightFraction -
         media.padding.top -
         media.padding.bottom -
         tt.rowGap * 4;
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      child: SingleChildScrollView(child: legend),
+      constraints: BoxConstraints(
+        maxHeight: maxHeight.clamp(0.0, double.infinity),
+      ),
+      child: legend,
     );
   }
 

@@ -31,6 +31,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/people_tags_widget_harness.dart';
 
 class _WidgetTestGraphSource implements GraphSourceRepository {
   final pages = <String?, Set<EdgeDirected>>{};
@@ -263,7 +264,7 @@ _pumpTrustGraphBody(
   addTearDown(graphCubit.close);
   addTearDown(trustFixture.dispose);
 
-  await tester.pumpWidget(
+  await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
@@ -520,7 +521,7 @@ void main() {
         _GenealogyStubCubit(),
       ]) {
         addTearDown(cubit.close);
-        await tester.pumpWidget(
+        await tester.pumpPeopleTagsWidget(
           MaterialApp(
             theme: TenturaTheme.light(),
             localizationsDelegates: L10n.localizationsDelegates,

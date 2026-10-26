@@ -74,7 +74,7 @@ flowchart LR
     VU["vote_user, amount > 0<br/>restricted to the visible set"]
   end
   subgraph C["Constellation"]
-    T["ego-rooted parent tree<br/>pruned to request holders"]
+    T["ego-rooted parent tree<br/>Field members within the render cap"]
   end
   PV --> T
   VU --> T
@@ -97,7 +97,7 @@ Supplied by the product owner in this round unless marked *derived*.
 | **D6** | *Derived* — **paths may only traverse people who are themselves mutually visible to ego.** A path is never routed through a person ego cannot otherwise see, anonymously or otherwise. This adds zero new exposure class. |
 | **D7** | *Derived* — **traversal follows trust direction outward from ego** (`ego → A → B` requires `ego` trusts `A` and `A` trusts `B`). This is the direction MeritRank actually flows. Undirected "you both trust X" bridge paths are a documented later option, not v1. |
 | **D8** | *Derived* — **one parent per person**: the drawn structure is a tree, not the full closure. Tie-break is `(tier asc, parent id asc)` — a tier-1 and a tier-2 predecessor can realize the same key, and id alone would let the derived edge win. `depth` is not a tie-break term: under O1 every parent sits exactly one ring in. |
-| **D9** | *Derived* — **a person is shown only if they justify themselves**: they hold a discoverable active request, or they are an intermediary on the chosen path to someone who does. Everyone else is pruned. *Naming, because the two are easy to conflate:* the algorithm's `attributed` (§5 step 3) is **reached holders only**; the rendered set is `keep` (step 4) = `attributed` ∪ their ancestors. Prose elsewhere calling an intermediary "attributed" means `keep`; the code field is `isKept`. **Approved Post composer amendment A4:** composer mode temporarily widens composition to forward-eligible visible peers up to the render cap (120); exit restores normal composition. |
+| **D9** | **Superseded by people-tags phase 1 (R1, client 7.54.0).** The former Request-holder/ancestor pruning rule no longer determines Field membership. Every admitted V ∪ B ∪ T person is a holder for composition, even without a Request; reserved contacts and pins retain their existing rules. Presence precedence is `visible > bond > temporary > contactOnly > pinnedOnly`. Blocking still excludes either direction, and temporary presence grants no access to the author's other Requests. Path resolution and render caps still apply. Composer mode retains its separate forward-eligible recipient set. |
 | **D12** | **The migration backfills `is_discoverable = true` for every existing row**, children included. One uniform rule, no legacy tier: every existing active request becomes discoverable across its author's field on rollout day. |
 | **D13** | **The full closure among visible peers may cross the wire — both tiers.** Tier 2 is included (U5, §9.1); it is ids-only and weight-free. The disclosure this authorizes is the *existence* of a derived relation between two peers ego can already see, never its evidence or magnitude (D1a). The client receives the closure and prunes locally; drawing stays a tree (§3.1), and *transmission* is the authorized disclosure. §9.1 is amended accordingly.<br>*Originally worded "explicit-trust closure"; widened to both tiers to match U5 and §9.1 — the tier-2 half is the part that discloses system-derived relations, so it is called out here rather than left implicit.* |
 | **D14** | **Mutual visibility becomes symmetric**, evaluated in the global context (`ctx = ''`). Shaped so a later switch to per-capability contexts is a parameter change, not a redesign. |
@@ -184,6 +184,21 @@ Inputs, all already authorized data for ego:
 2. **B** — **published** requests (`published_at IS NOT NULL` — open-family is not the same as published, §8.3) with status ∈ {0, 7, 8} (D10), whose author is ego or a member of **V**. `is_discoverable` (D4) is required for peer-authored requests; **ego's own requests do not require it** (D16). Block exclusions apply in either direction.
 3. **E₁** — tier-1 edges `(src, dst)` from `vote_user WHERE amount > 0`, both endpoints in `{ego} ∪ V` (D6).
 4. **E₂** — tier-2 edges from `user_trust_edge` (positive), same endpoint restriction, **ids only, no weights** (§9.1).
+
+**Phase-1 amendment (R1, #699):** the inputs and pseudocode below describe the
+original Request-holder algorithm. With `kFieldMembershipV2Enabled = true`,
+`composeConstellationPresentation` instead supplies all admitted V ∪ B ∪ T
+people as `holders` (`ALG-HOLDERS`), alongside reserved contacts and pins.
+Here B means bond peers and T temporary Request-forwarding peers, rather than
+the original pseudocode's B request set and T traversal state. They do not need
+Request satellites. Trust paths remain explanations, never a prerequisite for
+membership; D9 pruning is superseded. The server peer cap is 400 and phase 1's
+client render cap remains 120 (plan default P4), with own tags → direct contacts
+→ bond/temporary peers → trust depth → id priority. The historical cap values in
+§7 below are superseded by these bounds. See the
+[people-tags plan](people-tags-plan.md) §1–§2 and the
+[release journal](people-tags-implementation-journal.md) for the deferred
+performance measurements.
 
 Then, as pure client-side domain code. **Each clause carries a stable identifier
 (`ALG-…`).** The plan's §0.4 binding table and UNIT 08's test names cite these
