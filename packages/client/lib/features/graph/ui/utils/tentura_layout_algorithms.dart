@@ -210,11 +210,15 @@ final class LayeredDagLayoutAlgorithm implements SceneLayoutAlgorithm {
     required this.rootIds,
     this.layerGap = 150,
     this.columnGap = 130,
+    this.horizontal = false,
   });
 
   final Set<String> rootIds;
   final double layerGap;
   final double columnGap;
+
+  /// Ranks run left to right instead of top to bottom (#464).
+  final bool horizontal;
 
   @override
   Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
@@ -244,6 +248,7 @@ final class LayeredDagLayoutAlgorithm implements SceneLayoutAlgorithm {
       canvasSize: size,
       layerGap: layerGap,
       columnGap: columnGap,
+      horizontal: horizontal,
     );
 
     return _positionsFromDomainMap(
@@ -260,6 +265,7 @@ final class LayeredDagLayoutAlgorithm implements SceneLayoutAlgorithm {
           runtimeType == other.runtimeType &&
           layerGap == other.layerGap &&
           columnGap == other.columnGap &&
+          horizontal == other.horizontal &&
           const SetEquality<String>().equals(rootIds, other.rootIds);
 
   @override
@@ -267,6 +273,7 @@ final class LayeredDagLayoutAlgorithm implements SceneLayoutAlgorithm {
     runtimeType,
     layerGap,
     columnGap,
+    horizontal,
     const SetEquality<String>().hash(rootIds),
   );
 }

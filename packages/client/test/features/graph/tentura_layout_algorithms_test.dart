@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -12,12 +11,12 @@ import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'scene_layout_test_support.dart';
 
 void main() {
-  final nodeA = UserNode(user: Profile(id: 'a'));
-  final nodeB = UserNode(user: Profile(id: 'b'));
-  final nodeC = UserNode(user: Profile(id: 'c'));
-  final nodeD = UserNode(user: Profile(id: 'd'));
-  final nodeE = UserNode(user: Profile(id: 'e'));
-  final nodeF = UserNode(user: Profile(id: 'f'));
+  const nodeA = UserNode(user: Profile(id: 'a'));
+  const nodeB = UserNode(user: Profile(id: 'b'));
+  const nodeC = UserNode(user: Profile(id: 'c'));
+  const nodeD = UserNode(user: Profile(id: 'd'));
+  const nodeE = UserNode(user: Profile(id: 'e'));
+  const nodeF = UserNode(user: Profile(id: 'f'));
 
   NodeDetails nodeById(String id) => switch (id) {
     'a' => nodeA,
@@ -37,18 +36,18 @@ void main() {
     );
   }
 
-  ScenePoint pointFor(NodeDetails node, Map<GraphNodeId, ScenePoint> positions) =>
-      positions[tenturaGraphNodeId(node)]!;
+  ScenePoint pointFor(
+    NodeDetails node,
+    Map<GraphNodeId, ScenePoint> positions,
+  ) => positions[tenturaGraphNodeId(node)]!;
 
   group('RadialHopLayoutAlgorithm', () {
     test('equal instances compare equal', () {
       const first = RadialHopLayoutAlgorithm(
         rootId: 'a',
-        ringGap: 170,
       );
       const second = RadialHopLayoutAlgorithm(
         rootId: 'a',
-        ringGap: 170,
       );
       const different = RadialHopLayoutAlgorithm(rootId: 'b');
 
@@ -78,39 +77,42 @@ void main() {
       }
     });
 
-    test('payload replacement keeps positions under the same graph id', () async {
-      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
-      final nodes = {nodeA, nodeB};
-      final edges = {edge('a', 'b')};
-      final initial = await layoutPositionsOnce(
-        algorithm,
-        nodes: nodes,
-        edges: edges,
-      );
+    test(
+      'payload replacement keeps positions under the same graph id',
+      () async {
+        const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
+        final nodes = {nodeA, nodeB};
+        final edges = {edge('a', 'b')};
+        final initial = await layoutPositionsOnce(
+          algorithm,
+          nodes: nodes,
+          edges: edges,
+        );
 
-      final refreshedB = UserNode(
-        user: Profile(id: 'b', displayName: 'Renamed'),
-        size: nodeB.size,
-      );
-      final refreshedNodes = {nodeA, refreshedB};
-      final afterRefresh = await layoutPositionsOnce(
-        algorithm,
-        nodes: refreshedNodes,
-        edges: {
-          EdgeDetails(
-            source: nodeA,
-            destination: refreshedB,
-            color: Colors.blue,
-          ),
-        },
-        previous: sceneLayoutFromPositions(initial),
-      );
+        final refreshedB = UserNode(
+          user: Profile(id: 'b', displayName: 'Renamed'),
+          size: nodeB.size,
+        );
+        final refreshedNodes = {nodeA, refreshedB};
+        final afterRefresh = await layoutPositionsOnce(
+          algorithm,
+          nodes: refreshedNodes,
+          edges: {
+            EdgeDetails(
+              source: nodeA,
+              destination: refreshedB,
+              color: Colors.blue,
+            ),
+          },
+          previous: sceneLayoutFromPositions(initial),
+        );
 
-      expect(
-        pointFor(refreshedB, afterRefresh),
-        pointFor(nodeB, initial),
-      );
-    });
+        expect(
+          pointFor(refreshedB, afterRefresh),
+          pointFor(nodeB, initial),
+        );
+      },
+    );
 
     test('relayout keeps existing nodes pinned when the set shrinks', () async {
       const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
@@ -133,30 +135,36 @@ void main() {
       expect(pointFor(nodeB, shrunk), pointFor(nodeB, initial));
     });
 
-    test('relayout parks new children along the pinned branch direction', () async {
-      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
-      const parentPos = Offset(250, 100);
-      const childPos = Offset(250, 200);
-      final previous = sceneLayoutFromPositions({
-        tenturaGraphNodeId(nodeA): ScenePoint(x: parentPos.dx, y: parentPos.dy),
-        tenturaGraphNodeId(nodeB): ScenePoint(x: childPos.dx, y: childPos.dy),
-      });
+    test(
+      'relayout parks new children along the pinned branch direction',
+      () async {
+        const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
+        const parentPos = Offset(250, 100);
+        const childPos = Offset(250, 200);
+        final previous = sceneLayoutFromPositions({
+          tenturaGraphNodeId(nodeA): ScenePoint(
+            x: parentPos.dx,
+            y: parentPos.dy,
+          ),
+          tenturaGraphNodeId(nodeB): ScenePoint(x: childPos.dx, y: childPos.dy),
+        });
 
-      final grown = await layoutPositionsOnce(
-        algorithm,
-        nodes: {nodeA, nodeB, nodeC},
-        edges: {edge('a', 'b'), edge('b', 'c')},
-        previous: previous,
-      );
+        final grown = await layoutPositionsOnce(
+          algorithm,
+          nodes: {nodeA, nodeB, nodeC},
+          edges: {edge('a', 'b'), edge('b', 'c')},
+          previous: previous,
+        );
 
-      expect(pointFor(nodeB, grown).y, closeTo(childPos.dy, 1));
-      final c = pointFor(nodeC, grown);
-      expect(c.x, closeTo(childPos.dx, 1));
-      expect(c.y, closeTo(childPos.dy + 170, 1));
-    });
+        expect(pointFor(nodeB, grown).y, closeTo(childPos.dy, 1));
+        final c = pointFor(nodeC, grown);
+        expect(c.x, closeTo(childPos.dx, 1));
+        expect(c.y, closeTo(childPos.dy + 170, 1));
+      },
+    );
 
     test('relayout fans multiple siblings locally around the parent', () async {
-      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
       final previous = sceneLayoutFromPositions({
         tenturaGraphNodeId(nodeA): ScenePoint(x: 250, y: 100),
         tenturaGraphNodeId(nodeB): ScenePoint(x: 250, y: 200),
@@ -184,7 +192,7 @@ void main() {
     });
 
     test('repeated expand re-fans all siblings without overlap', () async {
-      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
       final previous = sceneLayoutFromPositions({
         tenturaGraphNodeId(nodeA): ScenePoint(x: 250, y: 100),
         tenturaGraphNodeId(nodeB): ScenePoint(x: 250, y: 200),
@@ -237,7 +245,7 @@ void main() {
     });
 
     test('relayout places root children from global hop sectors', () async {
-      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
       const largeCanvas = Size(4096, 4096);
       final nodes = {nodeA, nodeB, nodeC, nodeD};
       final edges = {
@@ -296,18 +304,21 @@ void main() {
     test('equal instances compare equal', () {
       const first = LayeredDagLayoutAlgorithm(
         rootIds: {'a'},
-        layerGap: 150,
-        columnGap: 130,
       );
       const second = LayeredDagLayoutAlgorithm(
         rootIds: {'a'},
-        layerGap: 150,
-        columnGap: 130,
       );
       const different = LayeredDagLayoutAlgorithm(rootIds: {'b'});
+      const horizontal = LayeredDagLayoutAlgorithm(
+        rootIds: {'a'},
+        horizontal: true,
+      );
 
       expect(first, second);
       expect(first, isNot(different));
+      // A new orientation must not compare equal, or the view keeps the old
+      // layout when the window crosses 840 px (#464).
+      expect(first, isNot(horizontal));
     });
 
     test('layout and relayout produce identical positions', () async {

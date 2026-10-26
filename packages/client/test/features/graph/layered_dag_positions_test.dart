@@ -1,4 +1,3 @@
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/graph/domain/layout/layered_dag_positions.dart';
@@ -17,8 +16,6 @@ void main() {
         edges: {('a', 'b'), ('b', 'c')},
         rootIds: {'a'},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
 
       final a = positions['a']!;
@@ -39,8 +36,6 @@ void main() {
         edges: {('a', 'b'), ('a', 'c')},
         rootIds: {'a'},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
 
       final b = positions['b']!;
@@ -61,16 +56,12 @@ void main() {
         edges: edgesA,
         rootIds: {'a'},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
       final fromB = layeredDagPositions(
         nodeIds: nodesB,
         edges: edgesB,
         rootIds: {'a'},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
 
       expect(fromA, fromB);
@@ -82,8 +73,6 @@ void main() {
         edges: {('a', 'b'), ('a', 'c'), ('a', 'd')},
         rootIds: {'a'},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
 
       final siblings = [positions['b']!, positions['c']!, positions['d']!];
@@ -104,13 +93,14 @@ void main() {
         edges: {('root', 'a'), ('a', 'b'), ('b', 'ego')},
         rootIds: const {},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
 
-      final ys = ['root', 'a', 'b', 'ego']
-          .map((id) => positions[id]!.dy)
-          .toList();
+      final ys = [
+        'root',
+        'a',
+        'b',
+        'ego',
+      ].map((id) => positions[id]!.dy).toList();
       expect(ys.toSet().length, 4);
       for (var i = 1; i < ys.length; i++) {
         expect(ys[i - 1], lessThan(ys[i]));
@@ -119,14 +109,73 @@ void main() {
       expect(xs.length, 1);
     });
 
+    test('horizontal: ranks become columns, root on the left (#464)', () {
+      final positions = layeredDagPositions(
+        nodeIds: {'root', 'a', 'b', 'ego'},
+        edges: {('root', 'a'), ('a', 'b'), ('b', 'ego')},
+        rootIds: const {},
+        canvasSize: canvasSize,
+        horizontal: true,
+      );
+
+      final xs = [
+        'root',
+        'a',
+        'b',
+        'ego',
+      ].map((id) => positions[id]!.dx).toList();
+      for (var i = 1; i < xs.length; i++) {
+        expect(xs[i] - xs[i - 1], closeTo(layerGap, 0.01));
+      }
+      final ys = positions.values.map((offset) => offset.dy).toSet();
+      expect(ys.length, 1);
+    });
+
+    test('horizontal: siblings share a column, a column gap apart', () {
+      final positions = layeredDagPositions(
+        nodeIds: {'a', 'b', 'c'},
+        edges: {('a', 'b'), ('a', 'c')},
+        rootIds: {'a'},
+        canvasSize: canvasSize,
+        horizontal: true,
+      );
+
+      final b = positions['b']!;
+      final c = positions['c']!;
+      expect(b.dx, closeTo(c.dx, 0.01));
+      expect(b.dx, greaterThan(positions['a']!.dx));
+      expect((b.dy - c.dy).abs(), closeTo(columnGap, 0.01));
+    });
+
+    test('horizontal is the vertical layout transposed about the centre', () {
+      const nodeIds = {'a', 'b', 'c', 'd'};
+      const edges = {('a', 'b'), ('a', 'c'), ('c', 'd')};
+      final vertical = layeredDagPositions(
+        nodeIds: nodeIds,
+        edges: edges,
+        rootIds: {'a'},
+        canvasSize: canvasSize,
+      );
+      final horizontal = layeredDagPositions(
+        nodeIds: nodeIds,
+        edges: edges,
+        rootIds: {'a'},
+        canvasSize: canvasSize,
+        horizontal: true,
+      );
+
+      for (final id in nodeIds) {
+        expect(horizontal[id]!.x, closeTo(vertical[id]!.y, 0.01));
+        expect(horizontal[id]!.y, closeTo(vertical[id]!.x, 0.01));
+      }
+    });
+
     test('cycle safety', () {
       final positions = layeredDagPositions(
         nodeIds: {'a', 'b', 'c'},
         edges: {('a', 'b'), ('b', 'c'), ('c', 'a')},
         rootIds: const {},
         canvasSize: canvasSize,
-        layerGap: layerGap,
-        columnGap: columnGap,
       );
 
       expect(positions.length, 3);
