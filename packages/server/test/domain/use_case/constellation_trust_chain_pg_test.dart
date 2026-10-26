@@ -1,4 +1,6 @@
 @Tags(['pg'])
+// Seeds chains per test; under a loaded runner one test can pass 30 s.
+@Timeout(Duration(minutes: 2))
 library;
 
 import 'package:graphql_server2/graphql_server2.dart' show GraphQL;
