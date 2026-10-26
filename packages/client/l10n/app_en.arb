@@ -10799,6 +10799,42 @@
   "@constellationTrustChainHidden": {
     "context": "Field map: person panel line when no chain reaches the selected person while the show/hide switches hide some people (#641, #645)"
   },
+  "constellationTrustChainForwarded": "On your field because {name} forwarded you their Request",
+  "@constellationTrustChainForwarded": {
+    "context": "Field map: person panel line when no chain of trust reaches the person and they are on the field because they forwarded the viewer their Request (#779)",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Dima"
+      }
+    }
+  },
+  "constellationTrustChainForwardedUnnamed": "On your field because someone forwarded you their Request",
+  "@constellationTrustChainForwardedUnnamed": {
+    "context": "Field map: person panel line for a forwarding person whose name is unknown (#779)"
+  },
+  "constellationTrustChainPinned": "You pinned them to your field",
+  "@constellationTrustChainPinned": {
+    "context": "Field map: person panel line when no chain reaches the person and they are on the field only because the viewer pinned them (#779)"
+  },
+  "constellationTrustChainSharedRequest": "On your field because you share the Request “{title}”",
+  "@constellationTrustChainSharedRequest": {
+    "context": "Field map: person panel line when no chain reaches the person and they are on the field through a Request they share with the viewer (#779)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationTrustChainSharedPost": "On your field because you share the Post “{title}”",
+  "@constellationTrustChainSharedPost": {
+    "context": "Field map: person panel line when no chain reaches the person and they are on the field through a Post they share with the viewer (#779)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "constellationShowSection": "Show on the field",
   "@constellationShowSection": {
     "context": "Field: label of the row of show/hide switches for Requests, Posts and people by trust degree (#645)"

@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+
 import '../../domain/constellation_trust_chain.dart';
+import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 
 /// The chain of trust that brings [personId] onto the viewer's field (#641):
@@ -49,7 +52,8 @@ class ConstellationTrustChainLine extends StatelessWidget {
           ConstellationTrustChainNone() =>
             cubit.hasHiddenLayers
                 ? l10n.constellationTrustChainHidden
-                : l10n.constellationTrustChainNone,
+                : _presenceReason(cubit, l10n) ??
+                      l10n.constellationTrustChainNone,
           _ => null,
         };
         if (text == null) {
@@ -65,5 +69,33 @@ class ConstellationTrustChainLine extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// Why the selected person is on the field though no chain of trust reaches them:
+/// the Request they forwarded, a Request or Post they share with the viewer,
+/// or the viewer's own pin. Null when the field holds nothing of the kind.
+String? _presenceReason(ConstellationCubit cubit, L10n l10n) {
+  final personId = cubit.state.selectedPersonId;
+  if (personId == null) {
+    return null;
+  }
+  final person = cubit.fieldPersonById(personId);
+  switch (person?.fieldMembership) {
+    case ConstellationFieldMembership.temporary
+        when person!.temporaryBeaconId != null:
+      final name = person.displayName?.trim() ?? '';
+      return name.isEmpty
+          ? l10n.constellationTrustChainForwardedUnnamed
+          : l10n.constellationTrustChainForwarded(name);
+    case ConstellationFieldMembership.bond when person!.bondContexts.isNotEmpty:
+      final context = person.bondContexts.first;
+      return cubit.isPostId(context.beaconId)
+          ? l10n.constellationTrustChainSharedPost(context.title)
+          : l10n.constellationTrustChainSharedRequest(context.title);
+    case _:
+      return cubit.isAnchored(ConstellationAnchorTarget.person(personId))
+          ? l10n.constellationTrustChainPinned
+          : null;
   }
 }
