@@ -177,24 +177,51 @@ Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 
 /// #487 — a child Request says which Request it is part of, so it does not
 /// read as an unrelated sibling of its parent on the list. Nothing for a
-/// top-level Request or a parent the viewer cannot read.
+/// top-level Request or a parent the viewer cannot read. Tapping the line
+/// opens the parent Request (not the child the rest of the card opens).
 Widget _myWorkPartOfParentLine(BuildContext context, MyWorkCardViewModel vm) {
   final title = vm.parentTitle.trim();
   if (title.isEmpty) return const SizedBox.shrink();
   final tt = context.tt;
   final theme = Theme.of(context);
+  final parentId = vm.parentBeaconId;
+  final text = Text(
+    L10n.of(context)!.myWorkPartOfParent(title),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: theme.textTheme.bodySmall!.copyWith(color: tt.textMuted),
+  );
   return Padding(
-    // On the text keyline with the title and HUD rows.
+    // On the text keyline with the title and HUD rows. The link's own
+    // 48 dp band supplies the gap above it.
     padding: EdgeInsetsDirectional.only(
       start: tt.avatarSize + tt.avatarTextGap,
-      top: tt.tightGap,
+      top: parentId.isEmpty ? tt.tightGap : 0,
     ),
-    child: Text(
-      L10n.of(context)!.myWorkPartOfParent(title),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.bodySmall!.copyWith(color: tt.textMuted),
-    ),
+    child: parentId.isEmpty
+        ? text
+        : Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Semantics(
+              link: true,
+              child: InkWell(
+                key: ValueKey('myWorkPartOfParent:$parentId'),
+                onTap: () => _openBeacon(context, parentId),
+                // A full-height target (review r1 #6), so a slightly high or
+                // low tap opens the parent rather than the card's child.
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: kMinInteractiveDimension,
+                  ),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    widthFactor: 1,
+                    child: text,
+                  ),
+                ),
+              ),
+            ),
+          ),
   );
 }
 
