@@ -8,6 +8,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/constellation_tag_filter.dart';
 import '../../domain/entity/constellation_field.dart';
+import 'constellation_tag_magnet_control.dart';
 
 String constellationAutoTagName(L10n l10n, ConstellationAutoTagKind kind) =>
     switch (kind) {
@@ -57,6 +58,8 @@ class ConstellationTagRow extends StatelessWidget {
     required this.onToggleAuto,
     required this.onModeChanged,
     required this.onAddTag,
+    this.onPlaceMagnet,
+    this.onMagnetDrop,
     super.key,
   });
 
@@ -69,6 +72,30 @@ class ConstellationTagRow extends StatelessWidget {
   final ValueChanged<ConstellationAutoTagKind> onToggleAuto;
   final ValueChanged<ConstellationTagFilterMode> onModeChanged;
   final VoidCallback onAddTag;
+  final ValueChanged<PersonTag>? onPlaceMagnet;
+  final void Function(PersonTag tag, Offset globalPosition)? onMagnetDrop;
+
+  Widget _ownChip(PersonTag tag) {
+    final chip = _Toggle(
+      selected: filter.selectedOwn.contains(tag.id),
+      onTap: () => onToggleOwn(tag.id),
+      child: PersonTagChip(
+        glyph: tag.glyph,
+        name: tag.name,
+        colorIndex: tag.color,
+      ),
+    );
+    final place = onPlaceMagnet;
+    if (place == null) return chip;
+    return Builder(
+      builder: (context) => ConstellationTagMagnetControl(
+        actionLabel: L10n.of(context)!.constellationPlaceAsMagnet,
+        onAction: () => place(tag),
+        onDrop: (position) => onMagnetDrop?.call(tag, position),
+        child: chip,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,15 +119,7 @@ class ConstellationTagRow extends StatelessWidget {
             MetaData(
               metaData: ConstellationTagChipDrop(tag.id),
               behavior: HitTestBehavior.translucent,
-              child: _Toggle(
-                selected: filter.selectedOwn.contains(tag.id),
-                onTap: () => onToggleOwn(tag.id),
-                child: PersonTagChip(
-                  glyph: tag.glyph,
-                  name: tag.name,
-                  colorIndex: tag.color,
-                ),
-              ),
+              child: _ownChip(tag),
             ),
         for (final kind in autoTags)
           _Toggle(

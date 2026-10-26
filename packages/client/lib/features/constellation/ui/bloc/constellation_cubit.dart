@@ -25,6 +25,7 @@ import '../../domain/constellation_tidy_offset_layer.dart';
 import '../../domain/entity/constellation_layout_snapshot.dart';
 import '../../domain/use_case/constellation_arrangement_history.dart';
 import '../scene/constellation_arrangement_layout.dart';
+import '../scene/constellation_magnet_layout.dart';
 import '../scene/constellation_community_scene_layout.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
@@ -405,16 +406,91 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _scene.tagViewAlgorithm != null ||
         _scene.testSceneLayoutAlgorithmOverride != null ||
         _scene.ephemeralOwnedLayoutAlgorithm != null) {
-      return normal;
+      return _withMagnets(normal);
     }
-    return _communityLayouts.select(
-      normal: normal,
-      field: field,
-      egoId: viewerId,
-      anchors: _scene.layoutAnchorByNodeId,
-      initialPositions:
-          graphController.renderSnapshot.layout?.positions ?? const {},
-      overview: _overviewLayout,
+    return _withMagnets(
+      _communityLayouts.select(
+        normal: normal,
+        field: field,
+        egoId: viewerId,
+        anchors: _scene.layoutAnchorByNodeId,
+        initialPositions:
+            graphController.renderSnapshot.layout?.positions ?? const {},
+        overview: _overviewLayout,
+      ),
+    );
+  }
+
+  final _tagMagnets = <String, Offset>{};
+  Map<String, ScenePoint> _magnetBasePositions = const {};
+  Set<String> Function(String) _magnetTagsOf = _noTagViewOwnTags;
+
+  Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
+
+  void placeTagMagnet({
+    required String tagId,
+    required Offset position,
+    required Set<String> Function(String) tagsOfPerson,
+  }) {
+    if (isClosed || state.tagView != null || state.isComposing) return;
+    if (_tagMagnets.isEmpty) {
+      _magnetBasePositions = {
+        for (final node in graphController.nodes)
+          node.graphNodeId: ?graphController.renderSnapshot.resolvePosition(
+            node.graphNodeId,
+          ),
+      };
+    }
+    _magnetTagsOf = tagsOfPerson;
+    _tagMagnets[tagId] = position;
+    _reconcileLayout(immediateHandoff: true);
+  }
+
+  void removeTagMagnet(String tagId) {
+    if (isClosed || state.tagView != null || !_tagMagnets.containsKey(tagId)) {
+      return;
+    }
+    _tagMagnets.remove(tagId);
+    if (_tagMagnets.isEmpty) _magnetBasePositions = const {};
+    _reconcileLayout(immediateHandoff: true);
+  }
+
+  void refreshTagMagnets(Set<String> availableTagIds) {
+    if (isClosed || _tagMagnets.isEmpty) return;
+    _tagMagnets.removeWhere((id, _) => !availableTagIds.contains(id));
+    if (_tagMagnets.isEmpty) _magnetBasePositions = const {};
+    _reconcileLayout(immediateHandoff: true);
+  }
+
+  SceneLayoutAlgorithm _withMagnets(SceneLayoutAlgorithm base) {
+    final field = state.field;
+    if (_tagMagnets.isEmpty ||
+        field == null ||
+        state.tagView != null ||
+        state.isComposing ||
+        _scene.tagViewAlgorithm != null ||
+        _layoutPreviewAlgorithm != null) {
+      return base;
+    }
+    return ConstellationMagnetLayout(
+      base: base,
+      priors: _magnetBasePositions,
+      magnetsByPerson: {
+        for (final person in field.peers)
+          if (!isAnchored(ConstellationAnchorTarget.person(person.id)))
+            'fp:${person.id}': [
+              for (final tagId in _magnetTagsOf(person.id))
+                if (_tagMagnets[tagId] case final at?) (x: at.dx, y: at.dy),
+            ],
+      },
+      followers: {
+        for (final r in field.requests)
+          if (!isAnchored(ConstellationAnchorTarget.beacon(r.id)))
+            'fr:${r.id}': 'fp:${r.authorId}',
+        for (final p in field.posts)
+          if (!isAnchored(ConstellationAnchorTarget.beacon(p.id)))
+            'fr:${p.id}': 'fp:${p.authorId}',
+      },
     );
   }
 
@@ -813,6 +889,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _cancelPersonFocus();
     _communityLayouts.clear();
+    _tagMagnets.clear();
+    _magnetBasePositions = const {};
+    _magnetTagsOf = _noTagViewOwnTags;
     if (state.isComposing) exitComposing();
     _storeInputHeld = false;
     _outboxInputHeld = false;
@@ -3775,7 +3854,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ];
     final members = <TagViewPerson>[];
     for (final person in field.peers) {
-      final at = _tagViewFieldPositions['fp:${person.id}'];
+      final base = _magnetBasePositions['fp:${person.id}'];
+      final at = base == null
+          ? _tagViewFieldPositions['fp:${person.id}']
+          : Offset(base.x, base.y);
       if (at == null || !scope.memberIds.contains(person.id)) continue;
       final from = ego ?? at;
       final paths = state.paths;

@@ -7592,5 +7592,6 @@
   "requestAccessOpenParentPost": "Открыть пост",
   "constellationClusterPeople": "{n} чел.",
   "constellationMinimapShow": "Показать миникарту",
-  "constellationMinimapHide": "Скрыть миникарту"
+  "constellationMinimapHide": "Скрыть миникарту",
+  "constellationPlaceAsMagnet": "Разместить как магнит"
 }

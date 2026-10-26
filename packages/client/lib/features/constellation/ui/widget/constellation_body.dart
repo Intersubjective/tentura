@@ -71,6 +71,7 @@ import 'constellation_selection_layers.dart';
 import 'constellation_tag_hull_layer.dart';
 import 'constellation_tag_lens_panel.dart';
 import 'constellation_tag_row.dart';
+import 'constellation_tag_magnet_layer.dart';
 import 'constellation_rearrange_preview_bar.dart';
 import 'constellation_tag_view_header.dart';
 import 'constellation_viewport_overlay.dart';
@@ -143,6 +144,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   // Where the pointer last was, to tell a drop on a tag chip from a pin.
   Offset? _lastPointerGlobal;
+  StreamSubscription<void>? _magnetTagsSubscription;
 
   late final GraphController<NodeDetails, EdgeDetails> _graphController;
   // The screen's single zoom-level owner, shared with the viewport overlay.
@@ -178,6 +180,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
       ..addListener(_onRevealTick);
     _graphController.cameraRevision.addListener(_onCamera);
     WidgetsBinding.instance.addObserver(this);
+    _magnetTagsSubscription = _peopleTags?.changes.listen((_) {
+      if (!mounted) return;
+      context.read<ConstellationCubit>().refreshTagMagnets({
+        for (final tag in _peopleTags.tags) tag.id,
+      });
+    });
   }
 
   // The screen provides the owner; a body mounted bare owns its own.
@@ -191,6 +199,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   @override
   void dispose() {
+    unawaited(_magnetTagsSubscription?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
@@ -1088,6 +1097,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 bloc: lensCubit,
                 builder: (context, filter) => ConstellationTagRow(
                   ownTags: store.tags,
+                  onPlaceMagnet:
+                      context.read<ConstellationCubit>().state.tagView ==
+                              null &&
+                          widget.peopleTagsEnabled
+                      ? _placeTagMagnet
+                      : null,
+                  onMagnetDrop: _placeTagMagnet,
                   autoTags: ConstellationAutoTagKind.values,
                   filter: filter,
                   onToggleOwn: lensCubit.toggleOwn,
@@ -1307,6 +1323,28 @@ class _ConstellationBodyState extends State<ConstellationBody>
     cubit.cancelPlacement(suppressLateGestureEnd: false);
     unawaited(_addDroppedToTag(context, store, tagId, node.person.id));
     return true;
+  }
+
+  void _placeTagMagnet(PersonTag tag, [Offset? global]) {
+    final cubit = context.read<ConstellationCubit>();
+    final box = _graphStackKey.currentContext?.findRenderObject();
+    final store = _peopleTags;
+    if (box is! RenderBox ||
+        store == null ||
+        cubit.state.tagView != null ||
+        cubit.state.isComposing ||
+        !widget.peopleTagsEnabled) {
+      return;
+    }
+    final drop = global ?? box.localToGlobal(box.size.center(Offset.zero));
+    if (!(Offset.zero & box.size).contains(box.globalToLocal(drop))) return;
+    final position = cubit.graphController.globalToScene(drop);
+    if (position == null) return;
+    cubit.placeTagMagnet(
+      tagId: tag.id,
+      position: position,
+      tagsOfPerson: store.tagsOfPerson,
+    );
   }
 
   Future<void> _addDroppedToTag(
@@ -1712,6 +1750,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
             hitsNode: (local) => _hitsMapNode(cubit, local),
           ),
         ),
+        if (widget.peopleTagsEnabled &&
+            state.tagView == null &&
+            !state.isComposing)
+          Positioned.fill(
+            child: ConstellationTagMagnetLayer(
+              cubit: cubit,
+              tags: _peopleTags?.tags ?? const [],
+            ),
+          ),
         // The handle paints before the sheet below, so panning the circle
         // under the sheet does not draw the handle on top of it.
         if (composer != null)

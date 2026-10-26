@@ -11659,5 +11659,6 @@
     }
   },
   "constellationMinimapShow": "Show minimap",
-  "constellationMinimapHide": "Hide minimap"
+  "constellationMinimapHide": "Hide minimap",
+  "constellationPlaceAsMagnet": "Place as magnet"
 }
