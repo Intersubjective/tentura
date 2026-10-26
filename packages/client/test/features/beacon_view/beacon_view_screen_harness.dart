@@ -27,6 +27,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_status_sync.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -364,9 +365,9 @@ ThreadHostCubit beaconViewHarnessHost({
     beaconId: beaconId,
     roomCubitFactory:
         ({
-          required String beaconId,
-          String? threadItemId,
-          DateTime? initialUnreadAnchorAt,
+          required beaconId,
+          threadItemId,
+          initialUnreadAnchorAt,
           RoomCapabilities? capabilities,
         }) => factoryRecorder.call(
           beaconId: beaconId,
@@ -460,6 +461,10 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   // The Request plan (#220) the host's PlanCubit serves; null: no PlanCubit
   // (and so no Plan tab, #546). See [kBeaconViewHarnessOneStepPlan].
   BeaconPlan? plan,
+  // Mounts the status sync `BeaconViewScope` runs in the app (#415, #619):
+  // the host, and so the room, learns the Request's status and author once
+  // [beaconState] has loaded. False leaves the host unsynced.
+  bool syncBeaconStatus = true,
 }) async {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
@@ -539,7 +544,9 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
                 value: _HarnessProfileCubit(beaconState.myProfile),
               ),
             ],
-            child: Scaffold(body: screen),
+            child: syncBeaconStatus
+                ? BeaconStatusSync(child: Scaffold(body: screen))
+                : Scaffold(body: screen),
           ),
         ),
       ),

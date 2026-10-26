@@ -30,7 +30,6 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/a11y_focus.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -145,13 +144,6 @@ void main() {
       registerRoomCubitProfileCubit(kBeaconViewHarnessAuthorId);
       await registerBeaconViewHarnessGetIt(roomRepo: repo);
       final (host, roomCubits) = _host(repo);
-      // pumpBeaconViewHarness skips BeaconViewScope, which in the app syncs
-      // the beacon status into the host; without it the room is read-only
-      // and the composer is disabled (not a Tab stop).
-      host.syncBeaconStatus(
-        BeaconStatus.open,
-        authorId: kBeaconViewHarnessAuthorId,
-      );
       addTearDown(() async {
         for (final cubit in roomCubits) {
           await cubit.close();
@@ -347,10 +339,6 @@ void main() {
       registerRoomCubitProfileCubit(kBeaconViewHarnessAuthorId);
       await registerBeaconViewHarnessGetIt(roomRepo: repo);
       final (host, roomCubits) = _host(repo);
-      host.syncBeaconStatus(
-        BeaconStatus.open,
-        authorId: kBeaconViewHarnessAuthorId,
-      );
       addTearDown(() async {
         for (final cubit in roomCubits) {
           await cubit.close();
