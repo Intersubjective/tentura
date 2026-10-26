@@ -1,0 +1,3 @@
+mutation ConstellationTagMagnetRemove($tagId: String!, $clientOpId: String!) {
+  constellationTagMagnetRemove(tagId: $tagId, clientOpId: $clientOpId)
+}

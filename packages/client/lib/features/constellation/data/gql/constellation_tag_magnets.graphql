@@ -1,0 +1,8 @@
+query ConstellationTagMagnets {
+  constellationTagMagnets {
+    tagId
+    xUnits
+    yUnits
+    revision
+  }
+}

@@ -1,0 +1,8 @@
+mutation ConstellationTagMagnetUpsert($tagId: String!, $xUnits: Float!, $yUnits: Float!, $clientOpId: String!) {
+  constellationTagMagnetUpsert(tagId: $tagId, xUnits: $xUnits, yUnits: $yUnits, clientOpId: $clientOpId) {
+    tagId
+    xUnits
+    yUnits
+    revision
+  }
+}

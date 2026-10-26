@@ -13,6 +13,7 @@ import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import '../utils/constellation_presentation_frame.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
+import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_gather.dart';
@@ -23,6 +24,7 @@ import '../../domain/constellation_rearrange_all.dart';
 import '../../domain/constellation_tidy_action.dart';
 import '../../domain/constellation_tidy_offset_layer.dart';
 import '../../domain/entity/constellation_layout_snapshot.dart';
+import '../../domain/entity/constellation_tag_magnet.dart';
 import '../../domain/use_case/constellation_arrangement_history.dart';
 import '../scene/constellation_arrangement_layout.dart';
 import '../scene/constellation_magnet_layout.dart';
@@ -46,6 +48,7 @@ import '../../domain/entity/placement_outbox.dart';
 import '../../domain/placement_overlay.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
+import '../../domain/use_case/constellation_tag_magnet_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -143,6 +146,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._visibilityCase,
     this._mutualTrustCase,
     this._trustChainCase,
+    this._tagMagnetCase,
+    Set<String> Function(String personId)? ownTagIdsOf,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
@@ -159,6 +164,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
              fieldMembershipV2Enabled: fieldMembershipV2Enabled,
            ),
        _forwardCaseOverride = forwardCase,
+       _magnetTagsOf = ownTagIdsOf ?? _noTagViewOwnTags,
        super(const ConstellationState()) {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
       if (isClosed) return;
@@ -169,6 +175,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _storeLease = _case.lease();
     _storeSub = _case.changes.listen(_onStoreChanged);
     _placementSub = _placementCase?.changes.listen(_onPlacementChanged);
+    _magnetHintSub = _tagMagnetCase?.changes.listen(
+      (_) => unawaited(_loadTagMagnets()),
+    );
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.addListener(_onGraphControllerChanged);
@@ -185,6 +194,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationVisibilityCase? _visibilityCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
   final ConstellationTrustChainCase? _trustChainCase;
+  final ConstellationTagMagnetCase? _tagMagnetCase;
   final Profile _viewer;
 
   /// Draws the presence of bond and temporary people (`kFieldMembershipV2Enabled`).
@@ -254,6 +264,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   late final StoreLease _storeLease;
   StreamSubscription<ConstellationFieldStoreState>? _storeSub;
   StreamSubscription<PlacementOutboxState>? _placementSub;
+  StreamSubscription<void>? _magnetHintSub;
 
   /// Field (confirmed anchors plus unresolved placement intent) last composed;
   /// an update that leaves its layout inputs unchanged does not re-lay out.
@@ -434,16 +445,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final _tagMagnets = <String, Offset>{};
   Map<String, ScenePoint> _magnetBasePositions = const {};
-  Set<String> Function(String) _magnetTagsOf = _noTagViewOwnTags;
+  Set<String> Function(String) _magnetTagsOf;
 
   Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
 
-  void placeTagMagnet({
-    required String tagId,
-    required Offset position,
-    required Set<String> Function(String) tagsOfPerson,
-  }) {
-    if (isClosed || state.tagView != null || state.isComposing) return;
+  /// Bumped by every read and write of the saved magnets, so a read that
+  /// started before a change never overwrites it.
+  int _magnetEpoch = 0;
+  int _pendingMagnetWrites = 0;
+
+  /// The account changed: the next applied Field reads the magnets again.
+  bool _magnetsStale = false;
+
+  void _putTagMagnet(String tagId, Offset position) {
     if (_tagMagnets.isEmpty) {
       _magnetBasePositions = {
         for (final node in graphController.nodes)
@@ -452,18 +466,130 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ),
       };
     }
-    _magnetTagsOf = tagsOfPerson;
     _tagMagnets[tagId] = position;
+  }
+
+  void _dropTagMagnet(String tagId) {
+    _tagMagnets.remove(tagId);
+    if (_tagMagnets.isEmpty) _magnetBasePositions = const {};
+  }
+
+  Future<void> _loadTagMagnets() async {
+    final magnetCase = _tagMagnetCase;
+    if (magnetCase == null || isClosed) return;
+    _magnetsStale = false;
+    final epoch = ++_magnetEpoch;
+    final List<ConstellationTagMagnet> saved;
+    try {
+      saved = await magnetCase.list();
+    } on Object {
+      // The magnets already shown stay; the next hint or load reads again.
+      return;
+    }
+    if (isClosed || epoch != _magnetEpoch || _pendingMagnetWrites > 0) return;
+    final loaded = {
+      for (final magnet in saved)
+        magnet.tagId: constellationV1AnchorToPoint(
+          ConstellationAnchorPosition(
+            xUnits: magnet.xUnits,
+            yUnits: magnet.yUnits,
+            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+          ),
+        ),
+    };
+    final unchanged =
+        loaded.length == _tagMagnets.length &&
+        loaded.entries.every((e) {
+          final shown = _tagMagnets[e.key];
+          return shown != null &&
+              shown.dx == e.value.x &&
+              shown.dy == e.value.y;
+        });
+    if (unchanged) return;
+    for (final tagId in _tagMagnets.keys.toList()) {
+      if (!loaded.containsKey(tagId)) _dropTagMagnet(tagId);
+    }
+    for (final entry in loaded.entries) {
+      _putTagMagnet(entry.key, Offset(entry.value.x, entry.value.y));
+    }
     _reconcileLayout(immediateHandoff: true);
+  }
+
+  /// Saves [position] for [tagId]; a failed save puts [previous] back.
+  Future<void> _saveTagMagnet(
+    String tagId,
+    Offset position,
+    Offset? previous,
+  ) async {
+    final magnetCase = _tagMagnetCase;
+    if (magnetCase == null) return;
+    final units = constellationPointToV1Anchor((
+      x: position.dx,
+      y: position.dy,
+    ));
+    _magnetEpoch++;
+    _pendingMagnetWrites++;
+    try {
+      await magnetCase.save(
+        tagId: tagId,
+        xUnits: units.xUnits,
+        yUnits: units.yUnits,
+      );
+    } on Object {
+      if (!isClosed && _tagMagnets[tagId] == position) {
+        if (previous == null) {
+          _dropTagMagnet(tagId);
+        } else {
+          _putTagMagnet(tagId, previous);
+        }
+        _reconcileLayout(immediateHandoff: true);
+      }
+    } finally {
+      _pendingMagnetWrites--;
+      _magnetEpoch++;
+    }
+  }
+
+  /// Deletes the saved magnet of [tagId]; a failed delete puts [previous] back.
+  Future<void> _deleteTagMagnet(String tagId, Offset previous) async {
+    final magnetCase = _tagMagnetCase;
+    if (magnetCase == null) return;
+    _magnetEpoch++;
+    _pendingMagnetWrites++;
+    try {
+      await magnetCase.remove(tagId);
+    } on Object {
+      if (!isClosed && !_tagMagnets.containsKey(tagId)) {
+        _putTagMagnet(tagId, previous);
+        _reconcileLayout(immediateHandoff: true);
+      }
+    } finally {
+      _pendingMagnetWrites--;
+      _magnetEpoch++;
+    }
+  }
+
+  void placeTagMagnet({
+    required String tagId,
+    required Offset position,
+    required Set<String> Function(String) tagsOfPerson,
+  }) {
+    if (isClosed || state.tagView != null || state.isComposing) return;
+    final previous = _tagMagnets[tagId];
+    _magnetTagsOf = tagsOfPerson;
+    _putTagMagnet(tagId, position);
+    _reconcileLayout(immediateHandoff: true);
+    unawaited(_saveTagMagnet(tagId, position, previous));
   }
 
   void removeTagMagnet(String tagId) {
     if (isClosed || state.tagView != null || !_tagMagnets.containsKey(tagId)) {
       return;
     }
-    _tagMagnets.remove(tagId);
-    if (_tagMagnets.isEmpty) _magnetBasePositions = const {};
+    final previous = _tagMagnets[tagId]!;
+    _dropTagMagnet(tagId);
     _reconcileLayout(immediateHandoff: true);
+    unawaited(_deleteTagMagnet(tagId, previous));
   }
 
   void refreshTagMagnets(Set<String> availableTagIds) {
@@ -526,6 +652,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _storeSub = null;
     unawaited(_placementSub?.cancel());
     _placementSub = null;
+    unawaited(_magnetHintSub?.cancel());
+    _magnetHintSub = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
     // ignore: invalid_use_of_visible_for_testing_member
@@ -723,10 +851,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         emit(state.copyWith(status: const StateIsSuccess(), loadError: error));
       }
     }
+    unawaited(_loadTagMagnets());
   }
 
   void _applyLoadedField(ConstellationField field) {
     _lastAppliedStoreField = field;
+    if (_magnetsStale) unawaited(_loadTagMagnets());
     _placementAwaitingStore = false;
     final labelBudget = _currentLabelBudget();
     final loadedField = _adoptStoreField(field);
@@ -903,6 +1033,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _tagMagnets.clear();
     _magnetBasePositions = const {};
     _magnetTagsOf = _noTagViewOwnTags;
+    _magnetEpoch++;
+    _magnetsStale = _tagMagnetCase != null;
     if (state.isComposing) exitComposing();
     _storeInputHeld = false;
     _outboxInputHeld = false;

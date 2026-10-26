@@ -57,6 +57,16 @@ void main() {
       expect(isTenturaDirectOperation('ConstellationViewerRelations'), isFalse);
     });
 
+    test('the tag magnet read and writes route to Tentura V2', () {
+      for (final name in const [
+        'ConstellationTagMagnets',
+        'ConstellationTagMagnetUpsert',
+        'ConstellationTagMagnetRemove',
+      ]) {
+        expect(isTenturaDirectOperation(name), isTrue, reason: name);
+      }
+    });
+
     test('ForwardCandidatesFetch routes to Tentura V2', () {
       expect(isTenturaDirectOperation('ForwardCandidatesFetch'), isTrue);
     });

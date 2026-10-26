@@ -3885,6 +3885,8 @@ type mutation_root {
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
   constellationAnchorsReset(clientOpId: String!, saveHistory: Boolean): v2_ConstellationAnchorsResetResult!
   constellationLayoutSnapshotRestore(clientOpId: String, snapshotId: String): v2_ConstellationLayoutSnapshot!
+  constellationTagMagnetRemove(clientOpId: String, tagId: String): Boolean!
+  constellationTagMagnetUpsert(clientOpId: String, tagId: String, xUnits: Float!, yUnits: Float!): v2_ConstellationTagMagnet!
   constellationLayoutFavouriteRestore(snapshotId: String!, clientOpId: String!): Boolean!
   constellationLayoutSnapshotSave(clientOpId: String, kind: Int!, reason: Int!): v2_ConstellationLayoutSnapshot!
   contactDelete(subjectUserId: String!): Boolean!
@@ -5117,6 +5119,7 @@ type query_root {
   closureState(beaconId: String!): v2_ClosureState!
   constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
   constellationLayoutSnapshots: [v2_ConstellationLayoutSnapshot!]!
+  constellationTagMagnets: [v2_ConstellationTagMagnet!]!
   constellationFieldRequests(ids: [String!]!, participatedOnly: Boolean! = false, showClosed: Boolean! = false): [v2_ConstellationRequest!]!
   constellationMutualTrust(personId: String!): [String!]!
   constellationTrustChain(personId: String!): [v2_ConstellationTrustChainPerson!]!
@@ -8192,6 +8195,13 @@ type v2_ConstellationLayoutSnapshotAnchor {
   xUnits: Float!
   yUnits: Float!
   coordinateSpaceVersion: Int!
+}
+
+type v2_ConstellationTagMagnet {
+  revision: Int!
+  tagId: String!
+  xUnits: Float!
+  yUnits: Float!
 }
 
 type v2_ConstellationLayoutSnapshot {
