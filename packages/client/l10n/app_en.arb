@@ -8112,6 +8112,26 @@
   "@postCreateAllowForwarding": {
     "description": "Switch on the new-Post screen: recipients may forward the Post."
   },
+  "postCreateLifetimeLabel": "How long the post lives",
+  "@postCreateLifetimeLabel": {
+    "description": "Label of the lifetime picker on the new-Post screen."
+  },
+  "postCreateLifetime6h": "6 hours",
+  "@postCreateLifetime6h": {
+    "description": "Lifetime picker segment on the new-Post screen: 6 hours."
+  },
+  "postCreateLifetime24h": "24 hours",
+  "@postCreateLifetime24h": {
+    "description": "Lifetime picker segment on the new-Post screen: 24 hours."
+  },
+  "postCreateLifetime3d": "3 days",
+  "@postCreateLifetime3d": {
+    "description": "Lifetime picker segment on the new-Post screen: 3 days (the default)."
+  },
+  "postCreateLifetimeHint": "Then the post moves to the archive. It can't be extended, but it can be shortened.",
+  "@postCreateLifetimeHint": {
+    "description": "Hint under the lifetime picker on the new-Post screen."
+  },
   "postCreateTextHint": "What's your post about?",
   "@postCreateTextHint": {
     "description": "Hint of the text field on the first step of the new-Post form."

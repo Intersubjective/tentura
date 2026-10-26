@@ -6750,6 +6750,11 @@
     }
   },
   "postCreateAllowForwarding": "Можно пересылать",
+  "postCreateLifetimeLabel": "Сколько живёт пост",
+  "postCreateLifetime6h": "6 часов",
+  "postCreateLifetime24h": "24 часа",
+  "postCreateLifetime3d": "3 дня",
+  "postCreateLifetimeHint": "Потом пост уйдёт в архив. Продлить нельзя, сократить можно.",
   "postCreateTextHint": "О чём ваш пост?",
   "postCreateSendToCount": "Отправить ({count})",
   "beaconCreateSendToCount": "Отправить ({count})",

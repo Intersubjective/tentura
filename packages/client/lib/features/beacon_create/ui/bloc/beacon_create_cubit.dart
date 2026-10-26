@@ -1624,6 +1624,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required ForwardCubit forwardCubit,
     required BeaconForwardPolicyValue forwardPolicy,
     required List<RoomPendingUpload> attachments,
+    int lifetimeHours = 72,
   }) async {
     if (_publishPostBusy) return false;
     _publishPostBusy = true;
@@ -1634,6 +1635,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         forwardCubit: forwardCubit,
         forwardPolicy: forwardPolicy,
         attachments: attachments,
+        lifetimeHours: lifetimeHours,
       );
     } finally {
       _publishPostBusy = false;
@@ -1646,6 +1648,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required ForwardCubit forwardCubit,
     required BeaconForwardPolicyValue forwardPolicy,
     required List<RoomPendingUpload> attachments,
+    int lifetimeHours = 72,
   }) async {
     final postCase = _postPublishCase;
     final recipientIds = forwardCubit.state.selectedIds;
@@ -1666,6 +1669,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           recipientIds: recipientIds,
           notes: forwardCubit.state.perRecipientNotes,
           forwardPolicy: forwardPolicy,
+          lifetime: Duration(hours: lifetimeHours),
           firstAttachment: attachments.firstOrNull,
         );
         _publishedPost = published;

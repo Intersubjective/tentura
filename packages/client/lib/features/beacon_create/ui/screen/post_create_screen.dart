@@ -81,6 +81,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
 
   var _onRecipientsStep = false;
   var _forwardable = true;
+  var _lifetimeHours = 72;
   var _hasContent = false;
 
   @override
@@ -176,6 +177,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           ? BeaconForwardPolicyValue.open
           : BeaconForwardPolicyValue.closed,
       attachments: List.of(pendingUploads),
+      lifetimeHours: _lifetimeHours,
     );
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
@@ -320,6 +322,31 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           ],
         ),
         SizedBox(height: tt.rowGap),
+        Text(
+          l10n.postCreateLifetimeLabel,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        SizedBox(height: tt.tightGap),
+        SegmentedButton<int>(
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment(value: 6, label: Text(l10n.postCreateLifetime6h)),
+            ButtonSegment(value: 24, label: Text(l10n.postCreateLifetime24h)),
+            ButtonSegment(value: 72, label: Text(l10n.postCreateLifetime3d)),
+          ],
+          selected: {_lifetimeHours},
+          onSelectionChanged: busy
+              ? null
+              : (selected) => setState(() => _lifetimeHours = selected.single),
+        ),
+        SizedBox(height: tt.tightGap),
+        Text(
+          l10n.postCreateLifetimeHint,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        SizedBox(height: tt.tightGap),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(l10n.postCreateAllowForwarding),
