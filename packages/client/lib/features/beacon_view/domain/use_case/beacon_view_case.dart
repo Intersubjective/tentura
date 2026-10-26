@@ -11,6 +11,8 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -395,33 +397,70 @@ final class BeaconViewCase extends UseCaseBase {
 
   /// Posts to General (`threadItemId: null`) then pins. [messageBody] is the
   /// chat line; [factText] is the already-resolved fact card text.
+  ///
+  /// [postedMessageId] is a message this form already posted whose pin
+  /// failed: it is pinned again instead of posting a second copy (#759).
   Future<void> pinFactFromComposer({
     required String beaconId,
     required String messageBody,
     required String factText,
     required int visibility,
     List<RoomPendingUpload> uploads = const [],
+    String? postedMessageId,
   }) async {
-    final messageId = await _beaconRoomCase.createMessage(
-      beaconId: beaconId,
-      body: messageBody,
-      uploads: uploads,
-    );
+    final messageId =
+        postedMessageId ??
+        await _beaconRoomCase.createMessage(
+          beaconId: beaconId,
+          body: messageBody,
+          uploads: uploads,
+        );
     if (messageId == null) {
       throw ArgumentError('messageBody');
     }
     try {
-      await _factCards.pin(
+      await _pinComposerFact(
         beaconId: beaconId,
         factText: factText,
         visibility: visibility,
         sourceMessageId: messageId,
       );
+    } on BeaconFactAlreadyPinnedException {
+      // The message was posted for this fact alone, so a fact already on it
+      // is this pin, saved on an earlier try whose answer was lost (#759).
+      return;
     } on Object catch (e) {
       throw BeaconFactPinAfterMessageException(
         messageId: messageId,
         cause: e,
       );
+    }
+  }
+
+  /// Extra tries of the pin when the server turns it away as busy (#759). A
+  /// repeat can never pin twice: the server keeps one fact per message, and
+  /// a fact already on it counts as pinned above.
+  static const _pinBusyRetries = 2;
+
+  Future<void> _pinComposerFact({
+    required String beaconId,
+    required String factText,
+    required int visibility,
+    required String sourceMessageId,
+  }) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await _factCards.pin(
+          beaconId: beaconId,
+          factText: factText,
+          visibility: visibility,
+          sourceMessageId: sourceMessageId,
+        );
+        return;
+      } on RemoteApiRetryLaterException catch (e) {
+        if (attempt >= _pinBusyRetries) rethrow;
+        await Future<void>.delayed(e.retryAfter);
+      }
     }
   }
 

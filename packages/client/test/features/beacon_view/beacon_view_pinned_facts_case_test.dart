@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_already_pinned_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
 
 import 'beacon_view_case_test_support.dart';
@@ -165,4 +167,104 @@ void main() {
     expect(room.createdMessages, hasLength(1));
     expect(facts.pins, isEmpty);
   });
+
+  // #759: a retry after a failed pin pins the message already posted.
+  test(
+    'pinFactFromComposer pins a posted message without posting again',
+    () async {
+      final facts = FakeBeaconViewFactCardRepository();
+      final room = FakeBeaconViewRoomRepository()..nextMessageId = 'Rsecond01';
+      final case_ = buildTestBeaconViewCase(
+        factCardsRepo: facts,
+        roomRepo: room,
+      );
+
+      await case_.pinFactFromComposer(
+        beaconId: 'b1',
+        messageBody: 'note',
+        factText: 'note',
+        visibility: BeaconFactCardVisibilityBits.room,
+        postedMessageId: 'Rposted01',
+      );
+
+      expect(room.createdMessages, isEmpty);
+      expect(facts.pins.single.sourceMessageId, 'Rposted01');
+      expect(facts.pins.single.visibility, BeaconFactCardVisibilityBits.room);
+    },
+  );
+
+  test(
+    'pinFactFromComposer tries the pin again when the server is busy',
+    () async {
+      final facts = FakeBeaconViewFactCardRepository()
+        ..pinErrorsOnce.add(const RemoteApiRetryLaterException(Duration.zero));
+      final room = FakeBeaconViewRoomRepository();
+      final case_ = buildTestBeaconViewCase(
+        factCardsRepo: facts,
+        roomRepo: room,
+      );
+
+      await case_.pinFactFromComposer(
+        beaconId: 'b1',
+        messageBody: 'note',
+        factText: 'note',
+        visibility: BeaconFactCardVisibilityBits.public,
+      );
+
+      expect(room.createdMessages, hasLength(1));
+      expect(facts.pinCalls, 2);
+      expect(facts.pins.single.sourceMessageId, 'Mcreated01');
+    },
+  );
+
+  test('pinFactFromComposer gives up on a server that stays busy', () async {
+    final facts = FakeBeaconViewFactCardRepository()
+      ..pinError = const RemoteApiRetryLaterException(Duration.zero);
+    final room = FakeBeaconViewRoomRepository();
+    final case_ = buildTestBeaconViewCase(
+      factCardsRepo: facts,
+      roomRepo: room,
+    );
+
+    await expectLater(
+      case_.pinFactFromComposer(
+        beaconId: 'b1',
+        messageBody: 'note',
+        factText: 'note',
+        visibility: BeaconFactCardVisibilityBits.public,
+      ),
+      throwsA(
+        isA<BeaconFactPinAfterMessageException>().having(
+          (e) => e.messageId,
+          'messageId',
+          'Mcreated01',
+        ),
+      ),
+    );
+    expect(facts.pinCalls, 3);
+    expect(room.createdMessages, hasLength(1));
+  });
+
+  test(
+    'pinFactFromComposer counts a fact already on the posted message as pinned',
+    () async {
+      final facts = FakeBeaconViewFactCardRepository()
+        ..pinError = const BeaconFactAlreadyPinnedException(factCardId: 'F1');
+      final room = FakeBeaconViewRoomRepository();
+      final case_ = buildTestBeaconViewCase(
+        factCardsRepo: facts,
+        roomRepo: room,
+      );
+
+      await case_.pinFactFromComposer(
+        beaconId: 'b1',
+        messageBody: 'note',
+        factText: 'note',
+        visibility: BeaconFactCardVisibilityBits.public,
+        postedMessageId: 'Rposted01',
+      );
+
+      expect(room.createdMessages, isEmpty);
+    },
+  );
 }

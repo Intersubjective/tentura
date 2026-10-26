@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
+import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -14,6 +16,11 @@ import 'beacon_view_initial_load_test.dart';
 /// "take part in a related request". The banner can only name the Post once
 /// the Request's parent has been read; the screen reads it for a viewer who
 /// sees the Request through it, and for no one else.
+///
+/// Realistic data (QA on dev, 7.52.1): a budded Request carries the Post as
+/// its hierarchy (nesting) parent — `beaconParentReference` — and has no
+/// lineage parent; a declined post member reads it with discovered |
+/// contextChild (32 | 64).
 void main() {
   const myProfile = Profile(id: 'Udave', displayName: 'Dave');
   const requestId = 'Bea026c489fab';
@@ -28,9 +35,16 @@ void main() {
     author: const Profile(id: 'Ualice', displayName: 'Alice'),
   );
 
+  const postReference = BeaconParentReference(
+    state: BeaconParentReferenceState.available,
+    beaconId: postId,
+    title: 'GQ1024: planning a weekend',
+    isPost: true,
+  );
+
   Beacon request({
     BeaconAccessLevel accessLevel = BeaconAccessLevel.observer,
-    int accessReasons = 64,
+    int accessReasons = 32 | 64,
   }) => Beacon(
     id: requestId,
     title: 'GQ1024 Garden cleanup Saturday',
@@ -38,11 +52,13 @@ void main() {
     updatedAt: DateTime.utc(2026, 10, 24, 1),
     accessLevel: accessLevel,
     accessReasons: accessReasons,
-    lineageParentBeaconId: postId,
     author: const Profile(id: 'Ualice', displayName: 'Alice'),
   );
 
-  Future<(BeaconViewCubit, List<String>)> load(Beacon target) async {
+  Future<(BeaconViewCubit, List<String>)> load(
+    Beacon target, {
+    BeaconParentReference reference = postReference,
+  }) async {
     final fetchedIds = <String>[];
     final beaconRepo = TrackingBeaconRepository()
       ..fetchByIdHandler = (id) async {
@@ -55,6 +71,7 @@ void main() {
       myProfile: myProfile,
       beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
       effects: FakeUiEffectPort(),
+      hierarchyCase: _FakeHierarchyCase(reference),
     );
     addTearDown(cubit.close);
     await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
@@ -79,4 +96,30 @@ void main() {
     expect(cubit.state.accessParent, isNull);
     expect(fetchedIds, isNot(contains(postId)));
   });
+
+  test('guard: a Request parent is not read for the banner', () async {
+    final (cubit, fetchedIds) = await load(
+      request(),
+      reference: const BeaconParentReference(
+        state: BeaconParentReferenceState.available,
+        beaconId: postId,
+        title: 'Parent request',
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    expect(cubit.state.accessParent, isNull);
+    expect(fetchedIds, isNot(contains(postId)));
+  });
+}
+
+class _FakeHierarchyCase extends Fake implements BeaconHierarchyCase {
+  _FakeHierarchyCase(this.reference);
+
+  final BeaconParentReference reference;
+
+  @override
+  Future<BeaconParentReference> fetchParentReference({
+    required String beaconId,
+  }) async => reference;
 }

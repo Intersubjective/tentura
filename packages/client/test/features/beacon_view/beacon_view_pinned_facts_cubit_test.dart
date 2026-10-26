@@ -257,4 +257,97 @@ void main() {
       isA<BeaconFactPinMessageKeptMessage>(),
     );
   });
+
+  // #759: the message is posted, the pin fails; Pin again must pin that same
+  // message (its server id), not post a second copy.
+  test(
+    'pin again after a failed pin pins the posted message, no repost',
+    () async {
+      final factsRepo = FakeBeaconViewFactCardRepository(
+        cards: [fact(id: 'f1', createdAt: t0)],
+      )..pinError = StateError('pin failed');
+      final room = FakeBeaconViewRoomRepository()..nextMessageId = 'Rserver01';
+      final effects = FakeUiEffectPort();
+      final case_ = buildTestBeaconViewCase(
+        beaconRepo: TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon(),
+        factCardsRepo: factsRepo,
+        roomRepo: room,
+      );
+      final cubit = BeaconViewCubit(
+        id: beaconId,
+        myProfile: myProfile,
+        beaconViewCase: case_,
+        effects: effects,
+      );
+      addTearDown(cubit.close);
+      await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+      final first = await cubit.pinFactFromComposer(
+        messageBody: 'QA609 factB',
+        factText: 'QA609 factB',
+        visibility: BeaconFactCardVisibilityBits.room,
+      );
+      expect(first, isFalse);
+
+      factsRepo
+        ..pinError = null
+        ..cards = [
+          fact(id: 'f1', createdAt: t0),
+          fact(id: 'f2', createdAt: t1, pinnedBy: myProfile.id),
+        ];
+      room.nextMessageId = 'Rserver02';
+      final second = await cubit.pinFactFromComposer(
+        messageBody: 'QA609 factB',
+        factText: 'QA609 factB',
+        visibility: BeaconFactCardVisibilityBits.room,
+      );
+
+      expect(second, isTrue);
+      expect(room.createdMessages, hasLength(1));
+      expect(factsRepo.pins.single.sourceMessageId, 'Rserver01');
+      expect(cubit.state.factCards.map((f) => f.id), ['f1', 'f2']);
+      expect(
+        effects.emitted.whereType<ShowMessage>().last.message,
+        isA<BeaconFactPinSuccessMessage>(),
+      );
+    },
+  );
+
+  test('changed text after a failed pin posts the new text', () async {
+    final factsRepo = FakeBeaconViewFactCardRepository()
+      ..pinError = StateError('pin failed');
+    final room = FakeBeaconViewRoomRepository()..nextMessageId = 'Rserver01';
+    final case_ = buildTestBeaconViewCase(
+      beaconRepo: TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon(),
+      factCardsRepo: factsRepo,
+      roomRepo: room,
+    );
+    final cubit = BeaconViewCubit(
+      id: beaconId,
+      myProfile: myProfile,
+      beaconViewCase: case_,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+    await cubit.pinFactFromComposer(
+      messageBody: 'first',
+      factText: 'first',
+      visibility: BeaconFactCardVisibilityBits.public,
+    );
+    factsRepo.pinError = null;
+    room.nextMessageId = 'Rserver02';
+    final ok = await cubit.pinFactFromComposer(
+      messageBody: 'second',
+      factText: 'second',
+      visibility: BeaconFactCardVisibilityBits.public,
+    );
+
+    expect(ok, isTrue);
+    expect(room.createdMessages.map((m) => m.body), ['first', 'second']);
+    expect(factsRepo.pins.single.sourceMessageId, 'Rserver02');
+  });
 }

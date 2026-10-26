@@ -21,8 +21,8 @@ class RequestAccessReasonBanner extends StatelessWidget {
 
   final Beacon beacon;
 
-  /// The Request's lineage parent when it was read (#724): a Post parent is
-  /// named, with a way to open it.
+  /// The Request's hierarchy parent when it was read (#724): a Post parent
+  /// is named, with a way to open it.
   final Beacon? parent;
 
   static const openParentKey = Key('request-access-reason-open-parent');
@@ -38,7 +38,7 @@ class RequestAccessReasonBanner extends StatelessWidget {
     final post =
         parent != null &&
             parent.kind == BeaconKind.post &&
-            parent.id == beacon.lineageParentBeaconId &&
+            parent.id != beacon.id &&
             requestAccessViaParent(beacon)
         ? parent
         : null;

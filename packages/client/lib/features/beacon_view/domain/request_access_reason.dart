@@ -16,12 +16,12 @@ bool requestAccessViaRelated(Beacon beacon) {
       reasons.contains(BeaconAccessReason.contextAncestor);
 }
 
-/// [requestAccessViaRelated] through the Request's lineage parent (the
-/// contextChild reason) — for a Request budded from a Post, its members
-/// (#724).
+/// [requestAccessViaRelated] through the Request's immediate (nesting)
+/// parent — the contextChild reason; for a Request budded from a Post, its
+/// members (#724). The parent is the hierarchy parent, not the lineage
+/// (copy) parent: a budded Request has no lineage parent.
 bool requestAccessViaParent(Beacon beacon) =>
     requestAccessViaRelated(beacon) &&
     BeaconAccessReason.decode(
       beacon.accessReasons,
-    ).contains(BeaconAccessReason.contextChild) &&
-    (beacon.lineageParentBeaconId?.trim().isNotEmpty ?? false);
+    ).contains(BeaconAccessReason.contextChild);
