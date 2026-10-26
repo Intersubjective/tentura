@@ -328,7 +328,9 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                     TextSpan(text: headline),
                   ],
                 ),
-                maxLines: 1,
+                // Two lines, so on a phone the event («accepted your
+                // invite») is not cut off after the name (#736).
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),

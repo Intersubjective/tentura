@@ -146,7 +146,10 @@ void main() {
       );
       expect(
         headline.data,
-        'Пётр предложил помощь',
+        // The sheet is in English here (`_wrap` sets no locale); the offer
+        // event comes from the locale with the name read off the title
+        // (#736), never the Request title.
+        'Пётр offered help',
         reason: 'the event is the subject on this surface (§8a)',
       );
       // The Request title is not absent from the row — it is not the
