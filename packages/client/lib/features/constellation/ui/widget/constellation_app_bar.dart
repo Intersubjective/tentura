@@ -8,6 +8,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
@@ -132,6 +133,9 @@ class ConstellationAppBarRow extends StatelessWidget {
           );
         }
 
+        final legendLabel = legendExpanded
+            ? l10n.graphLegendClose
+            : l10n.graphLegendOpen;
         return Row(
           children: [
             Expanded(
@@ -148,16 +152,18 @@ class ConstellationAppBarRow extends StatelessWidget {
               maintainSize: true,
               maintainAnimation: true,
               maintainState: true,
-              child: IconButton(
-                key: const Key('constellation.app_bar.legend'),
-                tooltip: legendExpanded
-                    ? l10n.graphLegendClose
-                    : l10n.graphLegendOpen,
-                onPressed: onToggleLegend,
-                icon: const Icon(Icons.legend_toggle),
-                constraints: BoxConstraints(
-                  minWidth: tt.buttonHeight,
-                  minHeight: tt.buttonHeight,
+              // The icon names the button; the hover tooltip adds no
+              // second name (#678).
+              child: SemanticsFreeTooltip(
+                message: legendLabel,
+                child: IconButton(
+                  key: const Key('constellation.app_bar.legend'),
+                  onPressed: onToggleLegend,
+                  icon: Icon(Icons.legend_toggle, semanticLabel: legendLabel),
+                  constraints: BoxConstraints(
+                    minWidth: tt.buttonHeight,
+                    minHeight: tt.buttonHeight,
+                  ),
                 ),
               ),
             ),
@@ -197,21 +203,26 @@ class ConstellationAppBarRow extends StatelessWidget {
                   );
                 },
               ),
-            IconButton(
-              key: const Key('constellation.app_bar.filters'),
-              tooltip: l10n.constellationFiltersOpen,
-              onPressed: () => showConstellationFilterSheet(
-                context,
-                cubit: cubit,
-              ),
-              icon: Badge(
-                isLabelVisible: cubit.hasActiveFilters,
-                smallSize: tt.tightGap,
-                child: const Icon(Icons.tune),
-              ),
-              constraints: BoxConstraints(
-                minWidth: tt.buttonHeight,
-                minHeight: tt.buttonHeight,
+            SemanticsFreeTooltip(
+              message: l10n.constellationFiltersOpen,
+              child: IconButton(
+                key: const Key('constellation.app_bar.filters'),
+                onPressed: () => showConstellationFilterSheet(
+                  context,
+                  cubit: cubit,
+                ),
+                icon: Badge(
+                  isLabelVisible: cubit.hasActiveFilters,
+                  smallSize: tt.tightGap,
+                  child: Icon(
+                    Icons.tune,
+                    semanticLabel: l10n.constellationFiltersOpen,
+                  ),
+                ),
+                constraints: BoxConstraints(
+                  minWidth: tt.buttonHeight,
+                  minHeight: tt.buttonHeight,
+                ),
               ),
             ),
             if (peopleTagsEnabled)
@@ -264,51 +275,53 @@ class _ConstellationViewModeToggle extends StatelessWidget {
           mapLabel: mapLabel,
           textLabel: textLabel,
         );
-        // Each segment is named once, by its own label (#678): the tooltip
-        // stays for the pointer but adds no second name, and the visible
-        // text is not read again.
-        return TooltipTheme(
-          data: TooltipTheme.of(context).copyWith(excludeFromSemantics: true),
-          child: SegmentedButton<ConstellationViewMode>(
-            key: const Key('constellation.app_bar.view_mode'),
-            showSelectedIcon: false,
-            // Full 48 dp touch targets on every platform (#659).
-            style: ButtonStyle(
-              visualDensity: VisualDensity.standard,
-              tapTargetSize: MaterialTapTargetSize.padded,
-              textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
-            ),
-            segments: [
-              ButtonSegment(
-                value: ConstellationViewMode.map,
-                icon: Semantics(
+        // Each segment is named once, by its own label (#678). The tooltip
+        // is for the pointer only and sits on the icon: a segment tooltip
+        // would add a text node beside the button on hover, and the web
+        // reads that as a second name ("Map Map").
+        return SegmentedButton<ConstellationViewMode>(
+          key: const Key('constellation.app_bar.view_mode'),
+          showSelectedIcon: false,
+          // Full 48 dp touch targets on every platform (#659).
+          style: ButtonStyle(
+            visualDensity: VisualDensity.standard,
+            tapTargetSize: MaterialTapTargetSize.padded,
+            textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
+          ),
+          segments: [
+            ButtonSegment(
+              value: ConstellationViewMode.map,
+              icon: SemanticsFreeTooltip(
+                message: mapLabel,
+                child: Semantics(
                   identifier: TestIds.constellationAppBarViewModeMap,
                   label: mapLabel,
                   child: const Icon(TenturaIcons.graph),
                 ),
-                label: showLabels
-                    ? ExcludeSemantics(child: Text(mapLabel))
-                    : null,
-                tooltip: mapLabel,
               ),
-              ButtonSegment(
-                value: ConstellationViewMode.text,
-                icon: Semantics(
+              label: showLabels
+                  ? ExcludeSemantics(child: Text(mapLabel))
+                  : null,
+            ),
+            ButtonSegment(
+              value: ConstellationViewMode.text,
+              icon: SemanticsFreeTooltip(
+                message: textLabel,
+                child: Semantics(
                   identifier: TestIds.constellationAppBarViewModeText,
                   label: textLabel,
                   child: const Icon(Icons.view_list_outlined),
                 ),
-                label: showLabels
-                    ? ExcludeSemantics(child: Text(textLabel))
-                    : null,
-                tooltip: textLabel,
               ),
-            ],
-            selected: {viewMode},
-            onSelectionChanged: (selection) {
-              onChanged(selection.first);
-            },
-          ),
+              label: showLabels
+                  ? ExcludeSemantics(child: Text(textLabel))
+                  : null,
+            ),
+          ],
+          selected: {viewMode},
+          onSelectionChanged: (selection) {
+            onChanged(selection.first);
+          },
         );
       },
     );
