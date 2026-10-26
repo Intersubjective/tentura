@@ -2001,6 +2001,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       selected: selected,
       label: label,
       onTap: () => _onNodeTap(context, cubit, node),
+      neighbourOffsets: () => _neighbourOffsets(node.graphNodeId),
       child: _ConstellationMapNodeFocus(
         circle: node is FieldPersonNode,
         onActivate: () => _onNodeTap(context, cubit, node),
@@ -2008,6 +2009,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
         child: ExcludeSemantics(child: marker),
       ),
     );
+  }
+
+  /// Screen offsets from the centre of [id] to the centres of the other
+  /// nodes on the map, as the last presentation frame drew them.
+  List<Offset> _neighbourOffsets(GraphNodeId id) {
+    final bodies = _frameHolder.frame?.bodies;
+    final own = bodies?[id]?.center;
+    if (bodies == null || own == null) {
+      return const [];
+    }
+    return [
+      for (final entry in bodies.entries)
+        if (entry.key != id) entry.value.center - own,
+    ];
   }
 
   /// A marker Tab (or a screen reader) moved focus onto is panned into view
@@ -2055,10 +2070,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
 /// [Semantics] whose node rect is at least [kMinInteractiveDimension] on
 /// screen at any zoom (#678), like the tap target (#640), so touch
-/// exploration finds the node where a tap does.
+/// exploration finds the node where a tap does. Where the enlarged rects of
+/// neighbouring nodes overlap, each keeps only its side of the line halfway
+/// between the two centres, so a click through the semantics tree reaches the
+/// nearest node, as the tap hit test does.
 class _MinExtentSemantics extends Semantics {
   // Not const: Semantics has no const constructor taking these flags.
   _MinExtentSemantics({
+    required this.neighbourOffsets,
     super.container,
     super.button,
     super.selected,
@@ -2066,6 +2085,9 @@ class _MinExtentSemantics extends Semantics {
     super.onTap,
     super.child,
   });
+
+  /// Screen offsets from this node's centre to the other nodes' centres.
+  final List<Offset> Function() neighbourOffsets;
 
   @override
   RenderSemanticsAnnotations createRenderObject(BuildContext context) =>
@@ -2078,11 +2100,22 @@ class _MinExtentSemantics extends Semantics {
         localeForSubtree: localeForSubtree,
         textDirection:
             properties.textDirection ?? Directionality.maybeOf(context),
+        neighbourOffsets: neighbourOffsets,
       );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderMinExtentSemantics renderObject,
+  ) {
+    super.updateRenderObject(context, renderObject);
+    renderObject.neighbourOffsets = neighbourOffsets;
+  }
 }
 
 class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
   _RenderMinExtentSemantics({
+    required this.neighbourOffsets,
     required super.properties,
     super.container,
     super.explicitChildNodes,
@@ -2091,6 +2124,8 @@ class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
     super.localeForSubtree,
     super.textDirection,
   });
+
+  List<Offset> Function() neighbourOffsets;
 
   @override
   Rect get semanticBounds {
@@ -2109,11 +2144,34 @@ class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
     if (bounds.width >= minExtent && bounds.height >= minExtent) {
       return bounds;
     }
-    return Rect.fromCenter(
-      center: bounds.center,
-      width: math.max(bounds.width, minExtent),
-      height: math.max(bounds.height, minExtent),
-    );
+    var left = bounds.center.dx - math.max(bounds.width, minExtent) / 2;
+    var right = bounds.center.dx + math.max(bounds.width, minExtent) / 2;
+    var top = bounds.center.dy - math.max(bounds.height, minExtent) / 2;
+    var bottom = bounds.center.dy + math.max(bounds.height, minExtent) / 2;
+    // Cut at the line across the axis the neighbour lies mostly along, halfway
+    // to its centre; both nodes cut at the same line, so their rects never
+    // overlap.
+    for (final offset in neighbourOffsets()) {
+      final dx = offset.dx / scale;
+      final dy = offset.dy / scale;
+      if (dx.abs() >= minExtent || dy.abs() >= minExtent) {
+        continue;
+      }
+      if (dx.abs() >= dy.abs() && dx != 0) {
+        if (dx > 0) {
+          right = math.min(right, bounds.center.dx + dx / 2);
+        } else {
+          left = math.max(left, bounds.center.dx + dx / 2);
+        }
+      } else if (dy != 0) {
+        if (dy > 0) {
+          bottom = math.min(bottom, bounds.center.dy + dy / 2);
+        } else {
+          top = math.max(top, bounds.center.dy + dy / 2);
+        }
+      }
+    }
+    return Rect.fromLTRB(left, top, right, bottom);
   }
 }
 

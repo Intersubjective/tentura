@@ -1163,15 +1163,34 @@ void main() {
         tester,
         tester.getSemantics(_node(id)),
       );
+      // Where the other marker's target overlaps, the rect gives up the half
+      // of that overlap nearer the other marker (a click through the semantics
+      // tree reaches the nearest node), but only along the axis the other
+      // marker lies mostly along.
+      final other = id == 'a' ? 'post-a' : 'a';
+      final apart =
+          tester.getCenter(_node(other)) - tester.getCenter(_node(id));
+      final overlaps =
+          apart.dx.abs() < kMinInteractiveDimension &&
+          apart.dy.abs() < kMinInteractiveDimension;
+      final cutsWidth = overlaps && apart.dx.abs() >= apart.dy.abs();
+      final cutsHeight = overlaps && !cutsWidth;
+      final wantWidth = cutsWidth
+          ? kMinInteractiveDimension / 2 + apart.dx.abs() / 2
+          : kMinInteractiveDimension;
+      final wantHeight = cutsHeight
+          ? kMinInteractiveDimension / 2 + apart.dy.abs() / 2
+          : kMinInteractiveDimension;
       expect(
-        rect.width >= kMinInteractiveDimension - 0.5 &&
-            rect.height >= kMinInteractiveDimension - 0.5,
+        rect.width >= wantWidth - 0.5 && rect.height >= wantHeight - 0.5,
         isTrue,
         reason: '$id semantics rect on screen is $rect',
       );
       expect(
-        (rect.center - tester.getCenter(_node(id))).distance,
-        lessThan(1.5),
+        overlaps
+            ? rect.contains(tester.getCenter(_node(id)))
+            : (rect.center - tester.getCenter(_node(id))).distance < 1.5,
+        isTrue,
         reason: 'the $id semantics rect is centred on its marker',
       );
     }
