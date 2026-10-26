@@ -137,35 +137,39 @@ ConstellationField _fieldOverRenderCap({required int hiddenReachCount}) {
   );
 }
 
-ConstellationField _fieldWithPostAge(Duration age) => ConstellationField(
-  loadedAt: _loadedAt,
-  context: '',
-  peers: [
-    const ConstellationPerson(id: 'a'),
-    const ConstellationPerson(id: 'b'),
-  ],
-  edges: [
-    const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
-    const ConstellationTrustEdgeEntity(src: 'ego', dst: 'b', tier: 1),
-  ],
-  requests: const [],
-  posts: [
-    ConstellationPost(
-      id: 'post-1',
-      authorId: 'a',
-      rootExcerpt: 'Who has a ladder?',
-      lastActivityAt: _loadedAt.subtract(age),
-      isPinned: true,
-    ),
-  ],
-  memberWebs: const [
-    ConstellationMemberWeb(
-      beaconId: 'post-1',
-      personId: 'b',
-      state: ConstellationMemberWebState.forwarded,
-    ),
-  ],
-);
+/// A pinned Post last active 100 h ago that expires [left] after the real
+/// current time; the field's own `loadedAt` is days older than that.
+ConstellationField _fieldWithPostExpiringIn(Duration left) =>
+    ConstellationField(
+      loadedAt: _loadedAt,
+      context: '',
+      peers: [
+        const ConstellationPerson(id: 'a'),
+        const ConstellationPerson(id: 'b'),
+      ],
+      edges: [
+        const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+        const ConstellationTrustEdgeEntity(src: 'ego', dst: 'b', tier: 1),
+      ],
+      requests: const [],
+      posts: [
+        ConstellationPost(
+          id: 'post-1',
+          authorId: 'a',
+          rootExcerpt: 'Who has a ladder?',
+          lastActivityAt: _loadedAt.subtract(const Duration(hours: 100)),
+          expiresAt: DateTime.now().toUtc().add(left),
+          isPinned: true,
+        ),
+      ],
+      memberWebs: const [
+        ConstellationMemberWeb(
+          beaconId: 'post-1',
+          personId: 'b',
+          state: ConstellationMemberWebState.forwarded,
+        ),
+      ],
+    );
 
 void main() {
   test(
@@ -307,27 +311,27 @@ void main() {
   });
 
   group('Post fade in the graph', () {
-    Future<ConstellationCubit> loadAged(Duration age) async {
-      final cubit = await _load(_fieldWithPostAge(age));
+    Future<ConstellationCubit> loadExpiringIn(Duration left) async {
+      final cubit = await _load(_fieldWithPostExpiringIn(left));
       addTearDown(cubit.close);
       cubit.selectRequest('post-1');
       await Future<void>.delayed(Duration.zero);
       return cubit;
     }
 
-    for (final (hours, expected) in [(24, 1.0), (60, 0.625), (72, 0.25)]) {
+    for (final (hours, expected) in [(30, 1.0), (12, 0.625), (6, 0.4375)]) {
       test(
-        'Post and its webs are drawn at opacity $expected after $hours h',
+        'Post and its webs are drawn at opacity $expected with $hours h left',
         () async {
-          final cubit = await loadAged(Duration(hours: hours));
+          final cubit = await loadExpiringIn(Duration(hours: hours));
 
-          expect(cubit.postFadeById['post-1'], closeTo(expected, 1e-9));
+          expect(cubit.postFadeById['post-1'], closeTo(expected, 1e-3));
           final web = cubit.graphController.edges.singleWhere(
             (e) => e.semanticId.endsWith('#webForwarded'),
           );
           expect(
             cubit.edgeFadeBySemanticId[web.semanticId],
-            closeTo(expected, 1e-9),
+            closeTo(expected, 1e-3),
           );
         },
       );
@@ -481,25 +485,34 @@ void main() {
     });
   });
 
-  group('Post fade', () {
-    double fade(Duration age) => constellationPostFade(
-      lastActivityAt: _loadedAt.subtract(age),
-      asOfUtc: _loadedAt,
-    );
+  group('Post fade by time left', () {
+    Future<double> fadeWithLeft(Duration left) async {
+      final cubit = await _load(_fieldWithPostExpiringIn(left));
+      addTearDown(cubit.close);
+      return cubit.postFadeById['post-1']!;
+    }
 
-    test('is fully opaque up to 48 hours', () {
-      expect(fade(Duration.zero), 1);
-      expect(fade(const Duration(hours: 24)), 1);
-      expect(fade(const Duration(hours: 48)), 1);
+    test('is fully opaque while a day or more is left', () async {
+      expect(await fadeWithLeft(const Duration(hours: 72)), 1);
+      expect(await fadeWithLeft(const Duration(hours: 25)), 1);
     });
 
-    test('fades linearly between 48 and 72 hours', () {
-      expect(fade(const Duration(hours: 60)), closeTo(0.625, 1e-9));
+    test('fades linearly over the last 24 hours', () async {
+      expect(
+        await fadeWithLeft(const Duration(hours: 12)),
+        closeTo(0.625, 1e-3),
+      );
+      expect(
+        await fadeWithLeft(const Duration(hours: 10)),
+        closeTo(0.25 + 0.75 * 10 / 24, 1e-3),
+      );
     });
 
-    test('bottoms out at 0.25 at 72 hours and beyond', () {
-      expect(fade(const Duration(hours: 72)), closeTo(0.25, 1e-9));
-      expect(fade(const Duration(hours: 100)), closeTo(0.25, 1e-9));
+    test('approaches the floor as the deadline nears', () async {
+      expect(
+        await fadeWithLeft(const Duration(minutes: 5)),
+        closeTo(kConstellationPostFadeFloor, 1e-2),
+      );
     });
   });
 

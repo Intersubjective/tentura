@@ -304,6 +304,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// The account the field belongs to (the viewer), or empty.
   String get accountId => _accountId;
 
+  /// The current time on the store's clock, for presence that depends on time
+  /// passing rather than on when the field was read.
+  DateTime nowUtc() => _clock.now().toUtc();
+
   /// Take before a targeted read; stamp its result with it.
   ConstellationFieldReadMark readMark() => ConstellationFieldReadMark._(
     generation: _state.generation,

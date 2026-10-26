@@ -66,6 +66,7 @@ final class ConstellationShownFieldMemo {
   ConstellationField? _source;
   String? _viewerId;
   ConstellationVisibility? _visibility;
+  DateTime? _asOfUtc;
   late ConstellationField _shown;
   Set<String> _hiddenItemHolderIds = const {};
 
@@ -77,13 +78,16 @@ final class ConstellationShownFieldMemo {
     ConstellationField field, {
     required String viewerId,
     required ConstellationVisibility visibility,
+    DateTime? asOfUtc,
   }) {
     if (!identical(field, _source) ||
         viewerId != _viewerId ||
-        visibility != _visibility) {
+        visibility != _visibility ||
+        asOfUtc != _asOfUtc) {
       _source = field;
       _viewerId = viewerId;
       _visibility = visibility;
+      _asOfUtc = asOfUtc;
       final degrees = visibility.hidesPeople
           ? constellationTrustDegrees(field: field, viewerId: viewerId)
           : null;
@@ -97,6 +101,7 @@ final class ConstellationShownFieldMemo {
         field: field,
         viewerId: viewerId,
         visibility: visibility,
+        asOfUtc: asOfUtc,
         degrees: degrees,
       );
     }

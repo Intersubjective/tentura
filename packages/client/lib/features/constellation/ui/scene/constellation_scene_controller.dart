@@ -462,7 +462,7 @@ class ConstellationSceneController {
     required Set<String> keptPeerIds,
     required String? selectedPersonId,
     required String? selectedRequestId,
-    required DateTime? loadedAt,
+    required DateTime asOfUtc,
     required bool isComposing,
     required Set<String> composingSelectedIds,
     required Map<String, List<ConstellationMemberWeb>> requestWebsById,
@@ -692,14 +692,13 @@ class ConstellationSceneController {
       );
     }
 
-    final asOf = (loadedAt ?? field.loadedAt).toUtc();
     final postFade = <String, double>{};
     final postOverflow = <String, int>{};
     for (final node in drawnPosts) {
       final post = node.post!;
       final fade = constellationPostFade(
-        lastActivityAt: post.lastActivityAt.toUtc(),
-        asOfUtc: asOf,
+        expiresAt: post.expiresAt,
+        asOfUtc: asOfUtc,
       );
       postFade[post.id] = fade;
       addEdge(

@@ -5,6 +5,7 @@ import 'constellation_cap_policy.dart';
 import 'constellation_consts.dart';
 import 'constellation_density.dart';
 import 'constellation_filters.dart';
+import 'constellation_post_fade.dart' show constellationPostActive;
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'entity/constellation_anchor_projection.dart';
@@ -202,15 +203,12 @@ class ConstellationComposedPresentation {
   /// Requests and Posts as one Beacon list (drawn, pinned and dormant).
   final List<LayoutNodeSpec> beaconNodes;
 
-  /// Anchored Posts past the active window: kept at their anchor, not drawn.
+  /// Anchored Posts past their expiry: kept at their anchor, not drawn.
   final Set<String> dormantBeaconIds;
 
   /// Anchored Posts shown (active or dormant); never auto-placed.
   final Set<String> pinnedPostIds;
 }
-
-/// A Post stays active this long after its last activity.
-const kConstellationPostActiveWindow = Duration(hours: 72);
 
 ConstellationComposedPresentation composeConstellationPresentation({
   required String viewerId,
@@ -281,13 +279,12 @@ ConstellationComposedPresentation composeConstellationPresentation({
   final anchoredBeaconIds = {
     for (final anchor in projection.anchors) anchor.target.graphNodeId,
   };
-  final activeSince = asOfUtc.subtract(kConstellationPostActiveWindow);
   final activePosts = <ConstellationPost>[];
   final dormantBeaconIds = <String>{};
   final pinnedPostIds = <String>{};
   for (final post in field.posts) {
     final pinned = post.isPinned && anchoredBeaconIds.contains(post.id);
-    if (!post.lastActivityAt.isBefore(activeSince)) {
+    if (constellationPostActive(post, asOfUtc)) {
       activePosts.add(post);
     } else if (!pinned) {
       continue;

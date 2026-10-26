@@ -3,8 +3,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart'
     show ConstellationEdgeRef;
 
-import 'constellation_anchor_composition.dart'
-    show kConstellationPostActiveWindow;
+import 'constellation_post_fade.dart' show constellationPostActive;
 import 'constellation_trust_chain.dart';
 import 'entity/constellation_anchor_projection.dart';
 import 'entity/constellation_field.dart';
@@ -299,6 +298,7 @@ Set<String> constellationHiddenItemHolderIds({
   required ConstellationField field,
   required String viewerId,
   required ConstellationVisibility visibility,
+  DateTime? asOfUtc,
   Map<String, ConstellationTrustDegree>? degrees,
 }) {
   if (visibility.requests && visibility.posts) {
@@ -319,7 +319,6 @@ Set<String> constellationHiddenItemHolderIds({
       if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
         anchor.target.id,
   };
-  final activeSince = field.loadedAt.subtract(kConstellationPostActiveWindow);
   return {
     if (!visibility.requests)
       for (final request in [...field.requests, ...projection.pinnedRequests])
@@ -327,7 +326,7 @@ Set<String> constellationHiddenItemHolderIds({
     if (!visibility.posts)
       for (final post in field.posts)
         if (shown(post.authorId) &&
-            (!post.lastActivityAt.isBefore(activeSince) ||
+            (constellationPostActive(post, asOfUtc ?? field.loadedAt) ||
                 (post.isPinned && anchoredBeaconIds.contains(post.id))))
           post.authorId,
   };
@@ -372,11 +371,10 @@ ConstellationVisibilityCounts constellationVisibilityCounts({
       if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
         anchor.target.id,
   };
-  final activeSince = asOfUtc.subtract(kConstellationPostActiveWindow);
   final posts = [
     for (final post in field.posts)
       if (placed(post.authorId) &&
-          (!post.lastActivityAt.isBefore(activeSince) ||
+          (constellationPostActive(post, asOfUtc) ||
               (post.isPinned && anchoredBeaconIds.contains(post.id))))
         post,
   ];

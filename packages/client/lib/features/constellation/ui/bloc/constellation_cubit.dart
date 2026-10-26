@@ -10,6 +10,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
+import 'package:tentura/ui/utils/post_expiry_clock.dart';
 import '../utils/constellation_presentation_frame.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
@@ -188,6 +189,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   final ConstellationFieldStoreCase _case;
+
+  /// Recomposes at Post deadlines and as the last hour runs out, so a Post
+  /// leaves the Field and fades with no network event.
+  PostExpiryClock? _expiry;
+  bool _expiryTickHeld = false;
   final ConstellationAnchorCase? _anchorCase;
   final ConstellationPlacementCase? _placementCase;
   final ConstellationMemberWebsCase? _memberWebsCase;
@@ -643,6 +649,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @override
   Future<void> close() async {
     _cancelPersonFocus();
+    _expiry?.dispose();
     _storeLease.dispose();
     // Not awaited: the store's broadcast stream has no cancel cleanup, so the
     // returned future is the shared root-zone null future. Awaiting it would
@@ -680,6 +687,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (_scene.isFrozen) {
       // The data is current; composing and laying it out wait for the release.
       _storeInputHeld = true;
+      _armExpiry(field);
       emit(state.copyWith(field: _adoptStoreField(field)));
       return;
     }
@@ -854,8 +862,41 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     unawaited(_loadTagMagnets());
   }
 
+  void _armExpiry(ConstellationField field) {
+    final deadlines = {
+      for (final post in field.posts)
+        if (post.expiresAt != null) post.expiresAt!,
+    };
+    // Created with the first deadline: a Field with no expiring Post has no
+    // use for the clock or its app lifecycle listener.
+    final expiry = deadlines.isEmpty
+        ? _expiry
+        : _expiry ??= PostExpiryClock(
+            onTick: _onExpiryTick,
+            clock: _case.nowUtc,
+          );
+    expiry?.setDeadlines(deadlines);
+  }
+
+  void _onExpiryTick() {
+    if (isClosed || state.field == null) return;
+    if (_scene.isFrozen) {
+      _expiryTickHeld = true;
+      return;
+    }
+    _recomposeForExpiry();
+  }
+
+  /// Moves the time the shown field's holders are judged at, then composes.
+  void _recomposeForExpiry() {
+    _shownAsOfUtc = _case.nowUtc();
+    _recomposeAndLayout();
+  }
+
   void _applyLoadedField(ConstellationField field) {
     _lastAppliedStoreField = field;
+    _armExpiry(field);
+    _shownAsOfUtc = _case.nowUtc();
     if (_magnetsStale) unawaited(_loadTagMagnets());
     _placementAwaitingStore = false;
     final labelBudget = _currentLabelBudget();
@@ -885,7 +926,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             viewerId: _viewer.id,
             field: _composerField(presentationField),
             localFilters: state.filters,
-            asOfUtc: loadedField.loadedAt,
+            asOfUtc: _case.nowUtc(),
             labelBudget: labelBudget,
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
             selectedRequestWebs: _holderWebs,
@@ -897,7 +938,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               viewerId: _viewer.id,
               field: _composerField(presentationField),
               localFilters: state.filters,
-              asOfUtc: loadedField.loadedAt,
+              asOfUtc: _case.nowUtc(),
               labelBudget: labelBudget,
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
@@ -1001,7 +1042,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       viewerId: _viewer.id,
       field: _composerField(presentationField),
       localFilters: state.filters,
-      asOfUtc: state.loadedAt ?? field.loadedAt,
+      asOfUtc: _case.nowUtc(),
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _holderWebs,
@@ -1572,6 +1613,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final outboxHeld = _outboxInputHeld;
     _storeInputHeld = false;
     _outboxInputHeld = false;
+    final expiryHeld = _expiryTickHeld;
+    _expiryTickHeld = false;
     if (isClosed) return false;
     final field = _case.current.field;
     if (storeHeld &&
@@ -1580,6 +1623,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _applyLoadedField(field);
     } else if (outboxHeld || storeHeld) {
       _composeOutboxChange();
+    } else if (expiryHeld) {
+      _recomposeForExpiry();
     } else {
       return false;
     }
@@ -1914,7 +1959,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             viewerId: _viewer.id,
             field: _composerField(mergedField),
             localFilters: state.filters,
-            asOfUtc: state.loadedAt ?? field.loadedAt,
+            asOfUtc: _case.nowUtc(),
             labelBudget: _currentLabelBudget(),
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
             selectedRequestWebs: _holderWebs,
@@ -1926,7 +1971,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               viewerId: _viewer.id,
               field: _composerField(mergedField),
               localFilters: state.filters,
-              asOfUtc: state.loadedAt ?? field.loadedAt,
+              asOfUtc: _case.nowUtc(),
               labelBudget: _currentLabelBudget(),
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
@@ -2534,7 +2579,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       viewerId: viewerId,
       field: field.copyWith(anchorProjection: projection),
       localFilters: state.filters,
-      asOfUtc: state.loadedAt ?? field.loadedAt,
+      asOfUtc: _case.nowUtc(),
       labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _holderWebs,
@@ -2600,7 +2645,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         viewerId: viewerId,
         field: _composerField(presentationField),
         localFilters: state.filters,
-        asOfUtc: state.loadedAt ?? field.loadedAt,
+        asOfUtc: _case.nowUtc(),
         labelBudget: _currentLabelBudget(),
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
         selectedRequestWebs: _holderWebs,
@@ -3173,10 +3218,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final _shownMemo = ConstellationShownFieldMemo();
 
+  /// When the shown field's hidden-type holders were last judged for expiry:
+  /// the latest field apply or expiry tick.
+  DateTime? _shownAsOfUtc;
+
   ConstellationField _shownField(ConstellationField field) => _shownMemo.shown(
     field,
     viewerId: _viewer.id,
     visibility: state.visibility,
+    asOfUtc: _shownAsOfUtc,
   );
 
   /// The loaded field as the show/hide toggles leave it (#645): what the map
@@ -3248,7 +3298,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             viewerId: _viewer.id,
             field: field,
             localFilters: state.filters,
-            asOfUtc: state.loadedAt ?? field.loadedAt,
+            asOfUtc: _case.nowUtc(),
             labelBudget: _currentLabelBudget(),
           ).eligiblePersonIds
         : composition.eligiblePersonIds;
@@ -3257,7 +3307,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       field: field,
       viewerId: _viewer.id,
       peopleOnField: people,
-      asOfUtc: (state.loadedAt ?? field.loadedAt).toUtc(),
+      asOfUtc: _case.nowUtc(),
     );
   }
 
@@ -3956,7 +4006,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             viewerId: _viewer.id,
             field: _composerField(field),
             localFilters: state.filters,
-            asOfUtc: state.loadedAt ?? field.loadedAt,
+            asOfUtc: _case.nowUtc(),
             labelBudget: _currentLabelBudget(),
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
             selectedRequestWebs: _holderWebs,
@@ -3968,7 +4018,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               viewerId: _viewer.id,
               field: _composerField(field),
               localFilters: state.filters,
-              asOfUtc: state.loadedAt ?? field.loadedAt,
+              asOfUtc: _case.nowUtc(),
               labelBudget: _currentLabelBudget(),
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
@@ -4198,7 +4248,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       selectedRequestId: state.selectedRequestId,
       trustChain: selectedTrustChain,
       mutualTrustIds: selectedMutualTrustIds,
-      loadedAt: state.loadedAt,
+      asOfUtc: _case.nowUtc(),
       isComposing: state.isComposing,
       composingSelectedIds: _composingSelectedIds,
       requestWebsById: _requestWebsById,

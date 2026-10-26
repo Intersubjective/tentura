@@ -1,26 +1,37 @@
-/// Post opacity floor reached at the end of the active window.
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+import 'entity/constellation_field.dart';
+
+/// Post opacity floor reached when the Post expires.
 const kConstellationPostFadeFloor = 0.25;
 
-const _fadeStart = Duration(hours: 48);
-const _fadeEnd = Duration(hours: 72);
+const _fadeWindow = Duration(hours: 24);
 
-/// 1 until 48 h after [lastActivityAt], then linear down to
-/// [kConstellationPostFadeFloor] at 72 h (and beyond).
+/// Whether [post] is on the Field at [asOfUtc]: open (a closed Post keeps its
+/// `expiresAt`) and not yet at its deadline. A Post without a deadline never
+/// expires.
+bool constellationPostActive(ConstellationPost post, DateTime asOfUtc) =>
+    post.status == BeaconStatus.open.smallintValue &&
+    (post.expiresAt == null || post.expiresAt!.isAfter(asOfUtc));
+
+/// 1 while [_fadeWindow] or more is left before [expiresAt], then linear down
+/// to [kConstellationPostFadeFloor] when nothing is left.
 double constellationPostFade({
-  required DateTime lastActivityAt,
+  required DateTime? expiresAt,
   required DateTime asOfUtc,
 }) {
-  final age = asOfUtc.difference(lastActivityAt);
-  if (age <= _fadeStart) {
+  if (expiresAt == null) {
     return 1;
   }
-  if (age >= _fadeEnd) {
+  final left = expiresAt.difference(asOfUtc);
+  if (left >= _fadeWindow) {
+    return 1;
+  }
+  if (left <= Duration.zero) {
     return kConstellationPostFadeFloor;
   }
-  final t =
-      (age - _fadeStart).inMicroseconds /
-      (_fadeEnd - _fadeStart).inMicroseconds;
-  return 1 - t * (1 - kConstellationPostFadeFloor);
+  final t = left.inMicroseconds / _fadeWindow.inMicroseconds;
+  return kConstellationPostFadeFloor + t * (1 - kConstellationPostFadeFloor);
 }
 
 /// «+N» chip count: members the server hid plus visible members that were not

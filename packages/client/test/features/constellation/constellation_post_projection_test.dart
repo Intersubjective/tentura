@@ -34,23 +34,28 @@ const _ego = 'U_ego';
 const _spacing = 16.0;
 final _asOf = DateTime.utc(2026, 10, 3, 12);
 
-/// Inside the 72 h active window.
+/// Recent activity; presence is decided by expiry, not by this.
 final _fresh = _asOf.subtract(const Duration(hours: 71));
 
-/// Past the 72 h active window.
-final _stale = _asOf.subtract(const Duration(hours: 73));
+/// Already past its expiry at [_asOf].
+final _expired = _asOf.subtract(const Duration(hours: 1));
+
+/// Still open at [_asOf].
+final _expiresLater = _asOf.add(const Duration(hours: 10));
 
 ConstellationPost _post(
   String id, {
   String authorId = 'peer-a',
   String rootExcerpt = 'Who has a ladder?',
   DateTime? lastActivityAt,
+  DateTime? expiresAt,
   bool isPinned = false,
 }) => ConstellationPost(
   id: id,
   authorId: authorId,
   rootExcerpt: rootExcerpt,
   lastActivityAt: lastActivityAt ?? _fresh,
+  expiresAt: expiresAt ?? _expiresLater,
   isPinned: isPinned,
 );
 
@@ -163,10 +168,10 @@ void main() {
                 'context': '',
                 'peersCapped': true,
                 'requestsCapped': true,
-                'directContactIds': [],
-                'peers': [],
-                'edges': [],
-                'requests': [],
+                'directContactIds': <Object?>[],
+                'peers': <Object?>[],
+                'edges': <Object?>[],
+                'requests': <Object?>[],
                 'posts': [
                   {
                     '__typename': 'v2_ConstellationPost',
@@ -196,12 +201,12 @@ void main() {
                 'anchorProjection': {
                   '__typename': 'v2_ConstellationAnchorProjection',
                   'revision': '0',
-                  'anchors': [],
-                  'pinnedPeers': [],
-                  'pinnedRequests': [],
-                  'supportPeers': [],
-                  'supportEdges': [],
-                  'serverFilteredBeaconIds': [],
+                  'anchors': <Object?>[],
+                  'pinnedPeers': <Object?>[],
+                  'pinnedRequests': <Object?>[],
+                  'supportPeers': <Object?>[],
+                  'supportEdges': <Object?>[],
+                  'serverFilteredBeaconIds': <Object?>[],
                   'serverFilteredBeaconCount': 0,
                 },
               },
@@ -245,7 +250,7 @@ void main() {
   });
 
   group('Post composition', () {
-    test('a Post inside the active window is drawn alongside Requests', () {
+    test('an unexpired Post is drawn alongside Requests', () {
       final composed = _compose(
         _field(requests: [_request()], posts: [_post('post-1')]),
       );
@@ -254,6 +259,36 @@ void main() {
         containsAll(['req-1', 'post-1']),
       );
       expect(composed.eligibleRequestIds, containsAll(['req-1', 'post-1']));
+    });
+
+    test('a long-idle Post that has not expired is drawn', () {
+      final composed = _compose(
+        _field(
+          posts: [
+            _post(
+              'post-1',
+              lastActivityAt: _asOf.subtract(const Duration(hours: 100)),
+            ),
+          ],
+        ),
+      );
+      expect(composed.labelPlan.drawnRequestIds, contains('post-1'));
+      expect(composed.dormantBeaconIds, isNot(contains('post-1')));
+    });
+
+    test('a recently active Post that has expired is absent', () {
+      final composed = _compose(
+        _field(
+          posts: [
+            _post(
+              'post-1',
+              lastActivityAt: _asOf.subtract(const Duration(minutes: 5)),
+              expiresAt: _expired,
+            ),
+          ],
+        ),
+      );
+      expect(composed.beaconNodes.map((n) => n.id), isNot(contains('post-1')));
     });
 
     test(
@@ -292,9 +327,9 @@ void main() {
       expect(without.beaconNodes.map((n) => n.id), ['req-1']);
     });
 
-    test('a Post past the active window and not pinned is absent', () {
+    test('an expired Post that is not pinned is absent', () {
       final composed = _compose(
-        _field(posts: [_post('post-old', lastActivityAt: _stale)]),
+        _field(posts: [_post('post-old', expiresAt: _expired)]),
       );
       expect(composed.labelPlan.drawnRequestIds, isNot(contains('post-old')));
       expect(
@@ -305,11 +340,13 @@ void main() {
     });
 
     test(
-      'a pinned Post past the active window is dormant and keeps its anchor',
+      'an expired pinned Post is dormant and keeps its anchor',
       () {
         final composed = _compose(
           _field(
-            posts: [_post('post-old', lastActivityAt: _stale, isPinned: true)],
+            posts: [
+              _post('post-old', expiresAt: _expired, isPinned: true),
+            ],
             projection: _projectionPinning('post-old'),
           ),
         );
