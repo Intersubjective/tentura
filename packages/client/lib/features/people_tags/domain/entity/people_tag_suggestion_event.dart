@@ -26,9 +26,7 @@ final class PeopleTagSuggestionEvent {
 
   @override
   bool operator ==(Object other) =>
-      other is PeopleTagSuggestionEvent &&
-      other.kind == kind &&
-      other.id == id;
+      other is PeopleTagSuggestionEvent && other.kind == kind && other.id == id;
 
   @override
   int get hashCode => Object.hash(kind, id);
@@ -67,7 +65,6 @@ abstract final class PeopleTagSuggestionPlacements {
     required bool wasMutual,
     required bool isMutual,
     required Set<String> taggedIds,
-  }) => !wasMutual && isMutual && !taggedIds.contains(personId)
-      ? personId
-      : null;
+  }) =>
+      !wasMutual && isMutual && !taggedIds.contains(personId) ? personId : null;
 }

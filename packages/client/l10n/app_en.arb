@@ -11302,6 +11302,14 @@
   "@peopleTagsSuggestionAdd": {
     "description": "Puts the suggested people into the picked tag"
   },
+  "peopleTagsDontSuggest": "Don't suggest again",
+  "@peopleTagsDontSuggest": {
+    "description": "Card menu action that turns the Tag them suggestions off"
+  },
+  "peopleTagsSuggestEnable": "Suggest tags",
+  "@peopleTagsSuggestEnable": {
+    "description": "People tags screen switch that turns the Tag them suggestions on or off"
+  },
   "peopleTagsFromParticipants": "Tag from participants",
   "@peopleTagsFromParticipants": {
     "description": "Creates a tag from the members of a Request"

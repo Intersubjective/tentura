@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tag_suggestion_case.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -29,10 +30,13 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_run(() async {
-      await _peopleTags.load();
-      await _peopleTags.loadAutoTags();
-    }));
+    unawaited(
+      _run(() async {
+        await _peopleTags.load();
+        await _peopleTags.loadAutoTags();
+        await _peopleTags.loadSuggestionState();
+      }),
+    );
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -51,6 +55,12 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
     }
   }
 
+  Future<void> _setSuggestions({required bool on}) => _run(() async {
+    final suggestions = GetIt.I<PeopleTagSuggestionCase>();
+    await (on ? suggestions.enable() : suggestions.disable());
+    await _peopleTags.loadSuggestionState();
+  });
+
   Future<void> _delete(String id) => _run(() async {
     final snapshot = await _peopleTags.deleteTag(id);
     if (!mounted) return;
@@ -66,7 +76,10 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     return Scaffold(
-      appBar: TenturaTopBar.of(context, title: Text(l10n.peopleTagsScreenTitle)),
+      appBar: TenturaTopBar.of(
+        context,
+        title: Text(l10n.peopleTagsScreenTitle),
+      ),
       body: SafeArea(
         child: TenturaContentColumn(
           child: StreamBuilder<void>(
@@ -84,7 +97,9 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
                       canMoveUp: i > 0,
                       canMoveDown: i < tags.length - 1,
                       onMove: (ord) => unawaited(
-                        _run(() => _peopleTags.moveTag(id: tags[i].id, ord: ord)),
+                        _run(
+                          () => _peopleTags.moveTag(id: tags[i].id, ord: ord),
+                        ),
                       ),
                       onDelete: () => unawaited(_delete(tags[i].id)),
                       position: i + 1,
@@ -114,6 +129,15 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
                         ),
                       ),
                   ],
+                  SizedBox(height: tt.sectionGap),
+                  ListTile(
+                    title: Text(l10n.peopleTagsSuggestEnable),
+                    trailing: Switch(
+                      key: const Key('people-tags-suggestions-switch'),
+                      value: _peopleTags.suggestionsEnabled,
+                      onChanged: (v) => unawaited(_setSuggestions(on: v)),
+                    ),
+                  ),
                   SizedBox(height: tt.rowGap),
                   Text(
                     l10n.peopleTagsOnlyYouSee,
@@ -152,7 +176,8 @@ class _TagRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return ListTile(
-      onTap: () => unawaited(context.router.push(PeopleTagRoute(tagId: tag.id))),
+      onTap: () =>
+          unawaited(context.router.push(PeopleTagRoute(tagId: tag.id))),
       leading: TagGlyph(glyph: tag.glyph, colorIndex: tag.color),
       title: Text(tag.name),
       subtitle: tag.countOffField > 0

@@ -34,6 +34,8 @@ final class PeopleTagSuggestionCase extends UseCaseBase {
 
   Future<void> disable() => _record('disabled');
 
+  Future<void> enable() => _record('enabled');
+
   Future<void> _record(String outcome) => _repository.personTagSuggestionRecord(
     outcome: outcome,
     clientOpId: _uuid.v4(),

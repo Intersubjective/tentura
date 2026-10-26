@@ -66,6 +66,13 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
     } catch (_) {}
   }
 
+  Future<void> _disable() async {
+    setState(() => _visible = false);
+    try {
+      await _suggestions.disable();
+    } catch (_) {}
+  }
+
   Future<void> _add() async {
     final tagId = _pickedTagId;
     if (tagId == null) return;
@@ -133,6 +140,17 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
                     key: const ValueKey('tag-suggestion-add'),
                     onPressed: _pickedTagId == null ? null : _add,
                     child: Text(l10n.peopleTagsSuggestionAdd),
+                  ),
+                  PopupMenuButton<void>(
+                    key: const ValueKey('tag-suggestion-menu'),
+                    popUpAnimationStyle: AnimationStyle.noAnimation,
+                    itemBuilder: (_) => [
+                      PopupMenuItem<void>(
+                        key: const ValueKey('tag-suggestion-dont-suggest'),
+                        onTap: () => unawaited(_disable()),
+                        child: Text(l10n.peopleTagsDontSuggest),
+                      ),
+                    ],
                   ),
                 ],
               ),

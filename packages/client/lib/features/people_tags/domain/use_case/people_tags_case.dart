@@ -39,6 +39,7 @@ final class PeopleTagsCase extends UseCaseBase {
 
   List<PersonTag> _tags = const [];
   List<PersonAutoTag> _autoTags = const [];
+  PersonTagSuggestionState? _suggestionState;
   BigInt? _lastRevision;
   Timer? _timer;
 
@@ -85,6 +86,16 @@ final class PeopleTagsCase extends UseCaseBase {
 
   Future<void> loadAutoTags() async {
     _autoTags = await _repository.personAutoTags();
+    _emit();
+  }
+
+  /// Whether the server currently allows "Tag them?" suggestions; false until
+  /// [loadSuggestionState] ran.
+  bool get suggestionsEnabled => !(_suggestionState?.disabled ?? true);
+
+  /// Reads whether the viewer turned the suggestions off.
+  Future<void> loadSuggestionState() async {
+    _suggestionState = await _repository.personTagSuggestionState();
     _emit();
   }
 

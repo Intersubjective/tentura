@@ -7511,6 +7511,8 @@
   "peopleTagsSuggestionTitle": "Добавить в тег?",
   "peopleTagsSuggestionNotNow": "Не сейчас",
   "peopleTagsSuggestionAdd": "Добавить",
+  "peopleTagsDontSuggest": "Больше не предлагать",
+  "peopleTagsSuggestEnable": "Предлагать теги",
   "peopleTagsFromParticipants": "Тег из участников",
   "peopleTagsOnlyYouSee": "Свои теги видите только вы.",
   "peopleTagsEditorTitle": "Новый тег",

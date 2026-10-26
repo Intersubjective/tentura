@@ -71,8 +71,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then(
         (r) => [
-          for (final t
-              in r.dataOrThrow(label: 'PersonAutoTags').personAutoTags)
+          for (final t in r.dataOrThrow(label: 'PersonAutoTags').personAutoTags)
             mapPersonAutoTag(t.toJson()),
         ],
       );
