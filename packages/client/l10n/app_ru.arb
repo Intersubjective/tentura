@@ -6635,6 +6635,7 @@
   "postRowReplied": "Пост · вам ответили",
   "postRowMentioned": "Пост · вас упомянули",
   "postRowFirstResponses": "На ваш пост откликнулись",
+  "postExpiringPushTitle": "Пост скоро закроется",
   "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
   "activityTabConversations": "Посты",
   "postsTabNow": "Сейчас",

@@ -7899,6 +7899,10 @@
   "@postRowFirstResponses": {
     "description": "Headline of a For You Post row for the author: first responses arrived."
   },
+  "postExpiringPushTitle": "Post is about to close",
+  "@postExpiringPushTitle": {
+    "description": "Headline of a For You Post row for the author: the Post expires soon."
+  },
   "postRowMoreMessages": "and {count, plural, one{1 more message} other{{count} more messages}}",
   "@postRowMoreMessages": {
     "description": "Third line of a For You Post row: further unread messages.",

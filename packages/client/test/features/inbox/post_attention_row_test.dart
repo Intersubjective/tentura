@@ -275,6 +275,83 @@ void main() {
       expect(attentionDestination(opened).path, '$kPathBeaconView/$_postId');
     });
   });
+
+  group('expiry warning to the Post author in For You', () {
+    final warning = _groupWire(
+      beaconId: _postId,
+      beaconKind: 1,
+      postRootExcerpt: 'Отдам даром шкаф',
+      events: [_expiringSoonEvent('Eevent000020')],
+    );
+
+    test('the latest event of expiringSoon type picks the expiring variant',
+        () async {
+      final remote = _FixtureRemoteClient()..feedData = _feedData([warning]);
+      final receipt = (await AttentionRepository(
+        remote,
+      ).fetch(view: AttentionView.all)).page.items.single;
+
+      expect(receipt.beaconKind, 1);
+      expect(postAttentionVariantOf(receipt).name, 'expiringSoon');
+    });
+
+    testWidgets('the warning row says the Post is about to close above the '
+        'root excerpt', (tester) async {
+      await _pumpFeed(tester, [warning]);
+
+      expect(find.byType(PostAttentionRow), findsOneWidget);
+      expect(find.byType(RequestAttentionCard), findsNothing);
+      expect(find.textContaining('Пост скоро закроется'), findsOneWidget);
+      expect(find.textContaining('Отдам даром шкаф'), findsOneWidget);
+      expect(find.textContaining('поделил'), findsNothing);
+    });
+
+    testWidgets('the warning row offers «Оформить запрос»', (tester) async {
+      await _pumpFeed(tester, [warning]);
+
+      expect(find.text('Оформить запрос'), findsOneWidget);
+    });
+
+    testWidgets('«Оформить запрос» opens the request form budded from this '
+        'Post, not the Post itself', (tester) async {
+      final harness = await _pumpFeed(tester, [warning]);
+
+      await tester.tap(find.text('Оформить запрос'));
+      await tester.pump();
+
+      final bud = _pushedRoutes.whereType<BeaconCreateRoute>().single;
+      expect((bud.args! as BeaconCreateRouteArgs).parentBeaconId, _postId);
+      expect(harness.router.opened, isEmpty);
+    });
+
+    testWidgets('tapping the warning row itself opens the Post at '
+        '/beacon/view/<id>', (tester) async {
+      final harness = await _pumpFeed(tester, [warning]);
+
+      await tester.tap(find.textContaining('Пост скоро закроется'));
+      await tester.pump();
+
+      final opened = harness.router.opened.single;
+      expect(opened.beaconId, _postId);
+      expect(attentionDestination(opened).path, '$kPathBeaconView/$_postId');
+    });
+
+    testWidgets('a reply on a Post gets no «Оформить запрос» action',
+        (tester) async {
+      await _pumpFeed(tester, [
+        _groupWire(
+          beaconId: _postId,
+          beaconKind: 1,
+          postRootExcerpt: 'Отдам даром шкаф',
+          events: [_replyEvent('Eevent000021')],
+        ),
+      ]);
+
+      expect(find.byType(PostAttentionRow), findsOneWidget);
+      expect(find.text('Оформить запрос'), findsNothing);
+      expect(find.textContaining('Пост скоро закроется'), findsNothing);
+    });
+  });
 }
 
 /// The Post root's photo, drawn from the image server under its author.
@@ -306,6 +383,7 @@ Map<String, dynamic> _receiptWire({
   String? postRootExcerpt,
   String? postRootImageId,
   String? provenanceJson,
+  String? presentationKey,
   String presentationPayloadJson = '{}',
   int? eventTotal,
   int? eventUnseenCount,
@@ -328,7 +406,7 @@ Map<String, dynamic> _receiptWire({
   'sourceEventKey': null,
   'destinationKind': 'beacon',
   'targetEntityId': beaconId,
-  'presentationKey': null,
+  'presentationKey': presentationKey,
   'presentationPayloadJson': presentationPayloadJson,
   'inAppPreferenceClass': null,
   'requiresAction': false,
@@ -363,11 +441,13 @@ Map<String, dynamic> _eventWire(
   String id, {
   required String kind,
   required String eventType,
+  String? presentationKey,
 }) => _receiptWire(
   id: id,
   kind: kind,
   itemKind: 'receipt',
   beaconId: _postId,
+  presentationKey: presentationKey,
   presentationPayloadJson: '{"eventType":"$eventType"}',
 );
 
@@ -389,6 +469,15 @@ Map<String, dynamic> _firstResponseEvent(String id) => _eventWire(
   id,
   kind: 'postFirstResponse',
   eventType: 'postFirstResponse',
+);
+
+/// The warning the server sends a Post's author shortly before it expires,
+/// with the literal values the server's sweep test asserts on the receipt.
+Map<String, dynamic> _expiringSoonEvent(String id) => _eventWire(
+  id,
+  kind: 'postExpiringSoon',
+  eventType: 'postExpiringSoon',
+  presentationKey: 'post_expiring_soon',
 );
 
 /// The grouped row the server synthesizes for a beacon with live events.
@@ -506,8 +595,20 @@ class _MappedFeedRepo extends ConfigurableActivityOffersAttentionRepo {
       0;
 }
 
+/// Every route pushed through either router the row can reach.
+final _pushedRoutes = <PageRouteInfo>[];
+
 class _RecordingRootRouter extends Mock implements RootRouter {
   final opened = <AttentionReceipt>[];
+
+  @override
+  Future<T?> push<T extends Object?>(
+    PageRouteInfo route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    _pushedRoutes.add(route);
+    return null;
+  }
 
   @override
   Future<void> openFromUpdate(AttentionReceipt receipt) async {
@@ -515,7 +616,16 @@ class _RecordingRootRouter extends Mock implements RootRouter {
   }
 }
 
-class _HarnessRouter extends Mock implements StackRouter {}
+class _HarnessRouter extends Mock implements StackRouter {
+  @override
+  Future<T?> push<T extends Object?>(
+    PageRouteInfo route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    _pushedRoutes.add(route);
+    return null;
+  }
+}
 
 class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -596,6 +706,7 @@ Future<_Harness> _pumpFeed(
   List<Map<String, dynamic>> wireItems, {
   Size logicalSize = const Size(360, 800),
 }) async {
+  _pushedRoutes.clear();
   final remote = _FixtureRemoteClient()..feedData = _feedData(wireItems);
   final fetched = await AttentionRepository(
     remote,

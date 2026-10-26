@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
@@ -16,7 +17,13 @@ import '../../domain/entity/inbox_provenance.dart';
 const kBeaconKindPost = 1;
 
 /// What the latest directed event says about a Post (M1).
-enum PostAttentionVariant { arrival, reply, mention, firstResponses }
+enum PostAttentionVariant {
+  arrival,
+  reply,
+  mention,
+  firstResponses,
+  expiringSoon,
+}
 
 /// The variant a grouped Post [receipt] is drawn as, off its latest event.
 PostAttentionVariant postAttentionVariantOf(AttentionReceipt receipt) {
@@ -25,6 +32,7 @@ PostAttentionVariant postAttentionVariantOf(AttentionReceipt receipt) {
   if (latest.kind == 'roomMention') return PostAttentionVariant.mention;
   return switch (attentionEventTypeOf(latest.presentationPayloadJson)) {
     'postFirstResponse' => PostAttentionVariant.firstResponses,
+    'postExpiringSoon' => PostAttentionVariant.expiringSoon,
     'roomMessagePosted' => PostAttentionVariant.reply,
     _ => PostAttentionVariant.arrival,
   };
@@ -90,6 +98,7 @@ class PostAttentionRow extends StatelessWidget {
       PostAttentionVariant.reply => l10n.postRowReplied,
       PostAttentionVariant.mention => l10n.postRowMentioned,
       PostAttentionVariant.firstResponses => l10n.postRowFirstResponses,
+      PostAttentionVariant.expiringSoon => l10n.postExpiringPushTitle,
     };
 
     final rootExcerpt = receipt.postRootExcerpt?.trim() ?? '';
@@ -112,7 +121,8 @@ class PostAttentionRow extends StatelessWidget {
             : (senderName.isEmpty ? noteText : '$senderName: «$noteText»'),
       PostAttentionVariant.reply || PostAttentionVariant.mention =>
         more > 0 ? l10n.postRowMoreMessages(more) : null,
-      PostAttentionVariant.firstResponses => null,
+      PostAttentionVariant.firstResponses ||
+      PostAttentionVariant.expiringSoon => null,
     };
 
     // #476: the card's short age («7m»), as the tombstones and Request cards
@@ -198,6 +208,18 @@ class PostAttentionRow extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (variant == PostAttentionVariant.expiringSoon)
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: TextButton(
+                            onPressed: () => context.router.push(
+                              BeaconCreateRoute(
+                                parentBeaconId: receipt.beaconId ?? '',
+                              ),
+                            ),
+                            child: Text(l10n.postBudAction),
+                          ),
+                        ),
                     ],
                   ),
                 ),

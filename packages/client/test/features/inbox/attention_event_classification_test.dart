@@ -128,6 +128,33 @@ void main() {
       isTrue,
     );
   });
+
+  test('the Post expiry warning is declared and classified as a Request-style '
+      'headline that may be folded into a count', () {
+    expect(
+      classifications.map((e) => e['eventType']),
+      contains('postExpiringSoon'),
+    );
+    expect(attentionEventClassifications, contains('postExpiringSoon'));
+    for (final classification in [
+      classifyAttentionEvent('postExpiringSoon'),
+      classifyAttentionEventPayload('{"eventType":"postExpiringSoon"}'),
+    ]) {
+      expect(
+        classification.headlineTreatment,
+        AttentionHeadlineTreatment.beacon,
+      );
+      expect(classification.coalescible, isTrue);
+    }
+    expect(
+      identical(
+        classifyAttentionEvent('postExpiringSoon'),
+        kUnknownAttentionEventClassification,
+      ),
+      isFalse,
+      reason: 'the warning must be a declared type, not the unknown default',
+    );
+  });
 }
 
 Map<String, dynamic> _loadContract() => Map<String, dynamic>.from(

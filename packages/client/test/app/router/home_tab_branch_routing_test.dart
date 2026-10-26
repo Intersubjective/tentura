@@ -351,6 +351,41 @@ void main() {
     expect(find.text('inbox-root'), findsOneWidget);
   });
 
+  testWidgets('post expiry warning push payload opens the Post it names', (
+    tester,
+  ) async {
+    // The FCM `data` map the server builds for a postExpiringSoon outbox row
+    // (`buildFcmMessagePayload`). The native tap handler and the web service
+    // worker both navigate by `link` alone, so the warning reaches its Post
+    // only if the payload's own `link` resolves to the Post named by its
+    // `beaconId`.
+    const pushData = <String, String>{
+      'title': 'Your post is about to expire',
+      'body': 'Your post expires in under 3 hours',
+      'link': '/#$kPathBeaconView/Bpost000000001?is_deep_link=true',
+      'kind': 'postExpiringSoon',
+      'beaconId': 'Bpost000000001',
+    };
+    expect(pushData['kind'], 'postExpiringSoon');
+    final postId = pushData['beaconId']!;
+    final link = pushData['link']!;
+    expect(
+      Uri.parse(link.replaceFirst('/#', '')).path,
+      '$kPathBeaconView/$postId',
+      reason: 'the warning link must name the Post in beaconId',
+    );
+
+    await pumpRouter(tester, initialPath: '/home/inbox');
+    unawaited(router.openFromNotificationLink(link));
+    await tester.pumpAndSettle();
+
+    expect(router.stackData.map((data) => data.name), [
+      HomeRoute.name,
+      BeaconViewRoute.name,
+    ]);
+    expect(find.text('request:$postId'), findsOneWidget);
+  });
+
   testWidgets(
     'legacy /home/updates deep link lands on notification history',
     (tester) async {
