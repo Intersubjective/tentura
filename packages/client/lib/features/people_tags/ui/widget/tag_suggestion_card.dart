@@ -18,11 +18,13 @@ class TagSuggestionCard extends StatefulWidget {
   const TagSuggestionCard({
     required this.event,
     required this.personIds,
+    required this.names,
     super.key,
   });
 
   final PeopleTagSuggestionEvent event;
   final List<String> personIds;
+  final String names;
 
   @override
   State<TagSuggestionCard> createState() => _TagSuggestionCardState();
@@ -112,7 +114,7 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                l10n.peopleTagsSuggestionTitle,
+                l10n.peopleTagsSuggestionTitle(widget.names),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               SizedBox(height: tt.rowGap),

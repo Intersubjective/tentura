@@ -12,11 +12,13 @@ import 'tag_suggestion_card.dart';
 class MutualTrustTagSuggestion extends StatefulWidget {
   const MutualTrustTagSuggestion({
     required this.personId,
+    required this.personName,
     required this.isMutual,
     super.key,
   });
 
   final String personId;
+  final String personName;
   final bool isMutual;
 
   @override
@@ -49,6 +51,7 @@ class _MutualTrustTagSuggestionState extends State<MutualTrustTagSuggestion> {
     return TagSuggestionCard(
       event: PeopleTagSuggestionEvent.mutualTrust(id),
       personIds: [id],
+      names: widget.personName,
     );
   }
 }

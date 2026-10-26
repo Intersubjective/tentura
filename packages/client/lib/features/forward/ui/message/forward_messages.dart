@@ -212,12 +212,14 @@ final class ForwardLocationMyWorkAddToTagMessage
   const ForwardLocationMyWorkAddToTagMessage({
     required this.beaconId,
     required this.recipientIds,
+    required this.recipientNames,
     super.skippedName,
     super.skippedCount,
   });
 
   final String beaconId;
   final List<String> recipientIds;
+  final String recipientNames;
 
   @override
   LocalizableMessage get label => const _AddToTagLabel();
@@ -235,6 +237,7 @@ final class ForwardLocationMyWorkAddToTagMessage
               '$beaconId:${([...recipientIds]..sort()).join(',')}',
             ),
             personIds: recipientIds,
+            names: recipientNames,
           ),
         ),
       ),

@@ -173,7 +173,7 @@ void main() {
 
         await _tap(tester, 'Add to tag…');
         expect(
-          find.text('+ New tag'),
+          find.text('+ Tag'),
           findsOneWidget,
           reason: 'the tag sheet opened',
         );

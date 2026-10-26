@@ -234,6 +234,7 @@ void main() {
     TagSuggestionCard card(String id) => TagSuggestionCard(
       event: PeopleTagSuggestionEvent.closure(id),
       personIds: const ['Uann', 'Ubob'],
+      names: 'Ann, Bob',
     );
 
     testWidgets('the card is shown when suggestions are allowed', (
@@ -241,6 +242,7 @@ void main() {
     ) async {
       await pump(tester, card('B1'));
       expect(find.byKey(cardKey), findsOneWidget);
+      expect(find.text('Tag Ann, Bob?'), findsOneWidget);
     });
 
     testWidgets('the card is hidden when the server forbids suggestions', (
@@ -257,6 +259,7 @@ void main() {
     testWidgets('the same event does not show a second card', (tester) async {
       await pump(tester, Column(children: [card('B1'), card('B1')]));
       expect(find.byKey(cardKey), findsOneWidget);
+      expect(find.text('Tag Ann, Bob?'), findsOneWidget);
     });
 
     testWidgets('Not now records skipped and removes the card', (tester) async {

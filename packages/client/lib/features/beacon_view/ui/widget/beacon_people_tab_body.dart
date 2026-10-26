@@ -649,6 +649,10 @@ class BeaconPeopleTabBody extends StatelessWidget {
               '${beacon.id}:$helperId',
             ),
             personIds: [helperId],
+            names: sections.activeHelpers
+                .firstWhere((row) => row.userId == helperId)
+                .profile
+                .shownName,
           ),
         AccordionExpansionGroup(
           accordionMode: false,

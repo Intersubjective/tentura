@@ -455,6 +455,9 @@ class ForwardCubit extends Cubit<ForwardState> {
         : ForwardLocationMyWorkAddToTagMessage(
             beaconId: state.beaconId,
             recipientIds: tagCandidates,
+            recipientNames: tagCandidates
+                .map(_availabilitySkippedDisplayName)
+                .join(', '),
             skippedName: skippedName,
             skippedCount: skippedCount,
           );

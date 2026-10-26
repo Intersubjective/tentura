@@ -11286,13 +11286,18 @@
   "@peopleTagsAddToTag": {
     "description": "Title of the add-to-tag sheet"
   },
-  "peopleTagsNewTag": "+ New tag",
+  "peopleTagsNewTag": "+ Tag",
   "@peopleTagsNewTag": {
     "description": "Row in the add-to-tag sheet that opens the tag editor"
   },
-  "peopleTagsSuggestionTitle": "Tag them?",
+  "peopleTagsSuggestionTitle": "Tag {names}?",
   "@peopleTagsSuggestionTitle": {
-    "description": "Title of the suggestion card offering to put people into a tag"
+    "description": "Title of the suggestion card offering to put people into a tag",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
   },
   "peopleTagsSuggestionNotNow": "Not now",
   "@peopleTagsSuggestionNotNow": {
@@ -11314,7 +11319,7 @@
   "@peopleTagsFromParticipants": {
     "description": "Creates a tag from the members of a Request"
   },
-  "peopleTagsOnlyYouSee": "Only you see your tags.",
+  "peopleTagsOnlyYouSee": "Only you see tags",
   "@peopleTagsOnlyYouSee": {
     "description": "Privacy footer of the add-to-tag sheet"
   },
@@ -11428,15 +11433,15 @@
   "@peopleTagsAutoWorkedTogether": {
     "description": "Automatic tag"
   },
-  "peopleTagsAutoInvited": "Invited",
+  "peopleTagsAutoInvited": "Invited me / I invited",
   "@peopleTagsAutoInvited": {
     "description": "Automatic tag"
   },
-  "peopleTagsAutoForwarded": "Forwarded",
+  "peopleTagsAutoForwarded": "Forwarded to each other",
   "@peopleTagsAutoForwarded": {
     "description": "Automatic tag"
   },
-  "peopleTagsAutoNewOnField": "New on the Field",
+  "peopleTagsAutoNewOnField": "New",
   "@peopleTagsAutoNewOnField": {
     "description": "Automatic tag"
   },
@@ -11444,7 +11449,7 @@
   "@peopleTagsForwardOutsideTag": {
     "description": "Heading in the forward picker over up to three people outside the tapped tag who could help"
   },
-  "peopleTagsForwardNote": "Tags only help you choose. Each person gets their own forward and does not see the tag.",
+  "peopleTagsForwardNote": "Each person gets the forward individually. Recipients don't see the tag name.",
   "@peopleTagsForwardNote": {
     "description": "Note under the tag chips in the forward picker"
   },
@@ -11473,7 +11478,7 @@
   "@peopleTagsMoveDown": {
     "description": "Tag row menu"
   },
-  "peopleTagsDelete": "Delete",
+  "peopleTagsDelete": "Delete tag",
   "@peopleTagsDelete": {
     "description": "Tag row menu"
   },
@@ -11485,7 +11490,7 @@
   "@peopleTagsEditTitle": {
     "description": "Title and tooltip of the editor of an existing people tag"
   },
-  "peopleTagsAddPeople": "Add people",
+  "peopleTagsAddPeople": "Add people…",
   "@peopleTagsAddPeople": {
     "description": "Button on a tag screen: pick people from the Field to put into the tag"
   },

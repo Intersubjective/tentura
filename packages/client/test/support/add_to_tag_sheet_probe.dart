@@ -38,7 +38,7 @@ Finder _sheetRow(String tagName) =>
     find.widgetWithText(CheckboxListTile, tagName);
 
 /// With the add-to-tag sheet open: asserts that it is the sheet (its title, its
-/// "+ New tag" row and a row per tag are on screen) and that it is the
+/// "+ Tag" row and a row per tag are on screen) and that it is the
 /// sheet of [personId] (that person's tag is ticked, the other tag is not).
 /// Then ticks "Climbers", dismisses the sheet by tapping the dimmed area
 /// outside it and asserts the single batch sent names [personId].
@@ -48,10 +48,23 @@ Future<void> expectAddToTagSheetIsForPerson(
   String personId,
 ) async {
   await tester.pumpAndSettle();
-  // Sheet-only content: its "+ New tag" row and the tag rows. The title text
+  // Sheet-only content: its "+ Tag" row and the tag rows. The title text
   // also labels the menu item or action that opened it, so it proves nothing
   // on its own.
-  expect(find.text('+ New tag'), findsOneWidget);
+  // Scoped to the sheet: some hosts (the Field person panel) show their own
+  // "+ Tag" control behind it.
+  expect(
+    find.descendant(
+      of: find
+          .ancestor(
+            of: _sheetRow('Neighbours'),
+            matching: find.byType(Material),
+          )
+          .first,
+      matching: find.text('+ Tag'),
+    ),
+    findsOneWidget,
+  );
   expect(find.byType(CheckboxListTile), findsNWidgets(2));
   expect(find.text('Add to tag…'), findsWidgets);
 
@@ -72,7 +85,8 @@ Future<void> expectAddToTagSheetIsForPerson(
   await tester.tapAt(const Offset(5, 5));
   await tester.pumpAndSettle();
 
-  expect(find.text('+ New tag'), findsNothing);
+  // The sheet's tag rows are gone (a host may keep its own "+ Tag").
+  expect(find.byType(CheckboxListTile), findsNothing);
   expect(
     repository.appliedOps.single.map((o) => (o.tagId, o.personId, o.add)),
     [('Tb', personId, true)],

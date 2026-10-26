@@ -367,9 +367,9 @@ Future<void> _closeSheet(
   expect(find.text('Neighbours'), findsNothing);
 }
 
-/// "+ New tag" → type [name] → save.
+/// "+ Tag" → type [name] → save.
 Future<void> _createTag(WidgetTester tester, String name) async {
-  await tester.tap(find.textContaining('New tag'));
+  await tester.tap(find.text('+ Tag'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byKey(_nameField), name);
   await tester.pump();

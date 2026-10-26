@@ -125,6 +125,10 @@ class _Body extends StatelessWidget {
           TagSuggestionCard(
             event: PeopleTagSuggestionEvent.closure(cubit.beaconId),
             personIds: tagCandidates,
+            names: members
+                .where((m) => tagCandidates.contains(m.id))
+                .map((m) => m.displayName ?? m.id)
+                .join(', '),
           ),
           gap,
         ],

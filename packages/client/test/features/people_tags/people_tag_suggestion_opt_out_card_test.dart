@@ -109,6 +109,7 @@ void main() {
       body: TagSuggestionCard(
         event: PeopleTagSuggestionEvent.mutualTrust(id),
         personIds: [id],
+        names: 'Ann',
       ),
     ),
   );
@@ -131,20 +132,36 @@ void main() {
   }
 
   group('tag suggestion card opt-out', () {
-    testWidgets('offers "Don\'t suggest again" on the card or its menu and keeps Not now and Add', (
-      tester,
-    ) async {
-      await tester.pumpWidget(app('u1'));
+    testWidgets('Russian suggestion names the person', (tester) async {
+      await tester.pumpWidget(app('u1', locale: const Locale('ru')));
       await tester.pumpAndSettle();
-
-      expect(find.byKey(_card), findsOneWidget);
-      await revealOptOut(tester, "Don't suggest again");
-      expect(find.text("Don't suggest again"), findsOneWidget);
-      expect(find.text('Not now'), findsOneWidget);
-      expect(find.text('Add'), findsOneWidget);
-      expect(find.byKey(const ValueKey('tag-suggestion-not-now')), findsOneWidget);
-      expect(find.byKey(const ValueKey('tag-suggestion-add')), findsOneWidget);
+      expect(find.text('Ann — добавить в тег?'), findsOneWidget);
     });
+
+    testWidgets(
+      'offers "Don\'t suggest again" on the card or its menu and keeps Not now and Add',
+      (
+        tester,
+      ) async {
+        await tester.pumpWidget(app('u1'));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(_card), findsOneWidget);
+        expect(find.text('Tag Ann?'), findsOneWidget);
+        await revealOptOut(tester, "Don't suggest again");
+        expect(find.text("Don't suggest again"), findsOneWidget);
+        expect(find.text('Not now'), findsOneWidget);
+        expect(find.text('Add'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('tag-suggestion-not-now')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('tag-suggestion-add')),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('offers «Больше не предлагать» in Russian', (tester) async {
       await tester.pumpWidget(app('u1', locale: const Locale('ru')));

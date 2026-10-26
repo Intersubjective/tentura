@@ -175,6 +175,7 @@ void main() {
     ) async {
       await pumpClosure(tester, enabled: true);
       expect(find.byKey(_card), findsOneWidget);
+      expect(find.text('Tag Ann, Bob?'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('tag-suggestion-not-now')));
       await tester.pumpAndSettle();

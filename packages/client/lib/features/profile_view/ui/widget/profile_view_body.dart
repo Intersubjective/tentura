@@ -147,6 +147,7 @@ class ProfileViewBody extends StatelessWidget {
                 if (peopleTagsEnabled && !isSelf && profile.id.isNotEmpty)
                   MutualTrustTagSuggestion(
                     personId: profile.id,
+                    personName: profile.shownName,
                     isMutual: profile.isMutualFriend,
                   ),
                 if (showNetwork) ProfileViewNetworkGroup(profile: profile),
