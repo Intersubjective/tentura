@@ -79,6 +79,7 @@ class _ConstellationViewportOverlayState
   Widget? _labelLayer;
   // Chip widgets built for the same placement; a pan only moves their rects.
   final _chipByAuthor = <String, Widget>{};
+  List<Object?>? _chipKey;
   // Scale and viewport size: the camera facts a translation leaves alone.
   late final ValueNotifier<(double, Size?)> _cameraShape;
   // Bumped by every scene change except a pure drag move of the same nodes.
@@ -154,6 +155,12 @@ class _ConstellationViewportOverlayState
     if (_isTransitionMoveOnly(previous, next)) {
       _transitionTick.value++;
       _frameTick.value++;
+      // Labels placed against the positions a transition started from must be
+      // placed again against where it ended, so the settled label set does
+      // not depend on the path the nodes took.
+      if (previous.transition != null && next.transition == null) {
+        _structure.value++;
+      }
     } else if (_isDragMoveOnly(previous, next)) {
       _frameTick.value++;
     } else {
@@ -533,6 +540,7 @@ class _ConstellationViewportOverlayState
               controller.sceneRevision,
               scale,
               viewport,
+              snapshot.transition != null,
               _detail,
               bare,
               rtl,
@@ -563,7 +571,20 @@ class _ConstellationViewportOverlayState
               _placementKey = placementKey;
               _placementOrigin = origin;
               _labelLayer = null;
-              _chipByAuthor.clear();
+              // Re-placing after a transition moves rects only; the chip
+              // widgets stay as built unless what they show changed.
+              final chipKey = <Object?>[
+                Theme.of(context),
+                _cacheLocale,
+                _cacheTextScaleKey,
+                for (final chip in chipInputs)
+                  (chip.authorId, chip.authorGraphId, chip.size),
+                ...chipContents,
+              ];
+              if (!listEquals(_chipKey, chipKey)) {
+                _chipKey = chipKey;
+                _chipByAuthor.clear();
+              }
               _draggedPlates.clear();
               _placementScene.clear();
               _chipAuthorGraphId.clear();

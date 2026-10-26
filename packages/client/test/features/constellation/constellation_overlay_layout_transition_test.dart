@@ -104,7 +104,8 @@ ThemeData _themeWithLabelLargeSize(double fontSize) {
 
 bool _isLabelKey(Widget w) {
   final key = w.key;
-  return key is ValueKey<String> && key.value.startsWith('constellation.label.');
+  return key is ValueKey<String> &&
+      key.value.startsWith('constellation.label.');
 }
 
 void main() {
@@ -244,19 +245,22 @@ void main() {
       expect(
         plateBuilds,
         lessThanOrEqualTo(2 * labelCount),
-        reason: 'each label plate may be rebuilt for the new layout only a '
+        reason:
+            'each label plate may be rebuilt for the new layout only a '
             'couple of times, not on every one of ~22 transition frames',
       );
       expect(
         plateMounts,
         lessThanOrEqualTo(labelCount),
-        reason: 'label plates must not be torn down and mounted afresh on '
+        reason:
+            'label plates must not be torn down and mounted afresh on '
             'transition frames',
       );
       expect(
         maxLayerDrift,
         0,
-        reason: 'the overlay must keep the same number of repaint layers '
+        reason:
+            'the overlay must keep the same number of repaint layers '
             'through the transition',
       );
       expect(
@@ -280,9 +284,12 @@ void main() {
         reason: 'chips must end up beside their moved author nodes',
       );
 
-      // Visible behaviour is unchanged: same labels, and they ended up
-      // where the moved nodes are.
-      expect(holder.frame!.labels.keys.toSet(), labelKeysBefore);
+      // Labels are placed again against where the nodes ended, so the settled
+      // set is the one a fresh placement at the new layout gives: it may drop
+      // labels the tighter grid no longer fits, but never invents new ones.
+      // They ended up where the moved nodes are.
+      expect(holder.frame!.labels, isNotEmpty);
+      expect(labelKeysBefore.containsAll(holder.frame!.labels.keys), isTrue);
       final moved = holder.frame!.labels.entries.where(
         (e) => (e.value.center - centresBefore[e.key]!).distance > 5,
       );

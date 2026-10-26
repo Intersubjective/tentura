@@ -153,6 +153,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // Outlives the minimap widget, which leaves at the close level.
   final _minimapExpanded = ValueNotifier<bool>(true);
   int _pointersDown = 0;
+
+  // The level held back near a threshold while a gesture ran must catch up
+  // with the scale once the last pointer is gone.
+  void _onPointerReleased() {
+    _pointersDown = math.max(0, _pointersDown - 1);
+    if (_pointersDown == 0) {
+      _zoom.update(_graphController.cameraScale, gestureActive: false);
+    }
+  }
+
   ConstellationDetailLevel get _detail => _zoom.value;
 
   // Edges only depend on the camera through the stroke compensation (zoom
@@ -1427,9 +1437,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _stopReveal();
             _takeMapFocus();
           },
-          onPointerUp: (_) => _pointersDown = math.max(0, _pointersDown - 1),
-          onPointerCancel: (_) =>
-              _pointersDown = math.max(0, _pointersDown - 1),
+          onPointerUp: (_) => _onPointerReleased(),
+          onPointerCancel: (_) => _onPointerReleased(),
           onPointerSignal: (_) => _stopReveal(),
           // Tab walks the map markers in the reading order of where they are
           // drawn, as one block of Tab stops (#391).
