@@ -37,9 +37,11 @@ import '../../domain/layout/constellation_tag_view_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../../domain/entity/constellation_trust_chain_person.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_mutual_trust_case.dart';
+import '../../domain/use_case/constellation_trust_chain_case.dart';
 import '../../domain/entity/placement_outbox.dart';
 import '../../domain/placement_overlay.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
@@ -140,6 +142,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._memberWebsCase,
     this._visibilityCase,
     this._mutualTrustCase,
+    this._trustChainCase,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
@@ -181,6 +184,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationMemberWebsCase? _memberWebsCase;
   final ConstellationVisibilityCase? _visibilityCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
+  final ConstellationTrustChainCase? _trustChainCase;
   final Profile _viewer;
 
   /// Draws the presence of bond and temporary people (`kFieldMembershipV2Enabled`).
@@ -238,6 +242,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   ({Set<String> local, Set<String> fetched, Set<String> ids})? _mutualTrustMemo;
+
+  /// The chain the server named for each person the field shows no chain to,
+  /// viewer first (kept for the cubit's lifetime; empty when the server had
+  /// none or failed, so the person is not asked again).
+  final Map<String, List<ConstellationTrustChainPerson>> _serverTrustChains =
+      {};
+  final Set<String> _serverTrustChainInFlight = {};
   final ForwardCase? _forwardCaseOverride;
 
   late final StoreLease _storeLease;
@@ -2040,6 +2051,56 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
+  /// Asks the server for the selected person's chain when the field shows
+  /// none, once per person. An answer for someone deselected is only kept; the
+  /// scene is redrawn only while that person is still the selected one.
+  void _ensureServerTrustChain() {
+    final personId = state.selectedPersonId;
+    final case_ = _trustChainCase;
+    if (case_ == null ||
+        personId == null ||
+        _serverTrustChains.containsKey(personId) ||
+        _localTrustChain is! ConstellationTrustChainNone ||
+        !_serverTrustChainInFlight.add(personId)) {
+      return;
+    }
+    unawaited(_fetchServerTrustChain(case_, personId));
+  }
+
+  Future<void> _fetchServerTrustChain(
+    ConstellationTrustChainCase case_,
+    String personId,
+  ) async {
+    try {
+      final chain = await case_.fetch(personId);
+      if (isClosed) {
+        return;
+      }
+      _serverTrustChains[personId] = List.unmodifiable(
+        chain.length >= 2 &&
+                chain.first.id == _viewer.id &&
+                chain.last.id == personId
+            ? chain
+            : const <ConstellationTrustChainPerson>[],
+      );
+    } on Object catch (e, st) {
+      if (isClosed) {
+        return;
+      }
+      // Keep what the field shows; never ask again for this person.
+      _serverTrustChains[personId] = const [];
+      addError(e, st);
+      return;
+    } finally {
+      _serverTrustChainInFlight.remove(personId);
+    }
+    if (state.selectedPersonId == personId &&
+        _serverTrustChains[personId]!.isNotEmpty) {
+      _mutualTrustRedrawPending = true;
+      _drainMutualTrustRedraw();
+    }
+  }
+
   /// Draws an answer that arrived after its selection was drawn. Adding
   /// edges changes the scene topology, which would cancel a layout in flight
   /// or stop its transition, so the redraw waits for the scene to settle
@@ -3082,7 +3143,40 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// How the selected person is reached from the viewer (#641), or null when
   /// no person is selected (or the field is not composed yet).
+  ///
+  /// When the field shows no chain, the one the server named (if any) stands
+  /// in for it.
   ConstellationTrustChain? get selectedTrustChain {
+    final local = _localTrustChain;
+    if (local is! ConstellationTrustChainNone) {
+      return local;
+    }
+    final served = _serverTrustChains[state.selectedPersonId];
+    if (served == null || served.length < 2) {
+      return local;
+    }
+    return served.length == 2
+        ? const ConstellationTrustChainDirect()
+        : ConstellationTrustChainFound([for (final p in served) p.id]);
+  }
+
+  /// The name the server gave [personId] on the selected person's chain, for
+  /// people the field does not hold.
+  String? serverTrustChainName(String personId) {
+    final served = _serverTrustChains[state.selectedPersonId];
+    if (served == null) {
+      return null;
+    }
+    for (final person in served) {
+      if (person.id == personId && person.displayName.trim().isNotEmpty) {
+        return person.displayName.trim();
+      }
+    }
+    return null;
+  }
+
+  /// The chain of visible trust edges the field itself shows.
+  ConstellationTrustChain? get _localTrustChain {
     final personId = state.selectedPersonId;
     final field = shownField;
     final composition = state.composition;
@@ -3440,6 +3534,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     _ensureMutualTrust();
+    _ensureServerTrustChain();
     if (previousMemberId != _selectedRequestMemberId ||
         (state.selectedRequestId != previousRequestId &&
             _selectionAddsMembers(previousRequestId))) {
@@ -3938,6 +4033,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // the selected person has none for this field.
     _mutualTrustRedrawPending = false;
     _ensureMutualTrust();
+    _ensureServerTrustChain();
     final field = state.field == null ? null : _composerField(state.field!);
     final paths = state.paths;
     final composition = state.composition;

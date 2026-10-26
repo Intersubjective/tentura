@@ -1,0 +1,8 @@
+# The shortest chain of explicit trust from the viewer to a selected person,
+# viewer first, named. Asked when the field itself shows no chain to them.
+query ConstellationTrustChainFetch($personId: String!) {
+  constellationTrustChain(personId: $personId) {
+    userId
+    displayName
+  }
+}

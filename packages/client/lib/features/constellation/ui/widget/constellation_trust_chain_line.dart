@@ -21,7 +21,8 @@ class ConstellationTrustChainLine extends StatelessWidget {
           previous.selectedPersonId != current.selectedPersonId ||
           previous.composition != current.composition ||
           previous.visibility != current.visibility ||
-          previous.field != current.field,
+          previous.field != current.field ||
+          previous.graphRevision != current.graphRevision,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         if (state.selectedPersonId != personId) {
@@ -40,6 +41,7 @@ class ConstellationTrustChainLine extends StatelessWidget {
                             ?.displayLabel(
                               l10n.unknownPerson,
                             ) ??
+                        cubit.serverTrustChainName(id) ??
                         l10n.unknownPerson,
                   )
                   .join(' → '),

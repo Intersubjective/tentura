@@ -29,6 +29,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_mutual_trust_case.dart';
+import '../../domain/use_case/constellation_trust_chain_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
@@ -79,6 +80,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
             mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
+            trustChainCase: GetIt.I<ConstellationTrustChainCase>(),
             viewer: viewer,
             scene: ConstellationSceneController(
               slicer: FrameSliceScheduler(

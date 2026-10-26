@@ -5119,6 +5119,7 @@ type query_root {
   constellationLayoutSnapshots: [v2_ConstellationLayoutSnapshot!]!
   constellationFieldRequests(ids: [String!]!, participatedOnly: Boolean! = false, showClosed: Boolean! = false): [v2_ConstellationRequest!]!
   constellationMutualTrust(personId: String!): [String!]!
+  constellationTrustChain(personId: String!): [v2_ConstellationTrustChainPerson!]!
 
   """
   fetch data from the table: "edge"
@@ -8288,6 +8289,11 @@ type v2_ConstellationRequest {
   viewerHasForwardEdge: Boolean!
   viewerIsRoomParticipant: Boolean!
   parentBeaconId: String
+}
+
+type v2_ConstellationTrustChainPerson {
+  displayName: String!
+  userId: String!
 }
 
 input v2_Coordinates {
