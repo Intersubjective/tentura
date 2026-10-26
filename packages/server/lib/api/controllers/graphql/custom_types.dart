@@ -124,6 +124,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePendingAuthorInvite,
   gqlTypeBeaconAuthorInvite,
   gqlTypeConstellationLayoutSnapshot,
+  gqlTypeConstellationTagMagnet,
   gqlTypePersonTag,
   gqlTypePersonTagSnapshot,
   gqlInputPersonTag,
@@ -1243,6 +1244,16 @@ final gqlTypeConstellationLayoutSnapshot =
         field('reason', graphQLInt.nonNullable()),
         field('anchorCount', graphQLInt.nonNullable()),
         field('createdAt', graphQLString.nonNullable()),
+      ]);
+
+/// A tag magnet of the JWT viewer; `revision` counts its moves.
+final gqlTypeConstellationTagMagnet =
+    GraphQLObjectType('ConstellationTagMagnet', null)
+      ..fields.addAll([
+        field('tagId', graphQLString.nonNullable()),
+        field('xUnits', graphQLFloat.nonNullable()),
+        field('yUnits', graphQLFloat.nonNullable()),
+        field('revision', graphQLInt.nonNullable()),
       ]);
 
 /// Full constellation field snapshot for the JWT viewer.
