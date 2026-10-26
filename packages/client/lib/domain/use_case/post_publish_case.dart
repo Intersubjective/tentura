@@ -20,6 +20,7 @@ class PostPublishCase {
     required Set<String> recipientIds,
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
+    Duration? lifetime,
     RoomPendingUpload? firstAttachment,
   }) => _port.postPublish(
     beaconId: beaconId,
@@ -30,6 +31,7 @@ class PostPublishCase {
     recipientIds: recipientIds.toList(growable: false),
     notes: notes,
     forwardPolicy: forwardPolicy,
+    lifetime: lifetime,
     attachment: firstAttachment,
   );
 

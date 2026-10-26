@@ -51,6 +51,7 @@ class PostsRepository implements PostsRepositoryPort {
     unreadCount: row.unreadCount,
     isAuthor: row.isAuthor,
     status: BeaconStatus.fromSmallint(row.status),
+    expiresAt: _parse(row.expiresAt),
   );
 
   static DateTime? _parse(String? raw) =>

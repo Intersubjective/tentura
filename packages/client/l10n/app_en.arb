@@ -11847,5 +11847,32 @@
   "beaconShowcaseFinalCheckNotice": "This request is in its final check",
   "@beaconShowcaseFinalCheckNotice": {
     "description": "Request showcase, viewer who is not a member while the request is in its final check: why Offer help and Forward are gone (#733)."
+  },
+  "postRemainingDays": "{count} d left",
+  "@postRemainingDays": {
+    "description": "Remaining Post lifetime",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postRemainingHours": "{count} h left",
+  "@postRemainingHours": {
+    "description": "Remaining Post lifetime",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postRemainingMinutes": "{count} min left",
+  "@postRemainingMinutes": {
+    "description": "Remaining Post lifetime",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

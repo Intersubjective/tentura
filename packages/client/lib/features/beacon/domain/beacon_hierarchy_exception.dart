@@ -113,6 +113,20 @@ final class PostNotOpenException extends BeaconHierarchyException {
   static const codeNumber = 1332;
 }
 
+/// The requested Post lifetime is outside 1…72 hours.
+final class PostLifetimeInvalidException extends BeaconHierarchyException {
+  const PostLifetimeInvalidException([super.message]);
+
+  static const codeNumber = 1349;
+}
+
+/// The new Post deadline is not earlier than its current deadline.
+final class PostLifetimeExtendException extends BeaconHierarchyException {
+  const PostLifetimeExtendException([super.message]);
+
+  static const codeNumber = 1350;
+}
+
 /// No author invite with this id for the caller.
 final class AuthorInviteNotFoundException extends BeaconHierarchyException {
   const AuthorInviteNotFoundException([super.message]);

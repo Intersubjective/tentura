@@ -1,0 +1,3 @@
+mutation PostShorten($id: String!, $expiresAt: String!) {
+  postShorten(id: $id, expiresAt: $expiresAt)
+}

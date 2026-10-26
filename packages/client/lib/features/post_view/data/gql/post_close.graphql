@@ -1,0 +1,3 @@
+mutation PostClose($id: String!) {
+  postClose(id: $id)
+}

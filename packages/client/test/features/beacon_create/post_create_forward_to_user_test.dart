@@ -171,6 +171,7 @@ class _RecordingPostPublishPort implements PostPublishPort {
     required List<String> recipientIds,
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
+    Duration? lifetime,
     RoomPendingUpload? attachment,
   }) async {
     recipients.add(recipientIds.toSet());

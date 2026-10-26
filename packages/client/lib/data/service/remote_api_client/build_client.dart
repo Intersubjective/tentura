@@ -305,6 +305,8 @@ class _V2RoutingLink extends Link {
     'BeaconHelpOfferRoleLabelSet',
     'BeaconCreate',
     'PostPublish',
+    'PostShorten',
+    'PostClose',
     'BeaconChildCreate',
     'BeaconHierarchyCapabilities',
     'BeaconChildren',

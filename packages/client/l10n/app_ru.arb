@@ -7629,5 +7629,8 @@
   "closureAuthorStorySavedLabel": "Сохранено",
   "closureAuthorCloseNowNote": "«Завершить сейчас» закрывает запрос, не дожидаясь остальных",
   "closureHelperNothingToDecide": "С одним коллегой тебе здесь решать нечего — всё готово",
-  "beaconShowcaseFinalCheckNotice": "По этому запросу подводят итоги"
+  "beaconShowcaseFinalCheckNotice": "По этому запросу подводят итоги",
+  "postRemainingDays": "осталось {count} д",
+  "postRemainingHours": "осталось {count} ч",
+  "postRemainingMinutes": "осталось {count} мин"
 }

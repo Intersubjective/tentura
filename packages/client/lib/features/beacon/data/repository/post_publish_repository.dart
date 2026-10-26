@@ -30,6 +30,7 @@ class PostPublishRepository implements PostPublishPort {
     required List<String> recipientIds,
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
+    Duration? lifetime,
     RoomPendingUpload? attachment,
   }) async {
     final result = await _remoteApiService
@@ -44,6 +45,7 @@ class PostPublishRepository implements PostPublishPort {
               ..recipientIds = ListBuilder(recipientIds)
               ..notes = notes.isEmpty ? null : jsonEncode(notes)
               ..forwardPolicy = forwardPolicy.value
+              ..lifetimeHours = lifetime?.inHours
               ..file = attachment == null
                   ? null
                   : TenturaV2Upload(

@@ -55,6 +55,10 @@ ConstellationField mapConstellationFieldFromFieldFetch(
         authorId: post.authorId,
         rootExcerpt: post.rootExcerpt,
         lastActivityAt: DateTime.parse(post.lastActivityAt),
+        expiresAt: post.expiresAt == null
+            ? null
+            : DateTime.parse(post.expiresAt!).toUtc(),
+        status: post.status,
         isPinned: post.isPinned,
         hiddenReachCount: post.hiddenReachCount,
       ),

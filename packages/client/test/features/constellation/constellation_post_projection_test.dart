@@ -170,6 +170,7 @@ void main() {
                 'posts': [
                   {
                     '__typename': 'v2_ConstellationPost',
+                    'status': 0,
                     'id': 'post-1',
                     'authorId': 'peer-a',
                     'lastActivityAt': '2026-09-09T10:00:00.000Z',

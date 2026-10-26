@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 /// One Post the viewer is in, as the «Разговоры» tab lists it.
@@ -19,6 +20,7 @@ final class PostSummary {
     this.unreadCount = 0,
     this.isAuthor = false,
     this.status = BeaconStatus.open,
+    this.expiresAt,
   });
 
   final String id;
@@ -43,7 +45,19 @@ final class PostSummary {
   /// by budding a Request from it.
   final BeaconStatus status;
 
+  /// Fixed publication deadline; activity does not extend it.
+  final DateTime? expiresAt;
+
   bool get isClosed => status == BeaconStatus.closed;
+
+  bool isArchivedAt(DateTime now) =>
+      isClosed ||
+      BeaconPostLifetime.isExpired(
+        kind: 1,
+        status: status,
+        expiresAt: expiresAt,
+        now: now,
+      );
 
   bool get isPinned => pinnedAt != null;
 

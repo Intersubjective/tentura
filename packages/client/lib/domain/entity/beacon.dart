@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
@@ -106,6 +107,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Last room activity (Posts); null when none recorded.
     DateTime? lastActivityAt,
 
+    /// Fixed Post publication deadline; null for Requests and drafts.
+    DateTime? expiresAt,
+
     /// The author's first room message of a Post.
     String? postRootMessageId,
 
@@ -122,6 +126,16 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   bool get canOpenAsViewer => canReadContent;
 
   bool get isRequest => kind == BeaconKind.request;
+
+  bool isPostArchivedAt(DateTime now) =>
+      kind == BeaconKind.post &&
+      (status == BeaconStatus.closed ||
+          BeaconPostLifetime.isExpired(
+            kind: kind.value,
+            status: status,
+            expiresAt: expiresAt,
+            now: now,
+          ));
 
   /// Viewer may commit (offer help) when readable and beacon is open-family.
   bool get canCommitAsViewer =>

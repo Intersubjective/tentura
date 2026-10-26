@@ -91,6 +91,7 @@ fragment BeaconModel on beacon {
   kind
   forward_policy
   last_activity_at
+  expires_at
   post_root_message_id
   viewer_can_forward
 }

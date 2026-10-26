@@ -169,6 +169,8 @@ abstract class ConstellationPost with _$ConstellationPost {
     required String authorId,
     required String rootExcerpt,
     required DateTime lastActivityAt,
+    DateTime? expiresAt,
+    @Default(0) int status,
     @Default(false) bool isPinned,
     @Default(0) int hiddenReachCount,
   }) = _ConstellationPost;

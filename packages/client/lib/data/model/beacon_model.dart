@@ -68,6 +68,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       kind: BeaconKind.fromValue(i.kind),
       forwardPolicy: BeaconForwardPolicyValue.fromValue(i.forward_policy),
       lastActivityAt: i.last_activity_at,
+      expiresAt: i.expires_at,
       postRootMessageId: i.post_root_message_id,
       viewerCanForward: i.viewer_can_forward ?? false,
     );

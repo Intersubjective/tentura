@@ -334,6 +334,7 @@ type beacon {
     """filter the rows returned"""
     where: vote_beacon_bool_exp
   ): [vote_beacon!]!
+  expires_at: timestamptz
 }
 
 """
@@ -4082,9 +4083,11 @@ type mutation_root {
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
+  postClose(id: String!): Boolean!
   postLeave(id: String!): Boolean!
-  postPublish(body: String!, file: v2_Upload, forwardPolicy: Int!, id: String!, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
+  postPublish(body: String!, file: v2_Upload, forwardPolicy: Int!, id: String!, lifetimeHours: Int, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
   postReturn(id: String!): Boolean!
+  postShorten(id: String!, expiresAt: String!): Boolean!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
@@ -8273,6 +8276,8 @@ type v2_ConstellationPost {
   isPinned: Boolean!
   lastActivityAt: String!
   rootExcerpt: String!
+  expiresAt: String
+  status: Int!
 }
 
 enum v2_ConstellationProjection {
@@ -9453,6 +9458,7 @@ type v2_PostSummary {
   unreadCount: Int!
   isAuthor: Boolean!
   status: Int!
+  expiresAt: String
 }
 
 """
