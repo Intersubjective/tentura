@@ -262,5 +262,5 @@ const kFieldArrangeV2Enabled = true;
 
 /// Gate for semantic zoom (people tags #699, unit E1): the close / district /
 /// overview levels reach the whole map and the below-0.3 «bare» cut-off goes.
-/// Off, the map keeps its previous presentation per scale.
-const kFieldSemanticZoomEnabled = false;
+/// Enabled by the phase-3 release (R3), together with the 400-person render cap.
+const kFieldSemanticZoomEnabled = true;

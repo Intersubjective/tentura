@@ -39,11 +39,25 @@ tag row filters a lens, node glyphs identify own tags, and tag chips help select
 eligible forwarding or compose recipients. Automatic tags describe existing
 relationships; hiding one from filters preserves it in person panels.
 
-The server peer cap is **400**. Phase 1 keeps the client render cap at **120**,
-prioritising own-tagged people, direct contacts, bond/temporary peers, then trust
-depth and id, while retaining reserved pins and contacts. Semantic zoom raises
-the render cap in phase 3. Performance measurements are deferred by the
+The server peer cap is **400**. Phase 1 used a client render cap of **120**;
+client **7.56.0** raises it to **400** with semantic zoom (phase 3), retaining
+reserved pins and contacts and prioritising own-tagged people, direct contacts,
+bond/temporary peers, then trust depth and id. Performance measurements are
+deferred by the
 [owner's release decision](../plans/people-tags-implementation-journal.md).
+
+### Semantic zoom (phase 3)
+
+Client **7.56.0** enables one shared zoom level across the map and overlay:
+**close** at scale ≥ 0.85, **district** at 0.45 ≤ scale < 0.85, and **overview**
+below 0.45. Close shows full detail; district uses initials, tag rings and a
+label budget; overview uses person dots without individual labels or Request
+chips, with cluster counts and bundled edges. The former 0.3 bare cutoff is
+removed. Zooming in and out settles to the same level at the same scale.
+
+Community placement, the minimap, selection and cluster dragging, and private
+tag magnets are available with this release. These are presentation and
+arrangement controls; they do not grant visibility or permissions.
 
 ## Approved Post + composer amendment (A3–A7)
 

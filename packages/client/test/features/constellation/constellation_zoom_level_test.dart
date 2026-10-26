@@ -1,10 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/consts.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 
 void main() {
-  test('semantic zoom stays gated off by default', () {
-    expect(kFieldSemanticZoomEnabled, isFalse);
+  test('the shipped Field renders up to 400 people', () {
+    expect(constellationRenderPeerCap(), 400);
+  });
+
+  test('overview has no legacy bare cutoff below scale 0.3', () {
+    expect(constellationBareAtScale(0.2), isFalse);
+    expect(constellationBareAtScale(0.3), isFalse);
   });
 
   group('settledConstellationDetailLevel', () {

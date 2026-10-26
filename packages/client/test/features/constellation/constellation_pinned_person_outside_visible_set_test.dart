@@ -51,13 +51,13 @@ ConstellationComposedPresentation _compose({
     loadedAt: DateTime.utc(2026, 9, 11),
     context: 'ctx',
     peers: [
-      for (var i = 0; i < 300; i++)
+      for (var i = 0; i < 500; i++)
         ConstellationPerson(id: 'auto-$i', visible: true),
     ],
-    // Automatic peers only compete for the cap as holders, i.e. as authors of
-    // Requests; the pinned person authors none.
+    // Exceed the shipped 400-person render cap; the pinned person authors
+    // no Requests and must retain its reserved place.
     requests: [
-      for (var i = 0; i < 300; i++)
+      for (var i = 0; i < 500; i++)
         ConstellationRequest(
           id: 'B_auto_$i',
           authorId: 'auto-$i',
@@ -66,7 +66,7 @@ ConstellationComposedPresentation _compose({
         ),
     ],
     edges: [
-      for (var i = 0; i < 300; i++)
+      for (var i = 0; i < 500; i++)
         ConstellationTrustEdgeEntity(src: _ego, dst: 'auto-$i', tier: 1),
     ],
     anchorProjection: _projection(
@@ -94,7 +94,7 @@ ConstellationComposedPresentation _compose({
 // rules is that a pin absent from the projection is never drawn.
 void main() {
   group('pinned person outside the visible set', () {
-    test('is kept, eligible and unattached when 300 peers compete for the cap',
+    test('is kept, eligible and unattached when 500 peers compete for the cap',
         () {
       final composed = _compose(pinned: true);
 
@@ -102,7 +102,7 @@ void main() {
       final keptAutomatic =
           composed.keptPeerIds.where((id) => id.startsWith('auto-'));
       expect(composed.renderBudgetCapped, isTrue);
-      expect(keptAutomatic.length, lessThan(300));
+      expect(keptAutomatic.length, lessThan(500));
 
       expect(composed.keptPeerIds, contains(_hidden));
       expect(composed.eligiblePersonIds, contains(_hidden));

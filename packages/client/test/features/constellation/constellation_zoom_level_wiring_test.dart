@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -97,7 +96,7 @@ Future<void> _pump(
 }
 
 void main() {
-  gateOffPresentationTests();
+  shippedPresentationTests();
   screenOwnershipTests();
 
   final pinned = [
@@ -201,10 +200,9 @@ void main() {
   });
 }
 
-// With `kFieldSemanticZoomEnabled` off the map keeps the presentation it had
-// before semantic zoom: every label and the pin badge up close, a reduced
-// label set mid-way, and no label or chip at all when far out.
-void gateOffPresentationTests() {
+// The shipped map shows close / district / overview consistently in both
+// zoom directions, including below the former bare cutoff.
+void shippedPresentationTests() {
   final pinned = [
     ConstellationAnchor(
       target: ConstellationAnchorTarget.beacon('req-in-2'),
@@ -247,11 +245,10 @@ void gateOffPresentationTests() {
     expect(done(cubit.graphController.cameraScale), isTrue);
   }
 
-  group('map presentation with semantic zoom off', () {
-    testWidgets('keeps today\'s pin, label and chip behaviour per scale', (
+  group('shipped map presentation', () {
+    testWidgets('shows pins, labels and chips at the appropriate zoom levels', (
       tester,
     ) async {
-      expect(kFieldSemanticZoomEnabled, isFalse);
       final cubit = await loadReferenceCubit(
         field: constellationReferenceField(anchors: pinned),
       );
@@ -265,13 +262,13 @@ void gateOffPresentationTests() {
       expect(closeLabels, greaterThan(0));
       expect(pinBadge(), findsOneWidget);
 
-      // Between the old overview and normal thresholds, coming from close.
+      // District retains labels but hides pin badges, coming from close.
       await zoomTo(tester, cubit, (s) => s < 0.6, 0.9);
       expect(pinBadge(), findsNothing);
       expect(holder.frame!.labels.length, lessThanOrEqualTo(closeLabels));
       expect(holder.frame!.labels, isNotEmpty);
 
-      // Past the old 0.3 cut-off: a clean map with no label and no chip.
+      // Overview remains dots without labels or chips below scale 0.3.
       await zoomTo(tester, cubit, (s) => s < 0.3, 0.9);
       expect(holder.frame!.labels, isEmpty);
       expect(holder.frame!.chips, isEmpty);

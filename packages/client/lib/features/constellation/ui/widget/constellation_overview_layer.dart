@@ -113,12 +113,15 @@ class _DraggableClusterLabelState extends State<_DraggableClusterLabel> {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
+    // Keep the cluster's pan recognizer in the hit path while allowing taps
+    // to reach person dots beneath the label.
+    behavior: HitTestBehavior.translucent,
     // The distance before the pan is recognised counts as dragged too.
     dragStartBehavior: DragStartBehavior.down,
     onPanStart: (_) => _delta = Offset.zero,
     onPanUpdate: (details) => _delta += details.delta,
     onPanEnd: (_) => widget.onDragged(_delta),
-    child: widget.child,
+    child: IgnorePointer(child: widget.child),
   );
 }
 

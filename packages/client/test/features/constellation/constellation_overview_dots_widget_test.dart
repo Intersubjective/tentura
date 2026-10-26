@@ -331,16 +331,23 @@ void main() {
       }
 
       for (final t in [0.3, 0.7]) {
-        // A tap that opens the panel may pan the camera: read the frame anew.
+        // Clearing selection rebuilds the scene; semantic zoom may animate
+        // that update. Settle it before reading the frame used for the tap.
+        cubit.selectPerson(null);
+        await tester.pumpAndSettle();
         final frame = holder.frame!;
         final c0 = frame.bodies['fp:p0']!.center;
         final c1 = frame.bodies['fp:p1']!.center;
         expect((c0 - c1).distance, lessThan(kMinInteractiveDimension));
         final p = c0 + (c1 - c0) * t;
+        expect(
+          tester
+              .getRect(find.byType(ConstellationViewportOverlay))
+              .contains(origin + p),
+          isTrue,
+          reason: 'overlap tap must be inside the viewport: $p',
+        );
         final want = expectedAt(frame, p);
-        cubit.selectPerson(null);
-        await tester.pump();
-
         await tester.tapAt(origin + p);
         await tester.pumpAndSettle();
 
