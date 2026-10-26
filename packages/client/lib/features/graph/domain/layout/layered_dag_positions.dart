@@ -5,7 +5,8 @@ import 'package:tentura/features/constellation/domain/layout/layout_geometry.dar
 import 'radial_hop_positions.dart' show kLayoutClampMargin;
 
 /// Deterministic layered ("Sugiyama-lite") layout for the invite genealogy and
-/// the forwards graph: rank = distance from the root, drawn top to bottom.
+/// the forwards graph: rank = distance from the root, drawn top to bottom, or
+/// left to right when [horizontal] (each layer is then a column; #464).
 Map<String, LPoint> layeredDagPositions({
   required Set<String> nodeIds,
   required Set<(String, String)> edges,
@@ -13,6 +14,7 @@ Map<String, LPoint> layeredDagPositions({
   required LSize canvasSize,
   double layerGap = 150,
   double columnGap = 130,
+  bool horizontal = false,
 }) {
   if (nodeIds.isEmpty) {
     return {};
@@ -122,21 +124,25 @@ Map<String, LPoint> layeredDagPositions({
     layers[layerRank] = layer;
   }
 
-  final x = <String, double>{};
+  // Offsets from the canvas centre: `across` within a layer, `along` the
+  // ranks. Vertical maps them to x / y, horizontal to y / x.
+  final across = <String, double>{};
   for (final layerRank in sortedRanks) {
     final layer = layers[layerRank]!;
     final count = layer.length;
     for (var index = 0; index < count; index++) {
-      x[layer[index]] =
-          canvasSize.w / 2 + (index - (count - 1) / 2) * columnGap;
+      across[layer[index]] = (index - (count - 1) / 2) * columnGap;
     }
   }
 
   final maxRankValue = sortedRanks.last;
   final positions = <String, LPoint>{};
   for (final id in nodeIds) {
-    final y = canvasSize.h / 2 + (rank[id]! - maxRankValue / 2) * layerGap;
-    positions[id] = _clampPosition((x: x[id]!, y: y), canvasSize);
+    final along = (rank[id]! - maxRankValue / 2) * layerGap;
+    final position = horizontal
+        ? (x: canvasSize.w / 2 + along, y: canvasSize.h / 2 + across[id]!)
+        : (x: canvasSize.w / 2 + across[id]!, y: canvasSize.h / 2 + along);
+    positions[id] = _clampPosition(position, canvasSize);
   }
 
   return positions;

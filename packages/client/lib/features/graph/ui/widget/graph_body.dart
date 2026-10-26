@@ -65,10 +65,15 @@ class GraphBodyState extends State<GraphBody>
     GraphMode.constellation => GraphLegendMode.constellation,
   };
 
-  SceneLayoutAlgorithm get _layoutAlgorithm {
+  /// [context] is the builder's, so a window resize across 840 px re-lays the
+  /// invite tree out: horizontal on expanded windows, vertical below (#464).
+  SceneLayoutAlgorithm _layoutAlgorithm(BuildContext context) {
     switch (_graphCubit.mode) {
       case GraphMode.genealogy:
-        return const LayeredDagLayoutAlgorithm(rootIds: {});
+        return LayeredDagLayoutAlgorithm(
+          rootIds: const {},
+          horizontal: context.windowClass == WindowClass.expanded,
+        );
       case GraphMode.forwards:
         return LayeredDagLayoutAlgorithm(
           rootIds: _graphCubit.forwardsRootIds,
@@ -193,7 +198,7 @@ class GraphBodyState extends State<GraphBody>
       builder: (context, constraints) => Stack(
         fit: StackFit.expand,
         children: [
-          _buildGraphView(graphState),
+          _buildGraphView(context, graphState),
           Positioned(
             top: 0,
             left: 0,
@@ -358,13 +363,14 @@ class GraphBodyState extends State<GraphBody>
       node is UserNode && node.id == _graphCubit.state.me.id;
 
   Widget _buildGraphView(
+    BuildContext context,
     GraphState graphState,
   ) => GraphView<NodeDetails, EdgeDetails>(
     controller: _graphCubit.graphController,
     canvasSize: widget.canvasSize,
     minScale: widget.scaleRange.dx,
     maxScale: widget.scaleRange.dy,
-    layoutAlgorithm: _layoutAlgorithm,
+    layoutAlgorithm: _layoutAlgorithm(context),
     layoutTransitionDuration: const Duration(milliseconds: 350),
     edgePainter: AnimatedHighlightedEdgePainter(
       animation: CurvedAnimation(
