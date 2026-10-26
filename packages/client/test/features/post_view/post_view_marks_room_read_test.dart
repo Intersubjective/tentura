@@ -380,7 +380,7 @@ PostsCase _makePostsCase(
 
 /// The unread count the «Разговоры» list shows for the Post under test.
 int _listUnread(PostsCubit list) => list.state.active
-    .followedBy(list.state.quiet)
+    .followedBy(list.state.archive)
     .followedBy(list.state.pinned)
     .singleWhere((p) => p.id == _postId)
     .unreadCount;

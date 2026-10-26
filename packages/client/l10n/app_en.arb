@@ -7920,6 +7920,10 @@
   "@postsTabQuiet": {
     "description": "Section of the conversations tab: Posts silent for 72 hours or more."
   },
+  "postsTabArchive": "Archive",
+  "@postsTabArchive": {
+    "description": "Section of the conversations tab: Posts that are closed or past their lifetime."
+  },
   "postsTabEmpty": "Posts you started or were invited into will appear here",
   "@postsTabEmpty": {
     "description": "Empty state of the conversations tab."
@@ -9096,6 +9100,10 @@
   "postClosedMarker": "closed",
   "@postClosedMarker": {
     "description": "Marker on a closed Post in Conversations."
+  },
+  "postArchivedMarker": "archived",
+  "@postArchivedMarker": {
+    "description": "Marker on a Post in Conversations that is closed or past its lifetime."
   },
   "inviteCardTitle": "{name} invites you to help",
   "@inviteCardTitle": {

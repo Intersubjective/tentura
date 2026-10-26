@@ -202,7 +202,7 @@ class _SelectedPostPrunerState extends State<_SelectedPostPruner> {
   bool _isListed(PostsState state, String id) => [
     ...state.pinned,
     ...state.active,
-    ...state.quiet,
+    ...state.archive,
   ].any((post) => post.id == id);
 
   void _prune(PostsState state) {

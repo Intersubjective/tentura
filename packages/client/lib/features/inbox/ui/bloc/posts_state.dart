@@ -17,11 +17,11 @@ abstract class PostsState extends StateBase with _$PostsState {
     /// Pinned by `pinnedAt`, the most recently pinned first.
     @Default([]) List<PostSummary> pinned,
 
-    /// Unpinned, active within the last 72 h («Сейчас»).
+    /// Unpinned and still within their lifetime («Сейчас»).
     @Default([]) List<PostSummary> active,
 
-    /// Unpinned, silent for 72 h or more, or closed by budding («Затихли»).
-    @Default([]) List<PostSummary> quiet,
+    /// Unpinned and closed or past their deadline («Архив»).
+    @Default([]) List<PostSummary> archive,
 
     /// The clock the sections were split against.
     DateTime? now,
@@ -30,7 +30,7 @@ abstract class PostsState extends StateBase with _$PostsState {
 
   const PostsState._();
 
-  bool get isEmpty => pinned.isEmpty && active.isEmpty && quiet.isEmpty;
+  bool get isEmpty => pinned.isEmpty && active.isEmpty && archive.isEmpty;
 
-  bool get hasUnread => postsHaveUnread([...pinned, ...active, ...quiet]);
+  bool get hasUnread => postsHaveUnread([...pinned, ...active, ...archive]);
 }

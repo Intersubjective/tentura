@@ -6639,6 +6639,7 @@
   "activityTabConversations": "Посты",
   "postsTabNow": "Сейчас",
   "postsTabQuiet": "Затихли",
+  "postsTabArchive": "Архив",
   "postsTabEmpty": "Здесь будут посты, которые вы начали или в которые вас позвали",
   "postsTabSelectConversation": "Выберите пост, чтобы открыть его здесь",
   "postsTabNewPost": "Новый пост",
@@ -7085,6 +7086,7 @@
     }
   },
   "postClosedMarker": "закрыт",
+  "postArchivedMarker": "в архиве",
   "inviteCardTitle": "{name} зовёт вас помочь",
   "@inviteCardTitle": {
     "placeholders": {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
@@ -29,6 +30,17 @@ class PostConversationRow extends StatelessWidget {
   /// Open in the list-detail pane beside the list (Material 3 list-detail).
   final bool selected;
 
+  /// Time left for an open Post, «в архиве» once it is past its deadline
+  /// (pinned rows included), «закрыт» once it was closed; null when the Post
+  /// carries no deadline.
+  String? _lifetimeMarker(L10n l10n) {
+    if (post.isClosed) return l10n.postClosedMarker;
+    if (post.isArchivedAt(now)) return l10n.postArchivedMarker;
+    final expiresAt = post.expiresAt;
+    if (expiresAt == null) return null;
+    return postRemainingLabel(l10n, expiresAt.difference(now));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -43,11 +55,12 @@ class PostConversationRow extends StatelessWidget {
         ? ''
         : lastMessage;
     final muted = post.isMutedAt(now);
+    final lifetime = _lifetimeMarker(l10n);
 
     return Semantics(
       label: [
         addressing,
-        if (post.isClosed) l10n.postClosedMarker,
+        ?lifetime,
         post.rootExcerpt,
         if (lastMessageText.isNotEmpty) lastMessageText,
       ].join(', '),
@@ -83,10 +96,10 @@ class PostConversationRow extends StatelessWidget {
                               ).copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
-                          if (post.isClosed) ...[
+                          if (lifetime != null) ...[
                             SizedBox(width: tt.tightGap),
                             TenturaStatusText(
-                              l10n.postClosedMarker,
+                              lifetime,
                               key: const Key('PostConversation.ClosedMarker'),
                             ),
                           ],

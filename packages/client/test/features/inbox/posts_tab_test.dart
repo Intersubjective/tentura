@@ -1,7 +1,7 @@
 // The «Разговоры» tab of Activity lists every Post the viewer is in. These
 // tests pin the three things the tab owns on the client: the order of the
-// list (pinned first, then by last activity), the 72 h split into «Сейчас» /
-// «Затихли» against an injected clock, and the refetch after the server says
+// list (pinned first, then by last activity), the lifetime split into «Сейчас» /
+// «Архив» against an injected clock, and the refetch after the server says
 // a Post changed. The server's `myPosts` query only filters and counts; the
 // ordering and the split are decided here.
 
@@ -36,6 +36,7 @@ PostSummary _post(
   DateTime? lastActivityAt,
   DateTime? pinnedAt,
   DateTime? mutedUntil,
+  DateTime? expiresAt,
   int unreadCount = 0,
   bool isAuthor = false,
   BeaconStatus status = BeaconStatus.open,
@@ -48,6 +49,7 @@ PostSummary _post(
   lastActivityAt: lastActivityAt ?? _now,
   pinnedAt: pinnedAt,
   mutedUntil: mutedUntil,
+  expiresAt: expiresAt,
   unreadCount: unreadCount,
   isAuthor: isAuthor,
   status: status,
@@ -101,12 +103,12 @@ void main() {
     final read = _post('read');
     expect(const PostsState().hasUnread, isFalse);
     expect(
-      PostsState(pinned: [read], active: [read], quiet: [read]).hasUnread,
+      PostsState(pinned: [read], active: [read], archive: [read]).hasUnread,
       isFalse,
     );
     expect(PostsState(pinned: [unread]).hasUnread, isTrue);
     expect(PostsState(active: [unread]).hasUnread, isTrue);
-    expect(PostsState(quiet: [unread]).hasUnread, isTrue);
+    expect(PostsState(archive: [unread]).hasUnread, isTrue);
   });
   late _FakePostsRepository repository;
   late ({RealtimeSyncCase case_, TestRealtimeSyncPort port}) sync;
@@ -167,25 +169,28 @@ void main() {
       expect(cubit.state.pinned, isEmpty);
     });
 
-    test('a pinned Post never fades into «Затихли», however old', () async {
-      repository.posts = [
-        _post(
-          'Pold_pin',
-          lastActivityAt: _ago(const Duration(days: 30)),
-          pinnedAt: _ago(const Duration(days: 29)),
-        ),
-      ];
-      await buildCubit();
+    test(
+      'a pinned Post never leaves the pinned section for being quiet',
+      () async {
+        repository.posts = [
+          _post(
+            'Pold_pin',
+            lastActivityAt: _ago(const Duration(days: 30)),
+            pinnedAt: _ago(const Duration(days: 29)),
+          ),
+        ];
+        await buildCubit();
 
-      expect(_ids(cubit.state.pinned), ['Pold_pin']);
-      expect(cubit.state.active, isEmpty);
-      expect(cubit.state.quiet, isEmpty);
-    });
+        expect(_ids(cubit.state.pinned), ['Pold_pin']);
+        expect(cubit.state.active, isEmpty);
+        expect(cubit.state.archive, isEmpty);
+      },
+    );
   });
 
-  group('closed Posts (plan D2)', () {
+  group('closed Posts', () {
     test(
-      'a Post closed by budding sits in «Затихли», even fresh or pinned',
+      'a closed Post sits in «Архив», even fresh; a pinned one stays pinned',
       () async {
         repository.posts = [
           _post('Popen', lastActivityAt: _ago(const Duration(minutes: 5))),
@@ -204,51 +209,49 @@ void main() {
         await buildCubit();
 
         expect(_ids(cubit.state.active), ['Popen']);
-        expect(cubit.state.pinned, isEmpty);
-        expect(_ids(cubit.state.quiet), ['Pclosed_fresh', 'Pclosed_pinned']);
+        expect(_ids(cubit.state.pinned), ['Pclosed_pinned']);
+        expect(_ids(cubit.state.archive), ['Pclosed_fresh']);
       },
     );
   });
 
-  group('the 72 h split against the injected clock', () {
-    test('«Сейчас» and «Затихли» are split at the window', () async {
+  group('the lifetime split against the injected clock', () {
+    test('«Сейчас» and «Архив» are split at the deadline', () async {
       repository.posts = [
         _post(
           'Pjust_in',
-          lastActivityAt: _ago(const Duration(hours: 71, minutes: 59)),
+          expiresAt: _now.add(const Duration(minutes: 1)),
         ),
         _post(
           'Pjust_out',
-          lastActivityAt: _ago(const Duration(hours: 72, minutes: 1)),
+          expiresAt: _now.subtract(const Duration(minutes: 1)),
         ),
-        _post('Pfresh', lastActivityAt: _ago(const Duration(minutes: 1))),
-        _post('Pweek', lastActivityAt: _ago(const Duration(days: 7))),
+        _post('Pfresh', expiresAt: _now.add(const Duration(hours: 5))),
+        _post('Pweek', expiresAt: _now.subtract(const Duration(days: 7))),
       ];
       await buildCubit();
 
-      expect(_ids(cubit.state.active), ['Pfresh', 'Pjust_in']);
-      expect(_ids(cubit.state.quiet), ['Pjust_out', 'Pweek']);
+      expect(_ids(cubit.state.active), ['Pjust_in', 'Pfresh']);
+      expect(_ids(cubit.state.archive), ['Pjust_out', 'Pweek']);
     });
 
-    test('a Post silent for exactly 72 hours is already «Затихли»', () async {
+    test('a Post whose deadline is exactly now is already archived', () async {
       repository.posts = [
-        _post('Pedge', lastActivityAt: _ago(const Duration(hours: 72))),
+        _post('Pedge', expiresAt: _now),
         _post(
           'Pnearly',
-          lastActivityAt: _ago(
-            const Duration(hours: 71, minutes: 59, seconds: 59),
-          ),
+          expiresAt: _now.add(const Duration(seconds: 1)),
         ),
       ];
       await buildCubit();
 
       expect(_ids(cubit.state.active), ['Pnearly']);
-      expect(_ids(cubit.state.quiet), ['Pedge']);
+      expect(_ids(cubit.state.archive), ['Pedge']);
     });
 
     test('the split follows the clock, not the wall time', () async {
       repository.posts = [
-        _post('P1', lastActivityAt: _now.subtract(const Duration(hours: 10))),
+        _post('P1', expiresAt: _now.add(const Duration(hours: 10))),
       ];
       final postsCase = PostsCase(
         repository,
@@ -263,28 +266,8 @@ void main() {
       await _settle();
 
       expect(cubit.state.active, isEmpty);
-      expect(_ids(cubit.state.quiet), ['P1']);
+      expect(_ids(cubit.state.archive), ['P1']);
     });
-
-    test(
-      'writing in a quiet Post moves it back to «Сейчас» on refetch',
-      () async {
-        repository.posts = [
-          _post('P1', lastActivityAt: _ago(const Duration(days: 5))),
-        ];
-        await buildCubit();
-        expect(_ids(cubit.state.quiet), ['P1']);
-
-        repository.posts = [
-          _post('P1', lastActivityAt: _ago(const Duration(minutes: 1))),
-        ];
-        sync.port.emitChange(_beaconChange('P1'));
-        await _settle();
-
-        expect(_ids(cubit.state.active), ['P1']);
-        expect(cubit.state.quiet, isEmpty);
-      },
-    );
   });
 
   group('refetch on a server change', () {
@@ -382,7 +365,7 @@ void main() {
 
         expect(repository.myPostsCalls, greaterThanOrEqualTo(callsBefore + 2));
         expect(_ids(cubit.state.active), ['Pa']);
-        expect(cubit.state.quiet, isEmpty);
+        expect(cubit.state.archive, isEmpty);
         expect(cubit.state.pinned, isEmpty);
       },
     );
@@ -491,11 +474,11 @@ void main() {
       (w) => w is Text && w.data?.toLowerCase() == text.toLowerCase(),
     );
 
-    testWidgets('shows pinned rows, then «Сейчас», then «Затихли» in order', (
+    testWidgets('shows pinned rows, then «Сейчас», then «Архив» in order', (
       tester,
     ) async {
       repository.posts = [
-        _post('Pquiet', lastActivityAt: _ago(const Duration(days: 6))),
+        _post('Pquiet', expiresAt: _ago(const Duration(days: 6))),
         _post('Pnow_old', lastActivityAt: _ago(const Duration(hours: 4))),
         _post('Pnow_new', lastActivityAt: _ago(const Duration(minutes: 9))),
         _post(
@@ -511,18 +494,18 @@ void main() {
       expect(top(rowOf('Ppinned')), lessThan(top(header('Сейчас'))));
       expect(top(header('Сейчас')), lessThan(top(rowOf('Pnow_new'))));
       expect(top(rowOf('Pnow_new')), lessThan(top(rowOf('Pnow_old'))));
-      expect(top(rowOf('Pnow_old')), lessThan(top(header('Затихли'))));
-      expect(top(header('Затихли')), lessThan(top(rowOf('Pquiet'))));
+      expect(top(rowOf('Pnow_old')), lessThan(top(header('Архив'))));
+      expect(top(header('Архив')), lessThan(top(rowOf('Pquiet'))));
     });
 
     testWidgets('omits «Сейчас» when nothing is recent', (tester) async {
       repository.posts = [
-        _post('Pquiet', lastActivityAt: _ago(const Duration(days: 6))),
+        _post('Pquiet', expiresAt: _ago(const Duration(days: 6))),
       ];
       await pumpTab(tester);
 
       expect(header('Сейчас'), findsNothing);
-      expect(header('Затихли'), findsOneWidget);
+      expect(header('Архив'), findsOneWidget);
       expect(rowOf('Pquiet'), findsOneWidget);
     });
 
@@ -589,7 +572,7 @@ void main() {
       );
     });
 
-    testWidgets('a closed Post shows the «закрыт» marker in «Затихли»', (
+    testWidgets('a closed Post shows the «закрыт» marker in «Архив»', (
       tester,
     ) async {
       repository.posts = [
@@ -599,7 +582,7 @@ void main() {
       await pumpTab(tester);
 
       double top(Finder f) => tester.getTopLeft(f.first).dy;
-      expect(top(header('Затихли')), lessThan(top(rowOf('Pclosed'))));
+      expect(top(header('Архив')), lessThan(top(rowOf('Pclosed'))));
       expect(
         find.descendant(of: rowOf('Pclosed'), matching: find.text('закрыт')),
         findsOneWidget,
@@ -643,7 +626,7 @@ void main() {
         findsOneWidget,
       );
       expect(header('Сейчас'), findsNothing);
-      expect(header('Затихли'), findsNothing);
+      expect(header('Архив'), findsNothing);
     });
 
     testWidgets(

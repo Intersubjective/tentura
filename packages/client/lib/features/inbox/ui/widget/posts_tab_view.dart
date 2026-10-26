@@ -9,7 +9,7 @@ import '../../domain/entity/post_summary.dart';
 import '../bloc/posts_cubit.dart';
 import 'post_conversation_row.dart';
 
-/// The Conversations list: pinned Posts, then «Сейчас», then «Затихли».
+/// The Conversations list: pinned Posts, then «Сейчас», then «Архив».
 class PostsTabView extends StatelessWidget {
   const PostsTabView({
     this.canCreatePost = kPostsEnabled,
@@ -65,9 +65,9 @@ class PostsTabView extends StatelessWidget {
               TenturaSectionHeader(label: l10n.postsTabNow),
               for (final post in state.active) row(post),
             ],
-            if (state.quiet.isNotEmpty) ...[
-              TenturaSectionHeader(label: l10n.postsTabQuiet),
-              for (final post in state.quiet) row(post),
+            if (state.archive.isNotEmpty) ...[
+              TenturaSectionHeader(label: l10n.postsTabArchive),
+              for (final post in state.archive) row(post),
             ],
           ],
         );
