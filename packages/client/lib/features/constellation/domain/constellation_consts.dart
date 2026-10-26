@@ -4,7 +4,7 @@ export 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 
 /// Client-side render budget for path-preserving peer selection (§5.2 / N2).
 ///
-/// Must stay strictly below [kConstellationPeerCap] on the server (200).
+/// Must stay strictly below `kConstellationPeerCap` on the server (200).
 const kConstellationRenderPeerCap = 120;
 
 /// Render budget with semantic zoom (`kFieldSemanticZoomEnabled`): the close /

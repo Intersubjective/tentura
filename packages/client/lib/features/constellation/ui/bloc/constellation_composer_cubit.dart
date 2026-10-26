@@ -30,7 +30,7 @@ class ConstellationComposerHandoff {
   final BeaconKind kind;
 
   /// Optional draft id when continuing an existing Request draft; usually
-  /// null so [BeaconCreateScreen] starts fresh.
+  /// null so `BeaconCreateScreen` starts fresh.
   final String? draftId;
   final Set<String> recipientIds;
   final Map<String, String> notes;
@@ -85,7 +85,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
   final String Function(String id)? personName;
 
   /// Current people positions and eligibility, read when the composer starts;
-  /// without it the constructor's [positions] and [eligible] stay in force.
+  /// without it the constructor's `positions` and `eligible` stay in force.
   /// People without a position remain available for explicit selection.
   final Future<({Map<String, Offset> positions, Set<String> eligible})>
   Function()?
@@ -190,6 +190,7 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
           eligible: people.eligible,
           manualAdded: state.manualAdded,
           manualRemoved: state.manualRemoved,
+          tagMembers: state.tagMembers,
           manualSelectionEnabled: state.manualSelectionEnabled,
         ),
       );
@@ -207,6 +208,18 @@ class ConstellationComposerCubit extends Cubit<RadiusRecipientSelection> {
     if (_cancelled) return;
     _sizedToPositions = true;
     emit(state.withRadius(radius));
+    _push();
+  }
+
+  /// Picks the people of tag [tagId], or on a second call takes back only
+  /// those the tag added on its own. The tag itself is not sent anywhere.
+  void toggleTag(String tagId, Iterable<String> memberIds) {
+    if (_cancelled || isClosed) return;
+    emit(
+      state.tagMembers.containsKey(tagId)
+          ? state.removeByTag(tagId)
+          : state.addByTag(tagId, memberIds),
+    );
     _push();
   }
 

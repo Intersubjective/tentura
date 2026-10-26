@@ -18,11 +18,16 @@ final class RadiusRecipientSelection {
     required Set<String> eligible,
     Set<String> manualAdded = const {},
     Set<String> manualRemoved = const {},
+    Map<String, Set<String>> tagMembers = const {},
     this.manualSelectionEnabled = false,
   }) : positions = Map<String, LPoint>.unmodifiable(positions),
        eligible = Set<String>.unmodifiable(eligible),
        manualAdded = Set<String>.unmodifiable(manualAdded),
-       manualRemoved = Set<String>.unmodifiable(manualRemoved);
+       manualRemoved = Set<String>.unmodifiable(manualRemoved),
+       tagMembers = Map<String, Set<String>>.unmodifiable({
+         for (final e in tagMembers.entries)
+           e.key: Set<String>.unmodifiable(e.value),
+       });
 
   /// Center of the selection circle in scene coordinates.
   final LPoint center;
@@ -42,18 +47,27 @@ final class RadiusRecipientSelection {
   /// People excluded independently of the radius; removal wins over addition.
   final Set<String> manualRemoved;
 
+  /// Tag id → members of each picked tag; they are selected independently of
+  /// the radius, so dropping a tag leaves everyone else as they were.
+  final Map<String, Set<String>> tagMembers;
+
   /// Person taps toggle explicit selection while this mode is enabled.
   final bool manualSelectionEnabled;
 
-  /// Eligible recipients inside the circle or manually added, minus removals.
-  Set<String> get selected => Set<String>.unmodifiable({
-    for (final id in eligible)
-      if (!manualRemoved.contains(id) &&
-          (manualAdded.contains(id) ||
-              (positions.containsKey(id) &&
-                  _distance(positions[id]!, center) <= radius)))
-        id,
-  });
+  /// Eligible recipients inside the circle, manually added or picked by a
+  /// tag, minus removals.
+  Set<String> get selected {
+    final tagged = {for (final ids in tagMembers.values) ...ids};
+    return Set<String>.unmodifiable({
+      for (final id in eligible)
+        if (!manualRemoved.contains(id) &&
+            (manualAdded.contains(id) ||
+                tagged.contains(id) ||
+                (positions.containsKey(id) &&
+                    _distance(positions[id]!, center) <= radius)))
+          id,
+    });
+  }
 
   /// Whether [id] has a position inside the circle.
   bool isInCircle(String id) {
@@ -69,8 +83,11 @@ final class RadiusRecipientSelection {
       final inRadius =
           positions.containsKey(id) &&
           _distance(positions[id]!, center) <= radius;
-      // Outside the circle, dropping the manual addition is the whole undo.
-      if (inRadius) removed.add(id);
+      // Outside the circle, dropping the manual addition is the whole undo,
+      // unless a tag also holds the person.
+      if (inRadius || tagMembers.values.any((ids) => ids.contains(id))) {
+        removed.add(id);
+      }
       added.remove(id);
     } else {
       added.add(id);
@@ -78,6 +95,14 @@ final class RadiusRecipientSelection {
     }
     return _copyWith(manualAdded: added, manualRemoved: removed);
   }
+
+  /// Picks [members] of tag [tagId]; a manual removal still wins.
+  RadiusRecipientSelection addByTag(String tagId, Iterable<String> members) =>
+      _copyWith(tagMembers: {...tagMembers, tagId: members.toSet()});
+
+  /// Drops tag [tagId]; people inside the circle or added by hand stay.
+  RadiusRecipientSelection removeByTag(String tagId) =>
+      _copyWith(tagMembers: {...tagMembers}..remove(tagId));
 
   /// Changes the circle radius while preserving all manual overrides.
   RadiusRecipientSelection withRadius(double radius) =>
@@ -104,6 +129,7 @@ final class RadiusRecipientSelection {
         eligible: eligible,
         manualAdded: manualAdded,
         manualRemoved: manualRemoved,
+        tagMembers: tagMembers,
         manualSelectionEnabled: manualSelectionEnabled,
       );
 
@@ -112,6 +138,7 @@ final class RadiusRecipientSelection {
     double? radius,
     Set<String>? manualAdded,
     Set<String>? manualRemoved,
+    Map<String, Set<String>>? tagMembers,
     bool? manualSelectionEnabled,
   }) => RadiusRecipientSelection(
     center: center ?? this.center,
@@ -120,6 +147,7 @@ final class RadiusRecipientSelection {
     eligible: eligible,
     manualAdded: manualAdded ?? this.manualAdded,
     manualRemoved: manualRemoved ?? this.manualRemoved,
+    tagMembers: tagMembers ?? this.tagMembers,
     manualSelectionEnabled:
         manualSelectionEnabled ?? this.manualSelectionEnabled,
   );

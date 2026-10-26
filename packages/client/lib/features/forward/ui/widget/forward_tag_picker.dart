@@ -19,6 +19,8 @@ class ForwardTagPicker extends StatefulWidget {
   const ForwardTagPicker({
     required this.state,
     required this.onToggle,
+    this.activeTagMembers,
+    this.onToggleTag,
     super.key,
   });
 
@@ -26,6 +28,13 @@ class ForwardTagPicker extends StatefulWidget {
 
   /// Row toggle of the hint people; the picker's own toggle routing.
   final ValueChanged<String> onToggle;
+
+  /// Hosts without a [ForwardCubit] (the graph composer) say which tags are
+  /// picked, with their members, and receive the taps; both default to the
+  /// cubit's.
+  final Map<String, Set<String>>? activeTagMembers;
+
+  final void Function(String tagId, Iterable<String> memberIds)? onToggleTag;
 
   @override
   State<ForwardTagPicker> createState() => _ForwardTagPickerState();
@@ -54,15 +63,23 @@ class _ForwardTagPickerState extends State<ForwardTagPicker> {
     super.dispose();
   }
 
+  Set<String> get _active =>
+      (widget.activeTagMembers ?? widget.state.addedByTag).keys.toSet();
+
+  void _toggleTag(String id, Iterable<String> members) {
+    final onToggleTag = widget.onToggleTag;
+    if (onToggleTag != null) return onToggleTag(id, members);
+    context.read<ForwardCubit>().toggleTag(id, members);
+  }
+
   Future<void> _toggleAuto(int kind) async {
-    final cubit = context.read<ForwardCubit>();
     final id = _autoId(kind);
-    if (cubit.state.addedByTag.containsKey(id)) {
-      cubit.toggleTag(id, const []);
+    if (_active.contains(id)) {
+      _toggleTag(id, const []);
       return;
     }
     final members = await _peopleTags!.autoTagMembers(kind);
-    if (!cubit.isClosed) cubit.toggleTag(id, members);
+    if (mounted) _toggleTag(id, members);
   }
 
   static String _autoId(int kind) => 'auto-$kind';
@@ -80,13 +97,14 @@ class _ForwardTagPickerState extends State<ForwardTagPicker> {
     }
     final tt = context.tt;
     final l10n = L10n.of(context)!;
-    final cubit = context.read<ForwardCubit>();
     final state = widget.state;
-    final active = state.addedByTag.keys.toSet();
+    final active = _active;
     final outside = active.isEmpty
         ? const <ForwardCandidate>[]
         : state.outsideTagSuggestions({
-            for (final ids in state.tagMembers.values) ...ids,
+            for (final ids
+                in (widget.activeTagMembers ?? state.tagMembers).values)
+              ...ids,
           });
 
     Widget chip({
@@ -128,7 +146,7 @@ class _ForwardTagPickerState extends State<ForwardTagPicker> {
                   key: ValueKey('forward-tag-chip-${tag.id}'),
                   isActive: active.contains(tag.id),
                   onTap: () =>
-                      cubit.toggleTag(tag.id, peopleTags.peopleInTag(tag.id)),
+                      _toggleTag(tag.id, peopleTags.peopleInTag(tag.id)),
                   child: PersonTagChip(
                     glyph: tag.glyph,
                     name: tag.name,

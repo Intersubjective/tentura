@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart' show PageRouteInfo;
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
+import 'package:tentura/features/forward/ui/widget/forward_tag_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/radius_recipient_selection.dart';
@@ -105,6 +106,12 @@ class _SheetBody extends StatelessWidget {
                     child: Text(l10n.constellationComposerCreate),
                   ),
                 ],
+              ),
+              ForwardTagPicker(
+                state: composer.forwardCubit?.state ?? const ForwardState(),
+                activeTagMembers: selection.tagMembers,
+                onToggleTag: composer.toggleTag,
+                onToggle: (id) => unawaited(composer.toggle(id)),
               ),
               Wrap(
                 spacing: tt.tightGap,
