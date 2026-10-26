@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -16,17 +15,10 @@ import 'beacon_lobby_subtitle.dart';
 class BeaconLobbyBody extends StatefulWidget {
   const BeaconLobbyBody({
     required this.myUserId,
-    this.remountComposerOnSend = kIsWeb,
     super.key,
   });
 
   final String myUserId;
-
-  /// Rebuilds the composer as a fresh field after each send (#727). Only on
-  /// the web, where a plain clear left the sent text in the field's
-  /// accessibility value; on Android/iOS a remount ends the IME connection
-  /// and the soft keyboard closes and reopens on every send.
-  final bool remountComposerOnSend;
 
   @override
   State<BeaconLobbyBody> createState() => _BeaconLobbyBodyState();
@@ -35,35 +27,58 @@ class BeaconLobbyBody extends StatefulWidget {
 class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
   final _composer = TextEditingController();
 
-  final _composerFocus = FocusNode();
+  final _composerFocus = FocusNode(debugLabel: 'beaconLobbyComposer');
 
-  /// Bumped after each send to rebuild the field (#727).
-  var _composerGeneration = 0;
+  final _sendFocus = FocusNode(debugLabel: 'beaconLobbySend');
+
+  /// The composer or Send had the focus when the press on Send began: a
+  /// mouse press can take the focus off the field before Send fires (#727).
+  var _composerActiveAtPress = false;
+
+  /// The send under way started from the composer or Send; only then is the
+  /// focus put back (a touch Send with the keyboard closed keeps it closed).
+  var _refocusAfterSend = false;
 
   @override
   void dispose() {
     _composer.dispose();
     _composerFocus.dispose();
+    _sendFocus.dispose();
     super.dispose();
   }
 
-  /// Empties the composer after a send. On the web the field's
-  /// accessibility value kept the sent text after a plain clear (#727), so
-  /// there the field is rebuilt as a fresh node, keeping the focus for the
-  /// next message.
+  /// Empties the composer after a send and puts the focus back in it, ready
+  /// for the next message (#727).
+  ///
+  /// The field is kept, never rebuilt: a fresh field on the web showed the
+  /// focus underline but lost its text input, so keystrokes went nowhere.
+  /// A Send by mouse or by Tab + Enter takes the focus off the field, and
+  /// an unfocused web textbox keeps the old text as its accessibility value;
+  /// focusing the same field again hands it the emptied text and the
+  /// keyboard. The focus is not taken back if the reader has moved on to
+  /// something else meanwhile.
   void _resetComposer() {
-    if (!widget.remountComposerOnSend) {
-      _composer.clear();
-      return;
+    _composer.clear();
+    final refocus = _refocusAfterSend;
+    _refocusAfterSend = false;
+    final focused = FocusManager.instance.primaryFocus;
+    final movedOn =
+        focused != null &&
+        focused is! FocusScopeNode &&
+        focused != _composerFocus &&
+        focused != _sendFocus;
+    if (refocus && !movedOn && _composerFocus.canRequestFocus) {
+      _composerFocus.requestFocus();
     }
-    final hadFocus = _composerFocus.hasFocus;
-    _composer.value = TextEditingValue.empty;
-    setState(() => _composerGeneration++);
-    if (hadFocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _composerFocus.requestFocus();
-      });
-    }
+  }
+
+  void _post(BeaconLobbyCubit cubit, String text) {
+    _refocusAfterSend =
+        _composerActiveAtPress ||
+        _composerFocus.hasFocus ||
+        _sendFocus.hasFocus;
+    _composerActiveAtPress = false;
+    unawaited(cubit.post(text));
   }
 
   Future<void> _confirmBan(
@@ -197,37 +212,40 @@ class _BeaconLobbyBodyState extends State<BeaconLobbyBody> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: KeyedSubtree(
-                        key: ValueKey(_composerGeneration),
-                        child: TextField(
-                          key: const Key('beaconLobbyComposer'),
-                          controller: _composer,
-                          focusNode: _composerFocus,
-                          minLines: 1,
-                          maxLines: 4,
-                          // Like the Chat composer (#658): Enter sends.
-                          textInputAction: TextInputAction.send,
-                          // Keep the focus for the next message (the default
-                          // would drop it after a send action).
-                          onEditingComplete: () {},
-                          onSubmitted: (text) {
-                            if (!state.sending) unawaited(cubit.post(text));
-                          },
-                          decoration: InputDecoration(
-                            hintText: state.isAuthor
-                                ? l10n.beaconLobbyComposerHintAuthor
-                                : l10n.beaconLobbyComposerHint,
-                          ),
+                      child: TextField(
+                        key: const Key('beaconLobbyComposer'),
+                        controller: _composer,
+                        focusNode: _composerFocus,
+                        minLines: 1,
+                        maxLines: 4,
+                        // Like the Chat composer (#658): Enter sends.
+                        textInputAction: TextInputAction.send,
+                        // Keep the focus for the next message (the default
+                        // would drop it after a send action).
+                        onEditingComplete: () {},
+                        onSubmitted: (text) {
+                          if (!state.sending) _post(cubit, text);
+                        },
+                        decoration: InputDecoration(
+                          hintText: state.isAuthor
+                              ? l10n.beaconLobbyComposerHintAuthor
+                              : l10n.beaconLobbyComposerHint,
                         ),
                       ),
                     ),
-                    IconButton(
-                      key: const Key('beaconLobbySend'),
-                      tooltip: l10n.beaconLobbySend,
-                      icon: const Icon(TenturaIcons.send),
-                      onPressed: state.sending
-                          ? null
-                          : () => unawaited(cubit.post(_composer.text)),
+                    Listener(
+                      onPointerDown: (_) => _composerActiveAtPress =
+                          _composerFocus.hasFocus || _sendFocus.hasFocus,
+                      onPointerCancel: (_) => _composerActiveAtPress = false,
+                      child: IconButton(
+                        key: const Key('beaconLobbySend'),
+                        focusNode: _sendFocus,
+                        tooltip: l10n.beaconLobbySend,
+                        icon: const Icon(TenturaIcons.send),
+                        onPressed: state.sending
+                            ? null
+                            : () => _post(cubit, _composer.text),
+                      ),
                     ),
                   ],
                 ),

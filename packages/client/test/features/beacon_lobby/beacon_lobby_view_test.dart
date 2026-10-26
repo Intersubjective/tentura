@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
@@ -23,11 +25,7 @@ Widget _app(Widget child) => MaterialApp(
   home: child,
 );
 
-Widget _lobby(
-  FakeLobbyPort port,
-  String myId, {
-  bool remountComposerOnSend = false,
-}) {
+Widget _lobby(FakeLobbyPort port, String myId) {
   final sync = FakeRealtimeSyncPort();
   return _app(
     Scaffold(
@@ -41,10 +39,7 @@ Widget _lobby(
           unawaited(cubit.load());
           return cubit;
         },
-        child: BeaconLobbyBody(
-          myUserId: myId,
-          remountComposerOnSend: remountComposerOnSend,
-        ),
+        child: BeaconLobbyBody(myUserId: myId),
       ),
     ),
   );
@@ -623,48 +618,13 @@ void main() {
       expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
     });
 
-    testWidgets('after a send the field is empty for a screen reader too', (
+    // #727: after Send the composer is empty for a screen reader too, and the
+    // same field keeps the keyboard. (QA on 7.52.1: the field used to be
+    // rebuilt after each send on the web; the new one showed its focus
+    // underline but keystrokes no longer reached it.)
+    testWidgets('after Enter sends, the same field takes the next keys', (
       tester,
     ) async {
-      // #727: on the web the textbox kept the sent text as its accessibility
-      // value after a plain clear. The field is rebuilt as a fresh node.
-      final handle = tester.ensureSemantics();
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(
-        _lobby(port, 'Unina', remountComposerOnSend: true),
-      );
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      await tester.enterText(composer, 'Do we need gloves?');
-      await tester.pump();
-      final before = _textFieldNode();
-      expect(before.value, 'Do we need gloves?');
-
-      await tester.testTextInput.receiveAction(TextInputAction.send);
-      await tester.pumpAndSettle();
-
-      expect(port.calls, contains('post Do we need gloves?'));
-      final after = _textFieldNode();
-      expect(after.value, isEmpty);
-      expect(after.id, isNot(before.id));
-      // Still focused, ready for the next question.
-      expect(
-        tester.widget<TextField>(composer).focusNode!.hasFocus,
-        isTrue,
-      );
-      handle.dispose();
-    });
-
-    testWidgets('on Android/iOS a send keeps the same field and keyboard', (
-      tester,
-    ) async {
-      // #727 review: the remount is web-only. On a phone it would end the
-      // IME connection, so the soft keyboard closed and reopened per send.
-      // Tests run on the VM, which is not the web: the default is off.
-      expect(
-        const BeaconLobbyBody(myUserId: 'x').remountComposerOnSend,
-        isFalse,
-      );
       final handle = tester.ensureSemantics();
       final port = FakeLobbyPort(viewerId: 'Unina');
       await tester.pumpWidget(_lobby(port, 'Unina'));
@@ -673,19 +633,157 @@ void main() {
       await tester.enterText(composer, 'Do we need gloves?');
       await tester.pump();
       final before = _textFieldNode();
+      expect(before.value, 'Do we need gloves?');
       final fieldState = tester.state(find.byType(EditableText));
-      expect(tester.testTextInput.isVisible, isTrue);
 
       await tester.testTextInput.receiveAction(TextInputAction.send);
       await tester.pumpAndSettle();
 
       expect(port.calls, contains('post Do we need gloves?'));
-      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
-      // The same field state and node: nothing was torn down and remounted.
+      // The same field and node: nothing was torn down and remounted.
       expect(tester.state(find.byType(EditableText)), same(fieldState));
       expect(_textFieldNode().id, before.id);
+      expect(_textFieldNode().value, isEmpty);
+      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isTrue);
       expect(tester.testTextInput.isVisible, isTrue);
+      expect(tester.testTextInput.editingState?['text'], isEmpty);
+
+      tester.testTextInput.enterText('f2');
+      await tester.pump();
+      expect(tester.widget<TextField>(composer).controller!.text, 'f2');
+      expect(_textFieldNode().value, 'f2');
       handle.dispose();
+    });
+
+    // #727 (QA on 7.52.1): a Send by mouse takes the focus off the field;
+    // the field must get it back, with the emptied text, so the next keys
+    // land without a click.
+    testWidgets('a Send by mouse gives the emptied field the keys back', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      await tester.enterText(composer, 'QA727 mouse send');
+      await tester.pump();
+
+      await tester.tap(
+        find.byKey(const Key('beaconLobbySend')),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+
+      expect(port.calls, contains('post QA727 mouse send'));
+      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isTrue);
+      expect(_textFieldNode().value, isEmpty);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+      expect(tester.testTextInput.editingState?['text'], isEmpty);
+
+      tester.testTextInput.enterText('f2');
+      await tester.pump();
+      expect(tester.widget<TextField>(composer).controller!.text, 'f2');
+      handle.dispose();
+    });
+
+    // #727 (QA on 7.52.1): the keyboard-only path, Tab to Send then Enter.
+    testWidgets('Tab to Send and Enter puts the keys back in the field', (
+      tester,
+    ) async {
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      await tester.enterText(composer, 'QA727 tab send');
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
+      expect(port.calls, contains('post QA727 tab send'));
+      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isTrue);
+      expect(tester.testTextInput.editingState?['text'], isEmpty);
+
+      tester.testTextInput.enterText('f3');
+      await tester.pump();
+      expect(tester.widget<TextField>(composer).controller!.text, 'f3');
+    });
+
+    // Review r1 nit (#727): on a phone, a reader who closed the keyboard and
+    // then tapped Send must not get the keyboard back.
+    testWidgets('a touch Send with the field unfocused keeps it unfocused', (
+      tester,
+    ) async {
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      await tester.pumpWidget(_lobby(port, 'Unina'));
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      await tester.enterText(composer, 'QA727 keyboard closed');
+      await tester.pump();
+      tester.widget<TextField>(composer).focusNode!.unfocus();
+      await tester.pump();
+      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isFalse);
+
+      await tester.tap(find.byKey(const Key('beaconLobbySend')));
+      await tester.pumpAndSettle();
+
+      expect(port.calls, contains('post QA727 keyboard closed'));
+      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
+      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isFalse);
+    });
+
+    // Guard: the focus is not taken back from somewhere else the reader
+    // moved to while the message was on its way.
+    testWidgets('a send does not pull the focus back from elsewhere', (
+      tester,
+    ) async {
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      final elsewhere = FocusNode(debugLabel: 'elsewhere');
+      addTearDown(elsewhere.dispose);
+      final sync = FakeRealtimeSyncPort();
+      late BeaconLobbyCubit cubit;
+      await tester.pumpWidget(
+        _app(
+          Scaffold(
+            body: Column(
+              children: [
+                Focus(focusNode: elsewhere, child: const SizedBox(height: 8)),
+                Expanded(
+                  child: BlocProvider(
+                    create: (_) {
+                      cubit = BeaconLobbyCubit(
+                        lobbyCaseFor(port, sync),
+                        RecordingEffects(),
+                        beaconId: 'B1',
+                      );
+                      unawaited(cubit.load());
+                      return cubit;
+                    },
+                    child: const BeaconLobbyBody(myUserId: 'Unina'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final composer = find.byKey(const Key('beaconLobbyComposer'));
+      await tester.enterText(composer, 'QA727 moved on');
+      await tester.pump();
+      elsewhere.requestFocus();
+      await tester.pump();
+
+      unawaited(cubit.post('QA727 moved on'));
+      await tester.pumpAndSettle();
+
+      expect(port.calls, contains('post QA727 moved on'));
+      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
+      expect(elsewhere.hasFocus, isTrue);
     });
   });
 }
