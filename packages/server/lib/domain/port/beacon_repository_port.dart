@@ -123,6 +123,14 @@ abstract class BeaconRepositoryPort {
     required DateTime followingUtcDayStart,
   });
 
+  /// Ids of up to [limit] open Posts whose `expires_at` has passed, oldest
+  /// expiry first.
+  Future<List<String>> postExpiryDueIds({int limit = 100});
+
+  /// Whether [beaconId] is still an open Post whose `expires_at` has passed;
+  /// the caller holds the Post lock.
+  Future<bool> isPostExpiryDue(String beaconId);
+
   /// Ids of open, warning-eligible Posts that expire within [window].
   Future<List<String>> postExpiryWarningCandidateIds({
     required Duration window,

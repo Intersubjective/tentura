@@ -974,6 +974,22 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<_i5.BeaconEntity?>);
 
   @override
+  _i6.Future<List<String>> postExpiryDueIds({int? limit = 100}) =>
+      (super.noSuchMethod(
+            Invocation.method(#postExpiryDueIds, [], {#limit: limit}),
+            returnValue: _i6.Future<List<String>>.value(<String>[]),
+          )
+          as _i6.Future<List<String>>);
+
+  @override
+  _i6.Future<bool> isPostExpiryDue(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#isPostExpiryDue, [beaconId]),
+            returnValue: _i6.Future<bool>.value(false),
+          )
+          as _i6.Future<bool>);
+
+  @override
   _i6.Future<List<String>> postExpiryWarningCandidateIds({
     required Duration? window,
   }) =>
@@ -1052,6 +1068,21 @@ class MockBeaconRepositoryPort extends _i1.Mock
             Invocation.method(#setForwardPolicy, [], {
               #beaconId: beaconId,
               #policy: policy,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> setPostLifetime({
+    required String? beaconId,
+    required Duration? lifetime,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setPostLifetime, [], {
+              #beaconId: beaconId,
+              #lifetime: lifetime,
             }),
             returnValue: _i6.Future<void>.value(),
             returnValueForMissingStub: _i6.Future<void>.value(),

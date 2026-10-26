@@ -64,6 +64,12 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }) async => const [];
 
   @override
+  Future<List<String>> postExpiryDueIds({int limit = 100}) async => const [];
+
+  @override
+  Future<bool> isPostExpiryDue(String beaconId) async => false;
+
+  @override
   Future<List<String>> postExpiryWarningCandidateIds({
     required Duration window,
   }) async => const [];

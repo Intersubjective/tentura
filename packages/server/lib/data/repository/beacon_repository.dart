@@ -173,6 +173,33 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
   static const _postExpiryWarningWhere =
       r'''kind = 1 AND status = 0 AND expiry_warning_eligible AND expires_at > now() AND expires_at <= now() + make_interval(secs => $1)''';
 
+  static const _postExpiryDueWhere =
+      'kind = 1 AND status = 0 AND expires_at <= now()';
+
+  @override
+  Future<List<String>> postExpiryDueIds({int limit = 100}) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT id FROM public.beacon WHERE $_postExpiryDueWhere '
+          r'ORDER BY expires_at LIMIT $1',
+          variables: [Variable<int>(limit)],
+        )
+        .get();
+    return rows.map((row) => row.read<String>('id')).toList();
+  }
+
+  @override
+  Future<bool> isPostExpiryDue(String beaconId) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT 1 FROM public.beacon WHERE id = $1 AND '
+          '$_postExpiryDueWhere',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
   @override
   Future<List<String>> postExpiryWarningCandidateIds({
     required Duration window,

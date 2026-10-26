@@ -25,6 +25,7 @@ import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/post_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/post_expiry_warning_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/closure_draft_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/contact_resolution_sweep_case.dart';
@@ -67,6 +68,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ContactResolutionSweepCase contactResolutionSweep,
     BudAnchorSweepCase budAnchorSweep,
     PlanStepSweepCase planStepSweep,
+    PostExpirySweepCase postExpirySweep,
     PostExpiryWarningSweepCase postExpiryWarningSweep,
     AttentionCaptureSettlementCase attentionCaptureSettlement,
   ) => Future.value(
@@ -98,6 +100,7 @@ final class TaskWorkerCase extends UseCaseBase {
       contactResolutionSweep: contactResolutionSweep,
       budAnchorSweep: budAnchorSweep,
       planStepSweep: planStepSweep,
+      postExpirySweep: postExpirySweep,
       postExpiryWarningSweep: postExpiryWarningSweep,
       attentionCaptureSettlement: attentionCaptureSettlement,
       env: env,
@@ -130,6 +133,7 @@ final class TaskWorkerCase extends UseCaseBase {
     ContactResolutionSweepCase? contactResolutionSweep,
     this._budAnchorSweep,
     this._planStepSweep,
+    this._postExpirySweep,
     this._postExpiryWarningSweep,
     this._attentionCaptureSettlement,
     required super.env,
@@ -181,6 +185,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final ContactResolutionSweepCase? _contactResolutionSweep;
   final BudAnchorSweepCase? _budAnchorSweep;
   final PlanStepSweepCase? _planStepSweep;
+  final PostExpirySweepCase? _postExpirySweep;
   final PostExpiryWarningSweepCase? _postExpiryWarningSweep;
   final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
 
@@ -215,6 +220,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBudAnchorSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastPlanStepSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastPostExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastPostExpiryWarningSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAttentionCaptureSettlement = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -325,6 +331,14 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastDeadlineReminderSweep = now;
       await _deadlineReminderSweep?.runDue(now: now);
+    },
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastPostExpirySweep) < const Duration(seconds: 30)) {
+        return;
+      }
+      _lastPostExpirySweep = now;
+      await _postExpirySweep?.runDue();
     },
     () async {
       final now = DateTime.timestamp();

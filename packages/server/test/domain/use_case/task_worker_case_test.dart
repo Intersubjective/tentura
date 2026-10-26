@@ -13,7 +13,10 @@ import 'package:tentura_server/data/repository/trust_ledger_repository.dart';
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -22,6 +25,8 @@ import 'package:tentura_server/domain/port/verified_contact_repository_port.dart
 import 'package:tentura_server/domain/use_case/contact_resolution_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
+import 'package:tentura_server/domain/use_case/post_close_operation.dart';
+import 'package:tentura_server/domain/use_case/post_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/task_worker_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
@@ -178,6 +183,7 @@ TaskWorkerCase _worker({
   UserAvailabilityCase? userAvailabilityCase,
   BeaconHierarchyDeliveryCase? beaconHierarchyDelivery,
   ContactResolutionSweepCase? contactResolutionSweep,
+  PostExpirySweepCase? postExpirySweep,
   Env? env,
 }) =>
     TaskWorkerCase(
@@ -188,6 +194,7 @@ TaskWorkerCase _worker({
       userAvailabilityCase: userAvailabilityCase,
       beaconHierarchyDelivery: beaconHierarchyDelivery,
       contactResolutionSweep: contactResolutionSweep,
+      postExpirySweep: postExpirySweep,
       env: env ?? _testEnv(),
       logger: Logger('test'),
     );
@@ -396,4 +403,71 @@ void main() {
       expect(await claimsWithin(interval: const Duration(hours: 1)), 1);
     });
   });
+
+  group('TaskWorkerCase post expiry sweep cadence', () {
+    test('runs the expiry sweep on the first tick, then again only after '
+        '30 seconds', () async {
+      final beacons = _CountingBeaconRepo();
+      final env = _testEnv(taskOnEmptyDelay: const Duration(milliseconds: 50));
+      final worker = _worker(
+        tasks: _FakeTaskRepo(),
+        images: _FakeImageRepo(),
+        digest: _digestCase(_CountingOutbox()),
+        outbox: _CountingOutbox(),
+        postExpirySweep: PostExpirySweepCase(
+          unitOfWork: _PassThroughUnitOfWork(),
+          beaconRepository: beacons,
+          postLock: _NoopPostLock(),
+          postClose: PostCloseOperation(beacons),
+          env: env,
+          logger: Logger('test'),
+        ),
+        env: env,
+      );
+
+      final clock = Stopwatch()..start();
+      Future<void> waitUntil(int seconds) => Future<void>.delayed(
+        Duration(seconds: seconds) - clock.elapsed,
+      );
+
+      unawaited(worker.run());
+      await waitUntil(1);
+      expect(beacons.sweepRuns, 1, reason: 'the first tick sweeps at once');
+
+      // Ticks keep coming every 50 ms; only the throttle spaces the sweeps.
+      await waitUntil(25);
+      expect(beacons.sweepRuns, 1, reason: 'still inside the 30 s throttle');
+
+      await waitUntil(35);
+      await worker.dispose();
+      expect(beacons.sweepRuns, 2, reason: 'the throttle elapsed at ~30 s');
+    }, timeout: const Timeout(Duration(seconds: 90)));
+  });
+}
+
+class _CountingBeaconRepo implements BeaconRepositoryPort {
+  /// How many times the sweep asked for its candidate Posts.
+  int sweepRuns = 0;
+
+  @override
+  Future<List<String>> postExpiryDueIds({int limit = 100}) async {
+    sweepRuns++;
+    return const [];
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation i) => throw UnimplementedError('$i');
+}
+
+class _PassThroughUnitOfWork implements MutatingUnitOfWorkPort {
+  @override
+  Future<T> run<T>({
+    required Future<T> Function() action,
+    String? actorUserId,
+  }) => action();
+}
+
+class _NoopPostLock implements PostLockPort {
+  @override
+  Future<void> lockForPostMutation(String beaconId) async {}
 }
