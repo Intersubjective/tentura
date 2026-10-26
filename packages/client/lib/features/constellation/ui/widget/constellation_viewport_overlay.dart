@@ -807,6 +807,12 @@ class _ConstellationViewportOverlayState
                           frame: frame,
                           viewerId: viewerId,
                           peopleTags: widget.peopleTags,
+                          onClusterDragged: (personIds, delta) =>
+                              widget.cubit.moveClusterBy(
+                                personIds,
+                                delta /
+                                    widget.cubit.graphController.cameraScale,
+                              ),
                         ),
                       ),
                     // Presence halos under the trust rings; they repaint on

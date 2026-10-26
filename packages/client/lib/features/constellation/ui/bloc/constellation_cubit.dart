@@ -2419,6 +2419,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     });
   }
 
+  /// Moves [personIds] by [sceneDelta] from where they are drawn, pinning all
+  /// of them as one batch and one undo step; false when nothing was written.
+  bool moveClusterBy(Iterable<String> personIds, Offset sceneDelta) {
+    final targets = <ConstellationAnchorTarget, Offset>{};
+    for (final id in personIds) {
+      final at = graphController.getPositionOrNullForId('fp:$id');
+      if (at != null) {
+        targets[ConstellationAnchorTarget.person(id)] = at + sceneDelta;
+      }
+    }
+    return targets.isNotEmpty && placeArrangement(targets);
+  }
+
   /// Re-lays out the nodes the user has not placed as a fresh plan, with no
   /// session inertia to stay close to. Anchored nodes keep their stored
   /// positions (the anchors, not prior hints, fix them); nothing is written.
