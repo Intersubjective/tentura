@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/capability/forward_band_row.dart';
@@ -62,6 +63,7 @@ class _SendRecordingCubit extends ForwardCubit {
         beaconId: 'B1',
         debugSkipInitialLoad: true,
         effects: FakeUiEffectPort(),
+        clock: () => DateTime.utc(2026, 10, 26, 12),
       );
 
   int inboundSourceFetches = 0;
@@ -134,6 +136,8 @@ Future<_SendRecordingCubit> _pump(
   WidgetTester tester,
   BeaconKind? kind, {
   ForwardTargetProfile? copyProfile,
+  Beacon? beacon,
+  Locale locale = const Locale('en'),
 }) async {
   tester.view
     ..physicalSize = const Size(1200, 2400)
@@ -141,10 +145,11 @@ Future<_SendRecordingCubit> _pump(
   addTearDown(tester.view.reset);
   final cubit = _SendRecordingCubit();
   addTearDown(cubit.close);
-  cubit.emit(_state(kind));
+  final state = _state(kind);
+  cubit.emit(beacon == null ? state : state.copyWith(beacon: beacon));
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       theme: TenturaTheme.light(),
@@ -177,6 +182,51 @@ void main() {
     await GetIt.I.unregister<InvitationRepository>();
     await GetIt.I.unregister<UiEffectPort>();
   });
+
+  testWidgets('Post subtitle shows two hours remaining and still sends', (
+    tester,
+  ) async {
+    final cubit = await _pump(
+      tester,
+      BeaconKind.post,
+      locale: const Locale('ru'),
+      beacon: Beacon.empty.copyWith(
+        id: 'B1',
+        title: 'Subject',
+        kind: BeaconKind.post,
+        expiresAt: DateTime.utc(2026, 10, 26, 14),
+      ),
+    );
+
+    expect(find.text('Subject · осталось 2 ч'), findsOneWidget);
+    await tester.tap(find.byKey(TestIds.key(TestIds.forwardSubmit)));
+    await tester.pumpAndSettle();
+    expect(cubit.forwardCalls, 1);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  for (final entry in {
+    BeaconStatus.open: 'Открыт',
+    BeaconStatus.needsMoreHelp: 'Нужна ещё или другая помощь',
+    BeaconStatus.closed: 'Закрыт',
+  }.entries) {
+    testWidgets('Request subtitle retains lifecycle ${entry.key.name}', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        BeaconKind.request,
+        locale: const Locale('ru'),
+        beacon: Beacon.empty.copyWith(
+          id: 'B1',
+          title: 'Subject',
+          status: entry.key,
+        ),
+      );
+      expect(find.text('Subject · ${entry.value}'), findsOneWidget);
+      expect(find.textContaining('осталось'), findsNothing);
+    });
+  }
 
   group('ForwardRecipientPicker for a Request', () {
     testWidgets('shows band strip, lineage header and reasons button', (

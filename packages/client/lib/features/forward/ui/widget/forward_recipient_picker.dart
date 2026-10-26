@@ -8,6 +8,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
@@ -16,6 +17,7 @@ import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
@@ -480,16 +482,25 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     }
   }
 
-  String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.status) {
-    BeaconStatus.open => l10n.beaconLifecycleOpen,
-    BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
-    BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
-    BeaconStatus.cancelled => l10n.beaconLifecycleCancelled,
-    BeaconStatus.closed => l10n.beaconLifecycleClosed,
-    BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
-    BeaconStatus.draft => l10n.beaconLifecycleDraft,
-    BeaconStatus.reviewOpen => l10n.beaconLifecycleReviewOpen,
-  };
+  String _lifecycleLabel(L10n l10n, Beacon beacon) {
+    final expiresAt = beacon.expiresAt;
+    if (beacon.kind == BeaconKind.post && expiresAt != null) {
+      return postRemainingLabel(
+        l10n,
+        expiresAt.difference(context.read<ForwardCubit>().now),
+      );
+    }
+    return switch (beacon.status) {
+      BeaconStatus.open => l10n.beaconLifecycleOpen,
+      BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+      BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+      BeaconStatus.cancelled => l10n.beaconLifecycleCancelled,
+      BeaconStatus.closed => l10n.beaconLifecycleClosed,
+      BeaconStatus.deleted => l10n.beaconLifecycleDeleted,
+      BeaconStatus.draft => l10n.beaconLifecycleDraft,
+      BeaconStatus.reviewOpen => l10n.beaconLifecycleReviewOpen,
+    };
+  }
 
   void _toggleNote() {
     setState(() {

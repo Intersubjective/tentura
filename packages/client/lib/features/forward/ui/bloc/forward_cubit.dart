@@ -79,6 +79,9 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   final DateTime Function() _clock;
 
+  /// Current time shared by forwarding availability and Post lifetime copy.
+  DateTime get now => _clock();
+
   bool _appliedInitialLineagePreselect = false;
   bool _appliedInitialUserPreselect = false;
   bool _appliedInitialTags = false;
