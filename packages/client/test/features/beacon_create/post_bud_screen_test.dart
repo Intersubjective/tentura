@@ -250,7 +250,10 @@ void main() {
     expect(opened.router.opened, hasLength(1));
     final args = opened.router.opened.single.args! as BeaconViewRouteArgs;
     expect(args.id, 'child-9');
-    expect(find.text('Could not invite: Silent Sam'), findsOneWidget);
+    expect(
+      find.text('Could not invite: Silent Sam', findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('gate off: the Post parent gets no bud form', (tester) async {

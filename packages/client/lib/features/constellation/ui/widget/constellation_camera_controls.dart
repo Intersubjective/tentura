@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
 
 import '../bloc/constellation_cubit.dart';
 import 'constellation_arrange_sheet.dart';
@@ -57,7 +58,6 @@ class ConstellationCameraControls extends StatelessWidget {
   /// «Сбросить позиции» (#251), behind a confirmation.
   Future<void> _confirmReset(BuildContext context) async {
     final l10n = L10n.of(context)!;
-    final messenger = ScaffoldMessenger.maybeOf(context);
     final confirmed = await TenturaConfirmDialog.show(
       context: context,
       title: l10n.constellationResetPositionsTitle,
@@ -67,10 +67,8 @@ class ConstellationCameraControls extends StatelessWidget {
     if (confirmed != true) {
       return;
     }
-    if (!await cubit.resetAllPositions()) {
-      messenger?.showSnackBar(
-        SnackBar(content: Text(l10n.constellationResetPositionsFailed)),
-      );
+    if (!await cubit.resetAllPositions() && context.mounted) {
+      showSnackBar(context, text: l10n.constellationResetPositionsFailed);
     }
   }
 

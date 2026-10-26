@@ -11,9 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// `lib/ui/utils/ui_utils.dart` clears first (replace semantics); every other
 /// call site goes through it.
 ///
-/// [_legacy] freezes how many direct calls each older file still has; they
-/// are tracked separately. A count may only go down, and an entry whose count
-/// reaches 0 is removed.
+/// [_legacy] freezes how many direct calls each older file still has. A count
+/// may only go down, and an entry whose count reaches 0 is removed; the last
+/// five were migrated in #605, so it is empty and must stay so.
 const _helper = 'lib/ui/utils/ui_utils.dart';
 
 /// Other helpers with the same replace semantics: they clear the messenger
@@ -21,15 +21,7 @@ const _helper = 'lib/ui/utils/ui_utils.dart';
 /// (people tags), which needs `persist: false` and its own animation style.
 const _replacingHelpers = {_helper, 'lib/ui/widget/undo_snack_bar.dart'};
 
-const _legacy = {
-  'lib/features/beacon_create/ui/screen/beacon_create_screen.dart': 1,
-  'lib/features/constellation/ui/widget/constellation_body.dart': 1,
-  'lib/features/constellation/ui/widget/constellation_camera_controls.dart': 1,
-  'lib/features/forward_candidate_context/ui/widget/'
-          'forward_candidate_context_sheet.dart':
-      1,
-  'lib/ui/widget/pending_attachments.dart': 1,
-};
+const _legacy = <String, int>{};
 
 final _direct = RegExp(r'\.\s*showSnackBar\s*\(');
 
@@ -81,6 +73,13 @@ void main() {
       reason:
           'direct ScaffoldMessenger.showSnackBar queues the bar; '
           'call showSnackBar(context, ...) from ui_utils.dart instead',
+    );
+  });
+  test('no file is frozen any more: every direct call was migrated', () {
+    expect(
+      _legacy,
+      isEmpty,
+      reason: 'new direct calls go through showSnackBar(context, ...)',
     );
   });
   test('legacy files keep at most their frozen direct-call count', () {
