@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart' show BuildContext;
+import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
@@ -23,6 +24,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -68,6 +70,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     BeaconViewCase? beaconViewCase,
     UiEffectPort? effects,
     this._postMembershipRepository,
+    this._hierarchyCase,
   }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(_idToState(id, myProfile)) {
@@ -166,6 +169,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
     return '';
   }
+
+  /// Reads the Request's hierarchy parent for the access banner (#724).
+  BeaconHierarchyCase? _hierarchyCase;
+
+  bool _accessParentLoading = false;
 
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -1313,6 +1321,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
+  /// The Add-fact message that was posted but not pinned: Pin again with the
+  /// same content pins this message instead of posting a copy (#759).
+  ({String body, List<RoomPendingUpload> uploads, String messageId})?
+  _unpinnedFactPost;
+
   Future<bool> pinFactFromComposer({
     required String messageBody,
     required String factText,
@@ -1320,6 +1333,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     List<RoomPendingUpload> uploads = const [],
   }) async {
     if (_rejectIfDiscussionReadOnly()) return false;
+    final kept = _unpinnedFactPost;
+    final postedMessageId =
+        kept != null &&
+            kept.body == messageBody &&
+            _sameUploads(kept.uploads, uploads)
+        ? kept.messageId
+        : null;
     try {
       await _case.pinFactFromComposer(
         beaconId: state.beacon.id,
@@ -1327,16 +1347,34 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         factText: factText,
         visibility: visibility,
         uploads: uploads,
+        postedMessageId: postedMessageId,
       );
-    } on BeaconFactPinAfterMessageException {
+    } on BeaconFactPinAfterMessageException catch (e) {
+      _unpinnedFactPost = (
+        body: messageBody,
+        uploads: List.unmodifiable(uploads),
+        messageId: e.messageId,
+      );
       _effects.emit(const ShowMessage(BeaconFactPinMessageKeptMessage()));
       return false;
     } on Object catch (e) {
       _showSnackError(e);
       return false;
     }
+    _unpinnedFactPost = null;
     await _refreshFactCards(state.beacon.id);
     _effects.emit(const ShowMessage(BeaconFactPinSuccessMessage()));
+    return true;
+  }
+
+  static bool _sameUploads(
+    List<RoomPendingUpload> a,
+    List<RoomPendingUpload> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i])) return false;
+    }
     return true;
   }
 
@@ -1630,21 +1668,35 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// #724: someone who sees the Request only through the Post it grew from
-  /// is told so by name; the banner needs the parent's kind and title. One
-  /// read per parent; a failed read leaves the general wording.
+  /// is told so by name; the banner needs the parent's kind and title. The
+  /// parent is the hierarchy (nesting) parent the server's contextChild
+  /// reason is about — a budded Request has no lineage parent. One read per
+  /// screen; a failed or unreadable parent leaves the general wording.
   Future<void> _loadAccessParent(Beacon beacon) async {
-    final parentId = beacon.lineageParentBeaconId?.trim() ?? '';
-    if (parentId.isEmpty ||
-        !requestAccessViaParent(beacon) ||
-        state.accessParent?.id == parentId) {
+    if (_accessParentLoading ||
+        state.accessParent != null ||
+        !requestAccessViaParent(beacon)) {
       return;
     }
+    _accessParentLoading = true;
     try {
+      final reference =
+          await (_hierarchyCase ??= GetIt.I<BeaconHierarchyCase>())
+              .fetchParentReference(beaconId: beacon.id);
+      final parentId = reference.beaconId?.trim() ?? '';
+      if (isClosed ||
+          reference.state != BeaconParentReferenceState.available ||
+          !reference.isPost ||
+          parentId.isEmpty) {
+        return;
+      }
       final parent = await _case.fetchBeaconById(parentId);
-      if (isClosed || state.beacon.lineageParentBeaconId != parentId) return;
+      if (isClosed || state.beacon.id != beacon.id) return;
       emit(state.copyWith(accessParent: parent));
     } on Object {
       // Not readable: the banner keeps its general wording.
+    } finally {
+      _accessParentLoading = false;
     }
   }
 

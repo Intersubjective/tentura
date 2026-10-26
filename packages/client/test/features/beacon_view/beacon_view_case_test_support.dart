@@ -404,6 +404,10 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
       >[];
   Object? pinError;
 
+  /// Errors thrown by the next pins, one per call, before [pinError].
+  final pinErrorsOnce = <Object>[];
+  int pinCalls = 0;
+
   @override
   Future<List<BeaconFactCard>> list({required String beaconId}) async {
     listCalls++;
@@ -449,6 +453,8 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
     required int visibility,
     String? sourceMessageId,
   }) async {
+    pinCalls++;
+    if (pinErrorsOnce.isNotEmpty) _throwTestError(pinErrorsOnce.removeAt(0));
     if (pinError != null) _throwTestError(pinError!);
     pins.add((
       beaconId: beaconId,

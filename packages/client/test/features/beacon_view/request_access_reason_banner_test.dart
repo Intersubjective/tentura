@@ -161,6 +161,27 @@ void main() {
       expect(find.text(_postBannerText), findsOneWidget);
     });
 
+    testWidgets('real data: a bud has no lineage parent, the post is named', (
+      tester,
+    ) async {
+      // QA on dev: a budded Request's Post is its hierarchy parent; the
+      // Request itself carries no lineage parent.
+      await _pumpBanner(
+        tester,
+        _beacon(
+          accessLevel: BeaconAccessLevel.observer,
+          accessReasons: 32 | 64,
+        ),
+        parent: _parent(),
+      );
+      expect(find.text(_postBannerText), findsOneWidget);
+      expect(find.text(_bannerText), findsNothing);
+      expect(
+        find.byKey(RequestAccessReasonBanner.openParentKey),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('guard: a Request parent keeps the related-request line', (
       tester,
     ) async {
