@@ -304,7 +304,8 @@
                     "kind",
                     "forward_policy",
                     "last_activity_at",
-                    "post_root_message_id"
+                    "post_root_message_id",
+                    "expires_at"
                   ],
                   "computed_fields": [
                     "is_pinned",

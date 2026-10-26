@@ -193,7 +193,15 @@ gates() {
 
 server_pg() {
   local j; j="$(concurrency server-pg)"
-  local -a files; mapfile -t files < <(server_tagged_files pg)
+  # A file whose library-level @Tags has mr is excluded whole by -x mr
+  # (server_mr runs it); passing it anyway makes a chunk made only of such
+  # files fail with "No tests ran".
+  local -a files=() all f; mapfile -t all < <(server_tagged_files pg)
+  for f in "${all[@]}"; do
+    # awk's own exit status (no pipe, so pipefail cannot misreport it): 0 when
+    # the header before `library;` carries a quoted mr tag.
+    if ! awk '/^library/ {exit} /^@Tags/ {t=1} t && /[\x27"]mr[\x27"]/ {found=1; exit} END {exit !found}' "$ROOT/packages/server/$f"; then files+=("$f"); fi
+  done
   (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && \
     run_chunked 40m dart test -j "$j" --tags pg -x mr -x perf -x load -- "${files[@]}")
 }
