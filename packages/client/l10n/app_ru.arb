@@ -392,7 +392,7 @@
   "@friendsScanInviteCode": {
     "context": "FriendsScreen"
   },
-  "friendsCreateInvitation": "Создать приглашение",
+  "friendsCreateInvitation": "Пригласить того, кому доверяете",
   "@friendsCreateInvitation": {
     "context": "FriendsScreen"
   },
@@ -6639,7 +6639,7 @@
   "postsTabQuiet": "Затихли",
   "postsTabEmpty": "Здесь будут посты, которые вы начали или в которые вас позвали",
   "postsTabSelectConversation": "Выберите пост, чтобы открыть его здесь",
-  "postsTabNewPost": "Новый чат",
+  "postsTabNewPost": "Новый пост",
   "postConversationYours": "Ваш пост",
   "postConversationAddressed": "{author} · вам",
   "postConversationMuted": "Звук выключен",
@@ -6662,7 +6662,7 @@
   "postAllowForwardingBody": "Любой участник сможет переслать пост людям из своего круга, и они смогут участвовать. Выключить это будет нельзя.",
   "postAllowForwardingAction": "Разрешить",
   "postDeleteConfirmTitle": "Удалить пост?",
-  "postDeleteConfirmBody": "Пост и весь его чат будут удалены без возможности восстановления.",
+  "postDeleteConfirmBody": "Пост и все его сообщения будут удалены без возможности восстановления.",
   "postForwardedByLine": "{sender} переслал(а) вам: «{note}»",
   "@postForwardedByLine": {
     "placeholders": {
@@ -6682,7 +6682,7 @@
       }
     }
   },
-  "postStartedByLine": "{name} начал(а) этот чат с вами",
+  "postStartedByLine": "{name} отправил(а) вам этот пост",
   "@postStartedByLine": {
     "placeholders": {
       "name": {
@@ -6690,7 +6690,7 @@
       }
     }
   },
-  "postStartedByLineWithNote": "{name} начал(а) этот чат с вами: «{note}»",
+  "postStartedByLineWithNote": "{name} отправил(а) вам этот пост: «{note}»",
   "@postStartedByLineWithNote": {
     "placeholders": {
       "name": {
@@ -6710,7 +6710,7 @@
     }
   },
   "postParticipantAuthor": "автор",
-  "postParticipantsInConversation": "В ЧАТЕ · {count}",
+  "postParticipantsInConversation": "В ПОСТЕ · {count}",
   "@postParticipantsInConversation": {
     "placeholders": {
       "count": {
@@ -6772,8 +6772,8 @@
   "postMuteDay": "На день",
   "postMuteThreeDays": "На 3 дня",
   "postMuteForever": "Навсегда",
-  "postMenuLeave": "Выйти из чата",
-  "postLeaveConfirmTitle": "Выйти из чата?",
+  "postMenuLeave": "Выйти из поста",
+  "postLeaveConfirmTitle": "Выйти из поста?",
   "postLeaveConfirmBody": "Сообщения перестанут приходить, пост исчезнет из «Постов». Вернуться можно из «Не интересно».",
   "postLeaveConfirmAction": "Выйти",
   "postOriginCardTitle": "Участник из поста",
@@ -7350,7 +7350,7 @@
   "forwardAuthorPost": "Автор поста",
   "forwardInviteDialogTitlePost": "Пригласите человека посмотреть этот пост",
   "forwardInviteDialogBodyPost": "Человек присоединится к Tentura как ваш контакт и увидит этот пост. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
-  "postChatReadOnlyHint": "Этот чат доступен только для чтения",
+  "postChatReadOnlyHint": "Этот пост доступен только для чтения",
   "beaconPublishWithoutSendingHiddenChildHint": "Не виден в «Поле»: его увидят только участники запроса, к которому он относится, и те, кому его отправят или перешлют.",
   "beaconRoutingBannerChild": "Пока вы его не отправите, этот запрос увидят только участники запроса, к которому он относится.",
   "beaconLobbyTitle": "Вопросы",
@@ -7613,5 +7613,12 @@
   "constellationClusterPeople": "{n} чел.",
   "constellationMinimapShow": "Показать миникарту",
   "constellationMinimapHide": "Скрыть миникарту",
-  "constellationPlaceAsMagnet": "Разместить как магнит"
+  "constellationPlaceAsMagnet": "Разместить как магнит",
+  "beaconCreateChildOfBanner": "Дочерний запрос для «{title}»",
+  "inviteAcceptedSetupAddDetailsFor": "Отметить, чем может помочь {name}",
+  "activityForwardOutcomeInviteDeclined": "Вы ответили «Не смогу»",
+  "activityForwardUndo": "Отменить",
+  "inviteDeclineDialogTitle": "Не сможете?",
+  "beaconShowcaseDeclined": "Вы ответили «Не смогу». Помощь всё ещё можно предложить.",
+  "forwardDeclinedUseInvite": "Убрал(а) запрос — позовите через «Люди › Позвать»"
 }

@@ -392,7 +392,7 @@
   "@friendsScanInviteCode": {
     "context": "FriendsScreen"
   },
-  "friendsCreateInvitation": "Create invitation",
+  "friendsCreateInvitation": "Invite someone you trust",
   "@friendsCreateInvitation": {
     "context": "FriendsScreen"
   },
@@ -7910,7 +7910,7 @@
   "@postsTabSelectConversation": {
     "description": "Placeholder of the chat pane beside the conversations list on a wide window, before one is chosen."
   },
-  "postsTabNewPost": "New chat",
+  "postsTabNewPost": "New post",
   "@postsTabNewPost": {
     "description": "Empty-state action that starts a new Post."
   },
@@ -7975,7 +7975,7 @@
   "@postDeleteConfirmTitle": {
     "description": "Title of the confirmation shown before the Post root message is deleted."
   },
-  "postDeleteConfirmBody": "The post and its whole chat will be deleted permanently.",
+  "postDeleteConfirmBody": "The post and all its messages will be deleted permanently.",
   "@postDeleteConfirmBody": {
     "description": "Body of the confirmation shown before the Post root message is deleted."
   },
@@ -8000,7 +8000,7 @@
       }
     }
   },
-  "postStartedByLine": "{name} started this chat with you",
+  "postStartedByLine": "{name} sent you this post",
   "@postStartedByLine": {
     "description": "Pinned strip line for a recipient the Post author sent the Post to (a New chat); not a forward.",
     "placeholders": {
@@ -8009,7 +8009,7 @@
       }
     }
   },
-  "postStartedByLineWithNote": "{name} started this chat with you: “{note}”",
+  "postStartedByLineWithNote": "{name} sent you this post: “{note}”",
   "@postStartedByLineWithNote": {
     "description": "Pinned strip line for a recipient the Post author sent the Post to with a personal note (#667).",
     "placeholders": {
@@ -8034,7 +8034,7 @@
   "@postParticipantAuthor": {
     "description": "Label next to the Post author in the participants sheet."
   },
-  "postParticipantsInConversation": "IN THE CHAT · {count}",
+  "postParticipantsInConversation": "IN THE POST · {count}",
   "@postParticipantsInConversation": {
     "description": "Heading of the Post participants list for members who are in the conversation.",
     "placeholders": {
@@ -8204,11 +8204,11 @@
   "@postMuteForever": {
     "description": "Mute duration: no end."
   },
-  "postMenuLeave": "Leave chat",
+  "postMenuLeave": "Leave post",
   "@postMenuLeave": {
     "description": "Post overflow (recipient): leave the conversation."
   },
-  "postLeaveConfirmTitle": "Leave chat?",
+  "postLeaveConfirmTitle": "Leave post?",
   "@postLeaveConfirmTitle": {
     "description": "Title of the leave-conversation confirmation."
   },
@@ -10512,7 +10512,7 @@
       }
     }
   },
-  "postChatReadOnlyHint": "This chat is read-only",
+  "postChatReadOnlyHint": "This post is read-only",
   "@postChatReadOnlyHint": {
     "description": "Composer hint in a Post's chat when the viewer cannot write (#501)."
   },
@@ -11763,5 +11763,43 @@
   },
   "constellationMinimapShow": "Show minimap",
   "constellationMinimapHide": "Hide minimap",
-  "constellationPlaceAsMagnet": "Place as magnet"
+  "constellationPlaceAsMagnet": "Place as magnet",
+  "beaconCreateChildOfBanner": "Child request of ‘{title}’",
+  "@beaconCreateChildOfBanner": {
+    "context": "BeaconCreateScreen: one-line note above a new child request, e.g. one made from a discussion message, naming the request it will belong to (#735)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteAcceptedSetupAddDetailsFor": "Add what {name} can help with",
+  "@inviteAcceptedSetupAddDetailsFor": {
+    "description": "Activity row action after someone joined via your invite: opens the sheet where you note what they can help with (#721). Name is the new connection.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "activityForwardOutcomeInviteDeclined": "You said you can't make it",
+  "@activityForwardOutcomeInviteDeclined": {
+    "description": "Activity row (#725): the viewer answered an author invitation with Can't make it."
+  },
+  "activityForwardUndo": "Undo",
+  "@activityForwardUndo": {
+    "description": "Activity row (#725): undo Can't make it on an invitation."
+  },
+  "inviteDeclineDialogTitle": "Can't make it?",
+  "@inviteDeclineDialogTitle": {
+    "description": "Dialog title (#725) after Can't make it on an author invitation."
+  },
+  "beaconShowcaseDeclined": "You said you can't make it. You can still offer help.",
+  "@beaconShowcaseDeclined": {
+    "description": "Request page (#725): the viewer declined the invitation or said they can't help; Offer help is still below."
+  },
+  "forwardDeclinedUseInvite": "They dismissed it — use People › Invite",
+  "@forwardDeclinedUseInvite": {
+    "description": "Forward picker row for the Request author (#730): this person dismissed the Request; they can still be invited from the People tab."
+  }
 }

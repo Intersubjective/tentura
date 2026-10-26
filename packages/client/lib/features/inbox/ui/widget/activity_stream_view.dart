@@ -626,7 +626,12 @@ class _ActivityStreamScrollBody extends StatelessWidget {
       // §4's _Avoid_ line forbids celebrating a clear surface while loading or
       // offline, and a spinner replaced by "nothing new" is exactly that.
       if (shouldShowForYouEmptyState(
-        hasRows: streamCells.isNotEmpty,
+        // An invite prompt above still offers an action, so the surface is
+        // not «caught up» (#721), as on Updates.
+        hasRows:
+            streamCells.isNotEmpty ||
+            placement.pinnedReceipts.isNotEmpty ||
+            placement.collapsedCount >= 3,
         isLoading: streamState.isLoading || offersState.isLoading,
         hasError: streamState.hasRefreshError || offersState.pageLoadFailed,
       ))
@@ -697,7 +702,7 @@ class _PinnedInviteCard extends StatelessWidget {
     final beaconTitle = item.beacon?.title.trim() ?? '';
 
     Future<void> decline() async {
-      final message = await showRejectionDialog(context);
+      final message = await showInviteDeclineDialog(context);
       if (!context.mounted || message == null) return;
       await offers.declineInvite(beaconId, message: message);
     }

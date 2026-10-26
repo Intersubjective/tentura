@@ -138,7 +138,7 @@ UserBlockCase _userBlockCase(_RecordingBlockRepository blocks) => UserBlockCase(
   NoOpCommitmentRepository(),
   _FakeInbox(),
   _NoopCapabilityEvidence(),
-      FakeBeaconHierarchyRepository(),
+  FakeBeaconHierarchyRepository(),
   roomRepository: RecordingRoomAccessRepository(),
   trustLedger: TrustLedgerRepositoryMock(),
   env: Env.test(),
@@ -180,7 +180,11 @@ final class _FakeContacts extends Fake implements UserContactRepositoryPort {
 
 final class _FakeBeacons extends Fake implements BeaconRepositoryPort {}
 
-final class _FakeInbox extends Fake implements InboxRepositoryPort {}
+final class _FakeInbox extends Fake implements InboxRepositoryPort {
+  @override
+  Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) async =>
+      const [];
+}
 
 class _FakeProfileLookup extends Fake implements UserProfileBatchLookup {
   _FakeProfileLookup(this.profiles);

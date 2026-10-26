@@ -66,7 +66,7 @@ class _Banner extends StatelessWidget {
           final note = invite.note?.trim() ?? '';
 
           Future<void> decline() async {
-            final message = await showRejectionDialog(context);
+            final message = await showInviteDeclineDialog(context);
             if (!context.mounted || message == null) return;
             await cubit.decline(message: message);
           }

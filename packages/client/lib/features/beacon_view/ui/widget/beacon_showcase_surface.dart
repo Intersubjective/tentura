@@ -24,6 +24,7 @@ import 'package:tentura/features/beacon_view/ui/widget/declined_offer_notice.dar
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_location_actions.dart';
@@ -457,6 +458,7 @@ class _ShowcaseBottomPanel extends StatelessWidget {
     // Closed or cancelled: the team is past tense and an unanswered offer is
     // no longer "with the author" (#686).
     final finished = beacon.status.isFinished;
+    final declined = beaconShowcaseDeclinedText(l10n, state);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -500,6 +502,14 @@ class _ShowcaseBottomPanel extends StatelessWidget {
                   beaconId: beacon.id,
                   onAnswered: beaconViewCubit.refreshAfterInviteAnswer,
                 ),
+              if (!isPreview && declined != null) ...[
+                SizedBox(height: tt.tightGap),
+                Text(
+                  declined,
+                  key: const Key('beaconShowcaseDeclined'),
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
+              ],
               if (offerPending) ...[
                 SizedBox(height: tt.tightGap),
                 Text(
@@ -575,6 +585,17 @@ String beaconShowcaseOfferPendingText(L10n l10n, BeaconViewState state) {
     BeaconStatus.closed => l10n.beaconShowcaseOfferUnansweredClosed,
     _ => l10n.beaconShowcaseOfferPending,
   };
+}
+
+/// #725: the viewer said they can't make it (their inbox row for this
+/// Request is declined), so the page says so above Offer help, which still
+/// lets them change their mind. Null when there is nothing to say: the
+/// author, an active offer of theirs, or a finished Request.
+String? beaconShowcaseDeclinedText(L10n l10n, BeaconViewState state) {
+  if (state.inboxStatus != InboxItemStatus.rejected) return null;
+  if (state.isBeaconMine || state.myActiveHelpOffer != null) return null;
+  if (state.beacon.status.isFinished) return null;
+  return l10n.beaconShowcaseDeclined;
 }
 
 /// "IN ON IT (IV)(OL)(+2)" with a caption naming the people the viewer

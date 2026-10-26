@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
+import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -71,7 +72,12 @@ final class BeaconAuthorInvitesCubit extends Cubit<BeaconAuthorInvitesState> {
       userId: userId,
       note: note,
     );
-    if (result.outcome != PostBudInviteOutcome.invited && !isClosed) {
+    if (isClosed) return;
+    if (result.outcome == PostBudInviteOutcome.invited) {
+      // #734: the row's button turns into Withdraw quietly; say it went.
+      final name = state.profiles[userId]?.shownName.trim() ?? '';
+      _effects.emit(ShowMessage(AuthorInviteSentMessage(name)));
+    } else {
       emit(
         state.copyWith(
           notInvited: BeaconAuthorInviteRefusal(

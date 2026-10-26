@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -342,14 +341,17 @@ class _AllVisiblePeers extends Fake implements PersonVisibilityRepositoryPort {
     required String viewerId,
     required Iterable<String> peerIds,
     required String context,
-  }) async =>
-      peerIds.toSet();
+  }) async => peerIds.toSet();
 }
 
 class _NoopForwardAttribution extends Fake
     implements ForwardAttributionRepositoryPort {}
 
 class _NoopInbox extends Fake implements InboxRepositoryPort {
+  @override
+  Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) async =>
+      const [];
+
   @override
   Future<void> upsertWatchingForSender({
     required String senderId,
@@ -365,8 +367,7 @@ class _NoopInbox extends Fake implements InboxRepositoryPort {
   }) async {}
 }
 
-class _NoopAttentionDispatch extends Fake
-    implements AttentionDispatchPort {
+class _NoopAttentionDispatch extends Fake implements AttentionDispatchPort {
   @override
   Future<void> record(AttentionDispatchIntent intent) async {}
 }
@@ -378,4 +379,3 @@ class _NoopUsers extends Fake implements UserRepositoryPort {
   @override
   Future<UserEntity> getById(String id) async => UserEntity(id: id);
 }
-

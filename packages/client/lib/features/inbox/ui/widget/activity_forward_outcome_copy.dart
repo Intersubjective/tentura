@@ -22,8 +22,12 @@ String? activityForwardOutcomeLabel(
       authorId,
     ),
     AttentionForwardOutcome.watching => l10n.activityForwardOutcomeWatching,
+    // #725: «Не смогу» on an author invitation keeps its own words; a
+    // dismissed forward stays "dismissed" (#485).
     AttentionForwardOutcome.notInterested =>
-      l10n.activityForwardOutcomeNotInterested,
+      activityForwardDeclinedInvite(presentationPayloadJson)
+          ? l10n.activityForwardOutcomeInviteDeclined
+          : l10n.activityForwardOutcomeNotInterested,
     AttentionForwardOutcome.closedBeforeResponse =>
       l10n.activityForwardOutcomeClosed,
     AttentionForwardOutcome.deletedBeforeResponse =>
@@ -31,6 +35,11 @@ String? activityForwardOutcomeLabel(
     null => null,
   };
 }
+
+/// #725: the row's "not interested" answered an author invitation ("Can't
+/// make it"), as the server marks it (`declinedInvite`).
+bool activityForwardDeclinedInvite(String presentationPayloadJson) =>
+    _decodePayload(presentationPayloadJson)?['declinedInvite'] == true;
 
 String _helpingLabel(
   L10n l10n,

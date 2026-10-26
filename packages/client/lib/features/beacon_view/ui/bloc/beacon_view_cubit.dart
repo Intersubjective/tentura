@@ -158,6 +158,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   PostMembershipRepository? _postMembershipRepository;
 
+  /// The shown name of whoever made the offer of [offerUserId]; empty when
+  /// the offer is not on the page.
+  String _offererName(String offerUserId) {
+    for (final c in state.helpOffers) {
+      if (c.user.id == offerUserId) return c.user.shownName.trim();
+    }
+    return '';
+  }
+
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
     if (!isClosed) {
@@ -743,6 +752,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         beaconId: state.beacon.id,
         offerUserId: offerUserId,
       );
+      // #734: the People tab row changes quietly; say what happened.
+      _effects.emit(
+        ShowMessage(HelpOfferAcceptedMessage(_offererName(offerUserId))),
+      );
       unawaited(_fetchBeaconByIdWithTimeline());
     } catch (e) {
       await _fetchBeaconByIdWithTimeline();
@@ -805,6 +818,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         beaconId: state.beacon.id,
         offerUserId: offerUserId,
         reason: trimmedReason,
+      );
+      _effects.emit(
+        ShowMessage(HelpOfferDeclinedMessage(_offererName(offerUserId))),
       );
       unawaited(_fetchBeaconByIdWithTimeline());
     } catch (e) {

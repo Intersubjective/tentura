@@ -57,6 +57,25 @@ void main() {
     );
   });
 
+  // #725: a "not interested" row that answered an author invitation reads
+  // "You said you can't make it"; the bool has to survive the allow-list.
+  test('declinedInvite survives the GraphQL allow-list as a bool', () {
+    const declinedPayload = {'declinedInvite': true};
+    final mapped = QueryAttention.mapReceiptForTesting(
+      _forwardRow(declinedPayload),
+    );
+
+    final payload =
+        jsonDecode(mapped['presentationPayloadJson']! as String)
+            as Map<String, Object?>;
+    expect(payload['declinedInvite'], isTrue);
+    expect(
+      () =>
+          QueryAttention.validateAttentionPresentationPayload(declinedPayload),
+      returnsNormally,
+    );
+  });
+
   // #665 review: the client named the Request's author as the inviter; the
   // row now carries who actually sent the invite.
   test('inviterId survives the GraphQL allow-list', () {

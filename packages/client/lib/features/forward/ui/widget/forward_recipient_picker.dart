@@ -16,14 +16,13 @@ import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
-import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
+import 'beacon_invite_flow.dart';
 import 'compact_beacon_context_strip.dart';
 import 'forward_attribution_dialog.dart';
 import 'forward_band_strip.dart';
@@ -440,51 +439,11 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     if (_inviteFlowActive) return;
     _inviteFlowActive = true;
     try {
-      final l10n = L10n.of(context)!;
-
-      final invitation = await _invitationCubit.createInvitation(
-        addresseeName: '',
-        beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
-      );
-      if (invitation == null || !context.mounted) return;
-
-      await WidgetsBinding.instance.endOfFrame;
-      if (!context.mounted) return;
-
-      // A request invite says what it does: who it brings in, to what, and
-      // that the link is single-use with a limited life (#452).
-      final forBeacon = widget.beaconId.isNotEmpty;
-      final isPost = _isPost(context.read<ForwardCubit>().state);
-      const days = kInvitationDefaultTTL ~/ 24;
-      final used = await ShareCodeDialog.show(
+      await runBeaconInviteFlow(
         context,
-        header: !forBeacon
-            ? l10n.labelInvitationCode
-            : isPost
-            ? l10n.forwardInviteDialogTitlePost
-            : l10n.forwardInviteDialogTitle,
-        caption: !forBeacon
-            ? null
-            : isPost
-            ? l10n.forwardInviteDialogBodyPost(days)
-            : l10n.forwardInviteDialogBody(days),
-        link: inviteShareUri(invitation.id),
-      );
-      // Closed without Copy, Share, a hand selection of the link (#605) or a
-      // visible QR: the link never left the dialog, so drop the invite
-      // instead of leaving a silent one (#454).
-      if (!used) {
-        await _invitationCubit.deleteInvitationById(invitation.id);
-        return;
-      }
-      if (!context.mounted) return;
-      showSnackBar(
-        context,
-        text: l10n.forwardInviteCreatedHint,
-        action: SnackBarAction(
-          label: l10n.forwardViewInvitations,
-          onPressed: () => unawaited(GetIt.I<RootRouter>().openInvitations()),
-        ),
+        invitations: _invitationCubit,
+        beaconId: widget.beaconId,
+        isPost: _isPost(context.read<ForwardCubit>().state),
       );
     } finally {
       _inviteFlowActive = false;
@@ -960,6 +919,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         ForwardRecipientRow(
           host: ForwardRecipientRowHost.pickerLineage,
           isPost: _isPost(state),
+          viewerIsAuthor: state.viewerIsAuthor,
           candidate: lineage[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(lineage[i].id),
@@ -1066,6 +1026,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         ForwardRecipientRow(
           host: ForwardRecipientRowHost.pickerStandard,
           isPost: _isPost(state),
+          viewerIsAuthor: state.viewerIsAuthor,
           candidate: ordered[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(ordered[i].id),

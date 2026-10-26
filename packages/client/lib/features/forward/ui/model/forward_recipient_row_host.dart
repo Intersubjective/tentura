@@ -60,10 +60,15 @@ bool forwardRecipientPauseReplacesRelation(CandidateInvolvement i) =>
 
 /// [isPost]: the forwarded beacon is a Post, so its author is the Post's
 /// author (#501).
+///
+/// [viewerIsAuthor]: the viewer wrote this Request. Someone who dismissed it
+/// stays out of the picker; its author is told where they can still ask
+/// them (#730: People › Invite, which carries the invitation).
 String forwardRecipientRelationLabel(
   L10n l10n,
   ForwardCandidate candidate, {
   bool isPost = false,
+  bool viewerIsAuthor = false,
 }) {
   if (candidate.involvement != CandidateInvolvement.declined &&
       candidate.involvement != CandidateInvolvement.author &&
@@ -71,7 +76,10 @@ String forwardRecipientRelationLabel(
     return l10n.notReachable;
   }
   return switch (candidate.involvement) {
-    CandidateInvolvement.declined => l10n.forwardDeclined,
+    CandidateInvolvement.declined =>
+      viewerIsAuthor && !isPost
+          ? l10n.forwardDeclinedUseInvite
+          : l10n.forwardDeclined,
     CandidateInvolvement.author =>
       isPost ? l10n.forwardAuthorPost : l10n.forwardAuthor,
     CandidateInvolvement.forwardedByMe =>
@@ -117,6 +125,7 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
   TenturaTone? tierEvidenceTone,
   bool showPresenceLine = true,
   bool isPost = false,
+  bool viewerIsAuthor = false,
 }) {
   // A paused person cannot be picked; say why even where a tier label or
   // the suppressed exploration line would otherwise take the slot.
@@ -160,6 +169,7 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
     l10n,
     candidate,
     isPost: isPost,
+    viewerIsAuthor: viewerIsAuthor,
   );
   final relationTone = forwardRecipientRelationTone(
     candidate,

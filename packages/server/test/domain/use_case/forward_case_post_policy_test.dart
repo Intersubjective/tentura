@@ -120,6 +120,9 @@ void main() {
     forwardAttributionRepo = MockForwardAttributionRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
+    when(
+      inboxRepo.fetchRejectedUserIdsByBeacon(any),
+    ).thenAnswer((_) async => const <String>[]);
     capabilityEvidence = MockCapabilityEvidencePort();
     beaconRepo = MockBeaconRepositoryPort();
     personVisibilityRepo = MockPersonVisibilityRepositoryPort();

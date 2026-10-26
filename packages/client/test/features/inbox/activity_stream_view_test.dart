@@ -610,6 +610,44 @@ void main() {
     );
   });
 
+  // #721: «You're caught up» sat right under an invite prompt that still
+  // offered «Add details». Like Updates, a pinned prompt is content.
+  testWidgets('#721 no caught-up state under a pending invite prompt', (
+    tester,
+  ) async {
+    final inboxRepo = FakeInboxRepository();
+    final attentionRepo = _FeedAttentionRepo(firstPage: [_promptReceipt()]);
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: const [],
+    );
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+      setup: _PromptSetup(),
+    );
+    addTearDown(boot.dispose);
+    boot.stream.applyKnownPrompt(
+      'invitee-prompt-1',
+      InviteSeedPromptState(
+        inviterUserId: 'inv',
+        inviteeUserId: 'invitee-prompt-1',
+        state: PromptStateValue.pending,
+      ),
+    );
+
+    await _pumpStreamView(tester, boot: boot);
+
+    // The positive first: the prompt with its action is on screen.
+    expect(
+      find.byKey(TestIds.key(TestIds.activityPromptPin('prompt-1'))),
+      findsOneWidget,
+    );
+    expect(find.byType(ForYouEmptyState), findsNothing);
+    expect(find.byType(CaughtUpPanel), findsNothing);
+  });
+
   testWidgets('stream pagination waits until offers hasMore is false', (
     tester,
   ) async {

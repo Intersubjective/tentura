@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/timeline_help_offer_mapping.dart';
+import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -137,6 +138,8 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
         beaconId: state.beaconId,
         offerUserId: state.offerUserId,
       );
+      // #734: the sheet closes; say what happened.
+      _effects.emit(ShowMessage(HelpOfferAcceptedMessage(_offererName)));
       return true;
     } catch (e) {
       _effects.emit(ShowError(e));
@@ -152,12 +155,15 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
         offerUserId: state.offerUserId,
         reason: reason,
       );
+      _effects.emit(ShowMessage(HelpOfferDeclinedMessage(_offererName)));
       return true;
     } catch (e) {
       _effects.emit(ShowError(e));
       return false;
     }
   }
+
+  String get _offererName => state.offer?.user.shownName.trim() ?? '';
 
   Future<bool> keepStandby() async {
     if (!canAnswerBackupOffer) return false;

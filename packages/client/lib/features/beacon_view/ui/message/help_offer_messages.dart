@@ -30,6 +30,55 @@ final class MovedToInboxMessage extends LocalizableMessage {
       'Предложение отозвано. Обновления по нему останутся во вкладке «Слежу».';
 }
 
+/// #734: after Accept on someone's offer, on the screen where it was taken.
+final class HelpOfferAcceptedMessage extends LocalizableMessage {
+  const HelpOfferAcceptedMessage(this.name);
+
+  /// The helper's shown name; empty when unknown.
+  final String name;
+
+  @override
+  String get toEn =>
+      name.isEmpty ? 'Offer accepted' : '$name admitted to the discussion';
+
+  @override
+  String get toRu =>
+      name.isEmpty ? 'Предложение принято' : '$name теперь в обсуждении';
+}
+
+/// #734: after Decline on someone's offer; they are told, with the reason.
+final class HelpOfferDeclinedMessage extends LocalizableMessage {
+  const HelpOfferDeclinedMessage(this.name);
+
+  /// The offerer's shown name; empty when unknown.
+  final String name;
+
+  @override
+  String get toEn =>
+      name.isEmpty ? 'Offer declined' : 'Offer declined — $name was told';
+
+  @override
+  String get toRu => name.isEmpty
+      ? 'Предложение отклонено'
+      : 'Предложение отклонено — $name получит уведомление';
+}
+
+/// #734: after «Позвать» on the People tab sent an invitation.
+final class AuthorInviteSentMessage extends LocalizableMessage {
+  const AuthorInviteSentMessage(this.name);
+
+  /// The invitee's shown name; empty when unknown.
+  final String name;
+
+  @override
+  String get toEn =>
+      name.isEmpty ? 'Invitation sent' : 'Invitation sent to $name';
+
+  @override
+  String get toRu =>
+      name.isEmpty ? 'Приглашение отправлено' : 'Приглашение отправлено: $name';
+}
+
 /// After «Decline remaining offers» (#268).
 final class RemainingOffersDeclinedMessage extends LocalizableMessage {
   const RemainingOffersDeclinedMessage(this.count);
