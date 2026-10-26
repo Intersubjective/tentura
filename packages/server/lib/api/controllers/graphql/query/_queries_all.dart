@@ -23,6 +23,7 @@ import 'query_constellation_layout_snapshots.dart';
 import 'query_constellation_tag_magnets.dart';
 import 'query_constellation_field_requests.dart';
 import 'query_constellation_mutual_trust.dart';
+import 'query_constellation_trust_chain.dart';
 import 'query_forward_candidate_context.dart';
 import 'query_forward_graph.dart';
 import 'query_forward_inbound.dart';
@@ -67,6 +68,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryConstellationField().all,
   ...QueryConstellationFieldRequests().all,
   ...QueryConstellationMutualTrust().all,
+  ...QueryConstellationTrustChain().all,
   ...QueryForwardCandidateContext().all,
   ...QueryForwardGraph().all,
   ...QueryForwardInbound().all,

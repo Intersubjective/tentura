@@ -2,6 +2,13 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 
 import 'input/_input_types.dart';
 
+final gqlTypeConstellationTrustChainPerson =
+    GraphQLObjectType('ConstellationTrustChainPerson', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+      ]);
+
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldCoordinates.type,
   InputFieldForwardRecipientBandProvenance.type,
@@ -26,6 +33,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardCandidateConnectionNode,
   gqlTypeForwardCandidateContext,
   gqlTypeConstellationPeer,
+  gqlTypeConstellationTrustChainPerson,
   gqlTypeConstellationEdge,
   gqlTypeConstellationRequest,
   gqlEnumConstellationMemberWebState,
