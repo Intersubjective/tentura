@@ -30,6 +30,14 @@ class ClosurePreview extends StatelessWidget {
       beaconId: beaconId,
     );
     final top = shares.values.fold<double>(0, (a, b) => a > b ? a : b);
+    final total = shares.values.fold<double>(0, (a, b) => a + b);
+    // Each row carries its value; a row with no share, or a preview with
+    // nothing to show, is left out rather than drawn as a bare name (#733).
+    final shown = [
+      for (final m in data.members)
+        if ((shares[m.id] ?? 0) > 0) m,
+    ];
+    if (shown.isEmpty || total <= 0) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -38,21 +46,25 @@ class ClosurePreview extends StatelessWidget {
           style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: TenturaSpacing.row),
-        for (final m in data.members)
+        for (final m in shown)
           Padding(
             padding: const EdgeInsets.only(bottom: TenturaSpacing.row),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  m.displayName ?? m.id,
+                  l10n.closureAuthorSplitShare(
+                    m.displayName ?? m.id,
+                    (shares[m.id]! / total * 100).round(),
+                  ),
+                  key: ValueKey('closure.author.preview.value.${m.id}'),
                   style: theme.textTheme.bodySmall,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: TenturaSpacing.tight),
                 FractionallySizedBox(
                   key: ValueKey('closure.author.preview.${m.id}'),
-                  widthFactor: top == 0 ? 0 : (shares[m.id] ?? 0) / top,
+                  widthFactor: shares[m.id]! / top,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary,

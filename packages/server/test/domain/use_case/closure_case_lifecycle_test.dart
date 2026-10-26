@@ -250,6 +250,7 @@ Future<void> main() async {
         BeaconStatus.reviewOpen.smallintValue,
       );
       expect(receipts.openedCalls, [(_beaconId, 1)]);
+      expect(finalizer.calls, isEmpty);
       expect(await _transitions(writer, _beaconId), [
         (
           from: BeaconStatus.open.smallintValue,
@@ -258,6 +259,51 @@ Future<void> main() async {
         ),
       ]);
     }, skip: skipReason);
+
+    // #733 (Vadim, A): a final check nobody can vote in is only a week of
+    // waiting, so close settles the epoch at once, as «Finish now» would.
+    test('close with 2 members settles the epoch at once: no final check '
+        'opened (#733)', () async {
+      await openWith([_aId, _bId]);
+
+      expect(finalizer.calls, [(_beaconId, 1, FinalizeReason.authorCloseNow)]);
+      expect(await repo.liveEpoch(_beaconId), isNull);
+      expect(
+        await _epochStatus(writer, 1),
+        ClosureEpochStatus.finalized.dbValue,
+      );
+      expect((await members()).map((m) => m.userId).toSet(), {_aId, _bId});
+      // Helpers are not told a final check opened that never runs.
+      expect(receipts.openedCalls, isEmpty);
+    }, skip: skipReason);
+
+    test('close with 1 member settles the epoch at once (#733)', () async {
+      await openWith([_aId]);
+
+      expect(finalizer.calls, [(_beaconId, 1, FinalizeReason.authorCloseNow)]);
+      expect(receipts.openedCalls, isEmpty);
+    }, skip: skipReason);
+
+    test(
+      '3 members but no voter among them: close settles at once (#733)',
+      () async {
+        for (final h in [_aId, _bId, _cId]) {
+          await member(h);
+          await writeEvent(
+            h,
+            CommitmentEventKind.withdrawnByHelper,
+            hook: false,
+          );
+        }
+        await closureCase.close(authorId: _authorId, beaconId: _beaconId);
+
+        expect(finalizer.calls, [
+          (_beaconId, 1, FinalizeReason.authorCloseNow),
+        ]);
+        expect(receipts.openedCalls, isEmpty);
+      },
+      skip: skipReason,
+    );
 
     test(
       'a member withdrawn before close is not a voter, departure voluntary',
@@ -282,7 +328,9 @@ Future<void> main() async {
 
     test('reopen twice: second fails with reopenLimit; keeps outcomes and '
         'drafts, removes committed rows', () async {
-      await openWith([_aId, _bId]);
+      // Three members: with fewer nobody can vote and close settles at once
+      // (#733), so there would be no final check to reopen.
+      await openWith([_aId, _bId, _cId]);
       await answerAll([_aId, _bId]);
       await repo.toggleSupport(
         beaconId: _beaconId,
@@ -362,7 +410,7 @@ Future<void> main() async {
           await _beaconStatus(writer),
           BeaconStatus.enoughHelp.smallintValue,
         );
-        await openWith([_aId]);
+        await openWith([_aId, _bId, _cId]);
         expect(
           await _beaconStatus(writer),
           BeaconStatus.reviewOpen.smallintValue,
@@ -385,7 +433,7 @@ Future<void> main() async {
       'reopen only lands in Open or Needs more help; any other target is '
       'refused and the final check stays as it was (#366)',
       () async {
-        await openWith([_aId]);
+        await openWith([_aId, _bId, _cId]);
         expect(
           await _beaconStatus(writer),
           BeaconStatus.reviewOpen.smallintValue,
@@ -427,7 +475,7 @@ Future<void> main() async {
         closureCase.reopen(authorId: _authorId, beaconId: _beaconId),
         closureError(ClosureExceptionCode.wrongStatus),
       );
-      await openWith([_aId]);
+      await openWith([_aId, _bId, _cId]);
       await expectLater(
         closureCase.reopen(authorId: _aId, beaconId: _beaconId),
         closureError(ClosureExceptionCode.notAuthor),
@@ -591,15 +639,18 @@ ORDER BY created_at, id
         expect(finalizer.calls, hasLength(1));
       }, skip: skipReason);
 
-      test('true immediately for 2 members with both outcomes set', () async {
+      // #733: two members cannot vote, so close itself settles the epoch and
+      // there is nothing left for closeNow.
+      test('2 members: close settles at once, closeNow has no epoch', () async {
         await openWith([_aId, _bId]);
-        await answerAll([_aId, _bId]);
-
-        await closureCase.closeNow(authorId: _authorId, beaconId: _beaconId);
 
         expect(finalizer.calls, [
           (_beaconId, 1, FinalizeReason.authorCloseNow),
         ]);
+        await expectLater(
+          closureCase.closeNow(authorId: _authorId, beaconId: _beaconId),
+          closureError(ClosureExceptionCode.wrongStatus),
+        );
       }, skip: skipReason);
     });
 
@@ -727,13 +778,17 @@ ORDER BY created_at, id
       for (final (name, kind, prior) in cases) {
         test('$name: event lands after finalize or is reflected, never '
             'partial', () async {
+          // A third member keeps the final check open (#733: with fewer,
+          // close settles at once); 48 h on, closeNow need not wait.
           await member(_aId);
           await member(_bId);
+          await member(_cId);
           if (prior != null) {
             await writeEvent(_bId, prior, hook: false);
           }
           await closureCase.close(authorId: _authorId, beaconId: _beaconId);
-          await answerAll([_aId, _bId]);
+          await answerAll([_aId, _bId, _cId]);
+          await _backdateOpenedAt(writer, const Duration(hours: 49));
 
           final entered = Completer<void>();
           final gate = Completer<void>();
@@ -780,7 +835,7 @@ ORDER BY created_at, id
           ))!;
           // A helper released before open was not active at open: never a voter.
           expect(resultB.helped, prior == null ? 1.0 : 0.0);
-          expect(await _resultCount(writer), 2);
+          expect(await _resultCount(writer), 3);
           expect(
             await _epochStatus(writer, 1),
             ClosureEpochStatus.finalized.dbValue,
@@ -789,13 +844,17 @@ ORDER BY created_at, id
 
         test('$name: hook holding the lock completes before finalize '
             'proceeds and is reflected in the result rows', () async {
+          // A third member keeps the final check open (#733: with fewer,
+          // close settles at once); 48 h on, closeNow need not wait.
           await member(_aId);
           await member(_bId);
+          await member(_cId);
           if (prior != null) {
             await writeEvent(_bId, prior, hook: false);
           }
           await closureCase.close(authorId: _authorId, beaconId: _beaconId);
-          await answerAll([_aId, _bId]);
+          await answerAll([_aId, _bId, _cId]);
+          await _backdateOpenedAt(writer, const Duration(hours: 49));
 
           final hookHoldsLock = Completer<void>();
           final releaseHook = Completer<void>();
@@ -851,7 +910,7 @@ ORDER BY created_at, id
               snapshotRow.activeAtOpen &&
               snapshotRow.departure != Departure.removed;
           expect(resultB.helped, voter ? 1.0 : 0.0);
-          expect(await _resultCount(writer), 2);
+          expect(await _resultCount(writer), 3);
           expect(
             await _epochStatus(writer, 1),
             ClosureEpochStatus.finalized.dbValue,

@@ -113,7 +113,8 @@ final class ClosureCase extends UseCaseBase {
     }
   }
 
-  /// Author closes the Request: no member ever ⇒ closed; else opens epoch.
+  /// Author closes the Request: no member ever ⇒ closed; nobody able to vote
+  /// ⇒ an epoch settled at once (#733); else opens the epoch.
   Future<void> close({
     required String authorId,
     required String beaconId,
@@ -230,9 +231,26 @@ final class ClosureCase extends UseCaseBase {
           ),
         );
       }
+      // #733 (Vadim, A): with nobody able to vote — fewer than three members,
+      // or no voter among them — a final check would only be a week of
+      // waiting. Settle the epoch now, as «Finish now» would.
+      if (!canAnyoneVote(inserts)) {
+        await _finalizer.finalize(
+          beaconId: beaconId,
+          epoch: epochNumber,
+          reason: FinalizeReason.authorCloseNow,
+        );
+        return;
+      }
       await _receipts.opened(beaconId, epochNumber);
     },
   );
+
+  /// Someone can vote in a final check over [members]: a voter supports among
+  /// at least two colleagues ([toggleSupport] needs [_minToggleMembers]).
+  static bool canAnyoneVote(List<ClosureMemberInsert> members) =>
+      members.length >= _minToggleMembers &&
+      members.any((m) => m.activeAtOpen && m.departure == null);
 
   /// Author adds 7 days (max 2 extensions).
   Future<void> extend({

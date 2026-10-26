@@ -92,48 +92,72 @@ class _Body extends StatelessWidget {
             taggedIds: GetIt.I<PeopleTagsCase>().taggedIds,
           )
         : const <String>[];
-    // ListView builds its children lazily: long rosters stay cheap.
-    return ListView(
-      padding: context.tt.cardPadding,
-      children: [
-        Text(
-          l10n.closureAuthorOutcomeHint,
-          style: theme.textTheme.bodySmall,
+    final tt = context.tt;
+    // The standard page: a centred column of card sections with the screen
+    // padding, not a full-width list of loose text (#733).
+    return TenturaContentColumn(
+      child: ListView(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.sectionGap,
         ),
-        if (data.members.length == 2) ...[
-          const SizedBox(height: TenturaSpacing.row),
-          Text(l10n.closureAuthorTwoMembers, style: theme.textTheme.bodySmall),
-        ],
-        for (final (i, m) in members.indexed)
-          ClosureMemberRow(
-            autofocus: i == 0,
-            key: ValueKey('closure.author.member.${m.id}'),
-            member: m,
-            outcome: data.outcomes?[m.id],
-            marked: data.myMarks.contains(m.id),
-            onOutcome: (o) => cubit.setOutcome(m.id, o),
-            onMark: (on) => cubit.setMark(m.id, on: on),
-          ),
-        gap,
-        ClosureSplitSection(state: state),
-        gap,
-        ClosurePreview(data: data, beaconId: cubit.beaconId),
-        gap,
-        ClosureStoryField(initial: data.story, onSave: cubit.saveStory),
-        gap,
-        if (tagCandidates.isNotEmpty) ...[
-          TagSuggestionCard(
-            event: PeopleTagSuggestionEvent.closure(cubit.beaconId),
-            personIds: tagCandidates,
-            names: members
-                .where((m) => tagCandidates.contains(m.id))
-                .map((m) => m.displayName ?? m.id)
-                .join(', '),
+        children: [
+          TenturaTechCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.closureAuthorOutcomeHint,
+                  style: theme.textTheme.bodySmall,
+                ),
+                if (data.members.length == 2) ...[
+                  const SizedBox(height: TenturaSpacing.row),
+                  Text(
+                    l10n.closureAuthorTwoMembers,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+                for (final (i, m) in members.indexed)
+                  ClosureMemberRow(
+                    autofocus: i == 0,
+                    key: ValueKey('closure.author.member.${m.id}'),
+                    member: m,
+                    outcome: data.outcomes?[m.id],
+                    marked: data.myMarks.contains(m.id),
+                    onOutcome: (o) => cubit.setOutcome(m.id, o),
+                    onMark: (on) => cubit.setMark(m.id, on: on),
+                  ),
+              ],
+            ),
           ),
           gap,
+          TenturaTechCard(child: ClosureSplitSection(state: state)),
+          gap,
+          TenturaTechCard(
+            child: ClosurePreview(data: data, beaconId: cubit.beaconId),
+          ),
+          gap,
+          TenturaTechCard(
+            child: ClosureStoryField(
+              initial: data.story,
+              onSave: cubit.saveStory,
+            ),
+          ),
+          gap,
+          if (tagCandidates.isNotEmpty) ...[
+            TagSuggestionCard(
+              event: PeopleTagSuggestionEvent.closure(cubit.beaconId),
+              personIds: tagCandidates,
+              names: members
+                  .where((m) => tagCandidates.contains(m.id))
+                  .map((m) => m.displayName ?? m.id)
+                  .join(', '),
+            ),
+            gap,
+          ],
+          TenturaTechCard(child: ClosureFooter(state: state)),
         ],
-        ClosureFooter(state: state),
-      ],
+      ),
     );
   }
 }

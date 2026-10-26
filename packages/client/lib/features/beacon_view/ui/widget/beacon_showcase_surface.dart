@@ -459,6 +459,12 @@ class _ShowcaseBottomPanel extends StatelessWidget {
     // no longer "with the author" (#686).
     final finished = beacon.status.isFinished;
     final declined = beaconShowcaseDeclinedText(l10n, state);
+    // In its final check a non-member has nothing to do here: Offer help and
+    // Forward are gone, and this line says why (#733).
+    final inFinalCheck =
+        !isPreview &&
+        beacon.status == BeaconStatus.reviewOpen &&
+        primary.isEmpty;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -518,6 +524,14 @@ class _ShowcaseBottomPanel extends StatelessWidget {
                   style: TenturaText.bodySmall(
                     finished ? tt.textMuted : tt.info,
                   ),
+                ),
+              ],
+              if (inFinalCheck) ...[
+                SizedBox(height: tt.rowGap),
+                Text(
+                  l10n.beaconShowcaseFinalCheckNotice,
+                  key: const Key('beaconShowcaseFinalCheckNotice'),
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ],
               if (primary.isNotEmpty) ...[

@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
+import 'package:tentura/features/closure/domain/entity/closure_role.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -67,6 +68,12 @@ class _Body extends StatelessWidget {
     final data = state.data!;
     final colleagues = cubit.colleagues;
     final canVote = cubit.canVote;
+    // A voter with a single colleague has no support choice to make: say so
+    // instead of leaving names with bookmarks and nothing to do (#733).
+    final nothingToDecide =
+        data.role == ClosureRole.voter &&
+        data.status == kClosureStatusEvaluating &&
+        colleagues.length < 2;
     final anySupport = data.mySupport.isNotEmpty;
     final fmt = DateFormat.MMMd(l10n.localeName).add_Hm();
     const gap = SizedBox(height: TenturaSpacing.section);
@@ -106,97 +113,127 @@ class _Body extends StatelessWidget {
       _ => l10n.closureHelperStatusNone,
     };
 
+    final tt = context.tt;
     // ListView builds its children lazily: long rosters stay cheap.
-    return ListView(
-      padding: context.tt.cardPadding,
-      children: [
-        if (canVote) ...[
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.closureHelperHeader,
-                  style: theme.textTheme.titleSmall,
-                ),
+    return TenturaContentColumn(
+      child: ListView(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.sectionGap,
+        ),
+        children: [
+          if (nothingToDecide) ...[
+            TenturaTechCard(
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: TenturaSpacing.row),
+                  Expanded(
+                    child: Text(
+                      l10n.closureHelperNothingToDecide,
+                      key: const ValueKey('closure.helper.nothingToDecide'),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                key: const ValueKey('closure.helper.info'),
-                tooltip: l10n.closureHelperInfoTooltip,
-                icon: const Icon(Icons.info_outline),
-                onPressed: () => _showInfo(context, cubit),
+            ),
+            gap,
+          ],
+          if (canVote) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.closureHelperHeader,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                IconButton(
+                  key: const ValueKey('closure.helper.info'),
+                  tooltip: l10n.closureHelperInfoTooltip,
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () => _showInfo(context, cubit),
+                ),
+              ],
+            ),
+            gap,
+          ],
+          for (final (i, m) in colleagues.indexed)
+            person(m, voting: canVote, first: i == 0),
+          person(cubit.author),
+          const SizedBox(height: TenturaSpacing.row),
+          Text(
+            l10n.closureHelperBookmarkNote,
+            style: theme.textTheme.bodySmall,
+          ),
+          if (canVote) ...[
+            if (anySupport) ...[
+              gap,
+              Text(l10n.closureHelperLegend, style: theme.textTheme.bodySmall),
+              const SizedBox(height: TenturaSpacing.tight),
+              Text(
+                l10n.closureHelperSupportEdgeNote,
+                style: theme.textTheme.bodySmall,
               ),
             ],
-          ),
-          gap,
-        ],
-        for (final (i, m) in colleagues.indexed)
-          person(m, voting: canVote, first: i == 0),
-        person(cubit.author),
-        const SizedBox(height: TenturaSpacing.row),
-        Text(l10n.closureHelperBookmarkNote, style: theme.textTheme.bodySmall),
-        if (canVote) ...[
-          if (anySupport) ...[
+            if (releasedId != null) ...[
+              gap,
+              Text(
+                l10n.closureHelperReleased(nameOf(releasedId)),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             gap,
-            Text(l10n.closureHelperLegend, style: theme.textTheme.bodySmall),
+            Text(status, style: theme.textTheme.bodyMedium),
+            gap,
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FilledButton(
+                onPressed: cubit.done,
+                child: Text(l10n.closureHelperDone),
+              ),
+            ),
+            const SizedBox(height: TenturaSpacing.row),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                onPressed: () => _skip(context, cubit),
+                child: Text(l10n.closureHelperSkip),
+              ),
+            ),
+            Text(l10n.closureHelperSkipNote, style: theme.textTheme.bodySmall),
+          ],
+          gap,
+          Text(
+            l10n.closureHelperDeadline(fmt.format(data.closesAt.toLocal())),
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (canVote && data.earlyCloseAt != null) ...[
             const SizedBox(height: TenturaSpacing.tight),
             Text(
-              l10n.closureHelperSupportEdgeNote,
+              l10n.closureHelperEarlyClose(
+                fmt.format(data.earlyCloseAt!.toLocal()),
+              ),
               style: theme.textTheme.bodySmall,
             ),
           ],
-          if (releasedId != null) ...[
+          if (canVote) ...[
+            gap,
+            Text(l10n.closureHelperPrivacy, style: theme.textTheme.bodySmall),
+          ],
+          if (data.status == kClosureStatusEvaluating) ...[
             gap,
             Text(
-              l10n.closureHelperReleased(nameOf(releasedId)),
+              l10n.closureHelperAuthorEdgeNotice,
               style: theme.textTheme.bodySmall,
             ),
           ],
-          gap,
-          Text(status, style: theme.textTheme.bodyMedium),
-          gap,
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: FilledButton(
-              onPressed: cubit.done,
-              child: Text(l10n.closureHelperDone),
-            ),
-          ),
-          const SizedBox(height: TenturaSpacing.row),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              onPressed: () => _skip(context, cubit),
-              child: Text(l10n.closureHelperSkip),
-            ),
-          ),
-          Text(l10n.closureHelperSkipNote, style: theme.textTheme.bodySmall),
         ],
-        gap,
-        Text(
-          l10n.closureHelperDeadline(fmt.format(data.closesAt.toLocal())),
-          style: theme.textTheme.bodyMedium,
-        ),
-        if (canVote && data.earlyCloseAt != null) ...[
-          const SizedBox(height: TenturaSpacing.tight),
-          Text(
-            l10n.closureHelperEarlyClose(
-              fmt.format(data.earlyCloseAt!.toLocal()),
-            ),
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-        if (canVote) ...[
-          gap,
-          Text(l10n.closureHelperPrivacy, style: theme.textTheme.bodySmall),
-        ],
-        if (data.status == kClosureStatusEvaluating) ...[
-          gap,
-          Text(
-            l10n.closureHelperAuthorEdgeNotice,
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-      ],
+      ),
     );
   }
 

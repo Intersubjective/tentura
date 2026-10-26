@@ -4719,9 +4719,9 @@
   "beaconCloseSheetEvidenceNoOpenBlocker": "Нет открытого блокера",
   "beaconCloseSheetEvidenceWholeBeaconDone": "Запрос целиком отмечен завершённым",
   "beaconCloseSheetEvidenceEnoughHelp": "Отмечено: помощи хватает",
-  "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
+  "beaconCloseSheetEvidenceUsefulOrDone": "Предложение помощи принято",
   "beaconCloseSheetEvidenceEnoughHelpMissing": "«Помощи хватает» ещё не отмечено",
-  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "Пока нет полезного или завершённого результата",
+  "beaconCloseSheetEvidenceUsefulOrDoneMissing": "Пока ни одно предложение не принято",
   "beaconCloseSheetEvidenceUnsettledCount": "{count, plural, one{{count} предложение помощи не доведено до ясного статуса} few{{count} предложения помощи не доведены до ясного статуса} many{{count} предложений помощи не доведены до ясного статуса} other{{count} предложения помощи не доведены до ясного статуса}}",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
@@ -4828,7 +4828,7 @@
   "beaconHudActEffectReviewOffers": "Открывает «Люди»; принятие добавляет помощника в обсуждение",
   "beaconHudActEffectMarkEnoughHelp": "Сигнал помощникам; запрос остаётся открытым",
   "beaconHudActEffectWrapUpForReview": "Начинает подведение итогов: помощники отметят, чья помощь была важной",
-  "beaconHudActEffectCloseNow": "Закрывает запрос, когда все участники подвели итоги",
+  "beaconHudActEffectCloseNow": "Закрывает запрос сейчас, не дожидаясь подведения итогов",
   "beaconHudActEffectForward": "Делится запросом; доступ к обсуждению не меняется",
   "beaconHudYouChangeStatusInOverflow": "Измените статус запроса в меню ⋮",
   "beaconHudConfirmMarkEnoughHelpTitle": "Отметить, что помощи хватает?",
@@ -6578,8 +6578,8 @@
   "closureAuthorSplitEqual": "Поровну между теми, кого ты не отметил как «Не выполнено»",
   "closureAuthorSplitTooMany": "Вручную можно распределить не больше 20 человек. Здесь доли остаются равными",
   "closureAuthorSplitShare": "{name} — {pct}%",
-  "closureAuthorPreviewTitle": "если коллеги промолчат",
-  "closureAuthorTwoMembers": "Долю каждого распределяешь ты. Каждый из двоих поймёт по своему итогу, как ты разделил",
+  "closureAuthorPreviewTitle": "Что получит каждый, если коллеги промолчат",
+  "closureAuthorTwoMembers": "Доли задаёшь ты. Когда помощников двое, каждый по своему итогу поймёт и долю другого",
   "closureAuthorStoryHint": "Расскажи, как всё прошло",
   "closureAuthorStorySave": "Сохранить",
   "closureAuthorDeadline": "Срок: {when}",
@@ -7620,5 +7620,12 @@
   "activityForwardUndo": "Отменить",
   "inviteDeclineDialogTitle": "Не сможете?",
   "beaconShowcaseDeclined": "Вы ответили «Не смогу». Помощь всё ещё можно предложить.",
-  "forwardDeclinedUseInvite": "Убрал(а) запрос — позовите через «Люди › Позвать»"
+  "forwardDeclinedUseInvite": "Убрал(а) запрос — позовите через «Люди › Позвать»",
+  "beaconCloseSheetNoVoteBody": "Когда помощников меньше трёх, им нечего решать при подведении итогов, поэтому запрос закроется сразу.",
+  "beaconHudActEffectWrapUpNoVote": "Закрывает сразу: когда помощников меньше трёх, итоги не подводятся",
+  "closureAuthorStorySaved": "Сохранено ✓",
+  "closureAuthorStorySavedLabel": "Сохранено",
+  "closureAuthorCloseNowNote": "«Завершить сейчас» закрывает запрос, не дожидаясь остальных",
+  "closureHelperNothingToDecide": "С одним коллегой тебе здесь решать нечего — всё готово",
+  "beaconShowcaseFinalCheckNotice": "По этому запросу подводят итоги"
 }
