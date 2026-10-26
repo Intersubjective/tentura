@@ -21,8 +21,10 @@ import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/post_expiry_clock.dart';
 
 import '../bloc/post_view_cubit.dart';
+import '../post_remaining_label.dart';
 import '../widget/post_action.dart';
 import '../widget/post_info_sheet.dart';
 
@@ -34,6 +36,19 @@ enum _MuteChoice {
   forever(null);
 
   const _MuteChoice(this.duration);
+
+  final Duration? duration;
+}
+
+/// The ends «Сократить срок» offers; each is only offered when strictly
+/// earlier than the current end. `closeNow` is always offered.
+enum _ShortenChoice {
+  hour(Duration(hours: 1)),
+  sixHours(Duration(hours: 6)),
+  day(Duration(hours: 24)),
+  closeNow(null);
+
+  const _ShortenChoice(this.duration);
 
   final Duration? duration;
 }
@@ -66,8 +81,29 @@ class _PostViewScreenState extends State<PostViewScreen> {
     host: context.read<ThreadHostCubit>(),
   );
 
+  // Re-evaluates the countdown and the author's lifetime actions at the
+  // deadline and during the last hour, with no network event.
+  late final PostExpiryClock _expiryClock = PostExpiryClock(
+    onTick: () {
+      if (mounted) setState(() {});
+    },
+    clock: context.read<PostViewCubit>().now,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _watchDeadline(context.read<PostViewCubit>().state);
+  }
+
+  void _watchDeadline(PostViewState state) {
+    final expiresAt = state.beacon.expiresAt;
+    _expiryClock.setDeadlines({?expiresAt});
+  }
+
   @override
   void dispose() {
+    _expiryClock.dispose();
     _roomLease.dispose();
     super.dispose();
   }
@@ -76,12 +112,15 @@ class _PostViewScreenState extends State<PostViewScreen> {
   Widget build(BuildContext context) {
     final cubit = context.read<PostViewCubit>();
     final l10n = L10n.of(context)!;
-    return BlocBuilder<PostViewCubit, PostViewState>(
+    return BlocConsumer<PostViewCubit, PostViewState>(
+      listenWhen: (p, c) => p.beacon.expiresAt != c.beacon.expiresAt,
+      listener: (_, state) => _watchDeadline(state),
       builder: (context, state) => Scaffold(
         appBar: TenturaTopBar.of(
           context,
           title: _Title(
             state: state,
+            now: cubit.now(),
             onTap: () => unawaited(_run(context, PostAction.info)),
           ),
           leading: widget.inPane
@@ -96,6 +135,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
               ),
             _Overflow(
               state: state,
+              lifetimeNow: cubit.now(),
               postBuddingEnabled: widget.postBuddingEnabled,
               onSelected: (action) => unawaited(_run(context, action)),
             ),
@@ -179,6 +219,19 @@ class _PostViewScreenState extends State<PostViewScreen> {
         if (await _confirmAllowForwarding(context) && context.mounted) {
           await cubit.allowForwarding();
         }
+      case PostAction.shorten:
+        final choice = await _pickShortenChoice(context);
+        if (choice == null || !context.mounted) break;
+        final duration = choice.duration;
+        if (duration != null) {
+          await cubit.shorten(duration);
+        } else if (await _confirmCloseNow(context) && context.mounted) {
+          await cubit.closeNow();
+        }
+      case PostAction.closeNow:
+        if (await _confirmCloseNow(context) && context.mounted) {
+          await cubit.closeNow();
+        }
       case PostAction.budRequest:
         // ⋮ opens the form immediately (D3 unlimited). Prefill: author gets
         // the root; others start blank (message action still prefills).
@@ -223,6 +276,71 @@ class _PostViewScreenState extends State<PostViewScreen> {
         ],
       ),
     );
+  }
+
+  Future<_ShortenChoice?> _pickShortenChoice(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final cubit = context.read<PostViewCubit>();
+    final expiresAt = cubit.state.beacon.expiresAt;
+    final remaining = expiresAt?.difference(cubit.now());
+    return showTenturaAdaptiveSheet<_ShortenChoice>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: ctx.tt.screenHPadding,
+                vertical: ctx.tt.rowGap,
+              ),
+              child: Text(
+                l10n.postShortenTitle,
+                style: TenturaText.titleSmall(ctx.tt.text),
+              ),
+            ),
+            for (final choice in _ShortenChoice.values)
+              if (choice.duration == null ||
+                  (remaining != null && choice.duration! < remaining))
+                ListTile(
+                  title: Text(switch (choice) {
+                    _ShortenChoice.hour => l10n.postShortenIn1h,
+                    _ShortenChoice.sixHours => l10n.postShortenIn6h,
+                    _ShortenChoice.day => l10n.postShortenIn24h,
+                    _ShortenChoice.closeNow => l10n.postActionCloseNow,
+                  }),
+                  onTap: () => Navigator.pop(ctx, choice),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmCloseNow(BuildContext context) async {
+    final l10n = L10n.of(context)!;
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(l10n.postCloseNowConfirmTitle),
+            content: Text(l10n.postCloseNowConfirmBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.buttonCancel),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.postActionCloseNow),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<bool> _confirmLeave(BuildContext context) async {
@@ -299,9 +417,10 @@ class _PostViewScreenState extends State<PostViewScreen> {
 /// «О посте». The excerpt is the subject, so it gets the title line alone
 /// (two lines beside a wide window) and the author moves under it (#667).
 class _Title extends StatelessWidget {
-  const _Title({required this.state, required this.onTap});
+  const _Title({required this.state, required this.now, required this.onTap});
 
   final PostViewState state;
+  final DateTime now;
   final VoidCallback onTap;
 
   @override
@@ -337,6 +456,7 @@ class _Title extends StatelessWidget {
                 Flexible(
                   child: _MembersLine(
                     post: state.beacon,
+                    now: now,
                     author: excerpt.isEmpty ? '' : author,
                     style: metaStyle,
                   ),
@@ -373,11 +493,13 @@ class _Title extends StatelessWidget {
 class _MembersLine extends StatelessWidget {
   const _MembersLine({
     required this.post,
+    required this.now,
     required this.author,
     required this.style,
   });
 
   final Beacon post;
+  final DateTime now;
 
   /// Empty when the title already names the author.
   final String author;
@@ -409,11 +531,22 @@ class _MembersLine extends StatelessWidget {
   Widget _line(BuildContext context, int? count) {
     final l10n = L10n.of(context)!;
     final members = count == null ? '' : l10n.postHeaderMembers(count);
-    final text = author.isEmpty
+    final who = author.isEmpty
         ? members
         : members.isEmpty
         ? author
         : l10n.postHeaderAuthorMembers(author, members);
+    final expiresAt = post.expiresAt;
+    final lifetime = post.isPostArchivedAt(now)
+        ? l10n.postArchivedMarker
+        : expiresAt == null
+        ? ''
+        : postRemainingLabel(l10n, expiresAt.difference(now));
+    final text = lifetime.isEmpty
+        ? who
+        : who.isEmpty
+        ? lifetime
+        : l10n.postHeaderAuthorMembers(who, lifetime);
     if (text.isEmpty) return const SizedBox.shrink();
     return Text(
       text,
@@ -428,11 +561,15 @@ class _MembersLine extends StatelessWidget {
 class _Overflow extends StatelessWidget {
   const _Overflow({
     required this.state,
+    required this.lifetimeNow,
     required this.postBuddingEnabled,
     required this.onSelected,
   });
 
   final PostViewState state;
+
+  /// The cubit's clock, which the screen refreshes at the Post's deadline.
+  final DateTime lifetimeNow;
   final bool postBuddingEnabled;
   final ValueChanged<PostAction> onSelected;
 
@@ -443,6 +580,11 @@ class _Overflow extends StatelessWidget {
     final summary = state.summary;
     final viewerId = context.read<PostViewCubit>().myProfile.id;
     final viewerIsAuthor = state.beacon.author.id == viewerId;
+    // Only the author of an open, unexpired Post can still change its end.
+    final canChangeLifetime =
+        viewerIsAuthor &&
+        state.beacon.status == BeaconStatus.open &&
+        !state.beacon.isPostArchivedAt(lifetimeNow);
     final muted = summary?.isMutedAt(now) ?? false;
     // Any member of an open Post may bud (D3 unlimited); no own-message gate.
     bool canBud() =>
@@ -499,6 +641,18 @@ class _Overflow extends StatelessWidget {
             Icons.subdirectory_arrow_right_outlined,
             l10n.postBudAction,
           ),
+        if (canChangeLifetime) ...[
+          item(
+            PostAction.shorten,
+            Icons.timer_outlined,
+            l10n.postActionShorten,
+          ),
+          item(
+            PostAction.closeNow,
+            Icons.stop_circle_outlined,
+            l10n.postActionCloseNow,
+          ),
+        ],
         const PopupMenuDivider(),
         if (!viewerIsAuthor)
           item(PostAction.complain, Icons.flag_outlined, l10n.buttonComplaint),

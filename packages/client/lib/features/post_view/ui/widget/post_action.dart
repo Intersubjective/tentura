@@ -23,6 +23,10 @@ enum PostAction {
   showOnField,
   allowForwarding,
 
+  /// «Сократить срок» / «Завершить сейчас»: author-only, open Post.
+  shorten,
+  closeNow,
+
   /// «Оформить запрос»: bud a Request from a Post message (plan D1).
   budRequest,
   complain,

@@ -7639,5 +7639,13 @@
   "beaconShowcaseFinalCheckNotice": "По этому запросу подводят итоги",
   "postRemainingDays": "осталось {count} д",
   "postRemainingHours": "осталось {count} ч",
-  "postRemainingMinutes": "осталось {count} мин"
+  "postRemainingMinutes": "осталось {count} мин",
+  "postActionShorten": "Сократить срок",
+  "postShortenTitle": "Когда закрыть пост?",
+  "postShortenIn1h": "Через час",
+  "postShortenIn6h": "Через 6 часов",
+  "postShortenIn24h": "Через 24 часа",
+  "postActionCloseNow": "Завершить сейчас",
+  "postCloseNowConfirmTitle": "Завершить пост?",
+  "postCloseNowConfirmBody": "Пост уйдёт в архив, писать в него будет нельзя. Отменить это нельзя."
 }

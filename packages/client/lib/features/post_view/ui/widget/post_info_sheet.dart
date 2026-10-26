@@ -11,12 +11,12 @@ import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
-import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/post_view_cubit.dart';
+import '../post_remaining_label.dart';
 import 'post_action.dart';
 import 'post_participants_list.dart';
 
@@ -91,6 +91,7 @@ class PostInfoSheet extends StatelessWidget {
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
+    final lifetimeNow = cubit.now();
     final beacon = state.beacon;
     final summary = state.summary;
     final viewerId = cubit.myProfile.id;
@@ -117,6 +118,12 @@ class PostInfoSheet extends StatelessWidget {
             mutedUntil: summary.mutedUntil,
             now: now,
           );
+    final expiresAt = beacon.expiresAt;
+    final lifetimeLine = beacon.isPostArchivedAt(lifetimeNow)
+        ? l10n.postArchivedMarker
+        : expiresAt == null
+        ? null
+        : postRemainingLabel(l10n, expiresAt.difference(lifetimeNow));
     final forwardingOpen =
         beacon.forwardPolicy == BeaconForwardPolicyValue.open;
 
@@ -184,18 +191,8 @@ class PostInfoSheet extends StatelessWidget {
                     )
                   : null,
             ),
-            _Fact(
-              icon: pinned ? Icons.push_pin_outlined : Icons.schedule,
-              text: _activityLine(
-                l10n,
-                pinned: pinned,
-                lastActivityAt:
-                    summary?.lastActivityAt ??
-                    beacon.lastActivityAt ??
-                    beacon.createdAt,
-                now: now,
-              ),
-            ),
+            if (lifetimeLine != null)
+              _Fact(icon: Icons.schedule, text: lifetimeLine),
             if (muteLine != null)
               _Fact(icon: Icons.notifications_off_outlined, text: muteLine),
             SizedBox(height: tt.rowGap),
@@ -278,21 +275,6 @@ class PostInfoSheet extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// How long the Post stays in «Сейчас» before it goes quiet (72 h after the
-  /// last activity), or that a pin keeps it there.
-  static String _activityLine(
-    L10n l10n, {
-    required bool pinned,
-    required DateTime lastActivityAt,
-    required DateTime now,
-  }) {
-    if (pinned) return l10n.postInfoPinned;
-    final left = lastActivityAt.add(PostsCubit.quietAfter).difference(now);
-    if (left <= Duration.zero) return l10n.postInfoQuiet;
-    if (left.inHours >= 24) return l10n.postInfoActiveDays(left.inDays);
-    return l10n.postInfoActiveHours(left.inHours < 1 ? 1 : left.inHours);
   }
 }
 

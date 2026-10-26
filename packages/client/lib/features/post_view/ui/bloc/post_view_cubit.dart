@@ -174,6 +174,24 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
     await fetch();
   }
 
+  /// The cubit's notion of now, so the screen and its tests share one clock.
+  DateTime now() => _clock();
+
+  /// Author-only: ends the Post [duration] from now (the server rejects an
+  /// extension).
+  Future<void> shorten(Duration duration) => _write(() async {
+    await (membershipRepository ??= GetIt.I<PostMembershipRepository>())
+        .postShorten(beaconId, expiresAt: _clock().add(duration));
+    await fetch();
+  });
+
+  /// Author-only: closes the Post at once.
+  Future<void> closeNow() => _write(() async {
+    await (membershipRepository ??= GetIt.I<PostMembershipRepository>())
+        .postClose(beaconId);
+    await fetch();
+  });
+
   /// Author-only: removes the Post and leaves its screen.
   Future<void> delete() async {
     try {

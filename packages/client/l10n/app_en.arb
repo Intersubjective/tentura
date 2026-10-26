@@ -11902,5 +11902,13 @@
         "type": "int"
       }
     }
-  }
+  },
+  "postActionShorten": "Shorten the lifetime",
+  "postShortenTitle": "When should the post end?",
+  "postShortenIn1h": "In 1 hour",
+  "postShortenIn6h": "In 6 hours",
+  "postShortenIn24h": "In 24 hours",
+  "postActionCloseNow": "End now",
+  "postCloseNowConfirmTitle": "End the post?",
+  "postCloseNowConfirmBody": "The post moves to the archive and no one can write in it. This can't be undone."
 }
