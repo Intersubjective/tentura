@@ -14,15 +14,31 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// page, so the next Tab lands on the page's first control (#500).
 class HomeRailLayout extends StatefulWidget {
   const HomeRailLayout({
-    required this.rail,
+    required Widget this.rail,
     required this.child,
     super.key,
-  });
+  }) : bottomBar = null,
+       _compact = false;
 
-  final Widget rail;
+  /// Compact windows: a [Scaffold] with [child] as its body and [bottomBar]
+  /// (already its own navigation landmark) under it. The order is the
+  /// rail's: «Skip to content», then the bar, then the page (#697). A null
+  /// [bottomBar] (a pushed detail hides it) keeps the page where it is.
+  const HomeRailLayout.compact({
+    required this.bottomBar,
+    required this.child,
+    super.key,
+  }) : rail = null,
+       _compact = true;
 
-  /// The page beside the rail.
+  final Widget? rail;
+
+  final Widget? bottomBar;
+
+  /// The page beside the rail, or above the bottom bar.
   final Widget child;
+
+  final bool _compact;
 
   @override
   State<HomeRailLayout> createState() => _HomeRailLayoutState();
@@ -57,63 +73,88 @@ class _HomeRailLayoutState extends State<HomeRailLayout> {
     }
   }
 
+  /// The page: a marker node before it (where a skip lands), then the
+  /// page's own controls.
+  Widget _page() => FocusTraversalOrder(
+    order: const NumericFocusOrder(2),
+    child: FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: FocusTraversalOrder(
+        order: const NumericFocusOrder(0),
+        child: Focus(
+          focusNode: _content,
+          includeSemantics: false,
+          child: FocusTraversalOrder(
+            order: const NumericFocusOrder(1),
+            child: FocusTraversalGroup(
+              child: Semantics(
+                sortKey: const OrdinalSortKey(2),
+                container: true,
+                explicitChildNodes: true,
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  /// The navigation, after the skip and before the page.
+  Widget _nav(Widget nav) => FocusTraversalOrder(
+    order: const NumericFocusOrder(1),
+    child: FocusTraversalGroup(child: nav),
+  );
+
+  Widget _arranged(L10n l10n) {
+    if (widget._compact) {
+      final bar = widget.bottomBar;
+      return Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: _page(),
+        bottomNavigationBar: bar == null
+            ? null
+            : _nav(
+                Semantics(
+                  sortKey: const OrdinalSortKey(1),
+                  container: true,
+                  explicitChildNodes: true,
+                  child: bar,
+                ),
+              ),
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _nav(
+          Semantics(
+            sortKey: const OrdinalSortKey(1),
+            role: SemanticsRole.navigation,
+            label: l10n.homeNavLandmark,
+            container: true,
+            explicitChildNodes: true,
+            child: widget.rail,
+          ),
+        ),
+        const TenturaVerticalHairline(),
+        Expanded(child: _page()),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final gap = context.tt.cardGap;
     return Actions(
       actions: {NextFocusIntent: _FirstTabToSkipAction(_skip)},
-      // Explicit order: skip, rail, then the page (a marker node before it,
-      // then the page's own controls).
+      // Explicit order: skip, navigation, then the page.
       child: FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
         child: Stack(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                FocusTraversalOrder(
-                  order: const NumericFocusOrder(1),
-                  child: FocusTraversalGroup(
-                    child: Semantics(
-                      sortKey: const OrdinalSortKey(1),
-                      role: SemanticsRole.navigation,
-                      label: l10n.homeNavLandmark,
-                      container: true,
-                      explicitChildNodes: true,
-                      child: widget.rail,
-                    ),
-                  ),
-                ),
-                const TenturaVerticalHairline(),
-                Expanded(
-                  child: FocusTraversalOrder(
-                    order: const NumericFocusOrder(2),
-                    child: FocusTraversalGroup(
-                      policy: OrderedTraversalPolicy(),
-                      child: FocusTraversalOrder(
-                        order: const NumericFocusOrder(0),
-                        child: Focus(
-                          focusNode: _content,
-                          includeSemantics: false,
-                          child: FocusTraversalOrder(
-                            order: const NumericFocusOrder(1),
-                            child: FocusTraversalGroup(
-                              child: Semantics(
-                                sortKey: const OrdinalSortKey(2),
-                                container: true,
-                                explicitChildNodes: true,
-                                child: widget.child,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _arranged(l10n),
             PositionedDirectional(
               start: _skipFocused ? gap : 0,
               top: _skipFocused ? gap : 0,

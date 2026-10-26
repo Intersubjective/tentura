@@ -191,6 +191,16 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
         profile: _inviteeProfile,
       );
 
+  /// Says what the setup is for and whom (#721): «Add what Carol can help
+  /// with»; the bare «Add details» only when no name is known. A raw server
+  /// title «Name · @handle» gives just the name.
+  static String _setupLabel(L10n l10n, String title) {
+    final name = title.split(' · ').first.trim();
+    return name.isEmpty || name == l10n.updatesFallbackTitleInviteAccepted
+        ? l10n.inviteAcceptedSetupAddDetails
+        : l10n.inviteAcceptedSetupAddDetailsFor(name);
+  }
+
   @override
   Widget build(BuildContext context) {
     final receipt = widget.receipt;
@@ -200,7 +210,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
     final Widget? action;
     if (phase == _PromptLoadPhase.pending) {
       action = TenturaTextAction(
-        label: l10n.inviteAcceptedSetupAddDetails,
+        label: _setupLabel(l10n, copy.title),
         semanticsIdentifier: TestIds.inviteAcceptedSetupOpen,
         flushStart: true,
         onPressed: _openingSetup ? null : _openSetup,

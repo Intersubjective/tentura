@@ -1,5 +1,5 @@
-// «Новый чат» is a two-step form, like a simplified Request form. Step one:
-// ✕ + «Новый чат», the text field, «Фото» / «Файлы» / «Вставить изображение»
+// «Новый пост» is a two-step form, like a simplified Request form. Step one:
+// ✕ + «Новый пост», the text field, «Фото» / «Файлы» / «Вставить изображение»
 // and the «Можно пересылать» switch (on by default); «Далее: получатели»
 // stays disabled until there is text or an attachment. Step two,
 // «Получатели»: the recipient picker on the shared ForwardCubit, whose
@@ -7,8 +7,6 @@
 // untouched screen makes no server call, closing one with content asks
 // «Удалить черновик?» first.
 // UI copy is asserted verbatim in Russian.
-
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -236,7 +234,6 @@ Future<_Harness> _pumpPostCreate(
     effects: effects,
     debugSkipInitialLoad: true,
     debugInitialState: ForwardState(
-      beaconId: '',
       selectedIds: recipients,
       candidatesLoad: const ForwardCandidatesReady(),
     ),
@@ -394,7 +391,7 @@ void main() {
       (tester) async {
         await _pumpPostCreate(tester);
 
-        expect(find.text('Новый чат'), findsOneWidget);
+        expect(find.text('Новый пост'), findsOneWidget);
         expect(_textField, findsOneWidget);
         expect(find.text('О чём ваш пост?'), findsOneWidget);
         expect(find.text('Фото'), findsOneWidget);
@@ -488,7 +485,7 @@ void main() {
         await tester.tap(find.byIcon(Icons.arrow_back));
         await _settle(tester);
 
-        expect(find.text('Новый чат'), findsOneWidget);
+        expect(find.text('Новый пост'), findsOneWidget);
         expect(
           tester.widget<TextField>(_textField).controller!.text,
           'Кто в субботу на велопрогулку?',
@@ -827,7 +824,7 @@ void main() {
     test('lives at /post/new and carries the forward-to user in the query', () {
       expect(kPathPostNew, '/post/new');
       expect(
-        PostCreateRoute(forwardToUserId: 'Umaria').rawQueryParams?.values,
+        PostCreateRoute(forwardToUserId: 'Umaria').rawQueryParams.values,
         contains('Umaria'),
       );
     });

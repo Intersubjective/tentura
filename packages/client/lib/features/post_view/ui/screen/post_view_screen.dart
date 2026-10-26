@@ -17,6 +17,8 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_focus_request.dart';
+import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';
+import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -133,10 +135,12 @@ class _PostViewScreenState extends State<PostViewScreen> {
     final id = cubit.beaconId;
     switch (action) {
       case PostAction.info:
+      case PostAction.participants:
         final picked = await showPostInfoSheet(
           context,
           cubit: cubit,
           host: context.read<ThreadHostCubit>(),
+          scrollToParticipants: action == PostAction.participants,
         );
         if (picked != null && context.mounted) await _run(context, picked);
       case PostAction.scrollToRoot:
@@ -144,6 +148,19 @@ class _PostViewScreenState extends State<PostViewScreen> {
         if (rootId != null) room?.requestScrollToMessage(rootId);
       case PostAction.forward:
         await context.router.push(ForwardBeaconRoute(beaconId: id));
+      case PostAction.invite:
+        // Straight to the invite dialog, not the Forward screen (#715).
+        final invitations = InvitationCubit();
+        try {
+          await runBeaconInviteFlow(
+            context,
+            invitations: invitations,
+            beaconId: id,
+            isPost: true,
+          );
+        } finally {
+          await invitations.close();
+        }
       case PostAction.mute:
         final choice = await _pickMuteChoice(context);
         if (choice != null) await cubit.mute(choice.duration);
@@ -447,6 +464,11 @@ class _Overflow extends StatelessWidget {
       onSelected: onSelected,
       itemBuilder: (_) => [
         item(PostAction.info, Icons.info_outline, l10n.postMenuInfo),
+        item(
+          PostAction.participants,
+          Icons.people_outline,
+          l10n.postMenuParticipants,
+        ),
         if (muted)
           item(
             PostAction.unmute,

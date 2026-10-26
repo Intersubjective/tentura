@@ -163,7 +163,7 @@ Future<void> _pumpFriendsAppBarActions(
 void main() {
   group('FriendsAppBarActions', () {
     testWidgets(
-      'shows Graph, Create invitation, Scan and More at 320px without overflow',
+      'shows Graph, Invite, Scan and More at 320px without overflow',
       (
         tester,
       ) async {
@@ -182,7 +182,8 @@ void main() {
         );
         expect(find.byKey(TestIds.key(TestIds.friendsMore)), findsOneWidget);
         expect(find.byTooltip('Graph'), findsOneWidget);
-        expect(find.byTooltip('Create invitation'), findsOneWidget);
+        // #715: one label for creating an invite across People.
+        expect(find.byTooltip('Invite someone you trust'), findsOneWidget);
         expect(find.byTooltip('More'), findsOneWidget);
         expect(find.byTooltip('Scan invite code'), findsOneWidget);
         expect(find.text('Blocked people'), findsNothing);

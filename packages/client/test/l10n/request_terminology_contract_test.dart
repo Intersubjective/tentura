@@ -6,12 +6,16 @@ import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 void main() {
-  final enArb = jsonDecode(
-    File('l10n/app_en.arb').readAsStringSync(),
-  ) as Map<String, dynamic>;
-  final ruArb = jsonDecode(
-    File('l10n/app_ru.arb').readAsStringSync(),
-  ) as Map<String, dynamic>;
+  final enArb =
+      jsonDecode(
+            File('l10n/app_en.arb').readAsStringSync(),
+          )
+          as Map<String, dynamic>;
+  final ruArb =
+      jsonDecode(
+            File('l10n/app_ru.arb').readAsStringSync(),
+          )
+          as Map<String, dynamic>;
 
   test('ARB values do not use internal beacon/room product nouns', () {
     for (final entry in enArb.entries) {
@@ -84,15 +88,16 @@ void main() {
     expect(ru.beaconsTitle.toLowerCase(), contains('запрос'));
   });
 
-  // D8/Q1 (#248): starting a Post reads as starting a chat; the object noun
-  // stays Post.
-  test('a new Post is started as a chat', () {
-    expect(L10nEn().postsTabNewPost, 'New chat');
-    expect(L10nRu().postsTabNewPost, 'Новый чат');
+  // #720 (option A, replacing D8/Q1 of #248): a new Post is a «New post»;
+  // the tab already says «Posts».
+  test('a new Post is started as a post', () {
+    expect(L10nEn().postsTabNewPost, 'New post');
+    expect(L10nRu().postsTabNewPost, 'Новый пост');
   });
 
-  // #501: a Post's conversation is its chat, never "conversation".
-  test('Post chat copy says chat', () {
+  // #501, #720: a Post's copy names the post, never "conversation" or
+  // "chat".
+  test('Post copy says post', () {
     const keys = [
       'postMenuLeave',
       'postLeaveConfirmTitle',
@@ -103,9 +108,11 @@ void main() {
     for (final key in keys) {
       final en = enArb[key] as String;
       final ru = ruArb[key] as String;
-      expect(en.toLowerCase(), contains('chat'), reason: key);
+      expect(en.toLowerCase(), contains('post'), reason: key);
+      expect(en.toLowerCase(), isNot(contains('chat')), reason: key);
       expect(en.toLowerCase(), isNot(contains('conversation')), reason: key);
-      expect(ru.toLowerCase(), contains('чат'), reason: key);
+      expect(ru.toLowerCase(), contains('пост'), reason: key);
+      expect(ru.toLowerCase(), isNot(contains('чат')), reason: key);
       expect(ru.toLowerCase(), isNot(contains('разговор')), reason: key);
     }
   });

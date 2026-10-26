@@ -43,6 +43,13 @@ AttentionReceipt _inviteReceipt({
   seenAt: seenAt,
 );
 
+/// The setup action, whatever its label says (#721 names the person in it).
+Finder _setupAction() => find.byWidgetPredicate(
+  (w) =>
+      w is TenturaTextAction &&
+      w.semanticsIdentifier == TestIds.inviteAcceptedSetupOpen,
+);
+
 final class _FakeSetupCase implements InviteAcceptedSetupPort {
   Profile profile = const Profile(id: 'invitee-1', displayName: 'Carol');
   InviteSeedPromptState prompt = const InviteSeedPromptState(
@@ -184,7 +191,7 @@ void main() {
   }
 
   Future<void> openSetup(WidgetTester tester) async {
-    await tester.tap(find.text(l10n.inviteAcceptedSetupAddDetails));
+    await tester.tap(_setupAction());
     await tester.pumpAndSettle();
     expect(find.byType(InviteAcceptedSetupSheet), findsOneWidget);
   }
@@ -194,6 +201,46 @@ void main() {
       'transport',
     });
   }
+
+  // #721: «Add details» did not say details of what, or for whom.
+  group('#721 the setup action says what it is for', () {
+    testWidgets('names the new connection', (tester) async {
+      await pumpCard(tester);
+
+      expect(find.text('Add what Carol can help with'), findsOneWidget);
+      expect(find.text('Add details'), findsNothing);
+      expect(_setupAction(), findsOneWidget);
+    });
+
+    testWidgets('uses the name from a «Name · @handle» title meanwhile', (
+      tester,
+    ) async {
+      setupCase.profileCompleter = Completer<Profile>();
+      await pumpCard(
+        tester,
+        receipt: _inviteReceipt(title: 'Bob GQ · @bobgq'),
+        settle: false,
+      );
+
+      expect(find.text('Add what Bob GQ can help with'), findsOneWidget);
+      setupCase.profileCompleter!.complete(
+        const Profile(id: 'invitee-1', displayName: 'Bob GQ'),
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('falls back to «Add details» when no name is known', (
+      tester,
+    ) async {
+      setupCase.profileError = Exception('missing profile');
+      await pumpCard(
+        tester,
+        receipt: _inviteReceipt(title: 'Invitation accepted'),
+      );
+
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+    });
+  });
 
   group('origin and prompt projection', () {
     testWidgets('existing-account origin loads only profile', (tester) async {
@@ -206,7 +253,7 @@ void main() {
 
       expect(setupCase.fetchProfileCalls, 1);
       expect(setupCase.fetchPromptCalls, 0);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(_setupAction(), findsNothing);
       expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
     });
 
@@ -220,7 +267,7 @@ void main() {
 
       expect(setupCase.fetchProfileCalls, 1);
       expect(setupCase.fetchPromptCalls, 0);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(_setupAction(), findsNothing);
     });
 
     testWidgets('missing subject renders ordinary card without retry', (
@@ -233,7 +280,7 @@ void main() {
 
       expect(setupCase.fetchProfileCalls, 0);
       expect(setupCase.fetchPromptCalls, 0);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(_setupAction(), findsNothing);
       expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
     });
 
@@ -242,7 +289,7 @@ void main() {
     ) async {
       await pumpCard(tester);
 
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+      expect(_setupAction(), findsOneWidget);
       expect(find.byType(CapabilityChipSet), findsNothing);
       expect(find.byType(UpdatesFeedTile), findsOneWidget);
     });
@@ -255,7 +302,7 @@ void main() {
           promptProjection: PromptProjection.known(setupCase.prompt),
         );
 
-        expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+        expect(_setupAction(), findsNothing);
         expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
         expect(find.byType(CapabilityChipSet), findsNothing);
       });
@@ -391,7 +438,7 @@ void main() {
       expect(setupCase.answeredSlugs, ['transport']);
       expect(markSeenCalls, 1);
       expect(find.text('Mum'), findsOneWidget);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(_setupAction(), findsNothing);
     });
 
     testWidgets('Skip settles prompt and marks seen once', (tester) async {
@@ -406,7 +453,7 @@ void main() {
       expect(setupCase.answerCalls, 0);
       expect(setupCase.renameCalls, 0);
       expect(markSeenCalls, 1);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(_setupAction(), findsNothing);
     });
 
     testWidgets('dismissal and failed mutation do not mark seen', (
@@ -431,7 +478,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(markSeenCalls, 0);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+      expect(_setupAction(), findsOneWidget);
     });
 
     testWidgets(
@@ -471,7 +518,7 @@ void main() {
 
         expect(markSeenCalls, 0);
         expect(find.text('Mum'), findsOneWidget);
-        expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+        expect(_setupAction(), findsOneWidget);
       },
     );
   });

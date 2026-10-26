@@ -388,6 +388,19 @@ String _focusAt(Rect rail) {
   return 'other';
 }
 
+/// Compact (#697): on the skip button, in the bottom bar, in the page above
+/// it, or elsewhere.
+String _focusAtCompact(Rect bar) {
+  final focus = FocusManager.instance.primaryFocus;
+  if (focus == null || focus.context == null) return 'none';
+  if (_skipHasFocus()) return 'skip';
+  final rect = focus.rect;
+  if (bar.contains(rect.center)) return 'bar';
+  // Wholly above the bar, and not a screen-wide scope.
+  if (focus is! FocusScopeNode && rect.bottom <= bar.top + 0.5) return 'page';
+  return 'other';
+}
+
 Future<void> _tab(WidgetTester tester) async {
   await tester.sendKeyEvent(LogicalKeyboardKey.tab);
   await tester.pump();
@@ -583,6 +596,71 @@ void main() {
       expect(find.byType(HomeBottomNavigationBar), findsOneWidget);
       _expectNavLandmark(tester);
       semantics.dispose();
+    });
+
+    // #697 (option A): the same order as beside the rail — Skip to content,
+    // then the bottom bar, then the page — although the bar is drawn last.
+    testWidgets('#697 screen readers meet Skip to content, the bar, the page', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpHome(tester, size: const Size(390, 800));
+
+      _expectSkipBeforeAndOutsideNav(tester);
+      final rect = _globalRect(_skipNode(tester)!);
+      expect(rect.width, lessThanOrEqualTo(1), reason: 'hidden until focused');
+      semantics.dispose();
+    });
+
+    testWidgets(
+      '#697 keyboard: Skip first, then the whole bar, then the page',
+      (
+        tester,
+      ) async {
+        await _pumpHome(tester, size: const Size(390, 800));
+        final bar = tester.getRect(find.byType(HomeBottomNavigationBar));
+
+        expect(_skipHasFocus(), isFalse, reason: 'not autofocused on open');
+        await _tab(tester);
+        expect(_focusAtCompact(bar), 'skip', reason: 'first Tab stop');
+        _expectSkipShown(tester);
+
+        final stops = <String>['skip'];
+        for (var i = 0; i < 20; i++) {
+          await _tab(tester);
+          final at = _focusAtCompact(bar);
+          if (at == 'skip') break;
+          stops.add(at);
+        }
+        expect(stops[1], 'bar', reason: 'the bar right after skip: $stops');
+        expect(
+          stops.where((s) => s == 'bar').length,
+          greaterThanOrEqualTo(_destinationLabels.length),
+          reason: 'every destination: $stops',
+        );
+        expect(stops, contains('page'));
+        expect(
+          stops.lastIndexOf('bar'),
+          lessThan(stops.indexOf('page')),
+          reason: 'every bar stop before the page: $stops',
+        );
+      },
+    );
+
+    testWidgets('#697 Skip to content: Enter, then Tab is the page control', (
+      tester,
+    ) async {
+      await _pumpHome(tester, size: const Size(390, 800));
+      final bar = tester.getRect(find.byType(HomeBottomNavigationBar));
+
+      await _tab(tester);
+      expect(_focusAtCompact(bar), 'skip', reason: 'first Tab stop');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await _tab(tester);
+      expect(_focusAtCompact(bar), 'page', reason: 'next Tab is in the page');
+      _expectPageButtonFocused('next Tab after Skip: the first page control');
     });
   });
 }

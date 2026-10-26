@@ -33,7 +33,9 @@ void main() {
       find.text('Create an invitation to bring in someone you trust.'),
       findsOneWidget,
     );
-    expect(find.text('Create invitation'), findsOneWidget);
+    // #715: the same label as People's other invite action.
+    expect(find.text('Invite someone you trust'), findsOneWidget);
+    expect(find.text('Create invitation'), findsNothing);
   });
 
   testWidgets(
@@ -50,7 +52,7 @@ void main() {
     },
   );
 
-  testWidgets('Create invitation button triggers the callback', (
+  testWidgets('the invite button triggers the callback', (
     tester,
   ) async {
     var taps = 0;
@@ -60,7 +62,7 @@ void main() {
       onCreateInvitation: () => taps++,
     );
 
-    await tester.tap(find.text('Create invitation'));
+    await tester.tap(find.text('Invite someone you trust'));
     await tester.pump();
 
     expect(taps, 1);
@@ -73,6 +75,7 @@ void main() {
     await pump(tester, locale: const Locale('ru'), onCreateInvitation: () {});
 
     expect(find.text('Нет ожидающих приглашений'), findsOneWidget);
+    expect(find.text('Пригласить того, кому доверяете'), findsOneWidget);
     expect(find.text(ru.invitationDualPurposeBody), findsNothing);
     expect(find.textContaining('Ссылка'), findsNothing);
   });

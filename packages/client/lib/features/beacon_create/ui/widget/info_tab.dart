@@ -39,6 +39,9 @@ class InfoTab extends StatefulWidget {
   /// When true (e.g. `?tab=image`), open/focus the Images editor after first frame.
   final bool openImagesInitially;
 
+  /// «Child request of ‘…’» above a new child request's title (#735).
+  static const childOfBannerKey = Key('BeaconCreate.ChildOfBanner');
+
   @override
   State<InfoTab> createState() => _InfoTabState();
 }
@@ -617,6 +620,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         child: ListView(
           children: [
             _copiedFromBanner(tt),
+            _childOfBanner(tt),
             // Room above the field for its floating label, which sits half
             // over the top border and was clipped by the list (#339).
             Padding(
@@ -647,6 +651,30 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   _l10n.beaconCopiedFromBanner(sourceTitle),
                   key: const Key('BeaconCreate.CopiedFromBanner'),
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
+              ),
+      );
+
+  /// One line naming the Request a new child request will belong to, e.g.
+  /// one made from a discussion message (#735); nothing for any other editor
+  /// or for a Post bud.
+  Widget _childOfBanner(TenturaTokens tt) =>
+      BlocSelector<BeaconCreateCubit, BeaconCreateState, String>(
+        bloc: _cubit,
+        selector: (state) =>
+            state.isChildMode && !state.isPostBud && !state.isEditMode
+            ? state.childParentTitle
+            : '',
+        builder: (context, parentTitle) => parentTitle.isEmpty
+            ? const SizedBox.shrink()
+            : Padding(
+                padding: EdgeInsets.only(bottom: tt.rowGap),
+                child: Text(
+                  _l10n.beaconCreateChildOfBanner(parentTitle),
+                  key: InfoTab.childOfBannerKey,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TenturaText.bodySmall(tt.textMuted),
                 ),

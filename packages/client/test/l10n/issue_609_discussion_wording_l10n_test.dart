@@ -123,10 +123,11 @@ void main() {
     }
   });
 
-  test('guard: Post chat strings keep their chat wording', () {
-    expect(en['postMenuLeave'], 'Leave chat');
-    expect(ru['postMenuLeave'], 'Выйти из чата');
-    expect(en['postsTabNewPost'], 'New chat');
-    expect(ru['postsTabNewPost'], 'Новый чат');
+  // #720 (option A): Post strings say «post», not «chat» or «discussion».
+  test('guard: Post strings keep their post wording', () {
+    expect(en['postMenuLeave'], 'Leave post');
+    expect(ru['postMenuLeave'], 'Выйти из поста');
+    expect(en['postsTabNewPost'], 'New post');
+    expect(ru['postsTabNewPost'], 'Новый пост');
   });
 }

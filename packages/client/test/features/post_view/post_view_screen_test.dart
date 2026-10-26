@@ -23,6 +23,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/entity/room_message.dart';
@@ -44,6 +45,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
+import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/post_view/ui/widget/post_info_sheet.dart';
@@ -51,6 +53,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -287,6 +290,32 @@ class _Harness {
       router.replacedPaths.length +
       effects.emitted.whereType<NavigatePush>().length +
       observer.pushes;
+}
+
+/// Mints post invites in memory and records the ones dropped again (#715).
+class _FakeInvitationRepository extends Fake implements InvitationRepository {
+  final List<String?> createdFor = [];
+  final List<String> deleted = [];
+
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
+  @override
+  Future<InvitationEntity> create({
+    required String addresseeName,
+    String? beaconId,
+  }) async {
+    createdFor.add(beaconId);
+    return InvitationEntity(
+      id: 'Ipostinvite01',
+      beaconId: beaconId,
+      createdAt: _createdAt,
+      updatedAt: _createdAt,
+    );
+  }
+
+  @override
+  Future<void> deleteById(String id) async => deleted.add(id);
 }
 
 /// Pumps [PostViewScreen] for a Post whose room holds [messages].
@@ -759,8 +788,9 @@ void main() {
       expect(find.text('Заглушить ›'), findsOneWidget);
       expect(find.text('Закрепить в «Постах»'), findsOneWidget);
       expect(find.text('Жалоба'), findsOneWidget);
+      // #715: the participants are one tap away from ⋮ too.
+      expect(find.text('Участники'), findsOneWidget);
       for (final moved in [
-        'Участники',
         'Граф пересылок',
         'Показать на поле',
         'Переслать',
@@ -768,6 +798,28 @@ void main() {
       ]) {
         expect(find.text(moved), findsNothing, reason: moved);
       }
+    });
+
+    testWidgets('#715 «Участники» opens «О посте» at the participants', (
+      tester,
+    ) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      await _openOverflow(tester);
+
+      await tester.tap(find.text('Участники'));
+      await _settle(tester);
+
+      expect(find.byType(PostInfoSheet), findsOneWidget);
+      final participants = find.byKey(PostInfoSheet.participantsKey);
+      expect(participants, findsOneWidget);
+      expect(
+        find.descendant(of: participants, matching: find.text('Участники · 2')),
+        findsOneWidget,
+      );
+      // Scrolled into view, not just built below the fold.
+      final sheet = tester.getRect(find.byType(PostInfoSheet));
+      final heading = tester.getRect(find.text('Участники · 2'));
+      expect(sheet.contains(heading.center), isTrue);
     });
 
     testWidgets('«Жалоба» opens the complaint form for the Post', (
@@ -893,6 +945,53 @@ void main() {
       await _tapInSheet(tester, find.text('Переслать'));
 
       expect(h.navigations, greaterThan(before));
+    });
+
+    testWidgets('#715 «Позвать» opens the post invite dialog itself', (
+      tester,
+    ) async {
+      final h = await _pumpPost(
+        tester,
+        beacon: _post(viewerCanForward: true),
+        viewer: _reader,
+      );
+      // _pumpPost resets the locator; the invite flow resolves this lazily.
+      final invitations = _FakeInvitationRepository();
+      GetIt.I.registerSingleton<InvitationRepository>(invitations);
+      await _openInfo(tester);
+      final before = h.router.pushCount;
+
+      await _tapInSheet(tester, find.text('Позвать'));
+      final dialog = find.byType(ShareCodeDialog);
+      for (var i = 0; i < 20 && dialog.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(dialog, findsOneWidget);
+      expect(
+        find.descendant(
+          of: dialog,
+          matching: find.text('Пригласите человека посмотреть этот пост'),
+        ),
+        findsOneWidget,
+      );
+      expect(invitations.createdFor, [_postId]);
+      expect(
+        h.router.pushCount,
+        before,
+        reason: 'no detour through the Forward screen',
+      );
+
+      // Closed unused: the invite is dropped again (#454).
+      await tester.tap(
+        find.descendant(
+          of: dialog,
+          matching: find.widgetWithText(TextButton, 'Закрыть'),
+        ),
+      );
+      await _settle(tester);
+      expect(dialog, findsNothing);
+      expect(invitations.deleted, ['Ipostinvite01']);
     });
 
     testWidgets('author sees «Удалить пост» and no in-place conversion', (
@@ -1125,7 +1224,7 @@ void main() {
         find.descendant(
           of: find.byType(BasicChatBody),
           matching: find.textContaining(
-            'Олег начал(а) этот чат с вами',
+            'Олег отправил(а) вам этот пост',
             findRichText: true,
           ),
         ),
@@ -1137,7 +1236,7 @@ void main() {
       expect(_stripExcerptText(), findsOneWidget);
     });
 
-    testWidgets('in English: «Theo started this chat with you», no forward', (
+    testWidgets('in English: «Theo sent you this post», no forward', (
       tester,
     ) async {
       const theo = Profile(id: 'Uauthor', displayName: 'Theo');
@@ -1155,7 +1254,7 @@ void main() {
         find.descendant(
           of: find.byType(BasicChatBody),
           matching: find.textContaining(
-            'Theo started this chat with you',
+            'Theo sent you this post',
             findRichText: true,
           ),
         ),
@@ -1166,7 +1265,7 @@ void main() {
     });
 
     // #667 review: the author's personal note on the send was dropped.
-    testWidgets('keeps the author note next to started this chat with you', (
+    testWidgets('keeps the author note next to sent you this post', (
       tester,
     ) async {
       await _pumpPost(
@@ -1182,7 +1281,7 @@ void main() {
         find.descendant(
           of: find.byType(BasicChatBody),
           matching: find.textContaining(
-            'Олег начал(а) этот чат с вами: «ты же хотел»',
+            'Олег отправил(а) вам этот пост: «ты же хотел»',
             findRichText: true,
           ),
         ),
@@ -1210,7 +1309,7 @@ void main() {
         find.descendant(
           of: find.byType(BasicChatBody),
           matching: find.textContaining(
-            'Theo started this chat with you: “thought of you”',
+            'Theo sent you this post: “thought of you”',
             findRichText: true,
           ),
         ),
@@ -1248,7 +1347,7 @@ void main() {
         find.descendant(
           of: find.byType(BasicChatBody),
           matching: find.textContaining(
-            'Олег начал(а) этот чат с вами',
+            'Олег отправил(а) вам этот пост',
             findRichText: true,
           ),
         ),
@@ -1277,7 +1376,7 @@ void main() {
       );
 
       expect(find.textContaining('Дима переслал(а) вам'), findsOneWidget);
-      expect(find.textContaining('начал(а) этот чат'), findsNothing);
+      expect(find.textContaining('отправил(а) вам этот пост'), findsNothing);
       expect(_stripExcerptText(), findsNWidgets(2));
     });
   });
