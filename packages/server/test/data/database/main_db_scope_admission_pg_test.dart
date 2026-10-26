@@ -1,4 +1,6 @@
-@Tags(['pg', 'multi-connection'])
+// RSS is process-wide, including other suites' isolates. Run separately in
+// server-pg so unrelated compilation/allocation cannot consume this budget.
+@Tags(['pg', 'multi-connection', 'rss-isolated'])
 @Timeout(Duration(minutes: 3))
 library;
 
@@ -51,6 +53,19 @@ Future<void> main() async {
           'Scoped main DB access must honor the configured connection '
           'budget without DRIFT_TRANSACTION_PINNED_POOL_ENABLED.',
     );
+  });
+
+  test('RSS growth guard rejects the limit regardless of baseline', () {
+    const limit = 64 * 1024 * 1024;
+    for (final baseline in [0, 256 * 1024 * 1024]) {
+      _expectBoundedRssGrowth(baseline, baseline + limit - 1);
+      for (final growth in [limit, 2 * limit]) {
+        expect(
+          () => _expectBoundedRssGrowth(baseline, baseline + growth),
+          throwsA(isA<TestFailure>()),
+        );
+      }
+    }
   });
 
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -250,13 +265,7 @@ Future<void> main() async {
           reason: 'Waiting work must not acquire another connection.',
         );
         expect(executedMutations, lessThanOrEqualTo(_maxWaiting));
-        expect(
-          peakRss - baselineRss,
-          lessThan(64 * 1024 * 1024),
-          reason:
-              'A bounded queue must not retain the full 128 MiB burst '
-              'of request payloads. The allowance includes VM overhead.',
-        );
+        _expectBoundedRssGrowth(baselineRss, peakRss);
         expect(
           worstAuthLatency,
           lessThan(authWarmup.elapsed + _interactiveObservation),
@@ -732,4 +741,14 @@ final class _EmptyProfiles implements UserProfileBatchLookup {
     Set<String> viewerTrustsPeerIds = const {},
     Map<String, MutualScoreRecord> scoresByPeerId = const {},
   }) async => {};
+}
+
+void _expectBoundedRssGrowth(int baselineRss, int peakRss) {
+  expect(
+    peakRss - baselineRss,
+    lessThan(64 * 1024 * 1024),
+    reason:
+        'A bounded queue must not retain the full 128 MiB burst '
+        'of request payloads. The allowance includes VM overhead.',
+  );
 }

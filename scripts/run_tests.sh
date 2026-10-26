@@ -196,14 +196,28 @@ server_pg() {
   # A file whose library-level @Tags has mr is excluded whole by -x mr
   # (server_mr runs it); passing it anyway makes a chunk made only of such
   # files fail with "No tests ran".
-  local -a files=() all f; mapfile -t all < <(server_tagged_files pg)
+  local -a files=() isolated=() all f; mapfile -t all < <(server_tagged_files pg)
   for f in "${all[@]}"; do
     # awk's own exit status (no pipe, so pipefail cannot misreport it): 0 when
     # the header before `library;` carries a quoted mr tag.
-    if ! awk '/^library/ {exit} /^@Tags/ {t=1} t && /[\x27"]mr[\x27"]/ {found=1; exit} END {exit !found}' "$ROOT/packages/server/$f"; then files+=("$f"); fi
+    if ! awk '/^library/ {exit} /^@Tags/ {t=1} t && /[\x27"]mr[\x27"]/ {found=1; exit} END {exit !found}' "$ROOT/packages/server/$f"; then
+      if awk '/^library/ {exit} /^@Tags/ {t=1} t && /[\x27"]rss-isolated[\x27"]/ {found=1; exit} END {exit !found}' "$ROOT/packages/server/$f"; then
+        isolated+=("$f")
+      else
+        files+=("$f")
+      fi
+    fi
   done
+  # RSS includes every isolate in a dart test process. Keep these suites out
+  # of shared chunks, while still running them even if a shared chunk fails.
+  local rc=0
   (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && \
-    run_chunked 40m dart test -j "$j" --tags pg -x mr -x perf -x load -- "${files[@]}")
+    run_chunked 40m dart test -j "$j" --tags pg -x mr -x perf -x load -- "${files[@]}") || rc=1
+  for f in "${isolated[@]}"; do
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && \
+      run 10m dart test -j 1 --tags pg -x mr -x perf -x load "$f") || rc=1
+  done
+  return "$rc"
 }
 
 server_mr() {
