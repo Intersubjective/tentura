@@ -602,6 +602,18 @@ final class PostLifetimeInvalidException extends ExceptionBase {
       );
 }
 
+/// A Post's lifetime can only be shortened: the new end is not before the
+/// current one.
+final class PostLifetimeExtendException extends ExceptionBase {
+  const PostLifetimeExtendException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.postLifetimeExtend,
+        ),
+        description: description ?? 'A Post lifetime can only be shortened',
+      );
+}
+
 /// No author invite with this id for this actor (Arch §5). Also used when the
 /// actor is neither the invitee nor the inviter, so the id leaks nothing.
 final class AuthorInviteNotFoundException extends ExceptionBase {

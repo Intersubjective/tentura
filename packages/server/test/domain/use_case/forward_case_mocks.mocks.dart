@@ -583,6 +583,30 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<DateTime?> postExpiresAt(String? postId) =>
+      (super.noSuchMethod(
+            Invocation.method(#postExpiresAt, [postId]),
+            returnValue: _i3.Future<DateTime?>.value(),
+            returnValueForMissingStub: _i3.Future<DateTime?>.value(),
+          )
+          as _i3.Future<DateTime?>);
+
+  @override
+  _i3.Future<void> setPostExpiresAt({
+    required String? postId,
+    required DateTime? expiresAt,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setPostExpiresAt, [], {
+              #postId: postId,
+              #expiresAt: expiresAt,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> setPostRootMessage({
     required String? beaconId,
     required String? messageId,

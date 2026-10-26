@@ -183,6 +183,17 @@ abstract class BeaconRepositoryPort {
   /// still in the future, so "when did it end" is readable from the row.
   Future<void> endPostNow(String postId);
 
+  /// The Post's current `expires_at`, or null when it has none.
+  Future<DateTime?> postExpiresAt(String postId);
+
+  /// Moves an open Post's `expires_at` to [expiresAt] without touching
+  /// `expiry_warning_eligible`; the caller holds the Post lock and has checked
+  /// that this only shortens the lifetime.
+  Future<void> setPostExpiresAt({
+    required String postId,
+    required DateTime expiresAt,
+  });
+
   /// Sets `beacon.post_root_message_id` once; a no-op when already set.
   Future<void> setPostRootMessage({
     required String beaconId,

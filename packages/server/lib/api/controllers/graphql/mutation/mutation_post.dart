@@ -50,7 +50,15 @@ final class MutationPost extends GqlNodeBase {
 
   final _lifetimeHours = InputFieldInt(fieldName: 'lifetimeHours');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [postPublish, postLeave, postReturn];
+  final _expiresAt = InputFieldDatetime(fieldName: 'expiresAt');
+
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    postPublish,
+    postLeave,
+    postReturn,
+    postShorten,
+    postClose,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get postLeave => GraphQLObjectField(
     'postLeave',
@@ -58,6 +66,33 @@ final class MutationPost extends GqlNodeBase {
     arguments: [_beaconId.field],
     resolve: (_, args) async {
       await _postCase.leave(
+        userId: getCredentials(args).sub,
+        beaconId: _beaconId.fromArgsNonNullable(args),
+      );
+      return true;
+    },
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get postShorten => GraphQLObjectField(
+    'postShorten',
+    graphQLBoolean.nonNullable(),
+    arguments: [_beaconId.field, _expiresAt.field],
+    resolve: (_, args) async {
+      await _postCase.shorten(
+        userId: getCredentials(args).sub,
+        beaconId: _beaconId.fromArgsNonNullable(args),
+        expiresAt: _expiresAt.fromArgsNonNullable(args),
+      );
+      return true;
+    },
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get postClose => GraphQLObjectField(
+    'postClose',
+    graphQLBoolean.nonNullable(),
+    arguments: [_beaconId.field],
+    resolve: (_, args) async {
+      await _postCase.close(
         userId: getCredentials(args).sub,
         beaconId: _beaconId.fromArgsNonNullable(args),
       );

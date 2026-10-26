@@ -721,6 +721,36 @@ WHERE id = $1 AND kind = 1''',
   );
 
   @override
+  Future<DateTime?> postExpiresAt(String postId) async {
+    // `timestamptz` through customSelect: read the text, Drift would misdecode.
+    final rows = await _database
+        .customSelect(
+          'SELECT expires_at::text AS expires_at FROM public.beacon '
+          r'WHERE id = $1',
+          variables: [Variable<String>(postId)],
+          readsFrom: {_database.beacons},
+        )
+        .get();
+    final text = rows.isEmpty ? null : rows.single.read<String?>('expires_at');
+    return text == null ? null : DateTime.parse(text).toUtc();
+  }
+
+  @override
+  Future<void> setPostExpiresAt({
+    required String postId,
+    required DateTime expiresAt,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.beacon SET expires_at = $2
+WHERE id = $1 AND kind = 1 AND status = 0''',
+    variables: [
+      Variable<String>(postId),
+      Variable(PgDateTime(expiresAt.toUtc()), PgTypes.timestampWithTimezone),
+    ],
+    updates: {_database.beacons},
+  );
+
+  @override
   Future<void> setPostRootMessage({
     required String beaconId,
     required String messageId,

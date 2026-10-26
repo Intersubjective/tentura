@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'beacon_case.dart';
 import 'beacon_room_case.dart';
 import 'forward_case.dart';
+import 'post_close_operation.dart';
 import 'transactional_attention_case.dart';
 
 /// Post-specific flows that compose the Request use cases.
@@ -198,6 +199,68 @@ class PostCase {
       );
     }
     return null;
+  }
+
+  /// The author ends the open Post early: [expiresAt] must be after now and
+  /// before the current end.
+  Future<void> shorten({
+    required String userId,
+    required String beaconId,
+    required DateTime expiresAt,
+  }) => _attention.runAction(
+    actorUserId: userId,
+    action: (_) async {
+      await _postLock.lockForPostMutation(beaconId);
+      final current = await _requireOpenOwnPost(
+        userId: userId,
+        beaconId: beaconId,
+      );
+      if (!expiresAt.isAfter(DateTime.now())) {
+        throw const PostLifetimeInvalidException();
+      }
+      if (!expiresAt.isBefore(current)) {
+        throw const PostLifetimeExtendException();
+      }
+      await _beaconRepository.setPostExpiresAt(
+        postId: beaconId,
+        expiresAt: expiresAt,
+      );
+    },
+  );
+
+  /// The author closes the open Post now.
+  Future<void> close({required String userId, required String beaconId}) =>
+      _attention.runAction(
+        actorUserId: userId,
+        action: (_) async {
+          await _postLock.lockForPostMutation(beaconId);
+          await _requireOpenOwnPost(userId: userId, beaconId: beaconId);
+          await PostCloseOperation(
+            _beaconRepository,
+          ).closeByAuthor(postId: beaconId, actorId: userId);
+        },
+      );
+
+  /// Returns the `expires_at` of [beaconId] after checking that it is an open,
+  /// not yet expired Post written by [userId]; the caller holds the Post lock.
+  Future<DateTime> _requireOpenOwnPost({
+    required String userId,
+    required String beaconId,
+  }) async {
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beacon.author.id != userId) {
+      throw const UnauthorizedException(
+        description: 'Only the author can change a Post lifetime',
+      );
+    }
+    final expiresAt = await _beaconRepository.postExpiresAt(beaconId);
+    if (beacon.kind != BeaconKind.post ||
+        beacon.status != BeaconStatus.open ||
+        expiresAt == null ||
+        !expiresAt.isAfter(DateTime.now())) {
+      throw const PostNotOpenException();
+    }
+    return expiresAt;
   }
 
   /// An addressee steps out of a Post (or of a Request converted from one).

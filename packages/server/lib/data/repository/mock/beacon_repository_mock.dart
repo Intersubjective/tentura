@@ -314,6 +314,15 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   Future<void> endPostNow(String postId) async {}
 
   @override
+  Future<DateTime?> postExpiresAt(String postId) async => null;
+
+  @override
+  Future<void> setPostExpiresAt({
+    required String postId,
+    required DateTime expiresAt,
+  }) async {}
+
+  @override
   Future<void> setPostLifetime({
     required String beaconId,
     required Duration lifetime,
