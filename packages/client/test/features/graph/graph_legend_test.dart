@@ -23,6 +23,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_edge_style
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_presence_halo_layer.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
+import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -443,7 +444,7 @@ void main() {
     await _pumpLegendContent(tester, GraphLegendMode.constellation);
 
     final tooltips = tester
-        .widgetList<Tooltip>(find.byType(Tooltip))
+        .widgetList<SemanticsFreeTooltip>(find.byType(SemanticsFreeTooltip))
         .where((t) => t.triggerMode == TooltipTriggerMode.tap)
         .map((t) => t.message)
         .toList();
@@ -561,6 +562,156 @@ void main() {
     await tester.pump(const Duration(seconds: 7));
     await tester.pumpAndSettle();
     semantics.dispose();
+  });
+
+  // #678 (QA on 7.54.0): on the web Enter/Space on a focused hint row showed
+  // nothing, and afterwards no node had the focus: the hint opened as a
+  // tooltip, which put a new node into the tree beside the focused row.
+  // Shown from the keyboard, the hint must add nothing to the tree, and
+  // the row must keep the focus.
+  testWidgets('a hint shown from the keyboard adds no node and keeps focus', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+    const hint =
+        'You and this person have each marked the other as someone you trust.';
+
+    List<SemanticsData> nodesWithHint() {
+      final found = <SemanticsData>[];
+      bool visit(SemanticsNode node) {
+        final data = node.getSemanticsData();
+        if (data.label.contains(hint) ||
+            data.hint.contains(hint) ||
+            data.value.contains(hint) ||
+            data.tooltip.contains(hint)) {
+          found.add(data);
+        }
+        node.visitChildren(visit);
+        return true;
+      }
+
+      visit(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      return found;
+    }
+
+    SemanticsData row() =>
+        tester.getSemantics(find.text('Mutual trust')).getSemanticsData();
+
+    for (
+      var i = 0;
+      i < 30 && row().flagsCollection.isFocused != Tristate.isTrue;
+      i++
+    ) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(row().flagsCollection.isFocused, Tristate.isTrue);
+    expect(nodesWithHint(), hasLength(1));
+
+    for (final key in [LogicalKeyboardKey.enter, LogicalKeyboardKey.space]) {
+      await tester.sendKeyEvent(key);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(hint), findsOneWidget, reason: '$key shows it');
+      // The sentence is still only the row's own hint…
+      final withHint = nodesWithHint();
+      expect(withHint, hasLength(1), reason: '$key adds no node');
+      expect(withHint.single.label, 'Mutual trust');
+      // …and the row still has the focus.
+      expect(row().flagsCollection.isFocused, Tristate.isTrue);
+
+      await tester.pump(const Duration(seconds: 7));
+      await tester.pumpAndSettle();
+      expect(find.text(hint), findsNothing);
+    }
+    semantics.dispose();
+  });
+
+  // #678 (QA on 7.54.0): Tab from one hint row went out to the map nodes
+  // beside the panel and skipped "They trust you". The legend's rows come
+  // one after another, whatever sits next to the panel.
+  testWidgets('Tab walks the legend rows in order', (tester) async {
+    final graphCubit = _StubGraphCubit();
+    addTearDown(graphCubit.close);
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: BlocProvider<GraphCubit>.value(
+          value: graphCubit,
+          child: Scaffold(
+            body: Stack(
+              children: [
+                const SizedBox(
+                  width: 400,
+                  child: SingleChildScrollView(
+                    child: GraphLegendContent(
+                      mode: GraphLegendMode.constellation,
+                    ),
+                  ),
+                ),
+                // A map node beside the panel, level with its rows.
+                for (var top = 0.0; top < 900; top += 20)
+                  Positioned(
+                    left: 600,
+                    top: top,
+                    child: TextButton(
+                      onPressed: () {},
+                      child: Text('node $top'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The row whose own focus node has the focus. A scope or any other node
+    // around several rows (the page before the first Tab) is no row.
+    String? focusedRow() {
+      final focus = FocusManager.instance.primaryFocus;
+      final context = focus?.context;
+      if (focus == null || focus is FocusScopeNode || context == null) {
+        return null;
+      }
+      final inside = [
+        for (final label in [
+          'Mutual trust',
+          'You trust them',
+          'They trust you',
+          'Contact without content',
+        ])
+          if (find
+              .ancestor(
+                of: find.text(label),
+                matching: find.byWidget(context.widget),
+              )
+              .evaluate()
+              .isNotEmpty)
+            label,
+      ];
+      return inside.length == 1 ? inside.single : null;
+    }
+
+    for (var i = 0; i < 100 && focusedRow() != 'Mutual trust'; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(focusedRow(), 'Mutual trust');
+    for (final next in [
+      'You trust them',
+      'They trust you',
+      'Contact without content',
+    ]) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(focusedRow(), next);
+    }
   });
 
   // Guard: rows without a hint stay plain text, not tab stops.

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,7 @@ import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.d
 import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../../support/constellation_store_fixture.dart';
 
@@ -120,6 +122,18 @@ Future<void> _pumpAppBar(
   );
   await tester.pumpAndSettle();
 }
+
+/// The pointer tooltips on the Map/List toggle's segments (#678: kept off
+/// the segments themselves so they add no second name).
+List<String> _segmentTooltips(WidgetTester tester) => tester
+    .widgetList<SemanticsFreeTooltip>(
+      find.descendant(
+        of: find.byKey(const Key('constellation.app_bar.view_mode')),
+        matching: find.byType(SemanticsFreeTooltip),
+      ),
+    )
+    .map((tip) => tip.message)
+    .toList();
 
 void main() {
   testWidgets('composer hides legend, filters, view mode and create controls', (
@@ -313,12 +327,10 @@ void main() {
               locale: locale,
             );
             expect(tester.takeException(), isNull);
-            final toggle = tester
-                .widget<SegmentedButton<ConstellationViewMode>>(
-                  find.byKey(const Key('constellation.app_bar.view_mode')),
-                );
-            for (final segment in toggle.segments) {
-              expect(segment.tooltip, isNotNull);
+            final tips = _segmentTooltips(tester);
+            expect(tips, hasLength(2));
+            for (final tip in tips) {
+              expect(tip, isNotEmpty);
             }
             await cubit.close();
           }
@@ -369,10 +381,7 @@ void main() {
         find.byKey(const Key('constellation.app_bar.view_mode')),
       );
       expect(toggle.segments.length, 2);
-      for (final segment in toggle.segments) {
-        expect(segment.tooltip, isNotNull);
-        expect(segment.tooltip!.isNotEmpty, isTrue);
-      }
+      expect(_segmentTooltips(tester), ['Map', 'List']);
       await cubit.close();
     });
   });
@@ -608,6 +617,53 @@ void main() {
           expect(nodes.single.label, name, reason: '$name is its label');
           expect(nodes.single.tooltip, isEmpty, reason: '$name, no tooltip');
         }
+        semantics.dispose();
+      });
+    }
+
+    // #678 (QA on 7.54.0): hovering a toolbar button put its tooltip into
+    // the tree beside it, and the web read the button as "Map Map", "List
+    // List" or "Show legend Show legend" while (and after) it showed.
+    for (final (mode, name) in [
+      (ConstellationViewMode.map, 'Map'),
+      (ConstellationViewMode.map, 'List'),
+      (ConstellationViewMode.text, 'List'),
+      (ConstellationViewMode.map, 'Show legend'),
+      (ConstellationViewMode.map, 'Filters'),
+    ]) {
+      testWidgets('while hovered, $name in ${mode.name} view', (tester) async {
+        final semantics = tester.ensureSemantics();
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+        cubit.setViewMode(mode);
+        await _pumpAppBar(tester, cubit: cubit, size: const Size(900, 800));
+        final shownBefore = find.text(name).evaluate().length;
+
+        final button = switch (name) {
+          'Map' => find.byIcon(TenturaIcons.graph),
+          'List' => find.byIcon(Icons.view_list_outlined),
+          'Show legend' => find.byKey(
+            const Key('constellation.app_bar.legend'),
+          ),
+          _ => find.byKey(const Key('constellation.app_bar.filters')),
+        };
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: Offset.zero);
+        addTearDown(mouse.removePointer);
+        await mouse.moveTo(tester.getCenter(button));
+        await tester.pumpAndSettle();
+
+        // The tooltip shows for the pointer…
+        expect(find.text(name), findsNWidgets(shownBefore + 1));
+        // …and the name is still read once, from the button alone.
+        final nodes = namedNodes(tester, name);
+        expect(nodes, hasLength(1), reason: '$name is one node');
+        expect(nodes.single.label, name);
+        expect(nodes.single.tooltip, isEmpty);
+        expect(nodes.single.flagsCollection.isButton, isTrue);
+
+        await mouse.moveTo(const Offset(1, 799));
+        await tester.pumpAndSettle();
         semantics.dispose();
       });
     }

@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/ui/widget/constellation_presence_
 import 'package:tentura/features/constellation/ui/widget/constellation_request_status_marker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
+import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../../domain/entity/graph_edge_colors.dart';
 import '../bloc/graph_cubit.dart';
@@ -34,39 +35,43 @@ class GraphLegendContent extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final edgeColors = GraphEdgeColors.fromTokens(tt);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Field avatars carry no contact badge; they show trust rings (#643).
-        if (mode == GraphLegendMode.constellation)
-          const _ConstellationTrustLegend()
-        else
-          const ContactBadgeLegend(),
-        if (mode == GraphLegendMode.forwards) ...[
+    // Tab walks the legend's rows in order before leaving it, instead of
+    // weaving in whatever lies beside the panel (map nodes, #678).
+    return FocusTraversalGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Field avatars carry no contact badge; they show trust rings (#643).
+          if (mode == GraphLegendMode.constellation)
+            const _ConstellationTrustLegend()
+          else
+            const ContactBadgeLegend(),
+          if (mode == GraphLegendMode.forwards) ...[
+            SizedBox(height: tt.sectionGap),
+            Text(
+              l10n.graphLegendForwardEligible,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           SizedBox(height: tt.sectionGap),
           Text(
-            l10n.graphLegendForwardEligible,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            l10n.graphLegendEdgesTitle,
+            style: Theme.of(context).textTheme.titleSmall,
           ),
+          SizedBox(height: tt.rowGap),
+          ..._edgeRows(context, edgeColors),
+          SizedBox(height: tt.sectionGap),
+          Text(
+            l10n.graphLegendOtherTitle,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          SizedBox(height: tt.rowGap),
+          ..._otherRows(context, scheme),
         ],
-        SizedBox(height: tt.sectionGap),
-        Text(
-          l10n.graphLegendEdgesTitle,
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        SizedBox(height: tt.rowGap),
-        ..._edgeRows(context, edgeColors),
-        SizedBox(height: tt.sectionGap),
-        Text(
-          l10n.graphLegendOtherTitle,
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        SizedBox(height: tt.rowGap),
-        ..._otherRows(context, scheme),
-      ],
+      ),
     );
   }
 
@@ -472,12 +477,14 @@ class _LegendRow extends StatefulWidget {
 }
 
 class _LegendRowState extends State<_LegendRow> {
-  final _tooltipKey = GlobalKey<TooltipState>();
-
   final _focusNode = FocusNode(debugLabel: 'legendRow');
 
   /// Whether the keyboard focus highlight is on this row.
   bool _highlighted = false;
+
+  /// Whether the hint is shown under the label, after a keyboard or
+  /// screen-reader activation (#678).
+  bool _hintShown = false;
 
   Timer? _hideTimer;
 
@@ -526,16 +533,18 @@ class _LegendRowState extends State<_LegendRow> {
         child: row,
       );
     }
-    // A focusable button whose hint is the explanation; activating it —
-    // by tap, or Enter/Space once focused with the keyboard — shows the same
-    // tooltip a tap does (#678). Focus semantics are set here so the one
-    // row node is focusable (a tab stop on the web).
-    return Tooltip(
-      key: _tooltipKey,
+    // A focusable button whose hint is the explanation (#678).
+    //
+    // A pointer (hover, or a tap) shows the hint as a tooltip. Enter/Space
+    // with the keyboard, or a screen reader's activation, shows it under
+    // the label instead: on the web a tooltip opened on a focused row put a
+    // new node into the tree beside it, the row lost its focus and the hint
+    // closed again at once. The inline hint adds no node; a screen reader
+    // already has the sentence as the row's hint.
+    return SemanticsFreeTooltip(
       message: hintText,
       triggerMode: TooltipTriggerMode.tap,
       showDuration: _legendHintShowDuration,
-      excludeFromSemantics: true,
       child: FocusableActionDetector(
         focusNode: _focusNode,
         includeFocusSemantics: false,
@@ -548,10 +557,7 @@ class _LegendRowState extends State<_LegendRow> {
             onInvoke: (_) => _showHint(),
           ),
         },
-        onFocusChange: (focused) {
-          if (!focused && _hideTimer != null) _hideHint();
-          setState(() {});
-        },
+        onFocusChange: _onFocusChange,
         onShowFocusHighlight: (value) => setState(() => _highlighted = value),
         child: Semantics(
           container: true,
@@ -568,27 +574,50 @@ class _LegendRowState extends State<_LegendRow> {
               color: _highlighted ? Theme.of(context).focusColor : null,
               borderRadius: BorderRadius.circular(tt.cardRadius),
             ),
-            child: row,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                row,
+                if (_hintShown)
+                  Padding(
+                    padding: EdgeInsetsDirectional.only(
+                      start: tt.avatarSize + tt.avatarTextGap,
+                      top: tt.tightGap,
+                    ),
+                    child: Text(
+                      hintText,
+                      style: TenturaText.bodySmall(tt.textMuted),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// Shows the hint for keyboard and screen-reader activation. Unlike a tap,
-  /// such a tooltip has no show duration of its own and stays until the next
-  /// pointer press, so it is hidden again after the same duration or when
-  /// the row loses focus.
-  bool _showHint() {
+  /// Shows the hint under the label for keyboard and screen-reader
+  /// activation, for the same time a tap shows the tooltip.
+  void _showHint() {
     _hideTimer?.cancel();
     _hideTimer = Timer(_legendHintShowDuration, _hideHint);
-    return _tooltipKey.currentState?.ensureTooltipVisible() ?? false;
+    if (!_hintShown) setState(() => _hintShown = true);
   }
 
   void _hideHint() {
     _hideTimer?.cancel();
     _hideTimer = null;
-    Tooltip.dismissAllToolTips();
+    if (mounted && _hintShown) setState(() => _hintShown = false);
+  }
+
+  /// The hint closes when the focus moves on to something else, but not
+  /// when the page itself loses the focus for a moment.
+  void _onFocusChange(bool focused) {
+    final now = FocusManager.instance.primaryFocus;
+    if (!focused && now != null && now is! FocusScopeNode) _hideHint();
+    setState(() {});
   }
 }
 

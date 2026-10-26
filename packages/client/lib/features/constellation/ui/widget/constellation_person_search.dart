@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../../domain/constellation_people.dart';
 import '../bloc/constellation_cubit.dart';
@@ -23,15 +24,22 @@ class ConstellationPersonSearchButton extends StatelessWidget {
     final cubit = context.read<ConstellationCubit>();
     return SearchAnchor(
       viewHintText: l10n.constellationSearchHint,
-      builder: (context, controller) => IconButton(
-        key: const Key('constellation.app_bar.search'),
-        tooltip: l10n.constellationSearchPeople,
-        icon: const Icon(Icons.person_search_outlined),
-        constraints: BoxConstraints(
-          minWidth: tt.buttonHeight,
-          minHeight: tt.buttonHeight,
+      // The icon names the button; the hover tooltip adds no second name
+      // (#678).
+      builder: (context, controller) => SemanticsFreeTooltip(
+        message: l10n.constellationSearchPeople,
+        child: IconButton(
+          key: const Key('constellation.app_bar.search'),
+          icon: Icon(
+            Icons.person_search_outlined,
+            semanticLabel: l10n.constellationSearchPeople,
+          ),
+          constraints: BoxConstraints(
+            minWidth: tt.buttonHeight,
+            minHeight: tt.buttonHeight,
+          ),
+          onPressed: controller.openView,
         ),
-        onPressed: controller.openView,
       ),
       suggestionsBuilder: (viewContext, controller) {
         final matches = [
