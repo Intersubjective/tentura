@@ -184,7 +184,7 @@ void main() {
       expect(kept, containsAll(exempt));
       expect(kept.difference(exempt), {
         ...tagged,
-        ...others.take(kConstellationRenderPeerCap - tagged.length),
+        ...others.take(constellationRenderPeerCap() - tagged.length),
       });
     });
   });

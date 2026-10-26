@@ -5,13 +5,45 @@ import 'package:tentura_root/domain/constellation/constellation_path_resolution.
 
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/layout/constellation_communities.dart';
+import '../../domain/layout/constellation_transition_stages.dart';
 
 /// Screen-local geometry only. Normal seats are kept separately so overview
 /// coordinates never become the normal layout's inertia on a later pass.
 class ConstellationCommunitySceneLayouts {
   _CommunityLayoutData? _data;
 
-  void clear() => _data = null;
+  /// Staging of the bulk move between normal and overview geometry, keyed by
+  /// graph node id: one stage per community, Requests following their author.
+  /// One map for the cubit's lifetime so a mounted graph view reads updates
+  /// without a rebuild.
+  final Map<String, LayoutTransitionStage> transitionStages = {};
+
+  void clear() {
+    _data = null;
+    transitionStages.clear();
+  }
+
+  void _stage(
+    ConstellationCommunityLayout layout,
+    Map<String, String> followers,
+  ) {
+    final staged = stageConstellationTransition(
+      communities: layout.communities,
+    );
+    transitionStages
+      ..clear()
+      ..addAll({
+        for (final e in staged.entries)
+          'fp:${e.key}': LayoutTransitionStage(
+            delay: e.value.delay,
+            duration: e.value.duration,
+          ),
+      });
+    for (final e in followers.entries) {
+      final stage = transitionStages[e.value];
+      if (stage != null) transitionStages[e.key] = stage;
+    }
+  }
 
   SceneLayoutAlgorithm select({
     required SceneLayoutAlgorithm normal,
@@ -49,6 +81,7 @@ class ConstellationCommunitySceneLayouts {
           for (final r in field.requests) 'fr:${r.id}': 'fp:${r.authorId}',
           for (final p in field.posts) 'fr:${p.id}': 'fp:${p.authorId}',
         },
+        onCommunities: (layout, followers) => _stage(layout, followers),
       );
     }
     return overview ? _data!.overviewAlgorithm : _data!.normalAlgorithm;
@@ -66,6 +99,7 @@ class _CommunityLayoutData {
     required this.previous,
     required this.communities,
     required this.followers,
+    required this.onCommunities,
   });
 
   final SceneLayoutAlgorithm base;
@@ -73,6 +107,11 @@ class _CommunityLayoutData {
   final List<ConstellationEdgeRef> edges;
   final Map<String, ConstellationAnchorPosition> anchors;
   final Map<String, String> followers;
+  final void Function(
+    ConstellationCommunityLayout layout,
+    Map<String, String> followers,
+  )
+  onCommunities;
   final ConstellationCommunityLayout? previous;
   ConstellationCommunityLayout? communities;
   Map<String, ScenePoint> normalPositions;
@@ -143,6 +182,7 @@ class _CommunityLayoutData {
         previous: communities ?? previous,
       );
       communities = layout;
+      onCommunities(layout, followers);
     }
     final positions = {
       ...normalPositions,

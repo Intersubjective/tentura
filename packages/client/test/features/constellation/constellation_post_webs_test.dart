@@ -100,7 +100,7 @@ String _padded(int i) => 'p${i.toString().padLeft(3, '0')}';
 /// the Post, so exactly one visible member cannot be placed.
 ConstellationField _fieldOverRenderCap({required int hiddenReachCount}) {
   final ids = [
-    for (var i = 0; i <= kConstellationRenderPeerCap; i++) _padded(i),
+    for (var i = 0; i <= constellationRenderPeerCap(); i++) _padded(i),
   ];
   return ConstellationField(
     loadedAt: _loadedAt,
@@ -285,12 +285,12 @@ void main() {
 
       cubit.selectRequest('post-1');
       await Future<void>.delayed(Duration.zero);
-      expect(cubit.state.keptPeerIds, hasLength(kConstellationRenderPeerCap));
+      expect(cubit.state.keptPeerIds, hasLength(constellationRenderPeerCap()));
 
       final webs = cubit.graphController.edges
           .where((e) => e.semanticId.endsWith('#webForwarded'))
           .toList();
-      expect(webs, hasLength(kConstellationRenderPeerCap));
+      expect(webs, hasLength(constellationRenderPeerCap()));
       expect(webs.map((e) => e.destination.id).toSet(), {
         for (final id in cubit.state.keptPeerIds) id,
       });

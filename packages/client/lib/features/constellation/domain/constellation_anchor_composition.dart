@@ -195,6 +195,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
   List<ConstellationMemberWeb> selectedRequestWebs = const [],
   Set<String> extraKeptPeerIds = const {},
   bool fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
+  bool semanticZoomEnabled = kFieldSemanticZoomEnabled,
 }) {
   final projection = field.resolvedAnchorProjection;
   final automatic = ConstellationAutomaticLayer(
@@ -313,7 +314,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     visiblePeerIds: visiblePeerIds,
     holderIds: holderIds,
     edges: mergedEdges,
-    cap: kConstellationRenderPeerCap,
+    cap: constellationRenderPeerCap(semanticZoomEnabled: semanticZoomEnabled),
     budgetExemptPeerIds: budgetExemptPeerIds,
     fieldMembershipV2Enabled: fieldMembershipV2Enabled,
     ownTaggedPeerIds: {

@@ -37,7 +37,7 @@ String _padded(int i) => 'p${i.toString().padLeft(3, '0')}';
 /// One peer more than the render cap, so exactly one peer is not drawn.
 ConstellationField _fieldOverRenderCap() {
   final ids = [
-    for (var i = 0; i <= kConstellationRenderPeerCap; i++) _padded(i),
+    for (var i = 0; i <= constellationRenderPeerCap(); i++) _padded(i),
   ];
   return ConstellationField(
     loadedAt: _loadedAt,
@@ -116,7 +116,7 @@ void main() {
     final kept = cubit.state.keptPeerIds;
     shownPeer = kept.first;
     hiddenPeer = [
-      for (var i = 0; i <= kConstellationRenderPeerCap; i++) _padded(i),
+      for (var i = 0; i <= constellationRenderPeerCap(); i++) _padded(i),
     ].firstWhere((id) => !kept.contains(id));
     toggled = [];
   });

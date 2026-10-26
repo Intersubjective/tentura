@@ -11,6 +11,7 @@ export 'src/layout_algorithm/graph_layout_request.dart';
 export 'src/layout_algorithm/scene_layout_algorithm.dart';
 export 'src/model/edge.dart';
 export 'src/model/graph_canvas_size.dart';
+export 'src/model/layout_transition_stage.dart';
 export 'src/model/lazy_building.dart';
 export 'src/model/node.dart';
 export 'src/node_builder/default_node_builder.dart';

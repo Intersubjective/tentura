@@ -90,7 +90,7 @@ void main() {
   group('composeConstellationPresentation', () {
     test('pinned people and support bypass peer cap budget', () {
       final automaticPeers = List.generate(
-        kConstellationRenderPeerCap + 5,
+        constellationRenderPeerCap() + 5,
         (i) => ConstellationPerson(id: 'auto-$i'),
       );
       final projection = ConstellationAnchorProjection(
@@ -130,7 +130,7 @@ void main() {
       );
 
       expect(composed.eligiblePersonIds, containsAll(['pinned-a', 'pinned-b', 'support-x']));
-      expect(composed.keptPeerIds.length, lessThanOrEqualTo(kConstellationRenderPeerCap + 3));
+      expect(composed.keptPeerIds.length, lessThanOrEqualTo(constellationRenderPeerCap() + 3));
       expect(composed.keptPeerIds, containsAll(['pinned-a', 'pinned-b', 'support-x']));
     });
 
@@ -258,7 +258,7 @@ void main() {
 
     test('request of author dropped by peer cap is not drawn', () {
       final fillerPeers = [
-        for (var i = 0; i < kConstellationRenderPeerCap; i++)
+        for (var i = 0; i < constellationRenderPeerCap(); i++)
           ConstellationPerson(id: 'auto-${i.toString().padLeft(3, '0')}'),
       ];
       const droppedAuthor = ConstellationPerson(id: 'zzz-author');

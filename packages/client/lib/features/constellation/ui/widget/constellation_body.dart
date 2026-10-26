@@ -36,6 +36,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
+import '../../domain/layout/constellation_transition_stages.dart';
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
@@ -124,7 +125,7 @@ class ConstellationBody extends StatefulWidget {
 class _ConstellationBodyState extends State<ConstellationBody>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   static const _layoutTransitionDuration = Duration(milliseconds: 350);
-  static const _overviewTransitionDuration = Duration(milliseconds: 500);
+  static const _overviewTransitionDuration = kConstellationTransitionDuration;
 
   /// A Field ↔ tag view move takes 400–500 ms.
   static const _tagViewTransitionDuration = Duration(milliseconds: 450);
@@ -1427,6 +1428,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   : cubit.semanticZoomEnabled
                   ? _overviewTransitionDuration
                   : _layoutTransitionDuration,
+              layoutTransitionStages: cubit.layoutTransitionStages,
               canDragNode: cubit.canDragNode,
               transformNodeDragPosition: cubit.clampClusterDragPosition,
               onNodeDragStart: (node, position) {

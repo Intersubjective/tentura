@@ -143,11 +143,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     bool loadOnCreate = true,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
     this.semanticZoomEnabled = kFieldSemanticZoomEnabled,
-    this._composePresentation = composeConstellationPresentation,
+    ConstellationPresentationComposer? composePresentation,
     ConstellationSceneController? scene,
   }) : _scene = scene ?? ConstellationSceneController(),
        _case = case_,
        _viewer = viewer,
+       _composePresentation =
+           composePresentation ?? _defaultComposer(semanticZoomEnabled),
        _forwardCaseOverride = forwardCase,
        super(const ConstellationState()) {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
@@ -168,6 +170,30 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     unawaited(_restoreVisibility());
   }
 
+  static ConstellationPresentationComposer _defaultComposer(
+    bool semanticZoomEnabled,
+  ) =>
+      ({
+        required viewerId,
+        required field,
+        required localFilters,
+        required asOfUtc,
+        required labelBudget,
+        expandedSatelliteAuthorIds = const {},
+        selectedRequestWebs = const [],
+        extraKeptPeerIds = const {},
+      }) => composeConstellationPresentation(
+        viewerId: viewerId,
+        field: field,
+        localFilters: localFilters,
+        asOfUtc: asOfUtc,
+        labelBudget: labelBudget,
+        expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+        selectedRequestWebs: selectedRequestWebs,
+        extraKeptPeerIds: extraKeptPeerIds,
+        semanticZoomEnabled: semanticZoomEnabled,
+      );
+
   final ConstellationFieldStoreCase _case;
   final ConstellationAnchorCase? _anchorCase;
   final ConstellationPlacementCase? _placementCase;
@@ -182,6 +208,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Overview community geometry (`kFieldSemanticZoomEnabled`).
   final bool semanticZoomEnabled;
   final _communityLayouts = ConstellationCommunitySceneLayouts();
+
+  /// Staging of the overview bulk move by community, for the graph view.
+  Map<String, LayoutTransitionStage> get layoutTransitionStages =>
+      _communityLayouts.transitionStages;
   bool _overviewLayout = false;
 
   /// The screen's zoom-level owner selects geometry as well as presentation.

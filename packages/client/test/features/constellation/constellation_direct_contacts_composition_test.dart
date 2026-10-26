@@ -92,8 +92,8 @@ void main() {
 
   test('direct contacts beyond the render budget are all kept, and the '
       'budget still caps indirect holders', () {
-    const directCount = kConstellationRenderPeerCap + 180;
-    const indirectCount = kConstellationRenderPeerCap + 40;
+    final directCount = constellationRenderPeerCap() + 180;
+    final indirectCount = constellationRenderPeerCap() + 40;
     final direct = [for (var i = 0; i < directCount; i++) _id('d', i)];
     // Each indirect holder hangs off its own bridge, so it costs two seats.
     final bridges = [for (var i = 0; i < indirectCount; i++) _id('b', i)];
@@ -133,7 +133,7 @@ void main() {
 
     expect(composed.keptPeerIds.containsAll(direct), isTrue);
     final keptIndirect = composed.keptPeerIds.intersection(indirect.toSet());
-    expect(keptIndirect.length, kConstellationRenderPeerCap ~/ 2);
+    expect(keptIndirect.length, constellationRenderPeerCap() ~/ 2);
     expect(composed.renderBudgetCapped, isTrue);
   });
 

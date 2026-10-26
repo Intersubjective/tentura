@@ -168,8 +168,11 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-25
-review due: 2026-11-01
+reviewed: 2026-10-26
+review due: 2026-11-02
+
+### alloy:lesson:bead_source_mismatch_verify_before_refactor
+Bead descriptions can cite stale symbols, tokens, or tests: grep every cited path, token, and test file before implementing. Prefer thin aliases or minimal wiring when the bead misnames an existing API; do not replace working UI with a different metaphor (e.g. scatter plot vs avatar stack). User-visible client changes still need a pubspec patch bump and web/index.html cache-buster sync.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

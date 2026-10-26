@@ -70,6 +70,7 @@ class GraphController<N, E> with ChangeNotifier {
   Offset? Function(Offset global)? _globalToViewportLocal;
   Duration _transitionDuration = Duration.zero;
   Curve _transitionCurve = Curves.easeOutCubic;
+  Map<GraphNodeId, LayoutTransitionStage> _transitionStages = const {};
   double _minScale = 0.5;
   double _maxScale = 2;
 
@@ -1066,13 +1067,18 @@ class GraphController<N, E> with ChangeNotifier {
     }
 
     final total = _transitionDuration.inMicroseconds;
-    final t = total <= 0
-        ? 1.0
-        : (elapsed.inMicroseconds / total).clamp(0.0, 1.0).toDouble();
-    final eased = _transitionCurve.transform(t);
-
+    final elapsedUs = elapsed.inMicroseconds;
+    var end = 0;
     final interpolated = <GraphNodeId, ScenePoint>{};
     for (final entry in target.entries) {
+      final stage = _transitionStages[entry.key];
+      final delayUs = stage?.delay.inMicroseconds ?? 0;
+      final durationUs = stage?.duration.inMicroseconds ?? total;
+      if (delayUs + durationUs > end) end = delayUs + durationUs;
+      final t = durationUs <= 0
+          ? 1.0
+          : ((elapsedUs - delayUs) / durationUs).clamp(0.0, 1.0).toDouble();
+      final eased = _transitionCurve.transform(t);
       final start =
           from[entry.key] ?? _spawnScenePoint(entry.key) ?? entry.value;
       interpolated[entry.key] = ScenePoint(
@@ -1087,7 +1093,7 @@ class GraphController<N, E> with ChangeNotifier {
       _layoutTransitionCapture = _captureDisplayedPositions();
     }
 
-    if (t >= 1.0) {
+    if (elapsedUs >= end) {
       _spawningIds.removeAll(target.keys);
       _scene.setLayoutTransition(null);
       _transitionFrom = null;
@@ -1258,6 +1264,7 @@ class GraphController<N, E> with ChangeNotifier {
     required TickerProvider vsync,
     required Duration transitionDuration,
     required Curve transitionCurve,
+    required Map<GraphNodeId, LayoutTransitionStage> transitionStages,
     required double minScale,
     required double maxScale,
   }) async {
@@ -1270,6 +1277,7 @@ class GraphController<N, E> with ChangeNotifier {
 
     _transitionDuration = transitionDuration;
     _transitionCurve = transitionCurve;
+    _transitionStages = transitionStages;
     _minScale = minScale;
     _maxScale = maxScale;
     final previousSize = _currentSize;

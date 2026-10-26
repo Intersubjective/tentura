@@ -36,6 +36,7 @@ class GraphView<N, E> extends StatefulWidget {
     this.maxScale = 2,
     this.layoutTransitionDuration = Duration.zero,
     this.layoutTransitionCurve = Curves.easeOutCubic,
+    this.layoutTransitionStages = const {},
     this.canDragNode,
     this.onNodeDragStart,
     this.onNodeDragUpdate,
@@ -99,6 +100,11 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// Easing used for [layoutTransitionDuration].
   final Curve layoutTransitionCurve;
+
+  /// Per-node timing within a layout transition. Nodes sharing a stage move
+  /// together, so a bulk move runs as a few staged groups instead of one tween
+  /// per node. Nodes without an entry use the whole [layoutTransitionDuration].
+  final Map<GraphNodeId, LayoutTransitionStage> layoutTransitionStages;
 
   /// Optional predicate for draggable nodes when node-drag hooks are enabled.
   final CanDragNodePredicate<N>? canDragNode;
@@ -167,6 +173,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         widget.layoutTransitionCurve != oldWidget.layoutTransitionCurve) {
       _initController();
     }
+    widget.controller._transitionStages = widget.layoutTransitionStages;
   }
 
   void _initController() {
@@ -185,6 +192,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
       vsync: this,
       transitionDuration: widget.layoutTransitionDuration,
       transitionCurve: widget.layoutTransitionCurve,
+      transitionStages: widget.layoutTransitionStages,
       minScale: widget.minScale,
       maxScale: widget.maxScale,
     );
