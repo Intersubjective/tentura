@@ -1,7 +1,7 @@
 // A Post's ⋮ menu mutes («Заглушить» → 1 ч / 3 ч / день / 3 дня / навсегда,
 // «Включить звук» when muted), pins in conversations («Закрепить в
 // разговорах» / «Открепить», the existing favorites pin) and leaves
-// («Выйти из чата», recipients only, behind a confirm). The «Не
+// («Выйти из поста», recipients only, behind a confirm). The «Не
 // интересно» archive brings a Post row back through `postReturn` and a
 // Request row through the plain status change.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M10).
@@ -119,7 +119,8 @@ class _PostRepository implements BeaconRepository {
 
 class _FakeForwardRepository implements ForwardRepository {
   @override
-  Future<List<ForwardEdge>> fetchEdges({required String beaconId}) async => const [];
+  Future<List<ForwardEdge>> fetchEdges({required String beaconId}) async =>
+      const [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -554,7 +555,8 @@ void main() {
             _now.add(duration),
           ),
           isTrue,
-          reason: 'expected ${_now.add(duration)}, '
+          reason:
+              'expected ${_now.add(duration)}, '
               'got ${h.mute.setCalls.single.mutedUntil}',
         );
         expect(h.mute.clearCalls, isEmpty);
@@ -683,10 +685,10 @@ void main() {
     testWidgets('asks first and leaves only after «Выйти»', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Выйти из чата');
+      await _pickMenuItem(tester, 'Выйти из поста');
 
       expect(_confirmDialog(), findsOneWidget);
-      expect(_inDialog(find.text('Выйти из чата?')), findsOneWidget);
+      expect(_inDialog(find.text('Выйти из поста?')), findsOneWidget);
       expect(h.membership.postLeaveCalls, isEmpty);
 
       await tester.tap(_inDialog(find.byType(FilledButton)));
@@ -700,7 +702,7 @@ void main() {
         'the Post', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Выйти из чата');
+      await _pickMenuItem(tester, 'Выйти из поста');
       await tester.tap(_inDialog(find.byType(FilledButton)));
       await _settle(tester);
 
@@ -725,7 +727,7 @@ void main() {
     testWidgets('cancelling the confirm does not leave', (tester) async {
       final h = await _pumpPost(tester, viewer: _reader);
 
-      await _pickMenuItem(tester, 'Выйти из чата');
+      await _pickMenuItem(tester, 'Выйти из поста');
       await tester.tap(_inDialog(find.byType(TextButton)));
       await _settle(tester);
 
@@ -748,7 +750,7 @@ void main() {
       expect(find.textContaining('Выйти'), findsNothing);
     });
 
-    testWidgets('the author is not offered «Выйти из чата»', (
+    testWidgets('the author is not offered «Выйти из поста»', (
       tester,
     ) async {
       await _pumpPost(tester, viewer: _author);

@@ -20,7 +20,7 @@ import 'package:tentura/ui/widget/pending_attachments.dart';
 import '../bloc/beacon_create_cubit.dart';
 import 'beacon_create_screen.dart' show popCreateAndOpenLiveBeacon;
 
-/// «Новый чат» (a new Post, #248): a short form in two steps, like a
+/// «Новый пост» (a new Post, #248, #720): a short form in two steps, like a
 /// simplified Request form.
 /// First the Post itself — text, photos and files, whether it may be
 /// forwarded; then «Получатели», where «Отправить» publishes it to the people

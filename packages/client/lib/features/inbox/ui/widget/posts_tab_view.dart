@@ -19,7 +19,7 @@ class PostsTabView extends StatelessWidget {
     super.key,
   });
 
-  /// Whether the empty state offers «Новый чат» (a new Post).
+  /// Whether the empty state offers «Новый пост» (a new Post).
   final bool canCreatePost;
 
   final VoidCallback? onCreatePost;

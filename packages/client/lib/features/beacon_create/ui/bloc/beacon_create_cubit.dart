@@ -89,6 +89,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     } else if (childCreationContext != null) {
       unawaited(Future<void>.microtask(_initChildComposer));
     }
+    if (childCreationContext != null) {
+      unawaited(Future<void>.microtask(_loadChildParentTitle));
+    }
   }
 
   /// A Post is composed in the room composer, not in the request form.
@@ -177,6 +180,30 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Index into the attachments of the next upload into the root message
   /// (the first one rode inline with `postPublish`).
   int _nextPostAttachment = 1;
+
+  /// Loads the title of the Request a new child request will belong to into
+  /// [BeaconCreateState.childParentTitle], for the «Child request of …» line
+  /// (#735). It stays empty for a Post bud or when the parent cannot be read.
+  Future<void> _loadChildParentTitle() async {
+    final parentId = switch (state.creationContext) {
+      BeaconCreationContextChild(:final parentBeaconId) => parentBeaconId,
+      BeaconCreationContextPromotedChild(:final parentBeaconId) =>
+        parentBeaconId,
+      _ => null,
+    };
+    if (parentId == null || parentId.isEmpty) return;
+    final String title;
+    try {
+      final parent = await _case.fetchById(parentId);
+      if (parent.kind == BeaconKind.post) return;
+      title = parent.title.trim();
+    } on Object {
+      // The line is a hint; the form works without it.
+      return;
+    }
+    if (title.isEmpty || isClosed) return;
+    emit(state.copyWith(childParentTitle: title));
+  }
 
   Future<void> _initChildComposer() async {
     final context = state.creationContext;

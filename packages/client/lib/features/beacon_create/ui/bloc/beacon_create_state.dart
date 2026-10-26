@@ -78,6 +78,11 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     /// Non-null when composing a nested child request (plan §3.4).
     BeaconCreationContext? creationContext,
 
+    /// Title of the Request a new child request will belong to, for the
+    /// «Child request of …» line (#735); empty outside a child composer, for
+    /// a Post bud, or when the parent cannot be read.
+    @Default('') String childParentTitle,
+
     /// Idempotent create command identity; null for restored server drafts.
     String? clientCommandId,
 

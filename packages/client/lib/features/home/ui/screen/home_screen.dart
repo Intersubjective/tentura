@@ -238,13 +238,9 @@ class _HomeShellState extends State<_HomeShell> {
     // The listener stays mounted on the body so tab-index sync survives.
     final activeBranch = tabsRouter.stackRouterOfIndex(tabsRouter.activeIndex);
     final branchShowsDetail = (activeBranch?.stackData.length ?? 1) > 1;
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: HomeBottomNavListener(
-        tabsRouter: tabsRouter,
-        child: content,
-      ),
-      bottomNavigationBar: branchShowsDetail
+    // «Skip to content», the bar, then the page, as beside the rail (#697).
+    return HomeRailLayout.compact(
+      bottomBar: branchShowsDetail
           ? null
           : HomeBottomNavigationBar(
               onDestinationSelected: (index) =>
@@ -261,6 +257,10 @@ class _HomeShellState extends State<_HomeShell> {
                   ),
               ],
             ),
+      child: HomeBottomNavListener(
+        tabsRouter: tabsRouter,
+        child: content,
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -26,12 +28,14 @@ Future<PostAction?> showPostInfoSheet(
   required PostViewCubit cubit,
   required ThreadHostCubit host,
   ProfileViewCubit Function(String id)? profileViewCubitFactory,
+  bool scrollToParticipants = false,
 }) => showTenturaAdaptiveSheet<PostAction>(
   context: context,
   builder: (_) => PostInfoSheet(
     cubit: cubit,
     host: host,
     profileViewCubitFactory: profileViewCubitFactory,
+    scrollToParticipants: scrollToParticipants,
   ),
 );
 
@@ -40,8 +44,16 @@ class PostInfoSheet extends StatelessWidget {
     required this.cubit,
     required this.host,
     this.profileViewCubitFactory,
+    this.scrollToParticipants = false,
     super.key,
   });
+
+  /// Opened from ⋮ «Участники»: the participants are scrolled into view
+  /// (#715).
+  final bool scrollToParticipants;
+
+  /// The participants block, for tests and for [scrollToParticipants].
+  static const participantsKey = Key('PostInfoSheet.participants');
 
   final PostViewCubit cubit;
 
@@ -227,13 +239,18 @@ class PostInfoSheet extends StatelessWidget {
             SizedBox(height: tt.rowGap),
             const Divider(height: 1),
             SizedBox(height: tt.rowGap),
-            PostParticipantsList(
-              viewerId: viewerId,
-              participants: withPostAuthor(participants, beacon),
-              forwardEdges: state.forwardEdges,
-              onInvite: canForward ? () => pick(PostAction.forward) : null,
-              onForwardsGraph: () => pick(PostAction.forwardsGraph),
-              profileViewCubitFactory: profileViewCubitFactory,
+            _RevealOnOpen(
+              key: participantsKey,
+              enabled: scrollToParticipants,
+              child: PostParticipantsList(
+                viewerId: viewerId,
+                participants: withPostAuthor(participants, beacon),
+                forwardEdges: state.forwardEdges,
+                // «Позвать» opens the invite dialog itself (#715).
+                onInvite: canForward ? () => pick(PostAction.invite) : null,
+                onForwardsGraph: () => pick(PostAction.forwardsGraph),
+                profileViewCubitFactory: profileViewCubitFactory,
+              ),
             ),
             const Divider(height: 1),
             if (!isAuthor)
@@ -277,6 +294,37 @@ class PostInfoSheet extends StatelessWidget {
     if (left.inHours >= 24) return l10n.postInfoActiveDays(left.inDays);
     return l10n.postInfoActiveHours(left.inHours < 1 ? 1 : left.inHours);
   }
+}
+
+/// Scrolls [child] to the top of the sheet once, after the first frame, when
+/// [enabled].
+class _RevealOnOpen extends StatefulWidget {
+  const _RevealOnOpen({
+    required this.enabled,
+    required this.child,
+    super.key,
+  });
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_RevealOnOpen> createState() => _RevealOnOpenState();
+}
+
+class _RevealOnOpenState extends State<_RevealOnOpen> {
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.enabled) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(Scrollable.ensureVisible(context));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _Fact extends StatelessWidget {

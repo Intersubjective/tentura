@@ -6,8 +6,15 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 /// runs it.
 enum PostAction {
   info,
+
+  /// «Участники»: «О посте» scrolled to its participants (#715).
+  participants,
   scrollToRoot,
   forward,
+
+  /// «Позвать» in the participants: the post invite dialog itself, not the
+  /// Forward screen (#715).
+  invite,
   mute,
   unmute,
   pin,

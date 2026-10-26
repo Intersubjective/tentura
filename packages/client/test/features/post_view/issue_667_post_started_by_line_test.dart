@@ -1,6 +1,6 @@
-// Issue #667: a recipient of a New chat sees "<author> started this chat with
-// you" in the pinned strip, not "<author> forwarded this to you". The copy
-// exists in every locale and is translated.
+// Issue #667: a recipient of a new Post sees "<author> sent you this post"
+// (#720: "post", not "chat") in the pinned strip, not "<author> forwarded
+// this to you". The copy exists in every locale and is translated.
 
 import 'dart:convert';
 import 'dart:io';
@@ -26,10 +26,10 @@ void main() {
       }
     });
 
-    test('English and Russian copy say started, not forwarded', () {
-      expect(_arb('en')[_key], '{name} started this chat with you');
+    test('English and Russian copy say sent, not forwarded', () {
+      expect(_arb('en')[_key], '{name} sent you this post');
       final ru = _arb('ru')[_key] as String;
-      expect(ru, contains('начал'));
+      expect(ru, contains('отправил'));
       expect(ru, isNot(contains('переслал')));
     });
   });

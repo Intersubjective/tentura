@@ -1,5 +1,5 @@
 // The Post participants list (a section of «О посте») lists who is in the
-// conversation («В ЧАТЕ») and who has not opened it yet («ЕЩЁ НЕ
+// conversation («В ПОСТЕ») and who has not opened it yet («ЕЩЁ НЕ
 // ОТКРЫЛИ»), marks contacts, offers a trust toggle (was «[+ В контакты]»)
 // shortcut that reuses `ProfileViewCubit.addFriend`, shows who brought a
 // member in from the forward edges, opens a profile on tap, offers «Позвать»
@@ -274,7 +274,7 @@ void main() {
     ) async {
       await _pump(tester);
 
-      expect(find.text('В ЧАТЕ · 5'), findsOneWidget);
+      expect(find.text('В ПОСТЕ · 5'), findsOneWidget);
       for (final name in ['Олег', 'Мария', 'Дима', 'Света', 'Вы']) {
         expect(find.text(name), findsOneWidget, reason: name);
       }
@@ -311,7 +311,7 @@ void main() {
         'unopened section', (tester) async {
       final h = await _pump(tester);
 
-      final conversation = h.top(find.text('В ЧАТЕ · 5'));
+      final conversation = h.top(find.text('В ПОСТЕ · 5'));
       final unopened = h.top(find.text('ЕЩЁ НЕ ОТКРЫЛИ · 2'));
       for (final name in ['Олег', 'Мария', 'Дима', 'Света', 'Вы']) {
         final y = h.top(find.text(name));
@@ -341,7 +341,7 @@ void main() {
         ],
       );
 
-      expect(find.text('В ЧАТЕ · 4'), findsOneWidget);
+      expect(find.text('В ПОСТЕ · 4'), findsOneWidget);
       expect(find.text('ЕЩЁ НЕ ОТКРЫЛИ · 1'), findsOneWidget);
       final heading = h.top(find.text('ЕЩЁ НЕ ОТКРЫЛИ · 1'));
       expect(h.top(find.text('Катя')), greaterThan(heading));
@@ -374,7 +374,7 @@ void main() {
         ],
       );
 
-      expect(find.text('В ЧАТЕ · 2'), findsOneWidget);
+      expect(find.text('В ПОСТЕ · 2'), findsOneWidget);
       expect(find.textContaining('ЕЩЁ НЕ ОТКРЫЛИ'), findsNothing);
     });
 
