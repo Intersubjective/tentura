@@ -14,6 +14,7 @@ import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../bloc/beacon_create_cubit.dart';
@@ -258,7 +259,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   Future<void> _submitBud() async {
     final contextName = context.read<ContextCubit>().state.selected;
     final l10n = L10n.of(context)!;
-    final messenger = ScaffoldMessenger.maybeOf(context);
     final bud = _beaconCreateCubit.state.postBud;
     final result = await _beaconCreateCubit.submitBud(context: contextName);
     if (!mounted || result == null) return;
@@ -272,9 +272,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
             final name => name,
           },
       ].join(', ');
-      messenger?.showSnackBar(
-        SnackBar(content: Text(l10n.postBudNotInvitedSnack(names))),
-      );
+      showSnackBar(context, text: l10n.postBudNotInvitedSnack(names));
     }
     if (childId == null || childId.isEmpty) return;
     widget.onPublished?.call();

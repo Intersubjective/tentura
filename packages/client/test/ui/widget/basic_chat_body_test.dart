@@ -769,7 +769,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('paste')));
     await tester.pumpAndSettle();
 
-    expect(find.text('No image on clipboard'), findsOneWidget);
+    expect(
+      find.text('No image on clipboard', findRichText: true),
+      findsOneWidget,
+    );
     expect(
       find.descendant(
         of: find.byType(BeaconRoomComposer),
@@ -800,7 +803,7 @@ void main() {
 
     const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
     expect(
-      find.text('Each file must be $mb MB or smaller.'),
+      find.text('Each file must be $mb MB or smaller.', findRichText: true),
       findsOneWidget,
     );
     expect(
@@ -826,7 +829,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('paste')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Could not read clipboard'), findsOneWidget);
+    expect(
+      find.text('Could not read clipboard', findRichText: true),
+      findsOneWidget,
+    );
     expect(
       find.descendant(
         of: find.byType(BeaconRoomComposer),

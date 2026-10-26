@@ -664,7 +664,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text("Couldn't reset positions. Try again."),
+        find.text(
+          "Couldn't reset positions. Try again.",
+          findRichText: true,
+        ),
         findsOneWidget,
       );
       expect(harness.cubit.state.hasUserPlacements, isTrue);

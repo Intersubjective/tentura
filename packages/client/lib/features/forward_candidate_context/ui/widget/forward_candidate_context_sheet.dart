@@ -9,6 +9,7 @@ import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_forward_section.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
@@ -49,12 +50,9 @@ Future<void> showForwardCandidateContextSheet({
 
   if (result == _ForwardCandidateSheetResult.unavailable &&
       sourceContext.mounted) {
-    ScaffoldMessenger.of(sourceContext).showSnackBar(
-      SnackBar(
-        content: Text(
-          L10n.of(sourceContext)!.forwardCandidateUnavailableMessage,
-        ),
-      ),
+    showSnackBar(
+      sourceContext,
+      text: L10n.of(sourceContext)!.forwardCandidateUnavailableMessage,
     );
   }
   if (priorFocus?.context != null && priorFocus!.canRequestFocus) {

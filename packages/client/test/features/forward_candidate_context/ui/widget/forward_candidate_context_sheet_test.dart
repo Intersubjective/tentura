@@ -254,6 +254,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('View full profile'), findsNothing);
-    expect(find.text('This person is no longer available.'), findsOneWidget);
+    expect(
+      find.text('This person is no longer available.', findRichText: true),
+      findsOneWidget,
+    );
   });
 }

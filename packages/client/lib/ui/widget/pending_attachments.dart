@@ -12,6 +12,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
 
 /// Cmd+V on Apple platforms, Ctrl+V elsewhere (no Shift/Alt).
 bool isPasteShortcutPressed() {
@@ -58,9 +59,7 @@ mixin PendingAttachmentsMixin<T extends StatefulWidget> on State<T> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showSnackBar(context, text: message);
   }
 
   void _snackTooMany() => _snack(

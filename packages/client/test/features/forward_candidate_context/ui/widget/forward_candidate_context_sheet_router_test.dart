@@ -251,7 +251,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Direct connection'), findsNothing);
-    expect(find.text('This person is no longer available.'), findsOneWidget);
+    expect(
+      find.text('This person is no longer available.', findRichText: true),
+      findsOneWidget,
+    );
     expect(router.stackData.map((data) => data.name), [
       ForwardBeaconRoute.name,
     ]);

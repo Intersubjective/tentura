@@ -693,9 +693,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   }
 
   void _showActionMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showSnackBar(context, text: message);
   }
 
   Widget _buildContextOverlay(
