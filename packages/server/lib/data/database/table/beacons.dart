@@ -73,6 +73,15 @@ class Beacons extends Table
     PgTypes.timestampWithTimezone,
   ).nullable()();
 
+  /// Post lifetime end (m0269); null for Requests and draft Posts.
+  late final expiresAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
+  /// Whether the author may still get the Post expiry warning (m0269).
+  late final expiryWarningEligible =
+      boolean().withDefault(const Constant(false))();
+
   /// Monotonic hierarchy lifecycle event sequence for this source beacon.
   late final hierarchyEventSequence = integer().withDefault(const Constant(0))();
 

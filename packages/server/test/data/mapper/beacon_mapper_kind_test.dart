@@ -30,6 +30,7 @@ void main() {
     coverSource: 0,
     reviewReopenCount: 0,
     hierarchyEventSequence: 0,
+    expiryWarningEligible: false,
     isDiscoverable: isDiscoverable,
     kind: kind,
     forwardPolicy: forwardPolicy,

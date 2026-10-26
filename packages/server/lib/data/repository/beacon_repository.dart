@@ -5,6 +5,7 @@ import 'package:drift_postgres/drift_postgres.dart'
     show PgDateTime, PgTypes, UuidValue;
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts.dart'
@@ -863,6 +864,12 @@ WHERE user_id = $1 AND created_at >= $2
               status: Value(BeaconStatus.open.smallintValue),
               statusChangedAt: Value(PgDateTime(publishedAt)),
               publishedAt: Value(PgDateTime(publishedAt)),
+              expiresAt: existing.kind == BeaconKind.post.value
+                  ? Value(PgDateTime(publishedAt.add(BeaconPostLifetime.max)))
+                  : const Value.absent(),
+              expiryWarningEligible: existing.kind == BeaconKind.post.value
+                  ? const Value(true)
+                  : const Value.absent(),
             ),
           );
 

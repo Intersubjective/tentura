@@ -188,6 +188,50 @@ Future<void> main() async {
       },
     );
 
+    test('publishing stamps the Post lifetime: expires 72 hours after '
+        'publication and is eligible for the expiry warning', () async {
+      await publish();
+
+      final row = (await writer.execute(
+        Sql.named('''
+          SELECT expires_at = published_at + interval '72 hours',
+                 expiry_warning_eligible, published_at IS NOT NULL
+          FROM public.beacon WHERE id = @id
+        '''),
+        parameters: {'id': _beacon},
+      )).single;
+      expect(row[2], isTrue, reason: 'publishing records published_at');
+      expect(row[0], isTrue, reason: 'expires_at == published_at + 72h');
+      expect(row[1], isTrue);
+    });
+
+    test('publishing overwrites a stale draft expiry with 72 hours after '
+        'publication, not relying on the database default', () async {
+      // A non-NULL expires_at on the draft keeps the database defaulting
+      // trigger out of play, so only the publish write can set the lifetime.
+      await writer.execute(
+        Sql.named('''
+          UPDATE public.beacon
+          SET expires_at = now() + interval '1000 hours'
+          WHERE id = @id
+        '''),
+        parameters: {'id': _beacon},
+      );
+
+      await publish();
+
+      final row = (await writer.execute(
+        Sql.named('''
+          SELECT expires_at = published_at + interval '72 hours',
+                 expiry_warning_eligible
+          FROM public.beacon WHERE id = @id
+        '''),
+        parameters: {'id': _beacon},
+      )).single;
+      expect(row[0], isTrue, reason: 'expires_at == published_at + 72h');
+      expect(row[1], isTrue);
+    });
+
     test('sends one relay receipt per recipient and no mention receipt to a '
         'mentioned recipient', () async {
       await publish();
