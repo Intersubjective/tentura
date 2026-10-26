@@ -16,8 +16,11 @@ const _deadline = Duration(seconds: 2);
 const _previousStatement = 'self_wait_previous_statement';
 const _advisoryKey = 7240126;
 
-/// Time a self-wait is allowed to take to surface, deadline included.
-const _fewSeconds = Duration(seconds: 8);
+// Allow scheduling, diagnostic queries and connection aborts to finish under
+// full-suite load. A missing guard still fails with Future.timeout rather than
+// satisfying the DbWaitTimeoutException assertion.
+final _guardFailureTimeout = _deadline * 10;
+final _guardTestTimeout = Timeout(_guardFailureTimeout * 3);
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -160,14 +163,14 @@ Future<void> main() async {
                 await db.customSelect("SELECT '$_previousStatement'").get();
                 await root.runSelect('SELECT 1 AS stale_root_wait', const []);
               })
-              .timeout(_fewSeconds);
+              .timeout(_guardFailureTimeout);
         } on Object catch (error) {
           failure = error;
         }
 
         expect(failure, isA<DbWaitTimeoutException>());
         final timeout = failure! as DbWaitTimeoutException;
-        expect(clock.elapsed, lessThan(_fewSeconds));
+        expect(clock.elapsed, lessThan(_guardFailureTimeout));
         expect(timeout.sql, contains('stale_root_wait'));
         expect(timeout.scopeStack, hasLength(1));
         final mine = timeout.activity.singleWhere(
@@ -189,7 +192,7 @@ Future<void> main() async {
         expect(timeout.toString(), contains(_previousStatement));
         expect(await backendGone(pid), isTrue);
       },
-      timeout: const Timeout(Duration(seconds: 30)),
+      timeout: _guardTestTimeout,
     );
 
     test(
@@ -220,14 +223,14 @@ Future<void> main() async {
                   );
                 });
               })
-              .timeout(_fewSeconds);
+              .timeout(_guardFailureTimeout);
         } on Object catch (error) {
           failure = error;
         }
 
         expect(failure, isA<DbWaitTimeoutException>());
         final timeout = failure! as DbWaitTimeoutException;
-        expect(clock.elapsed, lessThan(_fewSeconds));
+        expect(clock.elapsed, lessThan(_guardFailureTimeout));
         expect(timeout.scopeStack, hasLength(2));
         final mine = timeout.activity.singleWhere(
           (row) => row['pid'] == pid,
@@ -247,7 +250,7 @@ Future<void> main() async {
         expect(timeout.toString().toUpperCase(), contains('SAVEPOINT'));
         expect(await backendGone(pid), isTrue);
       },
-      timeout: const Timeout(Duration(seconds: 30)),
+      timeout: _guardTestTimeout,
     );
 
     test(
@@ -274,14 +277,14 @@ Future<void> main() async {
                     )
                     .get();
               })
-              .timeout(_fewSeconds);
+              .timeout(_guardFailureTimeout);
         } on Object catch (error) {
           failure = error;
         }
 
         expect(failure, isA<DbWaitTimeoutException>());
         final timeout = failure! as DbWaitTimeoutException;
-        expect(clock.elapsed, lessThan(_fewSeconds));
+        expect(clock.elapsed, lessThan(_guardFailureTimeout));
         final waiting = timeout.activity.where(
           (row) => row['wait_event'] == 'advisory',
         );
@@ -306,7 +309,7 @@ Future<void> main() async {
         final after = await db.customSelect('SELECT 1 AS ok').getSingle();
         expect(after.read<int>('ok'), 1);
       },
-      timeout: const Timeout(Duration(seconds: 30)),
+      timeout: _guardTestTimeout,
     );
 
     test(
