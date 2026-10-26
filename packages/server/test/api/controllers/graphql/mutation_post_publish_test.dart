@@ -31,6 +31,7 @@ class _FakePostCase extends Fake implements PostCase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
+    int? lifetimeHours,
   }) async {
     calls.add({
       'authorId': authorId,
@@ -45,6 +46,7 @@ class _FakePostCase extends Fake implements PostCase {
       'attachmentBytes': attachmentBytes,
       'attachmentFilename': attachmentFilename,
       'attachmentMimeType': attachmentMimeType,
+      'lifetimeHours': lifetimeHours,
     });
     return PostPublishResult(
       beaconId: beaconId,
@@ -77,6 +79,27 @@ mutation Publish(
     notes: $notes
     forwardPolicy: $forwardPolicy
     file: $file
+  ) {
+    beaconId
+    rootMessageId
+  }
+}
+''';
+
+const _documentWithLifetime = r'''
+mutation Publish(
+  $id: String!
+  $body: String!
+  $recipientIds: [String!]!
+  $forwardPolicy: Int!
+  $lifetimeHours: Int
+) {
+  postPublish(
+    id: $id
+    body: $body
+    recipientIds: $recipientIds
+    forwardPolicy: $forwardPolicy
+    lifetimeHours: $lifetimeHours
   ) {
     beaconId
     rootMessageId
@@ -213,5 +236,49 @@ void main() {
         expect(call['forwardPolicy'], BeaconForwardPolicyValue.open);
       },
     );
+
+    test('declares an optional lifetimeHours Int argument', () {
+      final field = mutation.all.singleWhere((f) => f.name == 'postPublish');
+      final lifetime = field.inputs.singleWhere(
+        (a) => a.name == 'lifetimeHours',
+      );
+      expect(lifetime.type.toString(), 'Int');
+    });
+
+    test('passes the chosen lifetimeHours to PostCase', () async {
+      await graphQL.parseAndExecute(
+        _documentWithLifetime,
+        variableValues: {
+          'id': 'Bpost0000001',
+          'body': 'Short-lived',
+          'recipientIds': ['Ubob000000001'],
+          'forwardPolicy': 0,
+          'lifetimeHours': 6,
+        },
+        globalVariables: {
+          kGlobalInputQueryJwt: const JwtEntity(sub: 'Uauthor000001'),
+        },
+      );
+
+      expect(postCase.calls.single['lifetimeHours'], 6);
+    });
+
+    test('leaves the lifetime to the 72 hour default when lifetimeHours is '
+        'not sent', () async {
+      await graphQL.parseAndExecute(
+        _document,
+        variableValues: {
+          'id': 'Bpost0000001',
+          'body': 'Default lifetime',
+          'recipientIds': ['Ubob000000001'],
+          'forwardPolicy': 0,
+        },
+        globalVariables: {
+          kGlobalInputQueryJwt: const JwtEntity(sub: 'Uauthor000001'),
+        },
+      );
+
+      expect(postCase.calls.single['lifetimeHours'], anyOf(isNull, 72));
+    });
   });
 }

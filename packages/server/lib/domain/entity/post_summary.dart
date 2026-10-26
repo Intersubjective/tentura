@@ -18,6 +18,7 @@ final class PostSummary {
     required this.isAuthor,
     this.status = BeaconStatus.open,
     this.mutedForever = false,
+    this.expiresAt,
   });
 
   final String id;
@@ -43,4 +44,7 @@ final class PostSummary {
   /// [BeaconStatus.open], or [BeaconStatus.closed] for a Post closed by
   /// budding (it stays in the list, read-only).
   final BeaconStatus status;
+
+  /// When the Post expires; null for a row with no recorded expiry.
+  final DateTime? expiresAt;
 }

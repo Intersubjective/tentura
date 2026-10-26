@@ -48,6 +48,8 @@ final class MutationPost extends GqlNodeBase {
 
   final _forwardPolicy = InputFieldInt(fieldName: 'forwardPolicy');
 
+  final _lifetimeHours = InputFieldInt(fieldName: 'lifetimeHours');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [postPublish, postLeave, postReturn];
 
   GraphQLObjectField<dynamic, dynamic> get postLeave => GraphQLObjectField(
@@ -89,6 +91,7 @@ final class MutationPost extends GqlNodeBase {
       _notes,
       _forwardPolicy.fieldNonNullable,
       InputFieldUpload.fieldNullable,
+      _lifetimeHours.fieldNullable,
     ],
     resolve: (_, args) async {
       final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
@@ -120,6 +123,7 @@ final class MutationPost extends GqlNodeBase {
         attachmentMimeType: rawType is String && rawType.trim().isNotEmpty
             ? rawType
             : null,
+        lifetimeHours: _lifetimeHours.fromArgs(args),
       );
       return {
         'beaconId': result.beaconId,

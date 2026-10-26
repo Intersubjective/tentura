@@ -121,6 +121,7 @@ enum BeaconExceptionCode {
   pollDuplicateVariant, // 1346
   beaconLobbyAccessDenied, // 1347
   beaconRoomNowLineConflict, // 1348
+  postLifetimeInvalid, // 1349
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

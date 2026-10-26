@@ -142,6 +142,7 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         unreadCount: row.read<int>('unread_count'),
         isAuthor: row.read<bool>('is_author'),
         status: BeaconStatus.fromSmallint(row.read<int>('status')),
+        expiresAt: timestamp('expires_at'),
       );
     }).toList();
   }
@@ -638,6 +639,24 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         .filter((e) => e.id.equals(beaconId))
         .update((o) => o(forwardPolicy: Value(policy.value)));
   }
+
+  @override
+  Future<void> setPostLifetime({
+    required String beaconId,
+    required Duration lifetime,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.beacon
+SET expires_at = published_at + make_interval(secs => $2),
+    expiry_warning_eligible = $3
+WHERE id = $1 AND kind = 1 AND status = 0''',
+    variables: [
+      Variable<String>(beaconId),
+      Variable<double>(lifetime.inSeconds.toDouble()),
+      Variable<bool>(lifetime > BeaconPostLifetime.warnBefore),
+    ],
+    updates: {_database.beacons},
+  );
 
   @override
   Future<void> postClosedMessage({

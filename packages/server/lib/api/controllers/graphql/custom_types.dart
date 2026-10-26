@@ -2063,6 +2063,7 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('isAuthor', graphQLBoolean.nonNullable()),
     // `beacon.status` smallint: 0 open, 6 closed by budding.
     field('status', graphQLInt.nonNullable()),
+    field('expiresAt', graphQLString),
   ]);
 
 // Budding a Request from a Post (plan C3, Arch §4.2).

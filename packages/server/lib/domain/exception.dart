@@ -591,6 +591,17 @@ final class PostNotOpenException extends ExceptionBase {
       );
 }
 
+/// The requested Post lifetime is outside 1…72 hours.
+final class PostLifetimeInvalidException extends ExceptionBase {
+  const PostLifetimeInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.postLifetimeInvalid,
+        ),
+        description: description ?? 'A Post lifetime is between 1 and 72 hours',
+      );
+}
+
 /// No author invite with this id for this actor (Arch §5). Also used when the
 /// actor is neither the invitee nor the inviter, so the id leaks nothing.
 final class AuthorInviteNotFoundException extends ExceptionBase {

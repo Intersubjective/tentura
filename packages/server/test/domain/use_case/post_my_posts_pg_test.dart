@@ -323,6 +323,19 @@ INSERT INTO public.beacon_room_message_attachment
     expect(await posts.myPosts(_author), isEmpty);
     expect(await posts.myPosts(_member), isEmpty);
   });
+  test('myPosts and postSummary return the Post expiry', () async {
+    await writer.execute('''
+      UPDATE public.beacon SET expires_at = '2030-05-01T12:00:00Z'
+      WHERE id = '$_post'
+    ''');
+    final expiry = DateTime.utc(2030, 5, 1, 12);
+    expect((await posts.myPosts(_author)).single.expiresAt, expiry);
+    expect((await posts.myPosts(_member)).single.expiresAt, expiry);
+    expect(
+      (await posts.postSummary(viewerId: _member, beaconId: _post))?.expiresAt,
+      expiry,
+    );
+  });
 }
 
 final class _UnusedRoom extends Fake implements BeaconRoomCase {}

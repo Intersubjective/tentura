@@ -304,6 +304,12 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }) async {}
 
   @override
+  Future<void> setPostLifetime({
+    required String beaconId,
+    required Duration lifetime,
+  }) async {}
+
+  @override
   Future<void> setForwardPolicy({
     required String beaconId,
     required BeaconForwardPolicyValue policy,

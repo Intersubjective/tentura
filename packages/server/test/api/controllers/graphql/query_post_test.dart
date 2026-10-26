@@ -152,4 +152,49 @@ void main() {
     );
     expect(response, {'postSummary': null});
   });
+  test('serializes expiresAt on myPosts and postSummary, null when unset',
+      () async {
+    final expiry = DateTime.utc(2030, 4, 5, 6);
+    posts.result = [
+      PostSummary(
+        id: 'Bexpiring0001',
+        authorId: 'Uauthor',
+        authorName: 'Author',
+        authorAvatar: 'https://images.example/avatar.webp',
+        rootExcerpt: 'Root',
+        lastMessageExcerpt: null,
+        lastMessageAt: null,
+        lastActivityAt: null,
+        pinnedAt: null,
+        mutedUntil: null,
+        unreadCount: 0,
+        isAuthor: false,
+        expiresAt: expiry,
+      ),
+      _summary('Bnoexpiry0001'),
+    ];
+    final jwt = {kGlobalInputQueryJwt: const JwtEntity(sub: 'Uviewer')};
+
+    final list = await graphQL.parseAndExecute(
+      '{ myPosts { id expiresAt } }',
+      globalVariables: jwt,
+    );
+    expect(list, {
+      'myPosts': [
+        {'id': 'Bexpiring0001', 'expiresAt': '2030-04-05T06:00:00.000Z'},
+        {'id': 'Bnoexpiry0001', 'expiresAt': null},
+      ],
+    });
+
+    final single = await graphQL.parseAndExecute(
+      '{ postSummary(id: "Bexpiring0001") { id expiresAt } }',
+      globalVariables: jwt,
+    );
+    expect(single, {
+      'postSummary': {
+        'id': 'Bexpiring0001',
+        'expiresAt': '2030-04-05T06:00:00.000Z',
+      },
+    });
+  });
 }

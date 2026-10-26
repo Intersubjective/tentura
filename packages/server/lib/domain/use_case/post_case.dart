@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
@@ -70,7 +71,8 @@ class PostCase {
   final TransactionalAttentionCase _attention;
 
   /// Publishes a draft Post, forwards it to [recipientIds] and posts the root
-  /// message, all in one transaction after upload I/O. A retry by the author
+  /// message, all in one transaction after upload I/O. [lifetimeHours]
+  /// (1…72, default 72) sets when the Post expires. A retry by the author
   /// after success returns the existing ids.
   Future<PostPublishResult> publish({
     required String authorId,
@@ -85,12 +87,18 @@ class PostCase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
+    int? lifetimeHours,
   }) async {
     final existing = await _publishedPostOrValidateDraft(
       authorId: authorId,
       beaconId: beaconId,
     );
     if (existing != null) return existing;
+    if (lifetimeHours != null &&
+        (lifetimeHours < BeaconPostLifetime.minHours ||
+            lifetimeHours > BeaconPostLifetime.maxHours)) {
+      throw const PostLifetimeInvalidException();
+    }
     if (body.trim().isEmpty && attachmentBytes == null) {
       throw const BeaconCreateException(
         description: 'A Post needs text or an attachment',
@@ -119,6 +127,14 @@ class PostCase {
           policy: forwardPolicy,
         );
         await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
+        // `publishDraft` stamps the 72 h default; a shorter choice restamps.
+        if (lifetimeHours != null &&
+            lifetimeHours != BeaconPostLifetime.maxHours) {
+          await _beaconRepository.setPostLifetime(
+            beaconId: beaconId,
+            lifetime: Duration(hours: lifetimeHours),
+          );
+        }
         // Without recipients the Post stays visible only to its author —
         // `beacon_can_read_content` already admits the author unconditionally.
         if (recipientIds.isNotEmpty) {

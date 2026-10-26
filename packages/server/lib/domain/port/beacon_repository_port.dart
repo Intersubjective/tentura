@@ -152,6 +152,14 @@ abstract class BeaconRepositoryPort {
     required BeaconForwardPolicyValue policy,
   });
 
+  /// Restamps a just-published Post's `expires_at` to `published_at +
+  /// [lifetime]` and sets `expiry_warning_eligible` once (true when [lifetime]
+  /// exceeds the warning lead time); the caller holds the beacon row lock.
+  Future<void> setPostLifetime({
+    required String beaconId,
+    required Duration lifetime,
+  });
+
   /// Inserts the kind-5 system message announcing that [postId] was closed
   /// and continues in the budded Request [childBeaconId] (payload
   /// `{childBeaconId, title}`; [title] is a snapshot).

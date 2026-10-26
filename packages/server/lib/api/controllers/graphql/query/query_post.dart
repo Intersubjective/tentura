@@ -52,5 +52,6 @@ final class QueryPost extends GqlNodeBase {
     'unreadCount': post.unreadCount,
     'isAuthor': post.isAuthor,
     'status': post.status.smallintValue,
+    'expiresAt': post.expiresAt?.toUtc().toIso8601String(),
   };
 }
