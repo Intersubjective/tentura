@@ -12,6 +12,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
@@ -46,6 +47,19 @@ final class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
   Stream<ProfileState> get stream =>
       Stream<ProfileState>.value(state).asBroadcastStream();
+}
+
+class _RecordingRouter extends Mock implements StackRouter {
+  final pushes = <PageRouteInfo>[];
+
+  @override
+  Future<T?> push<T extends Object?>(
+    PageRouteInfo route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    pushes.add(route);
+    return null;
+  }
 }
 
 final class _NoDismissals implements OfferAcceptedDismissalPort {
@@ -241,6 +255,92 @@ void main() {
         findsNothing,
       );
       expect(find.textContaining(badge), findsOneWidget);
+    });
+    Future<_RecordingRouter> pumpWithRouter(WidgetTester tester) async {
+      final cubit = MyWorkCubit(
+        userId: _viewerId,
+        myWorkCase: buildTestMyWorkCase(repo: _repo(), roomHints: _hints()),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+
+      tester.view
+        ..physicalSize = const Size(400, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final router = _RecordingRouter();
+      await tester.pumpWidget(
+        StackRouterScope(
+          controller: router,
+          stateHash: 0,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<MyWorkCubit>.value(value: cubit),
+                  BlocProvider<ProfileCubit>.value(
+                    value: _TestProfileCubit(),
+                  ),
+                  BlocProvider<ScreenCubit>(
+                    create: (_) => ScreenCubit.local(),
+                  ),
+                ],
+                child: Scaffold(
+                  body: BlocBuilder<MyWorkCubit, MyWorkState>(
+                    builder: (context, state) => ListView(
+                      children: [
+                        for (final vm in state.nonArchivedCards)
+                          MyWorkCardRouter(key: ValueKey(vm.beaconId), vm: vm),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return router;
+    }
+
+    testWidgets('tapping "Part of" opens the parent Request', (tester) async {
+      final router = await pumpWithRouter(tester);
+
+      await tester.tap(
+        find.textContaining(L10nEn().myWorkPartOfParent(_parentTitle)),
+      );
+      await tester.pump();
+
+      final route = router.pushes.single;
+      expect(route, isA<BeaconViewRoute>());
+      expect((route as BeaconViewRoute).args!.id, _parentId);
+    });
+
+    // Review r1 #6: one line of small text was a 16-20 dp target inside the
+    // card's own tap area; a slightly high tap opened the child instead.
+    testWidgets('the "Part of" link is a full-height tap target', (
+      tester,
+    ) async {
+      final router = await pumpWithRouter(tester);
+      final link = find.byKey(const ValueKey('myWorkPartOfParent:$_parentId'));
+
+      expect(
+        tester.getSize(link).height,
+        greaterThanOrEqualTo(kMinInteractiveDimension),
+      );
+
+      // A tap near the top edge of the 48 dp band still opens the parent.
+      await tester.tapAt(tester.getTopLeft(link) + const Offset(8, 4));
+      await tester.pump();
+
+      final route = router.pushes.single;
+      expect(route, isA<BeaconViewRoute>());
+      expect((route as BeaconViewRoute).args!.id, _parentId);
     });
   });
 }
