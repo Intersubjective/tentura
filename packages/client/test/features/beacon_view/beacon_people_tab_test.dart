@@ -1525,7 +1525,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(
+    await tester.pumpPeopleTagsWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
           state: _state,
@@ -1563,7 +1563,7 @@ void main() {
     );
 
     Future<void> pump(WidgetTester tester) async {
-      await tester.pumpWidget(
+      await tester.pumpPeopleTagsWidget(
         _wrapPeople(
           BeaconPeopleTabBody(
             state: _state,

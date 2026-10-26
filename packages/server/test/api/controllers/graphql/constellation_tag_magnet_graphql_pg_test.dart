@@ -316,7 +316,7 @@ Future<void> main() async {
       test('has no way to name another viewer', () async {
         expect(
           await failureOf(
-            r'''
+            '''
 query { constellationTagMagnets(viewerId: "Utmgqlowner0001") { tagId } }
 ''',
             {},

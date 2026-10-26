@@ -255,7 +255,7 @@ void main() {
         cubit.setFilterCapabilitySlugs({'tools'});
         final mapEligible = _eligibleRequestIds(cubit);
 
-        await tester.tap(find.byTooltip('List'));
+        await tester.tap(_viewModeSegment(Icons.view_list_outlined));
         await tester.pumpAndSettle();
 
         expect(_eligibleRequestIds(cubit), mapEligible);
@@ -295,7 +295,7 @@ void main() {
         ),
       );
       await _pumpBody(tester, cubit);
-      await tester.tap(find.byTooltip('List'));
+      await tester.tap(_viewModeSegment(Icons.view_list_outlined));
       await tester.pumpAndSettle();
 
       final l10n = lookupL10n(const Locale('en'));
@@ -325,7 +325,7 @@ void main() {
     testWidgets('tapping a request card opens its preview', (tester) async {
       final cubit = await _loadCubit(_multiAuthorField());
       await _pumpBody(tester, cubit);
-      await tester.tap(find.byTooltip('List'));
+      await tester.tap(_viewModeSegment(Icons.view_list_outlined));
       await tester.pumpAndSettle();
 
       await tester.tap(
@@ -366,12 +366,12 @@ void main() {
 
       cubit.setFilterCapabilitySlugs({'ride'});
 
-      await tester.tap(find.byTooltip('List'));
+      await tester.tap(_viewModeSegment(Icons.view_list_outlined));
       await tester.pumpAndSettle();
       expect(cubit.state.viewMode, ConstellationViewMode.text);
       expect(cubit.state.filterCapabilitySlugs, {'ride'});
 
-      await tester.tap(find.byTooltip('Map'));
+      await tester.tap(_viewModeSegment(TenturaIcons.graph));
       await tester.pumpAndSettle();
       expect(cubit.state.viewMode, ConstellationViewMode.map);
       expect(cubit.state.filterCapabilitySlugs, {'ride'});
@@ -632,3 +632,10 @@ void main() {
     });
   });
 }
+
+/// A segment of the Map/List toggle by its icon: with the people-tags menu in
+/// the app bar the toggle can be too narrow for its text labels.
+Finder _viewModeSegment(IconData icon) => find.descendant(
+  of: find.byKey(const Key('constellation.app_bar.view_mode')),
+  matching: find.byIcon(icon),
+);

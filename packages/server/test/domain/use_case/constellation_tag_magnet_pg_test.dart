@@ -158,7 +158,7 @@ Future<void> main() async {
         'is keyed by viewer and tag and has the documented columns',
         () async {
           final columns = await writer.execute(
-            "SELECT column_name FROM information_schema.columns "
+            'SELECT column_name FROM information_schema.columns '
             "WHERE table_schema = 'public' "
             "AND table_name = 'constellation_tag_magnet'",
           );

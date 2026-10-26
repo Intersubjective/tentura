@@ -152,8 +152,8 @@ Future<void> _pumpBody(
   ConstellationSelectionCubit? selection,
   ConstellationComposerCubit? composer,
   Widget? outside,
+  Size size = _size,
 }) async {
-  const size = _size;
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpPeopleTagsWidget(
@@ -164,7 +164,7 @@ Future<void> _pumpBody(
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       home: MediaQuery(
-        data: const MediaQueryData(size: size),
+        data: MediaQueryData(size: size),
         child: TenturaResponsiveScope(
           child: MultiBlocProvider(
             providers: [
@@ -1024,11 +1024,14 @@ void main() {
       addTearDown(selection.close);
       final composer = _idleComposer();
       addTearDown(composer.close);
+      // Taller than _size: the selection bar (more actions since E7a) would
+      // otherwise cover the post node at the bottom of the map.
       await _pumpBody(
         tester,
         cubit,
         selection: selection,
         composer: composer,
+        size: Size(_size.width, _size.height + 300),
       );
       await tester.pumpAndSettle();
       await _focusOffMap(tester);
@@ -1056,11 +1059,14 @@ void main() {
       addTearDown(selection.close);
       final composer = _idleComposer();
       addTearDown(composer.close);
+      // Taller than _size: the selection bar (more actions since E7a) would
+      // otherwise cover the post node at the bottom of the map.
       await _pumpBody(
         tester,
         cubit,
         selection: selection,
         composer: composer,
+        size: Size(_size.width, _size.height + 300),
       );
       await tester.pumpAndSettle();
       await _click(tester, tester.getCenter(_node('post-a')));
