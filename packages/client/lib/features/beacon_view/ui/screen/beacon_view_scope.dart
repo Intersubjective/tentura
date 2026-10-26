@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_status_sync.dart';
 
 /// Request collaborators shared by its route and a converted Post's pane.
 class BeaconViewScope extends StatelessWidget {
@@ -57,20 +58,8 @@ class BeaconViewScope extends StatelessWidget {
           create: (_) => PlanCubit(beaconId: id, viewerId: myProfile.id),
         ),
       ],
-      child: Builder(
-        builder: (context) => BlocListener<BeaconViewCubit, BeaconViewState>(
-          listenWhen: (p, c) =>
-              c.beaconContentLoaded &&
-              (p.beaconContentLoaded != c.beaconContentLoaded ||
-                  p.beacon.status != c.beacon.status),
-          listener: (context, state) {
-            context.read<ThreadHostCubit>().syncBeaconStatus(
-              state.beacon.status,
-              authorId: state.beacon.author.id,
-            );
-          },
-          child: BeaconOpenClearListener(beaconId: id, child: child),
-        ),
+      child: BeaconStatusSync(
+        child: BeaconOpenClearListener(beaconId: id, child: child),
       ),
     ),
   );
