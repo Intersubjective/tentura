@@ -11,11 +11,15 @@ export class EmailLinkError extends Error {
    * @param {{userInput?: boolean}} [opts] userInput: the address the user typed
    *   was rejected (empty or malformed). Expected input, not a fault, so
    *   analytics keeps it as a breadcrumb and does not open a Sentry issue.
+   *   expected: another expected answer shown to the user (a 4xx from the
+   *   server, e.g. a refused test-login domain); also no Sentry issue (#788).
+   *   userInput implies expected.
    */
-  constructor(message, { userInput = false } = {}) {
+  constructor(message, { userInput = false, expected = false } = {}) {
     super(message);
     this.name = 'EmailLinkError';
     this.userInput = userInput;
+    this.expected = userInput || expected;
   }
 }
 
@@ -80,7 +84,14 @@ export async function startTestLogin({ email, code }) {
     throw new EmailLinkError(t('Could not reach the server ({error}).', { error: e }));
   }
   if (!res.ok) {
-    throw new EmailLinkError('Test login failed. Check the email domain and try again.');
+    // A 400 is the server refusing this address (QA domain not allowed or
+    // malformed): expected, shown inline, no Sentry issue (#788), the same
+    // rule saveDisplayName uses (#762). Anything else stays a fault: 404
+    // means QA_SIMPLE_LOGIN_MODE is off on a server whose landing shows the
+    // button (config mismatch), 403/429/other 4xx and 5xx likewise.
+    throw new EmailLinkError('Test login failed. Check the email domain and try again.', {
+      expected: res.status === 400,
+    });
   }
   const data = await res.json();
   return {

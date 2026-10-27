@@ -141,6 +141,16 @@ function isUserInputEmailError(err) {
   return err.userInput === true;
 }
 
+/**
+ * An expected failure the page shows to the person (a 4xx validation answer:
+ * a display name the server rejects, a QA test-login domain it refuses). It
+ * is not a fault, so trackError keeps the breadcrumb and opens no Sentry
+ * issue (#762, #788). Throwers set `expected: true` on the Error.
+ */
+export function isExpectedError(err) {
+  return Boolean(err) && (err.expected === true || isUserInputEmailError(err));
+}
+
 export function trackError(event, err, data = {}) {
   if (!ready) return;
   const Sentry = window.Sentry;
@@ -149,9 +159,10 @@ export function trackError(event, err, data = {}) {
     message: event,
     data: { ...data, error: String(err) },
   });
-  // User-input validation (empty or malformed email) must not become Sentry
-  // issues (TENTURA-LANDING-E). Keep breadcrumbs; skip captureException.
-  if (isUserInputEmailError(err)) return;
+  // User-input validation (empty or malformed email, TENTURA-LANDING-E) and
+  // other expected 4xx answers (#762, #788) must not become Sentry issues.
+  // Keep breadcrumbs; skip captureException.
+  if (isExpectedError(err)) return;
   Sentry.captureException(err, { extra: { funnel_event: event, ...data } });
 }
 
