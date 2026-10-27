@@ -20,6 +20,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/rating/ui/bloc/rating_cubit.dart';
 import 'package:tentura/features/rating/ui/widget/rating_scatter_view.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
 class _RatingCubitStub extends Mock implements RatingCubit {
   @override
@@ -85,9 +86,18 @@ Finder _inScatter(Finder matching) =>
     find.descendant(of: find.byType(RatingScatterView), matching: matching);
 
 /// Avatars of the plotted people (the legend's sample avatars excluded).
-Finder _plotAvatars() => find.descendant(
-  of: _inScatter(find.byType(InteractiveViewer)),
-  matching: find.byType(TenturaAvatar),
+/// On a phone they are drawn over the plot rather than inside the
+/// InteractiveViewer's canvas, so they are told apart by profile.
+Finder _plotAvatars() => _inScatter(
+  find.byWidgetPredicate(
+    (w) =>
+        w is TenturaAvatar &&
+        !{
+          ContactBadgeLegend.mutualProfile.id,
+          ContactBadgeLegend.eyeOpenProfile.id,
+          ContactBadgeLegend.eyeClosedProfile.id,
+        }.contains(w.profile.id),
+  ),
 );
 
 Rect _plotRect(WidgetTester tester) =>
