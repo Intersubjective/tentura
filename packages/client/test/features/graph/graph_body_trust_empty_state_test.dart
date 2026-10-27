@@ -194,5 +194,39 @@ void main() {
 
       expect(find.text(_emptyText), findsNothing);
     });
+
+    testWidgets('zoomed in, the empty-state line never covers Me', (
+      tester,
+    ) async {
+      final cubit = await _pumpTrustGraph(
+        tester,
+        source: _FakeGraphSource(),
+      );
+      // The name under the Me marker (its key is the node it labels).
+      final meLabel = find.byWidgetPredicate((w) {
+        final key = w.key;
+        return w is Text &&
+            key is ValueKey &&
+            key.value is UserNode &&
+            (key.value as UserNode).id == _me.id;
+      });
+      expect(meLabel, findsOneWidget);
+
+      void expectClear() {
+        final text = tester.getRect(find.text(_emptyText));
+        expect(text.overlaps(tester.getRect(meLabel)), isFalse);
+        expect(text.overlaps(tester.getRect(_meNode)), isFalse);
+      }
+
+      // Guard: at the opening zoom the line already sits under Me.
+      expectClear();
+      for (final factor in const [1.5, 2.0, 2.0]) {
+        cubit.graphController.zoomBy(factor);
+        await tester.pump();
+        expect(find.text(_emptyText), findsOneWidget);
+        expectClear();
+      }
+      expect(tester.takeException(), isNull);
+    });
   });
 }

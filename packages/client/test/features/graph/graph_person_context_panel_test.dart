@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 
 import 'scene_layout_test_support.dart';
+import 'package:tentura/features/graph/ui/widget/adaptive_context_overlay.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -104,6 +105,7 @@ Future<void> _pumpPanel(
   bool? isLoading,
   bool? canPageMore,
   VoidCallback? onExpand,
+  bool inCompactOverlay = false,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -139,15 +141,22 @@ Future<void> _pumpPanel(
               BlocProvider<GraphPersonContextCubit>.value(value: ctx),
               BlocProvider<ScreenCubit>(create: (_) => ScreenCubit(fx)),
             ],
-            child: Scaffold(
-              body: GraphPersonContextPanel(
-                profile: profile,
-                focusedNode: focusedNode,
-                hiddenNeighborCount: hidden,
-                isLoading: isLoading ?? graphState.isLoading,
-                canPageMore: pageMore,
-                onExpand: pageMore && hidden > 0 ? expand : null,
-              ),
+            child: Builder(
+              builder: (context) {
+                final panel = GraphPersonContextPanel(
+                  profile: profile,
+                  focusedNode: focusedNode,
+                  hiddenNeighborCount: hidden,
+                  isLoading: isLoading ?? graphState.isLoading,
+                  canPageMore: pageMore,
+                  onExpand: pageMore && hidden > 0 ? expand : null,
+                );
+                return Scaffold(
+                  body: inCompactOverlay
+                      ? Stack(children: [AdaptiveContextOverlay(child: panel)])
+                      : panel,
+                );
+              },
             ),
           ),
         ),
@@ -839,5 +848,58 @@ void main() {
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
       },
     );
+
+    // #615: on an iPhone SE the bottom sheet cut "Show 1 more connections"
+    // off at its edge. Every action must be reachable inside the sheet.
+    testWidgets('compact sheet on 375x667: every action can be reached', (
+      tester,
+    ) async {
+      const profile = Profile(
+        id: 'U-peer',
+        displayName: 'Peer With A Rather Long Display Name',
+        myVote: 1,
+        subjectExplicitlyTrustsViewer: true,
+        isMutualFriend: true,
+      );
+      final graphCubit = _StubGraphCubit(
+        initial: const GraphState(
+          me: Profile(id: 'U-me', displayName: 'Me'),
+          focus: 'U-peer',
+          hiddenNeighborCounts: {'U-peer': 1},
+        ),
+        canPageMoreFor: {'U-peer': true},
+      );
+      await _pumpPanel(
+        tester,
+        profile: profile,
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+        size: const Size(375, 667),
+        inCompactOverlay: true,
+      );
+
+      final panel = find.byKey(TestIds.key(TestIds.graphPersonContextPanel));
+      expect(tester.getSize(panel).height, lessThanOrEqualTo(667 * 0.42));
+      final showMore = find.byKey(
+        TestIds.key(TestIds.graphPersonContextShowMore),
+      );
+      for (final action in [
+        find.byKey(TestIds.key(TestIds.graphPersonContextViewProfile)),
+        showMore,
+      ]) {
+        expect(action, findsOneWidget);
+        await tester.ensureVisible(action);
+        await tester.pump();
+        expect(action.hitTestable(), findsOneWidget);
+        final rect = tester.getRect(action);
+        final sheet = tester.getRect(panel);
+        expect(rect.top, greaterThanOrEqualTo(sheet.top));
+        expect(rect.bottom, lessThanOrEqualTo(sheet.bottom));
+      }
+      await tester.tap(showMore);
+      await tester.pump();
+      expect(graphCubit.expandCalls, 1);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

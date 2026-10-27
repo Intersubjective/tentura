@@ -9,7 +9,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -117,8 +117,9 @@ Future<GraphCubit> _pumpScreen(
   Locale locale = const Locale('en'),
   String? routeKind,
   Completer<Beacon>? pendingBeacon,
+  Size surfaceSize = const Size(900, 700),
 }) async {
-  await tester.binding.setSurfaceSize(const Size(900, 700));
+  await tester.binding.setSurfaceSize(surfaceSize);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   final cubit = GraphCubit(
@@ -523,5 +524,40 @@ void main() {
       expect(find.bySemanticsLabel('Weekend picnic'), findsWidgets);
       semantics.dispose();
     });
+  });
+
+  // #615: on an iPhone SE the heading read "How this requ…", losing the
+  // very word #501 is about.
+  group('forwards graph title on a narrow phone (#615)', () {
+    for (final size in const [Size(320, 568), Size(375, 667)]) {
+      for (final kind in const [BeaconKind.request, BeaconKind.post]) {
+        testWidgets('${kind.name} title is shown whole at '
+            '${size.width.toInt()} px', (tester) async {
+          await _pumpScreen(
+            tester,
+            beacon: _beacon(kind: kind, id: 'B${kind.name}1'),
+            surfaceSize: size,
+          );
+          final l10n = lookupL10n(const Locale('en'));
+          final heading = find.text(
+            kind == BeaconKind.post
+                ? l10n.forwardsGraphViewPost
+                : l10n.forwardsGraphView,
+          );
+          expect(heading, findsOneWidget);
+          expect(
+            tester.renderObject<RenderParagraph>(heading).didExceedMaxLines,
+            isFalse,
+          );
+          // Whole, and still inside the top bar with the beacon title.
+          final bar = tester.getRect(find.byType(TenturaTopBar));
+          final rect = tester.getRect(heading);
+          expect(rect.top, greaterThanOrEqualTo(bar.top));
+          expect(rect.bottom, lessThanOrEqualTo(bar.bottom));
+          expect(_topBarText((t) => t == 'Weekend picnic'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
   });
 }

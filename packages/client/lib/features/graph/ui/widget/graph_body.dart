@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -143,11 +144,122 @@ class GraphBodyState extends State<GraphBody>
     }
   }
 
+  /// Holds every node marker's focus, so Escape can hand focus back to the
+  /// node whose panel it closed.
+  final _bodyFocus = FocusNode(
+    debugLabel: 'GraphBody',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  void _closePanelOnEscape() {
+    final contextCubit = context.read<GraphPersonContextCubit>();
+    final nodeId = contextCubit.state.selectedProfile?.id;
+    contextCubit.dismiss();
+    if (nodeId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final focus in _bodyFocus.descendants) {
+        final marker = focus.context
+            ?.findAncestorWidgetOfExactType<GraphNodeWidget>();
+        if (marker?.nodeDetails.id == nodeId && focus.canRequestFocus) {
+          focus.requestFocus();
+          return;
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _bodyFocus.dispose();
+    _keepAboveTimer?.cancel();
     _animationController.dispose();
     super.dispose();
   }
+
+  /// The compact bottom sheet, measured to keep its node in sight (#615).
+  final _panelKey = GlobalKey();
+
+  /// Node the camera was last moved for, so a pan by the person afterwards
+  /// is not undone on the next rebuild.
+  String? _keptAboveId;
+
+  Timer? _keepAboveTimer;
+
+  /// Opening the compact sheet must not hide the node it is about (#615):
+  /// once now, and once more after a layout the tap may have started.
+  void _scheduleKeepAbovePanel(String nodeId) {
+    if (_keptAboveId == nodeId) return;
+    _keptAboveId = nodeId;
+    _keepAboveTimer?.cancel();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _keptAboveId != nodeId) return;
+      _panNodeAbovePanel(nodeId);
+      _keepAboveTimer = Timer(
+        _layoutTransitionDuration + const Duration(milliseconds: 50),
+        () => _panNodeAbovePanel(nodeId),
+      );
+    });
+  }
+
+  void _clearKeepAbovePanel() {
+    _keptAboveId = null;
+    _keepAboveTimer?.cancel();
+    _keepAboveTimer = null;
+  }
+
+  /// Pans (never zooms) so [nodeId]'s marker and name sit above the sheet,
+  /// without pushing the marker off the top of the canvas.
+  void _panNodeAbovePanel(String nodeId) {
+    if (!mounted ||
+        _keptAboveId != nodeId ||
+        context.windowClass != WindowClass.compact) {
+      return;
+    }
+    final panelBox = _panelKey.currentContext?.findRenderObject();
+    final bodyBox = context.findRenderObject();
+    if (panelBox is! RenderBox ||
+        bodyBox is! RenderBox ||
+        !panelBox.hasSize ||
+        !bodyBox.hasSize) {
+      return;
+    }
+    final controller = _graphCubit.graphController;
+    final viewport = controller.viewportSize;
+    NodeDetails? node;
+    for (final candidate in controller.nodes) {
+      if (candidate.id == nodeId) node = candidate;
+    }
+    if (node == null || viewport == null) return;
+    final scenePosition = controller.getPositionOrNullForId(
+      node.graphNodeId,
+    );
+    if (scenePosition == null) return;
+    final panelTop = bodyBox
+        .globalToLocal(panelBox.localToGlobal(Offset.zero))
+        .dy;
+    final scale = controller.cameraScale;
+    final centre = controller.sceneToViewportLocal(scenePosition);
+    final nodeTop = centre.dy - node.size / 2 * scale;
+    final labelBottom =
+        centre.dy +
+        (node.size / 2 + (widget.isLabeled ? widget.labelSize.height : 0.0)) *
+            scale;
+    final gap = context.tt.rowGap;
+    final overlap = labelBottom + gap - panelTop;
+    if (overlap <= 0) return;
+    final room = nodeTop - gap;
+    final shift = overlap < room ? overlap : room;
+    if (shift <= 0) return;
+    controller.jumpToPosition(
+      controller.viewportLocalToScene(
+        viewport.center(Offset.zero) + Offset(0, shift),
+      ),
+    );
+  }
+
+  static const _layoutTransitionDuration = Duration(milliseconds: 350);
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +301,35 @@ class GraphBodyState extends State<GraphBody>
     GraphState graphState,
     GraphPersonContextState? contextState,
   ) {
+    final panelVisible = contextState != null && _isPanelVisible(contextState);
+    if (!panelVisible) _clearKeepAbovePanel();
+
+    // Escape closes the person panel and gives focus back to its node, as on
+    // the Field (#615). Always present so the canvas below is never rebuilt.
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+      },
+      child: Actions(
+        actions: {
+          DismissIntent: _ClosePanelAction(
+            enabled: panelVisible,
+            onClose: _closePanelOnEscape,
+          ),
+        },
+        child: Focus(
+          focusNode: _bodyFocus,
+          child: _buildGraphLayers(context, graphState, contextState),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGraphLayers(
+    BuildContext context,
+    GraphState graphState,
+    GraphPersonContextState? contextState,
+  ) {
     final tt = context.tt;
     final panelVisible = contextState != null && _isPanelVisible(contextState);
     final legendAtTop =
@@ -209,7 +350,7 @@ class GraphBodyState extends State<GraphBody>
             ListenableBuilder(
               listenable: _graphCubit.graphController,
               builder: (context, _) => _isTrustGraphEmpty(graphState)
-                  ? _buildTrustEmptyState(context)
+                  ? _buildTrustEmptyState(context, graphState.me.id)
                   : const SizedBox.shrink(),
             ),
           if (widget.legendExpanded)
@@ -251,13 +392,19 @@ class GraphBodyState extends State<GraphBody>
         controller.nodes.any((node) => node.id == meId);
   }
 
-  /// One line under the centred Me node; the canvas stays pannable.
-  Widget _buildTrustEmptyState(BuildContext context) {
+  /// One line under the Me node, kept clear of the node and its label at any
+  /// zoom or pan (#615); the canvas stays pannable.
+  Widget _buildTrustEmptyState(BuildContext context, String meId) {
     final tt = context.tt;
     return IgnorePointer(
-      child: Align(
-        alignment: const Alignment(0, 0.4),
-        child: SafeArea(
+      child: ValueListenableBuilder<int>(
+        valueListenable: _graphCubit.graphController.cameraRevision,
+        builder: (context, _, _) => CustomSingleChildLayout(
+          delegate: _TrustEmptyStateLayout(
+            viewerSpan: _viewerNodeSpan(meId),
+            insets: MediaQuery.paddingOf(context),
+            gap: tt.rowGap,
+          ),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
             child: Text(
@@ -270,6 +417,26 @@ class GraphBodyState extends State<GraphBody>
           ),
         ),
       ),
+    );
+  }
+
+  /// Vertical extent of the Me marker and its name on the canvas, in this
+  /// widget's coordinates; null before it is laid out.
+  ({double top, double bottom})? _viewerNodeSpan(String meId) {
+    final controller = _graphCubit.graphController;
+    NodeDetails? me;
+    for (final node in controller.nodes) {
+      if (node.id == meId) me = node;
+    }
+    if (me == null) return null;
+    final position = controller.getPositionOrNullForId(me.graphNodeId);
+    if (position == null) return null;
+    final centre = controller.sceneToViewportLocal(position);
+    final scale = controller.cameraScale;
+    final label = widget.isLabeled ? widget.labelSize.height : 0.0;
+    return (
+      top: centre.dy - me.size / 2 * scale,
+      bottom: centre.dy + (me.size / 2 + label) * scale,
     );
   }
 
@@ -315,15 +482,19 @@ class GraphBodyState extends State<GraphBody>
       return const SizedBox.shrink();
     }
 
+    _scheduleKeepAbovePanel(focusedNode.id);
     return AdaptiveContextOverlay(
-      child: GraphPersonContextPanel(
-        profile: profile,
-        focusedNode: focusedNode,
-        hiddenNeighborCount:
-            graphState.hiddenNeighborCounts[focusedNode.id] ?? 0,
-        isLoading: graphState.isLoading,
-        canPageMore: context.read<GraphCubit>().canPageMore(focusedNode.id),
-        onExpand: () => context.read<GraphCubit>().expandNode(focusedNode),
+      child: KeyedSubtree(
+        key: _panelKey,
+        child: GraphPersonContextPanel(
+          profile: profile,
+          focusedNode: focusedNode,
+          hiddenNeighborCount:
+              graphState.hiddenNeighborCounts[focusedNode.id] ?? 0,
+          isLoading: graphState.isLoading,
+          canPageMore: context.read<GraphCubit>().canPageMore(focusedNode.id),
+          onExpand: () => context.read<GraphCubit>().expandNode(focusedNode),
+        ),
       ),
     );
   }
@@ -371,7 +542,7 @@ class GraphBodyState extends State<GraphBody>
     minScale: widget.scaleRange.dx,
     maxScale: widget.scaleRange.dy,
     layoutAlgorithm: _layoutAlgorithm(context),
-    layoutTransitionDuration: const Duration(milliseconds: 350),
+    layoutTransitionDuration: _layoutTransitionDuration,
     edgePainter: AnimatedHighlightedEdgePainter(
       animation: CurvedAnimation(
         parent: _animationController,
@@ -444,4 +615,70 @@ class GraphBodyState extends State<GraphBody>
       onTap: () => _onNodeTap(node),
     ),
   );
+}
+
+/// Escape on the Graph screen: closes the person panel while it is open,
+/// and otherwise lets the key go on to whoever else wants it.
+class _ClosePanelAction extends Action<DismissIntent> {
+  _ClosePanelAction({required this.enabled, required this.onClose});
+
+  final bool enabled;
+  final VoidCallback onClose;
+
+  @override
+  bool isEnabled(DismissIntent intent) => enabled;
+
+  @override
+  Object? invoke(DismissIntent intent) {
+    onClose();
+    return null;
+  }
+}
+
+/// Puts the empty Trust graph line where the original layout had it, unless
+/// the (zoomed or panned) Me marker or its name is there: then just below
+/// them, or just above when there is no room below (#615).
+class _TrustEmptyStateLayout extends SingleChildLayoutDelegate {
+  const _TrustEmptyStateLayout({
+    required this.viewerSpan,
+    required this.insets,
+    required this.gap,
+  });
+
+  final ({double top, double bottom})? viewerSpan;
+  final EdgeInsets insets;
+  final double gap;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final x = (size.width - childSize.width) / 2;
+    final top = insets.top;
+    final bottom = size.height - insets.bottom;
+    // Alignment(0, 0.4) inside the safe area, as before.
+    final preferred = top + (bottom - top - childSize.height) * 0.7;
+    final span = viewerSpan;
+    if (span == null) return Offset(x, preferred);
+    bool clear(double y) =>
+        y >= span.bottom + gap || y + childSize.height <= span.top - gap;
+    if (clear(preferred)) return Offset(x, preferred);
+    final below = span.bottom + gap;
+    if (below + childSize.height <= bottom) return Offset(x, below);
+    final above = span.top - gap - childSize.height;
+    if (above >= top) return Offset(x, above);
+    // The marker fills the canvas: keep the line at the edge with more room.
+    return Offset(
+      x,
+      bottom - span.bottom >= span.top - top ? bottom - childSize.height : top,
+    );
+  }
+
+  @override
+  bool shouldRelayout(_TrustEmptyStateLayout oldDelegate) =>
+      oldDelegate.viewerSpan != viewerSpan ||
+      oldDelegate.insets != insets ||
+      oldDelegate.gap != gap;
 }

@@ -85,26 +85,31 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
                       ? beacon.kind == BeaconKind.post
                       : kind == BeaconKind.post.name,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                // The app bar's text style says one line with ellipsis.
+                softWrap: true,
+                overflow: TextOverflow.clip,
               ),
             );
             final beaconTitle = beacon?.title.trim();
-            if (beaconTitle == null || beaconTitle.isEmpty) return title;
+            if (beaconTitle == null || beaconTitle.isEmpty) {
+              return _fitToBar(title);
+            }
             // A deep link or a return visit otherwise shows forwards of an
             // unnamed Request or Post.
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                title,
-                Text(
-                  beaconTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.bodySmall(context.tt.textMuted),
-                ),
-              ],
+            return _fitToBar(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  title,
+                  Text(
+                    beaconTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(context.tt.textMuted),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -115,6 +120,19 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
     );
   }
+
+  /// On a narrow phone the heading wraps instead of cutting off the word
+  /// that says what spread (#615): laid out at the bar's width, then scaled
+  /// down only if the lines are taller than the bar.
+  static Widget _fitToBar(Widget child) => LayoutBuilder(
+    builder: (context, constraints) => constraints.hasBoundedWidth
+        ? FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: SizedBox(width: constraints.maxWidth, child: child),
+          )
+        : child,
+  );
 
   String _titleFor(
     L10n l10n,
