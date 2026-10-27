@@ -77,8 +77,15 @@ abstract class RoomState extends StateBase with _$RoomState {
     /// when there is no unresolved conflict.
     BeaconFactCard? factEditConflict,
 
-    /// Snapshotted on first successful room load in this session; frozen across refresh.
+    /// Live read watermark: advances when the reader reaches the bottom and
+    /// is what gets flushed to the server.
     DateTime? unreadAnchorAt,
+
+    /// «Unread · N» band, snapshotted from [unreadAnchorAt] on the first
+    /// successful load of this visit and kept while reading to the bottom
+    /// (#528). Cleared when the viewer posts; null when nothing was unread.
+    String? unreadBandMessageId,
+    @Default(0) int unreadBandCount,
 
     /// Cleared after mark-seen is flushed (`markSeenNowIfNeeded`) this session.
     @Default(true) bool pendingMarkSeen,

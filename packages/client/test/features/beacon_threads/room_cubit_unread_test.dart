@@ -122,8 +122,7 @@ class _FakeBeaconThreadsRepository extends Fake
   @override
   Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(
     String beaconId,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   Future<DateTime> markThreadSeen({
@@ -859,6 +858,85 @@ void main() {
 
       expect(state.messages, hasLength(1));
       expect(state.messages.single.body, 'latest server value');
+    });
+  });
+
+  group('RoomCubit unread band survives reading to the bottom (#528)', () {
+    test(
+      'markReadToBottom keeps the band but advances the server watermark',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+
+        final firstNew = _kAnchorTime.add(const Duration(minutes: 1));
+        final lastNew = _kAnchorTime.add(const Duration(minutes: 2));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('old', _kAnchorTime.subtract(const Duration(hours: 1))),
+            _msg('status-line', firstNew),
+            _msg('chat', lastNew),
+          ];
+
+        final cubit = _roomCubit(fakeRoom);
+        addTearDown(cubit.close);
+
+        final loaded = await _awaitLoad(cubit);
+        expect(loaded.unreadBandMessageId, 'status-line');
+        expect(loaded.unreadBandCount, 2);
+
+        // A short room opens at the bottom: the list reports «near bottom»
+        // in the first frame.
+        await cubit.markReadToBottom();
+
+        expect(cubit.state.unreadCount, 0, reason: 'live unread is read');
+        expect(fakeRoom.lastReadThroughAt, lastNew);
+        expect(cubit.state.unreadBandMessageId, 'status-line');
+        expect(cubit.state.unreadBandCount, 2);
+
+        // A later refresh in the same visit keeps it too.
+        await cubit.reloadMessages(silent: true);
+        expect(cubit.state.unreadBandMessageId, 'status-line');
+        expect(cubit.state.unreadBandCount, 2);
+      },
+    );
+
+    test('no band when nothing was unread at open', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('old', _kAnchorTime.subtract(const Duration(hours: 1))),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      final loaded = await _awaitLoad(cubit);
+      expect(loaded.unreadBandMessageId, isNull);
+      expect(loaded.unreadBandCount, 0);
+    });
+
+    test('own send clears the band', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('new', _kAnchorTime.add(const Duration(minutes: 1))),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      await cubit.markReadToBottom();
+      expect(cubit.state.unreadBandMessageId, 'new');
+
+      await cubit.sendMessage(body: 'hello');
+
+      expect(cubit.state.unreadBandMessageId, isNull);
+      expect(cubit.state.unreadBandCount, 0);
     });
   });
 

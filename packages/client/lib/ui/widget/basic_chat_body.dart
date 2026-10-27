@@ -68,6 +68,8 @@ class BasicChatBody extends StatefulWidget {
     this.firstUnreadIndex = -1,
     this.firstUnreadMessageId,
     this.unreadCount = 0,
+    this.unreadBandMessageId,
+    this.unreadBandCount,
     this.onMarkSeenNearBottom,
     this.onMessageActions,
     this.onReply,
@@ -134,7 +136,15 @@ class BasicChatBody extends StatefulWidget {
   /// before this message id in the physical [messages] list (pins may precede it).
   final String? firstUnreadMessageId;
 
+  /// Live unread count (jump button badge).
   final int unreadCount;
+
+  /// The «Unread · N» band when it is kept apart from the live unread state
+  /// (the room keeps it for the visit, #528). With [unreadBandCount] null the
+  /// band follows [firstUnreadMessageId] and [unreadCount].
+  final String? unreadBandMessageId;
+
+  final int? unreadBandCount;
 
   final Future<void> Function()? onMarkSeenNearBottom;
 
@@ -617,7 +627,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
     // If the unread band targeted a skipped notice, attach it to the next
     // visible row so we do not drop the band entirely.
-    var unreadBandMessageId = widget.firstUnreadMessageId;
+    final bandCount = widget.unreadBandCount ?? widget.unreadCount;
+    var unreadBandMessageId = widget.unreadBandCount == null
+        ? widget.firstUnreadMessageId
+        : widget.unreadBandMessageId;
     if (unreadBandMessageId != null) {
       final unreadIdx = messages.indexWhere((m) => m.id == unreadBandMessageId);
       if (unreadIdx >= 0 &&
@@ -678,7 +691,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                   prev.createdAt,
                                   m.createdAt,
                                 );
-                            final unreads = widget.unreadCount;
+                            final unreads = bandCount;
                             final showUnreadBand =
                                 unreads > 0 &&
                                 unreadBandMessageId != null &&
