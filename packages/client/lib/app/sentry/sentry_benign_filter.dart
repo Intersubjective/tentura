@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:gql_exec/gql_exec.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/beacon_lobby/domain/exception/beacon_lobby_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 
 /// Whether [error] is an expected, user-facing failure that should not
@@ -16,14 +18,24 @@ bool isBenignSentryThrowable(Object? error) {
   }
   if (error is ConnectionUplinkException ||
       error is RequestTimeoutException ||
+      error is RemoteApiRetryLaterException ||
+      error is BeaconLobbyUnavailableException ||
+      error is BeaconLobbyPostDeniedException ||
       error is AuthSessionLostException ||
       error is AuthenticationNoKeyException ||
       error is SessionAuthRejectedException) {
     return true;
   }
-  if (error is RemoteApiException &&
-      isBenignSentryExceptionText(error.message)) {
-    return true;
+  if (error is GraphQLException) {
+    return isBenignSentryThrowable(error.error);
+  }
+  if (error is GraphQLError) {
+    return _isExpectedDomainCode(error.extensions?['code']?.toString()) ||
+        isBenignSentryExceptionText(error.message);
+  }
+  if (error is RemoteApiException) {
+    return _isExpectedDomainCode(error.code) ||
+        isBenignSentryExceptionText(error.message);
   }
   if (error is UserInputException || error is PollingInputExceptions) {
     return true;
@@ -37,6 +49,11 @@ bool isBenignSentryThrowable(Object? error) {
   }
   return isBenignSentryExceptionText(error.toString());
 }
+
+// Closed Request, room access, Questions access and admission backoff.
+// Only known business rejections: unfamiliar codes must still report.
+bool _isExpectedDomainCode(String? code) =>
+    const {'1500', '1102', '1347', '1704'}.contains(code?.trim());
 
 /// Flutter web: a pointer packet hit-tests a render box before first layout.
 ///
@@ -63,7 +80,8 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
       isBenignUnlaidOutPointerHitTest(synthetic)) {
     return true;
   }
-  if (isBenignSentryThrowable(synthetic)) {
+  if (isBenignSentryThrowable(event.throwable) ||
+      isBenignSentryThrowable(synthetic)) {
     return true;
   }
   final blobs = _errorBlobs(event, hint);
@@ -219,6 +237,10 @@ bool _isUnlaidOutHitTest({
 final _expectedErrorText = RegExp(
   r'^(?:[^:\n]{1,64}: )*'
   '(?:No Internet connection|Description is required|'
+  'beaconNotOpen|Room or item thread access required|'
+  'Questions are for the people this request was sent to|Plan text is required|'
+  '${RegExp.escape(const RemoteApiRetryLaterException(Duration.zero).toEn)}|'
+  '${RegExp.escape(const RequestTimeoutException().toEn)}|'
   r'Plan text must be at most \d+ characters|'
   'Only open requests can be edited|'
   'Image is not attached to this request|'

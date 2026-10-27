@@ -9,10 +9,17 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/request_context.dart';
 
-/// Whether [error] is expected network churn that should not become a Sentry issue.
+/// Whether [error] is network churn or a known, expected domain rejection.
 bool isBenignServerThrowable(Object? error) {
   if (error == null) {
     return false;
+  }
+  if (error is ExceptionBase &&
+      // Closed Request, room access, Questions access, or empty plan text.
+      (const {1500, 1102, 1347}.contains(error.code.codeNumber) ||
+          error is BeaconCreateException &&
+              error.description == 'Plan text is required')) {
+    return true;
   }
   final disconnectReason = RequestContext.current?.clientDisconnectReason;
   if (disconnectReason != null &&
@@ -65,7 +72,8 @@ bool isBenignSentryLogRecord(LogRecord record) {
 
 bool isBenignSentryEvent(SentryEvent event, Hint hint) {
   final synthetic = hint.get(TypeCheckHint.syntheticException);
-  if (isBenignServerThrowable(synthetic)) {
+  if (isBenignServerThrowable(event.throwable) ||
+      isBenignServerThrowable(synthetic)) {
     return true;
   }
 
