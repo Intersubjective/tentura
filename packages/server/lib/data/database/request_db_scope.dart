@@ -16,7 +16,7 @@ final class RequestDbScope extends QueryInterceptor implements Session {
           .cancelBackend(_pid, () => _ownsBackend && _statementActive)
           .catchError((Object _) async {
             // An unavailable control path must not leave SQL running.
-            await _connection.close();
+            await _connection.close(force: true);
           });
     });
   }
@@ -168,7 +168,7 @@ final class RequestDbScope extends QueryInterceptor implements Session {
           timeout: const Duration(seconds: 2),
         );
       } on Object {
-        await _connection.close();
+        await _connection.close(force: true);
       }
     }
   }

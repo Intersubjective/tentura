@@ -292,7 +292,13 @@ WHERE id = '$_memberMessage'
           beaconId: _post,
           recipientIds: const [_stranger],
         ),
-        throwsA(isA<UnauthorizedException>()),
+        throwsA(
+          isA<PostNotOpenException>().having(
+            (error) => error.code.codeNumber,
+            'postNotOpen code',
+            1332,
+          ),
+        ),
       );
       expect(
         await count('''
