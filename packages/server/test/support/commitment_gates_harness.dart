@@ -263,6 +263,12 @@ final class NoOpInboxRepository extends Fake implements InboxRepositoryPort {
     required String userId,
     required String beaconId,
   }) async {}
+
+  @override
+  Future<void> ensureRowForHelper({
+    required String userId,
+    required String beaconId,
+  }) async {}
 }
 
 final class NoOpPersonCapabilityEventRepository extends Fake

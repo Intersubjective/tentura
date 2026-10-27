@@ -116,6 +116,25 @@ class InboxRepository implements InboxRepositoryPort {
   }
 
   @override
+  Future<void> ensureRowForHelper({
+    required String userId,
+    required String beaconId,
+  }) => _database
+      .into(_database.inboxItems)
+      .insert(
+        InboxItemsCompanion.insert(
+          userId: userId,
+          beaconId: beaconId,
+          status: const Value(1),
+          forwardCount: const Value(0),
+          latestForwardAt: Value(PgDateTime(DateTime.utc(1970))),
+          latestNotePreview: const Value(''),
+          rejectionMessage: const Value(''),
+        ),
+        onConflict: DoNothing(),
+      );
+
+  @override
   Future<int?> lockStatus({
     required String userId,
     required String beaconId,

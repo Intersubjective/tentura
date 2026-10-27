@@ -1617,6 +1617,21 @@ class MockInboxRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> ensureRowForHelper({
+    required String? userId,
+    required String? beaconId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#ensureRowForHelper, [], {
+              #userId: userId,
+              #beaconId: beaconId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<int?> lockStatus({
     required String? userId,
     required String? beaconId,
