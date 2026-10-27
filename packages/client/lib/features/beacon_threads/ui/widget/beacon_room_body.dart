@@ -335,6 +335,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     )
                     .join() ||
             p.unreadAnchorAt != c.unreadAnchorAt ||
+            p.unreadBandMessageId != c.unreadBandMessageId ||
+            p.unreadBandCount != c.unreadBandCount ||
             p.pendingMarkSeen != c.pendingMarkSeen ||
             p.status != c.status ||
             p.hasError != c.hasError ||
@@ -428,6 +430,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             firstUnreadIndex: state.firstUnreadIndex,
             firstUnreadMessageId: state.firstUnreadMessageId,
             unreadCount: state.unreadCount,
+            unreadBandMessageId: state.unreadBandMessageId,
+            unreadBandCount: state.unreadBandCount,
             onMarkSeenNearBottom: cubit.markReadToBottom,
             onMessageActions: (msg) => _onMessageActionsPressed(
               context,

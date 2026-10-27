@@ -224,6 +224,10 @@ class RoomCubit extends Cubit<RoomState> {
   DateTime? _lastInboundAt;
 
   bool _initialLoadDone = false;
+
+  /// The unread band is taken once per visit (#528); later refreshes and
+  /// read-to-bottom leave it alone.
+  bool _unreadBandTaken = false;
   bool _refreshInProgress = false;
   _RoomRefreshScope? _queuedRefreshScope;
   bool _queuedRefreshSilent = true;
@@ -917,27 +921,33 @@ class RoomCubit extends Cubit<RoomState> {
           state.beaconId,
           threadId: state.threadItemId ?? RequestThread.generalId,
         );
-        emit(
-          state.copyWith(
-            messages: messages,
-            participants: participants,
-            participantsLoaded: true,
-            readWatermarks: readWatermarks ?? state.readWatermarks,
-            readWatermarksLoaded:
-                state.readWatermarksLoaded || readWatermarks != null,
-            factCards: factCards,
-            roomState: newestRoomState(state.roomState, roomState),
-            openCoordinationBlocker: openCoordinationBlocker,
-            currentCoordinationPlan: currentCoordinationPlan,
-            unreadAnchorAt: anchor,
-            myUserId: GetIt.I<ProfileCubit>().state.profile.id,
-            pendingMarkSeen:
-                messages.isNotEmpty &&
-                (syncedAt == null || messages.last.createdAt.isAfter(syncedAt)),
-            loadError: null,
-            status: const StateIsSuccess(),
-          ),
+        var next = state.copyWith(
+          messages: messages,
+          participants: participants,
+          participantsLoaded: true,
+          readWatermarks: readWatermarks ?? state.readWatermarks,
+          readWatermarksLoaded:
+              state.readWatermarksLoaded || readWatermarks != null,
+          factCards: factCards,
+          roomState: newestRoomState(state.roomState, roomState),
+          openCoordinationBlocker: openCoordinationBlocker,
+          currentCoordinationPlan: currentCoordinationPlan,
+          unreadAnchorAt: anchor,
+          myUserId: GetIt.I<ProfileCubit>().state.profile.id,
+          pendingMarkSeen:
+              messages.isNotEmpty &&
+              (syncedAt == null || messages.last.createdAt.isAfter(syncedAt)),
+          loadError: null,
+          status: const StateIsSuccess(),
         );
+        if (!_unreadBandTaken) {
+          _unreadBandTaken = true;
+          next = next.copyWith(
+            unreadBandMessageId: next.firstUnreadMessageId,
+            unreadBandCount: next.unreadCount,
+          );
+        }
+        emit(next);
         if (!inThread) {
           _watchRoomPresence(participants);
         }
@@ -1382,6 +1392,9 @@ class RoomCubit extends Cubit<RoomState> {
           ),
           replyTarget: clearReply ? null : state.replyTarget,
           pendingQuotedFact: clearQuote ? null : state.pendingQuotedFact,
+          // Posting means the reader has caught up (#528).
+          unreadBandMessageId: null,
+          unreadBandCount: 0,
         ),
       );
       _flushDeferredOwnPaints();
@@ -1604,7 +1617,15 @@ class RoomCubit extends Cubit<RoomState> {
         replyToMessageId: replyToMessageId,
       );
       await markSeenNowIfNeeded();
-      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            unreadAnchorAt: null,
+            unreadBandMessageId: null,
+            unreadBandCount: 0,
+          ),
+        );
+      }
       await _requestRefresh(scope: _RoomRefreshScope.messages);
     } on Object catch (e) {
       _showSnackError(e);
@@ -1829,7 +1850,15 @@ class RoomCubit extends Cubit<RoomState> {
     }
     try {
       await markSeenNowIfNeeded();
-      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            unreadAnchorAt: null,
+            unreadBandMessageId: null,
+            unreadBandCount: 0,
+          ),
+        );
+      }
       await load();
     } on Object catch (e) {
       _showSnackError(e);

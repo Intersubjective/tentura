@@ -962,6 +962,71 @@ void main() {
     },
   );
 
+  testWidgets(
+    'kept unread band shows after the live unread state is read (#528)',
+    (tester) async {
+      final base = DateTime.utc(2026, 6, 30, 12);
+      RoomMessage peer(String id, int minute) => RoomMessage(
+        id: id,
+        beaconId: 'b1',
+        authorId: 'peer-1',
+        author: const Profile(id: 'peer-1', displayName: 'Peer'),
+        body: 'Body $id',
+        createdAt: base.add(Duration(minutes: minute)),
+      );
+
+      await tester.binding.setSurfaceSize(const Size(390, 720));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+            BlocProvider<PresenceCubit>.value(value: _TestPresenceCubit()),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(390, 720)),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: BasicChatBody(
+                    // Fits the viewport: the room opens at the bottom and
+                    // the live unread state is already read.
+                    messages: [peer('old', 0), peer('m1', 1), peer('m2', 2)],
+                    myProfile: const Profile(id: 'me', displayName: 'Me'),
+                    participants: const [],
+                    isLoading: false,
+                    imageRepository: ImageRepository(),
+                    clipboardImageRepository: ClipboardImageRepository(),
+                    enableComposerAttachments: false,
+                    enableParticipantMentions: false,
+                    onSend: (_, _) async => true,
+                    onToggleReaction: (_, _) async {},
+                    unreadBandMessageId: 'm1',
+                    unreadBandCount: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RoomUnreadDivider), findsOneWidget);
+      expect(find.text('Unread · 2'), findsOneWidget);
+
+      final tiles = find.byType(RoomMessageTile);
+      final dividerY = tester.getTopLeft(find.byType(RoomUnreadDivider)).dy;
+      expect(dividerY, greaterThan(tester.getTopLeft(tiles.at(0)).dy));
+      expect(dividerY, lessThan(tester.getTopLeft(tiles.at(1)).dy));
+    },
+  );
+
   testWidgets('scrollToMessage sets highlight notifier on the target id', (
     tester,
   ) async {
