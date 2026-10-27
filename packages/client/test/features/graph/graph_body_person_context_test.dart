@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -792,6 +793,96 @@ void main() {
         find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
         findsNothing,
       );
+    });
+
+    // #615: on an iPhone SE the sheet covered the node that was tapped.
+    testWidgets('compact sheet on 375x667 keeps the tapped node above it', (
+      tester,
+    ) async {
+      final harness = await _pumpTrustGraphBody(
+        tester,
+        size: const Size(375, 667),
+        legendExpanded: false,
+        pages: {
+          null: {_e('Ume', 'Ub')},
+        },
+      );
+      final controller = harness.graphCubit.graphController;
+      final ub = controller.nodes.singleWhere((n) => n.id == 'Ub');
+      final ubFinder = find.byKey(TestIds.key(TestIds.graphNode('Ub')));
+
+      // Pan so Bob sits near the bottom of the canvas, where the sheet opens.
+      final viewport = controller.viewportSize!;
+      final bob = controller.getPositionForId(ub.graphNodeId);
+      controller.jumpToPosition(
+        bob - Offset(0, (viewport.height / 2 - 90) / controller.cameraScale),
+      );
+      await tester.pump();
+      final before = tester.getRect(ubFinder);
+
+      await _tapPeerNode(tester, userId: 'Ub');
+
+      final panel = _globalRect(
+        tester,
+        find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
+      );
+      // Guard: the node was where the sheet now is.
+      expect(before.bottom, greaterThan(panel.top));
+      final after = tester.getRect(ubFinder);
+      expect(after.bottom, lessThanOrEqualTo(panel.top));
+      expect(after.top, greaterThanOrEqualTo(0));
+      expect(after.size, before.size);
+      expect(tester.takeException(), isNull);
+    });
+
+    // #615: Escape left the Graph screen panel open (the Field closes it).
+    testWidgets('Escape closes the panel and puts focus back on the node', (
+      tester,
+    ) async {
+      await _pumpTrustGraphBody(
+        tester,
+        size: const Size(900, 600),
+        legendExpanded: false,
+        pages: {
+          null: {_e('Ume', 'Ub')},
+        },
+      );
+      final panel = find.byKey(TestIds.key(TestIds.graphPersonContextPanel));
+      final ubMarker = find.descendant(
+        of: find.byKey(TestIds.key(TestIds.graphNode('Ub'))),
+        matching: find.byType(GestureDetector),
+      );
+      final ubFocus = Focus.of(tester.element(ubMarker.first));
+
+      // Keyboard: focus Bob, Enter opens his panel, Tab goes into it.
+      ubFocus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await _settleGraph(tester);
+      expect(panel, findsOneWidget);
+      final close = find.byKey(TestIds.key(TestIds.graphPersonContextClose));
+      Focus.of(
+        tester.element(
+          find.descendant(of: close, matching: find.byIcon(Icons.close)),
+        ),
+      ).requestFocus();
+      await tester.pump();
+      expect(ubFocus.hasPrimaryFocus, isFalse);
+      expect(close, findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _settleGraph(tester);
+
+      expect(panel, findsNothing);
+      // Bob stays the focus of the graph, and keyboard focus is back on him.
+      final markerFocus = Focus.of(tester.element(ubMarker.first));
+      expect(markerFocus.hasPrimaryFocus, isTrue);
+
+      // Guard: with the panel closed, Escape changes nothing.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _settleGraph(tester);
+      expect(panel, findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }
