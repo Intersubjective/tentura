@@ -70,9 +70,9 @@ class HomeAccountAvatarButton extends StatelessWidget {
 
 /// The account entry for a Home tab's top bar ([TenturaTopBar.account]):
 /// compact windows only — wider ones carry it at the rail's foot.
-/// While the viewer has paused new requests, [OwnPausedChip] sits beside it,
-/// capped at [kTopBarPausedChipWidthShare] of the window so a long date
-/// ellipsizes instead of crowding the title.
+/// While the viewer has paused new requests, a dense [OwnPausedChip] (the
+/// pause glyph over the short date, #267) sits beside it, capped at
+/// [kTopBarPausedChipWidthShare] of the window so it never crowds the title.
 Widget? homeTopBarAccount(BuildContext context) =>
     context.windowClass == WindowClass.compact
     ? Row(
@@ -84,7 +84,7 @@ Widget? homeTopBarAccount(BuildContext context) =>
                   MediaQuery.sizeOf(context).width *
                   kTopBarPausedChipWidthShare,
             ),
-            child: const OwnPausedChip(),
+            child: const OwnPausedChip(dense: true),
           ),
           const HomeAccountAvatarButton(),
         ],
