@@ -1122,7 +1122,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
       (super.noSuchMethod(
             Invocation.method(#postExpiresAt, [postId]),
             returnValue: _i6.Future<DateTime?>.value(),
-            returnValueForMissingStub: _i6.Future<DateTime?>.value(),
           )
           as _i6.Future<DateTime?>);
 

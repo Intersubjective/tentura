@@ -30,9 +30,13 @@ class _RecordingHost extends ThreadHostCubit {
   final synced = <(BeaconStatus, String?)>[];
 
   @override
-  void syncBeaconStatus(BeaconStatus status, {String? authorId}) {
+  void syncBeaconStatus(
+    BeaconStatus status, {
+    String? authorId,
+    bool expired = false,
+  }) {
     synced.add((status, authorId));
-    super.syncBeaconStatus(status, authorId: authorId);
+    super.syncBeaconStatus(status, authorId: authorId, expired: expired);
   }
 }
 
