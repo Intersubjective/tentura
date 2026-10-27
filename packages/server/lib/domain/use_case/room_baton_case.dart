@@ -43,8 +43,13 @@ class RoomBatonCase extends UseCaseBase {
 
   Future<void> _rejectIfRoomNotWritable(String beaconId) async {
     final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
+    final hierarchy = _hierarchyRepository;
     if (status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+            BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status) ||
+        hierarchy is BeaconRoomWriteStatePort &&
+            await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
+              beaconId,
+            )) {
       throw const BeaconCreateException(
         description: 'Discussion is read-only for this request',
       );
@@ -181,6 +186,7 @@ class RoomBatonCase extends UseCaseBase {
         throw const BatonNotFoundException();
       }
       await _postLock.lockForPostMutation(baton.beaconId);
+      await _rejectIfRoomNotWritable(baton.beaconId);
 
       final candidates = await _repo.getCandidates(batonId);
       final isCandidate = candidates.any((c) => c.userId == actorId);
@@ -241,6 +247,7 @@ class RoomBatonCase extends UseCaseBase {
         throw const BatonNotFoundException();
       }
       await _postLock.lockForPostMutation(found.beaconId);
+      await _rejectIfRoomNotWritable(found.beaconId);
       final baton = (await _repo.getById(batonId))!;
       if (baton.authorId != actorId) {
         throw const BatonNotAuthorException();
@@ -402,6 +409,7 @@ class RoomBatonCase extends UseCaseBase {
         throw const BatonNotFoundException();
       }
       await _postLock.lockForPostMutation(found.beaconId);
+      await _rejectIfRoomNotWritable(found.beaconId);
       final baton = (await _repo.getById(batonId))!;
       if (baton.authorId != actorId) {
         throw const BatonNotAuthorException();
