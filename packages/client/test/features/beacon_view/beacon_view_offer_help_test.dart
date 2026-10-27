@@ -8,6 +8,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/message/action_message_base.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
@@ -67,15 +68,13 @@ void main() {
           (e) => e.message,
         );
         expect(messages, contains(isA<BackupOfferSentMessage>()));
-        expect(
-          messages,
-          isNot(contains(isA<HelpOfferedForwardNudgeMessage>())),
-        );
+        expect(messages, isNot(contains(isA<HelpOfferSentMessage>())));
+        expect(messages, isNot(contains(isA<LocalizableActionMessage>())));
       },
     );
 
     test(
-      'open beacon emits HelpOfferedForwardNudgeMessage after first offer',
+      'open beacon: a plain receipt naming the author, no Forward (#527)',
       () async {
         final forward = TrackingOfferHelpForwardRepository();
         addTearDown(forward.dispose);
@@ -104,17 +103,34 @@ void main() {
         expect(forward.offerHelpCalls, 1);
         final showMessages = effects.emitted.whereType<ShowMessage>().toList();
         expect(showMessages, hasLength(1));
+        final message = showMessages.single.message;
+        expect(message, isA<HelpOfferSentMessage>());
+        expect(message, isNot(isA<LocalizableActionMessage>()));
         expect(
-          showMessages.single.message,
-          isA<HelpOfferedForwardNudgeMessage>(),
+          message.toEn,
+          "Offer sent to Author. You'll be notified when they answer.",
         );
         expect(
-          (showMessages.single.message as HelpOfferedForwardNudgeMessage)
-              .beaconId,
-          beaconId,
+          message.toRu,
+          'Предложение отправлено: Author. Вы получите уведомление, '
+          'когда автор ответит.',
         );
       },
     );
+
+    // Gender-neutral in Russian, as the named variant.
+    test('the receipt without an author name says the author (#527)', () {
+      const message = HelpOfferSentMessage('');
+      expect(
+        message.toEn,
+        "Offer sent to the author. You'll be notified when they answer.",
+      );
+      expect(
+        message.toRu,
+        'Предложение отправлено автору. Вы получите уведомление, когда '
+        'автор ответит.',
+      );
+    });
 
     test(
       'an offer that races the close shows plain copy and refreshes the '

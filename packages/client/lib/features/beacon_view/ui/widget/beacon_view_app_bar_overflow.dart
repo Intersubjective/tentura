@@ -88,11 +88,43 @@ Future<void> beaconViewRunEditHelpOfferDialog(
   }
 }
 
+/// Withdraw dialog (reason required) + [BeaconViewCubit.withdraw]; shared by
+/// More actions and the showcase's "Withdraw offer" (#527).
+Future<void> beaconViewRunWithdrawHelpOfferDialog(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  if (!context.mounted) return;
+  final outcome = await HelpOfferMessageDialog.show(
+    context,
+    title: l10n.dialogWithdrawHelpOfferTitle,
+    hintText: l10n.hintWithdrawReason,
+    allowEmptyMessage: true,
+    requireWithdrawReason: true,
+  );
+  if (outcome?.withdrawReasonWire != null && context.mounted) {
+    await cubit.withdraw(
+      message: outcome!.message,
+      withdrawReason: outcome.withdrawReasonWire!,
+    );
+  }
+}
+
+/// The showcase's own "Withdraw offer" under a waiting offer (#527): an
+/// offer still with the author on a Request that allows withdrawing.
+bool beaconShowcaseShowsWithdraw(BeaconViewState state) =>
+    state.isRoomAdmissionBlocked &&
+    !state.coordinationDeniesRoomAdmission &&
+    !state.beacon.status.isFinished &&
+    state.beacon.allowsWithdrawWhileHelpOffered;
+
 bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
   final b = state.beacon;
-  if (state.isBeaconMine || b.status != BeaconStatus.open) {
-    return false;
-  }
+  if (state.isBeaconMine) return false;
+  // Never Withdraw twice: the showcase already shows its own button.
+  if (beaconShowcaseShowsWithdraw(state)) return true;
+  if (b.status != BeaconStatus.open) return false;
   if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
     return true;
   }
@@ -492,22 +524,7 @@ Widget _beaconViewAppBarOverflowMenu({
         !hideOfferHelpWithdraw &&
             state.isHelpOffered &&
             b.allowsWithdrawWhileHelpOffered
-        ? () async {
-            if (!context.mounted) return;
-            final outcome = await HelpOfferMessageDialog.show(
-              context,
-              title: l10n.dialogWithdrawHelpOfferTitle,
-              hintText: l10n.hintWithdrawReason,
-              allowEmptyMessage: true,
-              requireWithdrawReason: true,
-            );
-            if (outcome?.withdrawReasonWire != null && context.mounted) {
-              await cubit.withdraw(
-                message: outcome!.message,
-                withdrawReason: outcome.withdrawReasonWire!,
-              );
-            }
-          }
+        ? () => beaconViewRunWithdrawHelpOfferDialog(context, cubit, l10n)
         : null,
     onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
         ? () async {
