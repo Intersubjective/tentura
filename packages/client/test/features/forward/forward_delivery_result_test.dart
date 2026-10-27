@@ -19,6 +19,10 @@ import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/message/action_message_base.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
+import 'package:tentura/features/people_tags/domain/port/people_tags_repository_port.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
@@ -42,7 +46,8 @@ class _DeliveryForwardRepository implements ForwardRepository {
   List<String>? lastRecipientIds;
   final _forwardChanges = StreamController<String>.broadcast();
 
-  void setForwardResult(ForwardDeliveryResult result) => _forwardResult = result;
+  void setForwardResult(ForwardDeliveryResult result) =>
+      _forwardResult = result;
 
   @override
   Stream<String> get forwardChanges => _forwardChanges.stream;
@@ -76,8 +81,7 @@ class _DeliveryForwardRepository implements ForwardRepository {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
-    Map<String, ({String? tier, bool isExploration})>?
-    recipientBandProvenance,
+    Map<String, ({String? tier, bool isExploration})>? recipientBandProvenance,
   }) async {
     forwardBeaconCalls++;
     lastRecipientIds = recipientIds;
@@ -95,6 +99,20 @@ class _DeliveryForwardRepository implements ForwardRepository {
 
   @override
   Future<void> dispose() => _forwardChanges.close();
+}
+
+class _SuggestionRepository implements PeopleTagsRepositoryPort {
+  bool disabled = false;
+  bool fail = false;
+
+  @override
+  Future<PersonTagSuggestionState> personTagSuggestionState() async {
+    if (fail) throw StateError('Suggestion preference unavailable');
+    return PersonTagSuggestionState(canSuggest: !disabled, disabled: disabled);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeProfileRepository implements ProfileRepositoryPort {
@@ -228,7 +246,9 @@ ForwardCubit _cubit({
 );
 
 Future<void> _waitReady(ForwardCubit cubit) async {
-  await cubit.stream.firstWhere((s) => s.candidatesLoad is ForwardCandidatesReady);
+  await cubit.stream.firstWhere(
+    (s) => s.candidatesLoad is ForwardCandidatesReady,
+  );
 }
 
 void main() {
@@ -237,31 +257,94 @@ void main() {
 
   DateTime clock() => clockNow;
 
-  test('missing dropped preselect does not emit availability delivery outcome', () async {
-    final effects = FakeUiEffectPort();
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-    );
-    addTearDown(() => _disposeHarness(harness));
+  for (final mode in ['enabled', 'disabled', 'disabled after load', 'failed']) {
+    test('forward snackbar tag action with suggestions $mode', () async {
+      final repository = _SuggestionRepository()..disabled = mode == 'disabled';
+      final realtime = buildTestRealtimeSync();
+      final tags = PeopleTagsCase(
+        repository,
+        realtime.case_,
+        env: const Env(),
+        logger: Logger('test'),
+      );
+      GetIt.I.registerSingleton<PeopleTagsCase>(tags);
+      addTearDown(() async {
+        await GetIt.I.unregister<PeopleTagsCase>();
+        await tags.dispose();
+        await realtime.port.dispose();
+      });
+      if (mode == 'disabled after load') {
+        await tags.loadSuggestionState();
+        expect(tags.suggestionsEnabled, isTrue);
+        repository.disabled = true;
+      }
+      repository.fail = mode == 'failed';
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [
+          _profile(id: 'U-alice', name: 'Alice'),
+          _profile(id: 'U-bob', name: 'Bob'),
+        ],
+      );
+      addTearDown(() => _disposeHarness(harness));
+      final cubit = _cubit(forwardCase: harness.forwardCase, effects: effects);
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-alice', 'U-bob'},
+          skippedPersonalNoteIds: {'U-alice', 'U-bob'},
+        ),
+      );
 
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: effects,
-      clock: clock,
-      initialSelectedIds: {'U-missing'},
-    );
-    addTearDown(cubit.close);
-    await cubit.stream.firstWhere(
-      (s) => s.candidatesLoad is ForwardCandidatesEmpty,
-    );
+      expect(await cubit.forward(), isTrue);
 
-    final ok = await cubit.forward();
-    expect(ok, isFalse);
-    expect(harness.forwardRepo.forwardBeaconCalls, 0);
-    expect(cubit.state.lastDeliveryOutcome, isNull);
-    expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
-    expect(effects.emitted.whereType<ShowError>(), isEmpty);
-  });
+      final message = effects.emitted.whereType<ShowMessage>().single.message;
+      expect(message.toEn, "Request forwarded. It's in My Work.");
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
+      if (mode == 'enabled') {
+        expect(tags.suggestionsLoaded, isTrue);
+        expect(message, isA<ForwardLocationMyWorkAddToTagMessage>());
+        expect((message as LocalizableActionMessage).label.toEn, 'Add to tag…');
+        expect((message as ForwardLocationMyWorkAddToTagMessage).recipientIds, [
+          'U-alice',
+          'U-bob',
+        ]);
+      } else {
+        expect(message, isNot(isA<LocalizableActionMessage>()));
+      }
+    });
+  }
+
+  test(
+    'missing dropped preselect does not emit availability delivery outcome',
+    () async {
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+      );
+      addTearDown(() => _disposeHarness(harness));
+
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+        initialSelectedIds: {'U-missing'},
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere(
+        (s) => s.candidatesLoad is ForwardCandidatesEmpty,
+      );
+
+      final ok = await cubit.forward();
+      expect(ok, isFalse);
+      expect(harness.forwardRepo.forwardBeaconCalls, 0);
+      expect(cubit.state.lastDeliveryOutcome, isNull);
+      expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
+    },
+  );
 
   test(
     'disappeared selected recipient hits hard validation not availability skip',
@@ -297,157 +380,170 @@ void main() {
     },
   );
 
-  test('local availability strip avoids mutation and reports all skipped', () async {
-    final effects = FakeUiEffectPort();
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [
-        _profile(
-          id: 'U-paused',
-          name: 'Carol',
-          availability: Availability(resumeOn: pausedUntil),
+  test(
+    'local availability strip avoids mutation and reports all skipped',
+    () async {
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [
+          _profile(
+            id: 'U-paused',
+            name: 'Carol',
+            availability: Availability(resumeOn: pausedUntil),
+          ),
+        ],
+      );
+      addTearDown(() => _disposeHarness(harness));
+
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+        initialSelectedIds: {'U-paused'},
+      );
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
+
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-paused'},
+          skippedPersonalNoteIds: {'U-paused'},
+          beacon: _openBeacon(),
         ),
-      ],
-    );
-    addTearDown(() => _disposeHarness(harness));
+      );
 
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: effects,
-      clock: clock,
-      initialSelectedIds: {'U-paused'},
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
+      final ok = await cubit.forward();
+      expect(ok, isTrue);
+      expect(harness.forwardRepo.forwardBeaconCalls, 0);
+      expect(cubit.state.lastDeliveryOutcome?.deliveredRecipientIds, isEmpty);
+      expect(
+        cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
+        ['U-paused'],
+      );
+      expect(
+        effects.emitted.whereType<ShowMessage>().single.message,
+        isA<ForwardPartialDeliveryMessage>(),
+      );
+    },
+  );
 
-    cubit.emit(
-      cubit.state.copyWith(
-        selectedIds: {'U-paused'},
-        skippedPersonalNoteIds: {'U-paused'},
-        beacon: _openBeacon(),
-      ),
-    );
-
-    final ok = await cubit.forward();
-    expect(ok, isTrue);
-    expect(harness.forwardRepo.forwardBeaconCalls, 0);
-    expect(cubit.state.lastDeliveryOutcome?.deliveredRecipientIds, isEmpty);
-    expect(
-      cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
-      ['U-paused'],
-    );
-    expect(
-      effects.emitted.whereType<ShowMessage>().single.message,
-      isA<ForwardPartialDeliveryMessage>(),
-    );
-  });
-
-  test('mixed delivery emits single location message with pause clause', () async {
-    final effects = FakeUiEffectPort();
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [
-        _profile(id: 'U-alice', name: 'Alice'),
-        _profile(id: 'U-bob', name: 'Bob'),
-        _profile(id: 'U-carol', name: 'Carol'),
-      ],
-      forwardResult: const ForwardDeliveryResult(
-        batchId: 'batch-race',
-        deliveredRecipientIds: ['U-alice'],
-        availabilitySkippedRecipientIds: ['U-carol'],
-      ),
-    );
-    addTearDown(() => _disposeHarness(harness));
-
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: effects,
-      clock: clock,
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
-
-    cubit.emit(
-      cubit.state.copyWith(
-        selectedIds: {'U-alice', 'U-bob', 'U-carol'},
-        skippedPersonalNoteIds: {'U-alice', 'U-bob', 'U-carol'},
-        beacon: _openBeacon(),
-      ),
-    );
-
-    await cubit.forward();
-
-    expect(harness.forwardRepo.lastRecipientIds, ['U-alice', 'U-bob', 'U-carol']);
-    expect(
-      cubit.state.lastDeliveryOutcome?.deliveredRecipientIds,
-      ['U-alice'],
-    );
-    expect(
-      cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
-      ['U-carol'],
-    );
-    expect(effects.emitted.whereType<ShowMessage>(), hasLength(1));
-    expect(
-      effects.emitted.whereType<ShowMessage>().single.message,
-      isA<ForwardLocationMyWorkMessage>(),
-    );
-    expect(
-      (effects.emitted.whereType<ShowMessage>().single.message
-              as ForwardLocationMyWorkMessage)
-          .toEn,
-      "Request forwarded. It's in My Work. — Carol isn't taking new requests right now.",
-    );
-  });
-
-  test('mixed local and server skips dedupe in original requested order', () async {
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [
-        _profile(id: 'U-alice', name: 'Alice'),
-        _profile(
-          id: 'U-local',
-          name: 'Local',
-          availability: Availability(resumeOn: pausedUntil),
+  test(
+    'mixed delivery emits single location message with pause clause',
+    () async {
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [
+          _profile(id: 'U-alice', name: 'Alice'),
+          _profile(id: 'U-bob', name: 'Bob'),
+          _profile(id: 'U-carol', name: 'Carol'),
+        ],
+        forwardResult: const ForwardDeliveryResult(
+          batchId: 'batch-race',
+          deliveredRecipientIds: ['U-alice'],
+          availabilitySkippedRecipientIds: ['U-carol'],
         ),
-        _profile(id: 'U-server', name: 'Server'),
-      ],
-      forwardResult: const ForwardDeliveryResult(
-        batchId: 'batch-mixed',
-        deliveredRecipientIds: ['U-alice'],
-        availabilitySkippedRecipientIds: ['U-server'],
-      ),
-    );
-    addTearDown(() => _disposeHarness(harness));
+      );
+      addTearDown(() => _disposeHarness(harness));
 
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: FakeUiEffectPort(),
-      clock: clock,
-      initialSelectedIds: {'U-local'},
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+      );
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
 
-    cubit.emit(
-      cubit.state.copyWith(
-        selectedIds: {'U-alice', 'U-server'},
-        skippedPersonalNoteIds: {'U-alice', 'U-server'},
-        beacon: _openBeacon(),
-      ),
-    );
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-alice', 'U-bob', 'U-carol'},
+          skippedPersonalNoteIds: {'U-alice', 'U-bob', 'U-carol'},
+          beacon: _openBeacon(),
+        ),
+      );
 
-    await cubit.forward();
+      await cubit.forward();
 
-    expect(harness.forwardRepo.lastRecipientIds, ['U-alice', 'U-server']);
-    expect(
-      cubit.state.lastDeliveryOutcome?.requestedRecipientIds,
-      ['U-local', 'U-alice', 'U-server'],
-    );
-    expect(
-      cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
-      ['U-local', 'U-server'],
-    );
-  });
+      expect(harness.forwardRepo.lastRecipientIds, [
+        'U-alice',
+        'U-bob',
+        'U-carol',
+      ]);
+      expect(
+        cubit.state.lastDeliveryOutcome?.deliveredRecipientIds,
+        ['U-alice'],
+      );
+      expect(
+        cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
+        ['U-carol'],
+      );
+      expect(effects.emitted.whereType<ShowMessage>(), hasLength(1));
+      expect(
+        effects.emitted.whereType<ShowMessage>().single.message,
+        isA<ForwardLocationMyWorkMessage>(),
+      );
+      expect(
+        (effects.emitted.whereType<ShowMessage>().single.message
+                as ForwardLocationMyWorkMessage)
+            .toEn,
+        "Request forwarded. It's in My Work. — Carol isn't taking new requests right now.",
+      );
+    },
+  );
+
+  test(
+    'mixed local and server skips dedupe in original requested order',
+    () async {
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [
+          _profile(id: 'U-alice', name: 'Alice'),
+          _profile(
+            id: 'U-local',
+            name: 'Local',
+            availability: Availability(resumeOn: pausedUntil),
+          ),
+          _profile(id: 'U-server', name: 'Server'),
+        ],
+        forwardResult: const ForwardDeliveryResult(
+          batchId: 'batch-mixed',
+          deliveredRecipientIds: ['U-alice'],
+          availabilitySkippedRecipientIds: ['U-server'],
+        ),
+      );
+      addTearDown(() => _disposeHarness(harness));
+
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: FakeUiEffectPort(),
+        clock: clock,
+        initialSelectedIds: {'U-local'},
+      );
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
+
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-alice', 'U-server'},
+          skippedPersonalNoteIds: {'U-alice', 'U-server'},
+          beacon: _openBeacon(),
+        ),
+      );
+
+      await cubit.forward();
+
+      expect(harness.forwardRepo.lastRecipientIds, ['U-alice', 'U-server']);
+      expect(
+        cubit.state.lastDeliveryOutcome?.requestedRecipientIds,
+        ['U-local', 'U-alice', 'U-server'],
+      );
+      expect(
+        cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
+        ['U-local', 'U-server'],
+      );
+    },
+  );
 
   test('full delivery keeps location copy for author', () async {
     final effects = FakeUiEffectPort();
@@ -487,45 +583,48 @@ void main() {
     expect(cubit.state.lastDeliveryOutcome?.deliveredCount, 2);
   });
 
-  test('full delivery uses watching location when viewer is not author', () async {
-    final effects = FakeUiEffectPort();
-    final otherAuthorBeacon = Beacon.empty.copyWith(
-      id: 'B1',
-      status: BeaconStatus.open,
-      viewerCanForward: true,
-      author: const Profile(id: 'U-other'),
-    );
-    final harness = await _buildHarness(
-      involvement: _involvement(otherAuthorBeacon),
-      candidates: [_profile(id: 'U-alice', name: 'Alice')],
-    );
-    addTearDown(() => _disposeHarness(harness));
+  test(
+    'full delivery uses watching location when viewer is not author',
+    () async {
+      final effects = FakeUiEffectPort();
+      final otherAuthorBeacon = Beacon.empty.copyWith(
+        id: 'B1',
+        status: BeaconStatus.open,
+        viewerCanForward: true,
+        author: const Profile(id: 'U-other'),
+      );
+      final harness = await _buildHarness(
+        involvement: _involvement(otherAuthorBeacon),
+        candidates: [_profile(id: 'U-alice', name: 'Alice')],
+      );
+      addTearDown(() => _disposeHarness(harness));
 
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: effects,
-      clock: clock,
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+      );
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
 
-    cubit.emit(
-      cubit.state.copyWith(
-        selectedIds: {'U-alice'},
-        skippedPersonalNoteIds: {'U-alice'},
-        beacon: otherAuthorBeacon,
-      ),
-    );
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-alice'},
+          skippedPersonalNoteIds: {'U-alice'},
+          beacon: otherAuthorBeacon,
+        ),
+      );
 
-    await cubit.forward();
+      await cubit.forward();
 
-    final message = effects.emitted.whereType<ShowMessage>().single.message;
-    expect(message, isA<ForwardLocationMessage>());
-    expect(
-      (message as ForwardLocationMessage).toEn,
-      "Request forwarded. It's in Following.",
-    );
-  });
+      final message = effects.emitted.whereType<ShowMessage>().single.message;
+      expect(message, isA<ForwardLocationMessage>());
+      expect(
+        (message as ForwardLocationMessage).toEn,
+        "Request forwarded. It's in Following.",
+      );
+    },
+  );
 
   test('help offer uses my work location without action', () async {
     final effects = FakeUiEffectPort();
@@ -572,57 +671,60 @@ void main() {
     expect(message, isNot(isA<ForwardLocationMessage>()));
   });
 
-  test('many skipped with one delivered uses location pause count copy', () async {
-    final effects = FakeUiEffectPort();
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [
-        _profile(id: 'U-alice', name: 'Alice'),
-        _profile(
-          id: 'U-bob',
-          name: 'Bob',
-          availability: Availability(resumeOn: pausedUntil),
+  test(
+    'many skipped with one delivered uses location pause count copy',
+    () async {
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [
+          _profile(id: 'U-alice', name: 'Alice'),
+          _profile(
+            id: 'U-bob',
+            name: 'Bob',
+            availability: Availability(resumeOn: pausedUntil),
+          ),
+          _profile(
+            id: 'U-carol',
+            name: 'Carol',
+            availability: Availability(resumeOn: pausedUntil),
+          ),
+        ],
+      );
+      addTearDown(() => _disposeHarness(harness));
+
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+        initialSelectedIds: {'U-bob', 'U-carol'},
+      );
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
+
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-alice'},
+          skippedPersonalNoteIds: {'U-alice'},
+          beacon: _openBeacon(),
         ),
-        _profile(
-          id: 'U-carol',
-          name: 'Carol',
-          availability: Availability(resumeOn: pausedUntil),
-        ),
-      ],
-    );
-    addTearDown(() => _disposeHarness(harness));
+      );
 
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: effects,
-      clock: clock,
-      initialSelectedIds: {'U-bob', 'U-carol'},
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
+      await cubit.forward();
 
-    cubit.emit(
-      cubit.state.copyWith(
-        selectedIds: {'U-alice'},
-        skippedPersonalNoteIds: {'U-alice'},
-        beacon: _openBeacon(),
-      ),
-    );
-
-    await cubit.forward();
-
-    expect(
-      effects.emitted.whereType<ShowMessage>().single.message,
-      isA<ForwardLocationMyWorkMessage>(),
-    );
-    expect(
-      (effects.emitted.whereType<ShowMessage>().single.message
-              as ForwardLocationMyWorkMessage)
-          .toEn,
-      "Request forwarded. It's in My Work. — 2 people aren't taking new requests right now.",
-    );
-    expect(harness.forwardRepo.lastRecipientIds, ['U-alice']);
-  });
+      expect(
+        effects.emitted.whereType<ShowMessage>().single.message,
+        isA<ForwardLocationMyWorkMessage>(),
+      );
+      expect(
+        (effects.emitted.whereType<ShowMessage>().single.message
+                as ForwardLocationMyWorkMessage)
+            .toEn,
+        "Request forwarded. It's in My Work. — 2 people aren't taking new requests right now.",
+      );
+      expect(harness.forwardRepo.lastRecipientIds, ['U-alice']);
+    },
+  );
 
   test('own forward does not reload from repository change stream', () async {
     final harness = await _buildHarness(

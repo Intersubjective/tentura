@@ -382,7 +382,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     return skippedId;
   }
 
-  void _emitDeliveryMessage(ForwardDeliveryOutcome outcome) {
+  Future<void> _emitDeliveryMessage(ForwardDeliveryOutcome outcome) async {
     if (outcome.failed) {
       return;
     }
@@ -444,13 +444,28 @@ class ForwardCubit extends Cubit<ForwardState> {
             outcome.deliveredRecipientIds,
           )
         : const <String>[];
+    var suggestionsEnabled = false;
+    if (!inWatching &&
+        tagCandidates.isNotEmpty &&
+        GetIt.I.isRegistered<PeopleTagsCase>()) {
+      final tags = GetIt.I<PeopleTagsCase>();
+      try {
+        // Refresh even a loaded snapshot: "Don't suggest again" can have
+        // changed the server preference since this store was last read.
+        await tags.loadSuggestionState();
+        suggestionsEnabled = tags.suggestionsEnabled;
+      } catch (_) {
+        // Suggestion availability must not turn a delivered forward into an
+        // error or offer an action whose eligibility could not be checked.
+      }
+    }
     final message = inWatching
         ? ForwardLocationMessage(
             beaconId: state.beaconId,
             skippedName: skippedName,
             skippedCount: skippedCount,
           )
-        : tagCandidates.isEmpty
+        : tagCandidates.isEmpty || !suggestionsEnabled
         ? ForwardLocationMyWorkMessage(
             skippedName: skippedName,
             skippedCount: skippedCount,
@@ -815,7 +830,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           );
         }
         if (!embedded) {
-          _emitDeliveryMessage(outcome);
+          await _emitDeliveryMessage(outcome);
         }
         return true;
       }
@@ -875,7 +890,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         );
       }
       if (!embedded) {
-        _emitDeliveryMessage(outcome);
+        await _emitDeliveryMessage(outcome);
       }
       // Standalone D7: reload chain and switch to Involved. Embedded create
       // pops immediately; skip the second full load.
