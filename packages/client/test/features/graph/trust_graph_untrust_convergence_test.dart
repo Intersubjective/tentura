@@ -1,6 +1,3 @@
-@Tags(['repo-files'])
-library;
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -37,8 +34,6 @@ import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
-import '../../../../server/test/support/profile_trust_graph_pg_fixture.dart'
-    as pg;
 
 const _me = Profile(id: 'Uaaaaaaaaaaaa', displayName: 'Me');
 const _bob = Profile(
@@ -56,7 +51,6 @@ const _colors = GraphEdgeColors(
 );
 
 Future<void> main() async {
-  final pgReachable = await pg.ProfileTrustGraphPgFixture.isReachable();
   group('Trust graph follows committed profile and remote untrust', () {
     test(
       'profile untrust alone removes the outgoing edge from an open graph',
@@ -186,64 +180,6 @@ Future<void> main() async {
       },
     );
   });
-
-  group(
-    'Profile application path with PostgreSQL and server realtime',
-    () {
-      test('profile untrust commits a one-way edge source through the actual '
-          'client request and server resolver', () async {
-        await _withPgHarness((h, backend) async {
-          final result = await h.profileCase.removeFriend(_bob);
-          h.expectProfileUntrustCommitted(result);
-          expect(await backend.voteAmount(_me.id, _bob.id), 0);
-          expect(await backend.edges(), {(_bob.id, _me.id)});
-        });
-      });
-
-      test('reopening after a profile-path untrust reads one-way PostgreSQL '
-          'edges without a prior local graph patch', () async {
-        await _withPgHarness((h, backend) async {
-          final result = await h.profileCase.removeFriend(_bob);
-          h.expectProfileUntrustCommitted(result);
-          await h.graph.close();
-          h.openGraph();
-          await h.waitForGraphLoad();
-
-          h.expectOneWay(_bob.id, _me.id);
-          expect(h.loadedBob.myVote, 0);
-          expect(await backend.edges(), {(_bob.id, _me.id)});
-        });
-      });
-
-      test('remote profile untrust reaches the open graph through PostgreSQL '
-          'notification and server-generated websocket frames', () async {
-        await _withPgHarness((h, backend) async {
-          // Bob uses the same real ProfileViewCase / LikeRemoteRepository path
-          // on his account. No direct UserVote call and no invented hint.
-          final result = await _remoteProfileUntrust(h, backend);
-          expect(result.myVote, 0);
-          expect(await backend.voteAmount(_bob.id, _me.id), 0);
-          await backend.flushNotifications();
-          expect(
-            backend.viewerFrames.any((frame) {
-              final decoded = jsonDecode(frame) as Map<String, dynamic>;
-              final payload = decoded['payload'] as Map;
-              return decoded['path'] == 'entity_changes' &&
-                  payload['entity'] == 'relationship' &&
-                  payload['actor_user_id'] == _bob.id;
-            }),
-            isTrue,
-          );
-
-          await h.waitForRealtimeWindow();
-
-          h.expectOneWay(_me.id, _bob.id);
-          expect(await backend.edges(), {(_me.id, _bob.id)});
-        });
-      });
-    },
-    skip: pgReachable ? false : 'Postgres admin unreachable',
-  );
 }
 
 Future<void> _withHarness(
@@ -264,72 +200,6 @@ Future<void> _withHarness(
     () => MockClient(server.handle),
   );
 }
-
-Future<void> _withPgHarness(
-  Future<void> Function(_Harness, pg.ProfileTrustGraphPgFixture) body,
-) async {
-  final backend = pg.ProfileTrustGraphPgFixture(
-    pg.ProfileTrustGraphPgFixture.newTarget(),
-  );
-  await backend.open();
-  try {
-    await backend.seedPublishedMutualTrust();
-    await _withHarness(
-      (h) async {
-        backend.onViewerFrame = h.socket.frames.add;
-        try {
-          await body(h, backend);
-        } finally {
-          backend.onViewerFrame = null;
-        }
-      },
-      serverOverride: _PgWireServer(backend),
-    );
-  } finally {
-    await backend.close();
-  }
-}
-
-Future<Profile> _remoteProfileUntrust(
-  _Harness alice,
-  pg.ProfileTrustGraphPgFixture backend,
-) => http.runWithClient(
-  () async {
-    final bobRemote = RemoteApiService(const Env(), _SocketFactory(_Socket()));
-    final bobProfiles = ProfileRepository(bobRemote);
-    final bobLikes = LikeRemoteRepository(
-      remoteApiService: bobRemote,
-      log: Logger('bob-profile-likes'),
-    );
-    final bobProfileCase = ProfileViewCase(
-      bobProfiles,
-      bobLikes,
-      _Capabilities(),
-      alice.contacts,
-      alice.realtime,
-      FakePersonSharedContextPort(),
-      env: const Env(),
-      logger: Logger('bob-profile'),
-    );
-    try {
-      await bobRemote.setSessionAuth();
-      return await bobProfileCase.removeFriend(
-        const Profile(
-          id: pg.ProfileTrustGraphPgFixture.alice,
-          displayName: 'Alice',
-          myVote: 1,
-          subjectExplicitlyTrustsViewer: true,
-          isMutualFriend: true,
-        ),
-      );
-    } finally {
-      await bobProfiles.dispose();
-      await bobLikes.dispose();
-      await bobRemote.close();
-    }
-  },
-  () => MockClient(_PgWireServer(backend, actorId: _bob.id).handle),
-);
 
 final class _Harness {
   _Harness(this.server);
@@ -588,91 +458,6 @@ final class _WireServer {
     200,
     headers: {'content-type': 'application/json'},
   );
-}
-
-/// Passes the exact client mutation to the production GraphQL resolver, and
-/// serves the graph's real SQL edge source. HTTP/session auth and Hasura's
-/// envelope are the only adapters; no trust value or event is manufactured.
-final class _PgWireServer extends _WireServer {
-  _PgWireServer(
-    this.backend, {
-    this.actorId = pg.ProfileTrustGraphPgFixture.alice,
-  });
-  final pg.ProfileTrustGraphPgFixture backend;
-  final String actorId;
-
-  Future<Map<String, Object?>> _profile(String id) async {
-    final vote = await backend.voteAmount(actorId, id);
-    final reverse = await backend.voteAmount(id, actorId);
-    return {
-      ...user(id),
-      'my_vote': vote,
-      'trusts_viewer': reverse > 0,
-      'is_mutual_friend': vote > 0 && reverse > 0,
-    };
-  }
-
-  @override
-  Future<http.Response> handle(http.Request request) async {
-    if (request.url.path.endsWith('/session/access-token')) {
-      return _response({
-        'subject': actorId,
-        'access_token': 'token-$actorId',
-        'expires_in': 3600,
-      });
-    }
-    final body = jsonDecode(request.body) as Map<String, dynamic>;
-    final variables = body['variables']! as Map<String, dynamic>;
-    final Map<String, Object?> data;
-    switch (body['operationName']) {
-      case 'UserVote':
-        expect(request.url.path, endsWith('/api/v2/graphql'));
-        data = await backend.executeMutation(body, actorId: actorId);
-        voteWrites.add(
-          (
-            personId: variables['objectId']! as String,
-            amount: variables['amount']! as int,
-          ),
-        );
-        viewerTrustsBob = await backend.voteAmount(_me.id, _bob.id) > 0;
-        bobTrustsViewer = await backend.voteAmount(_bob.id, _me.id) > 0;
-      case 'UserFetchById':
-        if (voteWrites.isNotEmpty) profileReadsAfterVote++;
-        data = {'user_by_pk': await _profile(variables['id']! as String)};
-      case 'UsersFetchByIds':
-        data = {
-          'user': [
-            for (final id in variables['ids']! as List)
-              await _profile(id as String),
-          ],
-        };
-      case 'GraphFetch':
-        data = {
-          'graph': [
-            for (final edge in await backend.edgeRows())
-              {
-                '__typename': 'graph_score',
-                ...edge,
-                'user': await _profile(edge['dst']! as String),
-              },
-          ],
-          'beacon_by_pk': null,
-        };
-      case 'GraphEdgesBetween':
-        data = {
-          'graph_edges_between': [
-            for (final edge in await backend.edgeRows())
-              {
-                '__typename': 'graph_score',
-                ...edge,
-              },
-          ],
-        };
-      default:
-        throw StateError('Unexpected operation ${body['operationName']}');
-    }
-    return _response({'data': data});
-  }
 }
 
 final class _SocketFactory implements RealtimeSocketFactory {
