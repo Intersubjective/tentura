@@ -19,12 +19,16 @@ class TagSuggestionCard extends StatefulWidget {
     required this.event,
     required this.personIds,
     required this.names,
+    this.alreadyEligible = false,
+    this.onDismissed,
     super.key,
   });
 
   final PeopleTagSuggestionEvent event;
   final List<String> personIds;
   final String names;
+  final bool alreadyEligible;
+  final VoidCallback? onDismissed;
 
   @override
   State<TagSuggestionCard> createState() => _TagSuggestionCardState();
@@ -41,7 +45,11 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
   void initState() {
     super.initState();
     unawaited(_peopleTags.ensureLoaded().catchError((Object _) {}));
-    unawaited(_check());
+    if (widget.alreadyEligible) {
+      _visible = true;
+    } else {
+      unawaited(_check());
+    }
   }
 
   @override
@@ -64,6 +72,7 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
 
   Future<void> _notNow() async {
     setState(() => _visible = false);
+    widget.onDismissed?.call();
     try {
       await _suggestions.notNow(widget.event);
     } catch (_) {}
@@ -71,6 +80,7 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
 
   Future<void> _disable() async {
     setState(() => _visible = false);
+    widget.onDismissed?.call();
     try {
       await _suggestions.disable();
     } catch (_) {}
@@ -85,7 +95,10 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
           PersonTagMemberOp(tagId: tagId, personId: id, add: true),
       ]);
       await _suggestions.accepted(widget.event);
-      if (mounted) setState(() => _visible = false);
+      if (mounted) {
+        setState(() => _visible = false);
+        widget.onDismissed?.call();
+      }
     } catch (e, s) {
       if (mounted) {
         showSnackBar(

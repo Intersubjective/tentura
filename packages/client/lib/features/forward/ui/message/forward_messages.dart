@@ -1,9 +1,10 @@
 import 'dart:async' show unawaited;
 
-import 'package:flutter/material.dart' show Dialog, showDialog;
+import 'package:flutter/material.dart' show Dialog, Navigator, showDialog;
 import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tag_suggestion_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
@@ -225,19 +226,27 @@ final class ForwardLocationMyWorkAddToTagMessage
   LocalizableMessage get label => const _AddToTagLabel();
 
   @override
-  void Function() get onPressed => () {
+  void Function() get onPressed => () async {
+    final event = PeopleTagSuggestionEvent.forwardSent(
+      '$beaconId:${([...recipientIds]..sort()).join(',')}',
+    );
+    try {
+      if (!await GetIt.I<PeopleTagSuggestionCase>().shouldShow(event)) return;
+    } catch (_) {
+      return;
+    }
     final context = GetIt.I<RootRouter>().navigatorKey.currentContext;
     if (context == null) return;
     unawaited(
       showDialog<void>(
         context: context,
-        builder: (_) => Dialog(
+        builder: (dialogContext) => Dialog(
           child: TagSuggestionCard(
-            event: PeopleTagSuggestionEvent.forwardSent(
-              '$beaconId:${([...recipientIds]..sort()).join(',')}',
-            ),
+            event: event,
             personIds: recipientIds,
             names: recipientNames,
+            alreadyEligible: true,
+            onDismissed: () => Navigator.of(dialogContext).pop(),
           ),
         ),
       ),
