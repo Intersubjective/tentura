@@ -97,6 +97,28 @@ void main() {
       returnsNormally,
     );
   });
+
+  // #700: offer and invite-answer receipts name the actor at write time, so
+  // the client need not parse the English title; the name must reach it.
+  test('actorName survives the GraphQL allow-list', () {
+    const offerPayload = {
+      'eventType': 'offerAccepted',
+      'actorUserId': 'u-alice',
+      'actorName': 'Alice GQ2',
+    };
+    final mapped = QueryAttention.mapReceiptForTesting(
+      _forwardRow(offerPayload),
+    );
+
+    final payload =
+        jsonDecode(mapped['presentationPayloadJson']! as String)
+            as Map<String, Object?>;
+    expect(payload['actorName'], 'Alice GQ2');
+    expect(
+      () => QueryAttention.validateAttentionPresentationPayload(offerPayload),
+      returnsNormally,
+    );
+  });
 }
 
 AttentionReceipt _forwardRow(Map<String, Object?> presentationPayload) =>

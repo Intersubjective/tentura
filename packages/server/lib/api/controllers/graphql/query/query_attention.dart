@@ -429,6 +429,9 @@ final class QueryAttention extends GqlNodeBase {
     'roleLabel',
     // #665: who sent the author invite the helper accepted.
     'inviterId',
+    // #700: the actor's display name at write time (offer and invite-answer
+    // receipts; `AttentionPolicy.actorNamePayloadEventTypes`).
+    'actorName',
   };
 
   /// #189 — the «вам» flag, a bool rather than a String.

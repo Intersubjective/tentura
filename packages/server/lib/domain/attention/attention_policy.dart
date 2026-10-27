@@ -14,6 +14,7 @@ class AttentionPolicy {
     required String recipientId,
     required Set<AttentionRecipientReason> recipientReasons,
     required AttentionRecipientRoleFacts role,
+    String? actorDisplayName,
   }) {
     AttentionEventTypeCatalog.assertDeclared(eventType);
 
@@ -57,6 +58,7 @@ class AttentionPolicy {
         eventType,
         role,
         personal: personal,
+        actorDisplayName: actorDisplayName,
       ),
       requiresAction: requiresAction,
       attentionThreadKey: requiresAction
@@ -726,6 +728,7 @@ class AttentionPolicy {
     AttentionEventType eventType,
     AttentionRecipientRoleFacts role, {
     required bool personal,
+    String? actorDisplayName,
   }) {
     final payload = <String, Object?>{
       'eventType': eventType.name,
@@ -750,6 +753,13 @@ class AttentionPolicy {
       if (value != null) {
         payload[key] = value;
       }
+    }
+    // #700: who did it, as their display name at write time, on the events
+    // whose row names a person. The client prefers the live profile and
+    // reads this before it falls back to parsing the English title.
+    if (actorNamePayloadEventTypes.contains(eventType)) {
+      final actorName = _safeActorName(actorDisplayName);
+      if (actorName != null) payload['actorName'] = actorName;
     }
     if (role.leftDiscussion != null) {
       payload['leftDiscussion'] = role.leftDiscussion;
@@ -777,6 +787,22 @@ class AttentionPolicy {
     final trimmed = value?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
     return trimmed.length > 512 ? trimmed.substring(0, 512) : trimmed;
+  }
+
+  /// #700: the events whose receipt payload carries `actorName`.
+  static const actorNamePayloadEventTypes = {
+    AttentionEventType.helpOfferSubmitted,
+    AttentionEventType.offerAccepted,
+    AttentionEventType.authorInviteAccepted,
+    AttentionEventType.authorInviteDeclined,
+  };
+
+  String? _safeActorName(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed.length > 256) {
+      return null;
+    }
+    return trimmed;
   }
 
   String? _safeStatusName(String? value) {

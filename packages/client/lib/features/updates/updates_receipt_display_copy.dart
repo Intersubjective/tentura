@@ -94,6 +94,14 @@ String? beaconTitleFromPresentationPayload(String presentationPayloadJson) {
 String? excerptFromPresentationPayload(String presentationPayloadJson) =>
     _payloadString(presentationPayloadJson, 'excerpt');
 
+/// The actor's display name the server stored when it wrote an offer or
+/// invite-answer receipt (#700); null on rows written before the field, or
+/// when blank.
+String? actorNameFromPresentationPayload(String presentationPayloadJson) {
+  final name = _payloadString(presentationPayloadJson, 'actorName');
+  return name == null || name.isEmpty ? null : name;
+}
+
 /// The [BeaconStatus] a status-change event moved the Request to.
 BeaconStatus? toStatusFromPresentationPayload(String presentationPayloadJson) {
   final name = _payloadString(presentationPayloadJson, 'toStatus');
@@ -543,7 +551,8 @@ UpdatesFeedRowCopy? planReceiptDisplayCopy({
 /// server titles the row with the person's name only, so the event comes
 /// from the locale. The body is the person's note, else the Request title.
 /// The name is [actorName] when the caller knows the person, else the
-/// receipt [title]. Null for any other receipt.
+/// payload's `actorName` (#700), else the receipt [title]. Null for any
+/// other receipt.
 UpdatesFeedRowCopy? authorInviteReceiptDisplayCopy({
   required String title,
   required String? presentationKey,
@@ -563,6 +572,7 @@ UpdatesFeedRowCopy? authorInviteReceiptDisplayCopy({
   final t = title.trim();
   final name =
       _nonBlank(actorName) ??
+      actorNameFromPresentationPayload(presentationPayloadJson) ??
       (t.isEmpty || t == request || _isServerCannedTitle(t) ? null : t);
   final headline = switch (kind) {
     'received' =>
@@ -609,9 +619,10 @@ const _offerSubmittedTitleTails = [
 /// the helper's row for an accepted offer (`offerAccepted`, titled
 /// «`<name>` accepted your offer» in English) both say what happened in the
 /// reader's language. The name is [actorName] when the caller knows the
-/// person, else read from the receipt [title]. The body is the Request
-/// title, with the helper's note on an offer (the receipt [body] on a row
-/// written before the payload carried `excerpt`). Null for any other receipt.
+/// person, else the payload's `actorName` (#700), else read from the
+/// receipt [title]. The body is the Request title, with the helper's note on
+/// an offer (the receipt [body] on a row written before the payload carried
+/// `excerpt`). Null for any other receipt.
 UpdatesFeedRowCopy? offerReceiptDisplayCopy({
   required String title,
   required String? presentationKey,
@@ -638,6 +649,7 @@ UpdatesFeedRowCopy? offerReceiptDisplayCopy({
   }
   final name =
       _nonBlank(actorName) ??
+      actorNameFromPresentationPayload(presentationPayloadJson) ??
       (t.isEmpty ||
               t == request ||
               _isServerCannedTitle(t) ||

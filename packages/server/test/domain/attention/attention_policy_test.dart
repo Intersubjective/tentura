@@ -190,6 +190,70 @@ void main() {
     }
   });
 
+  // #700: the client named the actor by parsing the English title when the
+  // profile was not loaded; the receipt now carries the name itself.
+  group('#700 actorName', () {
+    Map<String, Object?> payloadFor(
+      AttentionEventType eventType, {
+      String? actorDisplayName = 'Alice GQ2',
+    }) => policy
+        .project(
+          eventType: eventType,
+          recipientId: 'recipient',
+          recipientReasons: const {AttentionRecipientReason.authorOfBeacon},
+          role: const AttentionRecipientRoleFacts(
+            canReadBeaconContent: true,
+            beaconId: 'B1',
+            actorUserId: 'actor',
+            targetEntityId: 'T1',
+          ),
+          actorDisplayName: actorDisplayName,
+        )
+        .presentationPayload;
+
+    test('offer and invite-answer receipts carry the actor name', () {
+      for (final eventType in [
+        AttentionEventType.offerAccepted,
+        AttentionEventType.helpOfferSubmitted,
+        AttentionEventType.authorInviteAccepted,
+        AttentionEventType.authorInviteDeclined,
+      ]) {
+        final payload = payloadFor(eventType);
+        expect(payload['actorName'], 'Alice GQ2', reason: eventType.name);
+        expect(payload['actorUserId'], 'actor', reason: eventType.name);
+      }
+    });
+
+    test('the name is trimmed, and a blank name is left out', () {
+      expect(
+        payloadFor(
+          AttentionEventType.offerAccepted,
+          actorDisplayName: '  Bob  ',
+        )['actorName'],
+        'Bob',
+      );
+      for (final blank in [null, '', '   ']) {
+        expect(
+          payloadFor(
+            AttentionEventType.offerAccepted,
+            actorDisplayName: blank,
+          ).containsKey('actorName'),
+          isFalse,
+          reason: '$blank',
+        );
+      }
+    });
+
+    test('other events do not carry it', () {
+      expect(
+        payloadFor(AttentionEventType.roomMessagePosted).containsKey(
+          'actorName',
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('excerpt and toStatus', () {
     test('the excerpt is always present, and only the words', () {
       final withWords = policy.project(
