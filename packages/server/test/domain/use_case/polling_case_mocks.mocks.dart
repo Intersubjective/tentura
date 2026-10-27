@@ -241,6 +241,23 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, _i8.RoomLatestActivity>>);
 
   @override
+  _i3.Future<Map<String, String>> postRootExcerpts(
+    Iterable<String>? beaconIds, {
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #postRootExcerpts,
+              [beaconIds],
+              {#viewerUserId: viewerUserId},
+            ),
+            returnValue: _i3.Future<Map<String, String>>.value(
+              <String, String>{},
+            ),
+          )
+          as _i3.Future<Map<String, String>>);
+
+  @override
   _i3.Future<DateTime?> getMainRoomLastSeen({
     required String? beaconId,
     required String? userId,
