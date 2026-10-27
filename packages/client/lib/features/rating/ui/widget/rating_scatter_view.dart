@@ -42,6 +42,11 @@ const _tickLabelGap = 4.0;
 /// Share of a column's box another column may cover before they cluster.
 const _clusterOverlapShare = 0.15;
 
+/// Below this fit of the 800x800 canvas to the plot (a phone, #462) the
+/// canvas would draw avatars and names under 24 / 15 px, so people are
+/// drawn at full size in screen space and clustered there instead.
+const _minCanvasFit = 0.75;
+
 class RatingScatterView extends StatefulWidget {
   const RatingScatterView({
     required this.profiles,
@@ -125,6 +130,11 @@ class _RatingScatterViewState extends State<RatingScatterView>
       ? (plot.width / _canvasWidth).clamp(0.0, plot.height / _canvasHeight)
       : 1.0;
 
+  /// Whether people are drawn at a fixed size over the plot (zoomed in, or
+  /// a plot too small for the scaled canvas) instead of inside the canvas.
+  static bool _inScreenSpace(double scale, Size plot) =>
+      scale > 1.0 || _fitScale(plot) < _minCanvasFit;
+
   /// Map a canvas point to child space (FittedBox output, before the
   /// InteractiveViewer's transform).
   static Offset _canvasToChild(Offset canvas, Size plot) {
@@ -172,10 +182,14 @@ class _RatingScatterViewState extends State<RatingScatterView>
           padding: EdgeInsets.only(top: tt.tightGap),
           child: Text(l10n.rankToYou, style: axisTitleStyle),
         ),
+        // Inset like the screen's content, so on a phone the badges neither
+        // touch the side edges nor sit on the bottom edge when it wraps.
         Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: tt.tightGap,
-            vertical: tt.tightGap,
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            tt.tightGap,
+            tt.screenHPadding,
+            tt.rowGap,
           ),
           child: const _ScatterBadgeLegend(),
         ),
@@ -297,61 +311,69 @@ class _RatingScatterViewState extends State<RatingScatterView>
   Widget _buildPlotArea(BuildContext context, Size plotSize) {
     final l10n = L10n.of(context)!;
     _plotSize = plotSize;
-    return Stack(
-      children: [
-        InteractiveViewer(
-          transformationController: _transformController,
-          constrained: false,
-          minScale: _minScale,
-          maxScale: _maxScale,
-          onInteractionStart: (_) => _zoomAnimation.stop(),
-          child: SizedBox(
-            width: plotSize.width,
-            height: plotSize.height,
-            child: FittedBox(
-              child: SizedBox(
-                width: _canvasWidth,
-                height: _canvasHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CustomPaint(
-                      size: const Size(_canvasWidth, _canvasHeight),
-                      painter: _QuadrantBackgroundPainter(
-                        margin: _plotMargin,
-                        quadrantMyIdols: l10n.quadrantMyIdols,
-                        quadrantMyFriends: l10n.quadrantMyFriends,
-                        quadrantAcquaintances: l10n.quadrantAcquaintances,
-                        quadrantMyFans: l10n.quadrantMyFans,
+    // Clipped to the plot (#462): zoomed-in people never paint over the tick
+    // gutters, the axis titles or the legend.
+    return ClipRect(
+      child: Stack(
+        children: [
+          InteractiveViewer(
+            transformationController: _transformController,
+            constrained: false,
+            minScale: _minScale,
+            maxScale: _maxScale,
+            onInteractionStart: (_) => _zoomAnimation.stop(),
+            child: SizedBox(
+              width: plotSize.width,
+              height: plotSize.height,
+              child: FittedBox(
+                child: SizedBox(
+                  width: _canvasWidth,
+                  height: _canvasHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CustomPaint(
+                        size: const Size(_canvasWidth, _canvasHeight),
+                        painter: _QuadrantBackgroundPainter(
+                          margin: _plotMargin,
+                          quadrantMyIdols: l10n.quadrantMyIdols,
+                          quadrantMyFriends: l10n.quadrantMyFriends,
+                          quadrantAcquaintances: l10n.quadrantAcquaintances,
+                          quadrantMyFans: l10n.quadrantMyFans,
+                        ),
                       ),
-                    ),
-                    // Avatars in canvas (scaled with plot) when zoom <= 1
-                    ListenableBuilder(
-                      listenable: _transformController,
-                      builder: (context, _) {
-                        final scale = _scaleFromMatrix(
-                          _transformController.value,
-                        );
-                        if (scale > 1.0) return const SizedBox.shrink();
-                        return _buildScatterPlotAvatars(context);
-                      },
-                    ),
-                  ],
+                      // Avatars in canvas (scaled with plot) when zoom <= 1
+                      ListenableBuilder(
+                        listenable: _transformController,
+                        builder: (context, _) {
+                          final scale = _scaleFromMatrix(
+                            _transformController.value,
+                          );
+                          if (_inScreenSpace(scale, plotSize)) {
+                            return const SizedBox.shrink();
+                          }
+                          return _buildScatterPlotAvatars(context);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        // Fixed-size avatars in viewport when zoom > 1
-        ListenableBuilder(
-          listenable: _transformController,
-          builder: (context, _) {
-            final scale = _scaleFromMatrix(_transformController.value);
-            if (scale <= 1.0) return const SizedBox.shrink();
-            return _buildAvatarOverlay(context, plotSize, scale);
-          },
-        ),
-      ],
+          // Fixed-size avatars in viewport when zoomed in or on a phone
+          ListenableBuilder(
+            listenable: _transformController,
+            builder: (context, _) {
+              final scale = _scaleFromMatrix(_transformController.value);
+              if (!_inScreenSpace(scale, plotSize)) {
+                return const SizedBox.shrink();
+              }
+              return _buildAvatarOverlay(context, plotSize, scale);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -443,7 +465,15 @@ class _RatingScatterViewState extends State<RatingScatterView>
           )).clusters;
     return Stack(
       clipBehavior: Clip.none,
-      children: [for (final c in clusters) _buildPoint(context, c, myId)],
+      children: [
+        for (final c in clusters)
+          _buildPoint(
+            context,
+            c,
+            myId,
+            bounds: const Size(_canvasWidth, _canvasHeight),
+          ),
+      ],
     );
   }
 
@@ -483,7 +513,14 @@ class _RatingScatterViewState extends State<RatingScatterView>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (final c in clusters) _buildPoint(context, c, myId, offset: pan),
+          for (final c in clusters)
+            _buildPoint(
+              context,
+              c,
+              myId,
+              offset: pan,
+              bounds: plotSize,
+            ),
         ],
       ),
     );
@@ -610,11 +647,14 @@ class _RatingScatterViewState extends State<RatingScatterView>
   }
 
   /// Avatar + name column for a cluster lead, with a "+N" chip when others
-  /// are hidden behind it.
+  /// are hidden behind it. The avatar stays on its point; the name keeps
+  /// inside [bounds] (#462): near the left / right edge it slides inwards,
+  /// and at the bottom edge it sits above the avatar instead of below.
   Widget _buildPoint(
     BuildContext context,
     _ScatterCluster c,
     String myId, {
+    required Size bounds,
     Offset offset = Offset.zero,
   }) {
     final l10n = L10n.of(context)!;
@@ -627,15 +667,45 @@ class _RatingScatterViewState extends State<RatingScatterView>
       withRating: true,
       isSelf: isSelf,
     );
+    final left = c.rect.left + offset.dx;
+    final top = c.rect.top + offset.dy;
+    const maxShift = _labelWidth / 2;
+    final shift =
+        (left < 0
+                ? -left
+                : left + _labelWidth > bounds.width
+                ? bounds.width - left - _labelWidth
+                : 0.0)
+            .clamp(-maxShift, maxShift);
+    final nameAbove = top + c.rect.height > bounds.height;
+    final name = Transform.translate(
+      offset: Offset(shift, 0),
+      child: SizedBox(
+        width: _labelWidth,
+        height: _labelHeight,
+        child: Text(
+          SelfUserHighlight.displayName(l10n, profile, myId),
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+          style: SelfUserHighlight.nameStyle(
+            theme,
+            theme.textTheme.bodySmall,
+            isSelf,
+          ),
+        ),
+      ),
+    );
     return Positioned(
-      left: c.rect.left + offset.dx,
-      top: c.rect.top + offset.dy,
+      left: left,
+      top: nameAbove ? top - _labelHeight - _avatarLabelGap : top,
       width: _labelWidth,
       child: GestureDetector(
         onTap: () => context.read<RatingCubit>().showProfile(profile.id),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (nameAbove) ...[name, const SizedBox(height: _avatarLabelGap)],
             SizedBox(
               width: _labelWidth,
               height: _avatarSize,
@@ -680,22 +750,7 @@ class _RatingScatterViewState extends State<RatingScatterView>
                 ],
               ),
             ),
-            const SizedBox(height: _avatarLabelGap),
-            SizedBox(
-              width: _labelWidth,
-              height: _labelHeight,
-              child: Text(
-                SelfUserHighlight.displayName(l10n, profile, myId),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: SelfUserHighlight.nameStyle(
-                  theme,
-                  theme.textTheme.bodySmall,
-                  isSelf,
-                ),
-              ),
-            ),
+            if (!nameAbove) ...[const SizedBox(height: _avatarLabelGap), name],
           ],
         ),
       ),
