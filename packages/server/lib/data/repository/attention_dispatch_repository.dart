@@ -86,6 +86,7 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
         recipientId: recipient.recipientId,
         recipientReasons: recipient.reasons,
         role: role,
+        actorDisplayName: intent.actorDisplayName,
       );
       final collapseKey = recipient.collapseKey ?? intent.collapseKey;
       final dedupKey = '${recipient.recipientId}|attention-v1|$collapseKey';
