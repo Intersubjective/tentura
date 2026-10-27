@@ -68,7 +68,7 @@ final _now = DateTime.utc(2026, 10, 27, 12);
 const _archivedHint =
     'Пост в архиве — писать нельзя. Продолжить разговор можно в запросе.';
 const _budLabel = 'Оформить запрос';
-const _leaveLabel = 'Выйти из чата';
+const _leaveLabel = 'Выйти из поста';
 const _leaveConfirm = 'Выйти';
 const _deleteMessage = 'Удалить сообщение';
 const _reply = 'Ответить';
