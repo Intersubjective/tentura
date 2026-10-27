@@ -302,6 +302,14 @@ final class ForwardCase extends UseCaseBase {
       beaconId: beaconId,
     );
     final isPost = firstRead.kind == BeaconKind.post;
+    // #501: a Post carries no reasons and no explicit attribution (the picker
+    // hides both, like `updateReasons` refuses a non-Request). They are
+    // ignored rather than refused, so an old draft that still holds them
+    // does not fail the forward.
+    List<String>? reasonSlugsFor(String recipientId) => isPost
+        ? null
+        : perRecipientReasonSlugs?[recipientId] ?? sharedReasonSlugs;
+    final explicitAttributionParents = isPost ? null : attributionParentEdgeIds;
 
     // Requests: checks run before the transaction. Posts: every mutable check
     // runs after the post lock, inside the transaction.
@@ -364,9 +372,7 @@ final class ForwardCase extends UseCaseBase {
         final createdEdges = batchResult.createdEdges;
 
         for (final created in createdEdges) {
-          final slugs =
-              perRecipientReasonSlugs?[created.recipientId] ??
-              sharedReasonSlugs;
+          final slugs = reasonSlugsFor(created.recipientId);
           if (slugs == null) continue;
           if (slugs.isNotEmpty) {
             _validateReasonSlugs(slugs);
@@ -396,7 +402,7 @@ final class ForwardCase extends UseCaseBase {
             senderId: senderId,
             batchId: batchId,
             clientParentEdgeId: parentEdgeId,
-            attributionParentEdgeIds: attributionParentEdgeIds,
+            attributionParentEdgeIds: explicitAttributionParents,
           );
 
           final intents = _attentionIntents;

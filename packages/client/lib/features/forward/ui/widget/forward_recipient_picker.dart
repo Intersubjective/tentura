@@ -308,7 +308,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   Future<void> _submitForward(BuildContext context) async {
     final cubit = context.read<ForwardCubit>();
     List<String>? attributionParentEdgeIds;
-    if (cubit.state.profile.showsAttribution &&
+    if (_profile(cubit.state).showsAttribution &&
         !cubit.state.hasMyOutgoingForward) {
       try {
         final sources = await cubit.fetchInboundSources();
@@ -455,7 +455,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   /// Whether the copy speaks of a Post (#501): the host's `copyProfile`
   /// wins, as a new Post's draft is not a loaded beacon.
   bool _isPost(ForwardState state) =>
-      (widget.copyProfile ?? state.profile) == ForwardTargetProfile.post;
+      _profile(state) == ForwardTargetProfile.post;
+
+  /// The profile the picker's affordances follow (#501): in the Post
+  /// composer the forward state has no beacon and reads as a Request, so the
+  /// host's `copyProfile` wins there too, not only for the copy.
+  ForwardTargetProfile _profile(ForwardState state) =>
+      widget.copyProfile ?? state.profile;
 
   bool _inviteEnabled(ForwardState state) => inviteNewPersonEnabled(
     beaconId: widget.beaconId,
@@ -583,8 +589,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               ],
               searchQuery,
             );
-            final profile = state.profile;
-            final copyProfile = widget.copyProfile ?? profile;
+            final profile = _profile(state);
             final showLineageBlock =
                 profile.showsLineage &&
                 state.activeFilter != ForwardFilter.alreadyInvolved;
@@ -660,7 +665,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        copyProfile == ForwardTargetProfile.post
+                        profile == ForwardTargetProfile.post
                             ? l10n.forwardPostTitle
                             : l10n.forwardBeaconTitle,
                         maxLines: 1,
@@ -788,6 +793,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 child: ForwardTagPicker(
                                   state: state,
                                   onToggle: (id) => _toggle(cubit, id),
+                                  showForwardNote: profile.showsReasons,
                                 ),
                               ),
                               SliverPersistentHeader(
@@ -801,7 +807,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     activeFilter: state.activeFilter,
                                     counts: counts,
                                     onScopeChanged: cubit.setFilter,
-                                    profile: copyProfile,
+                                    profile: profile,
                                   ),
                                 ),
                               ),
@@ -940,12 +946,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               sourceContext: context,
               forwardCubit: cubit,
               candidate: lineage[i],
+              isPost: _isPost(state),
             ),
           ),
-          reasonSlugs: state.profile.showsReasons
+          reasonSlugs: _profile(state).showsReasons
               ? state.recipientReasons[lineage[i].id] ?? const []
               : const [],
-          onEditReasons: !state.profile.showsReasons
+          onEditReasons: !_profile(state).showsReasons
               ? null
               : () => unawaited(
                   _editReasons(
@@ -1047,12 +1054,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               sourceContext: context,
               forwardCubit: cubit,
               candidate: ordered[i],
+              isPost: _isPost(state),
             ),
           ),
-          reasonSlugs: state.profile.showsReasons
+          reasonSlugs: _profile(state).showsReasons
               ? state.recipientReasons[ordered[i].id] ?? const []
               : const [],
-          onEditReasons: !state.profile.showsReasons
+          onEditReasons: !_profile(state).showsReasons
               ? null
               : () => unawaited(
                   _editReasons(

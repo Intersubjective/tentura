@@ -341,6 +341,75 @@ void main() {
     });
   });
 
+  // #501: a Post has no reasons and no explicit attribution (the picker
+  // hides both), and an old draft may still carry them: they are ignored.
+  group('ForwardCase on a Post ignores reasons and attribution parents', () {
+    setUp(() {
+      when(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: anyNamed('forwardEdgeId'),
+          observerId: anyNamed('observerId'),
+          subjectId: anyNamed('subjectId'),
+          slugs: anyNamed('slugs'),
+        ),
+      ).thenAnswer((_) async {});
+    });
+
+    Future<ForwardDeliveryResult> forwardWithExtras() => case_.forward(
+      senderId: _forwarderId,
+      beaconId: _beaconId,
+      recipientIds: const [_recipientId],
+      sharedReasonSlugs: const ['transport'],
+      perRecipientReasonSlugs: const {
+        _recipientId: ['tools'],
+      },
+      attributionParentEdgeIds: const ['Eparent'],
+    );
+
+    test('delivers a Post without reasons or explicit attribution', () async {
+      stubBeacon(
+        beacon(kind: BeaconKind.post, policy: BeaconForwardPolicyValue.open),
+      );
+
+      final result = await forwardWithExtras();
+
+      expect(result.deliveredRecipientIds, [_recipientId]);
+      verifyZeroInteractions(capabilityEvidence);
+      verifyNever(
+        forwardAttributionRepo.record(
+          batchId: anyNamed('batchId'),
+          weightByParentEdgeId: anyNamed('weightByParentEdgeId'),
+          method: anyNamed('method'),
+        ),
+      );
+    });
+
+    test('still reconciles reasons on a Request (guard)', () async {
+      stubBeacon(
+        beacon(
+          kind: BeaconKind.request,
+          policy: BeaconForwardPolicyValue.open,
+        ),
+      );
+
+      await case_.forward(
+        senderId: _forwarderId,
+        beaconId: _beaconId,
+        recipientIds: const [_recipientId],
+        sharedReasonSlugs: const ['transport'],
+      );
+
+      verify(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E1',
+          observerId: _forwarderId,
+          subjectId: _recipientId,
+          slugs: ['transport'],
+        ),
+      ).called(1);
+    });
+  });
+
   group('ForwardCase on a Request', () {
     test('lets a non-author forward an open Request', () async {
       stubBeacon(

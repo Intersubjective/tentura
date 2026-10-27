@@ -243,6 +243,19 @@ void main() {
       );
     });
 
+    // Guard: an unloaded beacon with no host profile stays a Request.
+    testWidgets('an unloaded beacon keeps the reasons button and band', (
+      tester,
+    ) async {
+      await _pump(tester, null);
+
+      expect(find.byType(ForwardBandStrip), findsOneWidget);
+      expect(
+        find.byTooltip('Why are you forwarding to this person?'),
+        findsWidgets,
+      );
+    });
+
     testWidgets('title and scope tab hints speak of the request', (
       tester,
     ) async {
@@ -302,6 +315,25 @@ void main() {
         find.byTooltip("People already in this post's forward chain"),
         findsOneWidget,
       );
+    });
+
+    // #501 (QA 7.52.0): New post › Recipients still offered the reason
+    // button and the band, as the draft has no beacon and the forward state
+    // read as a Request; the host's copyProfile now gates them too.
+    testWidgets('the Post composer offers no reasons button', (tester) async {
+      await _pump(tester, null, copyProfile: ForwardTargetProfile.post);
+
+      expect(
+        find.byTooltip('Why are you forwarding to this person?'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the Post composer shows no band or lineage', (tester) async {
+      await _pump(tester, null, copyProfile: ForwardTargetProfile.post);
+
+      expect(find.byType(ForwardBandStrip), findsNothing);
+      expect(find.byType(LineageForwardSectionHeader), findsNothing);
     });
 
     testWidgets('hides the band strip', (tester) async {
