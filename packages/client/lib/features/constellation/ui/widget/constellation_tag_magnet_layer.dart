@@ -5,6 +5,8 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
+import '../utils/constellation_magnet_label_clearance.dart';
+import '../utils/constellation_tap_resolver.dart';
 import 'constellation_tag_magnet_control.dart';
 
 /// Screen-sized hit regions over scene-space labels; camera changes move the
@@ -13,11 +15,15 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
   const ConstellationTagMagnetLayer({
     required this.cubit,
     required this.tags,
+    required this.frameHolder,
     super.key,
   });
 
   final ConstellationCubit cubit;
   final List<PersonTag> tags;
+
+  /// Source of the placed node labels a magnet must not cover.
+  final ConstellationPresentationFrameHolder frameHolder;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -26,11 +32,12 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
       children: [
         for (final tag in tags)
           if (cubit.tagMagnets[tag.id] case final at?)
-            Positioned(
-              left: cubit.graphController.sceneToViewportLocal(at).dx,
-              top: cubit.graphController.sceneToViewportLocal(at).dy,
-              child: FractionalTranslation(
-                translation: const Offset(-0.5, -0.5),
+            Positioned.fill(
+              child: CustomSingleChildLayout(
+                delegate: _MagnetLabelClearDelegate(
+                  center: cubit.graphController.sceneToViewportLocal(at),
+                  labels: frameHolder.frame?.labels.values.toList() ?? const [],
+                ),
                 child: ConstellationTagMagnetControl(
                   actionLabel: L10n.of(context)!.buttonRemove,
                   onAction: () => cubit.removeTagMagnet(tag.id),
@@ -45,4 +52,31 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Centres the magnet on its point, then steps it clear of node labels.
+class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
+  const _MagnetLabelClearDelegate({required this.center, required this.labels});
+
+  final Offset center;
+  final List<Rect> labels;
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) => clearMagnetOfLabels(
+    Rect.fromCenter(
+      center: center,
+      width: childSize.width,
+      height: childSize.height,
+    ),
+    labels,
+    bounds: Offset.zero & size,
+  ).topLeft;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  bool shouldRelayout(_MagnetLabelClearDelegate old) =>
+      center != old.center || !listEquals(labels, old.labels);
 }

@@ -1768,6 +1768,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             child: ConstellationTagMagnetLayer(
               cubit: cubit,
               tags: _peopleTags?.tags ?? const [],
+              frameHolder: _frameHolder,
             ),
           ),
         // The handle paints before the sheet below, so panning the circle
