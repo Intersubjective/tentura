@@ -23,6 +23,7 @@ import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
+import 'package:tentura/features/like/domain/port/person_trust_writes_port.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/forwards_graph_repository.dart';
@@ -70,6 +71,7 @@ class GraphCubit extends Cubit<GraphState> {
     ProfileRepositoryPort? profileRepository,
     BlockCase? blockCase,
     RealtimeSyncCase? realtimeSyncCase,
+    PersonTrustWritesPort? personTrustWrites,
     UiEffectPort? effects,
   }) : assert(
          !genealogyMode || forwardsGraphBeaconId == null,
@@ -116,6 +118,15 @@ class GraphCubit extends Cubit<GraphState> {
       );
     }
     if (mode == GraphMode.trust) {
+      final trustWrites =
+          personTrustWrites ??
+          (GetIt.I.isRegistered<PersonTrustWritesPort>()
+              ? GetIt.I<PersonTrustWritesPort>()
+              : null);
+      _ownTrustChanges = trustWrites?.personTrustWrites.listen(
+        (write) => _scheduleRelationshipRefresh(write.personId),
+        cancelOnError: false,
+      );
       final realtime =
           realtimeSyncCase ??
           (GetIt.I.isRegistered<RealtimeSyncCase>()
@@ -168,6 +179,8 @@ class GraphCubit extends Cubit<GraphState> {
   StreamSubscription<RepositoryEvent<BlockIntent>>? _blockChanges;
 
   StreamSubscription<RealtimeEntityChange>? _relationshipChanges;
+
+  StreamSubscription<PersonTrustWrite>? _ownTrustChanges;
 
   StreamSubscription<void>? _catchUps;
 
@@ -311,6 +324,7 @@ class GraphCubit extends Cubit<GraphState> {
   Future<void> close() async {
     _relationshipRefreshTimer?.cancel();
     await _relationshipChanges?.cancel();
+    await _ownTrustChanges?.cancel();
     await _catchUps?.cancel();
     await _blockChanges?.cancel();
     graphController.dispose();
