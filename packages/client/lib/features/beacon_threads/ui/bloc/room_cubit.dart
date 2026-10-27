@@ -1497,7 +1497,15 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> deleteMessage({required String messageId}) async {
-    if (_rejectIfDiscussionReadOnly()) return;
+    final archivedPostOwnMessage =
+        capabilities.pinnedStrip == RoomPinnedStrip.postRoot &&
+        (state.beaconExpired || state.beaconStatus == BeaconStatus.closed) &&
+        (state.messages.any(
+              (message) =>
+                  message.id == messageId && message.authorId == state.myUserId,
+            ) ||
+            _pinnedOffWindowMessages[messageId]?.authorId == state.myUserId);
+    if (!archivedPostOwnMessage && _rejectIfDiscussionReadOnly()) return;
     final previousMessages = List<RoomMessage>.from(state.messages);
     final previousReplyTarget = state.replyTarget;
     final previousPinnedJumpIds = state.pinnedJumpMessageIds;
