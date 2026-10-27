@@ -543,17 +543,29 @@ class _MembersLine extends StatelessWidget {
         : expiresAt == null
         ? ''
         : postRemainingLabel(l10n, expiresAt.difference(now));
-    final text = lifetime.isEmpty
-        ? who
-        : who.isEmpty
-        ? lifetime
-        : l10n.postHeaderAuthorMembers(who, lifetime);
-    if (text.isEmpty) return const SizedBox.shrink();
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: style,
+    if (who.isEmpty && lifetime.isEmpty) return const SizedBox.shrink();
+    if (who.isEmpty || lifetime.isEmpty) {
+      return Text(
+        who.isEmpty ? lifetime : who,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          fit: FlexFit.loose,
+          child: Text(
+            who,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+        Text(l10n.postHeaderAuthorMembers('', lifetime), style: style),
+      ],
     );
   }
 }

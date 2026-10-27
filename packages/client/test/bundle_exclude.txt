@@ -7,3 +7,4 @@
 # text with Inter instead of the test font (#609, PR8 CI: the 360 px tab
 # bar then keeps its labels and drops the icons other files look for).
 test/features/beacon_view/beacon_surface_tabs_360_labels_test.dart
+test/features/post_view/post_view_screen_test.dart

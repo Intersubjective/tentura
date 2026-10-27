@@ -9,8 +9,12 @@
 // HUD.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md).
 
+import 'dart:io';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
@@ -728,6 +732,209 @@ void main() {
 
       expect(_titleText(), findsOneWidget);
       expect(_inAppBar(find.text('Олег · 2 participants')), findsOneWidget);
+    });
+  });
+
+  group('Post header lifetime visibility', () {
+    // Ahem's fixed-width glyphs make the Russian label wider than the entire
+    // 320 px header slot; measure the real app font for these layout checks.
+    setUpAll(() async {
+      final loader = FontLoader('Inter');
+      for (final weight in const ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+        final bytes = File('fonts/Inter-$weight.ttf').readAsBytesSync();
+        loader.addFont(Future.value(ByteData.sublistView(bytes)));
+      }
+      await loader.load();
+    });
+
+    const longAuthor = Profile(
+      id: 'Uauthor',
+      displayName: 'Alexandria Catherine Montgomery-Wellington',
+    );
+
+    Future<void> pumpHeader(
+      WidgetTester tester, {
+      required double width,
+      required bool archived,
+      Profile author = longAuthor,
+      Locale locale = const Locale('en'),
+    }) async {
+      final post = _post(viewerCanForward: true).copyWith(
+        author: author,
+        expiresAt: DateTime.now().add(const Duration(days: 2, hours: 12)),
+        status: archived ? BeaconStatus.closed : BeaconStatus.open,
+      );
+      await _pumpPost(
+        tester,
+        beacon: post,
+        viewer: _reader,
+        surface: Size(width, 667),
+        locale: locale,
+      );
+    }
+
+    RenderParagraph paragraph(WidgetTester tester, String text) {
+      final matching = _inAppBar(find.textContaining(text));
+      expect(matching, findsOneWidget);
+      return tester.renderObject<RenderParagraph>(matching);
+    }
+
+    void expectEntireLabelVisible(
+      WidgetTester tester,
+      String label, {
+      double? lineTop,
+    }) {
+      final render = paragraph(tester, label);
+      final text = render.text.toPlainText();
+      final start = text.indexOf(label);
+      for (var index = start; index < start + label.length; index++) {
+        final boxes = render.getBoxesForSelection(
+          TextSelection(baseOffset: index, extentOffset: index + 1),
+        );
+        expect(
+          boxes,
+          isNotEmpty,
+          reason: 'Character $index of $label is hidden',
+        );
+        if (lineTop != null) {
+          expect(
+            render.localToGlobal(boxes.single.toRect().topLeft).dy,
+            closeTo(lineTop, 0.01),
+            reason: 'Character $index of $label must stay on the subtitle line',
+          );
+        }
+      }
+    }
+
+    void expectLifetimeAdjacent(
+      RenderParagraph who,
+      RenderParagraph lifetime,
+      String label,
+    ) {
+      final whoText = who.text.toPlainText();
+      Rect? lastVisible;
+      for (var index = whoText.length - 1; index >= 0; index--) {
+        final boxes = who.getBoxesForSelection(
+          TextSelection(baseOffset: index, extentOffset: index + 1),
+        );
+        if (boxes.isNotEmpty) {
+          lastVisible = boxes.last.toRect();
+          break;
+        }
+      }
+      expect(lastVisible, isNotNull);
+      final labelStart = lifetime.text.toPlainText().indexOf(label);
+      final labelBox = lifetime.getBoxesForSelection(
+        TextSelection(baseOffset: labelStart, extentOffset: labelStart + 1),
+      );
+      expect(labelBox, isNotEmpty);
+      final gap =
+          lifetime.localToGlobal(labelBox.first.toRect().topLeft).dx -
+          who.localToGlobal(lastVisible!.topRight).dx;
+      final separator = TextPainter(
+        text: TextSpan(
+          text: who.didExceedMaxLines ? '… · ' : ' · ',
+          style: who.text.style,
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      expect(gap, greaterThanOrEqualTo(0));
+      expect(gap, lessThanOrEqualTo(separator.width + 4));
+      separator.dispose();
+    }
+
+    for (final width in [320.0, 375.0]) {
+      for (final locale in [const Locale('en'), const Locale('ru')]) {
+        for (final archived in [false, true]) {
+          final label = locale.languageCode == 'ru'
+              ? (archived ? 'в архиве' : 'осталось 2 д')
+              : (archived ? 'archived' : '2 d left');
+          final membersLabel = locale.languageCode == 'ru'
+              ? '2 участника'
+              : '2 participants';
+          testWidgets('at ${width.toInt()} px the $label label stays on the '
+              'subtitle line while author and members ellipsise', (
+            tester,
+          ) async {
+            await pumpHeader(
+              tester,
+              width: width,
+              archived: archived,
+              locale: locale,
+            );
+
+            final author = paragraph(tester, longAuthor.displayName);
+            final members = paragraph(tester, membersLabel);
+            final lifetime = paragraph(tester, label);
+            expect(
+              (author.didExceedMaxLines &&
+                      author.overflow == TextOverflow.ellipsis) ||
+                  (members.didExceedMaxLines &&
+                      members.overflow == TextOverflow.ellipsis),
+              isTrue,
+              reason: 'The author or members text must display an ellipsis',
+            );
+            expect(
+              author.localToGlobal(Offset.zero).dy,
+              closeTo(members.localToGlobal(Offset.zero).dy, 0.01),
+            );
+            expect(
+              author.localToGlobal(Offset.zero).dy,
+              closeTo(lifetime.localToGlobal(Offset.zero).dy, 0.01),
+            );
+            final authorStart = author.text.toPlainText().indexOf(
+              longAuthor.displayName,
+            );
+            final firstCharacter = author.getBoxesForSelection(
+              TextSelection(
+                baseOffset: authorStart,
+                extentOffset: authorStart + 1,
+              ),
+            );
+            expect(firstCharacter, isNotEmpty);
+            final lineTop = author
+                .localToGlobal(firstCharacter.first.toRect().topLeft)
+                .dy;
+            expectEntireLabelVisible(tester, label, lineTop: lineTop);
+            expectLifetimeAdjacent(author, lifetime, label);
+            expect(tester.takeException(), isNull);
+          });
+        }
+      }
+    }
+
+    testWidgets('desktop shows the complete author, participant count and '
+        'remaining time on one line', (tester) async {
+      await pumpHeader(tester, width: 1280, archived: false, author: _author);
+
+      final author = paragraph(tester, _author.displayName);
+      final members = paragraph(tester, '2 participants');
+      final lifetime = paragraph(tester, '2 d left');
+      expect(author.didExceedMaxLines, isFalse);
+      expect(members.didExceedMaxLines, isFalse);
+      expectEntireLabelVisible(tester, _author.displayName);
+      expectEntireLabelVisible(tester, '2 participants');
+      expectEntireLabelVisible(tester, '2 d left');
+      expectLifetimeAdjacent(members, lifetime, '2 d left');
+      expect(
+        author.localToGlobal(Offset.zero).dy,
+        members.localToGlobal(Offset.zero).dy,
+      );
+      expect(
+        members.localToGlobal(Offset.zero).dy,
+        lifetime.localToGlobal(Offset.zero).dy,
+      );
+      final headerText = tester
+          .widgetList<RichText>(
+            _inAppBar(find.byType(RichText)),
+          )
+          .map((text) => text.text.toPlainText())
+          .join();
+      expect(
+        headerText,
+        contains('${_author.displayName} · 2 participants · 2 d left'),
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 
