@@ -43,11 +43,11 @@ Handler requestContextIoAdapter(Handler handler) => (request) async {
       (_) {},
       onError: (Object error) {
         disconnected = true;
-        context.cancel(error);
+        context.cancelForClientDisconnect(error);
       },
       onDone: () {
         disconnected = true;
-        context.cancel();
+        context.cancelForClientDisconnect();
       },
     );
     try {

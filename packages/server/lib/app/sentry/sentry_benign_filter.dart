@@ -1,13 +1,34 @@
 import 'dart:io';
 
 import 'package:logging/logging.dart';
+import 'package:postgres/postgres.dart' show ServerException;
 import 'package:sentry/sentry.dart';
 import 'package:shelf/shelf.dart' show HijackException;
+
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/request_context.dart';
 
 /// Whether [error] is expected network churn that should not become a Sentry issue.
 bool isBenignServerThrowable(Object? error) {
   if (error == null) {
     return false;
+  }
+  final disconnectReason = RequestContext.current?.clientDisconnectReason;
+  if (disconnectReason != null &&
+      (identical(error, disconnectReason) ||
+          error is ServerException &&
+              error.code == '57014' &&
+              error.message == 'canceling statement due to user request')) {
+    return true;
+  }
+  // Admission saturation is capacity backpressure on session routes too.
+  if (error case ConstellationException(
+    code: ConstellationExceptionCodes(
+      exceptionCode: ConstellationExceptionCode.retryLater,
+    ),
+  )) {
+    return true;
   }
   if (error is SocketException) {
     return true;

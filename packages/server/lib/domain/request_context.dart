@@ -22,11 +22,14 @@ final class RequestContext {
   Duration _budget = const Duration(seconds: 5);
   Timer? _timer;
   late Object _reason;
+  bool _clientDisconnected = false;
 
   DateTime get deadline => _startedAt.add(_budget);
   Duration get remaining => _budget - _clock.elapsed;
   Future<void> get cancellation => _cancelled.future;
   bool get isCancelled => _cancelled.isCompleted;
+  Object? get clientDisconnectReason =>
+      _clientDisconnected && isCancelled ? _reason : null;
 
   Future<T> run<T>(Future<T> Function() action) =>
       runZoned(action, zoneValues: {_zoneKey: this});
@@ -70,6 +73,13 @@ final class RequestContext {
     for (final listener in _listeners.toList()) {
       listener();
     }
+  }
+
+  /// Preserve the first cancellation cause, including an earlier deadline.
+  void cancelForClientDisconnect([Object? reason]) {
+    if (isCancelled) return;
+    _clientDisconnected = true;
+    cancel(reason);
   }
 
   /// Registration is synchronous so disconnect cannot race scope release.
