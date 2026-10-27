@@ -125,6 +125,8 @@ void main() {
     ).thenAnswer((_) async => const <String>[]);
     capabilityEvidence = MockCapabilityEvidencePort();
     beaconRepo = MockBeaconRepositoryPort();
+    // A live Post: these cases are about the forward policy, not expiry.
+    when(beaconRepo.postExpiresAt(any)).thenAnswer((_) async => null);
     personVisibilityRepo = MockPersonVisibilityRepositoryPort();
     postLock = _RecordingPostLock();
     attention = TestAttentionHarness();

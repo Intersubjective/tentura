@@ -164,6 +164,8 @@ void main() {
     invitationRepo = MockInvitationRepositoryPort();
     userRepo = MockUserRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
+    // A live Post: these cases are about the forward policy, not expiry.
+    when(beaconRepo.postExpiresAt(any)).thenAnswer((_) async => null);
     friendshipLookup = MockVoteUserFriendshipLookupPort();
     contactRepo = MockUserContactRepositoryPort();
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
