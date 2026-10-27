@@ -856,6 +856,40 @@ class RoomMessageTile extends StatelessWidget {
                       joinedName,
                       actorName,
                     ));
+        // #527: what the helper offered, quoted under the line that says
+        // they joined, so the team sees it without opening their card. The
+        // room's participant list carries the offer note.
+        final offerNote =
+            participants
+                .where((p) => p.userId == joinedId)
+                .firstOrNull
+                ?.offerNote
+                .trim() ??
+            '';
+        final joinedRow = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_add_alt_1_outlined,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
+            SizedBox(width: tt.iconTextGap / 2),
+            Flexible(
+              child: Text(
+                line,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                  height: 1.15,
+                ),
+              ),
+            ),
+          ],
+        );
         return Padding(
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
@@ -863,30 +897,27 @@ class RoomMessageTile extends StatelessWidget {
             tt.screenHPadding,
             bottomPad / 2,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.person_add_alt_1_outlined,
-                size: 14,
-                color: scheme.onSurfaceVariant,
-              ),
-              SizedBox(width: tt.iconTextGap / 2),
-              Flexible(
-                child: Text(
-                  line,
-                  textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    height: 1.15,
-                  ),
+          child: offerNote.isEmpty
+              ? joinedRow
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    joinedRow,
+                    SizedBox(height: tt.tightGap),
+                    Text(
+                      l10n.beaconRoomParticipantJoinedOfferQuote(offerNote),
+                      key: const Key('room-participant-joined-offer-quote'),
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         );
       }
     }

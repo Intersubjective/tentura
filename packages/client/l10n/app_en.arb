@@ -5638,6 +5638,15 @@
       }
     }
   },
+  "beaconRoomParticipantJoinedOfferQuote": "“{note}”",
+  "@beaconRoomParticipantJoinedOfferQuote": {
+    "description": "Room (#527): the helper's own offer text, quoted under the line that says they joined the discussion.",
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "roomStatusChangedByActor": "{actor} changed the status: {from} → {to}",
   "@roomStatusChangedByActor": {
     "placeholders": {
