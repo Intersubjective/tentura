@@ -139,7 +139,11 @@ class _ConstellationMinimapState extends State<ConstellationMinimap> {
             if (expanded)
               Padding(
                 padding: EdgeInsets.only(top: context.tt.tightGap * 2),
+                // A pointer-only shortcut: a semantics tap has no position,
+                // and its tap action would merge into the map's own node and
+                // claim every click on the map on the web (#640).
                 child: GestureDetector(
+                  excludeFromSemantics: true,
                   onTapUp: (details) =>
                       _moveCameraTo(projection, details.localPosition),
                   child: SizedBox(

@@ -2085,9 +2085,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
 /// [Semantics] whose node rect is at least [kMinInteractiveDimension] on
 /// screen at any zoom (#678), like the tap target (#640), so touch
 /// exploration finds the node where a tap does. Where the enlarged rects of
-/// neighbouring nodes overlap, each keeps only its side of the line halfway
-/// between the two centres, so a click through the semantics tree reaches the
-/// nearest node, as the tap hit test does.
+/// neighbouring nodes would cross the line halfway between two centres, the
+/// rect shrinks to its own side, so a click through the semantics tree only
+/// ever reaches the nearest node; a click between the rects reaches the map
+/// as pointer events, which resolve to the nearest node too (#640).
 class _MinExtentSemantics extends Semantics {
   // Not const: Semantics has no const constructor taking these flags.
   _MinExtentSemantics({
@@ -2158,34 +2159,72 @@ class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
     if (bounds.width >= minExtent && bounds.height >= minExtent) {
       return bounds;
     }
-    var left = bounds.center.dx - math.max(bounds.width, minExtent) / 2;
-    var right = bounds.center.dx + math.max(bounds.width, minExtent) / 2;
-    var top = bounds.center.dy - math.max(bounds.height, minExtent) / 2;
-    var bottom = bounds.center.dy + math.max(bounds.height, minExtent) / 2;
-    // Cut at the line across the axis the neighbour lies mostly along, halfway
-    // to its centre; both nodes cut at the same line, so their rects never
-    // overlap.
+    // Extents from the centre: left, right, up, down.
+    var left = math.max(bounds.width, minExtent) / 2;
+    var right = left;
+    var up = math.max(bounds.height, minExtent) / 2;
+    var down = up;
+    // Keep the rect on this node's side of the line halfway to each
+    // neighbour's centre: the corner nearest that neighbour may not cross it.
+    // The axis the neighbour lies mostly along gives way first, down to a
+    // quarter of the distance; then the other axis does too.
     for (final offset in neighbourOffsets()) {
       final dx = offset.dx / scale;
       final dy = offset.dy / scale;
+      // A neighbour a whole target away along either axis never reaches into
+      // this rect with its own round target, so the tap hit test never picks
+      // it here either.
       if (dx.abs() >= minExtent || dy.abs() >= minExtent) {
         continue;
       }
-      if (dx.abs() >= dy.abs() && dx != 0) {
+      final xMajor = dx.abs() >= dy.abs();
+      final major = xMajor ? dx.abs() : dy.abs();
+      final minor = xMajor ? dy.abs() : dx.abs();
+      if (major == 0) {
+        continue;
+      }
+      double majorExtent() =>
+          xMajor ? (dx > 0 ? right : left) : (dy > 0 ? down : up);
+      double minorExtent() =>
+          xMajor ? (dy > 0 ? down : up) : (dx > 0 ? right : left);
+      final half = (major * major + minor * minor) / 2;
+      if (major * majorExtent() + minor * minorExtent() <= half) {
+        continue;
+      }
+      var minorCap = minorExtent();
+      if (minor > 0) {
+        minorCap = math.min(minorCap, (half - major * major / 4) / minor);
+      }
+      final majorCap = math.min(
+        majorExtent(),
+        (half - minor * minorCap) / major,
+      );
+      if (xMajor) {
         if (dx > 0) {
-          right = math.min(right, bounds.center.dx + dx / 2);
+          right = majorCap;
         } else {
-          left = math.max(left, bounds.center.dx + dx / 2);
+          left = majorCap;
         }
-      } else if (dy != 0) {
         if (dy > 0) {
-          bottom = math.min(bottom, bounds.center.dy + dy / 2);
+          down = minorCap;
+        } else if (dy < 0) {
+          up = minorCap;
+        }
+      } else {
+        if (dy > 0) {
+          down = majorCap;
         } else {
-          top = math.max(top, bounds.center.dy + dy / 2);
+          up = majorCap;
+        }
+        if (dx > 0) {
+          right = minorCap;
+        } else if (dx < 0) {
+          left = minorCap;
         }
       }
     }
-    return Rect.fromLTRB(left, top, right, bottom);
+    final c = bounds.center;
+    return Rect.fromLTRB(c.dx - left, c.dy - up, c.dx + right, c.dy + down);
   }
 }
 
