@@ -2189,6 +2189,54 @@ class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
   }
 }
 
+/// A map marker's focus node, so the arrow keys pick among markers only and
+/// never land on the map's own focus node or a panel (#615).
+class _MapMarkerFocusNode extends FocusNode {
+  _MapMarkerFocusNode() : super(debugLabel: 'ConstellationMapNode');
+}
+
+class _MapArrowIntent extends Intent {
+  const _MapArrowIntent(this.direction);
+
+  final TraversalDirection direction;
+}
+
+/// Index of the point in [candidates] that an arrow key in [direction] from
+/// [from] should reach, or null when nothing lies that way (#615).
+///
+/// Points inside the 45° cone of the arrow win over points outside it; among
+/// them the score is the distance along the arrow plus twice the sideways
+/// offset, so a marker straight ahead beats a closer one far to the side.
+@visibleForTesting
+int? nearestMapMarkerInDirection({
+  required Offset from,
+  required List<Offset> candidates,
+  required TraversalDirection direction,
+}) {
+  int? best;
+  var bestInCone = false;
+  var bestScore = double.infinity;
+  for (var i = 0; i < candidates.length; i++) {
+    final delta = candidates[i] - from;
+    final (along, side) = switch (direction) {
+      TraversalDirection.up => (-delta.dy, delta.dx.abs()),
+      TraversalDirection.down => (delta.dy, delta.dx.abs()),
+      TraversalDirection.left => (-delta.dx, delta.dy.abs()),
+      TraversalDirection.right => (delta.dx, delta.dy.abs()),
+    };
+    if (along <= 0.5) continue;
+    final inCone = side <= along;
+    final score = along + 2 * side;
+    if ((inCone && !bestInCone) ||
+        (inCone == bestInCone && score < bestScore)) {
+      best = i;
+      bestInCone = inCone;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 /// Keyboard focus and activation for a map marker, with a focus ring drawn
 /// around the marker while it holds keyboard focus.
 class _ConstellationMapNodeFocus extends StatefulWidget {
@@ -2213,7 +2261,41 @@ class _ConstellationMapNodeFocus extends StatefulWidget {
 
 class _ConstellationMapNodeFocusState
     extends State<_ConstellationMapNodeFocus> {
-  final _focusNode = FocusNode(debugLabel: 'ConstellationMapNode');
+  final _focusNode = _MapMarkerFocusNode();
+
+  /// The arrow keys move focus to the nearest marker that way (#615). They
+  /// sit on the marker itself, so they only act while a marker has focus,
+  /// and they win over the web's arrow-to-scroll shortcuts above.
+  static const _arrowShortcuts = <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.arrowUp): _MapArrowIntent(
+      TraversalDirection.up,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowDown): _MapArrowIntent(
+      TraversalDirection.down,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowLeft): _MapArrowIntent(
+      TraversalDirection.left,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowRight): _MapArrowIntent(
+      TraversalDirection.right,
+    ),
+  };
+
+  void _moveFocus(TraversalDirection direction) {
+    final from = _focusNode.rect.center;
+    final candidates = [
+      for (final node
+          in _focusNode.nearestScope?.traversalDescendants ??
+              const <FocusNode>[])
+        if (node is _MapMarkerFocusNode && node != _focusNode) node,
+    ];
+    final index = nearestMapMarkerInDirection(
+      from: from,
+      candidates: [for (final node in candidates) node.rect.center],
+      direction: direction,
+    );
+    if (index != null) candidates[index].requestFocus();
+  }
 
   bool _highlight = false;
 
@@ -2263,6 +2345,7 @@ class _ConstellationMapNodeFocusState
       onShowFocusHighlight: (value) {
         if (value != _highlight) setState(() => _highlight = value);
       },
+      shortcuts: _arrowShortcuts,
       // Space maps to ActivateIntent everywhere, but on web Enter and
       // numpad Enter map to ButtonActivateIntent (WidgetsApp's web
       // shortcuts), so the marker answers both (#391).
@@ -2276,6 +2359,12 @@ class _ConstellationMapNodeFocusState
         ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
           onInvoke: (_) {
             widget.onActivate();
+            return null;
+          },
+        ),
+        _MapArrowIntent: CallbackAction<_MapArrowIntent>(
+          onInvoke: (intent) {
+            _moveFocus(intent.direction);
             return null;
           },
         ),
