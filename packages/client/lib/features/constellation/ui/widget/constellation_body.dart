@@ -143,6 +143,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _graphStackKey = GlobalKey();
   final _mapFocus = FocusNode(debugLabel: 'ConstellationMap');
 
+  /// Kept across builds: it remembers which marker is the map's Tab stop.
+  final _mapTraversalPolicy = _ConstellationMapReadingOrderPolicy();
+
   // Where the pointer last was, to tell a drop on a tag chip from a pin.
   Offset? _lastPointerGlobal;
   StreamSubscription<void>? _magnetTagsSubscription;
@@ -1457,10 +1460,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
           onPointerUp: (_) => _onPointerReleased(),
           onPointerCancel: (_) => _onPointerReleased(),
           onPointerSignal: (_) => _stopReveal(),
-          // Tab walks the map markers in the reading order of where they are
-          // drawn, as one block of Tab stops (#391).
+          // The map markers are one Tab stop with roving focus (#391, #615):
+          // Tab enters on one marker, the arrow keys move between markers.
           child: FocusTraversalGroup(
-            policy: _ConstellationMapReadingOrderPolicy(),
+            policy: _mapTraversalPolicy,
             child: GraphView<NodeDetails, EdgeDetails>(
               controller: cubit.graphController,
               canvasSize: ConstellationBody._canvasSize,
@@ -2394,8 +2397,21 @@ class _ConstellationMapNodeFocusState
 
   bool _highlight = false;
 
+  /// The map's traversal policy this marker made its Tab stop, if any.
+  _ConstellationMapReadingOrderPolicy? _rovingPolicy;
+
+  /// Makes this marker the map's one Tab stop (#615), without taking focus.
+  void _becomeTabStop() {
+    final policy = FocusTraversalGroup.maybeOfNode(_focusNode);
+    if (policy is _ConstellationMapReadingOrderPolicy) {
+      policy.tabStop = _focusNode;
+      _rovingPolicy = policy;
+    }
+  }
+
   @override
   void dispose() {
+    _rovingPolicy?.forgetTabStop(_focusNode);
     _focusNode.dispose();
     super.dispose();
   }
@@ -2417,6 +2433,9 @@ class _ConstellationMapNodeFocusState
 
   void _onFocusChange(bool focused) {
     setState(() {});
+    // Roving Tab stop (#615): whatever brought focus here (an arrow key,
+    // Tab, a screen reader), this marker is now the map's one stop.
+    if (focused) _becomeTabStop();
     if (focused &&
         (_semanticFocus ||
             FocusManager.instance.highlightMode ==
@@ -2481,6 +2500,11 @@ class _ConstellationMapNodeFocusState
         child: widget.child,
       ),
     );
+    // Every marker stays focusable in semantics, so a screen reader reaches
+    // each one (#615). Flutter web gives focusable semantics nodes DOM
+    // tabIndex=0, but Flutter handles Tab itself as NextFocusIntent (and
+    // prevents the browser default), so for keyboard users the map is still
+    // one roving Tab stop (as long as the framework handles the key).
     return Semantics(
       focusable: true,
       focused: _focusNode.hasPrimaryFocus,
@@ -2488,7 +2512,14 @@ class _ConstellationMapNodeFocusState
           ? null
           : _focusFromSemantics,
       // The marker draws its own keyboard ring (#391); skip the app-level one.
-      child: TenturaFocusRing.exclude(child: detector),
+      // A press makes the marker the Tab stop without taking focus (WAI-ARIA
+      // roving tabindex, #615), so the next Tab onto the map lands here.
+      child: TenturaFocusRing.exclude(
+        child: Listener(
+          onPointerDown: (_) => _becomeTabStop(),
+          child: detector,
+        ),
+      ),
     );
   }
 }
@@ -2889,14 +2920,73 @@ void _syncComposerPersonPositions(
   });
 }
 
-/// Orders the map markers for Tab the way the map reads: rows top to bottom
-/// (markers whose centres are within half a marker height share a row), and
-/// within a row in the reading direction. The widget (and paint) order of the
-/// graph view follows layout and drag history, not the picture (#391).
+/// The map marker that is the map's Tab stop (#615).
+class _MapTabStop {
+  _MapMarkerFocusNode? node;
+}
+
+/// Makes the map markers one Tab stop with roving focus (WAI-ARIA roving
+/// tabindex, #615): of the markers, only the Tab stop is offered to Tab and
+/// Shift+Tab; the others stay focusable, so the arrow keys and a screen
+/// reader still reach them, and whichever marker gets focus becomes the
+/// Tab stop; a press on a marker makes it the Tab stop without focusing it.
+///
+/// The Tab stop is the focused marker, else the marker focused or pressed
+/// last while it is still on the map, else the first marker in reading
+/// order: rows top to bottom (markers whose centres are within half a marker
+/// height share a row), and within a row in the reading direction. The
+/// widget (and paint) order of the graph view follows layout and drag
+/// history, not the picture (#391). When the stop leaves the map (a filter,
+/// a reload), the first marker in reading order takes over.
 class _ConstellationMapReadingOrderPolicy extends FocusTraversalPolicy
     with DirectionalFocusTraversalPolicyMixin {
+  /// The marker focused or pressed last; set by the marker itself.
+  /// FocusTraversalPolicy is @immutable; the mutable stop lives in a box
+  /// behind a final field (same pattern as the directional mixin's
+  /// _policyData).
+  final _tabStop = _MapTabStop();
+
+  _MapMarkerFocusNode? get tabStop => _tabStop.node;
+
+  set tabStop(_MapMarkerFocusNode? node) => _tabStop.node = node;
+
+  /// Called as a marker goes away, so its node is not kept around.
+  void forgetTabStop(FocusNode node) {
+    if (identical(_tabStop.node, node)) _tabStop.node = null;
+  }
+
   @override
   Iterable<FocusNode> sortDescendants(
+    Iterable<FocusNode> descendants,
+    FocusNode currentNode,
+  ) {
+    final members = descendants.toList();
+    final FocusNode? known =
+        currentNode is _MapMarkerFocusNode && members.contains(currentNode)
+        ? currentNode
+        : members.contains(_tabStop.node)
+        ? _tabStop.node
+        : null;
+    // With the stop known, only it and the non-marker members are sorted;
+    // without one, the full sort picks the first marker in reading order.
+    final sorted = _readingOrder(
+      known == null
+          ? members
+          : [
+              for (final node in members)
+                if (node is! _MapMarkerFocusNode || identical(node, known))
+                  node,
+            ],
+      currentNode,
+    );
+    final stop = known ?? sorted.whereType<_MapMarkerFocusNode>().firstOrNull;
+    return [
+      for (final node in sorted)
+        if (node is! _MapMarkerFocusNode || identical(node, stop)) node,
+    ];
+  }
+
+  List<FocusNode> _readingOrder(
     Iterable<FocusNode> descendants,
     FocusNode currentNode,
   ) {

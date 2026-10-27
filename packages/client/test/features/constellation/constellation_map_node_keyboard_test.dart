@@ -1,21 +1,26 @@
 // Issue #391: Field map nodes must be reachable with Tab and activatable
 // with Enter/Space, and expose a focusable semantics node (the web engine
 // only gives a DOM node a tabindex when its semantics node is focusable).
-// Tab walks the nodes in map reading order (not widget-tree order), and a
-// node Tab lands on off screen is brought into view.
+// Tab enters the map at the marker first in map reading order (not
+// widget-tree order), and a node keyboard focus lands on off screen is
+// brought into view.
 // Issue #680: Escape closes the person or Request panel, also right after a
 // mouse click, and a click on an empty spot of the map clears the selection.
 // Issue #678: a node's semantics rect is never smaller than a tap target.
 // Issue #675: what the map paints stays under the chip row above it.
 // Issue #615 (#391 roving focus): the arrow keys move focus from a marker to
 // the nearest marker that way, also on the web, where the app maps arrows to
-// scrolling.
+// scrolling. The markers form one Tab stop (roving tabindex): Tab enters
+// the map on the last-focused marker still on the map, else the first in
+// reading order; the next Tab leaves the map; an arrow key moves the stop.
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart'
+    show GraphView;
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -82,7 +87,9 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 final class _StubRepository implements ConstellationRepositoryPort {
   _StubRepository(this.field);
 
-  final ConstellationField field;
+  /// What the next fetch returns; a test swaps it and reloads to change the
+  /// map (#615: the roving Tab stop's marker disappears).
+  ConstellationField field;
 
   @override
   Future<ConstellationField> fetch({
@@ -125,10 +132,13 @@ ConstellationField _field({bool withBob = false}) => ConstellationField(
   ],
 );
 
-Future<ConstellationCubit> _loadCubit({bool withBob = false}) async {
+Future<ConstellationCubit> _loadCubit({
+  bool withBob = false,
+  _StubRepository? repository,
+}) async {
   final cubit = ConstellationCubit(
     case_: ConstellationStoreFixture(
-      _StubRepository(_field(withBob: withBob)),
+      repository ?? _StubRepository(_field(withBob: withBob)),
       accountId: 'ego',
     ).store,
     viewer: _ego,
@@ -299,18 +309,38 @@ Future<void> _focusOffMap(WidgetTester tester) async {
   expect(_focusIsInBody(), isFalse, reason: 'test setup: focus off the map');
 }
 
-/// Presses Tab until map node [id] has focus; returns whether it ever did.
+/// Moves keyboard focus onto map node [id] the way a keyboard user does:
+/// Tab onto the map (whichever of [id] and [others] is its Tab stop; with the
+/// roving Tab stop of #615 that is one marker), then the arrow keys from
+/// marker to marker, each press toward where [id] is drawn. Returns whether
+/// [id] ever got focus.
 Future<bool> _tabTo(
   WidgetTester tester,
   String id,
   List<String> others,
 ) async {
-  for (var i = 0; i < 60; i++) {
+  final all = [id, ...others];
+  String? on;
+  for (var i = 0; i < 60 && on == null; i++) {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
-    if (_focusIsOnNode(tester, id, others)) return true;
+    on = _focusedNodeOf(tester, all);
   }
-  return false;
+  for (var i = 0; i < 12 && on != null && on != id; i++) {
+    final delta = tester.getCenter(_node(id)) - tester.getCenter(_node(on));
+    await tester.sendKeyEvent(
+      delta.dx.abs() > delta.dy.abs()
+          ? (delta.dx > 0
+                ? LogicalKeyboardKey.arrowRight
+                : LogicalKeyboardKey.arrowLeft)
+          : (delta.dy > 0
+                ? LogicalKeyboardKey.arrowDown
+                : LogicalKeyboardKey.arrowUp),
+    );
+    await tester.pump();
+    on = _focusedNodeOf(tester, all);
+  }
+  return on == id;
 }
 
 /// Which of [ids] holds primary focus right now, or null.
@@ -326,21 +356,154 @@ String? _focusedNodeOf(WidgetTester tester, List<String> ids) {
   return null;
 }
 
-/// Presses Tab until each of [ids] has held focus once (one full lap) and
-/// returns them in the order Tab reached them, rotated to start at
-/// [ids].first so where the walk began does not matter.
-Future<List<String>> _tabOrderOf(WidgetTester tester, List<String> ids) async {
-  final seen = <String>[];
-  for (var i = 0; i < 80 && seen.length < ids.length; i++) {
+/// Whether [node] sits inside the map's graph view (the markers' layer),
+/// as opposed to the toolbar or chips that are also inside the body.
+bool _inGraphView(FocusNode? node) {
+  final context = node?.context;
+  if (context == null) return false;
+  var inside = false;
+  context.visitAncestorElements((element) {
+    inside = element.widget is GraphView;
+    return !inside;
+  });
+  return inside;
+}
+
+/// Shift+Tab: one press of Tab with Shift held.
+Future<void> _shiftTab(WidgetTester tester) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+  await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+}
+
+/// Presses Tab (Shift+Tab when [backwards]) for one full lap of the app's
+/// Tab stops (until the first stop comes round again) and returns each of
+/// the map markers [ids] that took focus on the way, in order, repeats kept.
+///
+/// Every stop of the lap (marker or not) goes into [stops] when given.
+Future<List<String>> _markersInTabLap(
+  WidgetTester tester,
+  List<String> ids, {
+  bool backwards = false,
+  List<FocusNode?>? stops,
+}) async {
+  final hits = <String>[];
+  FocusNode? first;
+  for (var i = 0; i < 120; i++) {
+    if (backwards) {
+      await _shiftTab(tester);
+    } else {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    }
+    await tester.pump();
+    final focus = FocusManager.instance.primaryFocus;
+    if (i == 0) {
+      first = focus;
+    } else if (identical(focus, first)) {
+      break;
+    }
+    stops?.add(focus);
+    final id = _focusedNodeOf(tester, ids);
+    if (id != null) hits.add(id);
+  }
+  return hits;
+}
+
+/// Presses Tab until one of the map markers [ids] has focus and returns it
+/// with the focus node the press before it left (the control before the
+/// map), or fails.
+Future<(String, FocusNode?)> _tabOntoMap(
+  WidgetTester tester,
+  List<String> ids,
+) async {
+  for (var i = 0; i < 60; i++) {
+    final before = FocusManager.instance.primaryFocus;
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
     final id = _focusedNodeOf(tester, ids);
-    if (id != null && !seen.contains(id)) seen.add(id);
+    if (id != null) return (id, before);
   }
-  final start = seen.indexOf(ids.first);
-  if (start < 0) return seen;
-  return [...seen.sublist(start), ...seen.sublist(0, start)];
+  fail('Tab never reached a map marker');
 }
+
+/// Presses [key] and expects map marker [to] (one of [ids]) to have focus.
+Future<void> _arrow(
+  WidgetTester tester,
+  LogicalKeyboardKey key,
+  String to,
+  List<String> ids,
+) async {
+  await tester.sendKeyEvent(key);
+  await tester.pumpAndSettle();
+  expect(
+    _focusedNodeOf(tester, ids),
+    to,
+    reason: '${key.keyLabel} must move focus to $to',
+  );
+}
+
+const _four = ['a', 'post-a', 'b', 'post-b'];
+
+/// Draws the four markers of the Bob field where the reading-order test
+/// puts them (viewport-local points) and returns a callback that lets them
+/// go again:
+///     a(360,330)        post-a(660,330)
+///   b(260,560)          post-b(660,560)
+/// Reading order: a, post-a, b, post-b; from a, Right reaches post-a, Down
+/// from post-a reaches post-b, Left from post-b reaches b, Up from b
+/// reaches a.
+Future<VoidCallback> _layOutFour(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+) async {
+  await tester.pumpAndSettle();
+  for (final id in _four) {
+    expect(_node(id), findsOneWidget, reason: '$id must be on the map');
+  }
+  final controller = cubit.graphController;
+  final tokens = [
+    for (final (graphId, local) in const [
+      ('fr:post-b', Offset(660, 560)),
+      ('fp:b', Offset(260, 560)),
+      ('fr:post-a', Offset(660, 330)),
+      ('fp:a', Offset(360, 330)),
+    ])
+      controller.beginNodePresentationDragForId(
+        graphId,
+        controller.viewportLocalToScene(local),
+      ),
+  ];
+  await tester.pumpAndSettle();
+  final a = tester.getCenter(_node('a'));
+  final postA = tester.getCenter(_node('post-a'));
+  final b = tester.getCenter(_node('b'));
+  final postB = tester.getCenter(_node('post-b'));
+  expect(
+    (a.dy - postA.dy).abs() < 1 &&
+        a.dx < postA.dx &&
+        b.dy > a.dy + 150 &&
+        (b.dy - postB.dy).abs() < 1 &&
+        b.dx < a.dx &&
+        (postA.dx - postB.dx).abs() < 1,
+    isTrue,
+    reason: 'test setup must place the nodes ($a, $postA, $b, $postB)',
+  );
+  return () => tokens.forEach(controller.cancelNodePresentationDrag);
+}
+
+/// Whether the marker [id] draws its keyboard focus ring.
+bool _ringShown(WidgetTester tester, String id) => find
+    .ancestor(
+      of: _node(id),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is DecoratedBox &&
+            w.position == DecorationPosition.foreground &&
+            w.decoration is ShapeDecoration,
+      ),
+    )
+    .evaluate()
+    .isNotEmpty;
 
 Offset _sceneOf(ConstellationCubit cubit, String graphId) {
   final point = cubit.graphController.renderSnapshot.resolvePosition(graphId);
@@ -554,6 +717,373 @@ void main() {
     });
   });
 
+  // #615 (#391): the markers are one Tab stop, WAI-ARIA roving tabindex.
+  // Tab enters the map on the marker focused last (while it is still on the
+  // map), else on the first marker in reading order; the next Tab leaves the
+  // map, Shift+Tab goes back to the control before it; the arrow keys move
+  // focus and the Tab stop with it.
+  group('the map is one Tab stop with roving focus (#615)', () {
+    testWidgets('a full Tab lap stops on one map marker only, the first in '
+        'reading order', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      expect(
+        await _markersInTabLap(tester, _four),
+        const ['a'],
+        reason:
+            'Tab must stop on the map once, on Ann (top left), and not '
+            'walk every marker',
+      );
+      expect(
+        await _markersInTabLap(tester, _four, backwards: true),
+        const ['a'],
+        reason: 'Shift+Tab must stop on the map once too',
+      );
+
+      release();
+      await tester.pump();
+    });
+
+    testWidgets('with no marker focused yet, a Shift+Tab lap stops on one '
+        'map marker only, the first in reading order', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      // Backwards first: no marker has had focus, so entering from the end
+      // must not pick the last marker in reading order (post-b).
+      expect(
+        await _markersInTabLap(tester, _four, backwards: true),
+        const ['a'],
+        reason: 'Shift+Tab must stop on the map once, on Ann (top left)',
+      );
+
+      release();
+      await tester.pump();
+    });
+
+    testWidgets('Tab leaves the map after its one stop; Shift+Tab comes back '
+        'to the marker, then to the control before the map', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      final (entered, before) = await _tabOntoMap(tester, _four);
+      expect(entered, 'a');
+      expect(before, isNotNull, reason: 'a control comes before the map');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        _focusedNodeOf(tester, _four),
+        isNull,
+        reason: 'the second Tab must leave the map, not go to another marker',
+      );
+      final after = FocusManager.instance.primaryFocus;
+      expect(after, isNotNull);
+      expect(identical(after, before), isFalse);
+
+      await _shiftTab(tester);
+      await tester.pump();
+      expect(
+        _focusedNodeOf(tester, _four),
+        'a',
+        reason:
+            'Shift+Tab from the control after the map comes back to the '
+            'marker that was the Tab stop',
+      );
+
+      await _shiftTab(tester);
+      await tester.pump();
+      expect(_focusedNodeOf(tester, _four), isNull);
+      expect(
+        identical(FocusManager.instance.primaryFocus, before),
+        isTrue,
+        reason: 'Shift+Tab from the marker goes to the control before the map',
+      );
+
+      // A whole lap: the map's graph view holds exactly one Tab stop, so no
+      // extra non-marker stop hides inside the map either.
+      await _focusOffMap(tester);
+      final stops = <FocusNode?>[];
+      await _markersInTabLap(tester, _four, stops: stops);
+      final inMap = stops.where(_inGraphView).toList();
+      expect(
+        inMap,
+        hasLength(1),
+        reason:
+            'one Tab stop inside the map: '
+            '${inMap.map((n) => n?.debugLabel).toList()}',
+      );
+
+      release();
+      await tester.pump();
+    });
+
+    testWidgets('with web shortcuts, the marker the arrows reached becomes '
+        'the Tab stop, shows its ring and opens with Enter', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit, shortcuts: _webShortcutsWithArrows);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      final (entered, _) = await _tabOntoMap(tester, _four);
+      expect(entered, 'a');
+      // post-a: not last in reading order, so a Tab that walked the
+      // markers would land on Bob next.
+      await _arrow(tester, LogicalKeyboardKey.arrowRight, 'post-a', _four);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        _focusedNodeOf(tester, _four),
+        isNull,
+        reason: 'Tab from the marker the arrows reached leaves the map',
+      );
+      expect(_ringShown(tester, 'post-a'), isFalse);
+
+      await _shiftTab(tester);
+      await tester.pumpAndSettle();
+      expect(
+        _focusedNodeOf(tester, _four),
+        'post-a',
+        reason: 'the Tab stop moved with the arrows to post-a',
+      );
+      expect(
+        _ringShown(tester, 'post-a'),
+        isTrue,
+        reason: 'the focused marker draws its keyboard focus ring',
+      );
+      expect(cubit.state.selectedRequestId, isNull, reason: 'focus alone');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(cubit.state.selectedRequestId, 'post-a');
+      expect(cubit.state.selectedPersonId, isNull);
+
+      release();
+      await tester.pump();
+    });
+
+    testWidgets('from off the map, Tab enters on the marker focused last', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      await _tabOntoMap(tester, _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowRight, 'post-a', _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowDown, 'post-b', _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowLeft, 'b', _four);
+      await _focusOffMap(tester);
+
+      expect(
+        await _markersInTabLap(tester, _four),
+        const ['b'],
+        reason: 'the lap must stop once, on Bob, where focus left the map',
+      );
+
+      // The lap ended where it started, off the map: Tab back in and open.
+      final (entered, _) = await _tabOntoMap(tester, _four);
+      expect(entered, 'b');
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+      expect(cubit.state.selectedPersonId, 'b');
+
+      release();
+      await tester.pump();
+    });
+
+    testWidgets('a click on a marker makes it the Tab stop without taking '
+        'focus', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+
+      // Bob is third in reading order (a, post-a, b, post-b).
+      await _click(tester, tester.getCenter(_node('b')));
+      expect(_focusedNodeOf(tester, _four), isNot('b'));
+      await _focusOffMap(tester);
+
+      final (entered, _) = await _tabOntoMap(tester, _four);
+      expect(
+        entered,
+        'b',
+        reason: 'Tab enters the map on the marker clicked last',
+      );
+
+      release();
+      await tester.pump();
+    });
+
+    testWidgets('Shift+Tab back onto the Tab-stop marker brings it into view '
+        'after it went off screen', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      await _tabOntoMap(tester, _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowRight, 'post-a', _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowDown, 'post-b', _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowLeft, 'b', _four);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        _focusedNodeOf(tester, _four),
+        isNull,
+        reason: 'Tab from Bob leaves the map',
+      );
+
+      release();
+      await tester.pump();
+      // Bob's centre 300 px below the bottom edge of the window.
+      await _parkAtGlobal(
+        tester,
+        cubit,
+        id: 'b',
+        graphId: 'fp:b',
+        target: Offset(_size.width / 2, _size.height + 300),
+      );
+      final screen = Offset.zero & _size;
+      expect(
+        screen.overlaps(tester.getRect(_node('b'))),
+        isFalse,
+        reason: 'test setup must put Bob off screen',
+      );
+
+      await _shiftTab(tester);
+      await tester.pumpAndSettle();
+      expect(_focusedNodeOf(tester, _four), 'b');
+      final rect = tester.getRect(_node('b'));
+      expect(
+        screen.intersect(rect),
+        rect,
+        reason: 'the focused marker must be brought inside the window',
+      );
+      expect(cubit.state.selectedPersonId, isNull, reason: 'focus alone');
+    });
+
+    for (final focused in [false, true]) {
+      testWidgets('when the Tab-stop marker leaves the map'
+          '${focused ? ' while it has focus' : ''}, Tab lands on one marker '
+          'still there', (tester) async {
+        final repository = _StubRepository(_field(withBob: true));
+        final cubit = await _loadCubit(repository: repository);
+        addTearDown(cubit.close);
+        await _pumpBody(tester, cubit);
+        final release = await _layOutFour(tester, cubit);
+        await _focusOffMap(tester);
+
+        await _tabOntoMap(tester, _four);
+        await _arrow(tester, LogicalKeyboardKey.arrowRight, 'post-a', _four);
+        await _arrow(tester, LogicalKeyboardKey.arrowDown, 'post-b', _four);
+        await _arrow(tester, LogicalKeyboardKey.arrowLeft, 'b', _four);
+        if (!focused) await _focusOffMap(tester);
+        release();
+        await tester.pump();
+
+        // Bob leaves the Field (his Post with him); Ann and hers stay.
+        repository.field = _field();
+        final reload = cubit.load();
+        for (var i = 0; i < 50 && _node('b').evaluate().isNotEmpty; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        await reload;
+        await tester.pumpAndSettle();
+        expect(_node('b'), findsNothing, reason: 'test setup: Bob is gone');
+        expect(_node('post-b'), findsNothing);
+        expect(_node('a'), findsOneWidget);
+        expect(_node('post-a'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        final focusContext = FocusManager.instance.primaryFocus?.context;
+        expect(
+          focusContext == null || focusContext.mounted,
+          isTrue,
+          reason: 'focus must not stay on the node of the removed marker',
+        );
+
+        const left = ['a', 'post-a'];
+        final hits = await _markersInTabLap(tester, left);
+        expect(
+          hits,
+          hasLength(1),
+          reason: 'one Tab stop on the map, on a marker still there: $hits',
+        );
+        expect(tester.takeException(), isNull);
+
+        final (entered, _) = await _tabOntoMap(tester, left);
+        expect(entered, hits.single);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(
+          _focusedNodeOf(tester, left),
+          isNull,
+          reason: 'no focus trap: the next Tab leaves the map',
+        );
+      });
+    }
+
+    testWidgets('every marker keeps one labelled button semantics node while '
+        'focus roves', (tester) async {
+      final handle = tester.ensureSemantics();
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit);
+      final release = await _layOutFour(tester, cubit);
+      await _focusOffMap(tester);
+
+      await _tabOntoMap(tester, _four);
+      await _arrow(tester, LogicalKeyboardKey.arrowRight, 'post-a', _four);
+      await tester.pump();
+
+      final traversal = tester.semantics.simulatedAccessibilityTraversal();
+      for (final id in _four) {
+        final node = tester.getSemantics(_node(id));
+        expect(
+          node,
+          isSemantics(isButton: true, hasTapAction: true),
+          reason: '$id keeps its button semantics',
+        );
+        expect(node.label, isNotEmpty, reason: '$id keeps its label');
+        expect(
+          traversal
+              .where(
+                (n) =>
+                    n.label == node.label &&
+                    n.getSemanticsData().flagsCollection.isButton,
+              )
+              .length,
+          1,
+          reason: '$id is one semantics node, not lost or duplicated',
+        );
+      }
+      expect(
+        tester.getSemantics(_node('post-a')),
+        isSemantics(isFocused: true),
+        reason: 'the focused marker says so',
+      );
+
+      release();
+      await tester.pump();
+      handle.dispose();
+    });
+  });
+
   testWidgets('a Post node is reachable with Tab and opens with Enter', (
     tester,
   ) async {
@@ -694,10 +1224,21 @@ void main() {
       tester.getSemantics(_node('post-a')),
       isSemantics(isFocusable: true, isFocused: true),
     );
+
+    // Semantic focus moves the map's one Tab stop too (#615): leave the map,
+    // and Tab comes back in on post-a.
+    await _focusOffMap(tester);
+    final (entered, _) = await _tabOntoMap(tester, const ['a', 'post-a']);
+    expect(
+      entered,
+      'post-a',
+      reason: 'Tab enters the map on the marker a screen reader focused last',
+    );
     handle.dispose();
   });
 
-  testWidgets('Tab walks the map nodes in reading order, not widget order', (
+  testWidgets('Tab enters the map at the first marker in reading order, '
+      'not widget order', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
@@ -746,10 +1287,20 @@ void main() {
       reason: 'test setup must place the nodes ($a, $post, $b, $postB)',
     );
 
+    // The map is one Tab stop (#615); with no marker focused before, Tab
+    // enters it at the first marker in reading order (top row, leftmost),
+    // not the first in widget order (post-b) or column order (b).
+    await _focusOffMap(tester);
+    final (entered, _) = await _tabOntoMap(tester, const [
+      'a',
+      'post-a',
+      'b',
+      'post-b',
+    ]);
     expect(
-      await _tabOrderOf(tester, const ['a', 'post-a', 'b', 'post-b']),
-      const ['a', 'post-a', 'b', 'post-b'],
-      reason: 'Tab must follow the map: top row left to right, then down',
+      entered,
+      'a',
+      reason: 'Tab must enter the map where it reads first: top left',
     );
 
     // Screen readers and the web DOM (browser Tab) use semantics order.
@@ -768,7 +1319,7 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('Tab onto a node off screen brings it into view', (
+  testWidgets('keyboard focus onto a node off screen brings it into view', (
     tester,
   ) async {
     final cubit = await _loadCubit(withBob: true);
@@ -796,7 +1347,7 @@ void main() {
     expect(
       await _tabTo(tester, 'b', const ['a', 'post-a', 'post-b']),
       isTrue,
-      reason: 'Tab never moved focus onto Bob',
+      reason: 'the keyboard never moved focus onto Bob',
     );
     await tester.pumpAndSettle();
 
