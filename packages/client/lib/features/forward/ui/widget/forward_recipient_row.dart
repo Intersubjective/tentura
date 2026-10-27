@@ -392,9 +392,14 @@ class _Line2Content extends StatelessWidget {
       children: [
         if (line2.presenceOrAvailabilityLine != null)
           if (line2.presenceOrAvailabilityUsesStatusText)
+            // #267: «Not taking new requests until …» keeps its date on a
+            // phone; the line wraps instead of ellipsizing.
             TenturaStatusText(
               line2.presenceOrAvailabilityLine!,
               tone: line2.presenceOrAvailabilityTone ?? TenturaTone.neutral,
+              maxLines: null,
+              // An ellipsis with no maxLines still cuts at line one.
+              overflow: TextOverflow.clip,
             )
           else
             Text(
@@ -414,9 +419,14 @@ class _Line2Content extends StatelessWidget {
               trimExpandedText: l10n.forwardMyNoteShowLess,
             )
           else
+            // #730: the author's hint ends in "People › Invite", the part
+            // that says what to do; it wraps instead of ellipsizing.
             TenturaStatusText(
               line2.relationLabel!,
               tone: line2.relationTone ?? TenturaTone.neutral,
+              maxLines: null,
+              // An ellipsis with no maxLines still cuts at line one.
+              overflow: TextOverflow.clip,
             ),
         if (candidate.involvement == CandidateInvolvement.forwardedByMe)
           _ForwardReadReceipt(

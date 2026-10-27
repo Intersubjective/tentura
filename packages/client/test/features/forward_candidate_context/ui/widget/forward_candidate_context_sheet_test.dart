@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward_candidate_context/domain/entity/candidate_connection_context.dart';
@@ -83,6 +84,7 @@ void main() {
     ForwardCandidate value, {
     ThemeData? theme,
     Size size = const Size(390, 844),
+    bool viewerIsAuthor = false,
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -98,6 +100,7 @@ void main() {
         beaconId: 'B1',
         context: 'personal',
         candidates: [value],
+        viewerIsAuthor: viewerIsAuthor,
       ),
     );
     await tester.pumpWidget(
@@ -258,5 +261,69 @@ void main() {
       find.text('This person is no longer available.', findRichText: true),
       findsOneWidget,
     );
+  });
+  // #730 (QA 7.56.5, iPhone SE): the author tapped the row of someone who
+  // dismissed the Request; the sheet said nothing about it and Select ended
+  // in "This person is no longer available." Both now say how the author can
+  // still ask them.
+  group('#730 the author and someone who dismissed the Request', () {
+    const hint = 'They dismissed it — use People › Invite';
+    const dismissed = ForwardCandidate(
+      profile: Profile(id: 'U2', displayName: 'Carol', score: 1, rScore: 1),
+      involvement: CandidateInvolvement.declined,
+    );
+
+    void longPath() => repository.responses.add(
+      () async => const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.longPath,
+      ),
+    );
+
+    testWidgets('the sheet shows the People › Invite hint', (tester) async {
+      longPath();
+      await pumpHost(tester, dismissed, viewerIsAuthor: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text(hint), findsOneWidget);
+    });
+
+    testWidgets('Select says to use People › Invite', (tester) async {
+      longPath();
+      await pumpHost(tester, dismissed, viewerIsAuthor: true);
+      await tester.pumpAndSettle();
+
+      final select = find.widgetWithText(FilledButton, 'Select');
+      await tester.ensureVisible(select);
+      await tester.tap(select);
+      await tester.pumpAndSettle();
+
+      expect(find.text('View full profile'), findsNothing);
+      expect(find.text(hint, findRichText: true), findsOneWidget);
+      expect(
+        find.text('This person is no longer available.', findRichText: true),
+        findsNothing,
+      );
+      expect(forwardCubit.state.selectedIds, isEmpty);
+    });
+
+    // Guard: a forwarder who is not the author has no People › Invite.
+    testWidgets('a forwarder who is not the author keeps the generic copy', (
+      tester,
+    ) async {
+      longPath();
+      await pumpHost(tester, dismissed);
+      await tester.pumpAndSettle();
+
+      expect(find.text(hint), findsNothing);
+      final select = find.widgetWithText(FilledButton, 'Select');
+      await tester.ensureVisible(select);
+      await tester.tap(select);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('This person is no longer available.', findRichText: true),
+        findsOneWidget,
+      );
+    });
   });
 }
