@@ -469,6 +469,9 @@ final class ForwardCase extends UseCaseBase {
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.allowsForward ||
         await isExpiredPost(_beaconRepository, beacon)) {
+      if (beacon.kind == BeaconKind.post) {
+        throw const PostNotOpenException();
+      }
       throw const UnauthorizedException(
         description: 'Request does not allow forwarding',
       );

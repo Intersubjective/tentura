@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/env.dart';
@@ -47,6 +48,23 @@ typedef _Operation = ({
   void Function() verifyNoEffect,
   Matcher refusal,
 });
+
+Matcher _postNotOpen() => throwsA(
+  allOf(
+    isNot(isA<UnauthorizedException>()),
+    isA<PostNotOpenException>()
+        .having((error) => error.code.codeNumber, 'postNotOpen code', 1332)
+        .having((error) => error.code.codeNumber, 'code', isNot(1102))
+        .having(
+          (error) => error.toMap['extensions'],
+          'wire extensions',
+          containsPair(
+            'code',
+            '${const BeaconExceptionCodes(BeaconExceptionCode.postNotOpen).codeNumber}',
+          ),
+        ),
+  ),
+);
 
 void main() {
   late MockInvitationRepositoryPort invitationRepo;
@@ -231,6 +249,59 @@ void main() {
     );
   });
 
+  group(
+    'Post invitations reject closed and expired Posts with postNotOpen',
+    () {
+      for (final op in operations) {
+        for (final senderId in [_authorId, _nonAuthorId]) {
+          for (final policy in BeaconForwardPolicyValue.values) {
+            for (final expired in [false, true]) {
+              for (final changesUnderLock in [false, true]) {
+                test(
+                  '${op.name}: ${expired ? 'expired' : 'closed'} Post rejects '
+                  '$senderId with ${policy.name} forwarding '
+                  '${changesUnderLock ? 'after locking' : 'before submission'}',
+                  () async {
+                    void archive() {
+                      if (expired) {
+                        when(beaconRepo.postExpiresAt(_beaconId)).thenAnswer(
+                          (_) async => DateTime.utc(2000),
+                        );
+                      } else {
+                        stubBeacon(
+                          beacon(
+                            kind: BeaconKind.post,
+                            policy: policy,
+                            status: BeaconStatus.closed,
+                          ),
+                        );
+                      }
+                    }
+
+                    stubBeacon(beacon(kind: BeaconKind.post, policy: policy));
+                    if (changesUnderLock) {
+                      postLock.onLocked = archive;
+                    } else {
+                      archive();
+                    }
+                    addTearDown(() {
+                      expect(postLock.lockedBeaconIds, [_beaconId]);
+                      op.verifyNoEffect();
+                    });
+                    await expectLater(
+                      op.run(senderId),
+                      _postNotOpen(),
+                    );
+                  },
+                );
+              }
+            }
+          }
+        }
+      }
+    },
+  );
+
   for (final op in operations) {
     group('InvitationCase.${op.name} for a beacon invite', () {
       group('on a Post with closed forwarding', () {
@@ -296,8 +367,7 @@ void main() {
           op.verifyEffect(_nonAuthorId);
         });
 
-        test('judges the status as it stands after the Post lock is taken, '
-            'when the Post was deleted meanwhile', () async {
+        test('rejects a Post deleted while locking with postNotOpen', () async {
           stubBeacon(
             beacon(
               kind: BeaconKind.post,
@@ -312,7 +382,7 @@ void main() {
             ),
           );
 
-          await expectLater(op.run(_authorId), throwsA(op.refusal));
+          await expectLater(op.run(_authorId), _postNotOpen());
           op.verifyNoEffect();
           expect(postLock.lockedBeaconIds, [_beaconId]);
         });
@@ -332,7 +402,7 @@ void main() {
           op.verifyNoEffect();
         });
 
-        test('refuses an invite to a Post', () async {
+        test('rejects a closed Post invite with postNotOpen', () async {
           stubBeacon(
             beacon(
               kind: BeaconKind.post,
@@ -341,7 +411,7 @@ void main() {
             ),
           );
 
-          await expectLater(op.run(_authorId), throwsA(op.refusal));
+          await expectLater(op.run(_authorId), _postNotOpen());
           op.verifyNoEffect();
         });
       });

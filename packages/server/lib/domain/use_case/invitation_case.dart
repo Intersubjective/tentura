@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
@@ -87,6 +86,9 @@ final class InvitationCase extends UseCaseBase {
     Future<InvitationEntity> createForBeacon(BeaconEntity beacon) async {
       if (!beacon.allowsForward ||
           await isExpiredPost(_beaconRepository, beacon)) {
+        if (beacon.kind == BeaconKind.post) {
+          throw const PostNotOpenException();
+        }
         throw const UnauthorizedException(
           description: 'Request does not allow forwarding',
         );
@@ -144,6 +146,9 @@ final class InvitationCase extends UseCaseBase {
   }) async {
     if (!beacon.allowsForward ||
         await isExpiredPost(_beaconRepository, beacon)) {
+      if (beacon.kind == BeaconKind.post) {
+        throw const PostNotOpenException();
+      }
       throw IdNotFoundException(id: invitation.id);
     }
     if (!BeaconForwardPolicy.canForward(
@@ -442,12 +447,9 @@ final class InvitationCase extends UseCaseBase {
     }
     final beacon = await _beaconUnderPostLock(beaconId);
     if (await _userBlockRepository.isBlockedPair(
-          a: userId,
-          b: invitation.issuer.id,
-        ) ||
-        !beacon.allowsForward ||
-        beacon.status == BeaconStatus.draft ||
-        beacon.status == BeaconStatus.deleted) {
+      a: userId,
+      b: invitation.issuer.id,
+    )) {
       throw IdNotFoundException(id: invitation.id);
     }
     await _requireBeaconInviteForward(invitation: invitation, beacon: beacon);

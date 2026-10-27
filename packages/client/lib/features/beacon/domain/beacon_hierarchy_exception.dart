@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/localizable.dart';
+
 /// Typed translations of the nested-request GraphQL error codes (plan §3.5).
 ///
 /// Thrown by [_V2RoutingLink]'s `onGraphQLError` handler in
@@ -107,10 +109,24 @@ final class BudSourceNotOwnMessageException extends BeaconHierarchyException {
 }
 
 /// The Post is not open (draft, closed or deleted).
-final class PostNotOpenException extends BeaconHierarchyException {
+final class PostNotOpenException extends BeaconHierarchyException
+    implements Localizable {
   const PostNotOpenException([super.message]);
 
   static const codeNumber = 1332;
+
+  @override
+  String get toEn => 'This post is archived';
+
+  @override
+  String get toRu => 'Пост в архиве';
+
+  @override
+  String toL10n(String? locale) => switch (locale) {
+    'ru' => toRu,
+    'en' => toEn,
+    _ => 'Unsupported locale for $runtimeType',
+  };
 }
 
 /// The requested Post lifetime is outside 1…72 hours.

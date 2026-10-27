@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/env.dart';
@@ -43,6 +44,23 @@ Matcher _unauthorizedWith(String description) => throwsA(
     (e) => e.description,
     'description',
     description,
+  ),
+);
+
+Matcher _postNotOpen() => throwsA(
+  allOf(
+    isNot(isA<UnauthorizedException>()),
+    isA<PostNotOpenException>()
+        .having((error) => error.code.codeNumber, 'postNotOpen code', 1332)
+        .having((error) => error.code.codeNumber, 'code', isNot(1102))
+        .having(
+          (error) => error.toMap['extensions'],
+          'wire extensions',
+          containsPair(
+            'code',
+            '${const BeaconExceptionCodes(BeaconExceptionCode.postNotOpen).codeNumber}',
+          ),
+        ),
   ),
 );
 
@@ -215,6 +233,54 @@ void main() {
     ).thenAnswer((_) async => {_recipientId});
   });
 
+  group('Forwarding reject closed and expired Posts with postNotOpen', () {
+    for (final senderId in [_authorId, _forwarderId]) {
+      for (final policy in BeaconForwardPolicyValue.values) {
+        for (final expired in [false, true]) {
+          for (final changesUnderLock in [false, true]) {
+            test(
+              '${expired ? 'expired' : 'closed'} Post rejects '
+              '$senderId with ${policy.name} forwarding '
+              '${changesUnderLock ? 'after locking' : 'before submission'}',
+              () async {
+                void archive() {
+                  if (expired) {
+                    when(beaconRepo.postExpiresAt(_beaconId)).thenAnswer(
+                      (_) async => DateTime.utc(2000),
+                    );
+                  } else {
+                    stubBeacon(
+                      beacon(
+                        kind: BeaconKind.post,
+                        policy: policy,
+                        status: BeaconStatus.closed,
+                      ),
+                    );
+                  }
+                }
+
+                stubBeacon(beacon(kind: BeaconKind.post, policy: policy));
+                if (changesUnderLock) {
+                  postLock.onLocked = archive;
+                } else {
+                  archive();
+                }
+                addTearDown(() {
+                  expect(postLock.lockedBeaconIds, [_beaconId]);
+                  verifyNoEdgeCreated();
+                });
+                await expectLater(
+                  forwardAs(senderId),
+                  _postNotOpen(),
+                );
+              },
+            );
+          }
+        }
+      }
+    }
+  });
+
   group('ForwardCase on a Post with closed forwarding', () {
     setUp(() {
       stubBeacon(
@@ -242,8 +308,7 @@ void main() {
       expect(postLock.lockedBeaconIds, [_beaconId]);
     });
 
-    test('keeps the not-open message for a non-author when the Post is '
-        'also not open', () async {
+    test('rejects a deleted Post with postNotOpen for a non-author', () async {
       stubBeacon(
         beacon(
           kind: BeaconKind.post,
@@ -254,13 +319,12 @@ void main() {
 
       await expectLater(
         forwardAs(_forwarderId),
-        _unauthorizedWith('Request does not allow forwarding'),
+        _postNotOpen(),
       );
       verifyNoEdgeCreated();
     });
 
-    test('keeps the not-open message for the author when the Post is '
-        'also not open', () async {
+    test('rejects a deleted Post with postNotOpen for the author', () async {
       stubBeacon(
         beacon(
           kind: BeaconKind.post,
@@ -271,7 +335,7 @@ void main() {
 
       await expectLater(
         forwardAs(_authorId),
-        _unauthorizedWith('Request does not allow forwarding'),
+        _postNotOpen(),
       );
       verifyNoEdgeCreated();
     });
@@ -303,8 +367,7 @@ void main() {
       expect(postLock.lockedBeaconIds, [_beaconId]);
     });
 
-    test('judges the status as it stands after the Post lock is taken, '
-        'when the Post was deleted meanwhile', () async {
+    test('rejects a Post deleted while locking with postNotOpen', () async {
       stubBeacon(
         beacon(kind: BeaconKind.post, policy: BeaconForwardPolicyValue.open),
       );
@@ -318,13 +381,13 @@ void main() {
 
       await expectLater(
         forwardAs(_forwarderId),
-        _unauthorizedWith('Request does not allow forwarding'),
+        _postNotOpen(),
       );
       expect(postLock.lockedBeaconIds, [_beaconId]);
       verifyNoEdgeCreated();
     });
 
-    test('keeps the not-open message when the Post is closed out', () async {
+    test('rejects a closed Post with postNotOpen', () async {
       stubBeacon(
         beacon(
           kind: BeaconKind.post,
@@ -335,7 +398,7 @@ void main() {
 
       await expectLater(
         forwardAs(_forwarderId),
-        _unauthorizedWith('Request does not allow forwarding'),
+        _postNotOpen(),
       );
       verifyNoEdgeCreated();
     });
