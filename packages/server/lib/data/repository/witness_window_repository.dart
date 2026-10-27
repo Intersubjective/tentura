@@ -98,6 +98,11 @@ INSERT INTO public.ego_witness_window (
 SELECT $1, $2, u.id, $4, $5, now(), $6
 FROM public."user" u
 WHERE u.id = $3
+ON CONFLICT (ego_user_id, context, witness_user_id) DO UPDATE
+SET m = EXCLUDED.m,
+    admitted = EXCLUDED.admitted,
+    computed_at = EXCLUDED.computed_at,
+    mr_epoch = EXCLUDED.mr_epoch
 ''',
         [
           egoId,
