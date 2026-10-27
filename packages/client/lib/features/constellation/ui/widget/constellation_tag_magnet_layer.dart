@@ -22,7 +22,7 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
   final ConstellationCubit cubit;
   final List<PersonTag> tags;
 
-  /// Source of the placed node labels a magnet must not cover.
+  /// Source of the node bodies, labels and overflow chips a magnet must clear.
   final ConstellationPresentationFrameHolder frameHolder;
 
   @override
@@ -36,7 +36,11 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
               child: CustomSingleChildLayout(
                 delegate: _MagnetLabelClearDelegate(
                   center: cubit.graphController.sceneToViewportLocal(at),
-                  labels: frameHolder.frame?.labels.values.toList() ?? const [],
+                  obstacles: [
+                    ...?frameHolder.frame?.bodies.values,
+                    ...?frameHolder.frame?.labels.values,
+                    ...?frameHolder.frame?.chips.values,
+                  ],
                 ),
                 child: ConstellationTagMagnetControl(
                   actionLabel: L10n.of(context)!.buttonRemove,
@@ -54,12 +58,15 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
   );
 }
 
-/// Centres the magnet on its point, then steps it clear of node labels.
+/// Centres the magnet on its point, then steps it clear of painted obstacles.
 class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
-  const _MagnetLabelClearDelegate({required this.center, required this.labels});
+  const _MagnetLabelClearDelegate({
+    required this.center,
+    required this.obstacles,
+  });
 
   final Offset center;
-  final List<Rect> labels;
+  final List<Rect> obstacles;
 
   @override
   Offset getPositionForChild(Size size, Size childSize) => clearMagnetOfLabels(
@@ -68,7 +75,7 @@ class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
       width: childSize.width,
       height: childSize.height,
     ),
-    labels,
+    obstacles,
     bounds: Offset.zero & size,
   ).topLeft;
 
@@ -78,5 +85,5 @@ class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_MagnetLabelClearDelegate old) =>
-      center != old.center || !listEquals(labels, old.labels);
+      center != old.center || !listEquals(obstacles, old.obstacles);
 }
