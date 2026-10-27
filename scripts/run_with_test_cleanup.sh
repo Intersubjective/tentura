@@ -36,6 +36,10 @@
 #
 # Usage:
 #   scripts/run_with_test_cleanup.sh [--timeout 45m] [--no-lock] -- flutter test ...
+#   scripts/run_with_test_cleanup.sh --inactivity 10m -- flutter test ...
+#   (no output for that long = a hang; default 10m: long enough for a cold
+#   bundle compile under load, short enough to catch a stuck test file)
+#   TEST_INACTIVITY_TIMEOUT=0 scripts/run_with_test_cleanup.sh -- dart test
 #   scripts/run_with_test_cleanup.sh --sweep-only
 #   cd packages/client && ../../scripts/run_with_test_cleanup.sh -- \
 #     flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
@@ -185,7 +189,9 @@ def is_wrapper(blob: bytes) -> bool:
     # frontend_server_aot.dart.snapshot (tentura-uh2m); a sweep running inside
     # or beside the wrapper must never mistake it for an orphan compiler.
     return any(
-        arg.rsplit(b"/", 1)[-1] == b"run_with_test_cleanup.sh"
+        arg.rsplit(b"/", 1)[-1] in (
+            b"run_with_test_cleanup.sh", b"run_with_test_output_watchdog.py"
+        )
         for arg in blob.split(b"\0")
     )
 
@@ -610,6 +616,7 @@ PY
 
 main() {
   local timeout="$DEFAULT_TIMEOUT" sweep_only=0 use_lock=1 lock_wait="3h"
+  local inactivity="${TEST_INACTIVITY_TIMEOUT:-10m}"
   local -a cmd=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -619,6 +626,7 @@ main() {
         timeout="$2"
         shift 2
         ;;
+      --inactivity) inactivity="$2"; shift 2 ;;
       --no-lock) use_lock=0; shift ;;
       --lock-wait) lock_wait="$2"; shift 2 ;;
       -h|--help) usage ;;
@@ -650,6 +658,17 @@ main() {
     exit 2
   }
 
+  local inactivity_secs
+  inactivity_secs="$(parse_duration_seconds "$inactivity")" || {
+    log "invalid --inactivity '$inactivity'"
+    exit 2
+  }
+  local -a command_launcher=(setsid -f -w)
+  if (( inactivity_secs > 0 )); then
+    command_launcher=(python3 "$(dirname "$SELF")/run_with_test_output_watchdog.py"
+      "$inactivity_secs" "$inactivity" "$(parse_duration_seconds "$KILL_AFTER")")
+  fi
+
   if [[ "$use_lock" -eq 1 ]]; then
     local wait_secs
     wait_secs="$(parse_duration_seconds "$lock_wait")" || { log "invalid --lock-wait '$lock_wait'"; exit 2; }
@@ -680,7 +699,7 @@ main() {
   # silently take the reaper — and so leftover testers are findable by
   # environ even if they later reparent to PID 1.
   set +e
-  setsid -f -w timeout --kill-after="$KILL_AFTER" -- "$timeout" \
+  "${command_launcher[@]}" timeout --kill-after="$KILL_AFTER" -- "$timeout" \
     env TENTURA_TEST_CLEANUP_RUN="$run_id" "${cmd[@]}" 9>&-
   rc=$?
   set -e
