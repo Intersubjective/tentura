@@ -474,6 +474,63 @@ void main() {
       (w) => w is Text && w.data?.toLowerCase() == text.toLowerCase(),
     );
 
+    for (final archived in [false, true]) {
+      testWidgets(
+        'deleting the last message refreshes the ${archived ? 'archived' : 'active'} Post preview without reload',
+        (tester) async {
+          PostSummary post(String? excerpt) => _post(
+            'Pa',
+            rootExcerpt: 'Root message',
+            lastMessageExcerpt: excerpt,
+            expiresAt: archived
+                ? _ago(const Duration(days: 1))
+                : _now.add(const Duration(days: 1)),
+          );
+          repository.posts = [post('Deleted reply')];
+          await pumpTab(tester);
+          expect(find.textContaining('Deleted reply'), findsOneWidget);
+          final callsBefore = repository.myPostsCalls;
+
+          // The server has removed the last reply; only its room-message
+          // invalidation arrives, with no accompanying beacon change.
+          repository.posts = [post('Previous reply')];
+          void deleted(String messageId) => sync.port.emitChange(
+            RealtimeEntityChange(
+              kind: RealtimeEntityKind.roomMessage,
+              aggregateId: 'Pa',
+              childId: messageId,
+              operation: RealtimeOperation.delete,
+              source: RealtimeChangeSource.serverInvalidation,
+            ),
+          );
+          await tester.runAsync(() async {
+            deleted('last-reply');
+            await _settle();
+          });
+          await tester.pumpAndSettle();
+
+          expect(repository.myPostsCalls, callsBefore + 1);
+          expect(find.textContaining('Deleted reply'), findsNothing);
+          expect(find.textContaining('Previous reply'), findsOneWidget);
+          expect(
+            (archived ? cubit.state.archive : cubit.state.active).single.id,
+            'Pa',
+          );
+
+          // Removing the remaining reply falls back to the root.
+          repository.posts = [post(null)];
+          await tester.runAsync(() async {
+            deleted('previous-reply');
+            await _settle();
+          });
+          await tester.pumpAndSettle();
+          expect(repository.myPostsCalls, callsBefore + 2);
+          expect(find.textContaining('Previous reply'), findsNothing);
+          expect(find.textContaining('Root message'), findsOneWidget);
+        },
+      );
+    }
+
     testWidgets('shows pinned rows, then «Сейчас», then «Архив» in order', (
       tester,
     ) async {

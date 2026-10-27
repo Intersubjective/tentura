@@ -33,8 +33,13 @@ final class PostsCase extends UseCaseBase {
 
   /// Fires on any beacon change: a reply, pin, mute, leave or a newly
   /// addressed Post all show up as one, and the list is cheap to refetch.
+  /// Message changes also invalidate the preview: deleting the last reply
+  /// need not change the beacon itself, including for archived Posts.
   Stream<void> get changes => _realtimeSyncCase
-      .changesFor(const {RealtimeEntityKind.beacon})
+      .changesFor(const {
+        RealtimeEntityKind.beacon,
+        RealtimeEntityKind.roomMessage,
+      })
       .map((_) {});
 
   /// Whether any of the viewer's Posts has unread messages, as of the last
