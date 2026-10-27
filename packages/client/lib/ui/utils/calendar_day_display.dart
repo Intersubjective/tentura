@@ -47,6 +47,22 @@ String formatFutureCalendarDayLabel(
   return formatCalendarLongDateLabel(l10n, date);
 }
 
+/// Short form of [formatFutureCalendarDayLabel] for tight spots (#267): the
+/// weekday when fewer than 7 calendar days away, else day and month
+/// ("Nov 2", «2 нояб.»), no year: meant for dates within a few months.
+String formatFutureCalendarDayShortLabel(
+  L10n l10n,
+  DateTime date,
+  DateTime today,
+) {
+  if (calendarDaysBetween(today, date) < 7) {
+    return formatCalendarWeekdayLabel(l10n, date);
+  }
+  return DateFormat.MMMd(l10n.localeName).format(
+    _displayCalendarMidnight(date),
+  );
+}
+
 bool _isLocalCalendarMidnight(DateTime value) =>
     !value.isUtc &&
     value.hour == 0 &&

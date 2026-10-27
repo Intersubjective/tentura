@@ -18,6 +18,7 @@ class OwnPausedChip extends StatelessWidget {
     this.profileCubit,
     this.clock,
     this.iconOnly = false,
+    this.dense = false,
     super.key,
   });
 
@@ -31,6 +32,11 @@ class OwnPausedChip extends StatelessWidget {
 
   /// A pause glyph with the label as its tooltip, for a collapsed rail.
   final bool iconOnly;
+
+  /// For a phone's top bar (#267): the pause glyph over the short date
+  /// ("Nov 2", «2 нояб.»), about one icon wide so the screen title keeps its
+  /// room; the full label is its tooltip and screen-reader label.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +66,71 @@ class OwnPausedChip extends StatelessWidget {
             tooltip: label,
             onPressed: onPressed,
             icon: const Icon(Icons.pause_circle_outline),
+          );
+        }
+        if (dense) {
+          final scheme = Theme.of(context).colorScheme;
+          final color = scheme.onSurfaceVariant;
+          const radius = BorderRadius.all(
+            Radius.circular(TenturaRadii.cardDense),
+          );
+          return Tooltip(
+            message: label,
+            excludeFromSemantics: true,
+            child: Semantics(
+              container: true,
+              button: true,
+              label: label,
+              excludeSemantics: true,
+              child: InkWell(
+                key: chipKey,
+                onTap: onPressed,
+                customBorder: const RoundedRectangleBorder(
+                  borderRadius: radius,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: kMinInteractiveDimension,
+                    minHeight: kMinInteractiveDimension,
+                  ),
+                  child: Center(
+                    widthFactor: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: scheme.outlineVariant),
+                        borderRadius: radius,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: TenturaSpacing.iconText,
+                          vertical: TenturaSpacing.tight,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.pause_circle_outline,
+                              size: 16,
+                              color: color,
+                            ),
+                            Text(
+                              availabilityWhenShortLabel(
+                                l10n,
+                                resumeOn,
+                                todayUtc,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TenturaText.labelSmall(color),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           );
         }
         return ActionChip(

@@ -281,17 +281,128 @@ void main() {
         tester.getRect(find.byKey(HomeAccountAvatarButton.buttonKey)).left,
       ),
     );
-    // The label is cut with an ellipsis, not clipped; the full words stay
-    // for screen readers.
+    // Since the SE QA (#267) the top bar shows the short date, whole; the
+    // full words are the chip's tooltip and screen-reader label.
     final label = l10n.availabilityPausedChip(
       availabilityWhenLabel(l10n, longest, today),
     );
-    final labelText = tester.widget<Text>(
-      find.descendant(of: chip, matching: find.text(label)),
+    final short = find.descendant(
+      of: chip,
+      matching: find.text(availabilityWhenShortLabel(l10n, longest, today)),
     );
-    expect(labelText.overflow, TextOverflow.ellipsis);
+    expect(short, findsOneWidget);
+    _expectWhole(tester, short);
+    expect(find.byTooltip(label), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  // #267 QA on iPhone SE (375x667), 7.56.1: the chip read "Paused unt…" /
+  // «Пауза до 2…», so the date never showed, and it pushed the screen title
+  // out of the top bar.
+  for (final locale in const [Locale('en'), Locale('ru')]) {
+    testWidgets('iPhone SE top bar: the date shows and the title stays '
+        '($locale)', (tester) async {
+      const size = Size(375, 667);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final l10n = lookupL10n(locale);
+      final today = availabilityTodayUtc();
+      // A month away: a dated label, not a weekday.
+      final until = addUtcCalendarDays(today, 30);
+      final semantics = tester.ensureSemantics();
+      final cubit = _TestProfileCubit(
+        profile: Profile(
+          id: 'U-me',
+          displayName: 'Me',
+          availability: Availability(resumeOn: until),
+        ),
+      );
+      addTearDown(cubit.close);
+      GetIt.I.registerSingleton<ProfileCubit>(cubit);
+      addTearDown(GetIt.I.reset);
+      // Test glyphs are 1em squares, so a short title stands in for
+      // "Requests"; one action stands in for the screen's own icons.
+      const title = 'Чаты';
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: locale,
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              appBar: TenturaTopBar.of(
+                context,
+                title: const Text(title),
+                actions: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+                account: homeTopBarAccount(context),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final chip = find.byKey(OwnPausedChip.chipKey);
+      expect(chip, findsOneWidget);
+      final chipRect = tester.getRect(chip);
+
+      // The date is on screen, whole.
+      final date = availabilityWhenShortLabel(l10n, until, today);
+      expect(date, isNot(contains('…')));
+      final dateText = find.descendant(of: chip, matching: find.text(date));
+      expect(dateText, findsOneWidget);
+      _expectWhole(tester, dateText);
+      expect(
+        tester.getRect(dateText).right,
+        lessThanOrEqualTo(chipRect.right + 0.5),
+      );
+
+      // The full words are the tooltip and what a screen reader hears.
+      final label = l10n.availabilityPausedChip(
+        availabilityWhenLabel(l10n, until, today),
+      );
+      expect(find.byTooltip(label), findsOneWidget);
+      expect(find.bySemanticsLabel(label), findsOneWidget);
+
+      // The screen title keeps its room, left of the chip.
+      final titleFinder = find.text(title);
+      _expectWhole(tester, titleFinder);
+      expect(
+        tester.getRect(titleFinder).right,
+        lessThanOrEqualTo(chipRect.left),
+      );
+      expect(
+        chipRect.right,
+        lessThanOrEqualTo(
+          tester.getRect(find.byKey(HomeAccountAvatarButton.buttonKey)).left,
+        ),
+      );
+
+      // Tapping it still offers to resume.
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.availabilityResumeConfirmTitle), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    });
+  }
+}
+
+/// [text] is laid out on one line at its full width (not ellipsized).
+void _expectWhole(WidgetTester tester, Finder text) {
+  final paragraph = tester.renderObject<RenderParagraph>(text);
+  expect(paragraph.didExceedMaxLines, isFalse);
+  expect(
+    paragraph.size.width,
+    greaterThanOrEqualTo(paragraph.getMaxIntrinsicWidth(double.infinity) - 0.5),
+  );
 }
 
 final class _TestProfileCubit extends Cubit<ProfileState>

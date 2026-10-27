@@ -8,8 +8,16 @@ String availabilityWhenLabel(
   L10n l10n,
   DateTime resumeOn,
   DateTime todayUtc,
-) =>
-    formatFutureCalendarDayLabel(l10n, resumeOn, todayUtc);
+) => formatFutureCalendarDayLabel(l10n, resumeOn, todayUtc);
+
+/// Short `resume_on` for a tight spot such as the phone top bar's paused
+/// chip (#267): weekday under a week away, else "Nov 2" / «2 нояб.» (a
+/// pause ends within `availabilityResumeHorizonDays`, so no year).
+String availabilityWhenShortLabel(
+  L10n l10n,
+  DateTime resumeOn,
+  DateTime todayUtc,
+) => formatFutureCalendarDayShortLabel(l10n, resumeOn, todayUtc);
 
 /// Primary own-profile availability status line, or null when open-only is omitted by caller.
 String ownAvailabilityPrimaryLine(
@@ -70,8 +78,7 @@ String personForwardPausedBanner(
   required String name,
   required DateTime resumeOn,
   required DateTime todayUtc,
-}) =>
-    l10n.availabilityPersonPaused(
-      name,
-      availabilityWhenLabel(l10n, resumeOn, todayUtc),
-    );
+}) => l10n.availabilityPersonPaused(
+  name,
+  availabilityWhenLabel(l10n, resumeOn, todayUtc),
+);
