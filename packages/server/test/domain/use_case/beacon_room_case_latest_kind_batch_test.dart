@@ -105,6 +105,12 @@ void main() {
 }
 
 class _LatestStubRoom extends Fake implements BeaconRoomRepositoryPort {
+  @override
+  Future<Map<String, String>> postRootExcerpts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => {};
+
   _LatestStubRoom({required this.authoredBeaconIds});
 
   final Set<String> authoredBeaconIds;

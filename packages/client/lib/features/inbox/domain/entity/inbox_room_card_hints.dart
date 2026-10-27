@@ -9,6 +9,7 @@ part 'inbox_room_card_hints.freezed.dart';
 @freezed
 abstract class InboxRoomCardHints with _$InboxRoomCardHints {
   const factory InboxRoomCardHints({
+    @Default('') String postRootExcerpt,
     required bool isRoomMember,
     required int roomUnreadCount,
     DateTime? lastSeenAt,

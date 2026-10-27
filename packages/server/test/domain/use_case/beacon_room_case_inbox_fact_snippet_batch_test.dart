@@ -167,6 +167,12 @@ class _CountingFactCards extends Fake implements BeaconFactCardRepositoryPort {
 }
 
 class _InboxStubRoom extends Fake implements BeaconRoomRepositoryPort {
+  @override
+  Future<Map<String, String>> postRootExcerpts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => {};
+
   _InboxStubRoom({required this.authoredBeaconIds});
 
   final Set<String> authoredBeaconIds;

@@ -418,6 +418,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
     required this.beacon,
     required this.menu,
     this.titleMaxLines = 2,
+    this.displayTitle,
     this.identitySize = kBeaconCardHeaderIconSize,
     this.onTitleBlockTap,
     this.titleStyle,
@@ -429,6 +430,9 @@ class BeaconCardHeaderRow extends StatelessWidget {
   final Beacon beacon;
   final Widget menu;
   final int titleMaxLines;
+
+  /// Optional surface-specific label (Posts use their root excerpt).
+  final String? displayTitle;
 
   /// Passed to [BeaconIdentityTile] (inbox / My Work list cards use 40px).
   final double identitySize;
@@ -458,7 +462,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
         );
 
     Widget titleBlock = Text(
-      beacon.title.isEmpty ? '—' : beacon.title,
+      displayTitle ?? (beacon.title.isEmpty ? '—' : beacon.title),
       style: resolvedTitleStyle,
       maxLines: titleMaxLines,
       overflow: TextOverflow.ellipsis,

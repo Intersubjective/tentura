@@ -118,6 +118,9 @@ class InboxWatchlistRow extends StatelessWidget {
     final beacon = item.beacon;
     if (beacon == null) return const SizedBox.shrink();
 
+    final postExcerpt = item.roomHints?.postRootExcerpt.trim() ?? '';
+    final displayTitle = beacon.isRequest ? beacon.title : postExcerpt;
+
     final secondaryLabel = _secondaryLabel(l10n);
     final secondaryIcon = _secondaryIcon();
 
@@ -140,7 +143,7 @@ class InboxWatchlistRow extends StatelessWidget {
       selected: isSelected,
       // #416: the visible title already names the card; repeating it as the
       // label made a screen reader say it twice.
-      tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : '',
+      tapSemanticsLabel: displayTitle.isEmpty ? l10n.openBeacon : '',
       footer: showFooter
           ? InboxCardActionRow(
               onOfferHelp: showCtaRow ? onOfferHelp : null,
@@ -162,6 +165,7 @@ class InboxWatchlistRow extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
+            displayTitle: displayTitle.isEmpty ? '—' : displayTitle,
             onTitleBlockTap: onOpenBeacon,
             phaseStatus: phaseStatus,
             menu: BeaconOverflowMenu(

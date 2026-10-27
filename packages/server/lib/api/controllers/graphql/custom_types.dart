@@ -761,6 +761,7 @@ final gqlTypeInboxRoomContextRow =
         field('lastActivityAt', graphQLString),
         field('lastMessageAt', graphQLString),
         field('lastMessageText', graphQLString),
+        field('postRootExcerpt', graphQLString),
         field('lastMessageAuthorId', graphQLString),
         field('lastMessageAuthorName', graphQLString),
         // #498 — what a message with no text carries: image, file, poll or

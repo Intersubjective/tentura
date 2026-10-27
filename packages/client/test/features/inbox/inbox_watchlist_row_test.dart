@@ -4,6 +4,8 @@ import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -73,6 +75,55 @@ void main() {
   const logicalSize = Size(360, 420);
   final at = DateTime.utc(2026, 6, 20, 12, 34);
 
+  for (final example in [
+    (
+      kind: BeaconKind.post,
+      title: '',
+      excerpt: 'The original Post text',
+      expected: 'The original Post text',
+    ),
+    (
+      kind: BeaconKind.request,
+      title: 'Help with moving',
+      excerpt: 'Ignore this excerpt',
+      expected: 'Help with moving',
+    ),
+    (kind: BeaconKind.post, title: '', excerpt: '', expected: '—'),
+    (kind: BeaconKind.post, title: '', excerpt: '   ', expected: '—'),
+  ]) {
+    testWidgets('dismissed ${example.kind.name} labels ${example.expected}', (
+      tester,
+    ) async {
+      await _pumpRow(
+        tester,
+        logicalSize: logicalSize,
+        item: InboxItem(
+          beaconId: 'dismissed',
+          latestForwardAt: at,
+          status: InboxItemStatus.rejected,
+          roomHints: InboxRoomCardHints(
+            isRoomMember: false,
+            roomUnreadCount: 0,
+            postRootExcerpt: example.excerpt,
+          ),
+          beacon: Beacon(
+            id: 'dismissed',
+            kind: example.kind,
+            title: example.title,
+            author: const Profile(id: 'auth', displayName: 'Alex'),
+            createdAt: at,
+            updatedAt: at,
+          ),
+        ),
+      );
+      expect(find.text(example.expected), findsOneWidget);
+      final label = tester.widget<Text>(find.text(example.expected));
+      expect(label.maxLines, 2);
+      expect(label.overflow, TextOverflow.ellipsis);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('dismissed row shows the owner their private note', (
     tester,
   ) async {
@@ -125,7 +176,8 @@ void main() {
   testWidgets('description is replaced by Details and opens the sheet', (
     tester,
   ) async {
-    const description = 'Need two people tomorrow morning to help carry a piano.';
+    const description =
+        'Need two people tomorrow morning to help carry a piano.';
     final beacon = Beacon(
       id: 'b-details',
       title: 'Help needed',
@@ -195,5 +247,4 @@ void main() {
     expect(find.text(expected!.text), findsOneWidget);
     expect(find.text(l10n.inboxForwardedByLabel), findsNothing);
   });
-
 }

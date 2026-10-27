@@ -44,6 +44,12 @@ abstract class BeaconRoomRepositoryPort {
     required String viewerUserId,
   });
 
+  /// Root labels for readable Posts, including Posts the viewer has left.
+  Future<Map<String, String>> postRootExcerpts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  });
+
   Future<DateTime?> getMainRoomLastSeen({
     required String beaconId,
     required String userId,

@@ -37,6 +37,7 @@ class BeaconRoomHintsRepository {
     return {
       for (final e in rows)
         e.beaconId: InboxRoomCardHints(
+          postRootExcerpt: e.postRootExcerpt ?? '',
           isRoomMember: e.isRoomMember,
           roomUnreadCount: e.roomUnreadCount,
           lastSeenAt: _parseOptionalIso(e.lastSeenAt),

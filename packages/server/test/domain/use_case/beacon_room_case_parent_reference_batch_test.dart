@@ -108,6 +108,7 @@ void main() {
       final row = rows.single;
 
       expect(row['isRoomMember'], isFalse);
+      expect(row['postRootExcerpt'], 'Root Post text');
       expect(row['parentBeaconId'], parentBeacon);
       expect(row['parentTitle'], parentTitle);
     },
@@ -184,6 +185,15 @@ void main() {
 }
 
 class _ParentStubRoom extends Fake implements BeaconRoomRepositoryPort {
+  @override
+  Future<Map<String, String>> postRootExcerpts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => {
+    for (final id in beaconIds)
+      if (id == 'Bforeign') id: 'Root Post text',
+  };
+
   _ParentStubRoom({required this.authoredBeaconIds});
 
   final Set<String> authoredBeaconIds;

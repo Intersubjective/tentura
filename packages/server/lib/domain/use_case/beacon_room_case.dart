@@ -1303,11 +1303,18 @@ class BeaconRoomCase extends UseCaseBase {
       childBeaconIds: slice.toSet(),
       viewerId: userId,
     );
+    final postExcerpts = await _room.postRootExcerpts(
+      slice,
+      viewerUserId: userId,
+    );
     final out = <Map<String, Object?>>[];
     for (final bid in slice) {
       final allowed = await _canUseRoom(beaconId: bid, userId: userId);
       final factSnippet = snippets[bid];
-      final parentFields = _parentReferenceBatchFields(parents[bid]);
+      final parentFields = {
+        ..._parentReferenceBatchFields(parents[bid]),
+        'postRootExcerpt': postExcerpts[bid],
+      };
       if (!allowed) {
         out.add({
           'beaconId': bid,

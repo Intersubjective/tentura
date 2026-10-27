@@ -33,6 +33,35 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
   final TenturaDb _db;
 
+  @override
+  Future<Map<String, String>> postRootExcerpts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
+    final rows = await _db
+        .customSelect(
+          r"""
+SELECT b.id, left(root.body, 280) AS excerpt
+FROM public.beacon b
+JOIN public.beacon_room_message root
+  ON root.id = b.post_root_message_id AND root.beacon_id = b.id
+WHERE b.id = ANY($2::text[]) AND b.kind = 1
+  AND public.beacon_can_read_content(b.id, $1)
+""",
+          variables: [
+            Variable<String>(viewerUserId),
+            Variable<List<String>>(ids, PgTypes.textArray),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('id'): row.read<String>('excerpt'),
+    };
+  }
+
   /// Of [peerIds], those with a block either way with [viewerUserId].
   Future<Set<String>> _blockHiddenPeers({
     required String viewerUserId,

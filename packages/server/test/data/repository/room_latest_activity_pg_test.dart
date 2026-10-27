@@ -90,6 +90,57 @@ Future<void> main() async {
       );
     });
 
+    test(
+      'Post root labels are clipped and guarded independently of room membership',
+      () async {
+        const postId = 'Brootlabel01';
+        await writer.execute(
+          'INSERT INTO public.beacon (id, user_id, title, description, '
+          'status, kind, is_discoverable, published_at) VALUES '
+          "('$postId', '$authorId', '', '', 0, 1, false, now())",
+        );
+        final body = List.filled(300, 'x').join();
+        await message(
+          'root-label',
+          beacon: postId,
+          author: authorId,
+          body: body,
+          at: '2026-01-01T12:00:00Z',
+        );
+        await writer.execute(
+          "UPDATE public.beacon SET post_root_message_id = 'root-label' WHERE id = '$postId'",
+        );
+        expect(
+          await room.postRootExcerpts([postId], viewerUserId: authorId),
+          {postId: body.substring(0, 280)},
+        );
+        expect(
+          await room.postRootExcerpts([postId], viewerUserId: ninaId),
+          isEmpty,
+        );
+        // Real addressees retain their forward edge when they leave. It
+        // grants content access while room_access = 5 denies room membership.
+        await writer.execute(
+          'INSERT INTO public.beacon_forward_edge '
+          '(id, beacon_id, sender_id, recipient_id) VALUES '
+          "('Frootlabel01', '$postId', '$authorId', '$ninaId')",
+        );
+        await writer.execute(
+          "UPDATE public.beacon_participant SET room_access = 5 "
+          "WHERE beacon_id = '$postId' AND user_id = '$ninaId'",
+        );
+        final participant = await writer.execute(
+          "SELECT room_access FROM public.beacon_participant "
+          "WHERE beacon_id = '$postId' AND user_id = '$ninaId'",
+        );
+        expect(participant.single.single, 5);
+        expect(await room.postRootExcerpts([postId], viewerUserId: ninaId), {
+          postId: body.substring(0, 280),
+        });
+        expect(await room.postRootExcerpts([], viewerUserId: ninaId), isEmpty);
+      },
+    );
+
     test('no ids: empty map', () async {
       expect(
         await room.latestRoomActivities(const [], viewerUserId: authorId),

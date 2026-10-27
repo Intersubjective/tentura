@@ -1,5 +1,6 @@
 query InboxRoomContextBatch($beaconIds: [String!]!) {
   InboxRoomContextBatch(beaconIds: $beaconIds) {
+    postRootExcerpt
     beaconId
     isRoomMember
     currentLine

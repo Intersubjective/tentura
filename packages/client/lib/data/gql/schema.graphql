@@ -8642,6 +8642,7 @@ type v2_BeaconLobbyBannedUser {
 }
 
 type v2_InboxRoomContextRow {
+  postRootExcerpt: String
   beaconId: String!
   currentLine: String
   isRoomMember: Boolean!

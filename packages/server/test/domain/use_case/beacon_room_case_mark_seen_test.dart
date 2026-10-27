@@ -49,6 +49,12 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
 }
 
 class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
+  @override
+  Future<Map<String, String>> postRootExcerpts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => {};
+
   DateTime? existingSeen;
   DateTime? latestMessageAt;
   DateTime? storedWatermark;
