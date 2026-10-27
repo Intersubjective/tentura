@@ -32,7 +32,7 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
     super.initState();
     unawaited(
       _run(() async {
-        await _peopleTags.load();
+        await _peopleTags.ensureLoaded();
         await _peopleTags.loadAutoTags();
         await _peopleTags.loadSuggestionState();
       }),

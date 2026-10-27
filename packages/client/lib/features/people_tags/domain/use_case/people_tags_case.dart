@@ -33,6 +33,7 @@ final class PeopleTagsCase extends UseCaseBase {
   static const _applyAttempts = 2;
 
   late final StreamSubscription<RealtimeEntityChange> _subscription;
+  StreamSubscription<String>? _accountSubscription;
   final _changes = StreamController<void>.broadcast();
   final _members = <String, Set<String>>{};
   final _uuid = const Uuid();
@@ -42,9 +43,17 @@ final class PeopleTagsCase extends UseCaseBase {
   PersonTagSuggestionState? _suggestionState;
   BigInt? _lastRevision;
   Timer? _timer;
+  Future<void>? _initialLoad;
+  bool _loaded = false;
+  bool _requested = false;
+  String? _accountId;
+  int _accountGeneration = 0;
 
   /// Fires after every change of the tags or the membership index.
   Stream<void> get changes => _changes.stream;
+
+  /// Whether the own-tag snapshot has been loaded for the current account.
+  bool get hasLoaded => _loaded;
 
   /// Own tags in `ord` order.
   List<PersonTag> get tags => _tags;
@@ -68,11 +77,27 @@ final class PeopleTagsCase extends UseCaseBase {
   Future<List<PersonAutoTagOf>> autoTagsOf(String personId) async =>
       (await _repository.personTagsOf(personId)).auto;
 
+  /// Loads the shared snapshot once, coalescing simultaneous consumers.
+  /// A failed read is retryable by the next consumer.
+  Future<void> ensureLoaded() {
+    _requested = true;
+    if (_loaded) return Future.value();
+    final pending = _initialLoad;
+    if (pending != null) return pending;
+    final future = load();
+    _initialLoad = future;
+    return future.whenComplete(() {
+      if (identical(_initialLoad, future)) _initialLoad = null;
+    });
+  }
+
   Future<void> load() async {
+    final generation = _accountGeneration;
     final results = await Future.wait([
       _repository.personTags(),
       _repository.personTagMemberships(),
     ]);
+    if (generation != _accountGeneration) return;
     _tags = [...results[0] as List<PersonTag>]
       ..sort((a, b) => a.ord.compareTo(b.ord));
     _members
@@ -81,6 +106,7 @@ final class PeopleTagsCase extends UseCaseBase {
         for (final m in results[1] as List<PersonTagMembers>)
           MapEntry(m.tagId, {...m.personIds}),
       ]);
+    _loaded = true;
     _emit();
   }
 
@@ -247,6 +273,7 @@ final class PeopleTagsCase extends UseCaseBase {
   Future<void> dispose() async {
     _timer?.cancel();
     await _subscription.cancel();
+    await _accountSubscription?.cancel();
     await _changes.close();
   }
 
@@ -256,6 +283,34 @@ final class PeopleTagsCase extends UseCaseBase {
     final changed = add ? people.add(personId) : people.remove(personId);
     if (changed) _emit();
     return changed;
+  }
+
+  /// Follow the signed-in account for the lifetime of this shared store.
+  void bindAccountChanges(Stream<String> accountChanges) {
+    _accountSubscription ??= accountChanges.listen(_onAccountChanged);
+  }
+
+  void _onAccountChanged(String accountId) {
+    final previous = _accountId;
+    _accountId = accountId;
+    if (previous == null || previous == accountId) return;
+    _accountGeneration++;
+    _timer?.cancel();
+    _lastRevision = null;
+    _loaded = false;
+    _initialLoad = null;
+    _tags = const [];
+    _autoTags = const [];
+    _suggestionState = null;
+    _members.clear();
+    _emit();
+    if (_requested && accountId.isNotEmpty) {
+      unawaited(
+        ensureLoaded().catchError((Object error, StackTrace stack) {
+          logger.warning('people tags account load failed', error, stack);
+        }),
+      );
+    }
   }
 
   void _onChange(RealtimeEntityChange change) {

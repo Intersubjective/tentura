@@ -26,6 +26,21 @@ Future<void> showAddPeopleToTagSheet(
 }) async {
   final people = personIds.toSet();
   final peopleTags = GetIt.I<PeopleTagsCase>();
+  try {
+    await peopleTags.ensureLoaded();
+  } catch (e, s) {
+    if (context.mounted) {
+      showSnackBar(
+        context,
+        isError: true,
+        text: e.toString(),
+        error: e,
+        stackTrace: s,
+      );
+    }
+    return;
+  }
+  if (!context.mounted) return;
   final initial = {
     for (final tag in peopleTags.tags)
       if (people.every((id) => peopleTags.tagsOfPerson(id).contains(tag.id)))

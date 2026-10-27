@@ -31,6 +31,7 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
   @override
   void initState() {
     super.initState();
+    unawaited(_peopleTags.ensureLoaded().catchError((Object _) {}));
     _auto = _loadAuto();
   }
 

@@ -190,8 +190,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
       ..addListener(_onRevealTick);
     _graphController.cameraRevision.addListener(_onCamera);
     WidgetsBinding.instance.addObserver(this);
+    final peopleTags = _peopleTags;
+    if (widget.peopleTagsEnabled && peopleTags != null) {
+      unawaited(peopleTags.ensureLoaded().catchError((Object _) {}));
+    }
     _magnetTagsSubscription = _peopleTags?.changes.listen((_) {
-      if (!mounted) return;
+      if (!mounted || !_peopleTags.hasLoaded) return;
       context.read<ConstellationCubit>().refreshTagMagnets({
         for (final tag in _peopleTags.tags) tag.id,
       });

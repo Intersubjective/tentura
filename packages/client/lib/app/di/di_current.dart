@@ -7,6 +7,8 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 import '../sentry/sentry_init.dart';
 import '../sentry/sentry_log_bridge.dart';
 import '../../env.dart';
+import '../../features/auth/domain/use_case/auth_case.dart';
+import '../../features/people_tags/domain/use_case/people_tags_case.dart';
 import 'di_current.config.dart';
 
 @InjectableInit()
@@ -19,6 +21,9 @@ Future<GetIt> configureDependencies() async {
     _ => Environment.dev,
   };
   final getIt = await GetIt.I.init(environment: injectableEnv);
+  getIt<PeopleTagsCase>().bindAccountChanges(
+    getIt<AuthCase>().currentAccountChanges(),
+  );
   final env = getIt<Env>();
 
   Logger.root.level = Level.LEVELS.firstWhere(

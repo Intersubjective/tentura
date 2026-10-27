@@ -40,6 +40,7 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
   @override
   void initState() {
     super.initState();
+    unawaited(_peopleTags.ensureLoaded().catchError((Object _) {}));
     unawaited(_check());
   }
 

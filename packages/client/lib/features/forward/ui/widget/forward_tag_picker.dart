@@ -54,6 +54,7 @@ class _ForwardTagPickerState extends State<ForwardTagPicker> {
     _subscription = peopleTags.changes.listen((_) {
       if (mounted) setState(() {});
     });
+    unawaited(peopleTags.ensureLoaded().catchError((Object _) {}));
     unawaited(peopleTags.loadAutoTags().catchError((_) {}));
   }
 
