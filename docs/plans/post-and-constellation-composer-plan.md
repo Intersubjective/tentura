@@ -102,7 +102,7 @@ phase; web edge kinds; radius selection model; membership webs in the field payl
 | Q2 | Does Post membership create `person_bond`? | **No.** Members still see each other, open profiles and add contacts (§5.7). |
 | Q3 | On Post → Request, what happens to addressees? | They keep room access with no stake, as an **intermediate participant state** («Участник из поста»): one tap to *Offer help* (normal offer → author acknowledges → helper) or *Leave chat*. A declined or withdrawn offer returns them to the intermediate state (they stay admitted). Mockup M8. |
 | Q4 | Webs on the map | Only on selection; *forwarded to* and *inside*, different colours; no chain. For Requests *forwarded to* only for viewers with involvement read. |
-| Q5 | Fade | `kPostActiveWindow = 72h` since `last_activity_at`, visual fade over the last 24h, then out of the active field (history keeps it; pinned Posts keep their anchor). |
+| Q5 | Fade | `kPostActiveWindow = 72h` since `last_activity_at`, visual fade over the last 24h, then out of the active field (history keeps it; pinned Posts keep their anchor). (superseded by post-ttl-design.md) |
 | Q6 | Post "Not interested" | = leave: `inbox_item.status = 2` **and** `room_access = left`. Reversible from «Не интересно» («Вернуть»). |
 | Q7 | Where the Post content lives | The root message (text + attachments + mentions). The room's top pinned strip links to it. No other surfaces besides the overflow menu. |
 | Q8 | Recipient cap | No special server cap — interface limits + the noisy-contact wall (Q15). |

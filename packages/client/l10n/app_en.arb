@@ -7920,10 +7920,6 @@
   "@postsTabNow": {
     "description": "Section of the conversations tab: Posts active in the last 72 hours."
   },
-  "postsTabQuiet": "Gone quiet",
-  "@postsTabQuiet": {
-    "description": "Section of the conversations tab: Posts silent for 72 hours or more."
-  },
   "postsTabArchive": "Archive",
   "@postsTabArchive": {
     "description": "Section of the conversations tab: Posts that are closed or past their lifetime."
@@ -8345,23 +8341,6 @@
   "postMenuUnmuteForever": "Turn sound on · muted for good",
   "postInfoForwardingOpen": "Can be forwarded: any participant can bring others in",
   "postInfoForwardingClosed": "Only the author can forward",
-  "postInfoActiveHours": "{count, plural, one{Active for {count} more hour} other{Active for {count} more hours}}",
-  "@postInfoActiveHours": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "postInfoActiveDays": "{count, plural, one{Active for {count} more day} other{Active for {count} more days}}",
-  "@postInfoActiveDays": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "postInfoQuiet": "Gone quiet: a new message brings it back to «Now»",
   "postInfoPinned": "Pinned in Posts, so it won't go quiet",
   "postInfoMutedUntil": "Muted until {time}",
   "@postInfoMutedUntil": {

@@ -6639,7 +6639,6 @@
   "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
   "activityTabConversations": "Посты",
   "postsTabNow": "Сейчас",
-  "postsTabQuiet": "Затихли",
   "postsTabArchive": "Архив",
   "postsTabEmpty": "Здесь будут посты, которые вы начали или в которые вас позвали",
   "postsTabSelectConversation": "Выберите пост, чтобы открыть его здесь",
@@ -6821,23 +6820,6 @@
   "postMenuUnmuteForever": "Включить звук · заглушено навсегда",
   "postInfoForwardingOpen": "Можно пересылать: любой участник может позвать других",
   "postInfoForwardingClosed": "Пересылать может только автор",
-  "postInfoActiveHours": "{count, plural, one{Активен ещё {count} час} few{Активен ещё {count} часа} many{Активен ещё {count} часов} other{Активен ещё {count} часа}}",
-  "@postInfoActiveHours": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "postInfoActiveDays": "{count, plural, one{Активен ещё {count} день} few{Активен ещё {count} дня} many{Активен ещё {count} дней} other{Активен ещё {count} дня}}",
-  "@postInfoActiveDays": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "postInfoQuiet": "Затих: новое сообщение вернёт его в «Сейчас»",
   "postInfoPinned": "Закреплён в «Постах» и не затихнет",
   "postInfoMutedUntil": "Звук выключен до {time}",
   "@postInfoMutedUntil": {

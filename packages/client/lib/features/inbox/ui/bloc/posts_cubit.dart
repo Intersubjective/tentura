@@ -39,9 +39,6 @@ class PostsCubit extends Cubit<PostsState> {
     unawaited(fetch());
   }
 
-  /// A Post silent for this long (or longer) fades to «Затихли».
-  static const quietAfter = Duration(hours: 72);
-
   final PostsCase _postsCase;
   final DateTime Function() _clock;
   late final StreamSubscription<void> _changes;

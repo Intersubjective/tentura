@@ -108,7 +108,7 @@ Post row (`PostAttentionRow`, a variant of the stream's grouped row, lighter tha
 ├────────────────────────────────────────────┤
 │ [Все] [Мои] [Мне]                          │
 │                                            │
-│ 📌 ◐ Ваш пост · 12 человек  Кто едет на …  │   pinned: always on top, never fades out
+│ 📌 ◐ Ваш пост · 12 человек  Кто едет на …  │   pinned: stays on top, but expires with its deadline (D4)
 │ ─────────────────────────────────────────  │
 │ СЕЙЧАС                                     │
 │ ┌────────────────────────────────────────┐ │

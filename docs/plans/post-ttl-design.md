@@ -1,6 +1,6 @@
 # Срок жизни поста (≤ 3 дня) и архив — дизайн
 
-**Статус:** rev 1.1 (2026-10-23), решения владельца приняты (§2, D1–D10). Не план имплементации.
+**Статус:** shipped (client/server 7.50.0); rev 1.1 (2026-10-23), решения владельца приняты (§2, D1–D10). Не план имплементации.
 **План реализации:** [`post-ttl-implementation-plan.md`](post-ttl-implementation-plan.md) rev 3 · **эпик:** `tentura-lkkq` (24 бида).
 **Связано:** [`post-and-constellation-composer-plan.md`](post-and-constellation-composer-plan.md) (Q5 «Fade» — заменяется),
 [`post-request-budding-design.md`](post-request-budding-design.md) (отпочкование — выход из поста),

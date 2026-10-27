@@ -91,7 +91,7 @@ Duration? _parseEnvDuration(String? raw) {
 /// requires `baseRevision`, which older clients do not send.
 /// Raised to 7.46.0 for who-did-what events (#528, #486): old clients render
 /// kind-8 edit lines as empty bubbles and don't use `beaconCantHelp`.
-const kDefaultMinClientVersion = '7.46.0';
+const kDefaultMinClientVersion = '7.50.0';
 
 class Env {
   Env({
