@@ -159,18 +159,21 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     final pos = event.localPosition;
+    // Hit tests run on the camera as it stands, which can be a frame ahead of
+    // the one `event.localPosition` was resolved against.
+    final hitPos = _controller.globalToScene(event.position) ?? pos;
     final pass = _captureDragPassSnapshot();
     final canvasEnabled = _configuration.onCanvasTap != null ||
         _configuration.onCanvasSecondaryTap != null ||
         _configuration.onCanvasLongPress != null;
     if (canvasEnabled) {
       final nodeId = _hitTestTopmostNodeIdInSnapshot(
-        pos,
+        hitPos,
         pass,
         draggableOnly: false,
       );
       final tapId =
-          _configuration.nodeTapHitTester?.call(pos, pass.orderedNodeIds);
+          _configuration.nodeTapHitTester?.call(hitPos, pass.orderedNodeIds);
       if (nodeId == null && tapId == null) {
         _startCanvasPress(event);
         return;
@@ -179,13 +182,13 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     // A visible but non-draggable marker must not block a draggable node
     // underneath it. Taps still use the topmost node independently.
     final bodyId = _hitTestTopmostNodeIdInSnapshot(
-      pos,
+      hitPos,
       pass,
       draggableOnly: true,
     );
     final tapId =
-        _configuration.nodeTapHitTester?.call(pos, pass.orderedNodeIds) ??
-            _hitTestTopmostNodeIdInSnapshot(pos, pass, draggableOnly: false);
+        _configuration.nodeTapHitTester?.call(hitPos, pass.orderedNodeIds) ??
+            _hitTestTopmostNodeIdInSnapshot(hitPos, pass, draggableOnly: false);
     if (bodyId == null && tapId == null) {
       return;
     }
@@ -619,8 +622,7 @@ final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
   _NodeDragPanGestureRecognizer({
     required this.canStart,
     required this.isOwning,
-  })
-      : super(
+  }) : super(
           supportedDevices: const {
             PointerDeviceKind.touch,
             PointerDeviceKind.stylus,

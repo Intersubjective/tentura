@@ -1572,12 +1572,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     (frame.snapshot
                                 as GraphSceneSnapshot<NodeDetails, EdgeDetails>)
                             .sceneRevision !=
-                        controller.sceneRevision ||
-                    frame.cameraRevision != controller.cameraRevision.value) {
+                        controller.sceneRevision) {
                   return null;
                 }
+                // A finger that lands right after the camera moved is a frame
+                // ahead of the painted frame: resolve on the map it sees now.
                 return resolveConstellationTap(
-                  frame,
+                  frame.cameraRevision == controller.cameraRevision.value
+                      ? frame
+                      : frame.recentredOn(
+                          cameraRevision: controller.cameraRevision.value,
+                          centreOf: (id) {
+                            final scene = controller.getPositionOrNullForId(id);
+                            return scene == null
+                                ? null
+                                : controller.sceneToViewportLocal(scene);
+                          },
+                        ),
                   controller.sceneToViewportLocal(scenePosition),
                 );
               },

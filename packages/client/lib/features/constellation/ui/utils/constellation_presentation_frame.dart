@@ -144,6 +144,34 @@ final class ConstellationPresentationFrame {
     );
   }
 
+  /// This frame with every node's rects moved onto the centre [centreOf]
+  /// gives it on the camera of [cameraRevision]; sizes stay as painted.
+  ConstellationPresentationFrame recentredOn({
+    required int cameraRevision,
+    required Offset? Function(GraphNodeId id) centreOf,
+  }) {
+    Map<GraphNodeId, Rect> shift(Map<GraphNodeId, Rect> rects) => {
+      for (final entry in rects.entries)
+        entry.key: switch ((centreOf(entry.key), bodies[entry.key])) {
+          (final centre?, final body?) => entry.value.shift(
+            centre - body.center,
+          ),
+          _ => entry.value,
+        },
+    };
+    return ConstellationPresentationFrame(
+      snapshot: snapshot,
+      cameraRevision: cameraRevision,
+      detail: detail,
+      paintOrder: paintOrder,
+      bodies: shift(bodies),
+      labels: shift(labels),
+      tapTargets: shift(tapTargets),
+      chips: chips,
+      forcedLabels: forcedLabels,
+    );
+  }
+
   /// Moves the rects of nodes (and their chips) dragged since placement.
   ConstellationPresentationFrame withDragShifts({
     required Map<GraphNodeId, Offset> nodeDeltas,
