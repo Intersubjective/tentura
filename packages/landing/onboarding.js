@@ -499,7 +499,12 @@ export async function fetchMyProfile() {
   }
 }
 
-/** PATCH the display name; throws Error with a user-facing message. */
+/**
+ * PATCH the display name; throws Error with a user-facing message. A 400 is
+ * the server rejecting the name (expected input): the Error carries
+ * `expected: true` so analytics records a breadcrumb, not a Sentry issue
+ * (#762). Network failures and other statuses stay faults.
+ */
 export async function saveDisplayName(name) {
   let res;
   try {
@@ -519,13 +524,14 @@ export async function saveDisplayName(name) {
   if (!res.ok) {
     // The server's error body is developer text ("displayName must be …"),
     // so it is not shown as is.
-    throw new Error(
-      res.status === 400
-        ? t(
-            'That name could not be saved. Use 3 to 32 characters and try again.',
-          )
-        : t('Could not save your name. Try again.'),
-    );
+    if (res.status === 400) {
+      const err = new Error(
+        t('That name could not be saved. Use 3 to 32 characters and try again.'),
+      );
+      err.expected = true;
+      throw err;
+    }
+    throw new Error(t('Could not save your name. Try again.'));
   }
   return res.json();
 }
