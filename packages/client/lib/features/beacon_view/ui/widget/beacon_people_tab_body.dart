@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/coordination/viewer_offer_accepted.dart';
@@ -30,6 +31,7 @@ import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_from_participants_button.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
@@ -393,7 +395,19 @@ class BeaconPeopleTabBody extends StatelessWidget {
       return null;
     }
 
-    HelpOfferTile peopleTile(BeaconPeopleRow row) {
+    // #533: the team's presence (BeaconViewCubit watches it on every
+    // layout) on the rows, so a phone, which has no header pile, shows who
+    // is here right now.
+    final presence = _presenceOf(context);
+    final presenceTeam = {
+      if (beacon.author.id.isNotEmpty) beacon.author.id,
+      for (final p in beacon.admittedHelperUsers) p.id,
+    }..remove(state.myProfile.id);
+
+    HelpOfferTile peopleTileWith(
+      BeaconPeopleRow row, {
+      required bool isOnline,
+    }) {
       final liveOffer = liveHelpOfferForRow(row);
       final hasHelpOffer = liveOffer != null;
       // No help offer behind this row: there is nothing that could have been
@@ -435,6 +449,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         participant: row.participant,
         showAuthorStar: row.isAuthor,
         hasHelpOffer: hasHelpOffer,
+        isOnline: isOnline,
         onAccept: canManageOffer
             ? () => unawaited(
                 beaconViewCubit.acceptHelpOffer(offerUserId: row.userId),
@@ -521,6 +536,17 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 }
               }
             : null,
+      );
+    }
+
+    Widget peopleTile(BeaconPeopleRow row) {
+      if (presence == null || !presenceTeam.contains(row.userId)) {
+        return peopleTileWith(row, isOnline: false);
+      }
+      return BlocSelector<PresenceCubit, Map<String, UserPresenceStatus>, bool>(
+        bloc: presence,
+        selector: (s) => s[row.userId] == UserPresenceStatus.online,
+        builder: (_, isOnline) => peopleTileWith(row, isOnline: isOnline),
       );
     }
 
@@ -868,6 +894,14 @@ class BeaconPeopleTabBody extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+PresenceCubit? _presenceOf(BuildContext context) {
+  try {
+    return context.read<PresenceCubit>();
+  } on ProviderNotFoundException {
+    return null;
   }
 }
 
