@@ -11849,10 +11849,6 @@
   "@activityForwardOutcomeInviteDeclined": {
     "description": "Activity row (#725): the viewer answered an author invitation with Can't make it."
   },
-  "activityForwardUndo": "Undo",
-  "@activityForwardUndo": {
-    "description": "Activity row (#725): undo Can't make it on an invitation."
-  },
   "inviteDeclineDialogTitle": "Can't make it?",
   "@inviteDeclineDialogTitle": {
     "description": "Dialog title (#725) after Can't make it on an author invitation."

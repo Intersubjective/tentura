@@ -31,7 +31,7 @@ class TombstoneRow extends StatelessWidget {
   /// The whole ≥48 dp × target.
   static const dismissKey = Key('tombstone-row-dismiss');
 
-  /// «Вернуть» — `notInterested` only.
+  /// «Вернуть» — a dismissed forward only (#725: not a declined invitation).
   static const restoreKey = Key('tombstone-row-restore');
 
   final AttentionReceipt receipt;
@@ -45,7 +45,8 @@ class TombstoneRow extends StatelessWidget {
   /// E7 semantics — `seen_at` as dismissed. Wired by the surface.
   final VoidCallback onDismiss;
 
-  /// Re-pins the forward. Rendered only for `notInterested`.
+  /// Re-pins the forward. Rendered only for a dismissed forward
+  /// (`notInterested`), never for a declined invitation (#725).
   final VoidCallback? onRestore;
 
   @override
@@ -187,17 +188,18 @@ class TombstoneRow extends StatelessWidget {
                                 style: TenturaText.bodySmall(tt.textMuted),
                               ),
                             ),
+                            // #725: a declined invitation has no Undo — it
+                            // could only re-pin the row, not bring the
+                            // invitation back; the Request page says the
+                            // viewer can still offer help.
                             if (receipt.forwardOutcome ==
-                                AttentionForwardOutcome.notInterested)
+                                    AttentionForwardOutcome.notInterested &&
+                                !activityForwardDeclinedInvite(
+                                  receipt.presentationPayloadJson,
+                                ))
                               TenturaTextAction(
                                 key: TombstoneRow.restoreKey,
-                                // #725: undoes "You said you can't make it".
-                                label:
-                                    activityForwardDeclinedInvite(
-                                      receipt.presentationPayloadJson,
-                                    )
-                                    ? l10n.activityForwardUndo
-                                    : l10n.activityForwardRestore,
+                                label: l10n.activityForwardRestore,
                                 onPressed: onRestore,
                               ),
                           ],
