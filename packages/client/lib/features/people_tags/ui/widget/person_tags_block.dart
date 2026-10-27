@@ -64,6 +64,16 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
     }
   }
 
+  /// One chip per automatic tag kind: the source may emit a row per shared
+  /// Request or event, the first row of a kind wins.
+  static List<PersonAutoTagOf> _onePerKind(List<PersonAutoTagOf> tags) {
+    final seen = <int>{};
+    return [
+      for (final tag in tags)
+        if (seen.add(tag.kind)) tag,
+    ];
+  }
+
   static String _autoName(L10n l10n, PersonAutoTagOf tag) {
     final name = personAutoTagName(l10n, tag.kind);
     return tag.n > 1 ? '$name · ${tag.n}' : name;
@@ -109,7 +119,9 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
             FutureBuilder<List<PersonAutoTagOf>>(
               future: _auto,
               builder: (context, snapshot) {
-                final auto = snapshot.data ?? const <PersonAutoTagOf>[];
+                final auto = _onePerKind(
+                  snapshot.data ?? const <PersonAutoTagOf>[],
+                );
                 if (auto.isEmpty) return const SizedBox.shrink();
                 return Padding(
                   padding: EdgeInsets.only(top: tt.rowGap),
