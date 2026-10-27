@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
@@ -137,6 +138,7 @@ Future<ForwardCubit> _pump(
   WidgetTester tester, {
   required bool embedded,
   List<ForwardCandidate>? candidates,
+  ForwardTargetProfile? copyProfile,
 }) async {
   tester.view
     ..physicalSize = const Size(1200, 3000)
@@ -187,6 +189,7 @@ Future<ForwardCubit> _pump(
               embedded: embedded,
               onSendPressed: embedded ? () {} : null,
               sendEnabled: state.selectedIds.isNotEmpty,
+              copyProfile: copyProfile,
             ),
           ),
         ),
@@ -410,4 +413,20 @@ void main() {
       });
     });
   }
+
+  // #501 (QA 7.52.0): starting a Post is not a forward, so its recipients
+  // step drops the forwarding note; the tag chips stay.
+  group('tag chips in the new Post recipients step', () {
+    testWidgets('keep the chips without the forwarding note', (tester) async {
+      await _pump(
+        tester,
+        embedded: true,
+        copyProfile: ForwardTargetProfile.post,
+      );
+
+      expect(find.byKey(_chip('Tn')), findsOneWidget);
+      expect(find.byKey(_note), findsNothing);
+      expect(find.text(_arbText('peopleTagsForwardNote')), findsNothing);
+    });
+  });
 }

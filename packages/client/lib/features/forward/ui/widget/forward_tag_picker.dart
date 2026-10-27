@@ -21,10 +21,15 @@ class ForwardTagPicker extends StatefulWidget {
     required this.onToggle,
     this.activeTagMembers,
     this.onToggleTag,
+    this.showForwardNote = true,
     super.key,
   });
 
   final ForwardState state;
+
+  /// The "each person gets the forward individually" note; off where the
+  /// recipients step is not a forward (a new Post, #501).
+  final bool showForwardNote;
 
   /// Row toggle of the hint people; the picker's own toggle routing.
   final ValueChanged<String> onToggle;
@@ -163,16 +168,18 @@ class _ForwardTagPickerState extends State<ForwardTagPicker> {
                 ),
             ],
           ),
-          SizedBox(height: tt.rowGap),
-          Column(
-            key: const ValueKey('forward-tag-note'),
-            children: [
-              Text(
-                l10n.peopleTagsForwardNote,
-                style: TenturaText.bodySmall(tt.textMuted),
-              ),
-            ],
-          ),
+          if (widget.showForwardNote) ...[
+            SizedBox(height: tt.rowGap),
+            Column(
+              key: const ValueKey('forward-tag-note'),
+              children: [
+                Text(
+                  l10n.peopleTagsForwardNote,
+                  style: TenturaText.bodySmall(tt.textMuted),
+                ),
+              ],
+            ),
+          ],
           if (outside.isNotEmpty) ...[
             SizedBox(height: tt.rowGap),
             Column(
