@@ -40,6 +40,12 @@ class InboxRepositoryMock implements InboxRepositoryPort {
   }) => Future.value();
 
   @override
+  Future<void> ensureRowForHelper({
+    required String userId,
+    required String beaconId,
+  }) => Future.value();
+
+  @override
   Future<int?> lockStatus({
     required String userId,
     required String beaconId,

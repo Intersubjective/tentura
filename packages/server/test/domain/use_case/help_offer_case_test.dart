@@ -576,7 +576,6 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           helpTypes: ['money', 'time', 'transport', 'storage'],
-          offerKind: 0,
         ),
       ).called(1);
     });
@@ -626,7 +625,6 @@ void main() {
             userId: 'U1',
             createdAt: now,
             updatedAt: now,
-            offerKind: 0,
           ),
         ],
       );
@@ -635,7 +633,6 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
-          offerKind: 0,
         ),
       ).thenAnswer((_) => Future.value());
 
@@ -646,11 +643,100 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
-          offerKind: 0,
         ),
       ).called(1);
       expect(commitmentRepo.recordCalls, isEmpty);
       expect(attention.recorded, isEmpty);
+    });
+  });
+
+  // #601: a helper who opened the Request by link was never forwarded it,
+  // so no inbox row existed and their Activity had no row for the offer.
+  group('offerHelp — inbox row for the helper (#601)', () {
+    void stubNewOffer() {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => false);
+      when(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: anyNamed('offerKind'),
+        ),
+      ).thenAnswer((_) async {});
+    }
+
+    test('a new offer ensures an inbox row for the helper', () async {
+      stubNewOffer();
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        inboxRepo.ensureRowForHelper(userId: 'U1', beaconId: 'B1'),
+      ).called(1);
+      // Never the forward path's upsert: an existing row keeps its status.
+      verifyNever(
+        inboxRepo.upsertWatchingForSender(
+          senderId: anyNamed('senderId'),
+          beaconId: anyNamed('beaconId'),
+          context: anyNamed('context'),
+          touchForwardOrdering: anyNamed('touchForwardOrdering'),
+        ),
+      );
+    });
+
+    test('editing an active offer also ensures the inbox row', () async {
+      // A link-helper who offered before #601 shipped has no row yet; their
+      // next edit must give them one.
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => true);
+      when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+        (_) async => [
+          HelpOfferEntity(
+            beaconId: 'B1',
+            userId: 'U1',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
+      );
+      when(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          message: 'edited',
+          offerKind: anyNamed('offerKind'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1', message: 'edited');
+
+      verify(
+        inboxRepo.ensureRowForHelper(userId: 'U1', beaconId: 'B1'),
+      ).called(1);
+      expect(commitmentRepo.recordCalls, isEmpty);
+    });
+
+    test('a rejected offer writes no inbox row', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'Uauth'),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.offerHelp(beaconId: 'B1', userId: 'Uauth'),
+        throwsA(isA<HelpOfferCoordinationException>()),
+      );
+
+      verifyNever(
+        inboxRepo.ensureRowForHelper(
+          userId: anyNamed('userId'),
+          beaconId: anyNamed('beaconId'),
+        ),
+      );
     });
   });
 
@@ -884,7 +970,6 @@ void main() {
         helpOfferRepo.upsert(
           beaconId: 'B1',
           userId: 'U1',
-          offerKind: 0,
         ),
       ).called(1);
     });
@@ -898,7 +983,6 @@ void main() {
         helpOfferRepo.upsert(
           beaconId: 'B1',
           userId: 'U1',
-          offerKind: 0,
         ),
       ).called(1);
     });
@@ -960,7 +1044,6 @@ void main() {
             beaconId: 'B1',
             userId: 'U1',
             message: 'updated',
-            offerKind: 0,
           ),
         ).thenAnswer((_) async {});
 

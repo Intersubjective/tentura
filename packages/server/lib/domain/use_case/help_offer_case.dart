@@ -174,6 +174,12 @@ final class HelpOfferCase extends UseCaseBase {
                 beaconId: beaconId,
                 helpTypes: helpTypes,
               );
+              // #601: an offer made by link before the row existed gets it
+              // on its next edit (no backfill migration).
+              await _inboxRepository.ensureRowForHelper(
+                userId: userId,
+                beaconId: beaconId,
+              );
               // The offer predates the invite: it is still the second
               // confirmation, and no second `offered` event is recorded.
               final invite = sourcePostId == null
@@ -229,6 +235,12 @@ final class HelpOfferCase extends UseCaseBase {
               userId: userId,
               beaconId: beaconId,
               helpTypes: helpTypes,
+            );
+            // #601: a helper who opened the Request by link (no forward, so
+            // no inbox row) still gets an Activity row for their offer.
+            await _inboxRepository.ensureRowForHelper(
+              userId: userId,
+              beaconId: beaconId,
             );
             if (invite != null) {
               await _admitInvitee(

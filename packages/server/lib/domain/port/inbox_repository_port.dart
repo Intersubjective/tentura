@@ -24,6 +24,17 @@ abstract class InboxRepositoryPort {
     bool touchForwardOrdering = true,
   });
 
+  /// #601: gives a helper who offered on a Request that never reached their
+  /// inbox (opened by link, never forwarded) an `inbox_item`, so their
+  /// Activity has a row for it. Inserts a Watching row (status 1, epoch
+  /// `latest_forward_at`, so it is neither a pinned «Для вас» decision nor a
+  /// fresh forward) only when none exists; an existing row is left as it is.
+  /// Watching here marks a link-helper, not someone who is not helping.
+  Future<void> ensureRowForHelper({
+    required String userId,
+    required String beaconId,
+  });
+
   /// Locks the viewer's `inbox_item` row for [beaconId] for the rest of the
   /// transaction and returns its status, or null when the Request never
   /// reached them (#486: two concurrent «Can't help» answers serialise).
