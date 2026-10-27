@@ -7,6 +7,9 @@
 // mouse click, and a click on an empty spot of the map clears the selection.
 // Issue #678: a node's semantics rect is never smaller than a tap target.
 // Issue #675: what the map paints stays under the chip row above it.
+// Issue #615 (#391 roving focus): the arrow keys move focus from a marker to
+// the nearest marker that way, also on the web, where the app maps arrows to
+// scrolling.
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -425,7 +428,132 @@ Rect? _ancestorPaintClip(RenderObject object) {
   return clip;
 }
 
+/// The web's default shortcuts with the arrows the browser build maps to
+/// scrolling (WidgetsApp on `kIsWeb`), which a VM test never gets: there the
+/// arrows map to directional focus.
+const _webShortcutsWithArrows = <ShortcutActivator, Intent>{
+  ...webDefaultShortcuts,
+  SingleActivator(LogicalKeyboardKey.arrowUp): ScrollIntent(
+    direction: AxisDirection.up,
+  ),
+  SingleActivator(LogicalKeyboardKey.arrowDown): ScrollIntent(
+    direction: AxisDirection.down,
+  ),
+  SingleActivator(LogicalKeyboardKey.arrowLeft): ScrollIntent(
+    direction: AxisDirection.left,
+  ),
+  SingleActivator(LogicalKeyboardKey.arrowRight): ScrollIntent(
+    direction: AxisDirection.right,
+  ),
+};
+
 void main() {
+  group('arrow keys between map markers (#615)', () {
+    testWidgets('with web shortcuts, arrows move focus to the nearest marker '
+        'that way', (tester) async {
+      final cubit = await _loadCubit(withBob: true);
+      addTearDown(cubit.close);
+      await _pumpBody(tester, cubit, shortcuts: _webShortcutsWithArrows);
+      await tester.pumpAndSettle();
+      for (final id in const ['a', 'b', 'post-a', 'post-b']) {
+        expect(_node(id), findsOneWidget, reason: '$id must be on the map');
+      }
+
+      // The same layout as the reading-order test below:
+      //     a(360,330)        post-a(660,330)
+      //   b(260,560)          post-b(660,560)
+      final controller = cubit.graphController;
+      final tokens = [
+        for (final (graphId, local) in const [
+          ('fr:post-b', Offset(660, 560)),
+          ('fp:b', Offset(260, 560)),
+          ('fr:post-a', Offset(660, 330)),
+          ('fp:a', Offset(360, 330)),
+        ])
+          controller.beginNodePresentationDragForId(
+            graphId,
+            controller.viewportLocalToScene(local),
+          ),
+      ];
+      await tester.pumpAndSettle();
+
+      const ids = ['a', 'post-a', 'b', 'post-b'];
+      expect(
+        await _tabTo(tester, 'a', const ['post-a', 'b', 'post-b']),
+        isTrue,
+        reason: 'Tab must reach Ann',
+      );
+
+      Future<String?> press(LogicalKeyboardKey key) async {
+        await tester.sendKeyEvent(key);
+        await tester.pumpAndSettle();
+        return _focusedNodeOf(tester, ids);
+      }
+
+      expect(await press(LogicalKeyboardKey.arrowRight), 'post-a');
+      expect(await press(LogicalKeyboardKey.arrowDown), 'post-b');
+      expect(await press(LogicalKeyboardKey.arrowLeft), 'b');
+      expect(await press(LogicalKeyboardKey.arrowUp), 'a');
+      // Nothing further up: focus stays on the marker, not the map.
+      expect(await press(LogicalKeyboardKey.arrowUp), 'a');
+      expect(_focusIsInBody(), isTrue);
+
+      tokens.forEach(controller.cancelNodePresentationDrag);
+      await tester.pump();
+    });
+
+    test('the nearest point that way wins, straight ahead before the side', () {
+      const from = Offset(100, 100);
+      const candidates = [
+        Offset(300, 100), // 0: straight right, far
+        Offset(160, 150), // 1: right, close, inside the cone
+        Offset(130, 300), // 2: below, outside the right cone
+        Offset(40, 100), // 3: left
+      ];
+      expect(
+        nearestMapMarkerInDirection(
+          from: from,
+          candidates: candidates,
+          direction: TraversalDirection.right,
+        ),
+        1,
+      );
+      expect(
+        nearestMapMarkerInDirection(
+          from: from,
+          candidates: const [Offset(300, 100), Offset(150, 190)],
+          direction: TraversalDirection.right,
+        ),
+        0,
+        reason: 'a point far to the side loses to one straight ahead',
+      );
+      expect(
+        nearestMapMarkerInDirection(
+          from: from,
+          candidates: candidates,
+          direction: TraversalDirection.down,
+        ),
+        2,
+      );
+      expect(
+        nearestMapMarkerInDirection(
+          from: from,
+          candidates: candidates,
+          direction: TraversalDirection.left,
+        ),
+        3,
+      );
+      expect(
+        nearestMapMarkerInDirection(
+          from: from,
+          candidates: candidates,
+          direction: TraversalDirection.up,
+        ),
+        isNull,
+      );
+    });
+  });
+
   testWidgets('a Post node is reachable with Tab and opens with Enter', (
     tester,
   ) async {
