@@ -59,3 +59,9 @@ abstract class BeaconHierarchyRepositoryPort {
   /// Structural facts for deleted rows whose owner FK was nulled by erasure.
   Future<BeaconStructuralRecord?> loadStructuralRecord(String beaconId);
 }
+
+/// Lifecycle information and database refusal classification for room writes.
+abstract interface class BeaconRoomWriteStatePort {
+  Future<bool> isExpiredPost(String beaconId);
+  bool isReadOnlyWriteError(Object error);
+}

@@ -1,5 +1,5 @@
 import 'package:injectable/injectable.dart';
-import 'package:postgres/postgres.dart' show TypedValue, Type;
+import 'package:postgres/postgres.dart' show ServerException, Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
@@ -21,7 +21,8 @@ import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart
 import '../database/tentura_db.dart';
 
 @Singleton(as: BeaconHierarchyRepositoryPort)
-class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
+class BeaconHierarchyRepository
+    implements BeaconHierarchyRepositoryPort, BeaconRoomWriteStatePort {
   const BeaconHierarchyRepository(this._database);
 
   final TenturaDb _database;
@@ -359,6 +360,23 @@ WHERE m.id = $1
             ),
     );
   }
+
+  @override
+  Future<bool> isExpiredPost(String beaconId) async {
+    final rows = await _database
+        .customSelect(
+          r'SELECT kind = 1 AND status = 0 AND expires_at IS NOT NULL AND expires_at <= now() AS expired FROM public.beacon WHERE id = $1',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return rows.isNotEmpty && rows.single.read<bool>('expired');
+  }
+
+  @override
+  bool isReadOnlyWriteError(Object error) =>
+      error is ServerException &&
+      (error.message == 'post_archived' ||
+          error.message == 'discussion_read_only');
 
   @override
   Future<BeaconStatus?> loadBeaconStatus(String beaconId) async {

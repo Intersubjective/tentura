@@ -418,8 +418,28 @@ class BeaconRoomCase extends UseCaseBase {
 
   Future<bool> _lifecycleBlocksOrdinaryWrites(String beaconId) async {
     final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    return status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status);
+    if (status != null &&
+        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+      return true;
+    }
+    final hierarchy = _hierarchyRepository;
+    return hierarchy is BeaconRoomWriteStatePort &&
+        await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(beaconId);
+  }
+
+  Future<T> _translateRoomWriteError<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } catch (error) {
+      final hierarchy = _hierarchyRepository;
+      if (hierarchy is BeaconRoomWriteStatePort &&
+          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
+        throw const BeaconCreateException(
+          description: 'Discussion is read-only for this request',
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<void> _guardMessageMutation({
@@ -680,303 +700,320 @@ class BeaconRoomCase extends UseCaseBase {
     Set<String> suppressMentionNotifyFor = const {},
     String? clientMessageId,
   }) async {
-    if ((quotedFactCardId == null) != (quotedFactRevisionSeq == null)) {
-      throw const IdWrongException(
-        description:
-            'quotedFactCardId and quotedFactRevisionSeq must be set together',
-      );
-    }
-    final clientId = clientMessageId?.trim();
-    final sendKey = clientId == null || clientId.isEmpty ? null : clientId;
-    if (sendKey != null && sendKey.length > 64) {
-      throw const IdWrongException(
-        description: 'clientMessageId must be at most 64 characters',
-      );
-    }
-    final tid = threadItemId?.trim();
-    final inThread = tid != null && tid.isNotEmpty;
-    await _rejectDisabledScope(
-      beaconId: beaconId,
-      threadScopeId: inThread ? tid : null,
-    );
-    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-    CoordinationItemRecord? threadItem;
-    if (inThread) {
-      await _rejectPlanItemThread(tid);
-      final allowed = await _canAccessThread(
-        beaconId: beaconId,
-        userId: userId,
-        threadItemId: tid,
-        write: true,
-      );
-      if (!allowed) {
-        throw const UnauthorizedException(
-          description: 'Room or item thread access required',
-        );
-      }
-      final item = await _items.getById(tid);
-      if (item == null || item.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: tid,
-          description: 'Coordination item not found',
-        );
-      }
-      threadItem = item;
-      await _rejectIfBlockedFromBeaconAuthor(
-        beaconId: beaconId,
-        userId: userId,
-      );
-      // Facts belong to the General room's audience; quoting one into
-      // Questions would show it to people outside that room.
-      if (quotedFactCardId != null) {
-        throw const IdWrongException(
-          description: 'Facts cannot be quoted in this thread',
-        );
-      }
-      // Room images are served from the shared image store, which is not
-      // gated by the Questions policy: no attachments in Questions.
-      if (attachmentBytes != null || uploadedAttachment != null) {
-        throw const IdWrongException(
-          description: 'Attachments are not available in this thread',
-        );
-      }
-    } else {
-      final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-      if (!allowed) {
-        throw const UnauthorizedException(
-          description: 'Room access required',
-        );
-      }
-      await _rejectIfBlockedFromBeaconAuthor(
-        beaconId: beaconId,
-        userId: userId,
-      );
-    }
-    // A retry of a send that was saved (its answer timed out) gets the saved
-    // message back instead of posting it twice (#654). Checked after access,
-    // so a retry can not outlive a block or a removal.
-    if (sendKey != null) {
-      final sent = await _room.getRoomMessageByClientId(
-        authorId: userId,
-        clientMessageId: sendKey,
-      );
-      if (sent != null) return _alreadySent(sent, beaconId: beaconId);
-    }
-    BeaconRoomMessageRecord? repliedMessage;
-    if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
-      repliedMessage = await _room.getRoomMessageById(replyToMessageId);
-      if (repliedMessage == null ||
-          repliedMessage.beaconId != beaconId ||
-          repliedMessage.threadItemId != (inThread ? tid : null)) {
+    return _translateRoomWriteError(() async {
+      if ((quotedFactCardId == null) != (quotedFactRevisionSeq == null)) {
         throw const IdWrongException(
           description:
-              'Reply must reference a message in the same thread scope',
+              'quotedFactCardId and quotedFactRevisionSeq must be set together',
         );
       }
-      // Questions hides authors blocked either way; one cannot reply to a
-      // message one cannot see.
-      final repliedAuthor = repliedMessage.authorId;
-      if (inThread &&
-          repliedAuthor != null &&
-          repliedAuthor != userId &&
-          await _userBlockRepository.isBlockedPair(
-            a: userId,
-            b: repliedAuthor,
-          )) {
+      final clientId = clientMessageId?.trim();
+      final sendKey = clientId == null || clientId.isEmpty ? null : clientId;
+      if (sendKey != null && sendKey.length > 64) {
         throw const IdWrongException(
-          description:
-              'Reply must reference a message in the same thread scope',
+          description: 'clientMessageId must be at most 64 characters',
         );
       }
-    }
-    await _enforceMessageRateLimit(userId);
-    final trimmed = body.trim();
-    _assertBodyWithinLimit(trimmed);
-    Uint8List? payload;
-    if (attachmentBytes != null) {
-      payload = await readUint8StreamWithLimit(
-        attachmentBytes,
-        kMaxRoomMessageAttachmentBytes,
-      );
-      if (payload.isEmpty) {
-        payload = null;
-      }
-    }
-    if (trimmed.isEmpty &&
-        payload == null &&
-        uploadedAttachment == null &&
-        quotedFactCardId == null) {
-      throw const BeaconCreateException(
-        description: 'Message text, attachment or quoted fact required',
-      );
-    }
-    final resolvedMentions = await _resolveMentions(
-      beaconId: beaconId,
-      body: trimmed,
-      explicitMentionUserIds: explicitMentionUserIds,
-      explicitMentionOffsets: explicitMentionOffsets,
-      explicitMentionLengths: explicitMentionLengths,
-      threadScopeId: inThread ? tid : null,
-      actorUserId: userId,
-    );
-    final mentionIds = resolvedMentions.ids;
-    final mentionRecipientIds = {
-      for (final id in mentionIds)
-        if (id.isNotEmpty &&
-            id != userId &&
-            !suppressMentionNotifyFor.contains(id))
-          id,
-    };
-    // Request Questions: the author hears about every question, directed or
-    // not (#543 review), as an ordinary room-message attention item.
-    final questionsAuthorId =
-        inThread && threadItem?.kind == coordinationItemKindLobby
-        ? await _room.beaconAuthorUserId(beaconId)
-        : null;
-    final otherDirectedIds = await _onlyLobbyMembersIn(
-      beaconId: beaconId,
-      threadScopeId: inThread ? tid : null,
-      userIds:
-          <String>{
-              if (repliedMessage?.authorId case final author?) author,
-              if (threadItem?.targetPersonId case final target?) target,
-              ?questionsAuthorId,
-            }
-            ..removeWhere((id) => id.isEmpty || id == userId)
-            ..removeAll(mentionRecipientIds),
-    );
-
-    final hasDirected =
-        mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
-    final postAuthorId = await _postAuthorId(beaconId);
-
-    // Complete object-store I/O before opening the attention transaction.
-    final attachment =
-        uploadedAttachment ??
-        (payload == null
-            ? null
-            : await _uploadAttachment(
-                userId: userId,
-                bytes: payload,
-                uploadFilename: attachmentFilename,
-                uploadMimeType: attachmentMimeType,
-              ));
-
-    Future<Map<String, Object?>> persist(
-      AttentionTransaction? transaction,
-    ) async {
-      // Questions: re-check the policy right before the insert (a ban or a
-      // withdrawal may have landed since the first check).
-      if (questionsAuthorId != null &&
-          !(await _questionsAccess(
-            beaconId: beaconId,
-            userId: userId,
-          )).canWrite) {
-        throw const UnauthorizedException(
-          description: 'Room or item thread access required',
-        );
-      }
-      final row = await _room.insertRoomMessage(
+      final tid = threadItemId?.trim();
+      final inThread = tid != null && tid.isNotEmpty;
+      await _rejectDisabledScope(
         beaconId: beaconId,
-        authorId: userId,
+        threadScopeId: inThread ? tid : null,
+      );
+      await _rejectOrdinaryUserWritesForLifecycle(beaconId);
+      CoordinationItemRecord? threadItem;
+      if (inThread) {
+        await _rejectPlanItemThread(tid);
+        final allowed = await _canAccessThread(
+          beaconId: beaconId,
+          userId: userId,
+          threadItemId: tid,
+          write: true,
+        );
+        if (!allowed) {
+          throw const UnauthorizedException(
+            description: 'Room or item thread access required',
+          );
+        }
+        final item = await _items.getById(tid);
+        if (item == null || item.beaconId != beaconId) {
+          throw IdNotFoundException(
+            id: tid,
+            description: 'Coordination item not found',
+          );
+        }
+        threadItem = item;
+        await _rejectIfBlockedFromBeaconAuthor(
+          beaconId: beaconId,
+          userId: userId,
+        );
+        // Facts belong to the General room's audience; quoting one into
+        // Questions would show it to people outside that room.
+        if (quotedFactCardId != null) {
+          throw const IdWrongException(
+            description: 'Facts cannot be quoted in this thread',
+          );
+        }
+        // Room images are served from the shared image store, which is not
+        // gated by the Questions policy: no attachments in Questions.
+        if (attachmentBytes != null || uploadedAttachment != null) {
+          throw const IdWrongException(
+            description: 'Attachments are not available in this thread',
+          );
+        }
+      } else {
+        final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+        if (!allowed) {
+          throw const UnauthorizedException(
+            description: 'Room access required',
+          );
+        }
+        await _rejectIfBlockedFromBeaconAuthor(
+          beaconId: beaconId,
+          userId: userId,
+        );
+      }
+      // A retry of a send that was saved (its answer timed out) gets the saved
+      // message back instead of posting it twice (#654). Checked after access,
+      // so a retry can not outlive a block or a removal.
+      if (sendKey != null) {
+        final sent = await _room.getRoomMessageByClientId(
+          authorId: userId,
+          clientMessageId: sendKey,
+        );
+        if (sent != null) return _alreadySent(sent, beaconId: beaconId);
+      }
+      BeaconRoomMessageRecord? repliedMessage;
+      if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
+        repliedMessage = await _room.getRoomMessageById(replyToMessageId);
+        if (repliedMessage == null ||
+            repliedMessage.beaconId != beaconId ||
+            repliedMessage.threadItemId != (inThread ? tid : null)) {
+          throw const IdWrongException(
+            description:
+                'Reply must reference a message in the same thread scope',
+          );
+        }
+        // Questions hides authors blocked either way; one cannot reply to a
+        // message one cannot see.
+        final repliedAuthor = repliedMessage.authorId;
+        if (inThread &&
+            repliedAuthor != null &&
+            repliedAuthor != userId &&
+            await _userBlockRepository.isBlockedPair(
+              a: userId,
+              b: repliedAuthor,
+            )) {
+          throw const IdWrongException(
+            description:
+                'Reply must reference a message in the same thread scope',
+          );
+        }
+      }
+      await _enforceMessageRateLimit(userId);
+      final trimmed = body.trim();
+      _assertBodyWithinLimit(trimmed);
+      Uint8List? payload;
+      if (attachmentBytes != null) {
+        payload = await readUint8StreamWithLimit(
+          attachmentBytes,
+          kMaxRoomMessageAttachmentBytes,
+        );
+        if (payload.isEmpty) {
+          payload = null;
+        }
+      }
+      if (trimmed.isEmpty &&
+          payload == null &&
+          uploadedAttachment == null &&
+          quotedFactCardId == null) {
+        throw const BeaconCreateException(
+          description: 'Message text, attachment or quoted fact required',
+        );
+      }
+      final resolvedMentions = await _resolveMentions(
+        beaconId: beaconId,
         body: trimmed,
-        replyToMessageId: replyToMessageId,
-        threadItemId: inThread ? tid : null,
-        mentions: mentionIds,
-        mentionSpans: resolvedMentions.spans,
-        quotedFactCardId: quotedFactCardId,
-        quotedFactRevisionSeq: quotedFactRevisionSeq,
-        clientMessageId: sendKey,
+        explicitMentionUserIds: explicitMentionUserIds,
+        explicitMentionOffsets: explicitMentionOffsets,
+        explicitMentionLengths: explicitMentionLengths,
+        threadScopeId: inThread ? tid : null,
+        actorUserId: userId,
       );
-      if (attachment != null) {
-        await _insertUploadedAttachment(
-          messageId: row.id,
-          mutatingUserId: userId,
-          attachment: attachment,
-        );
-      }
-      if (transaction != null) {
-        final excerpt = trimmed.isEmpty ? 'Shared an attachment' : trimmed;
-        if (mentionRecipientIds.isNotEmpty) {
-          await transaction.record(
-            await _attentionIntents!.roomMentioned(
-              beaconId: beaconId,
-              messageId: row.id,
-              actorUserId: userId,
-              recipientUserIds: mentionRecipientIds,
-              excerpt: excerpt,
-              threadItemId: inThread ? tid : null,
-              questionsScope: questionsAuthorId != null,
-              sourceEventKey: 'room_mention:${row.id}',
-            ),
-          );
-        }
-        if (otherDirectedIds.isNotEmpty) {
-          await transaction.record(
-            await _attentionIntents!.roomMessagePosted(
-              beaconId: beaconId,
-              messageId: row.id,
-              actorUserId: userId,
-              recipientUserIds: otherDirectedIds,
-              excerpt: excerpt,
-              threadItemId: inThread ? tid : null,
-              questionsScope: questionsAuthorId != null,
-              sourceEventKey: 'room_message:${row.id}',
-            ),
-          );
-        }
-        if (postAuthorId != null &&
-            postAuthorId != userId &&
-            await _room.claimPostFirstResponse(
+      final mentionIds = resolvedMentions.ids;
+      final mentionRecipientIds = {
+        for (final id in mentionIds)
+          if (id.isNotEmpty &&
+              id != userId &&
+              !suppressMentionNotifyFor.contains(id))
+            id,
+      };
+      // Request Questions: the author hears about every question, directed or
+      // not (#543 review), as an ordinary room-message attention item.
+      final questionsAuthorId =
+          inThread && threadItem?.kind == coordinationItemKindLobby
+          ? await _room.beaconAuthorUserId(beaconId)
+          : null;
+      final otherDirectedIds = await _onlyLobbyMembersIn(
+        beaconId: beaconId,
+        threadScopeId: inThread ? tid : null,
+        userIds:
+            <String>{
+                ?repliedMessage?.authorId,
+                ?threadItem?.targetPersonId,
+                ?questionsAuthorId,
+              }
+              ..removeWhere((id) => id.isEmpty || id == userId)
+              ..removeAll(mentionRecipientIds),
+      );
+
+      final hasDirected =
+          mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
+      final postAuthorId = await _postAuthorId(beaconId);
+
+      // Complete object-store I/O before opening the attention transaction.
+      final attachment =
+          uploadedAttachment ??
+          (payload == null
+              ? null
+              : await _uploadAttachment(
+                  userId: userId,
+                  bytes: payload,
+                  uploadFilename: attachmentFilename,
+                  uploadMimeType: attachmentMimeType,
+                  uniqueFile: postAuthorId != null,
+                ));
+
+      Future<Map<String, Object?>> persist(
+        AttentionTransaction? transaction,
+      ) async {
+        // Questions: re-check the policy right before the insert (a ban or a
+        // withdrawal may have landed since the first check).
+        if (questionsAuthorId != null &&
+            !(await _questionsAccess(
               beaconId: beaconId,
               userId: userId,
-              kind: _firstResponseByMessage,
-              sourceId: row.id,
-            )) {
-          await transaction.record(
-            await _attentionIntents!.postFirstResponse(
-              beaconId: beaconId,
-              messageId: row.id,
-              actorUserId: userId,
-              authorUserId: postAuthorId,
-              excerpt: excerpt,
-              sourceEventKey: 'post_first_response:$beaconId:$userId',
-            ),
+            )).canWrite) {
+          throw const UnauthorizedException(
+            description: 'Room or item thread access required',
           );
         }
-      }
-      return {'id': row.id, 'beaconId': row.beaconId};
-    }
-
-    final Map<String, Object?> result;
-    try {
-      // One transaction for the message and its first attachment, so a
-      // retry that finds the message by its key never misses the attachment
-      // (#654).
-      result = !hasDirected && postAuthorId == null
-          ? await _unitOfWork.run(
-              actorUserId: userId,
-              action: () => persist(null),
-            )
-          : await _attention!.runAction(
-              actorUserId: userId,
-              action: persist,
+        final row = await _room.insertRoomMessage(
+          beaconId: beaconId,
+          authorId: userId,
+          body: trimmed,
+          replyToMessageId: replyToMessageId,
+          threadItemId: inThread ? tid : null,
+          mentions: mentionIds,
+          mentionSpans: resolvedMentions.spans,
+          quotedFactCardId: quotedFactCardId,
+          quotedFactRevisionSeq: quotedFactRevisionSeq,
+          clientMessageId: sendKey,
+        );
+        if (attachment != null) {
+          await _insertUploadedAttachment(
+            messageId: row.id,
+            mutatingUserId: userId,
+            attachment: attachment,
+          );
+        }
+        if (transaction != null) {
+          final excerpt = trimmed.isEmpty ? 'Shared an attachment' : trimmed;
+          if (mentionRecipientIds.isNotEmpty) {
+            await transaction.record(
+              await _attentionIntents!.roomMentioned(
+                beaconId: beaconId,
+                messageId: row.id,
+                actorUserId: userId,
+                recipientUserIds: mentionRecipientIds,
+                excerpt: excerpt,
+                threadItemId: inThread ? tid : null,
+                questionsScope: questionsAuthorId != null,
+                sourceEventKey: 'room_mention:${row.id}',
+              ),
             );
-    } on RoomMessageClientIdTakenException {
-      // The retry raced the first send, which committed first; this one
-      // rolled back whole (#654).
-      final sent = await _room.getRoomMessageByClientId(
-        authorId: userId,
-        clientMessageId: sendKey!,
-      );
-      if (sent == null) rethrow;
-      return _alreadySent(sent, beaconId: beaconId);
-    }
-    // TaskWorker commits independently, so enqueue only after message commit.
-    if (!deferAttachmentHash) {
-      await scheduleAttachmentHash(attachment);
-    }
-    return result;
+          }
+          if (otherDirectedIds.isNotEmpty) {
+            await transaction.record(
+              await _attentionIntents!.roomMessagePosted(
+                beaconId: beaconId,
+                messageId: row.id,
+                actorUserId: userId,
+                recipientUserIds: otherDirectedIds,
+                excerpt: excerpt,
+                threadItemId: inThread ? tid : null,
+                questionsScope: questionsAuthorId != null,
+                sourceEventKey: 'room_message:${row.id}',
+              ),
+            );
+          }
+          if (postAuthorId != null &&
+              postAuthorId != userId &&
+              await _room.claimPostFirstResponse(
+                beaconId: beaconId,
+                userId: userId,
+                kind: _firstResponseByMessage,
+                sourceId: row.id,
+              )) {
+            await transaction.record(
+              await _attentionIntents!.postFirstResponse(
+                beaconId: beaconId,
+                messageId: row.id,
+                actorUserId: userId,
+                authorUserId: postAuthorId,
+                excerpt: excerpt,
+                sourceEventKey: 'post_first_response:$beaconId:$userId',
+              ),
+            );
+          }
+        }
+        return {'id': row.id, 'beaconId': row.beaconId};
+      }
+
+      final Map<String, Object?> result;
+      try {
+        // One transaction for the message and its first attachment, so a
+        // retry that finds the message by its key never misses the attachment
+        // (#654).
+        result = !hasDirected && postAuthorId == null
+            ? await _unitOfWork.run(
+                actorUserId: userId,
+                action: () => persist(null),
+              )
+            : await _attention!.runAction(
+                actorUserId: userId,
+                action: persist,
+              );
+      } on RoomMessageClientIdTakenException {
+        // The retry raced the first send, which committed first; this one
+        // rolled back whole (#654).
+        final sent = await _room.getRoomMessageByClientId(
+          authorId: userId,
+          clientMessageId: sendKey!,
+        );
+        if (sent == null) rethrow;
+        return _alreadySent(sent, beaconId: beaconId);
+      } catch (error) {
+        final hierarchy = _hierarchyRepository;
+        if (attachment != null &&
+            hierarchy is BeaconRoomWriteStatePort &&
+            (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(
+              error,
+            )) {
+          await _compensateAttachment(
+            attachment,
+            userId,
+            uniqueFile: postAuthorId != null || uploadedAttachment != null,
+          );
+        }
+        rethrow;
+      }
+      // TaskWorker commits independently, so enqueue only after message commit.
+      if (!deferAttachmentHash) {
+        await scheduleAttachmentHash(attachment);
+      }
+      return result;
+    });
   }
 
   static Map<String, Object?> _alreadySent(
@@ -1709,61 +1746,63 @@ class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String emoji,
   }) async {
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not found',
-      );
-    }
-    final allowed = await _canMutateMessage(
-      beaconId: beaconId,
-      userId: userId,
-      msg: msg,
-    );
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
-    await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    final postAuthorId = await _postAuthorId(beaconId);
-    if (postAuthorId == null || postAuthorId == userId) {
-      await _room.toggleReaction(
-        messageId: messageId,
+    return _translateRoomWriteError(() async {
+      final msg = await _room.getRoomMessageById(messageId);
+      if (msg == null || msg.beaconId != beaconId) {
+        throw IdNotFoundException(
+          id: messageId,
+          description: 'Room message not found',
+        );
+      }
+      final allowed = await _canMutateMessage(
+        beaconId: beaconId,
         userId: userId,
-        emoji: emoji,
+        msg: msg,
       );
-      return;
-    }
-    await _attention!.runAction<void>(
-      actorUserId: userId,
-      action: (transaction) async {
-        final added = await _room.toggleReaction(
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room access required',
+        );
+      }
+      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      final postAuthorId = await _postAuthorId(beaconId);
+      if (postAuthorId == null || postAuthorId == userId) {
+        await _room.toggleReaction(
           messageId: messageId,
           userId: userId,
           emoji: emoji,
         );
-        if (added &&
-            await _room.claimPostFirstResponse(
-              beaconId: beaconId,
-              userId: userId,
-              kind: _firstResponseByReaction,
-              sourceId: messageId,
-            )) {
-          await transaction.record(
-            await _attentionIntents!.postFirstResponse(
-              beaconId: beaconId,
-              messageId: messageId,
-              actorUserId: userId,
-              authorUserId: postAuthorId,
-              excerpt: emoji,
-              sourceEventKey: 'post_first_response:$beaconId:$userId',
-            ),
+        return;
+      }
+      await _attention!.runAction<void>(
+        actorUserId: userId,
+        action: (transaction) async {
+          final added = await _room.toggleReaction(
+            messageId: messageId,
+            userId: userId,
+            emoji: emoji,
           );
-        }
-      },
-    );
+          if (added &&
+              await _room.claimPostFirstResponse(
+                beaconId: beaconId,
+                userId: userId,
+                kind: _firstResponseByReaction,
+                sourceId: messageId,
+              )) {
+            await transaction.record(
+              await _attentionIntents!.postFirstResponse(
+                beaconId: beaconId,
+                messageId: messageId,
+                actorUserId: userId,
+                authorUserId: postAuthorId,
+                excerpt: emoji,
+                sourceEventKey: 'post_first_response:$beaconId:$userId',
+              ),
+            );
+          }
+        },
+      );
+    });
   }
 
   Future<bool> addMessageAttachment({
@@ -1774,48 +1813,50 @@ class BeaconRoomCase extends UseCaseBase {
     String? attachmentFilename,
     String? attachmentMimeType,
   }) async {
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not found',
+    return _translateRoomWriteError(() async {
+      final msg = await _room.getRoomMessageById(messageId);
+      if (msg == null || msg.beaconId != beaconId) {
+        throw IdNotFoundException(
+          id: messageId,
+          description: 'Room message not found',
+        );
+      }
+      final canMutate = await _canMutateMessage(
+        beaconId: beaconId,
+        userId: userId,
+        msg: msg,
       );
-    }
-    final canMutate = await _canMutateMessage(
-      beaconId: beaconId,
-      userId: userId,
-      msg: msg,
-    );
-    if (!canMutate) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
-    if (msg.authorId != userId) {
-      throw const UnauthorizedException(
-        description: 'Only the message author can add attachments',
+      if (!canMutate) {
+        throw const UnauthorizedException(description: 'Room access required');
+      }
+      if (msg.authorId != userId) {
+        throw const UnauthorizedException(
+          description: 'Only the message author can add attachments',
+        );
+      }
+      // No attachments in Request Questions (see createMessage).
+      if ((msg.threadItemId ?? '').isNotEmpty) {
+        throw const DiscussionScopeDisabledException();
+      }
+      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      final payload = await readUint8StreamWithLimit(
+        attachmentBytes,
+        kMaxRoomMessageAttachmentBytes,
       );
-    }
-    // No attachments in Request Questions (see createMessage).
-    if ((msg.threadItemId ?? '').isNotEmpty) {
-      throw const DiscussionScopeDisabledException();
-    }
-    await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    final payload = await readUint8StreamWithLimit(
-      attachmentBytes,
-      kMaxRoomMessageAttachmentBytes,
-    );
-    if (payload.isEmpty) {
-      throw const BeaconCreateException(description: 'Empty attachment');
-    }
-    await _addAttachmentBytesToMessage(
-      beaconId: beaconId,
-      userId: userId,
-      messageId: messageId,
-      mutatingUserId: userId,
-      bytes: payload,
-      uploadFilename: attachmentFilename,
-      uploadMimeType: attachmentMimeType,
-    );
-    return true;
+      if (payload.isEmpty) {
+        throw const BeaconCreateException(description: 'Empty attachment');
+      }
+      await _addAttachmentBytesToMessage(
+        beaconId: beaconId,
+        userId: userId,
+        messageId: messageId,
+        mutatingUserId: userId,
+        bytes: payload,
+        uploadFilename: attachmentFilename,
+        uploadMimeType: attachmentMimeType,
+      );
+      return true;
+    });
   }
 
   Future<bool> deleteMessage({
@@ -1885,105 +1926,107 @@ class BeaconRoomCase extends UseCaseBase {
     List<int> explicitMentionLengths = const [],
     bool explicitMentionsProvided = false,
   }) async {
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not found',
-      );
-    }
-    final allowed = await _canMutateMessage(
-      beaconId: beaconId,
-      userId: userId,
-      msg: msg,
-    );
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
-    if (msg.authorId != userId) {
-      throw const UnauthorizedException(
-        description: 'Only the message author can edit messages',
-      );
-    }
-    await _guardMessageMutation(beaconId: beaconId, msg: msg);
-    final trimmed = newBody.trim();
-    if (trimmed.isEmpty) {
-      throw const BeaconCreateException(
-        description: 'Message body cannot be empty',
-      );
-    }
-    _assertBodyWithinLimit(trimmed);
-    final existing = <ValidatedMentionSpan>[
-      for (final span in msg.mentionSpans)
-        if (span['userId'] case final String userId)
-          if (span['offset'] case final int offset)
-            if (span['length'] case final int length)
-              (userId: userId, offset: offset, length: length),
-    ];
-    final preserved = explicitMentionsProvided
-        ? const <ValidatedMentionSpan>[]
-        : shiftMentionSpansThroughTextEdit(
-            oldBody: msg.body,
-            newBody: trimmed,
-            spans: existing,
-          );
-    final resolvedMentions = await _resolveMentions(
-      beaconId: beaconId,
-      body: trimmed,
-      explicitMentionUserIds: explicitMentionsProvided
-          ? explicitMentionUserIds
-          : const [],
-      explicitMentionOffsets: explicitMentionsProvided
-          ? explicitMentionOffsets
-          : const [],
-      explicitMentionLengths: explicitMentionsProvided
-          ? explicitMentionLengths
-          : const [],
-      preservedMentionSpans: preserved,
-      threadScopeId: msg.threadItemId,
-      actorUserId: userId,
-    );
-    final mentionIds = resolvedMentions.ids;
-    final newlyMentionedIds = {
-      for (final id in mentionIds)
-        if (id.isNotEmpty && id != userId && !msg.mentions.contains(id)) id,
-    };
-
-    Future<bool> persist(AttentionTransaction? transaction) async {
-      await _room.updateMessage(
-        messageId: messageId,
-        newBody: trimmed,
-        mentions: mentionIds,
-        mentionSpans: resolvedMentions.spans,
-      );
-      if (transaction != null && newlyMentionedIds.isNotEmpty) {
-        await transaction.record(
-          await _attentionIntents!.roomMentioned(
-            beaconId: beaconId,
-            messageId: messageId,
-            actorUserId: userId,
-            recipientUserIds: newlyMentionedIds,
-            excerpt: trimmed,
-            threadItemId: msg.threadItemId,
-            questionsScope: await _isLobbyOf(
-              beaconId: beaconId,
-              threadScopeId: msg.threadItemId,
-            ),
-            sourceEventKey:
-                'room_mention_edit:$messageId:${DateTime.timestamp().millisecondsSinceEpoch}',
-          ),
+    return _translateRoomWriteError(() async {
+      final msg = await _room.getRoomMessageById(messageId);
+      if (msg == null || msg.beaconId != beaconId) {
+        throw IdNotFoundException(
+          id: messageId,
+          description: 'Room message not found',
         );
       }
-      return true;
-    }
+      final allowed = await _canMutateMessage(
+        beaconId: beaconId,
+        userId: userId,
+        msg: msg,
+      );
+      if (!allowed) {
+        throw const UnauthorizedException(description: 'Room access required');
+      }
+      if (msg.authorId != userId) {
+        throw const UnauthorizedException(
+          description: 'Only the message author can edit messages',
+        );
+      }
+      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      final trimmed = newBody.trim();
+      if (trimmed.isEmpty) {
+        throw const BeaconCreateException(
+          description: 'Message body cannot be empty',
+        );
+      }
+      _assertBodyWithinLimit(trimmed);
+      final existing = <ValidatedMentionSpan>[
+        for (final span in msg.mentionSpans)
+          if (span['userId'] case final String userId)
+            if (span['offset'] case final int offset)
+              if (span['length'] case final int length)
+                (userId: userId, offset: offset, length: length),
+      ];
+      final preserved = explicitMentionsProvided
+          ? const <ValidatedMentionSpan>[]
+          : shiftMentionSpansThroughTextEdit(
+              oldBody: msg.body,
+              newBody: trimmed,
+              spans: existing,
+            );
+      final resolvedMentions = await _resolveMentions(
+        beaconId: beaconId,
+        body: trimmed,
+        explicitMentionUserIds: explicitMentionsProvided
+            ? explicitMentionUserIds
+            : const [],
+        explicitMentionOffsets: explicitMentionsProvided
+            ? explicitMentionOffsets
+            : const [],
+        explicitMentionLengths: explicitMentionsProvided
+            ? explicitMentionLengths
+            : const [],
+        preservedMentionSpans: preserved,
+        threadScopeId: msg.threadItemId,
+        actorUserId: userId,
+      );
+      final mentionIds = resolvedMentions.ids;
+      final newlyMentionedIds = {
+        for (final id in mentionIds)
+          if (id.isNotEmpty && id != userId && !msg.mentions.contains(id)) id,
+      };
 
-    if (newlyMentionedIds.isEmpty) {
-      return persist(null);
-    }
-    return _attention!.runAction(
-      actorUserId: userId,
-      action: persist,
-    );
+      Future<bool> persist(AttentionTransaction? transaction) async {
+        await _room.updateMessage(
+          messageId: messageId,
+          newBody: trimmed,
+          mentions: mentionIds,
+          mentionSpans: resolvedMentions.spans,
+        );
+        if (transaction != null && newlyMentionedIds.isNotEmpty) {
+          await transaction.record(
+            await _attentionIntents!.roomMentioned(
+              beaconId: beaconId,
+              messageId: messageId,
+              actorUserId: userId,
+              recipientUserIds: newlyMentionedIds,
+              excerpt: trimmed,
+              threadItemId: msg.threadItemId,
+              questionsScope: await _isLobbyOf(
+                beaconId: beaconId,
+                threadScopeId: msg.threadItemId,
+              ),
+              sourceEventKey:
+                  'room_mention_edit:$messageId:${DateTime.timestamp().millisecondsSinceEpoch}',
+            ),
+          );
+        }
+        return true;
+      }
+
+      if (newlyMentionedIds.isEmpty) {
+        return persist(null);
+      }
+      return _attention!.runAction(
+        actorUserId: userId,
+        action: persist,
+      );
+    });
   }
 
   Future<({Uint8List bytes, String mime, String fileName})> downloadAttachment({
@@ -2045,18 +2088,29 @@ class BeaconRoomCase extends UseCaseBase {
       );
     }
     final position = count;
+    final uniqueFile = await _postAuthorId(beaconId) != null;
     final attachment = await _uploadAttachment(
       userId: userId,
       bytes: bytes,
       uploadFilename: uploadFilename,
       uploadMimeType: uploadMimeType,
+      uniqueFile: uniqueFile,
     );
-    await _insertUploadedAttachment(
-      messageId: messageId,
-      mutatingUserId: mutatingUserId,
-      attachment: attachment,
-      position: position,
-    );
+    try {
+      await _insertUploadedAttachment(
+        messageId: messageId,
+        mutatingUserId: mutatingUserId,
+        attachment: attachment,
+        position: position,
+      );
+    } catch (error) {
+      final hierarchy = _hierarchyRepository;
+      if (hierarchy is BeaconRoomWriteStatePort &&
+          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
+        await _compensateAttachment(attachment, userId, uniqueFile: uniqueFile);
+      }
+      rethrow;
+    }
     await scheduleAttachmentHash(attachment);
   }
 
@@ -2077,6 +2131,7 @@ class BeaconRoomCase extends UseCaseBase {
       bytes: payload,
       uploadFilename: uploadFilename,
       uploadMimeType: uploadMimeType,
+      uniqueFile: true,
     );
   }
 
@@ -2085,6 +2140,7 @@ class BeaconRoomCase extends UseCaseBase {
     required Uint8List bytes,
     String? uploadFilename,
     String? uploadMimeType,
+    bool uniqueFile = false,
   }) async {
     final displayName = attachmentDisplayName(uploadFilename ?? 'file');
     var mime = _normalizeAttachmentMime(uploadMimeType, displayName);
@@ -2115,6 +2171,7 @@ class BeaconRoomCase extends UseCaseBase {
         );
       }
       storagePath = roomAttachmentStorageKey(bytes);
+      if (uniqueFile) storagePath = '$storagePath/${generateId("A")}';
       final meta = <String, String>{
         kHeaderContentType: mime,
       };
@@ -2135,6 +2192,22 @@ class BeaconRoomCase extends UseCaseBase {
       sizeBytes: bytes.length,
       displayName: displayName,
     );
+  }
+
+  Future<void> _compensateAttachment(
+    UploadedRoomAttachment attachment,
+    String userId, {
+    required bool uniqueFile,
+  }) async {
+    if (attachment.imageId case final imageId?) {
+      await _imageRepository.compensateOrphanedUpload(
+        imageId: imageId,
+        authorId: userId,
+      );
+    } else if (uniqueFile && attachment.storagePath != null) {
+      final path = attachment.storagePath!;
+      await _remoteStorage.removeObject(path);
+    }
   }
 
   Future<void> _insertUploadedAttachment({
@@ -2229,52 +2302,54 @@ class BeaconRoomCase extends UseCaseBase {
     bool? isAnonymous,
     bool? allowRevote,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
-    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-    await _enforceMessageRateLimit(userId);
-    final trimmedQuestion = question.trim();
-    if (trimmedQuestion.isEmpty) {
-      throw const BeaconCreateException(
-        description: 'Poll question is required',
-      );
-    }
-    final validVariants = variants
-        .map((v) => v.trim())
-        .where((v) => v.isNotEmpty)
-        .toList();
-    if (validVariants.length < 2) {
-      throw const BeaconCreateException(
-        description: 'At least 2 poll variants required',
-      );
-    }
-    final seenVariants = <String>{};
-    for (final v in validVariants) {
-      final key = v.replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
-      if (!seenVariants.add(key)) {
-        throw const PollDuplicateVariantException();
+    return _translateRoomWriteError(() async {
+      final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+      if (!allowed) {
+        throw const UnauthorizedException(description: 'Room access required');
       }
-    }
-    final resolvedPollType = pollType ?? 'single';
-    if (!const {'single', 'multiple', 'range'}.contains(resolvedPollType)) {
-      throw const BeaconCreateException(description: 'Invalid poll type');
-    }
-    final pollingId = await _pollingRepository.createWithVariants(
-      authorId: userId,
-      question: trimmedQuestion,
-      variants: validVariants,
-      pollType: resolvedPollType,
-      isAnonymous: isAnonymous ?? true,
-      allowRevote: allowRevote ?? true,
-    );
-    return _room.insertAndEnrichPollMessage(
-      beaconId: beaconId,
-      authorId: userId,
-      linkedPollingId: pollingId,
-      viewerUserId: userId,
-    );
+      await _rejectOrdinaryUserWritesForLifecycle(beaconId);
+      await _enforceMessageRateLimit(userId);
+      final trimmedQuestion = question.trim();
+      if (trimmedQuestion.isEmpty) {
+        throw const BeaconCreateException(
+          description: 'Poll question is required',
+        );
+      }
+      final validVariants = variants
+          .map((v) => v.trim())
+          .where((v) => v.isNotEmpty)
+          .toList();
+      if (validVariants.length < 2) {
+        throw const BeaconCreateException(
+          description: 'At least 2 poll variants required',
+        );
+      }
+      final seenVariants = <String>{};
+      for (final v in validVariants) {
+        final key = v.replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+        if (!seenVariants.add(key)) {
+          throw const PollDuplicateVariantException();
+        }
+      }
+      final resolvedPollType = pollType ?? 'single';
+      if (!const {'single', 'multiple', 'range'}.contains(resolvedPollType)) {
+        throw const BeaconCreateException(description: 'Invalid poll type');
+      }
+      final pollingId = await _pollingRepository.createWithVariants(
+        authorId: userId,
+        question: trimmedQuestion,
+        variants: validVariants,
+        pollType: resolvedPollType,
+        isAnonymous: isAnonymous ?? true,
+        allowRevote: allowRevote ?? true,
+      );
+      return _room.insertAndEnrichPollMessage(
+        beaconId: beaconId,
+        authorId: userId,
+        linkedPollingId: pollingId,
+        viewerUserId: userId,
+      );
+    });
   }
 
   Future<CoordinationItemRecord?> _findOpenCoordinationBlocker(

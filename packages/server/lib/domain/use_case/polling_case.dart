@@ -33,30 +33,43 @@ final class PollingCase extends UseCaseBase {
     required List<String> variantIds,
     int? score,
   }) async {
-    final polling = await _pollingRepository.findById(pollingId);
-    if (polling == null) throw ArgumentError('Poll not found: $pollingId');
+    try {
+      final polling = await _pollingRepository.findById(pollingId);
+      if (polling == null) throw ArgumentError('Poll not found: $pollingId');
 
-    await _guardRoomBackedPollMutation(pollingId);
+      await _guardRoomBackedPollMutation(pollingId);
 
-    final pollType = polling.pollType;
+      final pollType = polling.pollType;
 
-    if (score != null) {
-      if (pollType != 'range') throw ArgumentError('score only valid for range polls');
-      if (score < 0 || score > 5) throw ArgumentError('score must be 0–5');
+      if (score != null) {
+        if (pollType != 'range') {
+          throw ArgumentError('score only valid for range polls');
+        }
+        if (score < 0 || score > 5) throw ArgumentError('score must be 0–5');
+      }
+      if (pollType == 'single' && variantIds.length > 1) {
+        throw ArgumentError('single polls accept exactly one variantId');
+      }
+
+      await _pollingActRepository.upsert(
+        authorId: authorId,
+        pollingId: pollingId,
+        variantIds: variantIds,
+        pollType: pollType,
+        allowRevote: polling.allowRevote,
+        score: score,
+      );
+      return true;
+    } catch (error) {
+      final hierarchy = _hierarchyRepository;
+      if (hierarchy is BeaconRoomWriteStatePort &&
+          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
+        throw const BeaconCreateException(
+          description: 'Discussion is read-only for this request',
+        );
+      }
+      rethrow;
     }
-    if (pollType == 'single' && variantIds.length > 1) {
-      throw ArgumentError('single polls accept exactly one variantId');
-    }
-
-    await _pollingActRepository.upsert(
-      authorId: authorId,
-      pollingId: pollingId,
-      variantIds: variantIds,
-      pollType: pollType,
-      allowRevote: polling.allowRevote,
-      score: score,
-    );
-    return true;
   }
 
   // DORMANT(item-threads): rejects poll mutations on item-thread-scoped room messages.
@@ -73,9 +86,16 @@ final class PollingCase extends UseCaseBase {
     )) {
       throw const DiscussionScopeDisabledException();
     }
-    final status = await _hierarchyRepository.loadBeaconStatus(message.beaconId);
-    if (status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+    final status = await _hierarchyRepository.loadBeaconStatus(
+      message.beaconId,
+    );
+    final hierarchy = _hierarchyRepository;
+    if ((status != null &&
+            BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) ||
+        (hierarchy is BeaconRoomWriteStatePort &&
+            await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
+              message.beaconId,
+            ))) {
       throw const BeaconCreateException(
         description: 'Discussion is read-only for this request',
       );
