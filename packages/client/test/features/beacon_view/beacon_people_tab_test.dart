@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart'
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -32,6 +34,19 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
+
+class _PresenceCubit extends Mock implements PresenceCubit {
+  _PresenceCubit(this._presence);
+
+  final Map<String, UserPresenceStatus> _presence;
+
+  @override
+  Map<String, UserPresenceStatus> get state => _presence;
+
+  @override
+  Stream<Map<String, UserPresenceStatus>> get stream =>
+      Stream<Map<String, UserPresenceStatus>>.value(_presence);
 }
 
 class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {
@@ -1644,6 +1659,94 @@ void main() {
         'transport',
         'support',
       ]);
+    });
+  });
+
+  // #533: a phone has no header pile, so the People tab rows carry the
+  // team's presence.
+  group('People tab rows show who is online (#533)', () {
+    Future<void> pumpWithPresence(
+      WidgetTester tester,
+      Map<String, UserPresenceStatus> presence,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(375, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final base = _admittedDirectState();
+      _state = base.copyWith(
+        beacon: base.beacon.copyWith(
+          admittedHelperUsers: const [Profile(id: 'h1', displayName: 'Helper')],
+        ),
+      );
+      await tester.pumpPeopleTagsWidget(
+        BlocProvider<PresenceCubit>.value(
+          value: _PresenceCubit(presence),
+          child: _wrapPeople(
+            BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    List<bool> onlineFlags(WidgetTester tester) {
+      final avatars = find.byWidgetPredicate(
+        (w) => w is TenturaAvatar && w.profile.id == 'h1',
+      );
+      expect(avatars, findsWidgets);
+      return [
+        for (final a in tester.widgetList<TenturaAvatar>(avatars)) a.isOnline,
+      ];
+    }
+
+    testWidgets('an online helper row has the dot and says online', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpWithPresence(tester, const {'h1': UserPresenceStatus.online});
+
+      expect(onlineFlags(tester), contains(true));
+      expect(find.bySemanticsLabel(RegExp('Helper, Online')), findsWidgets);
+      semantics.dispose();
+    });
+
+    testWidgets('an offline helper row has no dot and no online label', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpWithPresence(tester, const {'h1': UserPresenceStatus.offline});
+
+      expect(onlineFlags(tester), isNot(contains(true)));
+      expect(find.bySemanticsLabel(RegExp('Online')), findsNothing);
+      semantics.dispose();
+    });
+
+    testWidgets('someone outside the watched team gets no dot', (
+      tester,
+    ) async {
+      // Presence data from another screen (a picker) must not leak a dot
+      // onto a row of someone this screen does not watch.
+      await tester.binding.setSurfaceSize(const Size(375, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      _state = _admittedDirectState();
+      await tester.pumpPeopleTagsWidget(
+        BlocProvider<PresenceCubit>.value(
+          value: _PresenceCubit(const {'h1': UserPresenceStatus.online}),
+          child: _wrapPeople(
+            BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(onlineFlags(tester), isNot(contains(true)));
     });
   });
 }

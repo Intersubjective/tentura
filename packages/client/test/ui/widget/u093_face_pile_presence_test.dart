@@ -68,15 +68,61 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TenturaPresenceDot), findsOneWidget);
-    expect(
-      find.ancestor(
-        of: find.byType(TenturaPresenceDot),
-        matching: find.byWidgetPredicate(
-          (w) => w is TenturaAvatar && w.profile.id == 'u-nina',
-        ),
+    // The dot sits on Nina's face, at its bottom-right.
+    final nina = tester.getRect(
+      find.byWidgetPredicate(
+        (w) => w is TenturaAvatar && w.profile.id == 'u-nina',
       ),
-      findsOneWidget,
     );
+    final dot = tester.getCenter(find.byType(TenturaPresenceDot));
+    expect(nina.contains(dot), isTrue);
+    expect(dot.dx, greaterThan(nina.center.dx));
+    expect(dot.dy, greaterThan(nina.center.dy));
+  });
+
+  testWidgets('the dot is painted above every face ring (#533)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _pile(
+        presence: _PresenceCubit(const {'u-nina': UserPresenceStatus.online}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final dot = find.byType(TenturaPresenceDot);
+    expect(dot, findsOneWidget);
+    // Not inside a face: its own ring and the next face would paint over it.
+    expect(
+      find.ancestor(of: dot, matching: find.byType(TenturaAvatarStackRing)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: dot, matching: find.byType(TenturaAvatar)),
+      findsNothing,
+    );
+
+    // In the pile Stack, the dot comes after (is painted over) every face.
+    final stack = tester.widget<Stack>(
+      find.ancestor(of: dot, matching: find.byType(Stack)).first,
+    );
+    final dotLayer = find.ancestor(of: dot, matching: find.byType(Positioned));
+    final dotIndex = stack.children.indexOf(tester.widget(dotLayer.first));
+    final faceIndexes = [
+      for (final face in find.byType(TenturaAvatarStackRing).evaluate())
+        stack.children.indexOf(
+          tester.widget(
+            find
+                .ancestor(
+                  of: find.byWidget(face.widget),
+                  matching: find.byType(Positioned),
+                )
+                .first,
+          ),
+        ),
+    ];
+    expect(faceIndexes, isNotEmpty);
+    expect(faceIndexes.every((i) => i >= 0 && i < dotIndex), isTrue);
   });
 
   testWidgets('nobody online: no dots', (tester) async {

@@ -96,7 +96,6 @@ class OverlappingPeopleAvatars extends StatelessWidget {
                   starredProfileId != null &&
                   profiles[i].id == starredProfileId,
               isSelf: false,
-              presence: presence,
             ),
           ),
       if (selfIndex >= 0)
@@ -110,7 +109,6 @@ class OverlappingPeopleAvatars extends StatelessWidget {
                 starredProfileId != null &&
                 profiles[selfIndex].id == starredProfileId,
             isSelf: true,
-            presence: presence,
           ),
         ),
       if (overflowCount > 0)
@@ -135,6 +133,20 @@ class OverlappingPeopleAvatars extends StatelessWidget {
             ),
           ),
         ),
+      // Online dots go on a top layer, after every face: inside a slot the
+      // face's own ring and the next slot painted over it, so the dot read
+      // as a slashed glyph (#533).
+      if (presence != null)
+        for (var i = 0; i < profiles.length; i++)
+          Positioned(
+            left: i * step + avatarSize - avatarSize * _dotFraction,
+            top: avatarSize - avatarSize * _dotFraction,
+            child: _PresenceDotSlot(
+              userId: profiles[i].id,
+              size: avatarSize * _dotFraction,
+              presence: presence,
+            ),
+          ),
     ];
 
     final pile = SizedBox(
@@ -164,6 +176,9 @@ class OverlappingPeopleAvatars extends StatelessWidget {
       },
     );
   }
+
+  /// Same share of the face as the dot on a single [TenturaAvatar].
+  static const _dotFraction = 0.28;
 
   /// How many of [profiles] [state] reports online.
   static int onlineCount(
@@ -195,7 +210,6 @@ class _PeopleAvatarSlot extends StatelessWidget {
     required this.size,
     required this.showStar,
     required this.isSelf,
-    required this.presence,
   });
 
   final Profile profile;
@@ -204,28 +218,35 @@ class _PeopleAvatarSlot extends StatelessWidget {
   final bool showStar;
   final bool isSelf;
 
-  /// Null: no dot (presence off, or no presence data in this tree).
-  final PresenceCubit? presence;
-
-  Widget _avatar({required bool isOnline}) => TenturaAvatarStackRing(
+  @override
+  Widget build(BuildContext context) => TenturaAvatarStackRing(
     child: TenturaAvatar(
       profile: profile,
       sizeBucket: sizeBucket,
       size: size,
       showAuthorStar: showStar,
       isSelf: isSelf,
-      isOnline: isOnline,
     ),
   );
+}
+
+class _PresenceDotSlot extends StatelessWidget {
+  const _PresenceDotSlot({
+    required this.userId,
+    required this.size,
+    required this.presence,
+  });
+
+  final String userId;
+  final double size;
+  final PresenceCubit presence;
 
   @override
-  Widget build(BuildContext context) {
-    final presence = this.presence;
-    if (presence == null) return _avatar(isOnline: false);
-    return BlocSelector<PresenceCubit, Map<String, UserPresenceStatus>, bool>(
-      bloc: presence,
-      selector: (state) => state[profile.id] == UserPresenceStatus.online,
-      builder: (_, isOnline) => _avatar(isOnline: isOnline),
-    );
-  }
+  Widget build(BuildContext context) =>
+      BlocSelector<PresenceCubit, Map<String, UserPresenceStatus>, bool>(
+        bloc: presence,
+        selector: (state) => state[userId] == UserPresenceStatus.online,
+        builder: (_, isOnline) =>
+            isOnline ? TenturaPresenceDot(size: size) : const SizedBox.shrink(),
+      );
 }

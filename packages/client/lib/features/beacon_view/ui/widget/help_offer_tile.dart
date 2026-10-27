@@ -49,6 +49,7 @@ class HelpOfferTile extends StatelessWidget {
     this.hasHelpOffer = true,
     this.showBackupHint = true,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
+    this.isOnline = false,
     super.key,
   });
 
@@ -76,6 +77,9 @@ class HelpOfferTile extends StatelessWidget {
   final BeaconParticipant? participant;
   final bool showAuthorStar;
   final bool hasHelpOffer;
+
+  /// Live presence dot on the avatar, also said to screen readers (#533).
+  final bool isOnline;
 
   /// When false, the People "Backup offers" group shows the explainer once
   /// under the header instead of repeating it on every tile.
@@ -144,6 +148,7 @@ class HelpOfferTile extends StatelessWidget {
     final avatarWidget = SelfAwareAvatar.medium(
       profile: helpOffer.user,
       showAuthorStar: showAuthorStar,
+      isOnline: isOnline,
       onTap: isMine
           ? null
           : () => context.read<ScreenCubit>().showProfile(helpOffer.user.id),
@@ -183,12 +188,17 @@ class HelpOfferTile extends StatelessWidget {
                                 helpOffer.user,
                                 state.profile.id,
                               );
+                              final name = SelfUserHighlight.displayName(
+                                l10n,
+                                helpOffer.user,
+                                state.profile.id,
+                              );
                               return Text(
-                                SelfUserHighlight.displayName(
-                                  l10n,
-                                  helpOffer.user,
-                                  state.profile.id,
-                                ),
+                                name,
+                                // The dot is colour only (#533).
+                                semanticsLabel: isOnline
+                                    ? '$name, ${l10n.chatPresenceOnline}'
+                                    : null,
                                 style: isSelf
                                     ? SelfUserHighlight.nameStyle(
                                         theme,
