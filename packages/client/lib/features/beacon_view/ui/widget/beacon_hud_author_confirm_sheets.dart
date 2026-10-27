@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/one_node_button.dart';
 
 /// Lightweight confirm before marking enough help from the author HUD.
 Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
@@ -14,6 +15,11 @@ Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
     context: context,
     builder: (ctx) {
       final tt = ctx.tt;
+      void confirm() {
+        confirmed = true;
+        Navigator.of(ctx).pop();
+      }
+
       return SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(
@@ -36,15 +42,15 @@ Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
                 style: TenturaText.body(Theme.of(ctx).colorScheme.onSurface),
               ),
               SizedBox(height: tt.sectionGap),
-              Semantics(
+              // #723: one node carries the name, the tap and the identifier.
+              OneNodeButton(
                 identifier: TestIds.beaconHudMarkEnoughHelpConfirm,
-                button: true,
+                enabled: true,
+                label: l10n.beaconHudConfirmMarkEnoughHelpAction,
+                onTap: confirm,
                 child: FilledButton(
                   key: TestIds.key(TestIds.beaconHudMarkEnoughHelpConfirm),
-                  onPressed: () {
-                    confirmed = true;
-                    Navigator.of(ctx).pop();
-                  },
+                  onPressed: confirm,
                   child: Text(l10n.beaconHudConfirmMarkEnoughHelpAction),
                 ),
               ),

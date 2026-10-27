@@ -19,6 +19,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/one_node_button.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
@@ -826,9 +827,12 @@ class RequestAttentionCard extends StatelessWidget {
         onPressed: onFollow,
       ),
     if (onOfferHelp != null)
-      Semantics(
+      // #723: one node carries the name, the tap and the identifier.
+      OneNodeButton(
         identifier: TestIds.inboxOfferHelp,
-        button: true,
+        enabled: true,
+        label: l10n.labelOfferHelp,
+        onTap: onOfferHelp,
         child: FilledButton.tonal(
           key: offerHelpKey,
           onPressed: onOfferHelp,
