@@ -2,7 +2,7 @@
 // button "Can't make it", the dialog "Can't help?", then the Activity row
 // "You dismissed it / Restore" — and the Request page showed no trace of it.
 // The invitation path now says "can't make it" throughout ("You said you
-// can't make it · Undo"); a dismissed forward keeps "dismissed" (#485). The
+// can't make it", no Undo since V1-B); a dismissed forward keeps "dismissed" (#485). The
 // Request page says so above Offer help.
 
 import 'package:flutter/material.dart';
@@ -105,19 +105,21 @@ BeaconViewState _page({
 
 void main() {
   group('the Activity row after «Can\u2019t make it»', () {
-    testWidgets('says the viewer can\u2019t make it, with Undo', (
+    // V1-B (Vadim, 2026-10-27): Undo only re-pinned the row and never
+    // brought the invitation back, so a declined invitation offers none;
+    // the Request page still says the viewer can offer help.
+    testWidgets('says the viewer can\u2019t make it, with no Undo', (
       tester,
     ) async {
       await _pumpRow(tester, _notInterested(_declinedInvite));
 
       expect(find.text("You said you can't make it"), findsOneWidget);
       expect(find.text('You dismissed it'), findsNothing);
-      final undo = find.byKey(TombstoneRow.restoreKey);
-      expect(
-        find.descendant(of: undo, matching: find.text('Undo')),
-        findsOneWidget,
-      );
+      expect(find.byKey(TombstoneRow.restoreKey), findsNothing);
+      expect(find.text('Undo'), findsNothing);
       expect(find.text('Restore'), findsNothing);
+      // The private × stays.
+      expect(find.byKey(TombstoneRow.dismissKey), findsOneWidget);
     });
 
     testWidgets('in Russian too', (tester) async {
@@ -128,7 +130,8 @@ void main() {
       );
 
       expect(find.text('Вы ответили «Не смогу»'), findsOneWidget);
-      expect(find.text('Отменить'), findsOneWidget);
+      expect(find.text('Отменить'), findsNothing);
+      expect(find.text('Вернуть'), findsNothing);
       expect(find.text('Вы убрали'), findsNothing);
     });
 
@@ -140,7 +143,13 @@ void main() {
         await _pumpRow(tester, _notInterested(payload));
 
         expect(find.text('You dismissed it'), findsOneWidget);
-        expect(find.text('Restore'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byKey(TombstoneRow.restoreKey),
+            matching: find.text('Restore'),
+          ),
+          findsOneWidget,
+        );
         expect(find.text("You said you can't make it"), findsNothing);
       });
     }

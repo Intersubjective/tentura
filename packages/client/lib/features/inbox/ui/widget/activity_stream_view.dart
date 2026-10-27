@@ -34,6 +34,7 @@ import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
 import '../../domain/entity/inbox_provenance.dart';
 import 'inbox_card_actions.dart';
+import 'activity_forward_outcome_copy.dart';
 import 'activity_invite_card.dart';
 import 'rejection_dialog.dart';
 import 'post_attention_row.dart';
@@ -1089,8 +1090,14 @@ class _ActivityStreamCell extends StatelessWidget {
               unawaited(inboxCubit.dismissTombstone(beaconId));
               unawaited(streamCubit.markSeen(receipt.id));
             },
+            // #725: no Undo on a declined invitation; unreject would only
+            // re-pin the row, not restore the invitation.
             onRestore:
-                receipt.forwardOutcome == AttentionForwardOutcome.notInterested
+                receipt.forwardOutcome ==
+                        AttentionForwardOutcome.notInterested &&
+                    !activityForwardDeclinedInvite(
+                      receipt.presentationPayloadJson,
+                    )
                 ? () => unawaited(inboxCubit.unreject(beaconId))
                 : null,
           ),

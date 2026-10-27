@@ -7615,7 +7615,6 @@
   "beaconCreateChildOfBanner": "Дочерний запрос для «{title}»",
   "inviteAcceptedSetupAddDetailsFor": "Отметить, чем может помочь {name}",
   "activityForwardOutcomeInviteDeclined": "Вы ответили «Не смогу»",
-  "activityForwardUndo": "Отменить",
   "inviteDeclineDialogTitle": "Не сможете?",
   "beaconShowcaseDeclined": "Вы ответили «Не смогу». Помощь всё ещё можно предложить.",
   "forwardDeclinedUseInvite": "Убрал(а) запрос — позовите через «Люди › Позвать»",
