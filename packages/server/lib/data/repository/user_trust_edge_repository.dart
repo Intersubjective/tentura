@@ -84,10 +84,9 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
           (v) => v.subject.id(subjectUserId) & v.object.id(objectUserId),
         )
         .getSingleOrNull();
-    final previousAmount = existing?.amount ?? 0;
-    if (previousAmount == newAmount) return;
+    final voteChanged = (existing?.amount ?? 0) != newAmount;
 
-    if (existing == null) {
+    if (voteChanged && existing == null) {
       await _db.managers.voteUsers.create(
         (o) => o(
           subject: subjectUserId,
@@ -95,7 +94,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
           amount: newAmount,
         ),
       );
-    } else {
+    } else if (voteChanged) {
       await _db.managers.voteUsers
           .filter(
             (v) => v.subject.id(subjectUserId) & v.object.id(objectUserId),
@@ -103,6 +102,7 @@ class UserTrustEdgeRepository implements UserTrustEdgeRepositoryPort {
           .update((o) => o(amount: Value(newAmount)));
     }
 
+    // Reconcile stale projections even when the requested vote is unchanged.
     await _db.customStatement(
       r'SELECT public.trust_project_pair($1, $2)',
       [subjectUserId, objectUserId],
