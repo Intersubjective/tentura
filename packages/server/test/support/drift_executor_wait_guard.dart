@@ -8,7 +8,8 @@ import 'package:drift/drift.dart'
         QueryExecutorUser,
         QueryInterceptor,
         TransactionExecutor;
-import 'package:postgres/postgres.dart' show Connection, Sql;
+import 'package:postgres/postgres.dart'
+    show Connection, ConnectionSettings, Sql;
 
 import 'disposable_pg_target.dart';
 
@@ -26,8 +27,12 @@ const _stuckBackendPollEvery = Duration(seconds: 3);
 /// there is nothing left to wait for.
 const _afterAbortDeadline = Duration(seconds: 1);
 
+Duration _expiryCleanupLimit(Duration deadline) =>
+    deadline < _afterAbortDeadline ? deadline : _afterAbortDeadline;
+
 /// Called once, before the wait failure surfaces, to record diagnostics on the
-/// [DbWaitTimeoutException] and abort the connection that is waiting.
+/// [DbWaitTimeoutException] and abort the connection that is waiting. Cleanup
+/// gets at most one extra deadline, capped at one second.
 typedef DbWaitExpiry = Future<void> Function(DbWaitTimeoutException timeout);
 
 /// An executor operation did not complete within the guard's deadline.
@@ -91,7 +96,11 @@ final class DbWaitGuard extends QueryInterceptor {
   }) {
     final guard = DbWaitGuard(
       deadline: deadline,
-      onExpired: (timeout) => _recordAndAbort(target, timeout),
+      onExpired: (timeout) => _recordAndAbort(
+        target,
+        timeout,
+        cleanupLimit: _expiryCleanupLimit(deadline),
+      ),
     );
     (_liveByDatabase[target.databaseName] ??= {}).add(guard);
     guard._database = target.databaseName;
@@ -132,7 +141,7 @@ final class DbWaitGuard extends QueryInterceptor {
       if (!_expired) {
         _expired = true;
         try {
-          await onExpired?.call(timeout);
+          await onExpired?.call(timeout).timeout(_expiryCleanupLimit(deadline));
         } on Object {
           // The wait failure is the one worth reporting, not a failed abort.
         }
@@ -142,6 +151,7 @@ final class DbWaitGuard extends QueryInterceptor {
     unawaited(
       Future.sync(run).then<void>(
         (value) {
+          if (expired) return;
           timer.cancel();
           if (!result.isCompleted) result.complete(value);
         },
@@ -327,20 +337,47 @@ bool _isStuck(Map<String, Object?> row) =>
 
 Future<void> _recordAndAbort(
   DisposablePgTarget target,
-  DbWaitTimeoutException timeout,
-) async {
-  final admin = await _openAdmin(target);
+  DbWaitTimeoutException timeout, {
+  required Duration cleanupLimit,
+}) async {
+  final clock = Stopwatch()..start();
+  final settings = ConnectionSettings(
+    sslMode: target.adminEnv.pgEndpointSettings.sslMode,
+    // Reserve half the cleanup window for the database endpoint if the
+    // administrative endpoint cannot complete its handshake.
+    connectTimeout: cleanupLimit ~/ 2,
+    queryTimeout: cleanupLimit,
+  );
+  Connection admin;
   try {
+    admin = await Connection.open(
+      target.adminEnv.pgEndpoint,
+      settings: settings,
+    );
+  } on Object {
+    if (clock.elapsed >= cleanupLimit) rethrow;
+    // Closing a client socket alone does not interrupt a backend blocked on a
+    // lock. The leased database's endpoint is an independent control path.
+    admin = await Connection.open(
+      target.databaseEnv.pgEndpoint,
+      settings: settings,
+    );
+  }
+  try {
+    // Future.timeout doesn't cancel its source. A late connection or snapshot
+    // must not abort a backend after the caller has already released its scope.
+    if (clock.elapsed >= cleanupLimit) return;
     final rows = await _activityRows(admin, target.databaseName);
     timeout.activity = rows;
     // The guard cannot tell which backend its executor sits on without
     // spending a statement per connection: the waiting one is either parked
     // in a transaction or blocked on a lock, never plainly idle.
     for (final row in rows.where(_isStuck)) {
+      if (clock.elapsed >= cleanupLimit) return;
       await admin.execute('SELECT pg_terminate_backend(${row['pid']})');
     }
   } finally {
-    await admin.close();
+    await admin.close(force: true);
   }
 }
 

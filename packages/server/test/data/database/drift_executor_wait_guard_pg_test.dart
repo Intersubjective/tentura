@@ -98,8 +98,7 @@ Future<void> main() async {
         expect(mine['wait_event'], 'ClientRead');
         expect(
           rows.where(
-            (row) =>
-                '${row['query']}'.contains('pg_stat_activity'),
+            (row) => '${row['query']}'.contains('pg_stat_activity'),
           ),
           isEmpty,
           reason: 'the admin probe must not report itself',
@@ -121,8 +120,7 @@ Future<void> main() async {
         final rows = await readDbActivity(target);
         row = rows
             .where(
-              (r) =>
-                  r['pid'] == waiterPid && r['wait_event'] != null,
+              (r) => r['pid'] == waiterPid && r['wait_event'] != null,
             )
             .firstOrNull;
         if (row == null) {
@@ -262,7 +260,7 @@ Future<void> main() async {
         await blocker.execute('SELECT pg_advisory_lock($_advisoryKey)');
         final db = openDisposablePgDatabase(target, waitDeadline: _deadline);
         addTearDown(db.close);
-        final clock = Stopwatch()..start();
+        final clock = Stopwatch();
 
         Object? failure;
         try {
@@ -271,6 +269,9 @@ Future<void> main() async {
                 // Only the guard may end this wait, whatever lock timeout the
                 // database carries.
                 await db.customStatement('SET lock_timeout = 0');
+                // Measure the blocked statement and scope unwinding, not pool
+                // acquisition or connection warmup.
+                clock.start();
                 return db
                     .customSelect(
                       'SELECT pg_advisory_lock($_advisoryKey) AS locked',
@@ -281,6 +282,7 @@ Future<void> main() async {
         } on Object catch (error) {
           failure = error;
         }
+        clock.stop();
 
         expect(failure, isA<DbWaitTimeoutException>());
         final timeout = failure! as DbWaitTimeoutException;
@@ -308,6 +310,17 @@ Future<void> main() async {
         await blocker.execute('SELECT pg_advisory_unlock($_advisoryKey)');
         final after = await db.customSelect('SELECT 1 AS ok').getSingle();
         expect(after.read<int>('ok'), 1);
+        expect(
+          clock.elapsed,
+          allOf(
+            greaterThanOrEqualTo(_deadline),
+            lessThanOrEqualTo(_deadline + const Duration(seconds: 2)),
+          ),
+          reason:
+              'the two-second executor deadline includes diagnostics, '
+              'connection abort and leased-scope unwinding; the twenty-second '
+              'caller cap must not be the only wall-clock bound',
+        );
       },
       timeout: _guardTestTimeout,
     );

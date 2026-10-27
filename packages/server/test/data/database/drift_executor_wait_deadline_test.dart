@@ -242,6 +242,77 @@ void main() {
       );
     });
 
+    test(
+      'a stalled connection abort surfaces the wait failure within the '
+      'executor deadline plus cleanup slack',
+      () async {
+        final releaseAbort = Completer<void>();
+        DbWaitTimeoutException? expiredWait;
+        final executor = _HangingExecutor(hangOn: {'runSelect'}).interceptWith(
+          DbWaitGuard(
+            deadline: _deadline,
+            onExpired: (timeout) async {
+              expiredWait = timeout;
+              // Model diagnostics/abort stalled by a loaded server. Keep it
+              // pending until after observing the caller's result, so an
+              // unbounded await cannot accidentally satisfy this test.
+              await releaseAbort.future;
+            },
+          ),
+        );
+        final callerTimeout = _deadline * 10;
+        const cleanupSlack = Duration(milliseconds: 300);
+        final clock = Stopwatch()..start();
+        final waiting = _failureOf(
+          () => executor.runSelect('SELECT locked_statement', const []),
+        );
+
+        try {
+          final failure = await waiting.timeout(
+            callerTimeout,
+            onTimeout: () => TimeoutException('caller stopped waiting'),
+          );
+          clock.stop();
+
+          expect(
+            failure,
+            isA<DbWaitTimeoutException>(),
+            reason:
+                'the executor deadline must bound the failure path too; '
+                'a stalled abort must not turn it into a caller timeout',
+          );
+          expect(
+            clock.elapsed,
+            allOf(
+              greaterThanOrEqualTo(_deadline),
+              lessThanOrEqualTo(_deadline + cleanupSlack),
+            ),
+            reason:
+                'measure from executor invocation, including time in '
+                'diagnostics and abort, rather than from callback completion',
+          );
+          expect(
+            expiredWait,
+            isNotNull,
+            reason: 'expiry must still initiate diagnostics and abort',
+          );
+          expect(failure, same(expiredWait));
+          final timeout = failure! as DbWaitTimeoutException;
+          expect(timeout.operation, 'runSelect');
+          expect(timeout.sql, 'SELECT locked_statement');
+          expect(timeout.deadline, _deadline);
+          expect(releaseAbort.isCompleted, isFalse);
+        } finally {
+          releaseAbort.complete();
+          // Preserve the assertion above even if a broken guard never invokes
+          // onExpired and releasing it therefore cannot settle the wait.
+          await waiting.timeout(callerTimeout, onTimeout: () => null);
+          await executor.close();
+        }
+      },
+      timeout: const Timeout(Duration(seconds: 10)),
+    );
+
     test('a statement error is not rewritten into a wait failure', () async {
       final executor = _FailingExecutor().interceptWith(
         DbWaitGuard(deadline: _deadline),

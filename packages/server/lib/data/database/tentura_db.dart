@@ -307,9 +307,12 @@ class TenturaDb extends _$TenturaDb {
               trace?.statementCancelled();
             }
             // A failed rollback must not return a dirty session to the pool.
-            if (connection.isOpen &&
-                (error is TimeoutException || error is! ServerException)) {
-              await connection.close();
+            // Graceful close waits on the statement lock, which may be the
+            // very wait that caused this scope to fail.
+            // Server cancellations also implement TimeoutException, but are
+            // drained by the driver and leave the connection reusable.
+            if (connection.isOpen && error is! ServerException) {
+              await connection.close(force: true);
             }
             rethrow;
           } finally {
