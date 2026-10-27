@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/one_node_button.dart';
 
 /// Owner CTA row stacks vertically below this width (`BeaconOperationalHeaderCard` chips).
 const double kCardTriageActionRowNarrowMaxWidth = 380;
@@ -45,41 +46,54 @@ class CardTriageActionRow extends StatelessWidget {
         onSecondary != null &&
         (secondaryLabel != null || secondaryIcon != null);
 
-    final forwardBtn = hasForward ? Semantics(
-      identifier: TestIds.inboxForward,
-      button: true,
-      child: Tooltip(
-        message: l10n.forwardActionTooltip,
-        child: OutlinedButton.icon(
-          key: TestIds.key(TestIds.inboxForward),
-          onPressed: onForward,
-          icon: Icon(Icons.send, size: 18, color: tt.info),
-          label: Text(
-            l10n.labelForward,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: tt.info,
-            textStyle: actionLabelStyle.copyWith(color: tt.info),
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            alignment: Alignment.center,
-          ),
-        ),
-      ),
-    ) : null;
+    // #723: each button is one node carrying its name, tap and identifier.
+    final forwardBtn = hasForward
+        ? OneNodeButton(
+            identifier: TestIds.inboxForward,
+            enabled: true,
+            label: l10n.labelForward,
+            hint: l10n.forwardActionTooltip,
+            onTap: onForward,
+            child: Tooltip(
+              message: l10n.forwardActionTooltip,
+              child: OutlinedButton.icon(
+                key: TestIds.key(TestIds.inboxForward),
+                onPressed: onForward,
+                icon: Icon(Icons.send, size: 18, color: tt.info),
+                label: Text(
+                  l10n.labelForward,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: tt.info,
+                  textStyle: actionLabelStyle.copyWith(color: tt.info),
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  alignment: Alignment.center,
+                ),
+              ),
+            ),
+          )
+        : null;
 
-    final offerHelpBtn = Semantics(
+    Future<void> offerHelp() async {
+      await onOfferHelp?.call();
+    }
+
+    final offerHelpBtn = OneNodeButton(
       identifier: TestIds.inboxOfferHelp,
-      button: true,
+      enabled: hasOfferHelp,
+      label: l10n.labelOfferHelp,
+      onTap: offerHelp,
       child: FilledButton.icon(
         key: TestIds.key(TestIds.inboxOfferHelp),
-        onPressed: () async {
-          await onOfferHelp?.call();
-        },
+        onPressed: offerHelp,
         icon: const Icon(Icons.volunteer_activism_outlined, size: 20),
         label: Text(
           l10n.labelOfferHelp,
@@ -124,9 +138,12 @@ class CardTriageActionRow extends StatelessWidget {
         );
       } else if (secondaryIcon != null) {
         final tip = secondaryTooltip?.trim();
-        tertiary = Semantics(
+        tertiary = OneNodeButton(
           identifier: TestIds.inboxDismiss,
-          button: true,
+          enabled: true,
+          // Never an unnamed button, even without a tooltip.
+          label: tip == null || tip.isEmpty ? l10n.buttonDismiss : tip,
+          onTap: onTap,
           child: IconButton(
             key: TestIds.key(TestIds.inboxDismiss),
             onPressed: () async {
@@ -135,9 +152,9 @@ class CardTriageActionRow extends StatelessWidget {
             icon: Icon(secondaryIcon, size: 22),
             style: IconButton.styleFrom(
               foregroundColor: scheme.onSurfaceVariant,
-              visualDensity: VisualDensity.compact,
+              // No compact density: it would shrink the 48dp minimum to 40.
               padding: const EdgeInsets.all(8),
-              minimumSize: const Size(44, 44),
+              minimumSize: const Size.square(kMinInteractiveDimension),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             tooltip: tip != null && tip.isNotEmpty ? tip : null,
