@@ -195,7 +195,7 @@ final class ConstellationPlacementCase extends UseCaseBase {
     final applying = _applyBarrier;
     if (applying != null) await applying.future;
     try {
-      return _repository.restoreLayoutSnapshot(
+      return await _repository.restoreLayoutSnapshot(
         snapshotId: snapshotId,
         clientOpId: _uuid.v4(),
       );

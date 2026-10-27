@@ -64,6 +64,7 @@ final class _FieldRepository implements ConstellationRepositoryPort {
 final class _AnchorRepository implements ConstellationAnchorRepositoryPort {
   final applies = <List<ConstellationAnchorApplyOp>>[];
   final _replies = <Completer<ConstellationAnchorApplyResult>>[];
+  Future<String> Function(String)? restoreSnapshot;
 
   @override
   Future<ConstellationAnchorApplyResult> apply({
@@ -115,7 +116,7 @@ final class _AnchorRepository implements ConstellationAnchorRepositoryPort {
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,
-  }) => throw UnimplementedError('restore is not used by this test');
+  }) => restoreSnapshot!(snapshotId);
 
   @override
   Future<ConstellationAnchorResetResult> reset({
@@ -179,6 +180,35 @@ void main() {
   }
 
   group('placement arrangement history', () {
+    test(
+      'an asynchronous restore failure returns false without history',
+      () async {
+        final reply = Completer<String>();
+        anchors.restoreSnapshot = (id) {
+          expect(id, 'saved-layout');
+          return reply.future;
+        };
+
+        final restored = placement.restoreLayoutSnapshot('saved-layout');
+        await _drain();
+        reply.completeError(StateError('restore failed'));
+
+        expect(await restored, isFalse);
+        expect(placement.history.length, 0);
+      },
+    );
+
+    test('a successful restore records an undoable history entry', () async {
+      anchors.restoreSnapshot = (id) async {
+        expect(id, 'saved-layout');
+        return 'previous-layout';
+      };
+
+      expect(await placement.restoreLayoutSnapshot('saved-layout'), isTrue);
+      expect(placement.history.length, 1);
+      expect(placement.history.canUndo, isTrue);
+    });
+
     test(
       'dragging an already pinned person records one undoable entry',
       () async {
