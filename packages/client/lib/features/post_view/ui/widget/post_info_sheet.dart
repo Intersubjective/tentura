@@ -257,7 +257,8 @@ class PostInfoSheet extends StatelessWidget {
                 color: scheme.onSurface,
                 onTap: () => pick(PostAction.complain),
               ),
-            if (isAddressee && !isClosed)
+            // Leaving is personal state, so it stays on an archived Post.
+            if (isAddressee)
               _ActionTile(
                 icon: Icons.logout,
                 label: l10n.postMenuLeave,

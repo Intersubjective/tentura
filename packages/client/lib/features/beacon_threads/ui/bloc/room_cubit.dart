@@ -140,24 +140,31 @@ class RoomCubit extends Cubit<RoomState> {
 
   /// Sync lifecycle from [BeaconViewCubit] (via [ThreadHostCubit]). Clears an
   /// in-progress reply when writes become locked.
-  void syncBeaconStatus(BeaconStatus status, {String? authorId}) {
+  void syncBeaconStatus(BeaconStatus status, {String? authorId}) =>
+      _syncLifecycle(
+        state.copyWith(
+          beaconStatus: status,
+          beaconAuthorId: authorId ?? state.beaconAuthorId,
+        ),
+      );
+
+  /// Sync a Post passing its `expiresAt` (status may still be open), from
+  /// the Post's host or its expiry clock. Locks writes like a closed status.
+  void syncBeaconExpired(bool expired) =>
+      _syncLifecycle(state.copyWith(beaconExpired: expired));
+
+  void _syncLifecycle(RoomState next) {
     if (isClosed) return;
-    final wasWritable = state.canWriteDiscussion;
     final clearReply =
-        wasWritable &&
-        !status.allowsDiscussionWrites &&
+        state.canWriteDiscussion &&
+        !next.canWriteDiscussion &&
         state.replyTarget != null;
-    emit(
-      state.copyWith(
-        beaconStatus: status,
-        beaconAuthorId: authorId ?? state.beaconAuthorId,
-        replyTarget: clearReply ? null : state.replyTarget,
-      ),
-    );
+    emit(clearReply ? next.copyWith(replyTarget: null) : next);
   }
 
   /// Null status → let the server decide (tests / before content load).
   bool get _blocksDiscussionWrite {
+    if (state.beaconExpired) return true;
     final s = state.beaconStatus;
     if (s == null) return false;
     return !s.allowsDiscussionWrites;

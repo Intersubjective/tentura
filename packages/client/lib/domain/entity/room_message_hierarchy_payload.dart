@@ -28,16 +28,22 @@ final class RoomMessageHierarchyChildCreated
   bool get isPostBud => title != null && invitedCount != null;
 }
 
-/// Typed payload of a `postClosed` (kind 5) notice: the Post was closed by
-/// budding the Request [childBeaconId] titled [title].
+/// Why a Post was closed (`postClosed` payload `reason`).
+enum RoomMessagePostClosedReason { budded, expired, closedByAuthor }
+
+/// Typed payload of a `postClosed` (kind 5) notice: the Post was closed for
+/// [reason]. A bud names the Request [childBeaconId] titled [title]; the
+/// other reasons carry no child (both empty).
 final class RoomMessagePostClosed {
   const RoomMessagePostClosed({
     required this.childBeaconId,
     required this.title,
+    this.reason = RoomMessagePostClosedReason.budded,
   });
 
   final String childBeaconId;
   final String title;
+  final RoomMessagePostClosedReason reason;
 }
 
 final class RoomMessageHierarchyLifecycle extends RoomMessageHierarchyPayload {

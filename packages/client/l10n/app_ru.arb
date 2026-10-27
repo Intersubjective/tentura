@@ -7093,6 +7093,9 @@
   },
   "postClosedMarker": "закрыт",
   "postArchivedMarker": "в архиве",
+  "roomPostExpiredNotice": "Срок поста истёк. Пост в архиве.",
+  "roomPostClosedByAuthorNotice": "Автор завершил пост. Пост в архиве.",
+  "postArchivedComposerHint": "Пост в архиве — писать нельзя. Продолжить разговор можно в запросе.",
   "inviteCardTitle": "{name} зовёт вас помочь",
   "@inviteCardTitle": {
     "placeholders": {

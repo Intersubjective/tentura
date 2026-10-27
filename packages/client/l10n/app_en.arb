@@ -9129,6 +9129,18 @@
   "@postArchivedMarker": {
     "description": "Marker on a Post in Conversations that is closed or past its lifetime."
   },
+  "roomPostExpiredNotice": "The post has expired. It is archived.",
+  "@roomPostExpiredNotice": {
+    "description": "Post room notice once the Post was archived because its lifetime ran out."
+  },
+  "roomPostClosedByAuthorNotice": "The author ended the post. It is archived.",
+  "@roomPostClosedByAuthorNotice": {
+    "description": "Post room notice once the author closed the Post early."
+  },
+  "postArchivedComposerHint": "The post is archived, so you can't write here. You can continue the conversation in a request.",
+  "@postArchivedComposerHint": {
+    "description": "Archived Post room: shown instead of the composer, above the «Make a request» button."
+  },
   "inviteCardTitle": "{name} invites you to help",
   "@inviteCardTitle": {
     "description": "Activity «For you» invite card title (an author invite on a Request).",

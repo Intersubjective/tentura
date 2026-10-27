@@ -1,6 +1,6 @@
 // «Оформить запрос» in the Post ⋮ menu (D3 unlimited): any member of an open
-// Post opens the Request form (author prefills from the root; others start
-// blank). Nothing shows while `kPostBuddingEnabled` is off.
+// or archived Post opens the Request form (author prefills from the root;
+// others start blank). Nothing shows while `kPostBuddingEnabled` is off.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +30,7 @@ import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
+import 'package:tentura/features/post_view/ui/widget/post_action.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -351,7 +352,9 @@ void main() {
     expect(find.text('Оформить запрос'), findsNothing);
   });
 
-  testWidgets('a closed Post offers no entry', (tester) async {
+  testWidgets('a closed (archived) Post still offers the entry', (
+    tester,
+  ) async {
     await _pump(
       tester,
       viewer: _author,
@@ -359,6 +362,12 @@ void main() {
       beacon: _post(status: BeaconStatus.closed),
     );
     await _openOverflow(tester);
-    expect(find.text('Оформить запрос'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(PopupMenuItem<PostAction>),
+        matching: find.text('Оформить запрос'),
+      ),
+      findsOneWidget,
+    );
   });
 }

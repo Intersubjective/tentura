@@ -243,6 +243,19 @@ abstract class RoomMessage with _$RoomMessage {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
+      // Rows written before reasons existed are buds.
+      final reason = switch (decoded['reason']) {
+        'expired' => RoomMessagePostClosedReason.expired,
+        'closedByAuthor' => RoomMessagePostClosedReason.closedByAuthor,
+        _ => RoomMessagePostClosedReason.budded,
+      };
+      if (reason != RoomMessagePostClosedReason.budded) {
+        return RoomMessagePostClosed(
+          childBeaconId: '',
+          title: '',
+          reason: reason,
+        );
+      }
       final childBeaconId = decoded['childBeaconId'];
       final title = decoded['title'];
       if (childBeaconId is! String || childBeaconId.trim().isEmpty) {

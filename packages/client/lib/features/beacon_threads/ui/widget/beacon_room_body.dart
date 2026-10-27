@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
@@ -60,9 +61,14 @@ class BeaconRoomBody extends StatefulWidget {
     this.postRoot,
     this.batonEnabled = kBatonEnabled,
     this.postBuddingEnabled = kPostBuddingEnabled,
+    this.postArchived = false,
   });
 
   final bool enableComposer;
+
+  /// Post rooms only: the host's Post is closed or past its `expiresAt`. The
+  /// room is read-only and offers «Оформить запрос» instead of the composer.
+  final bool postArchived;
 
   /// Offers «Оформить запрос» on the viewer's own messages in a room whose
   /// capabilities allow own-message promotion; defaults to
@@ -156,6 +162,39 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             cubit.createBatonPlanStep(planStepOffer, title: title),
       );
     }
+  }
+
+  bool get _isPostRoom =>
+      widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot;
+
+  /// Ordinary writes: the room's lifecycle allows them and the host's Post
+  /// is not archived.
+  bool _canWrite(RoomState state) =>
+      state.canWriteDiscussion && !widget.postArchived;
+
+  /// A Post that is closed or past its `expiresAt`: read-only, but deleting
+  /// one's own message and budding a Request stay (personal actions, D1).
+  bool _isArchivedPost(RoomState state) =>
+      _isPostRoom &&
+      (widget.postArchived ||
+          state.beaconExpired ||
+          state.beaconStatus == BeaconStatus.closed);
+
+  /// The room's «Оформить запрос»: the same form as the Post's ⋮ entry (the
+  /// author starts from the root; others start blank).
+  void _openChildRequestComposerFromPost(BuildContext context, RoomState s) {
+    final viewerIsAuthor =
+        widget.beaconAuthorId.isNotEmpty && widget.beaconAuthorId == s.myUserId;
+    unawaited(
+      context.router.push(
+        BeaconCreateRoute(
+          parentBeaconId: s.beaconId,
+          sourceMessageId: viewerIsAuthor
+              ? (widget.postRoot?.messageId ?? '')
+              : '',
+        ),
+      ),
+    );
   }
 
   bool _suppressesRichMessageActions(RoomMessage message) =>
@@ -307,6 +346,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.sendFailedOffline != c.sendFailedOffline ||
             p.sendUnconfirmed != c.sendUnconfirmed ||
             p.beaconStatus != c.beaconStatus ||
+            p.beaconExpired != c.beaconExpired ||
             p.myUserId != c.myUserId ||
             p.readWatermarksLoaded != c.readWatermarksLoaded ||
             _readWatermarksFingerprint(p.readWatermarks) !=
@@ -315,7 +355,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final cubit = context.read<RoomCubit>();
           final isThreadMode = state.threadItemId != null;
           final err = state.loadError?.toString() ?? '';
-          final canWrite = state.canWriteDiscussion;
+          final canWrite = _canWrite(state);
+          final archivedPost = _isArchivedPost(state);
           // The next step stays on the Now tab; the chat pins only an open
           // blocker.
           final showPinnedBlocker =
@@ -451,6 +492,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     explicitMentions: mentions,
                   )
                 : null,
+            composerReplacement: archivedPost
+                ? _ArchivedPostComposerBar(
+                    onBudRequest: widget.postBuddingEnabled
+                        ? () =>
+                              _openChildRequestComposerFromPost(context, state)
+                        : null,
+                  )
+                : null,
             composerReadOnlyHint: canWrite
                 ? null
                 // A Post's conversation is its chat (#501, D8).
@@ -512,7 +561,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             pendingJumpMessageId: state.scrollToMessageId,
             capabilities: widget.capabilities,
             // Final (read-only) Request; unknown status is not "closed".
-            pollsClosed: state.beaconStatus?.allowsDiscussionWrites == false,
+            pollsClosed:
+                state.beaconStatus?.allowsDiscussionWrites == false ||
+                state.beaconExpired ||
+                widget.postArchived,
             hideUntilViewportPositioned: true,
           );
         },
@@ -743,7 +795,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       );
       return;
     }
-    final canWrite = cubit.state.canWriteDiscussion;
+    final canWrite = _canWrite(cubit.state);
+    // An archived Post keeps the personal actions: delete own, bud (D1).
+    final keepsPersonalActions = canWrite || _isArchivedPost(cubit.state);
     final pf = cubit.state.factForRoomMessage(message);
     final caps = widget.capabilities;
     final marker = message.semanticMarker;
@@ -771,7 +825,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final showBud =
         widget.postBuddingEnabled &&
         caps.childPromotionOwnOnly &&
-        canWrite &&
+        keepsPersonalActions &&
         isOwnMessage &&
         !isThreadMode &&
         message.isPromotionEligible;
@@ -1042,12 +1096,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           },
                         ),
                       // ── Destructive (own message), divided off and last. ──
-                      if (canWrite &&
+                      if (keepsPersonalActions &&
                           isOwnMessage &&
                           !isThreadMode &&
                           !_suppressesRichMessageActions(message)) ...[
                         const Divider(height: 1),
-                        if (!isPoll)
+                        if (canWrite && !isPoll)
                           ListTile(
                             leading: const Icon(Icons.edit_outlined),
                             title: Text(l10n.beaconRoomActionEditMessage),
@@ -1107,14 +1161,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message,
     RoomBatonData baton,
   ) {
-    final canWrite = cubit.state.canWriteDiscussion;
+    final canWrite = _canWrite(cubit.state);
     final authorView = baton is RoomBatonAuthorData ? baton : null;
     final canManage =
         canWrite &&
         authorView != null &&
         authorView.status == RoomBatonStatus.collecting;
     final canReply = canWrite && RoomCubit.canReplyTo(message);
-    final canDelete = canWrite && authorView != null;
+    // An archived Post keeps deleting one's own message.
+    final canDelete =
+        (canWrite || _isArchivedPost(cubit.state)) && authorView != null;
     if (!canManage && !canReply && !canDelete) return;
 
     unawaited(
@@ -1712,6 +1768,51 @@ class _PinnedBlockerRow extends StatelessWidget {
 /// Post rooms: the root excerpt (tap scrolls to the root message) and, for a
 /// recipient the Post was forwarded to, who forwarded it and their note; for a
 /// recipient the author sent it to, only who started the chat (#667).
+/// An archived Post's room in place of the composer: why nothing can be
+/// written, and «Оформить запрос» to carry the conversation on in a Request.
+class _ArchivedPostComposerBar extends StatelessWidget {
+  const _ArchivedPostComposerBar({this.onBudRequest});
+
+  /// Null when budding is off.
+  final VoidCallback? onBudRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final onBud = onBudRequest;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.rowGap,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.postArchivedComposerHint,
+              key: const Key('Room.PostArchivedHint'),
+              textAlign: TextAlign.center,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+            if (onBud != null) ...[
+              SizedBox(height: tt.tightGap),
+              FilledButton.tonalIcon(
+                key: const Key('Room.PostArchivedBudAction'),
+                onPressed: onBud,
+                icon: const Icon(Icons.subdirectory_arrow_right_outlined),
+                label: Text(l10n.postBudAction),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PinnedPostRootRow extends StatelessWidget {
   const _PinnedPostRootRow({required this.pin, required this.onTap});
 

@@ -145,6 +145,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
           host: cubit,
           roomLease: _roomLease,
           postRoot: _postRoot(state),
+          postArchived: state.beacon.isPostArchivedAt(cubit.now()),
         ),
       ),
     );
@@ -586,9 +587,11 @@ class _Overflow extends StatelessWidget {
         state.beacon.status == BeaconStatus.open &&
         !state.beacon.isPostArchivedAt(lifetimeNow);
     final muted = summary?.isMutedAt(now) ?? false;
-    // Any member of an open Post may bud (D3 unlimited); no own-message gate.
+    // Any member of an open or archived Post may bud (D3 unlimited, D1); no
+    // own-message gate.
     bool canBud() =>
-        postBuddingEnabled && state.beacon.status == BeaconStatus.open;
+        postBuddingEnabled &&
+        (state.beacon.status == BeaconStatus.open || _isClosed(state));
 
     PopupMenuItem<PostAction> item(
       PostAction value,
@@ -656,7 +659,8 @@ class _Overflow extends StatelessWidget {
         const PopupMenuDivider(),
         if (!viewerIsAuthor)
           item(PostAction.complain, Icons.flag_outlined, l10n.buttonComplaint),
-        if (!_isClosed(state) && _viewerIsAddressee(context, viewerId))
+        // Leaving is personal state, so it stays on an archived Post.
+        if (_viewerIsAddressee(context, viewerId))
           item(
             PostAction.leave,
             Icons.logout,
@@ -686,8 +690,8 @@ class _Overflow extends StatelessWidget {
   }
 }
 
-/// A Post closed by budding is read-only: no forward, leave or other writes
-/// (plan D2; the server rejects them too).
+/// A closed Post is read-only: no forward or other writes (plan D2; the
+/// server rejects them too). Leaving stays (personal state).
 bool _isClosed(PostViewState state) =>
     state.beacon.status == BeaconStatus.closed;
 

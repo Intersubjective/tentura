@@ -38,6 +38,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   /// Cached after [BeaconViewCubit] content load; never seeded from placeholder.
   BeaconStatus? _beaconStatus;
+  bool _beaconExpired = false;
   String? _beaconAuthorId;
   Future<void> _switchTail = Future<void>.value();
   int _windowClassTransitionGeneration = 0;
@@ -59,12 +60,20 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
   }
 
   /// Push lifecycle status into the active room cubit (and cache for rebuilds).
-  void syncBeaconStatus(BeaconStatus status, {String? authorId}) {
+  /// [expired]: a Post past its `expiresAt`, whatever its status.
+  void syncBeaconStatus(
+    BeaconStatus status, {
+    String? authorId,
+    bool expired = false,
+  }) {
+    final expiryChanged = expired != _beaconExpired;
     _beaconStatus = status;
+    _beaconExpired = expired;
     if (authorId != null) _beaconAuthorId = authorId;
     final room = _roomCubit;
     if (room != null && !room.isClosed) {
       room.syncBeaconStatus(status, authorId: authorId);
+      if (expiryChanged) room.syncBeaconExpired(expired);
     }
   }
 
@@ -110,6 +119,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
       final cached = _beaconStatus;
       if (cached != null) {
         _roomCubit!.syncBeaconStatus(cached, authorId: _beaconAuthorId);
+        if (_beaconExpired) _roomCubit!.syncBeaconExpired(true);
       }
       final intent = _pendingComposerIntent;
       if (intent != null) {

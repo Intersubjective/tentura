@@ -95,6 +95,7 @@ class BasicChatBody extends StatefulWidget {
     this.enableComposerAttachments = true,
     this.enableParticipantMentions = true,
     this.composerReadOnlyHint,
+    this.composerReplacement,
     this.composerSendEnabled = true,
     this.composerSendFailedOffline = false,
     this.composerSendUnconfirmed = false,
@@ -215,6 +216,9 @@ class BasicChatBody extends StatefulWidget {
 
   /// When non-null, the composer is visible but disabled and shows this hint.
   final String? composerReadOnlyHint;
+
+  /// When non-null, shown in place of the composer (no field at all).
+  final Widget? composerReplacement;
 
   /// Host gate on top of the composer's own rules: false disables Send.
   final bool composerSendEnabled;
@@ -791,7 +795,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                     ],
                   ),
           ),
-          _buildComposerRow(context),
+          widget.composerReplacement ?? _buildComposerRow(context),
         ],
       ),
     );

@@ -1,6 +1,7 @@
-// A Post closed by budding is read-only (plan D2): the kind-5 notice, a
-// disabled composer, and no reactions, forward or leave. An open Post keeps
-// them (the control case).
+// A Post closed by budding is read-only (plan D2): the kind-5 notice, the
+// archive hint instead of the composer, and no reactions or forward. Leaving
+// stays (personal state, not content). An open Post keeps them all (the
+// control case).
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -353,9 +354,8 @@ void main() {
     expect(find.byType(ReactionQuickPicker), findsOneWidget);
   });
 
-  testWidgets('closed Post: notice, disabled composer, no write actions', (
-    tester,
-  ) async {
+  testWidgets('closed Post: notice, archive hint, no write actions, leave '
+      'stays', (tester) async {
     await _pump(tester, viewer: _reader, status: BeaconStatus.closed);
 
     expect(
@@ -365,13 +365,15 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Этот пост доступен только для чтения'),
+      find.text(
+        'Пост в архиве — писать нельзя. Продолжить разговор можно в запросе.',
+      ),
       findsOneWidget,
     );
     expect(_forwardButton, findsNothing);
 
     await _openOverflow(tester);
-    expect(find.text('Выйти из поста'), findsNothing);
+    expect(find.text('Выйти из поста'), findsOneWidget);
     await tester.tapAt(Offset.zero);
     await _settle(tester);
 

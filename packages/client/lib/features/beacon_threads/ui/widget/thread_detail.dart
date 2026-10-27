@@ -37,6 +37,7 @@ class ThreadDetail extends StatelessWidget {
     this.beaconAuthor,
     this.capabilities = const RoomCapabilities.request(),
     this.postRoot,
+    this.postArchived = false,
     super.key,
   });
 
@@ -47,6 +48,9 @@ class ThreadDetail extends StatelessWidget {
   final Profile? beaconAuthor;
   final RoomCapabilities capabilities;
   final RoomPostRootPin? postRoot;
+
+  /// Post rooms only: the Post is closed or past its `expiresAt`.
+  final bool postArchived;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +71,7 @@ class ThreadDetail extends StatelessWidget {
                   onOpenCoordinationItem: onOpenCoordinationItem,
                   capabilities: capabilities,
                   postRoot: postRoot,
+                  postArchived: postArchived,
                 ),
               ),
             ],

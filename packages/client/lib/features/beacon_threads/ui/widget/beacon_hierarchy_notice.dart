@@ -21,7 +21,8 @@ import 'child_beacon_preview_loader.dart';
 ///
 /// A Request budded from a Post renders from its payload (title snapshot and
 /// invite count), because Post members who are not observers of the child
-/// cannot read it (plan D2). A `postClosed` row renders the closed notice.
+/// cannot read it (plan D2). A `postClosed` row renders the closed notice for
+/// its reason; only a bud links to the child.
 class BeaconHierarchyNotice extends StatelessWidget {
   const BeaconHierarchyNotice({
     required this.message,
@@ -87,6 +88,16 @@ class BeaconHierarchyNotice extends StatelessWidget {
 
     if (message.systemMessageKind == BeaconRoomSystemMessageKind.postClosed) {
       final closed = message.postClosedPayload;
+      if (closed != null &&
+          closed.reason != RoomMessagePostClosedReason.budded) {
+        return _CenteredLinkNotice(
+          key: const Key('Room.PostClosedNotice'),
+          line: closed.reason == RoomMessagePostClosedReason.expired
+              ? l10n.roomPostExpiredNotice
+              : l10n.roomPostClosedByAuthorNotice,
+          icon: Icons.lock_outline,
+        );
+      }
       if (closed != null) {
         return _CenteredLinkNotice(
           key: const Key('Room.PostClosedNotice'),
@@ -285,24 +296,62 @@ class _ChildCreatedCenteredNoticeState
 
 /// Centered one-line notice that opens the child Request on tap: the Post
 /// bud notice and the closed-Post notice. Text comes from the payload only.
+/// Without [childBeaconId] the line is plain text (a Post that expired or
+/// was closed by its author).
 class _CenteredLinkNotice extends StatelessWidget {
   const _CenteredLinkNotice({
     required this.line,
     required this.icon,
-    required this.childBeaconId,
+    this.childBeaconId,
     super.key,
   });
 
   final String line;
   final IconData icon;
-  final String childBeaconId;
+  final String? childBeaconId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tt = context.tt;
-    void openChild() => context.router.push(BeaconViewRoute(id: childBeaconId));
+    final childId = childBeaconId;
+    if (childId == null) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          tt.tightGap,
+          tt.screenHPadding,
+          tt.tightGap,
+        ),
+        child: Semantics(
+          container: true,
+          label: line,
+          excludeSemantics: true,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+              SizedBox(width: tt.iconTextGap / 2),
+              Flexible(
+                child: Text(
+                  line,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    void openChild() => context.router.push(BeaconViewRoute(id: childId));
     return Padding(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
