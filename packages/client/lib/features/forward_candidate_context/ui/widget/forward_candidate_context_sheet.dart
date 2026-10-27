@@ -4,7 +4,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
+import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_forward_section.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -18,13 +20,29 @@ import '../../domain/entity/candidate_connection_context.dart';
 import '../bloc/forward_candidate_context_cubit.dart';
 import '../bloc/forward_candidate_context_state.dart';
 
-enum _ForwardCandidateSheetResult { closed, unavailable }
+enum _ForwardCandidateSheetResult { closed, unavailable, dismissedByThem }
 
+/// #730: the author of a Request cannot forward it to someone who dismissed
+/// it, but can still invite them from People › Invite; the sheet and its
+/// Select say so instead of a bare "no longer available".
+bool _authorSeesDismissed(
+  ForwardCandidate candidate,
+  ForwardState state, {
+  required bool isPost,
+}) =>
+    candidate.involvement == CandidateInvolvement.declined &&
+    state.viewerIsAuthor &&
+    !isPost &&
+    state.profile != ForwardTargetProfile.post;
+
+/// [isPost]: the host speaks of a Post (a new Post's draft has no loaded
+/// beacon, so the forward state alone cannot tell).
 Future<void> showForwardCandidateContextSheet({
   required BuildContext sourceContext,
   required ForwardCubit forwardCubit,
   required ForwardCandidate candidate,
   String? relevanceLabel,
+  bool isPost = false,
 }) async {
   final priorFocus = FocusManager.instance.primaryFocus;
   final result = await showTenturaAdaptiveSheet<_ForwardCandidateSheetResult>(
@@ -44,16 +62,25 @@ Future<void> showForwardCandidateContextSheet({
       child: _ForwardCandidateContextSheet(
         candidate: candidate,
         relevanceLabel: relevanceLabel,
+        isPost: isPost,
       ),
     ),
   );
 
-  if (result == _ForwardCandidateSheetResult.unavailable &&
-      sourceContext.mounted) {
-    showSnackBar(
-      sourceContext,
-      text: L10n.of(sourceContext)!.forwardCandidateUnavailableMessage,
-    );
+  if (sourceContext.mounted) {
+    final l10n = L10n.of(sourceContext)!;
+    switch (result) {
+      case _ForwardCandidateSheetResult.unavailable:
+        showSnackBar(
+          sourceContext,
+          text: l10n.forwardCandidateUnavailableMessage,
+        );
+      case _ForwardCandidateSheetResult.dismissedByThem:
+        showSnackBar(sourceContext, text: l10n.forwardDeclinedUseInvite);
+      case _ForwardCandidateSheetResult.closed:
+      case null:
+        break;
+    }
   }
   if (priorFocus?.context != null && priorFocus!.canRequestFocus) {
     priorFocus.requestFocus();
@@ -63,11 +90,13 @@ Future<void> showForwardCandidateContextSheet({
 class _ForwardCandidateContextSheet extends StatefulWidget {
   const _ForwardCandidateContextSheet({
     required this.candidate,
+    required this.isPost,
     this.relevanceLabel,
   });
 
   final ForwardCandidate candidate;
   final String? relevanceLabel;
+  final bool isPost;
 
   @override
   State<_ForwardCandidateContextSheet> createState() =>
@@ -106,12 +135,23 @@ class _ForwardCandidateContextSheetState
     );
   }
 
-  void _toggleSelection(BuildContext context, String id) {
+  void _toggleSelection(BuildContext context, ForwardCandidate candidate) {
     final cubit = context.read<ForwardCubit>();
     if (cubit.isClosed ||
-        cubit.toggleSelection(id) == ForwardSelectionResult.unavailable) {
+        cubit.toggleSelection(candidate.id) ==
+            ForwardSelectionResult.unavailable) {
+      final dismissed =
+          !cubit.isClosed &&
+          _currentCandidate(cubit.state) != null &&
+          _authorSeesDismissed(
+            candidate,
+            cubit.state,
+            isPost: widget.isPost,
+          );
       Navigator.of(context, rootNavigator: true).pop(
-        _ForwardCandidateSheetResult.unavailable,
+        dismissed
+            ? _ForwardCandidateSheetResult.dismissedByThem
+            : _ForwardCandidateSheetResult.unavailable,
       );
     }
   }
@@ -130,7 +170,11 @@ class _ForwardCandidateContextSheetState
           relevanceLabel: widget.relevanceLabel,
           selected: state.selectedIds.contains(candidate.id),
           selectionEnabled: !context.read<ForwardCubit>().isClosed,
-          onToggleSelection: () => _toggleSelection(context, candidate.id),
+          dismissedHint:
+              _authorSeesDismissed(candidate, state, isPost: widget.isPost)
+              ? L10n.of(context)!.forwardDeclinedUseInvite
+              : null,
+          onToggleSelection: () => _toggleSelection(context, candidate),
           onViewProfile: () => _viewProfile(context, candidate.id),
           onClose: () => Navigator.of(context, rootNavigator: true).pop(
             _ForwardCandidateSheetResult.closed,
@@ -150,10 +194,14 @@ class _SheetBody extends StatelessWidget {
     required this.onViewProfile,
     required this.onClose,
     this.relevanceLabel,
+    this.dismissedHint,
   });
 
   final ForwardCandidate candidate;
   final String? relevanceLabel;
+
+  /// #730: the author's way to still ask someone who dismissed the Request.
+  final String? dismissedHint;
   final bool selected;
   final bool selectionEnabled;
   final VoidCallback onToggleSelection;
@@ -229,6 +277,16 @@ class _SheetBody extends StatelessWidget {
                   colorClickableText: theme.colorScheme.primary,
                   annotations: buildUrlAnnotations(linkColor: tt.info),
                 ),
+              ),
+            ],
+            if (dismissedHint != null) ...[
+              SizedBox(height: tt.rowGap),
+              TenturaStatusText(
+                dismissedHint!,
+                tone: TenturaTone.warn,
+                maxLines: null,
+                // An ellipsis with no maxLines still cuts at line one.
+                overflow: TextOverflow.clip,
               ),
             ],
             if (availability != null) ...[
