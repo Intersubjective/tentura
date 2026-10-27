@@ -126,11 +126,11 @@ Future<void> main() async {
           "('Frootlabel01', '$postId', '$authorId', '$ninaId')",
         );
         await writer.execute(
-          "UPDATE public.beacon_participant SET room_access = 5 "
+          'UPDATE public.beacon_participant SET room_access = 5 '
           "WHERE beacon_id = '$postId' AND user_id = '$ninaId'",
         );
         final participant = await writer.execute(
-          "SELECT room_access FROM public.beacon_participant "
+          'SELECT room_access FROM public.beacon_participant '
           "WHERE beacon_id = '$postId' AND user_id = '$ninaId'",
         );
         expect(participant.single.single, 5);
