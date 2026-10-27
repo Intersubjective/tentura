@@ -37,11 +37,29 @@ class BeaconOpenClearListener extends StatefulWidget {
 class _BeaconOpenClearListenerState extends State<BeaconOpenClearListener> {
   late final _gate = RequestOpenClearGate(clear: widget.clear);
 
+  /// False from [deactivate] on (#745): a load that lands after the viewer
+  /// left never displayed, so it clears nothing.
+  bool _inTree = true;
+
+  @override
+  void activate() {
+    super.activate();
+    _inTree = true;
+  }
+
+  @override
+  void deactivate() {
+    _inTree = false;
+    super.deactivate();
+  }
+
   @override
   Widget build(BuildContext context) =>
       BlocListener<BeaconViewCubit, BeaconViewState>(
         listenWhen: (previous, current) =>
-            current.beaconContentLoaded && !current.beaconUnavailable,
+            _inTree &&
+            current.beaconContentLoaded &&
+            !current.beaconUnavailable,
         listener: (context, state) => _gate.reportDisplayed(widget.beaconId),
         child: widget.child,
       );
