@@ -20,6 +20,7 @@ import 'package:tentura_server/domain/port/person_visibility_repository_port.dar
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
+import 'package:tentura_server/domain/policy/post_expiry_policy.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -94,8 +95,9 @@ final class ForwardCase extends UseCaseBase {
     final first = await _forwardEdgeRepository.fetchById(edgeId);
     if (first == null || first.senderId != senderId) return false;
     final isPost =
-        (await _beaconRepository.getBeaconById(beaconId: first.beaconId))
-            .kind ==
+        (await _beaconRepository.getBeaconById(
+          beaconId: first.beaconId,
+        )).kind ==
         BeaconKind.post;
 
     Future<ForwardEdgeEntity?> eligibleEdge() async {
@@ -459,7 +461,8 @@ final class ForwardCase extends UseCaseBase {
     }
 
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.allowsForward) {
+    if (!beacon.allowsForward ||
+        await isExpiredPost(_beaconRepository, beacon)) {
       throw const UnauthorizedException(
         description: 'Request does not allow forwarding',
       );

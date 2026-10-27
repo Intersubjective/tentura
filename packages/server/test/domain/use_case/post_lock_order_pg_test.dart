@@ -78,6 +78,7 @@ const _author = 'Upostlockauth1';
 const _recipient = 'Upostlockrcpt1';
 const _bystander = 'Upostlockbyst1';
 const _post = 'Bpostlockpost1';
+const _mediaImage = 'd2990de0-1100-4000-8000-000000000001';
 
 const _statusOpen = 0;
 const _statusDraft = 3;
@@ -106,6 +107,7 @@ Future<void> main() async {
     late TenturaDb blockDb;
     late _Stack forwardStack;
     late _Stack blockStack;
+    late _UploadedImages uploadedImages;
 
     setUpAll(() async {
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -116,12 +118,18 @@ Future<void> main() async {
       writer = session.writer;
       forwardDb = openDisposablePgDatabase(target);
       blockDb = openDisposablePgDatabase(target);
-      forwardStack = _buildStack(forwardDb, target.databaseEnv);
+      uploadedImages = _UploadedImages(writer);
+      forwardStack = _buildStack(
+        forwardDb,
+        target.databaseEnv,
+        images: uploadedImages,
+      );
       blockStack = _buildStack(blockDb, target.databaseEnv);
     });
 
     setUp(() async {
       await _resetFixture(writer);
+      uploadedImages.objects.clear();
     });
 
     tearDownAll(() async {
@@ -207,6 +215,234 @@ Future<void> main() async {
     });
 
     group('forward of a Post', () {
+      test('an open Post forwards to a recipient', () async {
+        final result = await forwardStack.forwardCase.forward(
+          senderId: _author,
+          beaconId: _post,
+          recipientIds: const [_recipient],
+        );
+        expect(result.deliveredRecipientIds, [_recipient]);
+        expect(await _edgeCount(writer, _post, _recipient, liveOnly: true), 1);
+        expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+      });
+
+      test('an open Post permits invitation creation', () async {
+        final invitation = await forwardStack.invitationCase.create(
+          userId: _author,
+          addresseeName: 'Newcomer',
+          beaconId: _post,
+        );
+        expect(invitation.beaconId, _post);
+      });
+
+      test('an open Post permits its author to open forwarding', () async {
+        await writer.execute("DELETE FROM public.beacon WHERE id = '$_post'");
+        await writer.execute(
+          "INSERT INTO public.beacon (id, user_id, title, description, status, kind, is_discoverable, published_at, forward_policy) VALUES ('$_post', '$_author', '', '', 0, 1, false, now(), 0)",
+        );
+        expect(
+          await forwardStack.beaconCase.openForwarding(
+            authorId: _author,
+            id: _post,
+          ),
+          isTrue,
+        );
+        expect(
+          (await writer.execute(
+            "SELECT forward_policy FROM public.beacon WHERE id = '$_post'",
+          )).single.single,
+          1,
+        );
+      });
+
+      for (final sender in [_author, _recipient]) {
+        test(
+          'expired Post refuses forward by ${sender == _author ? 'author' : 'member'}',
+          () async {
+            await writer.execute(
+              "UPDATE public.beacon SET forward_policy = 1 WHERE id = '$_post'",
+            );
+            if (sender == _recipient) {
+              await forwardStack.forwardCase.forward(
+                senderId: _author,
+                beaconId: _post,
+                recipientIds: const [_recipient],
+              );
+            }
+            await writer.execute(
+              "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
+            );
+            final outcome = await _settle(
+              forwardStack.forwardCase.forward(
+                senderId: sender,
+                beaconId: _post,
+                recipientIds: const [_bystander],
+              ),
+            );
+            expect(outcome.error, isA<ExceptionBase>());
+            expect(
+              await _edgeCount(writer, _post, _bystander, liveOnly: false),
+              0,
+            );
+            expect(await _isAdmitted(writer, _post, _bystander), isFalse);
+          },
+        );
+      }
+
+      test('expired Post refuses opening forwarding', () async {
+        await writer.execute(
+          "DELETE FROM public.beacon WHERE id = '$_post'",
+        );
+        await writer.execute(
+          "INSERT INTO public.beacon (id, user_id, title, description, status, kind, is_discoverable, published_at, forward_policy, expires_at) VALUES ('$_post', '$_author', '', '', 0, 1, false, now(), 0, now() - interval '1 second')",
+        );
+        final outcome = await _settle(
+          forwardStack.beaconCase.openForwarding(authorId: _author, id: _post),
+        );
+        expect(outcome.error, isA<ExceptionBase>());
+        expect(
+          (await writer.execute(
+            "SELECT forward_policy FROM public.beacon WHERE id = '$_post'",
+          )).single.single,
+          0,
+        );
+      });
+
+      test('expired Post refuses creating an invitation', () async {
+        await writer.execute(
+          "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
+        );
+        final outcome = await _settle(
+          forwardStack.invitationCase.create(
+            userId: _author,
+            addresseeName: 'Newcomer',
+            beaconId: _post,
+          ),
+        );
+        expect(outcome.error, isA<ExceptionBase>());
+        expect(
+          (await writer.execute(
+            "SELECT count(*) FROM public.invitation WHERE beacon_id = '$_post'",
+          )).single.single,
+          0,
+        );
+      });
+
+      for (final existing in [false, true]) {
+        test(
+          'expired Post refuses invitation acceptance ${existing ? 'by an existing account' : 'through accept'}',
+          () async {
+            const invitation = 'Iexpiredinvite1';
+            await writer.execute(
+              "INSERT INTO public.invitation (id, user_id, beacon_id) VALUES ('$invitation', '$_author', '$_post')",
+            );
+            await writer.execute(
+              "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
+            );
+            final outcome = await _settle(
+              existing
+                  ? forwardStack.invitationCase.acceptAsExisting(
+                      code: invitation,
+                      userId: _recipient,
+                    )
+                  : forwardStack.invitationCase.accept(
+                      invitationId: invitation,
+                      userId: _recipient,
+                    ),
+            );
+            expect(outcome.error, isA<ExceptionBase>());
+            expect(
+              await _edgeCount(writer, _post, _recipient, liveOnly: false),
+              0,
+            );
+            expect(await _isAdmitted(writer, _post, _recipient), isFalse);
+            expect(
+              (await writer.execute(
+                "SELECT count(*) FROM public.beacon_participant WHERE beacon_id = '$_post' AND user_id = '$_recipient'",
+              )).single.single,
+              0,
+            );
+            expect(
+              (await writer.execute(
+                "SELECT invited_id FROM public.invitation WHERE id = '$invitation'",
+              )).single.single,
+              isNull,
+            );
+          },
+        );
+      }
+
+      test('expired Post refuses staging an image', () async {
+        await writer.execute(
+          "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
+        );
+        final outcome = await _settle(
+          forwardStack.beaconCase.beaconStageImage(
+            beaconId: _post,
+            userId: _author,
+            imageBytes: const Stream.empty(),
+          ),
+        );
+        expect(
+          uploadedImages.objects,
+          isEmpty,
+          reason: 'no uploaded object remains',
+        );
+        expect(
+          (await writer.execute(
+            "SELECT count(*) FROM public.image WHERE id = '$_mediaImage'",
+          )).single.single,
+          0,
+          reason: 'no uploaded image row remains',
+        );
+        expect(outcome.error, isA<ExceptionBase>());
+        expect(
+          (await writer.execute(
+            "SELECT count(*) FROM public.beacon_image_stage WHERE beacon_id = '$_post'",
+          )).single.single,
+          0,
+        );
+        expect(
+          (await writer.execute(
+            "SELECT count(*) FROM public.beacon_image WHERE beacon_id = '$_post'",
+          )).single.single,
+          0,
+        );
+      });
+
+      test('expired Post refuses reconciling media', () async {
+        await writer.execute(
+          "INSERT INTO public.image (id, author_id) VALUES ('$_mediaImage', '$_author')",
+        );
+        await writer.execute(
+          "INSERT INTO public.beacon_image_stage (image_id, beacon_id, staged_at) VALUES ('$_mediaImage', '$_post', now())",
+        );
+        await writer.execute(
+          "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
+        );
+        final outcome = await _settle(
+          forwardStack.beaconCase.beaconSetMedia(
+            beaconId: _post,
+            userId: _author,
+            imageIds: const [],
+            coverSource: 1,
+          ),
+        );
+        expect(outcome.error, isA<ExceptionBase>());
+        expect(
+          (await writer.execute(
+            "SELECT count(*) FROM public.beacon_image WHERE beacon_id = '$_post'",
+          )).single.single,
+          0,
+        );
+        expect(
+          (await writer.execute(
+            "SELECT count(*) FROM public.beacon_image_stage WHERE beacon_id = '$_post'",
+          )).single.single,
+          1,
+        );
+      });
+
       test(
         'a block committed after the beacon read but before the lock stops '
         'the forward from admitting the blocked recipient',
@@ -879,7 +1115,7 @@ final class _Stack {
   final MutatingUnitOfWork uow;
 }
 
-_Stack _buildStack(TenturaDb db, Env env) {
+_Stack _buildStack(TenturaDb db, Env env, {ImageRepositoryPort? images}) {
   final logger = Logger('PostLockOrderPgTest');
   final uow = MutatingUnitOfWork(db);
   final postLock = PostLockRepository(db);
@@ -919,7 +1155,7 @@ _Stack _buildStack(TenturaDb db, Env env) {
     FakeBeaconAccessGuard(),
     FakeUserBlockRepository(),
   );
-  final images = _UnusedImages();
+  final imageRepo = images ?? _UnusedImages();
   final tasks = _Tasks();
   final forwardCase = ForwardCase(
     forwardEdges,
@@ -941,7 +1177,7 @@ _Stack _buildStack(TenturaDb db, Env env) {
     roomRepository,
     CoordinationItemRepository(db),
     _UnusedFactCards(),
-    images,
+    imageRepo,
     tasks,
     _Storage(),
     _UnusedPolling(),
@@ -957,7 +1193,7 @@ _Stack _buildStack(TenturaDb db, Env env) {
   );
   final beaconCase = BeaconCase(
     beacons,
-    images,
+    imageRepo,
     _UnusedImageGc(),
     tasks,
     CommitmentQueryCase(commitments, helpOffers, env: env, logger: logger),
@@ -1027,9 +1263,74 @@ _Stack _buildStack(TenturaDb db, Env env) {
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
 
-final class _UnusedImages extends Fake implements ImageRepositoryPort {}
+class _UnusedImages extends Fake implements ImageRepositoryPort {
+  @override
+  Future<String> put({
+    required String authorId,
+    required Stream<Uint8List> bytes,
+  }) async => _mediaImage;
 
-final class _UnusedImageGc extends Fake implements ImageObjectGcPort {}
+  @override
+  Future<List<String>> listOwnedIds({required String authorId}) async => [
+    _mediaImage,
+  ];
+
+  @override
+  Future<void> compensateOrphanedUpload({
+    required String imageId,
+    required String authorId,
+  }) async {}
+
+  @override
+  Future<int> deleteOwnedRow({
+    required String imageId,
+    required String authorId,
+  }) async => 1;
+}
+
+final class _UploadedImages extends _UnusedImages {
+  _UploadedImages(this.writer);
+  final Connection writer;
+  final objects = <String>{};
+
+  @override
+  Future<String> put({
+    required String authorId,
+    required Stream<Uint8List> bytes,
+  }) async {
+    await bytes.drain<void>();
+    await writer.execute(
+      Sql.named(
+        'INSERT INTO public.image (id, author_id) VALUES (@id, @author)',
+      ),
+      parameters: {'id': _mediaImage, 'author': authorId},
+    );
+    objects.add(_mediaImage);
+    return _mediaImage;
+  }
+
+  @override
+  Future<void> compensateOrphanedUpload({
+    required String imageId,
+    required String authorId,
+  }) async {
+    await writer.execute(
+      Sql.named(
+        'DELETE FROM public.image WHERE id = @id AND author_id = @author',
+      ),
+      parameters: {'id': imageId, 'author': authorId},
+    );
+    objects.remove(imageId);
+  }
+}
+
+final class _UnusedImageGc extends Fake implements ImageObjectGcPort {
+  @override
+  Future<void> enqueue({
+    required String imageId,
+    required String authorId,
+  }) async {}
+}
 
 final class _UnusedFactCards extends Fake
     implements BeaconFactCardRepositoryPort {}

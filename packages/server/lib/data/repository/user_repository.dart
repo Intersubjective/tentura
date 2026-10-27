@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
@@ -172,7 +173,15 @@ class UserRepository implements UserRepositoryPort {
       kind: BeaconKind.fromValue(row.kind),
       forwardPolicy: BeaconForwardPolicyValue.fromValue(row.forwardPolicy),
     );
-    if (!beacon.allowsForward) throw IdNotFoundException(id: beaconId);
+    if (!beacon.allowsForward ||
+        BeaconPostLifetime.isExpired(
+          kind: row.kind,
+          status: beacon.status,
+          expiresAt: row.expiresAt?.dateTime,
+          now: DateTime.timestamp(),
+        )) {
+      throw IdNotFoundException(id: beaconId);
+    }
     if (!BeaconForwardPolicy.canForward(beacon: beacon, senderId: issuerId)) {
       throw const UnauthorizedException(
         description: 'Forwarding is off for this post',

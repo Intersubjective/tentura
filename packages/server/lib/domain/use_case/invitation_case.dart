@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
+import 'package:tentura_server/domain/policy/post_expiry_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
@@ -84,7 +85,8 @@ final class InvitationCase extends UseCaseBase {
     }
 
     Future<InvitationEntity> createForBeacon(BeaconEntity beacon) async {
-      if (!beacon.allowsForward) {
+      if (!beacon.allowsForward ||
+          await isExpiredPost(_beaconRepository, beacon)) {
         throw const UnauthorizedException(
           description: 'Request does not allow forwarding',
         );
@@ -133,14 +135,15 @@ final class InvitationCase extends UseCaseBase {
   /// The invite's issuer must still be allowed to forward its beacon.
   Future<void> _requireIssuerCanForward(InvitationEntity invitation) async {
     final beacon = await _beaconUnderPostLock(invitation.beaconId!);
-    _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
+    await _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
   }
 
-  void _requireBeaconInviteForward({
+  Future<void> _requireBeaconInviteForward({
     required InvitationEntity invitation,
     required BeaconEntity beacon,
-  }) {
-    if (!beacon.allowsForward) {
+  }) async {
+    if (!beacon.allowsForward ||
+        await isExpiredPost(_beaconRepository, beacon)) {
       throw IdNotFoundException(id: invitation.id);
     }
     if (!BeaconForwardPolicy.canForward(
@@ -447,7 +450,7 @@ final class InvitationCase extends UseCaseBase {
         beacon.status == BeaconStatus.deleted) {
       throw IdNotFoundException(id: invitation.id);
     }
-    _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
+    await _requireBeaconInviteForward(invitation: invitation, beacon: beacon);
 
     return _userRepository.bindMutual(
       invitationId: invitation.id,

@@ -13,6 +13,7 @@ import '../../support/beacon_lifecycle_effects_test_support.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
@@ -144,12 +145,16 @@ class _TrackingImageRepo extends Fake implements ImageRepositoryPort {
   List<String> ownedIds = const [];
   final compensatedUploads = <({String authorId, String imageId})>[];
   final deletedOwnedRows = <({String authorId, String imageId})>[];
+  final uploadedObjects = <String>{};
 
   @override
   Future<String> put({
     required String authorId,
     required Stream<Uint8List> bytes,
-  }) async => nextPutId;
+  }) async {
+    uploadedObjects.add(nextPutId);
+    return nextPutId;
+  }
 
   @override
   Future<List<String>> listOwnedIds({required String authorId}) async =>
@@ -161,6 +166,7 @@ class _TrackingImageRepo extends Fake implements ImageRepositoryPort {
     required String authorId,
   }) async {
     compensatedUploads.add((authorId: authorId, imageId: imageId));
+    uploadedObjects.remove(imageId);
   }
 
   @override
@@ -327,6 +333,28 @@ void main() {
   });
 
   group('BeaconCase.beaconStageImage', () {
+    test(
+      'rejects image staging for every Post without leaving an image stage',
+      () async {
+        beaconRepo.locked = beacon().copyWith(kind: BeaconKind.post);
+        imageRepo.ownedIds = ['Inew'];
+
+        Object? error;
+        try {
+          await case_.beaconStageImage(
+            beaconId: 'B1',
+            userId: 'Uauth',
+            imageBytes: const Stream.empty(),
+          );
+        } catch (e) {
+          error = e;
+        }
+        expect(imageRepo.uploadedObjects, isEmpty);
+        expect(error, isA<Exception>());
+        expect(beaconRepo.insertStageCalls, isEmpty);
+      },
+    );
+
     test('rejects an unauthorized caller before uploading', () async {
       await expectLater(
         case_.beaconStageImage(
@@ -428,6 +456,29 @@ void main() {
   });
 
   group('BeaconCase.beaconSetMedia', () {
+    test(
+      'rejects publishing media for every Post without replacing attachments',
+      () async {
+        beaconRepo.locked = beacon().copyWith(kind: BeaconKind.post);
+        beaconRepo.snapshot = const BeaconMediaSnapshot(
+          attachedImageIds: [],
+          stagedImageIds: {'I1'},
+        );
+
+        await expectLater(
+          case_.beaconSetMedia(
+            beaconId: 'B1',
+            userId: 'Uauth',
+            imageIds: const ['I1'],
+            coverImageId: 'I1',
+            coverSource: 1,
+          ),
+          throwsA(isA<Exception>()),
+        );
+        expect(beaconRepo.replaceMediaCalls, isEmpty);
+      },
+    );
+
     test('rejects an unauthorized caller', () async {
       await expectLater(
         case_.beaconSetMedia(

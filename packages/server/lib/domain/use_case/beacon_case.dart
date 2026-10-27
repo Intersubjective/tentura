@@ -30,6 +30,7 @@ import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
+import 'package:tentura_server/domain/policy/post_expiry_policy.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../entity/beacon_entity.dart';
@@ -583,10 +584,12 @@ final class BeaconCase extends UseCaseBase {
     required String userId,
     required Stream<Uint8List> imageBytes,
   }) async {
-    await _beaconRepository.getBeaconById(
+    final beacon = await _beaconRepository.getBeaconById(
       beaconId: beaconId,
       filterByUserId: userId,
     );
+
+    BeaconKindPolicy.requireRequest(beacon);
 
     final imageId = await _imageRepository.put(
       authorId: userId,
@@ -603,6 +606,7 @@ final class BeaconCase extends UseCaseBase {
               code: EvaluationExceptionCode.notEligible,
             );
           }
+          BeaconKindPolicy.requireRequest(locked);
           final snapshot = await _beaconRepository.getMediaSnapshot(beaconId);
           if (snapshot.combinedCount >= kMaxImagesPerBeacon) {
             throw const BeaconCreateException(
@@ -653,6 +657,8 @@ final class BeaconCase extends UseCaseBase {
           code: EvaluationExceptionCode.notEligible,
         );
       }
+
+      BeaconKindPolicy.requireRequest(locked);
 
       final desired = imageIds.toSet();
       if (desired.length != imageIds.length ||
@@ -986,7 +992,8 @@ final class BeaconCase extends UseCaseBase {
               description: 'Only a post has a forwarding policy',
             );
           }
-          if (beacon.status != BeaconStatus.open) {
+          if (beacon.status != BeaconStatus.open ||
+              await isExpiredPost(_beaconRepository, beacon)) {
             throw const BeaconCreateException(
               description: 'Forwarding can be opened on an open post only',
             );

@@ -192,6 +192,69 @@ TRUNCATE TABLE public.invitation, public.beacon_forward_edge,
 
   for (final path in paths) {
     group('${path.name} with a beacon invite', () {
+      test(
+        'an unexpired Post invite creates an account and forward edge',
+        () async {
+          await insertBeacon(id: _post, kind: _kindPost, policy: _policyOpen);
+          await writer.execute(
+            "UPDATE public.beacon SET expires_at = now() + interval '1 hour' WHERE id = '$_post'",
+          );
+          await insertInvitation(beaconId: _post, issuerId: _authorId);
+          await path.signUp();
+          expect(await newcomerCount(), 1);
+          expect(await consumedInvitationCount(), 1);
+          expect(await forwardEdgeCount(_post, _authorId), 1);
+          expect(
+            await scalar(
+              "SELECT count(*) FROM public.beacon_forward_edge e JOIN public.\"user\" u ON u.id = e.recipient_id WHERE e.beacon_id = '$_post' AND u.display_name = '$_newcomerName' AND e.cancelled_at IS NULL",
+            ),
+            1,
+          );
+        },
+      );
+
+      test(
+        'refuses a closed Post invite without creating an account or edge',
+        () async {
+          await insertBeacon(
+            id: _post,
+            kind: _kindPost,
+            policy: _policyOpen,
+            status: 6,
+          );
+          await insertInvitation(beaconId: _post, issuerId: _authorId);
+          await expectLater(path.signUp(), throwsA(_refusal));
+          await expectNothingMaterialized(_post, _authorId);
+        },
+      );
+
+      test(
+        'refuses an expired Post invite without creating an account or edge',
+        () async {
+          await insertBeacon(id: _post, kind: _kindPost, policy: _policyOpen);
+          await insertInvitation(beaconId: _post, issuerId: _authorId);
+          await writer.execute(
+            "UPDATE public.beacon SET expires_at = now() - interval '1 second' "
+            "WHERE id = '$_post'",
+          );
+
+          Object? error;
+          try {
+            await path.signUp();
+          } catch (e) {
+            error = e;
+          }
+          expect(error, _refusal);
+          await expectNothingMaterialized(_post, _authorId);
+          expect(
+            await scalar(
+              "SELECT count(*) FROM public.beacon_participant WHERE beacon_id = '$_post'",
+            ),
+            0,
+          );
+        },
+      );
+
       test('refuses a non-author issuer of a Post with closed forwarding '
           'and creates no edge', () async {
         await insertBeacon(
