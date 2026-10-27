@@ -12,6 +12,7 @@ class OneNodeButton extends StatefulWidget {
     required this.onTap,
     required this.child,
     this.hint,
+    this.expanded,
     super.key,
   });
 
@@ -22,6 +23,11 @@ class OneNodeButton extends StatefulWidget {
   /// What a screen reader adds after [label], e.g. why the button is
   /// disabled (#720).
   final String? hint;
+
+  /// Whether what the button opens is showing, for a button that opens a
+  /// popover (#723: [Semantics.excludeSemantics] drops the child's own
+  /// selected state). Null when the button opens nothing.
+  final bool? expanded;
   final VoidCallback? onTap;
   final Widget child;
 
@@ -42,6 +48,7 @@ class _OneNodeButtonState extends State<OneNodeButton> {
     focused: _focused,
     label: widget.label,
     hint: widget.hint,
+    expanded: widget.expanded,
     onTap: widget.onTap,
     excludeSemantics: true,
     // Follows the button's own focus without taking a Tab stop of its own.

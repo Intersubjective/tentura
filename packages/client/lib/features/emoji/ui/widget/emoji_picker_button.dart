@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/one_node_button.dart';
 
 const double _kPopoverWidth = 360;
 const double _kPopoverHeight = 400;
@@ -107,9 +108,13 @@ class _EmojiPickerButtonState extends State<EmojiPickerButton> {
         link: _link,
         child: TapRegion(
           groupId: _tapGroup,
-          child: Semantics(
+          // #723: one node carries the name, the tap and the identifier.
+          child: OneNodeButton(
             identifier: TestIds.roomEmojiButton,
-            button: true,
+            enabled: widget.enabled,
+            label: l10n.composerEmojiButtonTooltip,
+            expanded: _popover.isShowing,
+            onTap: widget.enabled ? _toggle : null,
             child: IconButton(
               key: TestIds.key(TestIds.roomEmojiButton),
               tooltip: l10n.composerEmojiButtonTooltip,
