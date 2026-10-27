@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -22,6 +24,9 @@ final class _Server {
   _Server({required this.disabled});
 
   bool disabled;
+
+  /// When set, the state read waits for it (a cold screen).
+  Completer<void>? gate;
 }
 
 /// Each repository keeps its own log of recorded outcomes, so a test can tell
@@ -38,7 +43,10 @@ final class _FakeRepository implements PeopleTagsRepositoryPort {
       PersonTagSuggestionState(canSuggest: !disabled, disabled: disabled);
 
   @override
-  Future<PersonTagSuggestionState> personTagSuggestionState() async => _state;
+  Future<PersonTagSuggestionState> personTagSuggestionState() async {
+    await _server.gate?.future;
+    return _state;
+  }
 
   @override
   Future<PersonTagSuggestionState> personTagSuggestionRecord({
@@ -74,8 +82,10 @@ void main() {
   // only.
   late _FakeRepository tagsRepository;
 
+  late _Server server;
+
   Future<_FakeRepository> register({required bool disabled}) async {
-    final server = _Server(disabled: disabled);
+    server = _Server(disabled: disabled);
     final repository = _FakeRepository(server);
     tagsRepository = _FakeRepository(server);
     final realtime = buildTestRealtimeSync();
@@ -127,15 +137,18 @@ void main() {
       tester.widget<Switch>(find.byKey(_switch)).value;
 
   group('people tags screen suggestions switch', () {
-    testWidgets('is labelled "Suggest tags" and is on while suggestions are on', (
-      tester,
-    ) async {
-      await register(disabled: false);
-      await pumpScreen(tester);
+    testWidgets(
+      'is labelled "Suggest tags" and is on while suggestions are on',
+      (
+        tester,
+      ) async {
+        await register(disabled: false);
+        await pumpScreen(tester);
 
-      expect(find.text('Suggest tags'), findsOneWidget);
-      expect(switchValue(tester), isTrue);
-    });
+        expect(find.text('Suggest tags'), findsOneWidget);
+        expect(switchValue(tester), isTrue);
+      },
+    );
 
     testWidgets('is labelled «Предлагать теги» in Russian', (tester) async {
       await register(disabled: false);
@@ -144,14 +157,51 @@ void main() {
       expect(find.text('Предлагать теги'), findsOneWidget);
     });
 
-    testWidgets('reflects the server state: off when suggestions are disabled', (
-      tester,
-    ) async {
-      await register(disabled: true);
-      await pumpScreen(tester);
+    testWidgets(
+      'reflects the server state: off when suggestions are disabled',
+      (
+        tester,
+      ) async {
+        await register(disabled: true);
+        await pumpScreen(tester);
 
-      expect(switchValue(tester), isFalse);
-    });
+        expect(switchValue(tester), isFalse);
+      },
+    );
+
+    testWidgets(
+      'shows a spinner, never a wrong OFF, until the state is known',
+      (
+        tester,
+      ) async {
+        await register(disabled: false);
+        server.gate = Completer<void>();
+        await tester.binding.setSurfaceSize(const Size(900, 1400));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: const TenturaResponsiveScope(child: PeopleTagsScreen()),
+          ),
+        );
+        await tester.pump();
+
+        // Cold: the value is unknown, so no switch (and no wrong OFF) yet.
+        expect(find.byKey(_switch), findsNothing);
+        expect(
+          find.byKey(const Key('people-tags-suggestions-loading')),
+          findsOneWidget,
+        );
+
+        server.gate!.complete();
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<Switch>(find.byKey(_switch)).onChanged, isNotNull);
+        expect(switchValue(tester), isTrue);
+      },
+    );
 
     testWidgets('turning it on calls the use case enable and shows it on', (
       tester,

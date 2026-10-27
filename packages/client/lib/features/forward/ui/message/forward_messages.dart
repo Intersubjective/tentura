@@ -261,7 +261,7 @@ final class _AddToTagLabel extends LocalizableMessage {
   String get toEn => 'Add to tag…';
 
   @override
-  String get toRu => 'Добавить в тег…';
+  String get toRu => 'В тег…';
 }
 
 final class _OpenInWatchingLabel extends LocalizableMessage {

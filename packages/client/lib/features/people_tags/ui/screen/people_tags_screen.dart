@@ -132,11 +132,19 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
                   SizedBox(height: tt.sectionGap),
                   ListTile(
                     title: Text(l10n.peopleTagsSuggestEnable),
-                    trailing: Switch(
-                      key: const Key('people-tags-suggestions-switch'),
-                      value: _peopleTags.suggestionsEnabled,
-                      onChanged: (v) => unawaited(_setSuggestions(on: v)),
-                    ),
+                    // Until the server state is known, a spinner instead of
+                    // a switch that would show a wrong OFF (#699).
+                    trailing: _peopleTags.suggestionsLoaded
+                        ? Switch(
+                            key: const Key('people-tags-suggestions-switch'),
+                            value: _peopleTags.suggestionsEnabled,
+                            onChanged: (v) => unawaited(_setSuggestions(on: v)),
+                          )
+                        : const SizedBox.square(
+                            key: Key('people-tags-suggestions-loading'),
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                   ),
                   SizedBox(height: tt.rowGap),
                   Text(

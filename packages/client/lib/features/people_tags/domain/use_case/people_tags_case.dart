@@ -115,6 +115,9 @@ final class PeopleTagsCase extends UseCaseBase {
     _emit();
   }
 
+  /// Whether [loadSuggestionState] has delivered a value yet.
+  bool get suggestionsLoaded => _suggestionState != null;
+
   /// Whether the server currently allows "Tag them?" suggestions; false until
   /// [loadSuggestionState] ran.
   bool get suggestionsEnabled => !(_suggestionState?.disabled ?? true);
