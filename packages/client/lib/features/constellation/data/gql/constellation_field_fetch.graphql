@@ -18,6 +18,12 @@ query ConstellationFieldFetch(
     peers {
       id
       contactOnly
+      presence
+      temporaryBeaconId
+      bondContexts {
+        beaconId
+        title
+      }
       displayName
       handle
       image {
@@ -80,6 +86,12 @@ query ConstellationFieldFetch(
       pinnedPeers {
         id
         visible
+        presence
+        temporaryBeaconId
+        bondContexts {
+          beaconId
+          title
+        }
         displayName
         handle
         image {

@@ -20,6 +20,7 @@ enum ConstellationFieldMembership {
   bond,
   temporary,
   contactOnly,
+  pinnedOnly,
 }
 
 /// Automatic tags derived from the viewer's trust relation to a person.

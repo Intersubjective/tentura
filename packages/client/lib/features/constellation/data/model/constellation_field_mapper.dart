@@ -124,14 +124,32 @@ ConstellationPerson _mapPersonFields({
   ImageModelV2? image,
   bool visible = true,
   bool contactOnly = false,
+  String? presence,
+  String? temporaryBeaconId,
+  Iterable<({String beaconId, String title})> bondContexts = const [],
 }) => ConstellationPerson(
   id: id,
   visible: visible,
   contactOnly: contactOnly,
+  fieldMembership: _membershipFromWire(presence),
+  temporaryBeaconId: temporaryBeaconId,
+  bondContexts: [
+    for (final context in bondContexts)
+      ConstellationBondContext(
+        beaconId: context.beaconId,
+        title: context.title,
+      ),
+  ],
   displayName: displayName,
   handle: handle,
   image: image?.asEntity,
 );
+
+ConstellationFieldMembership _membershipFromWire(String? presence) =>
+    ConstellationFieldMembership.values.firstWhere(
+      (membership) => membership.name == presence,
+      orElse: () => ConstellationFieldMembership.visible,
+    );
 
 ConstellationPerson _mapFieldFetchPerson(
   GConstellationFieldFetchData_constellationField_peers peer,
@@ -139,6 +157,12 @@ ConstellationPerson _mapFieldFetchPerson(
   id: peer.id,
   contactOnly: peer.contactOnly,
   visible: !peer.contactOnly,
+  presence: peer.presence,
+  temporaryBeaconId: peer.temporaryBeaconId,
+  bondContexts: [
+    for (final context in peer.bondContexts)
+      (beaconId: context.beaconId, title: context.title),
+  ],
   displayName: peer.displayName,
   handle: peer.handle,
   image: peer.image as ImageModelV2?,
@@ -272,6 +296,12 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
       _mapPersonFields(
         id: peer.id,
         visible: peer.visible,
+        presence: peer.presence,
+        temporaryBeaconId: peer.temporaryBeaconId,
+        bondContexts: [
+          for (final context in peer.bondContexts)
+            (beaconId: context.beaconId, title: context.title),
+        ],
         displayName: peer.displayName,
         handle: peer.handle,
         image: peer.image as ImageModelV2?,

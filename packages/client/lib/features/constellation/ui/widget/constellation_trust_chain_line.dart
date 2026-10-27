@@ -94,7 +94,9 @@ String? _presenceReason(ConstellationCubit cubit, L10n l10n) {
           ? l10n.constellationTrustChainSharedPost(context.title)
           : l10n.constellationTrustChainSharedRequest(context.title);
     case _:
-      return cubit.isAnchored(ConstellationAnchorTarget.person(personId))
+      return person?.fieldMembership ==
+                  ConstellationFieldMembership.pinnedOnly ||
+              cubit.isAnchored(ConstellationAnchorTarget.person(personId))
           ? l10n.constellationTrustChainPinned
           : null;
   }

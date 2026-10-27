@@ -67,6 +67,9 @@ Map<String, Object?> _fieldPayload({
       '__typename': 'v2_ConstellationPeer',
       'id': 'peer-a',
       'contactOnly': false,
+      'presence': 'visible',
+      'temporaryBeaconId': null,
+      'bondContexts': <dynamic>[],
       'displayName': 'Alice',
       'handle': '@alice',
       'image': {
