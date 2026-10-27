@@ -267,21 +267,21 @@ WHERE system_message_kind = ${BeaconRoomSystemMessageKind.postClosed}
       );
     });
 
-    test('refuses deleting a non-root message', () async {
-      await expectLater(
-        harness.room.deleteMessage(
+    test('allows a member to delete their own non-root message', () async {
+      expect(
+        await harness.room.deleteMessage(
           beaconId: _post,
           messageId: _memberMessage,
           userId: _member,
         ),
-        throwsA(isA<BeaconCreateException>()),
+        isTrue,
       );
       expect(
         await count('''
 SELECT count(*)::int FROM public.beacon_room_message
 WHERE id = '$_memberMessage'
 '''),
-        1,
+        0,
       );
     });
 
@@ -303,15 +303,16 @@ WHERE beacon_id = '$_post' AND recipient_id = '$_stranger'
       );
     });
 
-    test('refuses leave and return', () async {
-      await expectLater(
-        harness.posts.leave(userId: _member, beaconId: _post),
-        throwsA(isA<PostNotOpenException>()),
+    test('allows a member to leave and return', () async {
+      await harness.posts.leave(userId: _member, beaconId: _post);
+      expect(
+        await count('''
+SELECT room_access::int FROM public.beacon_participant
+WHERE beacon_id = '$_post' AND user_id = '$_member'
+'''),
+        5,
       );
-      await expectLater(
-        harness.posts.returnTo(userId: _member, beaconId: _post),
-        throwsA(isA<PostNotOpenException>()),
-      );
+      await harness.posts.returnTo(userId: _member, beaconId: _post);
       expect(
         await count('''
 SELECT room_access::int FROM public.beacon_participant

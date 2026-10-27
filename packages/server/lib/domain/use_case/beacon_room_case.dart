@@ -38,6 +38,7 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 import 'package:tentura_root/domain/mention_span_validation.dart';
 
@@ -1910,7 +1911,24 @@ class BeaconRoomCase extends UseCaseBase {
         }
         return _beaconCase!.deleteById(beaconId: beaconId, userId: userId);
       }
-      await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      final hierarchy = _hierarchyRepository;
+      final archivedPost =
+          beacon != null &&
+          beacon.kind == BeaconKind.post &&
+          (beacon.status == BeaconStatus.closed ||
+              (beacon.status == BeaconStatus.open &&
+                  hierarchy is BeaconRoomWriteStatePort &&
+                  await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
+                    beaconId,
+                  )));
+      if (archivedPost) {
+        await _rejectDisabledScope(
+          beaconId: beaconId,
+          threadScopeId: msg.threadItemId,
+        );
+      } else {
+        await _guardMessageMutation(beaconId: beaconId, msg: msg);
+      }
       await _room.deleteRoomMessage(messageId: messageId);
       return true;
     },

@@ -291,11 +291,10 @@ class PostCase {
     actorUserId: userId,
     action: (_) async {
       await _postLock.lockForPostMutation(beaconId);
-      // A Post closed by budding is read-only: nobody leaves or returns
-      // (plan C5). A Request converted from a Post is not a Post.
       final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
       if (beacon.kind == BeaconKind.post &&
-          beacon.status != BeaconStatus.open) {
+          beacon.status != BeaconStatus.open &&
+          beacon.status != BeaconStatus.closed) {
         throw const PostNotOpenException();
       }
       if (!await _beaconRepository.isPostAddressee(
