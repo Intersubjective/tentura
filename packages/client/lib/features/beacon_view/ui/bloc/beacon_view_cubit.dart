@@ -638,7 +638,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           ShowMessage(
             wasEnoughHelp
                 ? const BackupOfferSentMessage()
-                : HelpOfferedForwardNudgeMessage(state.beacon.id),
+                : HelpOfferSentMessage(state.beacon.author.shownName),
           ),
         );
       }

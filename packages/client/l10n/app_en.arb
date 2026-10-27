@@ -8515,6 +8515,28 @@
   },
   "beaconShowcaseAcquaintanceTag": "you know them",
   "beaconShowcaseOfferPending": "Your offer is with the author",
+  "beaconShowcaseOfferPendingWithAuthor": "Your offer is with {author}",
+  "@beaconShowcaseOfferPendingWithAuthor": {
+    "description": "#527: the line under the team while the viewer's help offer waits for the author; author is the author's shown name.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseOfferQuote": "“{text}”",
+  "@beaconShowcaseOfferQuote": {
+    "description": "#527: the viewer's own offer text, quoted under the pending line.",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseWithdrawOffer": "Withdraw offer",
+  "@beaconShowcaseWithdrawOffer": {
+    "description": "#527: text button under a waiting offer; opens the withdraw dialog."
+  },
   "beaconPreviewAsOthers": "How others see it",
   "beaconPreviewBanner": "This is how people outside the request see it",
   "beaconPreviewExit": "Back to my view",

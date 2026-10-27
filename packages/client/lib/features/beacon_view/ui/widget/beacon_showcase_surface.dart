@@ -459,6 +459,11 @@ class _ShowcaseBottomPanel extends StatelessWidget {
     // no longer "with the author" (#686).
     final finished = beacon.status.isFinished;
     final declined = beaconShowcaseDeclinedText(l10n, state);
+    final offerQuote = offerPending
+        ? beaconShowcaseOfferQuoteText(l10n, state)
+        : null;
+    // #527: Withdraw sits under the waiting offer, not only in More actions.
+    final canWithdraw = !isPreview && beaconShowcaseShowsWithdraw(state);
     // In its final check a non-member has nothing to do here: Offer help and
     // Forward are gone, and this line says why (#733).
     final inFinalCheck =
@@ -525,6 +530,33 @@ class _ShowcaseBottomPanel extends StatelessWidget {
                     finished ? tt.textMuted : tt.info,
                   ),
                 ),
+                // #527: the helper's own words, so the page shows what they
+                // offered while it waits.
+                if (offerQuote != null)
+                  Text(
+                    offerQuote,
+                    key: const Key('beaconShowcaseOfferPendingMessage'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(
+                      tt.textMuted,
+                    ).copyWith(fontStyle: FontStyle.italic),
+                  ),
+                if (canWithdraw)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton(
+                      key: const Key('beaconShowcaseWithdrawOffer'),
+                      onPressed: () => unawaited(
+                        beaconViewRunWithdrawHelpOfferDialog(
+                          context,
+                          beaconViewCubit,
+                          l10n,
+                        ),
+                      ),
+                      child: Text(l10n.beaconShowcaseWithdrawOffer),
+                    ),
+                  ),
               ],
               if (inFinalCheck) ...[
                 SizedBox(height: tt.rowGap),
@@ -588,17 +620,29 @@ class _ShowcaseBottomPanel extends StatelessWidget {
 }
 
 /// The line under the team for someone whose offer is waiting: with the
-/// author while the Request runs; once it is closed or cancelled, that it
-/// ended before the offer was answered (or, for a backup offer, needed).
+/// author, by name (#527), while the Request runs; once it is closed or
+/// cancelled, that it ended before the offer was answered (or, for a backup
+/// offer, needed).
 String beaconShowcaseOfferPendingText(L10n l10n, BeaconViewState state) {
   final isBackup = state.myActiveHelpOffer?.offerKind == 1;
+  final authorName = state.beacon.author.shownName.trim();
   return switch (state.beacon.status) {
     BeaconStatus.cancelled => l10n.beaconShowcaseOfferUnansweredCancelled,
     BeaconStatus.closed when isBackup =>
       l10n.beaconShowcaseBackupOfferUnneededClosed,
     BeaconStatus.closed => l10n.beaconShowcaseOfferUnansweredClosed,
+    _ when authorName.isNotEmpty => l10n.beaconShowcaseOfferPendingWithAuthor(
+      authorName,
+    ),
     _ => l10n.beaconShowcaseOfferPending,
   };
+}
+
+/// #527: the viewer's own offer text, quoted, under the waiting line; null
+/// when the offer has no text.
+String? beaconShowcaseOfferQuoteText(L10n l10n, BeaconViewState state) {
+  final text = state.myActiveHelpOffer?.message.trim() ?? '';
+  return text.isEmpty ? null : l10n.beaconShowcaseOfferQuote(text);
 }
 
 /// #725: the viewer said they can't make it (their inbox row for this

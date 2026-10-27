@@ -48,7 +48,11 @@ Future<void> inboxOfferHelp(BuildContext context, Beacon beacon) async {
   );
   if (!context.mounted || !ok) return;
   GetIt.I<UiEffectPort>().emit(
-    ShowMessage(HelpOfferedForwardNudgeMessage(beacon.id)),
+    ShowMessage(
+      useOfferHelpAnyway
+          ? const BackupOfferSentMessage()
+          : HelpOfferSentMessage(beacon.author.shownName),
+    ),
   );
 }
 

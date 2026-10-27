@@ -1,7 +1,3 @@
-import 'dart:async' show unawaited;
-
-import 'package:get_it/get_it.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
 final class BackupOfferSentMessage extends LocalizableMessage {
@@ -98,35 +94,24 @@ final class RemainingOffersDeclinedMessage extends LocalizableMessage {
       : 'Отклонено предложений: $count.';
 }
 
-final class _ForwardActionLabel extends LocalizableMessage {
-  const _ForwardActionLabel();
+/// #527: after a first help offer, a plain receipt that says what happens
+/// next. No Forward action: the page keeps its own Forward, and a second one
+/// here read as "we don't need you, pass it on".
+final class HelpOfferSentMessage extends LocalizableMessage {
+  const HelpOfferSentMessage(this.authorName);
+
+  /// The author's shown name; empty when unknown.
+  final String authorName;
 
   @override
-  String get toEn => 'Forward';
+  String get toEn => authorName.isEmpty
+      ? "Offer sent to the author. You'll be notified when they answer."
+      : "Offer sent to $authorName. You'll be notified when they answer.";
 
   @override
-  String get toRu => 'Переслать';
-}
-
-/// After first help offer: snackbar text + action opens forward for this beacon.
-final class HelpOfferedForwardNudgeMessage extends LocalizableActionMessage {
-  const HelpOfferedForwardNudgeMessage(this.beaconId);
-
-  final String beaconId;
-
-  @override
-  String get toEn => 'Help offered! Forward it to someone?';
-
-  @override
-  String get toRu => 'Помощь предложена! Переслать кому-нибудь?';
-
-  @override
-  LocalizableMessage get label => const _ForwardActionLabel();
-
-  @override
-  void Function() get onPressed => () {
-    unawaited(
-      GetIt.I<RootRouter>().push(ForwardBeaconRoute(beaconId: beaconId)),
-    );
-  };
+  String get toRu => authorName.isEmpty
+      ? 'Предложение отправлено автору. Вы получите уведомление, когда '
+            'автор ответит.'
+      : 'Предложение отправлено: $authorName. Вы получите уведомление, '
+            'когда автор ответит.';
 }

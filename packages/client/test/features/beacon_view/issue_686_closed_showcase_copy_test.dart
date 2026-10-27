@@ -1,7 +1,7 @@
 // #686: a closed Request still told a backup offerer "Your offer is with the
 // author" and said "HELPING · 1 person is helping". On a closed or cancelled
 // Request an unanswered offer gets a closed-state line and the team reads in
-// the past tense.
+// the past tense. #527: while it runs, the line names the author.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,7 +47,7 @@ void main() {
   final ru = L10nRu();
 
   group('the line under the team for a waiting offer', () {
-    test('while the Request runs: with the author', () {
+    test('while the Request runs: with the author, by name (#527)', () {
       for (final status in [
         BeaconStatus.open,
         BeaconStatus.enoughHelp,
@@ -55,10 +55,49 @@ void main() {
       ]) {
         expect(
           beaconShowcaseOfferPendingText(en, _state(status)),
-          en.beaconShowcaseOfferPending,
+          'Your offer is with Ana',
+          reason: status.name,
+        );
+        expect(
+          beaconShowcaseOfferPendingText(ru, _state(status)),
+          'Ваше предложение у автора — Ana',
           reason: status.name,
         );
       }
+    });
+
+    test('an author with no shown name: with the author (#527)', () {
+      final s = _state(BeaconStatus.open);
+      final nameless = s.copyWith(
+        beacon: s.beacon.copyWith(author: const Profile(id: 'Uauthor')),
+      );
+      expect(
+        beaconShowcaseOfferPendingText(en, nameless),
+        'Your offer is with the author',
+      );
+      expect(
+        beaconShowcaseOfferPendingText(ru, nameless),
+        ru.beaconShowcaseOfferPending,
+      );
+    });
+
+    test('the offer text is quoted under the line (#527)', () {
+      final s = _state(BeaconStatus.open);
+      expect(
+        beaconShowcaseOfferQuoteText(en, s),
+        '“I can help on Sunday”',
+      );
+      expect(
+        beaconShowcaseOfferQuoteText(ru, s),
+        '«I can help on Sunday»',
+      );
+      expect(
+        beaconShowcaseOfferQuoteText(
+          en,
+          s.copyWith(helpOffers: [s.helpOffers.single.copyWith(message: ' ')]),
+        ),
+        isNull,
+      );
     });
 
     test('closed: the backup offer was not needed', () {
