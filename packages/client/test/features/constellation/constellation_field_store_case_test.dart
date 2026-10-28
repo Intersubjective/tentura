@@ -283,6 +283,66 @@ void main() {
       );
     });
 
+    test(
+      'showing a lease hidden past the staleness window with no hints '
+      'refetches FULL once',
+      () async {
+        await build((_, _) async => _field(postId: 'p1'));
+        final lease = store.lease();
+        await load();
+        lease.setVisible(false);
+        await advance(_stalenessWindow + const Duration(minutes: 1));
+        final fullBefore = repository.count(ConstellationProjection.full);
+
+        lease.setVisible(true);
+        await advance(const Duration(seconds: 10));
+
+        expect(
+          repository.count(ConstellationProjection.full),
+          fullBefore + 1,
+        );
+      },
+    );
+
+    test(
+      'showing a browser tab hidden past the staleness window with no hints '
+      'refetches FULL once',
+      () async {
+        await build((_, _) async => _field(postId: 'p1'));
+        store.lease();
+        await load();
+        store.setVisible(false);
+        await advance(_stalenessWindow + const Duration(minutes: 1));
+        final fullBefore = repository.count(ConstellationProjection.full);
+
+        store.setVisible(true);
+        await advance(const Duration(seconds: 10));
+
+        expect(
+          repository.count(ConstellationProjection.full),
+          fullBefore + 1,
+        );
+      },
+    );
+
+    test(
+      'showing a lease hidden for less than the staleness window with no '
+      'hints fetches nothing',
+      () async {
+        await build((_, _) async => _field(postId: 'p1'));
+        final lease = store.lease();
+        await load();
+        lease.setVisible(false);
+        await advance(const Duration(minutes: 1));
+        final fullBefore = repository.count(ConstellationProjection.full);
+
+        lease.setVisible(true);
+        await advance(const Duration(seconds: 10));
+
+        expect(repository.count(ConstellationProjection.full), fullBefore);
+      },
+    );
+
     test('one visible lease keeps the store fetching', () async {
       await build((_, _) async => _field(postId: 'p1'));
       final hidden = store.lease();

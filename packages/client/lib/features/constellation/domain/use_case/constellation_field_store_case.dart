@@ -565,7 +565,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       _cancelTimer();
       return;
     }
-    if (_staleWhileHidden) {
+    final last = _lastFullAt;
+    final lazyWindowElapsed =
+        last != null &&
+        !_clock.now().isBefore(last.add(kLazyFieldRefreshInterval));
+    if (_staleWhileHidden || lazyWindowElapsed) {
       _staleWhileHidden = false;
       unawaited(_dispatch());
     }
