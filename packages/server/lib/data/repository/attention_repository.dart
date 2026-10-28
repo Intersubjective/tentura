@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
+import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -527,9 +528,9 @@ page_stream AS (
             FROM public.beacon_author_invite ai
             WHERE ai.beacon_id = ef.beacon_id
               AND ai.invitee_id = \$1
-            ORDER BY ai.created_at DESC
+            ORDER BY ai.created_at DESC, ai.id DESC
             LIMIT 1
-          ) = 2 THEN true
+          ) = ${AuthorInviteStatus.declined.code} THEN true
       END
     )) AS presentation_payload,
     NULL::text AS in_app_preference_class,
@@ -1375,6 +1376,7 @@ ORDER BY beacon_id, created_at DESC, id DESC
     required String accountId,
     AttentionCursor? cursor,
     int limit = 20,
+    String? beaconId,
   }) async {
     final boundedLimit = limit.clamp(1, 100);
     final variables = <Variable>[Variable<String>(accountId)];
@@ -1393,6 +1395,11 @@ AND (
   )
 )''',
       );
+    }
+    // #725 — one Request's row, for a live arrival.
+    if (beaconId != null) {
+      variables.add(Variable<String>(beaconId));
+      cursorClause.write('\nAND ranked.beacon_id = \$${variables.length}');
     }
     variables.add(Variable<int>(boundedLimit + 1));
     final limitParam = '\$${variables.length}';
@@ -1433,7 +1440,17 @@ ranked AS (
       WHERE bai.beacon_id = ep.beacon_id
         AND bai.invitee_id = \$1
         AND bai.status = 0
-    ) AS invite_id
+    ) AS invite_id,
+    -- #725: the viewer's latest invite to this Request was declined, the
+    -- rule the Activity row's `declinedInvite` uses.
+    COALESCE((
+      SELECT ai.status = ${AuthorInviteStatus.declined.code}
+      FROM public.beacon_author_invite ai
+      WHERE ai.beacon_id = ep.beacon_id
+        AND ai.invitee_id = \$1
+      ORDER BY ai.created_at DESC, ai.id DESC
+      LIMIT 1
+    ), false) AS declined_invite
   FROM eligible_pinned ep
   JOIN public.inbox_item ii
     ON ii.user_id = \$1
@@ -1451,18 +1468,26 @@ LIMIT $limitParam
       variables: variables,
     ).get();
 
-    final countRow = await _database
-        .customSelect(
-          '''
+    // #725 — a one-Request read is a live arrival asking for its row's
+    // facts; the zone's total is irrelevant there, so it is not counted
+    // (`totalCount` is then the number of rows returned, 0 or 1).
+    final int totalCount;
+    if (beaconId != null) {
+      totalCount = rows.length.clamp(0, boundedLimit);
+    } else {
+      final countRow = await _database
+          .customSelect(
+            '''
 WITH $_visibleWithSurfaceCte,
 $_activityGroupingCtes
 SELECT COUNT(*)::int AS total_count
 FROM eligible_pinned
 ''',
-          variables: [Variable<String>(accountId)],
-        )
-        .getSingle();
-    final totalCount = countRow.read<int>('total_count');
+            variables: [Variable<String>(accountId)],
+          )
+          .getSingle();
+      totalCount = countRow.read<int>('total_count');
+    }
 
     var sortRows = [
       for (final row in rows)
@@ -1475,6 +1500,7 @@ FROM eligible_pinned
           eventTotal: row.read<int>('event_total'),
           eventUnseenCount: row.read<int>('event_unseen_count'),
           inviteId: row.readNullable<String>('invite_id'),
+          declinedInvite: row.read<bool>('declined_invite'),
         ),
     ];
     final hasMore = sortRows.length > boundedLimit;

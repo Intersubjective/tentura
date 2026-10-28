@@ -146,7 +146,11 @@ class _ControlledAttentionRepo extends AttentionRepositoryFake {
   int feedCalls = 0;
 
   @override
-  Future<ActivityOfferPage> activityOffers({String? cursor, int limit = 20}) {
+  Future<ActivityOfferPage> activityOffers({
+    String? beaconId,
+    String? cursor,
+    int limit = 20,
+  }) {
     offerCalls++;
     return offersResponse.future;
   }

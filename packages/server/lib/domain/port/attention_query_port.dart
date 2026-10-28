@@ -44,10 +44,14 @@ abstract interface class AttentionQueryPort {
   ///
   /// Cursor is `(effectiveActivityAt, beaconId)` and is independent of any
   /// client-side display reordering.
+  ///
+  /// With [beaconId], only that Request's row (a live arrival learning its
+  /// invite facts, #725); the cursor still applies, the total does not change.
   Future<ActivityOfferPage> activityOffers({
     required String accountId,
     AttentionCursor? cursor,
     int limit = 20,
+    String? beaconId,
   });
 
   /// The viewer's own authorized receipt history for one Request (D17).

@@ -156,6 +156,7 @@ class _FakeQuery implements AttentionQueryPort {
     required String accountId,
     AttentionCursor? cursor,
     int limit = 20,
+    String? beaconId,
   }) async {
     this.accountId = accountId;
     this.cursor = cursor;

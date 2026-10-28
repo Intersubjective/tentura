@@ -36,9 +36,12 @@ abstract interface class AttentionRepositoryPort {
 
   Future<List<MyWorkBeaconAttention>> myWorkAttention(Set<String> beaconIds);
 
+  /// The pinned zone's page; with [beaconId], only that Request's row (a
+  /// live arrival learning its invite facts, #725).
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
     int limit = 20,
+    String? beaconId,
   });
 
   Future<ActivityBeaconAttention> activityAttention({

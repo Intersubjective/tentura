@@ -532,7 +532,96 @@ VALUES ('BIai4repair01', '$_child', '$_author', '$_cold', 'Fai4repair001',
         expect(second, isNot(first));
         expect(await _inboxStatus(writer, _cold), 0);
         expect(await _eligiblePinned(writer, _cold), contains(_child));
+        final row = (await AttentionRepository(
+          database,
+        ).activityOffers(accountId: _cold)).items.single;
+        expect(row.inviteId, second);
+        expect(
+          row.declinedInvite,
+          isFalse,
+          reason: 'the latest invite is the pending one',
+        );
       });
+
+      // #725: the flag reads the viewer's own invites only; another
+      // invitee's «Can't make it» on the same Request is none of theirs.
+      test(
+        "another invitee's declined invite leaves declinedInvite false",
+        () async {
+          await s.forward(_author, _cold);
+          final warmInvite = await invited(_warm);
+          await s.invites.decline(actorUserId: _warm, inviteId: warmInvite);
+          expect(await _eligiblePinned(writer, _cold), contains(_child));
+
+          final repo = AttentionRepository(database);
+          final row = (await repo.activityOffers(
+            accountId: _cold,
+          )).items.singleWhere((i) => i.beaconId == _child);
+          expect(row.inviteId, isNull);
+          expect(row.declinedInvite, isFalse);
+          expect(
+            (await repo.activityOffers(
+              accountId: _cold,
+              beaconId: _child,
+            )).items.single.declinedInvite,
+            isFalse,
+          );
+        },
+      );
+
+      // #725 (QA 2026-10-26, step 5): a declined invitation whose Request is
+      // back in the pinned zone (restored) says so on its row, so the plain
+      // card keeps «Can't make it»; a live arrival asks for that one row.
+      test(
+        'a restored Request carries declinedInvite, also by beaconId',
+        () async {
+          final id = await invited(_cold);
+          final repo = AttentionRepository(database);
+          expect(
+            (await repo.activityOffers(
+              accountId: _cold,
+            )).items.single.declinedInvite,
+            isFalse,
+            reason: 'a pending invite is not a declined one',
+          );
+
+          await s.invites.decline(actorUserId: _cold, inviteId: id);
+          await writer.execute(
+            'UPDATE public.inbox_item SET status = 0 '
+            "WHERE user_id = '$_cold' AND beacon_id = '$_child'",
+          );
+          expect(await _eligiblePinned(writer, _cold), contains(_child));
+
+          final row = (await repo.activityOffers(
+            accountId: _cold,
+          )).items.single;
+          expect(row.beaconId, _child);
+          expect(row.inviteId, isNull);
+          expect(row.declinedInvite, isTrue);
+
+          final one = await repo.activityOffers(
+            accountId: _cold,
+            limit: 1,
+            beaconId: _child,
+          );
+          expect(
+            one.items.map((i) => (i.beaconId, i.declinedInvite)),
+            [(_child, true)],
+          );
+          expect(
+            one.totalCount,
+            1,
+            reason: 'a one-Request read counts its own row, not the zone',
+          );
+          expect(
+            (await repo.activityOffers(
+              accountId: _cold,
+              beaconId: _post,
+            )).items,
+            isEmpty,
+          );
+        },
+      );
     });
 
     group('withdraw', () {

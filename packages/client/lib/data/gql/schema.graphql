@@ -4765,7 +4765,7 @@ type query_root {
   InboxRoomContextBatch(beaconIds: [String!]): [v2_InboxRoomContextRow!]
   RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
   activityAttention(beaconId: String!, cursor: String, limit: Int): v2_ActivityBeaconAttention!
-  activityOffers(cursor: String, limit: Int): v2_ActivityOfferPage!
+  activityOffers(beaconId: String, cursor: String, limit: Int): v2_ActivityOfferPage!
   attentionClearSnapshot(beaconId: String, kind: String!, receiptId: String): v2_AttentionClearSnapshot!
   attentionFeed(cursor: String, limit: Int, search: String, surface: String, view: String!): v2_AttentionFeed!
   attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
@@ -7625,6 +7625,7 @@ type v2_ActivityOfferSortRow {
   listPositionAt: String!
   unseen: Boolean!
   inviteId: String
+  declinedInvite: Boolean!
 }
 
 type v2_AttentionClearResult {

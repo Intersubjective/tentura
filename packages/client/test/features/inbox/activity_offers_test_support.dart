@@ -34,11 +34,29 @@ abstract class ConfigurableActivityOffersAttentionRepo
   String? lastActivityOffersCursor;
   bool failActivityOffers = false;
 
+  /// #725: the one-Request lookups a live arrival makes; kept apart from
+  /// [activityOffersCalls], which counts page loads.
+  final beaconOfferLookups = <String>[];
+
   @override
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
     int limit = 20,
+    String? beaconId,
   }) async {
+    if (beaconId != null) {
+      beaconOfferLookups.add(beaconId);
+      if (failActivityOffers) {
+        throw StateError('activity offers offline');
+      }
+      return ActivityOfferPage(
+        items: [
+          for (final row in [...offerRows, ...secondOfferRows])
+            if (row.beaconId == beaconId) row,
+        ].take(1).toList(),
+        totalCount: offerTotalCount,
+      );
+    }
     activityOffersCalls++;
     lastActivityOffersCursor = cursor;
     if (failActivityOffers) {

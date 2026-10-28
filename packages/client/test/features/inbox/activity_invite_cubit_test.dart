@@ -277,4 +277,137 @@ void main() {
     expect(invitePort.accepted, isEmpty);
     expect(ids(), ['B1', 'B2', 'B3']);
   });
+
+  // #725 (QA 2026-10-26, step 5): the zone knows which Requests carry an
+  // answered author invitation, so their plain card keeps the invitation's
+  // words; a row that arrives live learns the same facts the page carries.
+  group('#725 invitation facts', () {
+    test('a row whose invitation was declined is marked', () async {
+      final items = [_offer('B1', at), _offer('B2', at)];
+      wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: items);
+      attentionRepo.offerRows = [
+        for (final item in items)
+          activityOfferSortRow(
+            item,
+          ).copyWith(declinedInvite: item.beaconId == 'B2'),
+      ];
+      cubit = buildCubit();
+      await cubit.loadFirst();
+      await _settle();
+
+      expect(cubit.state.declinedInviteBeacons, {'B2'});
+      expect(cubit.state.inviteIdByBeacon, isEmpty);
+    });
+
+    test('a reload whose row no longer says declined clears the mark '
+        '(decline, re-invite, withdraw)', () async {
+      final items = [_offer('B1', at), _offer('B2', at)];
+      wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: items);
+      attentionRepo.offerRows = [
+        for (final item in items)
+          activityOfferSortRow(
+            item,
+          ).copyWith(declinedInvite: item.beaconId == 'B2'),
+      ];
+      cubit = buildCubit();
+      await cubit.loadFirst();
+      await _settle();
+      expect(cubit.state.declinedInviteBeacons, {'B2'});
+
+      // A failed reload keeps what the zone knew.
+      attentionRepo.failActivityOffers = true;
+      await cubit.loadFirst();
+      await _settle();
+      expect(cubit.state.declinedInviteBeacons, {'B2'});
+
+      // The author invited again and withdrew it: the latest invite is no
+      // longer a declined one, and the row says so.
+      attentionRepo
+        ..failActivityOffers = false
+        ..offerRows = [for (final item in items) activityOfferSortRow(item)];
+      await cubit.loadFirst();
+      await _settle();
+      expect(cubit.state.declinedInviteBeacons, isEmpty);
+    });
+
+    test('decline marks the Request; a refused decline does not', () async {
+      await loadWithInvite();
+      invitePort.error = const AuthorInviteNotPendingException();
+      await cubit.declineInvite('B2');
+      expect(cubit.state.declinedInviteBeacons, isEmpty);
+
+      invitePort.error = null;
+      await cubit.declineInvite('B2');
+      expect(cubit.state.declinedInviteBeacons, {'B2'});
+    });
+
+    test(
+      'a live arrival with a pending invite becomes the invite card',
+      () async {
+        await loadWithInvite();
+        final arrival = _offer('B9', at);
+        repo.openForwardByBeacon['B9'] = arrival;
+        attentionRepo.offerRows = [
+          ...attentionRepo.offerRows,
+          activityOfferSortRow(arrival).copyWith(inviteId: 'I9'),
+        ];
+        invitePort.pending = [
+          ...invitePort.pending,
+          PendingAuthorInvite(
+            id: 'I9',
+            beaconId: 'B9',
+            beaconTitle: 'Moving boxes',
+            inviterId: inviter.id,
+            createdAt: at,
+          ),
+        ];
+
+        forwardRepo.emitDeskChange('B9');
+        await _settle(20);
+        await _settle(20);
+
+        expect(ids().first, 'B9');
+        expect(cubit.state.inviteIdByBeacon['B9'], 'I9');
+        expect(cubit.state.invites['I9']?.beaconTitle, 'Moving boxes');
+      },
+    );
+
+    test('a live row that no longer says declined clears the mark', () async {
+      await loadWithInvite();
+      await cubit.declineInvite('B2');
+      expect(cubit.state.declinedInviteBeacons, {'B2'});
+
+      // Re-invited and withdrawn meanwhile, then restored: the row answers
+      // `declinedInvite: false`.
+      repo.openForwardByBeacon['B2'] = _offer('B2', at);
+      attentionRepo.offerRows = [
+        for (final id in ['B1', 'B2', 'B3'])
+          activityOfferSortRow(_offer(id, at)),
+      ];
+      forwardRepo.emitDeskChange('B2');
+      await _settle(20);
+      await _settle(20);
+
+      expect(ids().first, 'B2');
+      expect(cubit.state.declinedInviteBeacons, isEmpty);
+    });
+
+    test('a restored row with a declined invitation arrives marked', () async {
+      await loadWithInvite();
+      final arrival = _offer('B9', at);
+      repo.openForwardByBeacon['B9'] = arrival;
+      attentionRepo.offerRows = [
+        ...attentionRepo.offerRows,
+        activityOfferSortRow(arrival).copyWith(declinedInvite: true),
+      ];
+
+      forwardRepo.emitDeskChange('B9');
+      await _settle(20);
+      await _settle(20);
+
+      expect(ids().first, 'B9');
+      expect(cubit.state.declinedInviteBeacons, contains('B9'));
+      expect(cubit.state.inviteIdByBeacon.containsKey('B9'), isFalse);
+    });
+  });
 }

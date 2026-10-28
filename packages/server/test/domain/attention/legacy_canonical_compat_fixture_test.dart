@@ -167,6 +167,7 @@ final class _FixtureQuery implements AttentionQueryPort {
     required String accountId,
     AttentionCursor? cursor,
     int limit = 20,
+    String? beaconId,
   }) async => const ActivityOfferPage(items: [], totalCount: 0);
 
   @override
