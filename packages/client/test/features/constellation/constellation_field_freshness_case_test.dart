@@ -35,18 +35,20 @@ ConstellationTrustEdgeEntity _e(String src, String dst, [int tier = 1]) =>
 ConstellationField _field({
   List<ConstellationTrustEdgeEntity>? edges,
   List<ConstellationRequest> requests = const [],
+  List<ConstellationPerson> extraPeers = const [],
 }) => ConstellationField(
   loadedAt: DateTime.utc(2026, 10, 23),
   context: '',
-  peers: const [
-    ConstellationPerson(id: 'lena', displayName: 'Lena'),
-    ConstellationPerson(id: 'omar', displayName: 'Omar'),
-    ConstellationPerson(
+  peers: [
+    const ConstellationPerson(id: 'lena', displayName: 'Lena'),
+    const ConstellationPerson(id: 'omar', displayName: 'Omar'),
+    const ConstellationPerson(
       id: 'noor',
       displayName: 'Noor',
       visible: false,
       contactOnly: true,
     ),
+    ...extraPeers,
   ],
   edges:
       edges ??
@@ -64,6 +66,30 @@ ConstellationField _field({
 ConstellationRequest _request(String id, String authorId) =>
     ConstellationRequest(id: id, authorId: authorId, title: id, status: 0);
 
+/// Five visible people the viewer trusts directly (tier-1 edges viewer → p).
+/// Someone whose trust was [withdrawn] has left the visible set.
+const _crowdIds = ['p1', 'p2', 'p3', 'p4', 'p5'];
+
+ConstellationField _crowdField({Set<String> withdrawn = const {}}) =>
+    ConstellationField(
+      loadedAt: DateTime.utc(2026, 10, 23),
+      context: '',
+      peers: [
+        for (final id in _crowdIds)
+          if (!withdrawn.contains(id)) ConstellationPerson(id: id),
+      ],
+      edges: [
+        for (final id in _crowdIds)
+          if (!withdrawn.contains(id)) _e(_me, id),
+      ],
+      requests: const [],
+      directContactIds: [
+        for (final id in _crowdIds)
+          if (!withdrawn.contains(id)) id,
+      ],
+      anchorProjection: ConstellationAnchorProjection.empty,
+    );
+
 final class _AccountPort implements ConstellationAccountPort {
   _AccountPort(this.currentAccountChanges);
 
@@ -72,8 +98,14 @@ final class _AccountPort implements ConstellationAccountPort {
 }
 
 final class _Server implements ConstellationRepositoryPort {
+  _Server(this.clock);
+
+  final FakeClockPort clock;
   ConstellationField field = _field();
   var fullReads = 0;
+
+  /// When each FULL started.
+  final fullStartedAt = <DateTime>[];
 
   /// When set, the next FULL waits for it and returns the field as it was
   /// when the read started.
@@ -86,6 +118,7 @@ final class _Server implements ConstellationRepositoryPort {
     ConstellationProjection projection = ConstellationProjection.full,
   }) async {
     fullReads++;
+    fullStartedAt.add(clock.now());
     final snapshot = field;
     final wait = gate;
     gate = null;
@@ -165,6 +198,13 @@ void main() {
     }
   }
 
+  /// How long the latest FULL started after the one before it.
+  Duration gapBeforeLatestFull() => server.fullStartedAt.last.difference(
+    server.fullStartedAt[server.fullStartedAt.length - 2],
+  );
+
+  List<String> peerIds() => [for (final p in store.current.field!.peers) p.id];
+
   Map<String, ConstellationTrustBadge> badges() =>
       constellationTrustBadges(field: store.current.field!, viewerId: _me);
 
@@ -173,7 +213,7 @@ void main() {
     clock = FakeClockPort(DateTime.utc(2026, 10, 23));
     wakeUp = FakeWakeUpPort();
     sync = buildTestRealtimeSync();
-    server = _Server();
+    server = _Server(clock);
     reads = _TargetedReads();
     trustWrites = _TrustWrites();
     store = ConstellationFieldStoreCase(
@@ -502,5 +542,176 @@ void main() {
         expect(store.current.field!.requests, isEmpty);
       },
     );
+  });
+
+  // A removed tier-1 edge between the viewer and someone on the field changes
+  // who the viewer can see, so the visible-set content (not just the ring)
+  // has to follow: one FULL, never closer than 10 s to the previous one.
+  group('a removed tier-1 edge to someone on the field', () {
+    final newcomer = [const ConstellationPerson(id: 'zed', displayName: 'Zed')];
+
+    test("the viewer's own write turns the ring at once, then one FULL "
+        'brings the visible set up to date no sooner than 10 s after the '
+        'previous FULL', () async {
+      server.field = _field(
+        edges: [_e('lena', _me), _e('omar', _me), _e(_me, 'noor')],
+        extraPeers: newcomer,
+      );
+
+      trustWrites.controller.add((personId: 'lena', amount: 0));
+      await settle();
+
+      expect(badges()['lena'], ConstellationTrustBadge.theyTrust);
+      expect(server.fullReads, 1);
+
+      // Not an ordinary urgent FULL (2 s): the spacing is 10 s.
+      await advance(const Duration(seconds: 5));
+      expect(server.fullReads, 1);
+      // The visible set is only brought up to date by the spaced FULL.
+      expect(peerIds(), isNot(contains('zed')));
+
+      await advance(const Duration(seconds: 10));
+      expect(server.fullReads, 2);
+      expect(
+        gapBeforeLatestFull(),
+        greaterThanOrEqualTo(const Duration(seconds: 10)),
+      );
+      expect(peerIds(), contains('zed'));
+      expect(badges()['lena'], ConstellationTrustBadge.theyTrust);
+
+      // And only that one.
+      await advance(const Duration(seconds: 30));
+      expect(server.fullReads, 2);
+    });
+
+    test('a relationship hint showing the viewer withdrew trust turns the '
+        'ring, then one FULL brings the visible set up to date no sooner '
+        'than 10 s after the previous FULL', () async {
+      server.field = _field(
+        edges: [_e('lena', _me), _e('omar', _me), _e(_me, 'noor')],
+        extraPeers: newcomer,
+      );
+      reads.relations = [
+        const ConstellationViewerRelation(
+          personId: 'lena',
+          viewerTrusts: false,
+          trustsViewer: true,
+        ),
+      ];
+
+      hint(RealtimeEntityKind.relationship, 'lena', actor: 'lena');
+      await advance(const Duration(milliseconds: 500));
+
+      expect(badges()['lena'], ConstellationTrustBadge.theyTrust);
+      expect(server.fullReads, 1);
+
+      await advance(const Duration(seconds: 5));
+      expect(server.fullReads, 1);
+      // The visible set is only brought up to date by the spaced FULL.
+      expect(peerIds(), isNot(contains('zed')));
+
+      await advance(const Duration(seconds: 10));
+      expect(server.fullReads, 2);
+      expect(
+        gapBeforeLatestFull(),
+        greaterThanOrEqualTo(const Duration(seconds: 10)),
+      );
+      expect(peerIds(), contains('zed'));
+
+      await advance(const Duration(seconds: 30));
+      expect(server.fullReads, 2);
+    });
+
+    test('five removals within 10 s dispatch just one FULL, at least 10 s '
+        'after the previous one, and the visible set follows it', () async {
+      server.field = _crowdField();
+      await store.requestRefresh(ConstellationRefreshReason.load);
+      await settle();
+      await advance(const Duration(seconds: 3));
+      final before = server.fullReads;
+      server.field = _crowdField(withdrawn: _crowdIds.toSet());
+
+      // All five land well inside one 10 s window after the previous FULL.
+      for (final id in _crowdIds) {
+        trustWrites.controller.add((personId: id, amount: 0));
+        await advance(const Duration(seconds: 1));
+      }
+      expect(badges(), isEmpty);
+      // Nothing has been read yet, and the visible set is still the old one.
+      expect(server.fullReads, before);
+      expect(peerIds(), unorderedEquals(_crowdIds));
+
+      await advance(const Duration(seconds: 40));
+
+      expect(server.fullReads, before + 1);
+      expect(
+        gapBeforeLatestFull(),
+        greaterThanOrEqualTo(const Duration(seconds: 10)),
+      );
+      expect(peerIds(), isEmpty);
+      expect(badges(), isEmpty);
+
+      // And no second spaced FULL follows the coalesced one.
+      await advance(const Duration(seconds: 40));
+      expect(server.fullReads, before + 1);
+    });
+
+    test('a removal learned from relationship hints joins the same spaced '
+        'FULL as an own write', () async {
+      server.field = _crowdField();
+      await store.requestRefresh(ConstellationRefreshReason.load);
+      await settle();
+      await advance(const Duration(seconds: 3));
+      final before = server.fullReads;
+      server.field = _crowdField(withdrawn: {'p1', 'p2'});
+      reads.relations = [
+        const ConstellationViewerRelation(
+          personId: 'p2',
+          viewerTrusts: false,
+          trustsViewer: false,
+        ),
+      ];
+
+      trustWrites.controller.add((personId: 'p1', amount: 0));
+      await advance(const Duration(seconds: 2));
+      hint(RealtimeEntityKind.relationship, 'p2', actor: 'p2');
+      await advance(const Duration(seconds: 40));
+
+      expect(server.fullReads, before + 1);
+      expect(
+        gapBeforeLatestFull(),
+        greaterThanOrEqualTo(const Duration(seconds: 10)),
+      );
+      expect(peerIds(), ['p3', 'p4', 'p5']);
+    });
+  });
+
+  group('an added trust edge', () {
+    test('the ring turns at once and no FULL is dispatched', () async {
+      trustWrites.controller.add((personId: 'omar', amount: 1));
+      await settle();
+      expect(badges()['omar'], ConstellationTrustBadge.mutual);
+
+      await advance(const Duration(seconds: 30));
+
+      expect(server.fullReads, 1);
+    });
+
+    test('a relationship hint showing new trust patches the ring and '
+        'dispatches no FULL', () async {
+      reads.relations = [
+        const ConstellationViewerRelation(
+          personId: 'omar',
+          viewerTrusts: true,
+          trustsViewer: true,
+        ),
+      ];
+
+      hint(RealtimeEntityKind.relationship, 'omar', actor: 'omar');
+      await advance(const Duration(seconds: 30));
+
+      expect(badges()['omar'], ConstellationTrustBadge.mutual);
+      expect(server.fullReads, 1);
+    });
   });
 }

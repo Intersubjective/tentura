@@ -114,6 +114,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   static const _urgentSpacing = Duration(seconds: 2);
   static const _debounce = Duration(milliseconds: 220);
 
+  /// Spacing of the one FULL a removed tier-1 edge of the viewer schedules.
+  static const _trustRemovalSpacing = Duration(seconds: 10);
+
   late final List<StreamSubscription<Object?>> _subscriptions;
   final _changes = StreamController<ConstellationFieldStoreState>.broadcast();
   final _leases = <_StoreLease>{};
@@ -346,8 +349,12 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       return;
     }
     var changed = false;
+    var removedTier1 = false;
     for (final relation in relations) {
       if (relation.personId == _accountId) continue;
+      removedTier1 |=
+          relation.viewerTrusts == false &&
+          _hasTier1Edge(_accountId, relation.personId);
       final held = _heldRelations.putIfAbsent(
         relation.personId,
         _HeldRelation.new,
@@ -355,7 +362,15 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       changed |= held.learn(relation, mark);
     }
     if (changed) _emitHeld();
+    // Who the viewer can see follows a withdrawn trust: one spaced FULL.
+    if (removedTier1) _schedule(spacing: _trustRemovalSpacing);
   }
+
+  bool _hasTier1Edge(String src, String dst) =>
+      _state.field?.edges.any(
+        (e) => e.src == src && e.dst == dst && e.tier == 1,
+      ) ??
+      false;
 
   /// Requests read for [mark] (#671): added to the field until a FULL that
   /// started after [mark] lands. Ignored for an obsolete params binding, and
@@ -609,7 +624,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// [kLazyFieldRefreshInterval] for changes that do not touch the field).
   /// A pending refresh is only ever moved earlier, so a steady event stream
   /// cannot postpone it forever.
-  void _schedule({bool urgent = true, bool immediate = false}) {
+  void _schedule({
+    bool urgent = true,
+    bool immediate = false,
+    Duration? spacing,
+  }) {
     if (!_canFetch) {
       _markStale();
       return;
@@ -620,14 +639,16 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       return;
     }
     final now = _clock.now();
-    final spacing = urgent
-        ? _urgentSpacing
-        : kLazyFieldRefreshInterval +
-              Duration(milliseconds: _accountId.hashCode.abs() % 3001);
+    final gap =
+        spacing ??
+        (urgent
+            ? _urgentSpacing
+            : kLazyFieldRefreshInterval +
+                  Duration(milliseconds: _accountId.hashCode.abs() % 3001));
     final last = _lastFullAt;
     var dueAt = immediate ? now : now.add(_debounce);
-    if (!immediate && last != null && last.add(spacing).isAfter(dueAt)) {
-      dueAt = last.add(spacing);
+    if (!immediate && last != null && last.add(gap).isAfter(dueAt)) {
+      dueAt = last.add(gap);
     }
     final retryNotBefore = _retryNotBefore;
     if (retryNotBefore != null && retryNotBefore.isAfter(dueAt)) {
