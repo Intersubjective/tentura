@@ -168,59 +168,8 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-27
-review due: 2026-11-03
-
-### alloy:lesson:bead_source_mismatch_verify_before_refactor
-Bead descriptions can cite stale symbols, tokens, or tests: grep every cited path, token, and test file before implementing. Prefer thin aliases or minimal wiring when the bead misnames an existing API; do not replace working UI with a different metaphor (e.g. scatter plot vs avatar stack). User-visible client changes still need a pubspec patch bump and web/index.html cache-buster sync.
-
-### check-hints-analyze
-client analyze: flutter analyze --no-fatal-infos <paths> (bare flutter analyze fails on ~267 pre-existing info lints; real gate is scripts/check-custom-lints.sh packages/client). Server checks: use scripts/run_with_test_cleanup.sh from repo root, never scripts/../../../ paths
-
-### check-hints-analyze-baseline
-CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
-
-### check-hints-analyzer-crash
-server architecture analyzer-budget tests (client_analyzer_issue_budget_test, analyzer_issue_budget_toolchain_integration_test): on this machine the Dart analyzer intermittently crashes ('analyzer did not complete … exit 255' / SIGBUS) under concurrent load, which shows up as a budget failure with count 1. Before treating it as a regression, rerun bash scripts/check-analyze-baseline.sh packages/<pkg> on its own. Only an explicit 'has N issues, baseline is M' line is a real overrun.
-
-### check-hints-browser
-browser-only tests (@TestOn('browser'), *_web_test.dart) need: flutter test --platform chrome <file>; VM run says 'No tests were found' (exit 79) — not a bug
-
-### check-hints-client-lints
-client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client' and 'bash scripts/check-analyze-baseline.sh packages/client' (same for packages/server).
-
-### check-hints-cwd-relative-tests
-client flutter tests that read files by relative path (e.g. l10n/app_ru.arb) must run from packages/client: 'cd packages/client && flutter test ...'; running 'flutter test packages/client/test/...' from repo root gives PathNotFoundException - not a regression
-
-### check-hints-flutter-render-debug-vars
-widget tests that set rendering debug hooks (debugOnProfilePaint, debugRepaintRainbowEnabled, debugPaintSizeEnabled …) must reset them INSIDE the test body; addTearDown is too late — the binding asserts 'The value of a rendering debug variable was changed by the test' before tear-downs. Widget-layer hooks like debugOnRebuildDirtyWidget are fine in addTearDown (tentura-s7gl.96).
-
-### check-hints-force-directed-graphview-analyze
-packages/force_directed_graphview is NOT under the analyze ratchet: bare 'dart analyze' there fails with ~290 pre-existing infos/warnings (tentura-s7gl.35 stopped on it). Gate it with its own 'flutter test' plus client tests (test/features/constellation), scripts/check-analyze-baseline.sh packages/client and check-custom-lints.sh packages/client; only analyze files you changed.
-
-### check-hints-graphql-1000-debug
-GraphQL error code 1000 'Something went wrong on the server' hides the real exception (GraphqlController catch-all sends it only to Sentry, never to the server log). To see it locally, temporarily print e/st in that catch in packages/server/lib/api/controllers/graphql_controller.dart, restart the server on :2080, re-run, then remove the print. 2026-10-21: it was a web JSON int vs Float TypeError (fixed 26c68649d).
-
-### check-hints-mr-suite-timeout
-pg/mr: since 9eebee8d7 the D8 load test carries the tag 'load'. Run the routine full mr suite as 'dart test --tags mr --exclude-tags load -j 1' (30m wrapper). Run the load suite only on its own ('--tags load', 90m), never as a bead regression check.
-
-### check-hints-sandbox-tmp-full
-'No space left on device' on /tmp/dart_test.kernel.* during a bead's full-suite check = the run's private capped sandbox tmpfs filling (agent-filed 'MR verification exhausts temporary storage', tentura-khm7, was not-a-bug). Close such reports; consider raising sandbox.tmp_size if it recurs.
-
-### check-hints-server-di-stale
-server: run_client_integration_web_local.sh 'tentura-server did not come up' with di.config.dart 'Required named parameter ... must be provided' / 'Too few positional arguments' = stale gitignored packages/server/lib/app/di.config.dart, not a code bug. Fix: cd packages/server && dart run build_runner build --delete-conflicting-outputs, then rerun.
-
-### check-hints-server-full-suite-no-j1
-Full server suite: 'dart test --exclude-tags load' with default parallelism (~25 min). Do NOT add -j 1: only mr-tagged suites need serial (AGENTS.md: dart test --tags mr --exclude-tags load -j 1); -j 1 on the whole suite exceeds 90 min and times out (tentura-ev3z.4).
-
-### check-hints-server-perf-flakes
-server full 'dart test --exclude-tags load' has load-sensitive perf tests (constellation_apply_batch_budgets_pg_test fails whenever other PG sessions exist = tentura-qfsj; perf_recorder_probes 250ms wait; meritrank_suite_serialization 30s timeouts). On needs-human with only these failing, rerun them alone with -j1 and land by hand if the bead's own tests pass.
-
-### check-hints-web-e2e-bwrap
-web e2e (scripts/run_client_integration_web_local.sh) inside the Alloy bwrap sandbox: Chrome's default sandbox aborts ('SUID sandbox helper ... not configured correctly', nosuid mounts). Run it with TENTURA_WEB_CHROME_NO_SANDBOX=1 (passes --web-browser-flag=--no-sandbox to flutter drive; landed in 91114ea94). A failure at browser start without the knob is not a code regression.
-
-### ci-pg-job-two-step-selection
-CI test-pg job (.github/workflows/pipeline.yml) runs TWO commands: (1) TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection, then (2) dart test --tags multi-connection --exclude-tags mr -j 1. test-server runs dart test --exclude-tags pg. So: any test that needs Postgres (even a meta test that spawns a pg test) MUST carry the pg tag or test-server fails; tests that size their own pool carry multi-connection and run serially (-j 1: they assert admission latency/RSS and interfere in parallel). Before pushing, run both pg commands locally, not just the changed files (a first CI run of ev3z.27 failed on exactly this). Use absolute path to scripts/run_with_test_cleanup.sh when a script cd's into packages/server.
+reviewed: 2026-10-28
+review due: 2026-11-04
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

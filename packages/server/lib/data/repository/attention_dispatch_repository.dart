@@ -19,6 +19,20 @@ class AttentionDispatchRepository implements AttentionDispatchPort {
 
   static const _policy = AttentionPolicy();
 
+  /// The recipient's role facts, with the intent's facts filling what the
+  /// recipient left empty.
+  static AttentionRecipientRoleFacts _effectiveRole(
+    AttentionDispatchIntent intent,
+    AttentionRecipientSnapshot recipient,
+  ) => recipient.role.copyWith(
+    beaconId: recipient.role.beaconId ?? intent.beaconId,
+    coordinationItemId:
+        recipient.role.coordinationItemId ?? intent.coordinationItemId,
+    targetEntityId: recipient.role.targetEntityId ?? intent.targetEntityId,
+    messageId: recipient.role.messageId ?? intent.messageId,
+    actorUserId: recipient.role.actorUserId ?? intent.actorUserId,
+  );
+
   @override
   Future<void> record(AttentionDispatchIntent intent) async {
     final immutablePayload = jsonEncode(_occurrencePayload(intent));
@@ -72,15 +86,39 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
     final occurrenceAt = DateTime.parse(
       occurrenceRow.read<String>('occurred_at'),
     ).toUtc();
-    for (final recipient in intent.recipients) {
-      final role = recipient.role.copyWith(
-        beaconId: recipient.role.beaconId ?? intent.beaconId,
-        coordinationItemId:
-            recipient.role.coordinationItemId ?? intent.coordinationItemId,
-        targetEntityId: recipient.role.targetEntityId ?? intent.targetEntityId,
-        messageId: recipient.role.messageId ?? intent.messageId,
-        actorUserId: recipient.role.actorUserId ?? intent.actorUserId,
+    // One statement for the whole recipient snapshot set: the cost of a
+    // forward may not grow with the number of people it reaches.
+    if (intent.recipients.isNotEmpty) {
+      await _database.customStatement(
+        r'''
+INSERT INTO public.attention_occurrence_recipient (
+  occurrence_id, account_id, reasons, role_facts, collapse_key, channel_eligible
+)
+SELECT $1, r.account_id, r.reasons, r.role_facts, r.collapse_key,
+       r.channel_eligible
+FROM jsonb_to_recordset($2::jsonb) AS r(
+  account_id text, reasons jsonb, role_facts jsonb, collapse_key text,
+  channel_eligible boolean
+)''',
+        [
+          occurrenceId,
+          jsonEncode([
+            for (final recipient in intent.recipients)
+              {
+                'account_id': recipient.recipientId,
+                'reasons': recipient.reasons
+                    .map((reason) => reason.name)
+                    .toList(),
+                'role_facts': _rolePayload(_effectiveRole(intent, recipient)),
+                'collapse_key': recipient.collapseKey ?? intent.collapseKey,
+                'channel_eligible': recipient.channelEligible,
+              },
+          ]),
+        ],
       );
+    }
+    for (final recipient in intent.recipients) {
+      final role = _effectiveRole(intent, recipient);
       final projection = _policy.project(
         eventType: intent.eventType,
         recipientId: recipient.recipientId,
@@ -90,19 +128,6 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
       );
       final collapseKey = recipient.collapseKey ?? intent.collapseKey;
       final dedupKey = '${recipient.recipientId}|attention-v1|$collapseKey';
-      await _database.customStatement(
-        r'''INSERT INTO public.attention_occurrence_recipient (
-  occurrence_id, account_id, reasons, role_facts, collapse_key, channel_eligible
-) VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6)''',
-        [
-          occurrenceId,
-          recipient.recipientId,
-          jsonEncode(recipient.reasons.map((reason) => reason.name).toList()),
-          jsonEncode(_rolePayload(role)),
-          collapseKey,
-          recipient.channelEligible,
-        ],
-      );
       // A receipt is inserted, never rewritten. Until U05a this was an
       // `ON CONFLICT (dedup_key) WHERE seen_at IS NULL DO UPDATE` that
       // repointed an existing unseen row at the newest occurrence and reset
