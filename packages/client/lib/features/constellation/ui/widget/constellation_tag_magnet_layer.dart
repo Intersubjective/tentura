@@ -36,11 +36,8 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
               child: CustomSingleChildLayout(
                 delegate: _MagnetLabelClearDelegate(
                   center: cubit.graphController.sceneToViewportLocal(at),
-                  obstacles: [
-                    ...?frameHolder.frame?.bodies.values,
-                    ...?frameHolder.frame?.labels.values,
-                    ...?frameHolder.frame?.chips.values,
-                  ],
+                  frameHolder: frameHolder,
+                  relayout: cubit.graphController,
                 ),
                 child: ConstellationTagMagnetControl(
                   actionLabel: L10n.of(context)!.buttonRemove,
@@ -60,13 +57,14 @@ class ConstellationTagMagnetLayer extends StatelessWidget {
 
 /// Centres the magnet on its point, then steps it clear of painted obstacles.
 class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
-  const _MagnetLabelClearDelegate({
+  _MagnetLabelClearDelegate({
     required this.center,
-    required this.obstacles,
-  });
+    required this.frameHolder,
+    required Listenable relayout,
+  }) : super(relayout: relayout);
 
   final Offset center;
-  final List<Rect> obstacles;
+  final ConstellationPresentationFrameHolder frameHolder;
 
   @override
   Offset getPositionForChild(Size size, Size childSize) => clearMagnetOfLabels(
@@ -75,7 +73,13 @@ class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
       width: childSize.width,
       height: childSize.height,
     ),
-    obstacles,
+    // The overlay publishes the current geometry during build. Read it at
+    // layout time, after all siblings have built, including on graph motion.
+    [
+      ...?frameHolder.frame?.bodies.values,
+      ...?frameHolder.frame?.labels.values,
+      ...?frameHolder.frame?.chips.values,
+    ],
     bounds: Offset.zero & size,
   ).topLeft;
 
@@ -84,6 +88,5 @@ class _MagnetLabelClearDelegate extends SingleChildLayoutDelegate {
       constraints.loosen();
 
   @override
-  bool shouldRelayout(_MagnetLabelClearDelegate old) =>
-      center != old.center || !listEquals(obstacles, old.obstacles);
+  bool shouldRelayout(_MagnetLabelClearDelegate old) => true;
 }

@@ -166,10 +166,16 @@ void main() {
     testWidgets('dropping an own tag creates a label at the drop position', (
       tester,
     ) async {
-      final body = await _mount(tester);
+      // A clear drop keeps its position. Request satellites attracted with
+      // their author can occupy this spot and legitimately force clearance.
+      final body = await _mount(
+        tester,
+        field: tagLensHarnessField().copyWith(requests: const []),
+      );
       final target = _dropPoint(tester);
 
-      await _dropTag(tester, body, 'Workshop', target);
+      final placed = await _dropTag(tester, body, 'Workshop', target);
+      expect(body.field.tagMagnets[tagLensWorkshop.id], placed);
 
       _expectMagnet(tester, 'Workshop');
       expect(
