@@ -396,22 +396,78 @@ Future<void> main() async {
       expect(rows.last[0], isNot(5));
     });
 
-    // #666: a member who did not start the Post cannot close it; the whole
-    // bud is refused, so no Request is left behind either.
-    test('a member who is not the Post author cannot close it', () async {
-      final before = await _rowCounts(writer);
-      await expectLater(
-        bud(closePost: true),
-        throwsA(isA<BeaconChildCreateForbiddenException>()),
-      );
-      expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
-      expect(await _rowCounts(writer), before);
+    test(
+      'a non-author close request returns a dedicated error without creating a Request',
+      () async {
+        final before = await _rowCounts(writer);
+        // Match by runtime name until the new exception exists, so this test
+        // fails on the observed error rather than a missing import.
+        // 1351 is the next append-only Beacon wire code after postLifetimeExtend.
+        await expectLater(
+          bud(commandId: 'member-close', closePost: true),
+          throwsA(
+            isA<ExceptionBase>()
+                .having(
+                  (error) => error.runtimeType.toString(),
+                  'close refusal type',
+                  'PostCloseForbiddenException',
+                )
+                .having(
+                  (error) => error.code.codeNumber,
+                  'close refusal wire code',
+                  1351,
+                )
+                .having(
+                  (error) => error.toMap['extensions'],
+                  'serialized error code',
+                  containsPair('code', '1351'),
+                ),
+          ),
+        );
+        expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
+        expect(await _rowCounts(writer), before);
+        final refusedChildren = await writer.execute(
+          Sql.named(
+            'SELECT id FROM public.beacon WHERE parent_beacon_id = @post',
+          ),
+          parameters: {'post': _post},
+        );
+        expect(refusedChildren, isEmpty);
 
-      // The same member may still bud without closing it.
-      final result = await bud(commandId: 'cmd-c3-2');
-      expect(result.childBeaconId, isNotNull);
-      expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
-    });
+        // The same member can create a Request when they leave the Post open.
+        final memberBud = await bud(
+          commandId: 'member-leave-open',
+          closePost: false,
+        );
+        expect(memberBud.outcome, 'created');
+        expect(memberBud.childBeaconId, isNotNull);
+        final memberChild = await writer.execute(
+          Sql.named(
+            'SELECT user_id, parent_beacon_id FROM public.beacon WHERE id = @id',
+          ),
+          parameters: {'id': memberBud.childBeaconId},
+        );
+        expect(memberChild.single, [_budder, _post]);
+        expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
+
+        final authorBud = await bud(
+          actor: _author,
+          source: _rootMsg,
+          commandId: 'author-close',
+          closePost: true,
+        );
+        expect(authorBud.outcome, 'created');
+        expect(authorBud.childBeaconId, isNotNull);
+        final authorChild = await writer.execute(
+          Sql.named(
+            'SELECT user_id, parent_beacon_id FROM public.beacon WHERE id = @id',
+          ),
+          parameters: {'id': authorBud.childBeaconId},
+        );
+        expect(authorChild.single, [_author, _post]);
+        expect(await _postStatus(writer), BeaconStatus.closed.smallintValue);
+      },
+    );
 
     test(
       'a different input under the same clientCommandId conflicts',

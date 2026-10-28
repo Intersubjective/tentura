@@ -591,6 +591,17 @@ final class PostNotOpenException extends ExceptionBase {
       );
 }
 
+/// Only the Post author may close an open Post while budding a Request.
+final class PostCloseForbiddenException extends ExceptionBase {
+  const PostCloseForbiddenException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.postCloseForbidden,
+        ),
+        description: description ?? 'Only the author of the Post can close it',
+      );
+}
+
 /// The requested Post lifetime is outside 1…72 hours.
 final class PostLifetimeInvalidException extends ExceptionBase {
   const PostLifetimeInvalidException({String? description})

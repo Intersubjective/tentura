@@ -123,6 +123,7 @@ enum BeaconExceptionCode {
   beaconRoomNowLineConflict, // 1348
   postLifetimeInvalid, // 1349
   postLifetimeExtend, // 1350
+  postCloseForbidden, // 1351
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

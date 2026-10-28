@@ -143,7 +143,7 @@ WHERE beacon_id = '$_post' ORDER BY created_at
       () async {
         await expectLater(
           closePost(actor: _member),
-          throwsA(isA<BeaconChildCreateForbiddenException>()),
+          throwsA(isA<PostCloseForbiddenException>()),
         );
         expect(await status(_post), 0, reason: 'still open');
       },

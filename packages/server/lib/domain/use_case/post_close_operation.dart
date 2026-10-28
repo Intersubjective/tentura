@@ -51,9 +51,7 @@ final class PostCloseOperation {
       throw const PostNotOpenException();
     }
     if (post.author.id != actorId) {
-      throw const BeaconChildCreateForbiddenException(
-        description: 'Only the author of the Post can close it',
-      );
+      throw const PostCloseForbiddenException();
     }
     await _close(
       post,
