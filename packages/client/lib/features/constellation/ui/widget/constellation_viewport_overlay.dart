@@ -867,6 +867,10 @@ class _ConstellationViewportOverlayState
                         trustByGraphId: rings.trust,
                         selectedGraphId: rings.selected,
                         dimmedGraphIds: dimmedGraphIds,
+                        hiddenLabelOf: (id) => switch (nodeByGraphId[id]) {
+                          final node? => _labelSpec(node, l10n, tt).$1,
+                          null => null,
+                        },
                       ),
                     ),
                     Transform.translate(

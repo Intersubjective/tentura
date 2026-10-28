@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -288,12 +289,17 @@ class ConstellationNodeRingLayer extends StatefulWidget {
     required this.trustByGraphId,
     required this.selectedGraphId,
     this.dimmedGraphIds = const {},
+    this.hiddenLabelOf,
     super.key,
   });
 
   final ConstellationPresentationFrame frame;
   final Map<GraphNodeId, ConstellationTrustBadge> trustByGraphId;
   final GraphNodeId? selectedGraphId;
+
+  /// The name of a node, drawn while a mouse is over a node that has no
+  /// placed label (#459); touch never shows it.
+  final String? Function(GraphNodeId id)? hiddenLabelOf;
 
   /// Nodes off the selected person's trust chain (#641): their trust marks
   /// fade with them.
@@ -308,6 +314,24 @@ class _ConstellationNodeRingLayerState
     extends State<ConstellationNodeRingLayer> {
   final _hover = ValueNotifier<Offset?>(null);
   final _glyphs = ConstellationTrustGlyphCache();
+  GraphNodeId? _mouseOver;
+
+  void _onHover(PointerHoverEvent event) {
+    _hover.value = event.localPosition;
+    final id = event.kind == PointerDeviceKind.mouse
+        ? resolveConstellationTap(widget.frame, event.localPosition)
+        : null;
+    if (id != _mouseOver) {
+      setState(() => _mouseOver = id);
+    }
+  }
+
+  void _onExit() {
+    _hover.value = null;
+    if (_mouseOver != null) {
+      setState(() => _mouseOver = null);
+    }
+  }
 
   @override
   void dispose() {
@@ -323,26 +347,70 @@ class _ConstellationNodeRingLayerState
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return MouseRegion(
       hitTestBehavior: HitTestBehavior.translucent,
-      onHover: (event) => _hover.value = event.localPosition,
-      onExit: (_) => _hover.value = null,
+      onHover: _onHover,
+      onExit: (_) => _onExit(),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          IgnorePointer(
+            child: CustomPaint(
+              key: const ValueKey('constellation.nodeRings'),
+              size: Size.infinite,
+              painter: ConstellationNodeRingPainter(
+                frame: widget.frame,
+                trustByGraphId: widget.trustByGraphId,
+                selectedGraphId: widget.selectedGraphId,
+                dimmedGraphIds: widget.dimmedGraphIds,
+                hover: _hover,
+                minTarget: kMinInteractiveDimension,
+                gap: tt.tightGap,
+                minTrustRadius: constellationTrustMinRadius(tt),
+                badgeDiameter: constellationTrustBadgeDiameter(tt),
+                scheme: scheme,
+                textDirection: Directionality.of(context),
+                rtl: rtl,
+                glyphs: _glyphs,
+              ),
+            ),
+          ),
+          ?_hiddenLabel(tt, scheme),
+        ],
+      ),
+    );
+  }
+
+  Widget? _hiddenLabel(TenturaTokens tt, ColorScheme scheme) {
+    final id = _mouseOver;
+    final body = id == null ? null : widget.frame.bodies[id];
+    final text = id == null ? null : widget.hiddenLabelOf?.call(id);
+    if (body == null ||
+        text == null ||
+        text.isEmpty ||
+        widget.frame.labels.containsKey(id)) {
+      return null;
+    }
+    final width = tt.graphLabelMaxWidthRequest;
+    return Positioned(
+      key: ValueKey('constellation.hoverLabel.$id'),
+      left: body.center.dx - width / 2,
+      top: body.bottom + tt.tightGap,
+      width: width,
       child: IgnorePointer(
-        child: CustomPaint(
-          key: const ValueKey('constellation.nodeRings'),
-          size: Size.infinite,
-          painter: ConstellationNodeRingPainter(
-            frame: widget.frame,
-            trustByGraphId: widget.trustByGraphId,
-            selectedGraphId: widget.selectedGraphId,
-            dimmedGraphIds: widget.dimmedGraphIds,
-            hover: _hover,
-            minTarget: kMinInteractiveDimension,
-            gap: tt.tightGap,
-            minTrustRadius: constellationTrustMinRadius(tt),
-            badgeDiameter: constellationTrustBadgeDiameter(tt),
-            scheme: scheme,
-            textDirection: Directionality.of(context),
-            rtl: rtl,
-            glyphs: _glyphs,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(tt.buttonRadius),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(tt.tightGap),
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.labelSmall(scheme.onSurface),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       ),
