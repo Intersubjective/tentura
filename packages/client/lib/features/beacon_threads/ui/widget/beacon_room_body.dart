@@ -62,9 +62,24 @@ class BeaconRoomBody extends StatefulWidget {
     this.batonEnabled = kBatonEnabled,
     this.postBuddingEnabled = kPostBuddingEnabled,
     this.postArchived = false,
+    this.header,
+    this.readOnlyHint,
+    this.onRemoveAuthor,
   });
 
   final bool enableComposer;
+
+  /// Pinned above the messages when the room pins nothing of its own (the
+  /// Questions copy).
+  final Widget? header;
+
+  /// The composer's hint when the viewer may not write, instead of the
+  /// room's own (the Questions read-only reason).
+  final String? readOnlyHint;
+
+  /// Offered on other people's messages: the host removes their author from
+  /// the room (the Questions author removes someone). Null hides it.
+  final ValueChanged<RoomMessage>? onRemoveAuthor;
 
   /// Post rooms only: the host's Post is closed or past its `expiresAt`. The
   /// room is read-only and offers «Оформить запрос» instead of the composer.
@@ -398,7 +413,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   )
                 : showPinnedBlocker
                 ? _PinnedBlockerRow(state: state)
-                : null,
+                : widget.header,
             // #443: a Request's empty discussion says what it is for and
             // where recipients ask before helping (Questions). A Post's
             // chat keeps its one line.
@@ -506,10 +521,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 : null,
             composerReadOnlyHint: canWrite
                 ? null
-                // A Post's conversation is its chat (#501, D8).
-                : widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot
-                ? l10n.postChatReadOnlyHint
-                : l10n.beaconRoomMessageReadOnlyHint,
+                : widget.readOnlyHint ??
+                      (widget.capabilities.pinnedStrip ==
+                              RoomPinnedStrip.postRoot
+                          // A Post's conversation is its chat (#501, D8).
+                          ? l10n.postChatReadOnlyHint
+                          : l10n.beaconRoomMessageReadOnlyHint),
             composerSendFailedOffline: state.sendFailedOffline,
             composerSendUnconfirmed: state.sendUnconfirmed,
             enableComposerAttachments: widget.capabilities.composerTools,
@@ -569,6 +586,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             pinnedFactForMessage: state.factForRoomMessage,
             pendingJumpMessageId: state.scrollToMessageId,
             capabilities: widget.capabilities,
+            requestAuthorId: widget.beaconAuthorId,
             // Final (read-only) Request; unknown status is not "closed".
             pollsClosed:
                 state.beaconStatus?.allowsDiscussionWrites == false ||
@@ -1105,6 +1123,24 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             unawaited(_copyMessageText(context, l10n, message));
                           },
                         ),
+                      if (widget.onRemoveAuthor case final removeAuthor?
+                          when !isOwnMessage) ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: Icon(
+                            Icons.person_remove_outlined,
+                            color: theme.colorScheme.error,
+                          ),
+                          title: Text(
+                            l10n.beaconLobbyBanAction,
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            removeAuthor(message);
+                          },
+                        ),
+                      ],
                       // ── Destructive (own message), divided off and last. ──
                       if (keepsPersonalActions &&
                           isOwnMessage &&

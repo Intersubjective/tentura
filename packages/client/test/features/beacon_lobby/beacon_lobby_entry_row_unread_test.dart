@@ -14,7 +14,6 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
 import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_entry_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -188,17 +187,7 @@ void main() {
       int messages = 5,
     }) async {
       await GetIt.I.reset();
-      final port = FakeLobbyPort(viewerId: 'Uauthor');
-      for (var i = 0; i < messages; i++) {
-        port.messagesList.add(
-          BeaconLobbyMessage(
-            id: 'M$i',
-            authorId: 'Unina',
-            authorName: 'Nina',
-            body: 'Question $i',
-          ),
-        );
-      }
+      final port = FakeLobbyPort(viewerId: 'Uauthor')..messageCount = messages;
       GetIt.I.registerSingleton<BeaconLobbyCase>(
         lobbyCaseFor(port, FakeRealtimeSyncPort()),
       );

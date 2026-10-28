@@ -7,8 +7,9 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import '../entity/beacon_lobby.dart';
 import '../port/beacon_lobby_port.dart';
 
-/// Request Questions (internally the lobby, U088): read, post, and (author)
-/// remove / let back in.
+/// Request Questions (internally the lobby, U088): the viewer's standing,
+/// and (author) remove / let back in. Its messages are the room chat's
+/// (#726).
 @singleton
 final class BeaconLobbyCase {
   const BeaconLobbyCase(this._port, this._realtime);
@@ -20,21 +21,6 @@ final class BeaconLobbyCase {
 
   Future<BeaconLobbyInfo> open(String beaconId) => _port.open(beaconId);
 
-  Future<List<BeaconLobbyMessage>> messages({
-    required String beaconId,
-    required String lobbyId,
-    DateTime? before,
-  }) => _port.messages(beaconId: beaconId, lobbyId: lobbyId, before: before);
-
-  Future<void> post({
-    required String beaconId,
-    required String lobbyId,
-    required String body,
-  }) => _port.post(beaconId: beaconId, lobbyId: lobbyId, body: body);
-
-  Future<void> markSeen({required String beaconId, required String lobbyId}) =>
-      _port.markSeen(beaconId: beaconId, lobbyId: lobbyId);
-
   Future<void> ban({required String beaconId, required String userId}) =>
       _port.ban(beaconId: beaconId, userId: userId);
 
@@ -42,8 +28,7 @@ final class BeaconLobbyCase {
       _port.unban(beaconId: beaconId, userId: userId);
 
   /// A message of this Request may have changed (General or Questions: the
-  /// hint carries no scope and no Questions text). Only the message page is
-  /// refetched, never the access check.
+  /// hint carries no scope and no Questions text): the entry row's count.
   Stream<void> messageChanges(String beaconId) => _realtime
       .changesForAggregate(
         kinds: const {RealtimeEntityKind.roomMessage},

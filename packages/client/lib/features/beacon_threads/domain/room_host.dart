@@ -30,6 +30,7 @@ class RoomCapabilities {
     this.childPromotionOwnOnly = false,
     this.composerTools = true,
     this.threadOwnMessageEdit = false,
+    this.authorMark = false,
   });
 
   /// Every Request feature on.
@@ -44,7 +45,8 @@ class RoomCapabilities {
       pinnedStrip = RoomPinnedStrip.requestBlocker,
       childPromotionOwnOnly = false,
       composerTools = true,
-      threadOwnMessageEdit = false;
+      threadOwnMessageEdit = false,
+      authorMark = false;
 
   /// Every Request-only feature off.
   const RoomCapabilities.post()
@@ -58,7 +60,8 @@ class RoomCapabilities {
       pinnedStrip = RoomPinnedStrip.postRoot,
       childPromotionOwnOnly = true,
       composerTools = true,
-      threadOwnMessageEdit = false;
+      threadOwnMessageEdit = false,
+      authorMark = false;
 
   /// A Questions thread: a plain reply thread. Everything limited to
   /// admitted people is off, and so are the composer's attach, fact, poll and
@@ -74,7 +77,8 @@ class RoomCapabilities {
       pinnedStrip = RoomPinnedStrip.requestBlocker,
       childPromotionOwnOnly = false,
       composerTools = false,
-      threadOwnMessageEdit = true;
+      threadOwnMessageEdit = true,
+      authorMark = true;
 
   final bool facts;
   final bool blocker;
@@ -96,6 +100,11 @@ class RoomCapabilities {
   /// Own messages can be edited and deleted inside a thread (Questions).
   final bool threadOwnMessageEdit;
 
+  /// The Request author's messages carry an "Author" mark by their name
+  /// (Questions, where readers tell answers from questions without the
+  /// participant list's role labels).
+  final bool authorMark;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -110,7 +119,8 @@ class RoomCapabilities {
           pinnedStrip == other.pinnedStrip &&
           childPromotionOwnOnly == other.childPromotionOwnOnly &&
           composerTools == other.composerTools &&
-          threadOwnMessageEdit == other.threadOwnMessageEdit;
+          threadOwnMessageEdit == other.threadOwnMessageEdit &&
+          authorMark == other.authorMark;
 
   @override
   int get hashCode => Object.hash(
@@ -125,6 +135,7 @@ class RoomCapabilities {
     childPromotionOwnOnly,
     composerTools,
     threadOwnMessageEdit,
+    authorMark,
   );
 }
 

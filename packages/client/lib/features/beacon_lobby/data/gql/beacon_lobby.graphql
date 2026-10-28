@@ -30,29 +30,6 @@ query BeaconLobbyAccess($beaconId: String!) {
   }
 }
 
-# Newest page first (server limit 50); `beforeIso` pages back.
-query BeaconLobbyMessages($beaconId: String!, $lobbyId: String!, $beforeIso: String) {
-  RoomMessageList(beaconId: $beaconId, threadItemId: $lobbyId, beforeIso: $beforeIso) {
-    id
-    authorId
-    authorTitle
-    body
-    createdAt
-  }
-}
-
-mutation BeaconLobbyPost($beaconId: String!, $lobbyId: String!, $body: String!) {
-  RoomMessageCreate(beaconId: $beaconId, body: $body, threadItemId: $lobbyId) {
-    id
-  }
-}
-
-mutation BeaconLobbyMarkSeen($beaconId: String!, $lobbyId: String!) {
-  MarkThreadSeen(beaconId: $beaconId, threadId: $lobbyId) {
-    beaconId
-  }
-}
-
 mutation BeaconLobbyBan($beaconId: String!, $userId: String!) {
   BeaconLobbyBan(beaconId: $beaconId, userId: $userId)
 }

@@ -1,20 +1,34 @@
 import 'dart:async';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
+import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
-import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_entry_row.dart';
 import 'package:tentura/features/beacon_lobby/ui/bloc/beacon_lobby_cubit.dart';
-import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_body.dart';
+import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_chat.dart';
+import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_entry_row.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/show_more_text.dart';
 
+import '../beacon_threads/room_cubit_fakes.dart';
+import '../beacon_threads/support/room_body_harness.dart'
+    show RoomBodyHarnessPresenceCubit, RoomBodyHarnessProfileCubit;
 import 'fake_lobby_port.dart';
 
 Widget _app(Widget child) => MaterialApp(
@@ -25,35 +39,109 @@ Widget _app(Widget child) => MaterialApp(
   home: child,
 );
 
-Widget _lobby(FakeLobbyPort port, String myId) {
-  final sync = FakeRealtimeSyncPort();
-  return _app(
-    Scaffold(
-      body: BlocProvider(
-        create: (_) {
-          final cubit = BeaconLobbyCubit(
-            lobbyCaseFor(port, sync),
-            RecordingEffects(),
-            beaconId: 'B1',
-          );
-          unawaited(cubit.load());
-          return cubit;
-        },
-        child: BeaconLobbyBody(myUserId: myId),
+Future<void> _pumpFrames(WidgetTester tester, [int frames = 20]) async {
+  // Bounded: the chat surface hosts animations that never settle.
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+/// The Questions content as [myId] sees it, over [port] and a room holding
+/// [messages] (all on the Questions thread).
+Future<void> _pumpLobby(
+  WidgetTester tester,
+  FakeLobbyPort port,
+  String myId, {
+  List<RoomMessage> messages = const [],
+}) async {
+  tester.view.physicalSize = const Size(700, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final getIt = GetIt.I;
+  await getIt.reset();
+  addTearDown(getIt.reset);
+  final effects = RecordingEffects();
+  final profileCubit = RoomBodyHarnessProfileCubit(
+    Profile(id: myId, displayName: myId),
+  );
+  final presenceCubit = RoomBodyHarnessPresenceCubit();
+  getIt
+    ..registerSingleton<ProfileCubit>(profileCubit)
+    ..registerSingleton<PresenceCubit>(presenceCubit)
+    ..registerSingleton<UiEffectPort>(effects)
+    ..registerSingleton<BeaconThreadsCase>(
+      roomCubitMakeCase(
+        FakeBeaconThreadsRepository(userId: myId)..messages = messages,
+      ),
+    )
+    ..registerSingleton<BeaconFactCardRepository>(
+      FakeBeaconFactCardRepository(),
+    )
+    ..registerSingleton<CoordinationItemRoomSync>(CoordinationItemRoomSync())
+    ..registerSingleton<PresenceRepository>(roomCubitFakePresenceRepository())
+    ..registerSingleton<ImageRepository>(ImageRepository())
+    ..registerSingleton<ClipboardImageRepository>(ClipboardImageRepository());
+  await tester.pumpWidget(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<ProfileCubit>.value(value: profileCubit),
+        BlocProvider<PresenceCubit>.value(value: presenceCubit),
+        BlocProvider<ScreenCubit>(create: (_) => ScreenCubit(effects)),
+      ],
+      child: _app(
+        TenturaResponsiveScope(
+          child: Scaffold(
+            body: BlocProvider(
+              create: (_) {
+                final cubit = BeaconLobbyCubit(
+                  lobbyCaseFor(port, FakeRealtimeSyncPort()),
+                  effects,
+                  beaconId: 'B1',
+                );
+                unawaited(cubit.load());
+                return cubit;
+              },
+              child: const BeaconLobbyChat(),
+            ),
+          ),
+        ),
       ),
     ),
   );
+  await _pumpFrames(tester);
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }
 
-/// The one text-field node on screen (the Questions composer).
-SemanticsNode _textFieldNode() {
-  final found = find.semantics
-      .byPredicate(
-        (node) => node.getSemanticsData().flagsCollection.isTextField,
-      )
-      .evaluate();
-  expect(found, hasLength(1));
-  return found.single;
+/// The Questions composer's hint.
+String? _composerHint(WidgetTester tester) => tester
+    .widget<TextField>(find.byKey(TestIds.key(TestIds.roomMessageInput)))
+    .decoration
+    ?.hintText;
+
+RoomMessage _message(String id, String authorId, String name, String body) =>
+    RoomMessage(
+      id: id,
+      beaconId: 'B1',
+      authorId: authorId,
+      author: Profile(id: authorId, displayName: name),
+      body: body,
+      createdAt: DateTime.utc(2026, 10, 1, 12),
+      threadItemId: 'Llobby',
+    );
+
+/// Opens the actions of the chat message reading [body].
+Future<void> _openActions(WidgetTester tester, String body) async {
+  final text = find.ancestor(
+    of: find.textContaining(body),
+    matching: find.byWidgetPredicate(
+      (w) => w is RoomMessageTextBody || w is ShowMoreText,
+    ),
+  );
+  await tester.longPressAt(tester.getTopLeft(text.first) + const Offset(8, 8));
+  await _pumpFrames(tester, 10);
 }
 
 void main() {
@@ -74,15 +162,7 @@ void main() {
     testWidgets('shown with the message count when the viewer may read', (
       tester,
     ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina')
-        ..messagesList.add(
-          const BeaconLobbyMessage(
-            id: 'M1',
-            authorId: 'Uauthor',
-            authorName: 'Anna',
-            body: 'The 18th',
-          ),
-        );
+      final port = FakeLobbyPort(viewerId: 'Unina')..messageCount = 1;
       await pumpRow(tester, port);
       expect(find.text('Questions'), findsOneWidget);
       expect(find.text('1 message'), findsOneWidget);
@@ -98,132 +178,112 @@ void main() {
   });
 
   group('Questions screen', () {
-    const ninaMsg = BeaconLobbyMessage(
-      id: 'M1',
-      authorId: 'Unina',
-      authorName: 'Nina',
-      body: 'Which Saturday?',
-    );
-    const annaMsg = BeaconLobbyMessage(
-      id: 'M2',
-      authorId: 'Uauthor',
-      authorName: 'Anna',
-      body: 'The 18th',
-    );
+    final nina = _message('M1', 'Unina', 'Nina', 'Which Saturday?');
+    final anna = _message('M2', 'Uauthor', 'Anna', 'The 18th');
 
-    testWidgets('author: remove someone (confirm dialog), then let them back '
-        'in; names come from the server', (tester) async {
-      final port = FakeLobbyPort(viewerId: 'Uauthor')
-        ..messagesList.addAll([ninaMsg, annaMsg]);
-      await tester.pumpWidget(_lobby(port, 'Uauthor'));
-      await tester.pumpAndSettle();
-      expect(find.text('Which Saturday?'), findsOneWidget);
-      // One remove button: on Nina's message, not on the author's own.
-      final remove = find.byTooltip('Remove from Questions');
-      expect(remove, findsOneWidget);
-      await tester.tap(remove);
-      await tester.pumpAndSettle();
+    testWidgets('author: remove someone from their message (confirm dialog), '
+        'then let them back in; names come from the server', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Uauthor');
+      await _pumpLobby(tester, port, 'Uauthor', messages: [nina, anna]);
+      // Not offered on the author's own message.
+      await _openActions(tester, 'The 18th');
+      expect(find.text('Remove from Questions'), findsNothing);
+      await tester.tapAt(const Offset(10, 10));
+      await _pumpFrames(tester, 10);
+      await _openActions(tester, 'Which Saturday?');
+      await tester.tap(find.text('Remove from Questions'));
+      await _pumpFrames(tester, 10);
       expect(find.byType(TenturaConfirmDialog), findsOneWidget);
       expect(find.text('Remove Nina from Questions?'), findsOneWidget);
+      expect(find.textContaining('Their help offer stays'), findsNothing);
+      expect(
+        find.textContaining("This doesn't touch a help offer they made"),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Remove from Questions').last);
-      await tester.pumpAndSettle();
+      await _pumpFrames(tester, 10);
       expect(port.banned, ['Unina']);
       expect(find.text('Removed from Questions'), findsOneWidget);
       expect(
         find.bySemanticsLabel('Removed from Questions: 1 person'),
         findsOneWidget,
       );
-      expect(find.byTooltip('Remove from Questions'), findsNothing);
       await tester.tap(find.text('Removed from Questions'));
-      await tester.pumpAndSettle();
+      await _pumpFrames(tester, 10);
       expect(find.text('Name of Unina'), findsOneWidget);
       await tester.tap(find.text('Let back in'));
-      await tester.pumpAndSettle();
+      await _pumpFrames(tester, 10);
       expect(port.banned, isEmpty);
     });
 
-    testWidgets('empty: the design-system empty state explains Questions', (
+    testWidgets('the author of a closed Request: no one to remove', (
       tester,
     ) async {
+      final port = FakeLobbyPort(viewerId: 'Uauthor')
+        ..canPost = false
+        ..limitReason = BeaconLobbyLimitReason.closed;
+      await _pumpLobby(tester, port, 'Uauthor', messages: [nina]);
+      await _openActions(tester, 'Which Saturday?');
+      expect(find.text('Remove from Questions'), findsNothing);
+    });
+
+    testWidgets('a recipient: no remove action', (tester) async {
       final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.byType(TenturaEmptyState), findsOneWidget);
-      expect(find.text('No questions yet'), findsOneWidget);
-      expect(find.byKey(const Key('beaconLobbyComposer')), findsOneWidget);
+      await _pumpLobby(tester, port, 'Unina', messages: [anna]);
+      await _openActions(tester, 'The 18th');
+      expect(find.text('Remove from Questions'), findsNothing);
     });
 
-    testWidgets('a recipient: no remove buttons; can post', (tester) async {
-      final port = FakeLobbyPort(viewerId: 'Unina')..messagesList.add(annaMsg);
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Remove from Questions'), findsNothing);
-      await tester.enterText(
-        find.byKey(const Key('beaconLobbyComposer')),
-        'How many boxes?',
-      );
-      await tester.tap(find.byKey(const Key('beaconLobbySend')));
-      await tester.pumpAndSettle();
-      expect(find.text('How many boxes?'), findsOneWidget);
-      expect(port.calls, contains('post How many boxes?'));
-    });
-
-    testWidgets('read-only standing: reads, no composer, says why', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina')
-        ..messagesList.add(annaMsg)
-        ..canPost = false;
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.text('The 18th'), findsOneWidget);
-      expect(find.byKey(const Key('beaconLobbyComposer')), findsNothing);
-      expect(find.byKey(const Key('beaconLobbyReadOnly')), findsOneWidget);
-    });
+    for (final (reason, text) in [
+      (BeaconLobbyLimitReason.cantHelp, "You said you can't help"),
+      (BeaconLobbyLimitReason.withdrew, 'You withdrew your help offer'),
+      (BeaconLobbyLimitReason.declined, 'The author declined your help offer'),
+      (BeaconLobbyLimitReason.closed, 'This request is closed'),
+    ]) {
+      testWidgets('read-only names the reason: ${reason.name}', (
+        tester,
+      ) async {
+        final port = FakeLobbyPort(viewerId: 'Unina')
+          ..canPost = false
+          ..limitReason = reason;
+        await _pumpLobby(tester, port, 'Unina', messages: [anna]);
+        expect(find.textContaining('The 18th'), findsWidgets);
+        expect(_composerHint(tester), contains(text));
+        expect(
+          _composerHint(tester),
+          isNot(contains('the request is closed, or')),
+        );
+      });
+    }
 
     testWidgets('outside the audience: Questions say who they are for', (
       tester,
     ) async {
       final port = FakeLobbyPort(viewerId: 'Unina')..banned.add('Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
+      await _pumpLobby(tester, port, 'Unina');
       expect(
         find.text('Questions are for the people this request was sent to.'),
         findsOneWidget,
       );
-      expect(find.byKey(const Key('beaconLobbyComposer')), findsNothing);
+      expect(find.byKey(TestIds.key(TestIds.roomMessageInput)), findsNothing);
     });
 
     testWidgets('offline: a retry, not the access message', (tester) async {
       final port = FakeLobbyPort(viewerId: 'Unina')..failNext = true;
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
+      await _pumpLobby(tester, port, 'Unina');
       expect(find.byKey(const Key('beaconLobbyUnavailable')), findsNothing);
-      expect(find.byKey(const Key('beaconLobbyComposer')), findsNothing);
+      expect(find.byKey(TestIds.key(TestIds.roomMessageInput)), findsNothing);
     });
 
-    testWidgets('long history: "Show earlier messages" pages back', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      for (var i = 0; i < 60; i++) {
-        port.messagesList.add(
-          BeaconLobbyMessage(
-            id: 'M$i',
-            authorId: 'Uauthor',
-            authorName: 'Anna',
-            body: 'm$i',
-            createdAt: DateTime.utc(2026).add(Duration(minutes: i)),
-          ),
-        );
-      }
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('beaconLobbyLoadOlder')), findsOneWidget);
-      await tester.tap(find.byKey(const Key('beaconLobbyLoadOlder')));
-      await tester.pumpAndSettle();
-      expect(port.calls, contains('messages before'));
-      expect(find.byKey(const Key('beaconLobbyLoadOlder')), findsNothing);
+    testWidgets('removed by the author: says so', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Unina')
+        ..banned.add('Unina')
+        ..limitReason = BeaconLobbyLimitReason.removed;
+      await _pumpLobby(tester, port, 'Unina');
+      expect(
+        find.text('The author removed you from Questions on this request.'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -286,109 +346,6 @@ void main() {
       // The author is addressed as the one who answers.
       expect(
         find.textContaining('People you sent this request to'),
-        findsOneWidget,
-      );
-    });
-  });
-
-  group('#657 copy follows who is reading', () {
-    const ninaMsg = BeaconLobbyMessage(
-      id: 'M1',
-      authorId: 'Unina',
-      authorName: 'Nina',
-      body: 'Which Saturday?',
-    );
-    const annaMsg = BeaconLobbyMessage(
-      id: 'M2',
-      authorId: 'Uauthor',
-      authorName: 'Anna',
-      body: 'The 18th',
-    );
-
-    testWidgets("the author: answer copy, and the author's messages are "
-        'marked', (tester) async {
-      final port = FakeLobbyPort(viewerId: 'Uauthor')
-        ..messagesList.addAll([ninaMsg, annaMsg]);
-      await tester.pumpWidget(_lobby(port, 'Uauthor'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Ask the author'), findsNothing);
-      expect(
-        find.textContaining('People you sent this request to'),
-        findsOneWidget,
-      );
-      expect(find.text('Write an answer'), findsOneWidget);
-      expect(find.byKey(const Key('beaconLobbyAuthorBadge')), findsOneWidget);
-    });
-
-    testWidgets('a recipient: ask copy; the author badge marks the answer', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina')
-        ..messagesList.addAll([ninaMsg, annaMsg]);
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Ask the author'), findsOneWidget);
-      expect(find.text('Ask a question'), findsOneWidget);
-      expect(find.byKey(const Key('beaconLobbyAuthorBadge')), findsOneWidget);
-    });
-
-    for (final (reason, text) in [
-      (BeaconLobbyLimitReason.cantHelp, "You said you can't help"),
-      (BeaconLobbyLimitReason.withdrew, 'You withdrew your help offer'),
-      (BeaconLobbyLimitReason.declined, 'The author declined your help offer'),
-      (BeaconLobbyLimitReason.closed, 'This request is closed'),
-    ]) {
-      testWidgets('read-only names the reason: ${reason.name}', (
-        tester,
-      ) async {
-        final port = FakeLobbyPort(viewerId: 'Unina')
-          ..messagesList.add(annaMsg)
-          ..canPost = false
-          ..limitReason = reason;
-        await tester.pumpWidget(_lobby(port, 'Unina'));
-        await tester.pumpAndSettle();
-        expect(find.byKey(const Key('beaconLobbyComposer')), findsNothing);
-        expect(find.textContaining(text), findsOneWidget);
-        expect(find.textContaining('the request is closed, or'), findsNothing);
-      });
-    }
-
-    testWidgets('the author of a closed Request: told it is closed, never '
-        '"offer help", and no one to remove', (tester) async {
-      final port = FakeLobbyPort(viewerId: 'Uauthor')
-        ..messagesList.addAll([ninaMsg, annaMsg])
-        ..canPost = false
-        ..limitReason = BeaconLobbyLimitReason.closed;
-      await tester.pumpWidget(_lobby(port, 'Uauthor'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('This request is closed'), findsOneWidget);
-      expect(find.textContaining('Offer help'), findsNothing);
-      expect(find.byTooltip('Remove from Questions'), findsNothing);
-    });
-
-    testWidgets('the remove confirmation holds whether or not they offered '
-        'help', (tester) async {
-      final port = FakeLobbyPort(viewerId: 'Uauthor')
-        ..messagesList.add(ninaMsg);
-      await tester.pumpWidget(_lobby(port, 'Uauthor'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Remove from Questions'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Their help offer stays'), findsNothing);
-      expect(
-        find.textContaining("This doesn't touch a help offer they made"),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('removed by the author: says so', (tester) async {
-      final port = FakeLobbyPort(viewerId: 'Unina')
-        ..banned.add('Unina')
-        ..limitReason = BeaconLobbyLimitReason.removed;
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('The author removed you from Questions on this request.'),
         findsOneWidget,
       );
     });
@@ -491,8 +448,7 @@ void main() {
           canPost: canPost,
           reason: reason,
         );
-        await tester.pumpWidget(_lobby(port, viewer));
-        await tester.pumpAndSettle();
+        await _pumpLobby(tester, port, viewer);
         expect(find.textContaining(line), findsOneWidget);
         for (final other in {
           author,
@@ -575,10 +531,9 @@ void main() {
         canPost: false,
         reason: BeaconLobbyLimitReason.cantHelp,
       );
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('This request is closed'), findsOneWidget);
-      expect(find.textContaining('Offer help'), findsNothing);
+      await _pumpLobby(tester, port, 'Unina');
+      expect(_composerHint(tester), contains('This request is closed'));
+      expect(_composerHint(tester), isNot(contains('Offer help')));
     });
 
     testWidgets("open Request: Can't help still names the reader's own act", (
@@ -591,199 +546,8 @@ void main() {
         canPost: false,
         reason: BeaconLobbyLimitReason.cantHelp,
       );
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining("You said you can't help"), findsOneWidget);
-    });
-  });
-
-  group('#658 desktop composer', () {
-    testWidgets('Enter (the send action) sends, like the Chat composer', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      expect(
-        tester.widget<TextField>(composer).textInputAction,
-        TextInputAction.send,
-      );
-      await tester.enterText(composer, 'Which Saturday?');
-      await tester.testTextInput.receiveAction(TextInputAction.send);
-      await tester.pumpAndSettle();
-      expect(port.calls, contains('post Which Saturday?'));
-      expect(find.text('Which Saturday?'), findsOneWidget);
-      // Cleared for the next question.
-      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
-    });
-
-    // #727: after Send the composer is empty for a screen reader too, and the
-    // same field keeps the keyboard. (QA on 7.52.1: the field used to be
-    // rebuilt after each send on the web; the new one showed its focus
-    // underline but keystrokes no longer reached it.)
-    testWidgets('after Enter sends, the same field takes the next keys', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      await tester.enterText(composer, 'Do we need gloves?');
-      await tester.pump();
-      final before = _textFieldNode();
-      expect(before.value, 'Do we need gloves?');
-      final fieldState = tester.state(find.byType(EditableText));
-
-      await tester.testTextInput.receiveAction(TextInputAction.send);
-      await tester.pumpAndSettle();
-
-      expect(port.calls, contains('post Do we need gloves?'));
-      // The same field and node: nothing was torn down and remounted.
-      expect(tester.state(find.byType(EditableText)), same(fieldState));
-      expect(_textFieldNode().id, before.id);
-      expect(_textFieldNode().value, isEmpty);
-      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isTrue);
-      expect(tester.testTextInput.isVisible, isTrue);
-      expect(tester.testTextInput.editingState?['text'], isEmpty);
-
-      tester.testTextInput.enterText('f2');
-      await tester.pump();
-      expect(tester.widget<TextField>(composer).controller!.text, 'f2');
-      expect(_textFieldNode().value, 'f2');
-      handle.dispose();
-    });
-
-    // #727 (QA on 7.52.1): a Send by mouse takes the focus off the field;
-    // the field must get it back, with the emptied text, so the next keys
-    // land without a click.
-    testWidgets('a Send by mouse gives the emptied field the keys back', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      await tester.enterText(composer, 'QA727 mouse send');
-      await tester.pump();
-
-      await tester.tap(
-        find.byKey(const Key('beaconLobbySend')),
-        kind: PointerDeviceKind.mouse,
-      );
-      await tester.pumpAndSettle();
-
-      expect(port.calls, contains('post QA727 mouse send'));
-      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isTrue);
-      expect(_textFieldNode().value, isEmpty);
-      expect(tester.testTextInput.hasAnyClients, isTrue);
-      expect(tester.testTextInput.editingState?['text'], isEmpty);
-
-      tester.testTextInput.enterText('f2');
-      await tester.pump();
-      expect(tester.widget<TextField>(composer).controller!.text, 'f2');
-      handle.dispose();
-    });
-
-    // #727 (QA on 7.52.1): the keyboard-only path, Tab to Send then Enter.
-    testWidgets('Tab to Send and Enter puts the keys back in the field', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      await tester.enterText(composer, 'QA727 tab send');
-      await tester.pump();
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isFalse);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
-
-      expect(port.calls, contains('post QA727 tab send'));
-      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isTrue);
-      expect(tester.testTextInput.editingState?['text'], isEmpty);
-
-      tester.testTextInput.enterText('f3');
-      await tester.pump();
-      expect(tester.widget<TextField>(composer).controller!.text, 'f3');
-    });
-
-    // Review r1 nit (#727): on a phone, a reader who closed the keyboard and
-    // then tapped Send must not get the keyboard back.
-    testWidgets('a touch Send with the field unfocused keeps it unfocused', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      await tester.pumpWidget(_lobby(port, 'Unina'));
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      await tester.enterText(composer, 'QA727 keyboard closed');
-      await tester.pump();
-      tester.widget<TextField>(composer).focusNode!.unfocus();
-      await tester.pump();
-      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isFalse);
-
-      await tester.tap(find.byKey(const Key('beaconLobbySend')));
-      await tester.pumpAndSettle();
-
-      expect(port.calls, contains('post QA727 keyboard closed'));
-      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
-      expect(tester.widget<TextField>(composer).focusNode!.hasFocus, isFalse);
-    });
-
-    // Guard: the focus is not taken back from somewhere else the reader
-    // moved to while the message was on its way.
-    testWidgets('a send does not pull the focus back from elsewhere', (
-      tester,
-    ) async {
-      final port = FakeLobbyPort(viewerId: 'Unina');
-      final elsewhere = FocusNode(debugLabel: 'elsewhere');
-      addTearDown(elsewhere.dispose);
-      final sync = FakeRealtimeSyncPort();
-      late BeaconLobbyCubit cubit;
-      await tester.pumpWidget(
-        _app(
-          Scaffold(
-            body: Column(
-              children: [
-                Focus(focusNode: elsewhere, child: const SizedBox(height: 8)),
-                Expanded(
-                  child: BlocProvider(
-                    create: (_) {
-                      cubit = BeaconLobbyCubit(
-                        lobbyCaseFor(port, sync),
-                        RecordingEffects(),
-                        beaconId: 'B1',
-                      );
-                      unawaited(cubit.load());
-                      return cubit;
-                    },
-                    child: const BeaconLobbyBody(myUserId: 'Unina'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final composer = find.byKey(const Key('beaconLobbyComposer'));
-      await tester.enterText(composer, 'QA727 moved on');
-      await tester.pump();
-      elsewhere.requestFocus();
-      await tester.pump();
-
-      unawaited(cubit.post('QA727 moved on'));
-      await tester.pumpAndSettle();
-
-      expect(port.calls, contains('post QA727 moved on'));
-      expect(tester.widget<TextField>(composer).controller!.text, isEmpty);
-      expect(elsewhere.hasFocus, isTrue);
+      await _pumpLobby(tester, port, 'Unina');
+      expect(_composerHint(tester), contains("You said you can't help"));
     });
   });
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/browse_deep_link.dart';
@@ -15,7 +14,7 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../../domain/use_case/beacon_lobby_case.dart';
 import '../bloc/beacon_lobby_cubit.dart';
-import '../widget/beacon_lobby_body.dart';
+import '../widget/beacon_lobby_chat.dart';
 
 /// The app-bar arrow on Questions (#689): leave Questions so that it is not
 /// in the history any more, and the next system Back goes where the Request
@@ -104,14 +103,7 @@ class BeaconLobbyScreen extends StatelessWidget implements AutoRouteWrapper {
         leading: BeaconLobbyBackButton(beaconId: beaconId),
         title: Text(L10n.of(context)!.beaconLobbyTitle),
       ),
-      body: SafeArea(
-        // The same centred content column as the top bar (#658).
-        child: TenturaContentColumn(
-          child: BeaconLobbyBody(
-            myUserId: context.read<ProfileCubit>().state.profile.id,
-          ),
-        ),
-      ),
+      body: const SafeArea(child: BeaconLobbyChat()),
     ),
   );
 }

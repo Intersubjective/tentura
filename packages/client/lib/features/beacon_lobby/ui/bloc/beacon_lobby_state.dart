@@ -12,17 +12,6 @@ abstract class BeaconLobbyState extends StateBase with _$BeaconLobbyState {
     @Default(StateIsLoading()) StateStatus status,
     BeaconLobbyInfo? info,
 
-    /// Oldest first.
-    @Default([]) List<BeaconLobbyMessage> messages,
-
-    /// The last page fetched backwards was full: there may be older ones.
-    @Default(false) bool hasOlder,
-    @Default(false) bool loadingOlder,
-    @Default(false) bool sending,
-
-    /// Counts accepted posts; the composer clears when it grows.
-    @Default(0) int postedCount,
-
     /// The server said this viewer may not use Questions.
     @Default(false) bool unavailable,
 

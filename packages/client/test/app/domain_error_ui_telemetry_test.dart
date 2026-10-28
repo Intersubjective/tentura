@@ -16,7 +16,7 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_lobby/data/model/beacon_lobby_error_mapper.dart';
 import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
 import 'package:tentura/features/beacon_lobby/ui/bloc/beacon_lobby_cubit.dart';
-import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_body.dart';
+import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_chat.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -199,9 +199,7 @@ void main() {
                             Expanded(
                               child: BlocProvider<BeaconLobbyCubit>(
                                 create: (_) => cubit,
-                                child: const BeaconLobbyBody(
-                                  myUserId: 'Ustranger',
-                                ),
+                                child: const BeaconLobbyChat(),
                               ),
                             ),
                         ],

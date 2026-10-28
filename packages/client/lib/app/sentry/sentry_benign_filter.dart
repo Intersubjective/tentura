@@ -20,7 +20,6 @@ bool isBenignSentryThrowable(Object? error) {
       error is RequestTimeoutException ||
       error is RemoteApiRetryLaterException ||
       error is BeaconLobbyUnavailableException ||
-      error is BeaconLobbyPostDeniedException ||
       error is AuthSessionLostException ||
       error is AuthenticationNoKeyException ||
       error is SessionAuthRejectedException) {

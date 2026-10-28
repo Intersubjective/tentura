@@ -26,7 +26,9 @@ class FakeLobbyPort implements BeaconLobbyPort {
   final String authorId;
   final Set<String> offerers;
   final banned = <String>[];
-  final messagesList = <BeaconLobbyMessage>[];
+
+  /// How many Questions messages there are (the entry row's count).
+  int messageCount = 0;
   final calls = <String>[];
   bool canPost = true;
 
@@ -83,63 +85,10 @@ class FakeLobbyPort implements BeaconLobbyPort {
     return BeaconLobbyAccess(
       canRead: _allowed,
       canPost: _allowed && canPost,
-      messageCount: _allowed ? messagesList.length : 0,
+      messageCount: _allowed ? messageCount : 0,
       limitReason: limitReason,
       isHelper: isHelper,
       takesOffers: takesOffers,
-    );
-  }
-
-  /// Server page size.
-  static const pageSize = 50;
-
-  @override
-  Future<List<BeaconLobbyMessage>> messages({
-    required String beaconId,
-    required String lobbyId,
-    DateTime? before,
-  }) async {
-    calls.add(before == null ? 'messages' : 'messages before');
-    if (!_allowed) throw const BeaconLobbyUnavailableException();
-    final older = [
-      for (final m in messagesList)
-        if (before == null ||
-            (m.createdAt != null && m.createdAt!.isBefore(before)))
-          m,
-    ];
-    return older.length <= pageSize
-        ? older
-        : older.sublist(older.length - pageSize);
-  }
-
-  @override
-  Future<void> markSeen({
-    required String beaconId,
-    required String lobbyId,
-  }) async {
-    calls.add('seen');
-  }
-
-  @override
-  Future<void> post({
-    required String beaconId,
-    required String lobbyId,
-    required String body,
-  }) async {
-    calls.add('post $body');
-    _maybeFail();
-    // The repository turns the room API's refusal (1102) into this (#683).
-    if (!_allowed || !canPost) throw const BeaconLobbyPostDeniedException();
-    messagesList.add(
-      BeaconLobbyMessage(
-        id: 'M${messagesList.length}',
-        authorId: viewerId,
-        authorName: viewerId == authorId ? 'Anna' : 'Nina',
-        body: body,
-        createdAt: DateTime.utc(2026).add(
-          Duration(minutes: messagesList.length),
-        ),
-      ),
     );
   }
 

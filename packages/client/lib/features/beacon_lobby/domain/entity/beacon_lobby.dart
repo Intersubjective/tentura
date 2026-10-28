@@ -92,14 +92,3 @@ abstract class BeaconLobbyAccess with _$BeaconLobbyAccess {
     @Default(true) bool takesOffers,
   }) = _BeaconLobbyAccess;
 }
-
-@freezed
-abstract class BeaconLobbyMessage with _$BeaconLobbyMessage {
-  const factory BeaconLobbyMessage({
-    required String id,
-    required String authorId,
-    required String authorName,
-    required String body,
-    DateTime? createdAt,
-  }) = _BeaconLobbyMessage;
-}

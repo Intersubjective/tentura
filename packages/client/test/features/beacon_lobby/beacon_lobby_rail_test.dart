@@ -5,14 +5,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/data/repository/clipboard_image_repository.dart';
+import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_account_footer.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../beacon_threads/room_cubit_fakes.dart';
+import '../beacon_threads/support/room_body_harness.dart'
+    show RoomBodyHarnessPresenceCubit;
 import 'fake_lobby_port.dart';
 
 final class _FakeProfileCubit extends Fake implements ProfileCubit {
@@ -38,22 +48,47 @@ class _TestRouter extends RootStackRouter {
   ];
 }
 
+Future<void> _pumpFrames(WidgetTester tester) async {
+  // Bounded: the Questions chat hosts animations that never settle.
+  for (var i = 0; i < 20; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
 Future<_TestRouter> _pump(WidgetTester tester, Size size) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await GetIt.I.reset();
   addTearDown(GetIt.I.reset);
+  final profileCubit = _FakeProfileCubit();
+  final presenceCubit = RoomBodyHarnessPresenceCubit();
+  // The Questions chat is the room chat on the Questions thread.
   GetIt.I
     ..registerSingleton<BeaconLobbyCase>(
       lobbyCaseFor(FakeLobbyPort(viewerId: 'Unina'), FakeRealtimeSyncPort()),
     )
-    ..registerSingleton<UiEffectPort>(RecordingEffects());
+    ..registerSingleton<UiEffectPort>(RecordingEffects())
+    ..registerSingleton<ProfileCubit>(profileCubit)
+    ..registerSingleton<PresenceCubit>(presenceCubit)
+    ..registerSingleton<BeaconThreadsCase>(
+      roomCubitMakeCase(FakeBeaconThreadsRepository(userId: 'Unina')),
+    )
+    ..registerSingleton<BeaconFactCardRepository>(
+      FakeBeaconFactCardRepository(),
+    )
+    ..registerSingleton<CoordinationItemRoomSync>(CoordinationItemRoomSync())
+    ..registerSingleton<PresenceRepository>(roomCubitFakePresenceRepository())
+    ..registerSingleton<ImageRepository>(ImageRepository())
+    ..registerSingleton<ClipboardImageRepository>(ClipboardImageRepository());
   final router = _TestRouter();
   addTearDown(router.dispose);
   await tester.pumpWidget(
-    BlocProvider<ProfileCubit>.value(
-      value: _FakeProfileCubit(),
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<ProfileCubit>.value(value: profileCubit),
+        BlocProvider<PresenceCubit>.value(value: presenceCubit),
+      ],
       child: MaterialApp.router(
         locale: const Locale('en'),
         theme: TenturaTheme.light(),
@@ -70,7 +105,11 @@ Future<_TestRouter> _pump(WidgetTester tester, Size size) async {
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await _pumpFrames(tester);
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
   return router;
 }
 
@@ -91,7 +130,7 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(router.stack, hasLength(2));
     await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
+    await _pumpFrames(tester);
     expect(router.stack, hasLength(1));
   });
 }

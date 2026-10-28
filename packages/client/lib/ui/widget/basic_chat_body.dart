@@ -110,6 +110,7 @@ class BasicChatBody extends StatefulWidget {
     this.pendingJumpMessageId,
     this.receiptIndex,
     this.capabilities = const RoomCapabilities.request(),
+    this.requestAuthorId = '',
     this.pollsClosed = false,
     this.hideUntilViewportPositioned = false,
     super.key,
@@ -266,6 +267,9 @@ class BasicChatBody extends StatefulWidget {
 
   /// Request-only features passed down to each [RoomMessageTile].
   final RoomCapabilities capabilities;
+
+  /// The Request author, for the "Author" mark of rooms that show it.
+  final String requestAuthorId;
 
   /// The Request is final (read-only): polls show their results to
   /// everyone and take no votes (#609).
@@ -764,6 +768,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                               highlightedMessageId: _highlightedMessageId,
                               receipt: widget.receiptIndex?.receiptFor(m),
                               capabilities: widget.capabilities,
+                              requestAuthorId: widget.requestAuthorId,
                               pollsClosed: widget.pollsClosed,
                             );
 

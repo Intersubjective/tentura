@@ -7,10 +7,3 @@ final class BeaconLobbyUnavailableException implements Exception {
   /// Server `BeaconExceptionCode.beaconLobbyAccessDenied`.
   static const codeNumber = 1347;
 }
-
-/// #683 — the server refused a Questions post: the viewer may no longer
-/// write (removed, or their offer was declined or withdrawn meanwhile). What
-/// they may still do is for a fresh read of their access to say.
-final class BeaconLobbyPostDeniedException implements Exception {
-  const BeaconLobbyPostDeniedException();
-}

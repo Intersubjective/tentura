@@ -12,6 +12,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_focus_ring.dart';
+import 'package:tentura/design_system/components/tentura_type_label.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_spacing.dart';
 import 'package:tentura/design_system/tentura_text.dart';
@@ -116,10 +117,15 @@ class RoomMessageTile extends StatelessWidget {
     this.capabilities = const RoomCapabilities.request(),
     this.pollsClosed = false,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
+    this.requestAuthorId = '',
     super.key,
   });
 
   final RoomMessage message;
+
+  /// The Request author: their messages carry the "Author" mark when the
+  /// room's capabilities ask for it ([RoomCapabilities.authorMark]).
+  final String requestAuthorId;
 
   /// Offers the author menu (Profile, "Add to tag…") on other people's
   /// messages; off with the feature gate.
@@ -649,6 +655,12 @@ class RoomMessageTile extends StatelessWidget {
             ? TenturaTokens.dark
             : TenturaTokens.light);
     final isMine = message.authorId == myProfile.id;
+    final authorMark =
+        capabilities.authorMark &&
+            requestAuthorId.isNotEmpty &&
+            message.authorId == requestAuthorId
+        ? l10n.beaconLobbyAuthorBadge
+        : null;
     final semantic = _semanticShortLabel(l10n, message.semanticMarker);
     // A baton message's body is the ask, shown as the baton card's title.
     final display = _isBatonMessage(message) && message.baton != null
@@ -1380,7 +1392,7 @@ class RoomMessageTile extends StatelessWidget {
                 message.author,
                 state.profile.id,
               );
-              return Text(
+              final name = Text(
                 SelfUserHighlight.displayName(
                   l10n,
                   message.author,
@@ -1392,6 +1404,15 @@ class RoomMessageTile extends StatelessWidget {
                   theme.textTheme.labelMedium,
                   isSelf,
                 ),
+              );
+              if (authorMark == null) return name;
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(child: name),
+                  SizedBox(width: tt.iconTextGap),
+                  TenturaTypeLabel(authorMark),
+                ],
               );
             },
           ),
@@ -1817,8 +1838,21 @@ class RoomMessageTile extends StatelessWidget {
               textDirection: textDirection,
               textScaler: textScaler,
             )..layout();
-            if (namePainter.width > tightTextWidth) {
-              tightTextWidth = namePainter.width;
+            var nameWidth = namePainter.width;
+            if (authorMark != null) {
+              final markPainter = TextPainter(
+                text: TextSpan(
+                  text: authorMark.toUpperCase(),
+                  style: TenturaText.typeLabel(tt.textMuted),
+                ),
+                textDirection: textDirection,
+                textScaler: textScaler,
+              )..layout();
+              nameWidth += tt.iconTextGap + markPainter.width;
+              markPainter.dispose();
+            }
+            if (nameWidth > tightTextWidth) {
+              tightTextWidth = nameWidth;
             }
           }
 

@@ -7,7 +7,9 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 
 import 'fake_lobby_port.dart';
 
-/// Request Questions (internally the lobby, U088), client state.
+/// Request Questions (internally the lobby, U088), client state: the
+/// viewer's standing and the author's removals (the messages are the room
+/// chat's).
 void main() {
   late FakeRealtimeSyncPort sync;
   late RecordingEffects effects;
@@ -24,22 +26,14 @@ void main() {
 
   Future<void> settle() => Future<void>.delayed(Duration.zero);
 
-  test('an offerer opens the lobby and sees its messages', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina')
-      ..messagesList.add(
-        const BeaconLobbyMessage(
-          id: 'M1',
-          authorId: 'Uauthor',
-          authorName: 'Anna',
-          body: 'The 18th',
-        ),
-      );
-    final c = cubitFor(port);
+  test('an offerer opens Questions and may post', () async {
+    final c = cubitFor(FakeLobbyPort(viewerId: 'Unina'));
     await c.load();
     expect(c.state.isSuccess, isTrue);
     expect(c.state.unavailable, isFalse);
     expect(c.state.isAuthor, isFalse);
-    expect([for (final m in c.state.messages) m.body], ['The 18th']);
+    expect(c.state.canPost, isTrue);
+    expect(c.state.info?.lobbyId, 'Llobby');
     await c.close();
   });
 
@@ -63,26 +57,8 @@ void main() {
     await c.close();
   });
 
-  test('posting adds the message and clears the composer; a failed post '
-      'shows the error and keeps the lobby', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina');
-    final c = cubitFor(port);
-    await c.load();
-    await c.post('  Which Saturday?  ');
-    expect([for (final m in c.state.messages) m.body], ['Which Saturday?']);
-    expect(c.state.postedCount, 1);
-    await c.post('   ');
-    expect(port.calls.where((x) => x.startsWith('post')), hasLength(1));
-    port.failNext = true;
-    await c.post('again');
-    expect(c.state.postedCount, 1);
-    expect(effects.emitted.single, isA<ShowError>());
-    expect(c.state.info, isNotNull);
-    await c.close();
-  });
-
-  test('removed while the screen is open: sending shows "the author removed '
-      'you", not an error bar (#683)', () async {
+  test('removed while the screen is open: the next standing hint says "the '
+      'author removed you", not an error bar (#683)', () async {
     final port = FakeLobbyPort(viewerId: 'Unina');
     final c = cubitFor(port);
     await c.load();
@@ -90,50 +66,50 @@ void main() {
     port
       ..banned.add('Unina')
       ..limitReason = BeaconLobbyLimitReason.removed;
-    await c.post('Still there?');
+    sync.hint(RealtimeEntityKind.participant, 'B1');
+    await settle();
     await settle();
     expect(effects.emitted, isEmpty);
-    expect(c.state.sending, isFalse);
     expect(c.state.unavailable, isTrue);
-    expect(c.state.messages, isEmpty);
     expect(c.state.unavailableReason, BeaconLobbyLimitReason.removed);
     await c.close();
   });
 
-  test('no longer allowed to ask while the screen is open (offer declined): '
-      'the thread stays readable with the read-only note, no error bar '
-      '(#683)', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina')
-      ..messagesList.add(
-        const BeaconLobbyMessage(
-          id: 'M1',
-          authorId: 'Uauthor',
-          authorName: 'Anna',
-          body: 'The 18th',
-        ),
-      );
-    final c = cubitFor(port);
-    await c.load();
-    expect(c.state.canPost, isTrue);
-    port
-      ..canPost = false
-      ..limitReason = BeaconLobbyLimitReason.declined;
-    await c.post('Still there?');
-    await settle();
-    expect(effects.emitted, isEmpty);
-    expect(c.state.unavailable, isFalse);
-    expect(c.state.canPost, isFalse);
-    expect(c.state.readOnlyReason, BeaconLobbyLimitReason.declined);
-    expect([for (final m in c.state.messages) m.body], ['The 18th']);
-    await c.close();
-  });
+  test(
+    'no longer allowed to ask while the screen is open (offer declined): '
+    'the next standing hint makes it read-only and names why (#683)',
+    () async {
+      final port = FakeLobbyPort(viewerId: 'Unina');
+      final c = cubitFor(port);
+      await c.load();
+      expect(c.state.canPost, isTrue);
+      port
+        ..canPost = false
+        ..limitReason = BeaconLobbyLimitReason.declined;
+      sync.hint(RealtimeEntityKind.helpOffer, 'B1');
+      await settle();
+      await settle();
+      expect(effects.emitted, isEmpty);
+      expect(c.state.unavailable, isFalse);
+      expect(c.state.canPost, isFalse);
+      expect(c.state.readOnlyReason, BeaconLobbyLimitReason.declined);
+      await c.close();
+    },
+  );
 
-  test('no posting once the Request is closed (canPost false)', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina')..canPost = false;
+  test('a message hint does not re-check the standing; a hint about '
+      'another Request is ignored', () async {
+    final port = FakeLobbyPort(viewerId: 'Uauthor');
     final c = cubitFor(port);
     await c.load();
-    await c.post('late question');
-    expect(port.calls, isNot(contains('post late question')));
+    int opens() => port.calls.where((x) => x == 'open').length;
+    final before = opens();
+    sync
+      ..hint(RealtimeEntityKind.roomMessage, 'B1')
+      ..hint(RealtimeEntityKind.helpOffer, 'Bother');
+    await settle();
+    await settle();
+    expect(opens(), before);
     await c.close();
   });
 
@@ -150,142 +126,6 @@ void main() {
     await c.ban('Unina');
     expect(effects.emitted.single, isA<ShowError>());
     expect([for (final b in c.state.banned) b.userId], isEmpty);
-    await c.close();
-  });
-
-  test(
-    "a removed person's earlier messages stay in the author's lobby",
-    () async {
-      final port = FakeLobbyPort(viewerId: 'Uauthor');
-      port.messagesList.add(
-        const BeaconLobbyMessage(
-          id: 'M0',
-          authorId: 'Unina',
-          authorName: 'Nina',
-          body: 'I can bring a ladder',
-        ),
-      );
-      final c = cubitFor(port);
-      await c.load();
-      await c.ban('Unina');
-      expect([for (final b in c.state.banned) b.userId], ['Unina']);
-      expect(
-        [for (final m in c.state.messages) m.body],
-        ['I can bring a ladder'],
-      );
-      await c.close();
-    },
-  );
-
-  test('a message hint refetches the newest page only (no access '
-      're-check); an offer hint re-opens', () async {
-    final port = FakeLobbyPort(viewerId: 'Uauthor');
-    final c = cubitFor(port);
-    await c.load();
-    int count(String call) => port.calls.where((x) => x == call).length;
-    final opens = count('open');
-    final pages = count('messages');
-    port.messagesList.add(
-      BeaconLobbyMessage(
-        id: 'M9',
-        authorId: 'Unina',
-        authorName: 'Nina',
-        body: 'Is there a lift?',
-        createdAt: DateTime.utc(2026, 2),
-      ),
-    );
-    sync.hint(RealtimeEntityKind.roomMessage, 'Bother');
-    await settle();
-    expect(count('messages'), pages);
-    sync.hint(RealtimeEntityKind.roomMessage, 'B1');
-    await settle();
-    await settle();
-    expect(count('open'), opens);
-    expect(count('messages'), pages + 1);
-    expect([for (final m in c.state.messages) m.body], ['Is there a lift?']);
-    sync.hint(RealtimeEntityKind.helpOffer, 'B1');
-    await settle();
-    await settle();
-    expect(count('open'), opens + 1);
-    await c.close();
-  });
-
-  test('pages back with beforeIso until the oldest message', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina');
-    for (var i = 0; i < 120; i++) {
-      port.messagesList.add(
-        BeaconLobbyMessage(
-          id: 'M$i',
-          authorId: 'Uauthor',
-          authorName: 'Anna',
-          body: 'm$i',
-          createdAt: DateTime.utc(2026).add(Duration(minutes: i)),
-        ),
-      );
-    }
-    final c = cubitFor(port);
-    await c.load();
-    expect(c.state.messages, hasLength(50));
-    expect(c.state.messages.first.body, 'm70');
-    expect(c.state.hasOlder, isTrue);
-    await c.loadOlder();
-    expect(c.state.messages, hasLength(100));
-    expect(c.state.hasOlder, isTrue);
-    await c.loadOlder();
-    expect(c.state.messages, hasLength(120));
-    expect(c.state.messages.first.body, 'm0');
-    expect(c.state.hasOlder, isFalse);
-    // A later message hint keeps the older pages loaded.
-    sync.hint(RealtimeEntityKind.roomMessage, 'B1');
-    await settle();
-    await settle();
-    expect(c.state.messages, hasLength(120));
-    await c.close();
-  });
-
-  test('a burst larger than a page never leaves a silent gap', () async {
-    BeaconLobbyMessage msg(int i) => BeaconLobbyMessage(
-      id: 'M$i',
-      authorId: 'Uauthor',
-      authorName: 'Anna',
-      body: 'm$i',
-      createdAt: DateTime.utc(2026).add(Duration(minutes: i)),
-    );
-    final port = FakeLobbyPort(viewerId: 'Unina');
-    for (var i = 0; i < 10; i++) {
-      port.messagesList.add(msg(i));
-    }
-    final c = cubitFor(port);
-    await c.load();
-    for (var i = 10; i < 70; i++) {
-      port.messagesList.add(msg(i));
-    }
-    sync.hint(RealtimeEntityKind.roomMessage, 'B1');
-    await settle();
-    await settle();
-    expect(c.state.messages, hasLength(50));
-    expect(c.state.messages.first.body, 'm20');
-    expect(c.state.hasOlder, isTrue);
-    await c.close();
-  });
-
-  test('opening marks Questions seen', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina');
-    final c = cubitFor(port);
-    await c.load();
-    await settle();
-    expect(port.calls, contains('seen'));
-    await c.close();
-  });
-
-  test('removed meanwhile: the next refetch locks the lobby', () async {
-    final port = FakeLobbyPort(viewerId: 'Unina');
-    final c = cubitFor(port);
-    await c.load();
-    port.banned.add('Unina');
-    await c.refresh();
-    expect(c.state.unavailable, isTrue);
-    expect(c.state.messages, isEmpty);
     await c.close();
   });
 
