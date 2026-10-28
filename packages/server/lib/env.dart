@@ -93,7 +93,9 @@ Duration? _parseEnvDuration(String? raw) {
 /// kind-8 edit lines as empty bubbles and don't use `beaconCantHelp`.
 /// Raised to 7.57.0 for post lifetime (#763): old clients know nothing of
 /// `expires_at`, archived Posts or the new shorten/close mutations.
-const kDefaultMinClientVersion = '7.57.0';
+/// Raised to 7.58.0 for the QA batch of 2026-10-24 (#482 voter list for the
+/// poll author, #337 Updates search by actor, #545 first-load gate).
+const kDefaultMinClientVersion = '7.58.0';
 
 class Env {
   Env({
