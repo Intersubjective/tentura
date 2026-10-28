@@ -949,8 +949,10 @@ ORDER BY tier, user_id
       final totalVotes = votersByPollingId[pollId]?.length ?? 0;
       final viewerHasVoted = myVariantIds.isNotEmpty;
       final isRange = polling.pollType == 'range';
-      // Only expose who voted when poll is open AND viewer has already voted
-      final exposeVoters = !polling.isAnonymous && viewerHasVoted;
+      // Non-anonymous polls expose voters to participants who voted and authors.
+      final exposeVoters =
+          !polling.isAnonymous &&
+          (viewerHasVoted || polling.authorId == viewerUserId);
 
       out[msgId] = jsonEncode({
         'id': pollId,
