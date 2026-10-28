@@ -2455,6 +2455,32 @@ WHERE author_id = \$1 AND created_at >= \$2
     _db.beaconRoomMessageAttachments,
   )..where((a) => a.id.equals(attachmentId))).getSingleOrNull())?.toRecord();
 
+  /// Takes the message row lock and tells whether the message already holds
+  /// this attachment, so a retried send that re-adds it saves it once (#654).
+  /// The lock makes the check and the insert that follows one step per message.
+  Future<bool> _messageHoldsAttachment({
+    required String messageId,
+    required String displayName,
+    required String mime,
+    required int sizeBytes,
+  }) async {
+    await _db
+        .customSelect(
+          r'SELECT 1 FROM public.beacon_room_message WHERE id = $1 FOR UPDATE',
+          variables: [Variable<String>(messageId)],
+        )
+        .get();
+    return (await (_db.select(_db.beaconRoomMessageAttachments)..where(
+              (a) =>
+                  a.messageId.equals(messageId) &
+                  a.fileName.equals(displayName) &
+                  a.mime.equals(mime) &
+                  a.sizeBytes.equals(sizeBytes),
+            ))
+            .get())
+        .isNotEmpty;
+  }
+
   Future<void> insertRoomMessageAttachmentImage({
     required String attachmentId,
     required String messageId,
@@ -2465,6 +2491,14 @@ WHERE author_id = \$1 AND created_at >= \$2
     required String displayName,
     required String mutatingUserId,
   }) => _db.withMutatingUser(mutatingUserId, () async {
+    if (await _messageHoldsAttachment(
+      messageId: messageId,
+      displayName: displayName,
+      mime: mime,
+      sizeBytes: sizeBytes,
+    )) {
+      return;
+    }
     await _db
         .into(_db.beaconRoomMessageAttachments)
         .insert(
@@ -2491,6 +2525,14 @@ WHERE author_id = \$1 AND created_at >= \$2
     required String displayName,
     required String mutatingUserId,
   }) => _db.withMutatingUser(mutatingUserId, () async {
+    if (await _messageHoldsAttachment(
+      messageId: messageId,
+      displayName: displayName,
+      mime: mime,
+      sizeBytes: sizeBytes,
+    )) {
+      return;
+    }
     await _db
         .into(_db.beaconRoomMessageAttachments)
         .insert(
