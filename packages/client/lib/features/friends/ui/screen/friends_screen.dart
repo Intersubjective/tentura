@@ -22,6 +22,7 @@ import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.d
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
+import 'package:tentura/ui/widget/first_load_gate.dart';
 
 import '../bloc/friends_cubit.dart';
 import '../invite_pending_subtitle.dart';
@@ -278,92 +279,72 @@ class FriendsListBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     return BlocBuilder<FriendsCubit, FriendsState>(
       bloc: friendsCubit,
       buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
       builder: (_, state) {
-        if (state.isLoading && state.friends.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator.adaptive(),
-          );
-        }
-        if (state.hasError && state.friends.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: tt.iconSize * 2,
-                  color: theme.colorScheme.error,
-                ),
-                SizedBox(height: tt.sectionGap),
-                FilledButton(
-                  onPressed: () => unawaited(friendsCubit.fetch()),
-                  child: Text(l10n.myWorkRetry),
-                ),
-              ],
-            ),
-          );
-        }
         final friends = state.friends.values.toList();
-        return RefreshIndicator.adaptive(
-          onRefresh: friendsCubit.fetch,
-          child: state.friends.isEmpty
-              ? LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: TenturaEmptyState(
-                        icon: Icons.people_outline,
-                        title: l10n.friendsEmptyTitle,
-                        body: l10n.friendsEmptyBody,
-                        actionLabel: l10n.friendsCreateInvitation,
-                        onAction: onCreateInvitation,
+        return TenturaFirstLoadGate(
+          ready: state.firstLoadDone,
+          error: state.loadError,
+          onRetry: () => unawaited(friendsCubit.fetch()),
+          child: RefreshIndicator.adaptive(
+            onRefresh: friendsCubit.fetch,
+            child: state.friends.isEmpty
+                ? LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: TenturaEmptyState(
+                          icon: Icons.people_outline,
+                          title: l10n.friendsEmptyTitle,
+                          body: l10n.friendsEmptyBody,
+                          actionLabel: l10n.friendsCreateInvitation,
+                          onAction: onCreateInvitation,
+                        ),
                       ),
                     ),
-                  ),
-                )
-              : ListView.separated(
-                  itemCount:
-                      friends.length +
-                      (onCreateInvitation != null &&
-                              friends.length < _inviteFooterBelow
-                          ? 1
-                          : 0),
-                  itemBuilder: (_, i) {
-                    if (i == friends.length) {
-                      return Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: tt.sectionGap,
-                        ),
-                        child: Center(
-                          child: FilledButton.tonalIcon(
-                            key: const Key('Friends.InviteFooter'),
-                            icon: const Icon(Icons.person_add_alt_1),
-                            label: Text(l10n.friendsInviteMore),
-                            onPressed: onCreateInvitation,
+                  )
+                : ListView.separated(
+                    itemCount:
+                        friends.length +
+                        (onCreateInvitation != null &&
+                                friends.length < _inviteFooterBelow
+                            ? 1
+                            : 0),
+                    itemBuilder: (_, i) {
+                      if (i == friends.length) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: tt.sectionGap,
                           ),
-                        ),
+                          child: Center(
+                            child: FilledButton.tonalIcon(
+                              key: const Key('Friends.InviteFooter'),
+                              icon: const Icon(Icons.person_add_alt_1),
+                              label: Text(l10n.friendsInviteMore),
+                              onPressed: onCreateInvitation,
+                            ),
+                          ),
+                        );
+                      }
+                      final profile = friends[i];
+                      return NetworkPersonCard(
+                        key: ValueKey(profile),
+                        profile: profile,
+                        friendContext:
+                            state.friendContexts[profile.id] ??
+                            FriendContext.empty,
                       );
-                    }
-                    final profile = friends[i];
-                    return NetworkPersonCard(
-                      key: ValueKey(profile),
-                      profile: profile,
-                      friendContext:
-                          state.friendContexts[profile.id] ??
-                          FriendContext.empty,
-                    );
-                  },
-                  separatorBuilder: separatorBuilder,
-                ),
+                    },
+                    separatorBuilder: separatorBuilder,
+                  ),
+          ),
         );
       },
     );

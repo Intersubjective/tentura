@@ -57,7 +57,6 @@ class FriendsCubit extends Cubit<FriendsState> {
   static const _refreshDebounce = Duration(milliseconds: 100);
   Timer? _refreshTimer;
   int _fetchSequence = 0;
-  bool _hasLoaded = false;
 
   @override
   @disposeMethod
@@ -87,13 +86,13 @@ class FriendsCubit extends Cubit<FriendsState> {
         FriendsState(
           friends: snapshot.friends,
           friendContexts: snapshot.friendContexts,
+          firstLoadDone: true,
         ),
       );
-      _hasLoaded = true;
       _case.watchPresence(snapshot.friends.keys.toSet());
     } catch (e) {
       if (isClosed || sequence != _fetchSequence) return;
-      if (!_hasLoaded) {
+      if (!state.firstLoadDone) {
         emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
       } else if (showError) {
         _effects.emit(ShowError(e));
@@ -112,7 +111,6 @@ class FriendsCubit extends Cubit<FriendsState> {
     _refreshTimer?.cancel();
     _case.unwatchPresence();
     _fetchSequence++;
-    _hasLoaded = false;
     emit(const FriendsState(friends: {}));
     if (userId.isNotEmpty) {
       unawaited(fetch());

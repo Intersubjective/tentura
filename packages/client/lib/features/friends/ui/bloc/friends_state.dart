@@ -13,6 +13,7 @@ abstract class FriendsState extends StateBase with _$FriendsState {
     @Default({}) Map<String, FriendContext> friendContexts,
     @Default(StateIsSuccess()) StateStatus status,
     Object? loadError,
+    @Default(false) bool firstLoadDone,
   }) = _FriendsState;
 
   const FriendsState._();
