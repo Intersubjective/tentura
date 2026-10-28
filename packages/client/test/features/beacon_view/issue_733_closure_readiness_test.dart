@@ -144,6 +144,31 @@ void main() {
       expect(spec.effectLine.toLowerCase(), isNot(contains('acknowledg')));
     });
 
+    // QA re-check: the button said «Start final check» above a caption saying
+    // there is no final check; it now reads «Close now» (EN and RU).
+    test('HUD close button reads Close now when nobody can vote', () {
+      final ru = lookupL10n(const Locale('ru'));
+      for (final n in [1, 2]) {
+        final spec = deriveBeaconHudAuthorActSpec(
+          l10n: _en,
+          state: _state(committers: n),
+        )!;
+        expect(spec.label, 'Close now', reason: '$n');
+        expect(spec.label, isNot(_en.beaconHudActWrapUpForReview));
+        expect(spec.semanticsLabel, startsWith('Close now.'));
+        expect(
+          spec.icon,
+          iconForBeaconHudAuthorAction(BeaconHudAuthorAction.closeNow),
+        );
+      }
+      final ruSpec = deriveBeaconHudAuthorActSpec(
+        l10n: ru,
+        state: _state(committers: 2),
+      )!;
+      expect(ruSpec.label, ru.beaconReviewCloseNowAction);
+      expect(ruSpec.label, isNot(ru.beaconHudActWrapUpForReview));
+    });
+
     test('HUD close action with 3 committers still starts the final check '
         '(guard)', () {
       final spec = deriveBeaconHudAuthorActSpec(
@@ -151,6 +176,12 @@ void main() {
         state: _state(helpers: const ['h1', 'h2', 'h3'], committers: 3),
       )!;
       expect(spec.effectLine, _en.beaconHudActEffectWrapUpForReview);
+      expect(spec.label, _en.beaconHudActWrapUpForReview);
+      expect(spec.label, 'Start final check');
+      expect(
+        spec.icon,
+        iconForBeaconHudAuthorAction(BeaconHudAuthorAction.wrapUpForReview),
+      );
     });
   });
 
@@ -171,6 +202,10 @@ void main() {
         );
         // The HUD close action reads its effect line from this rule.
         expect(closureFinalCheckHasNoVote(state), isTrue);
+        final spec = deriveBeaconHudAuthorActSpec(l10n: _en, state: state);
+        if (spec?.action == BeaconHudAuthorAction.wrapUpForReview) {
+          expect(spec!.label, _en.beaconReviewCloseNowAction);
+        }
       });
     }
 

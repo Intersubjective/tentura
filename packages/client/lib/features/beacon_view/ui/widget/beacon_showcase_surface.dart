@@ -648,11 +648,16 @@ String? beaconShowcaseOfferQuoteText(L10n l10n, BeaconViewState state) {
 /// #725: the viewer said they can't make it (their inbox row for this
 /// Request is declined), so the page says so above Offer help, which still
 /// lets them change their mind. Null when there is nothing to say: the
-/// author, an active offer of theirs, or a finished Request.
+/// author, an active offer of theirs, or a finished Request. In its final
+/// check there is no Offer help, so the line keeps only the fact (#733).
 String? beaconShowcaseDeclinedText(L10n l10n, BeaconViewState state) {
   if (state.inboxStatus != InboxItemStatus.rejected) return null;
   if (state.isBeaconMine || state.myActiveHelpOffer != null) return null;
-  if (state.beacon.status.isFinished) return null;
+  final status = state.beacon.status;
+  if (status.isFinished) return null;
+  if (status == BeaconStatus.reviewOpen) {
+    return l10n.beaconShowcaseDeclinedFinalCheck;
+  }
   return l10n.beaconShowcaseDeclined;
 }
 

@@ -328,10 +328,12 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                     TextSpan(text: headline),
                   ],
                 ),
-                // Two lines, so on a phone the event («accepted your
-                // invite») is not cut off after the name (#736).
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                // Never cut: a name plus a short event («предложил(а)
+                // помощь») can need three lines on a 375 px phone in
+                // Russian, and two cut the event after the name (#736,
+                // #700). The server caps the name, so the line stays short.
+                // No maxLines and no overflow: it wraps as far as it needs.
+                softWrap: true,
               ),
             ),
             SizedBox(width: tt.iconTextGap),
