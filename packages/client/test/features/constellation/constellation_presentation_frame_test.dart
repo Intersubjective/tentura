@@ -286,6 +286,84 @@ void main() {
       }
     });
 
+    // Three authors packed into a small cluster, each with a wide chip: the
+    // chips cannot all find a free slot around their authors.
+    List<ConstellationFrameNodeInput> packedAuthors() => [
+      node(id: 'a', centre: const Offset(180, 200)),
+      node(id: 'b', centre: const Offset(205, 200)),
+      node(id: 'c', centre: const Offset(230, 200)),
+    ];
+    const packedChips = [
+      ConstellationFrameChipInput(
+        authorId: 'a',
+        authorGraphId: 'a',
+        size: Size(120, 44),
+      ),
+      ConstellationFrameChipInput(
+        authorId: 'b',
+        authorGraphId: 'b',
+        size: Size(120, 44),
+      ),
+      ConstellationFrameChipInput(
+        authorId: 'c',
+        authorGraphId: 'c',
+        size: Size(120, 44),
+      ),
+    ];
+
+    for (final detail in [
+      ConstellationDetailLevel.district,
+      ConstellationDetailLevel.overview,
+    ]) {
+      test('zoomed out to ${detail.name}, placed chips overlap neither '
+          'each other nor any node body; chips without a slot are omitted', () {
+        final frame = compute(
+          nodes: packedAuthors(),
+          chips: packedChips,
+          detail: detail,
+        );
+
+        expect(
+          frame.chips,
+          isNotEmpty,
+          reason: 'the first author has free slots around it',
+        );
+        final placed = frame.chips.entries.toList();
+        for (final entry in placed) {
+          for (final body in frame.bodies.entries) {
+            expect(
+              entry.value.overlaps(body.value),
+              isFalse,
+              reason: 'chip ${entry.key} covers body ${body.key}',
+            );
+          }
+        }
+        for (var i = 0; i < placed.length; i++) {
+          for (var j = i + 1; j < placed.length; j++) {
+            expect(
+              placed[i].value.overlaps(placed[j].value),
+              isFalse,
+              reason: 'chips ${placed[i].key} and ${placed[j].key} overlap',
+            );
+          }
+        }
+        expect(
+          frame.chips.length,
+          lessThan(packedChips.length),
+          reason: 'the packed cluster has no slot for every chip',
+        );
+      });
+    }
+
+    test('at the closest level every overflow group still gets a chip', () {
+      final frame = compute(
+        nodes: packedAuthors(),
+        chips: packedChips,
+      );
+
+      expect(frame.chips.keys, unorderedEquals(['a', 'b', 'c']));
+    });
+
     test('deterministic for identical inputs', () {
       final nodes = [
         node(id: 'a', centre: const Offset(100, 150)),

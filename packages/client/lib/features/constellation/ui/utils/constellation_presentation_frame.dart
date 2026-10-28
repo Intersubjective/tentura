@@ -92,11 +92,16 @@ final class ConstellationFrameChipInput {
     required this.authorId,
     required this.authorGraphId,
     required this.size,
+    this.expanded = false,
   });
 
   final String authorId;
   final GraphNodeId authorGraphId;
   final Size size;
+
+  /// The group is expanded and the chip collapses it: kept at every detail
+  /// level, as it is the only way back (#459).
+  final bool expanded;
 }
 
 @immutable
@@ -283,6 +288,9 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     ];
     // The author's own label slot is reserved: a chip placed first must
     // never take it (#459).
+    // Forced where it is the only way to expand (closest level) or collapse
+    // (expanded group) a group; otherwise a chip without a free slot is
+    // omitted (#459).
     final placed =
         _firstFittingCandidate(
           candidates,
@@ -290,7 +298,12 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
           occupied,
           reserved: author.labelSize.isEmpty ? null : reservedBelow.inflate(1),
         ) ??
-        candidates.first;
+        (detail == ConstellationDetailLevel.close || chip.expanded
+            ? candidates.first
+            : null);
+    if (placed == null) {
+      continue;
+    }
     placedChips[chip.authorId] = placed;
     occupied.add(placed.inflate(1));
   }

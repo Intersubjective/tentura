@@ -528,6 +528,7 @@ class _ConstellationViewportOverlayState
                   authorId: authorId,
                   authorGraphId: authorGraphId,
                   size: chipSize,
+                  expanded: expanded,
                 ),
               );
             }
