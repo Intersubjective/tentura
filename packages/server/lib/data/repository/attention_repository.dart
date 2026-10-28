@@ -774,6 +774,12 @@ page_stream AS (
     final streamAlias = surface == AttentionSurface.activity
         ? 'stream'
         : 'visible';
+    final actorNameMatch = '''
+EXISTS (
+      SELECT 1 FROM public."user" actor
+      WHERE actor.id = $streamAlias.actor_user_id
+        AND strpos(lower(actor.display_name), lower(\$3)) > 0
+    )''';
     if (cursor != null) {
       variables
         ..add(Variable<String>(cursor.createdAt.toUtc().toIso8601String()))
@@ -810,6 +816,7 @@ page AS (
       coalesce(stream.presentation_payload ->> 'targetEntityId', '') || ' ' ||
       coalesce(stream.presentation_payload ->> 'messageId', '')
     ) @@ websearch_to_tsquery('simple', \$3)
+    OR $actorNameMatch
   )
   $cursorClause
   ORDER BY stream.created_at DESC, stream.id DESC
@@ -834,6 +841,7 @@ page AS (
       coalesce(visible.presentation_payload ->> 'targetEntityId', '') || ' ' ||
       coalesce(visible.presentation_payload ->> 'messageId', '')
     ) @@ websearch_to_tsquery('simple', \$3)
+    OR $actorNameMatch
   )
   AND (\$4::text IS NULL OR visible.surface = \$4)
     $cursorClause

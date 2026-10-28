@@ -2,10 +2,13 @@
 library;
 
 
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/controllers/graphql/query/query_attention.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -391,7 +394,8 @@ SELECT pg_get_functiondef(
     });
 
     test(
-      'search is authorized, payload-only, cursor-stable, and uses its index',
+      'payload search is authorized, excludes notice copy, preserves cursors, '
+      'and uses its index',
       () async {
         await _insertReceipt(
           writer,
@@ -461,6 +465,80 @@ WHERE to_tsvector(
 ''');
         final planText = plan.map((row) => row.single).join('\n');
         expect(planText, contains('notification_outbox__payload_search'));
+      },
+    );
+
+    test(
+      'actor name search preserves the actor name, ignores case, matches substrings, '
+      'and excludes notice copy',
+      () async {
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @name, @key)
+'''),
+          parameters: {
+            'id': 'Uactorvadim01',
+            'name': 'Vadim',
+            'key': 'attention-actor-vadim-key',
+          },
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nactorvadim',
+          actorUserId: 'Uactorvadim01',
+          presentationPayload:
+              '{"eventType":"authorInviteAccepted","actorName":"Vadim"}',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nactorother',
+          actorUserId: _otherId,
+          presentationPayload: '{"eventType":"ordinary"}',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nactorcopyonly',
+          presentationPayload: '{"eventType":"ordinary"}',
+          title: 'Vadim channelcopyonly in the notice title',
+          body: 'Vadim channelcopyonly in the notice body',
+        );
+
+        final copyOnly = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          search: 'channelcopyonly',
+        );
+        expect(copyOnly.page.items, isEmpty);
+
+        final matches = <String, List<(String, String?, Object?)>>{};
+        for (final search in ['vad', 'VAD', 'adi', 'Vadim']) {
+          final result = await query.attentionFeed(
+            accountId: _viewerId,
+            view: AttentionFeedView.all,
+            search: search,
+          );
+          matches[search] = [
+            for (final receipt in result.page.items)
+              (
+                receipt.id,
+                receipt.actorUserId,
+                // Assert the public presentation field consumed by clients,
+                // rather than looking the actor up separately in the DB.
+                (jsonDecode(
+                      QueryAttention.mapReceiptForTesting(
+                            receipt,
+                          )['presentationPayloadJson']!
+                          as String,
+                    )
+                    as Map<String, dynamic>)['actorName'],
+              ),
+          ];
+        }
+        expect(matches, {
+          for (final search in ['vad', 'VAD', 'adi', 'Vadim'])
+            search: [('Nactorvadim', 'Uactorvadim01', 'Vadim')],
+        });
       },
     );
 
@@ -1253,6 +1331,7 @@ Future<void> _insertReceipt(
   String suppressionClass = 'standard',
   String? preferenceClass,
   String? targetEntityId,
+  String? actorUserId,
   String? dedupKey,
   String? seenAt,
   String createdAt = '2026-07-16T12:00:00Z',
@@ -1264,7 +1343,7 @@ Future<void> _insertReceipt(
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
   title, body, action_url, dedup_key, created_at, seen_at,
-  beacon_id, coordination_item_id, source_event_key,
+  beacon_id, coordination_item_id, actor_user_id, source_event_key,
   destination_kind, target_entity_id,
   presentation_key, presentation_payload,
   suppression_class, in_app_preference_class, access_policy
@@ -1273,7 +1352,7 @@ INSERT INTO public.notification_outbox (
   @title, @body, '/attention', @dedupKey,
   CAST(@createdAt AS timestamptz),
   CAST(@seenAt AS timestamptz),
-  @beaconId, @coordinationItemId, @sourceEventKey,
+  @beaconId, @coordinationItemId, @actorUserId, @sourceEventKey,
   @destinationKind, @targetEntityId,
   @presentationKey, CAST(@presentationPayload AS jsonb),
   @suppressionClass, @preferenceClass, @accessPolicy
@@ -1287,6 +1366,7 @@ INSERT INTO public.notification_outbox (
     'seenAt': seenAt,
     'beaconId': beaconId,
     'coordinationItemId': coordinationItemId,
+    'actorUserId': actorUserId,
     'sourceEventKey': 'source-$id',
     'destinationKind': destinationKind,
     'targetEntityId': targetEntityId,
