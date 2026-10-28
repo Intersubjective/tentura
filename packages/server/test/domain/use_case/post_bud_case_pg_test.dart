@@ -379,6 +379,49 @@ Future<void> main() async {
       },
     );
 
+    test(
+      'author budding and closing a Post timestamps the closure after Request '
+      'creation and preserves their order in room history',
+      () async {
+        final result = await bud(
+          actor: _author,
+          source: _rootMsg,
+          closePost: true,
+        );
+        final history = await BeaconRoomRepository(database).listMessages(
+          beaconId: _post,
+        );
+        final created = history.singleWhere(
+          (message) =>
+              message.hierarchyNoticeIdentity ==
+              'child_created:${result.childBeaconId}',
+        );
+        final closed = history.singleWhere(
+          (message) => message.systemMessageKind == 5,
+        );
+
+        expect(
+          closed.createdAt.dateTime.isAfter(created.createdAt.dateTime),
+          isTrue,
+          reason:
+              'Closure must be strictly later than Request creation: '
+              'created=${created.createdAt.dateTime}, '
+              'closed=${closed.createdAt.dateTime}',
+        );
+        // History is returned newest first; read it oldest first for the
+        // chronological sequence shown in the conversation.
+        expect(
+          history.reversed
+              .where(
+                (message) =>
+                    message.id == created.id || message.id == closed.id,
+              )
+              .map((message) => message.id),
+          [created.id, closed.id],
+        );
+      },
+    );
+
     // #666: the two notices of one bud share the transaction's now(); the
     // «closed» one must still come after «made the request».
     test('the closed notice comes after the made-the-request notice', () async {
