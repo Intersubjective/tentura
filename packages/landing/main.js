@@ -9,6 +9,7 @@ import {
   INVITE_CODE_PATTERN,
 } from './invite_entry.js';
 import { startAppPreload } from './app_preload.js';
+import { installBfcacheRefresh } from './bfcache.js';
 import {
   isNewSignupReturn,
   isOnboardingDone,
@@ -938,4 +939,5 @@ async function main() {
   }
 }
 
+installBfcacheRefresh(window, main);
 main();
