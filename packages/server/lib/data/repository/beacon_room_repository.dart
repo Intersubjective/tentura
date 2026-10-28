@@ -2282,61 +2282,63 @@ RETURNING last_seen_at
       return const [];
     }
 
+    final meaningfulTypes = [
+      BeaconActivityEventTypeBits.planUpdated,
+      BeaconActivityEventTypeBits.factPinned,
+      BeaconActivityEventTypeBits.blockerOpened,
+      BeaconActivityEventTypeBits.blockerResolved,
+      BeaconActivityEventTypeBits.needInfoOpened,
+      BeaconActivityEventTypeBits.doneMarked,
+      BeaconActivityEventTypeBits.factVisibilityChanged,
+      BeaconActivityEventTypeBits.beaconPublished,
+      BeaconActivityEventTypeBits.beaconLifecycleChanged,
+    ].join(',');
+
+    // One round trip for the whole page: the lateral pick takes the newest
+    // visible meaningful event per Request. Room-visible events are only
+    // visible to the author, stewards and admitted participants.
+    final rows = await _db
+        .customSelect(
+          '''
+SELECT e.*
+FROM unnest(\$1::text[]) AS ids(beacon_id)
+CROSS JOIN LATERAL (
+  SELECT ev.*
+  FROM public.beacon_activity_event ev
+  WHERE ev.beacon_id = ids.beacon_id
+    AND ((ev.type >= 100 AND ev.type < 500) OR ev.type IN ($meaningfulTypes))
+    AND (
+      ev.visibility = ${BeaconActivityEventVisibilityBits.public}
+      OR (ev.visibility = ${BeaconActivityEventVisibilityBits.room} AND (
+        EXISTS (SELECT 1 FROM public.beacon b
+                WHERE b.id = ids.beacon_id AND b.user_id = \$2)
+        OR EXISTS (SELECT 1 FROM public.beacon_steward st
+                   WHERE st.beacon_id = ids.beacon_id AND st.user_id = \$2)
+        OR EXISTS (SELECT 1 FROM public.beacon_participant p
+                   WHERE p.beacon_id = ids.beacon_id AND p.user_id = \$2
+                     AND p.room_access = ${RoomAccessBits.admitted})
+      ))
+    )
+  ORDER BY ev.created_at DESC
+  LIMIT 1
+) e
+''',
+          variables: [
+            Variable<List<String>>(
+              beaconIds.toSet().toList(),
+              PgTypes.textArray,
+            ),
+            Variable<String>(viewerUserId),
+          ],
+          readsFrom: {_db.beaconActivityEvents},
+        )
+        .get();
+
     final eventsByBeacon = <String, BeaconActivityEventRecord?>{};
     final actorIds = <String>{};
-
-    for (final beaconId in beaconIds) {
-      final canUseRoom = await _viewerCanUseRoom(
-        beaconId: beaconId,
-        userId: viewerUserId,
-      );
-
-      final meaningfulTypes = [
-        BeaconActivityEventTypeBits.planUpdated,
-        BeaconActivityEventTypeBits.factPinned,
-        BeaconActivityEventTypeBits.blockerOpened,
-        BeaconActivityEventTypeBits.blockerResolved,
-        BeaconActivityEventTypeBits.needInfoOpened,
-        BeaconActivityEventTypeBits.doneMarked,
-        BeaconActivityEventTypeBits.factVisibilityChanged,
-        BeaconActivityEventTypeBits.beaconPublished,
-        BeaconActivityEventTypeBits.beaconLifecycleChanged,
-      ];
-
-      final row =
-          await (_db.select(_db.beaconActivityEvents)
-                ..where(
-                  (e) {
-                    final meaningful =
-                        (e.type.isBiggerOrEqualValue(100) &
-                            e.type.isSmallerThanValue(500)) |
-                        e.type.isIn(meaningfulTypes);
-                    final visible = canUseRoom
-                        ? e.visibility.isIn([
-                            BeaconActivityEventVisibilityBits.public,
-                            BeaconActivityEventVisibilityBits.room,
-                          ])
-                        : e.visibility.equals(
-                            BeaconActivityEventVisibilityBits.public,
-                          );
-                    return e.beaconId.equals(beaconId) & meaningful & visible;
-                  },
-                )
-                ..orderBy([
-                  (e) => OrderingTerm(
-                    expression: e.createdAt,
-                    mode: OrderingMode.desc,
-                  ),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
-
-      if (row == null) {
-        eventsByBeacon[beaconId] = null;
-        continue;
-      }
-
-      final record = BeaconActivityEventRecord(
+    for (final r in rows) {
+      final row = _db.beaconActivityEvents.map(r.data);
+      eventsByBeacon[row.beaconId] = BeaconActivityEventRecord(
         id: row.id,
         beaconId: row.beaconId,
         visibility: row.visibility,
@@ -2345,7 +2347,6 @@ RETURNING last_seen_at
         diffJson: _activityEventDiffJson(row.diff),
         createdAt: row.createdAt.dateTime.toUtc(),
       );
-      eventsByBeacon[beaconId] = record;
       final actorId = row.actorId;
       if (actorId != null && actorId.isNotEmpty) {
         actorIds.add(actorId);
@@ -2368,23 +2369,6 @@ RETURNING last_seen_at
           );
         }(),
     ];
-  }
-
-  Future<bool> _viewerCanUseRoom({
-    required String beaconId,
-    required String userId,
-  }) async {
-    if (await isBeaconAuthor(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    if (await isBeaconSteward(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    final participant = await findParticipant(
-      beaconId: beaconId,
-      userId: userId,
-    );
-    return participant?.roomAccess == RoomAccessBits.admitted;
   }
 
   Future<String?> participantUserIdForRow(String participantRowId) async {
