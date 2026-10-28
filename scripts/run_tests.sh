@@ -122,6 +122,13 @@ server_files_without_tags() {
     while IFS= read -r f; do [[ -n "${skip[$f]:-}" ]] || echo "$f"; done
 }
 
+# 0 when the library-level @Tags (before `library;`) of a server test file
+# (relative to packages/server) carry the given quoted tag. awk's own exit
+# status, no pipe, so pipefail cannot misreport it.
+server_header_has_tag() {
+  awk -v tag="$1" '/^library/ {exit} /^@Tags/ {t=1} t && index($0, "\x27" tag "\x27") || t && index($0, "\"" tag "\"") {found=1; exit} END {exit !found}' "$ROOT/packages/server/$2"
+}
+
 server_tagged_files() {
   (cd "$ROOT/packages/server" && python3 "$SELECT" test --tag "$1")
 }
@@ -164,16 +171,24 @@ server_files() {
   (( ${#files[@]} > 0 )) || { log "no server test files"; return 0; }
   local j; j="$(concurrency server-files)"
   # mr-tagged files must not share the run with others: split them out.
-  local -a mr=() rest=() f
+  # rss-isolated files (RSS-growth bound) run one by one, after the shared run.
+  local -a mr=() rest=() isolated=() f
+  local rc=0
   for f in "${files[@]}"; do
-    if grep -qE "['\"]mr['\"]" "$ROOT/packages/server/$f" 2>/dev/null; then mr+=("$f"); else rest+=("$f"); fi
+    if grep -qE "['\"]mr['\"]" "$ROOT/packages/server/$f" 2>/dev/null; then mr+=("$f")
+    elif server_header_has_tag rss-isolated "$f"; then isolated+=("$f")
+    else rest+=("$f"); fi
   done
   if (( ${#rest[@]} > 0 )); then
-    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run_chunked 30m dart test -j "$j" -- "${rest[@]}")
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run_chunked 30m dart test -j "$j" -- "${rest[@]}") || rc=1
   fi
   if (( ${#mr[@]} > 0 )); then
-    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 30m dart test -j 1 "${mr[@]}")
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 30m dart test -j 1 "${mr[@]}") || rc=1
   fi
+  for f in "${isolated[@]}"; do
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 10m dart test -j 1 "$f") || rc=1
+  done
+  return "$rc"
 }
 
 server_unit() {
@@ -199,10 +214,8 @@ server_pg() {
   # files fail with "No tests ran".
   local -a files=() isolated=() all f; mapfile -t all < <(server_tagged_files pg)
   for f in "${all[@]}"; do
-    # awk's own exit status (no pipe, so pipefail cannot misreport it): 0 when
-    # the header before `library;` carries a quoted mr tag.
-    if ! awk '/^library/ {exit} /^@Tags/ {t=1} t && /[\x27"]mr[\x27"]/ {found=1; exit} END {exit !found}' "$ROOT/packages/server/$f"; then
-      if awk '/^library/ {exit} /^@Tags/ {t=1} t && /[\x27"]rss-isolated[\x27"]/ {found=1; exit} END {exit !found}' "$ROOT/packages/server/$f"; then
+    if ! server_header_has_tag mr "$f"; then
+      if server_header_has_tag rss-isolated "$f"; then
         isolated+=("$f")
       else
         files+=("$f")
