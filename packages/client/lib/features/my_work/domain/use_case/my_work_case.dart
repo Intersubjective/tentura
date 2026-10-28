@@ -255,31 +255,22 @@ final class MyWorkCase extends UseCaseBase {
     if (cards.isEmpty) {
       return cards;
     }
-    final withLastEvents = await attachLastActivityEvents(cards);
-    final hints = await _roomHints.fetchByBeaconIds(
-      withLastEvents.map((c) => c.beaconId),
-    );
-    final withHints = _applyRoomInboxSubtitles(withLastEvents, hints);
-    return _attachDisplayStatuses(withHints);
-  }
-
-  Future<List<MyWorkCardViewModel>> _attachDisplayStatuses(
-    List<MyWorkCardViewModel> cards,
-  ) async {
-    if (cards.isEmpty) return cards;
-    final authoredIds = [
-      for (final c in cards)
-        if (c.role == MyWorkCardRole.authored) c.beaconId,
-    ];
-    if (authoredIds.isEmpty) return cards;
-    final rows = await _displayRepository.fetchDisplayStatuses(authoredIds);
+    // Each read needs only the membership IDs, not another read's result.
+    final (withLastEvents, hints, rows) = await (
+      attachLastActivityEvents(cards),
+      _roomHints.fetchByBeaconIds(cards.map((c) => c.beaconId)),
+      _displayRepository.fetchDisplayStatuses([
+        for (final c in cards)
+          if (c.role == MyWorkCardRole.authored) c.beaconId,
+      ]),
+    ).wait;
     final byBeacon = {for (final row in rows) row.beaconId: row};
-    return [
-      for (final card in cards)
+    return _applyRoomInboxSubtitles([
+      for (final card in withLastEvents)
         byBeacon.containsKey(card.beaconId)
             ? card.copyWith(displayStatus: byBeacon[card.beaconId])
             : card,
-    ];
+    ], hints);
   }
 
   List<MyWorkCardViewModel> _applyRoomInboxSubtitles(
