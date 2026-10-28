@@ -318,6 +318,10 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     @Default(StateIsSuccess()) StateStatus status,
 
+    /// Beacon, display status and offers have arrived once. Refreshes and
+    /// secondary room enrichment never reset this first-load latch.
+    @Default(false) bool firstLoadDone,
+
     /// True after a successful beacon content fetch (title, status, etc.).
     @Default(false) bool beaconContentLoaded,
 

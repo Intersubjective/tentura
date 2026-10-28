@@ -1473,14 +1473,72 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
               onError: (Object _) => _keptSlice,
             )
           : slice;
+
+      var displayStatusLoaded = false;
+      List<HelpOfferRowRecord>? loadedOffers;
+      BeaconDisplayStatusDto? loadedDisplayStatus;
+      void emitPrimary(BeaconViewState next) {
+        // Only the first load publishes primary slices ahead of the room.
+        // Subsequent refreshes keep the existing coherent context snapshot.
+        if (isClosed ||
+            blockGeneration != _blockGeneration ||
+            state.firstLoadDone) {
+          return;
+        }
+        emit(
+          next.copyWith(
+            firstLoadDone: loadedOffers != null && displayStatusLoaded,
+          ),
+        );
+      }
+
+      BeaconViewState withOffers(
+        BeaconViewState current,
+        List<HelpOfferRowRecord> offers,
+      ) => current.copyWith(
+        helpOffers: _mergeLocalAuthorSeen(
+          timelineHelpOffersFromRemote(offers),
+        ),
+        isHelpOffered: offers.any(
+          (offer) => offer.status == 0 && offer.userId == myUserId,
+        ),
+        timeline: (<TimelineEntry>[
+          for (final offer in offers)
+            ...helpOfferRowsToTimelineEntries(beacon: beacon, row: offer),
+          if (beacon.statusChangedAt != null)
+            TimelineBeaconCoordinationStatusChanged(
+              author: beacon.author,
+              status: beacon.status,
+              at: beacon.statusChangedAt!,
+            ),
+          TimelineCreation(
+            author: beacon.author,
+            createdAt: beacon.createdAt,
+          ),
+        ]..sort()),
+      );
+
+      Future<List<HelpOfferRowRecord>> loadOffers() async {
+        final offers = await (skipInvolvement
+            ? _fetchMyHelpOfferAsList(beaconId)
+            : _case.fetchHelpOffersWithCoordination(beaconId: beaconId));
+        loadedOffers = offers;
+        emitPrimary(withOffers(state, offers));
+        return offers;
+      }
+
+      Future<BeaconDisplayStatusDto?> loadDisplayStatus() async {
+        final displayStatus = await _case.fetchDisplayStatus(beaconId);
+        displayStatusLoaded = true;
+        loadedDisplayStatus = displayStatus;
+        emitPrimary(state.copyWith(displayStatus: displayStatus));
+        return displayStatus;
+      }
+
       final results = await Future.wait([
         // Without involvement access the viewer still sees their own offer
         // (a declined offerer loses access but must learn why).
-        keepOnError(
-          skipInvolvement
-              ? _fetchMyHelpOfferAsList(beaconId)
-              : _case.fetchHelpOffersWithCoordination(beaconId: beaconId),
-        ),
+        keepOnError(loadOffers()),
         keepOnError(_case.fetchInboxContextForBeacon(beaconId)),
         _case.fetchFactCards(beaconId),
         if (skipRoom)
@@ -1498,7 +1556,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           Future.value(const <BeaconActivityEvent>[])
         else
           _case.fetchRoomActivityEvents(beaconId),
-        keepOnError(_case.fetchDisplayStatus(beaconId)),
+        keepOnError(loadDisplayStatus()),
         if (canReadAdmittedHelpers)
           _case.fetchAdmittedHelpers(beaconId)
         else
@@ -1511,36 +1569,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           Future.value(const <String>{}),
       ]);
 
-      final helpOffersKept = identical(results[0], _keptSlice);
-      final helpOffers = helpOffersKept
-          ? null
-          : results[0]!
-                as List<
-                  ({
-                    String beaconId,
-                    String userId,
-                    Profile user,
-                    String message,
-                    String? helpType,
-                    String? roleLabel,
-                    int status,
-                    String? withdrawReason,
-                    DateTime createdAt,
-                    DateTime updatedAt,
-                    DateTime? editedAt,
-                    int? responseType,
-                    DateTime? responseUpdatedAt,
-                    String? responseAuthorUserId,
-                    int? roomAccess,
-                    int? admissionAction,
-                    String? lastDeclineReason,
-                    String? lastRemoveReason,
-                    int stakeState,
-                    int offerKind,
-                    bool isDirectAuthorForward,
-                    String? authorSeenAt,
-                  })
-                >;
       final inboxKept = identical(results[1], _keptSlice);
       final inboxCtx = inboxKept
           ? null
@@ -1557,9 +1585,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           ? state.beaconRoomCue
           : results[4] as BeaconRoomState?;
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
-      final displayStatus = identical(results[6], _keptSlice)
-          ? state.displayStatus
-          : results[6] as BeaconDisplayStatusDto?;
       final admittedHelperRoster = results[7]! as List<Profile>;
       final teamAcquaintanceIds = results[8]! as Set<String>;
       final openCoordinationBlocker = roomCueKept
@@ -1567,33 +1592,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           : beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
-
-      final isHelpOffered = helpOffers == null
-          ? state.isHelpOffered
-          : helpOffers
-                .where((c) => c.status == 0)
-                .any((c) => c.userId == myUserId);
-
-      final helpOffersList = helpOffers == null
-          ? state.helpOffers
-          : _mergeLocalAuthorSeen(timelineHelpOffersFromRemote(helpOffers));
-
-      final timeline = helpOffers == null
-          ? state.timeline
-          : (<TimelineEntry>[
-              for (final c in helpOffers)
-                ...helpOfferRowsToTimelineEntries(beacon: beacon, row: c),
-              if (beacon.statusChangedAt != null)
-                TimelineBeaconCoordinationStatusChanged(
-                  author: beacon.author,
-                  status: beacon.status,
-                  at: beacon.statusChangedAt!,
-                ),
-              TimelineCreation(
-                author: beacon.author,
-                createdAt: beacon.createdAt,
-              ),
-            ]..sort());
 
       ClosureState? closureState;
       if (beacon.status == BeaconStatus.reviewOpen) {
@@ -1607,12 +1605,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       if (isClosed || blockGeneration != _blockGeneration) return;
       _hydratePinnedFactsSeen(beaconId, factCards);
       final clearForwards = skipRoom && wasForwardsLoaded;
+      final offers = loadedOffers;
+      final next = offers == null ? state : withOffers(state, offers);
       emit(
-        state.copyWith(
+        next.copyWith(
           beacon: beacon,
-          timeline: timeline,
-          helpOffers: helpOffersList,
-          isHelpOffered: isHelpOffered,
           inboxStatus: inboxCtx == null ? state.inboxStatus : inboxCtx.status,
           forwardProvenance: inboxCtx?.provenance ?? state.forwardProvenance,
           inboxLatestNotePreview:
@@ -1628,7 +1625,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
           closureState: closureState,
-          displayStatus: displayStatus,
+          displayStatus: displayStatusLoaded
+              ? loadedDisplayStatus
+              : state.displayStatus,
           forwardsLoaded: !clearForwards && wasForwardsLoaded,
           myForwards: clearForwards ? const [] : state.myForwards,
           viewerForwardEdges: clearForwards
