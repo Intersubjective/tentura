@@ -8,9 +8,16 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/consts.dart';
+import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/friend_context.dart';
+import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/prompt_state_value.dart';
+import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
@@ -18,21 +25,35 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
+import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
+import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
+import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
+import 'package:tentura/features/friends/ui/screen/friends_screen.dart';
 import 'package:tentura/features/graph/data/repository/graph_repository.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/like/domain/port/person_trust_writes_port.dart';
 import 'package:tentura/features/profile/data/repository/profile_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
+import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
+import 'package:tentura/features/profile_view/ui/widget/profile_view_body.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import '../../support/fake_person_shared_context_port.dart';
 import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
+import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
 
 const _me = Profile(id: 'Uaaaaaaaaaaaa', displayName: 'Me');
@@ -52,6 +73,214 @@ const _colors = GraphEdgeColors(
 
 Future<void> main() async {
   group('Trust graph follows committed profile and remote untrust', () {
+    test(
+      'profile untrust converges without reload after graph publication catches up',
+      () async {
+        await _withHarness(
+          (h) async {
+            h.expectProfileUntrustCommitted(
+              await h.profileCase.removeFriend(_bob),
+            );
+            await _waitForPublishedOneWay(h, src: _bob.id, dst: _me.id);
+            h.expectOneWay(_bob.id, _me.id);
+            expect(h.loadedBob.myVote, 0);
+            expect(h.loadedBob.isMutualFriend, isFalse);
+          },
+          serverOverride: _WireServer(
+            publicationDelay: const Duration(milliseconds: 1400),
+          ),
+        );
+      },
+    );
+
+    test(
+      'remote untrust converges the open graph after delayed publication',
+      () async {
+        await _withHarness(
+          (h) async {
+            // Bob withdraws in his own session. Alice receives the real wire
+            // envelope before the separately published graph has caught up.
+            h.server.remoteUntrust();
+            h.receiveRemoteRelationshipFrame();
+            await _waitForPublishedOneWay(h, src: _me.id, dst: _bob.id);
+            expect(h.server.voteWrites, isEmpty);
+            h.expectOneWay(_me.id, _bob.id);
+            expect(h.loadedBob.subjectExplicitlyTrustsViewer, isFalse);
+            expect(h.loadedBob.isMutualFriend, isFalse);
+          },
+          serverOverride: _WireServer(
+            publicationDelay: const Duration(milliseconds: 1400),
+          ),
+        );
+      },
+    );
+
+    testWidgets(
+      'confirming the trust switch from Trusted people converges the open graph after publication',
+      (tester) async {
+        await _withHarness(
+          (h) async {
+            final screen = ScreenCubit.local(h.effects);
+            final presence = PresenceCubit(_UnusedPresence());
+            final people = FriendsCubit(
+              FriendsCase(
+                _Capabilities(),
+                _UnusedInvitations(),
+                h.likes,
+                _UnusedFriends(),
+                _UnusedPresence(),
+                h.contacts,
+                buildTestAuthCase(h.authLocal, EmptyAuthRemote()),
+                h.realtime,
+                noopBlockCase(),
+                env: const Env(),
+                logger: Logger('people-untrust'),
+              ),
+              h.effects,
+            );
+            await tester.runAsync(() => pumpEventQueue());
+            people.emit(
+              FriendsState(
+                friends: {_bob.id: _bob},
+                firstLoadDone: true,
+              ),
+            );
+            GetIt.I.registerSingleton<CapabilityRepositoryPort>(
+              _Capabilities(),
+            );
+            final profile = (await tester.runAsync(() async {
+              final cubit = ProfileViewCubit(
+                id: _bob.id,
+                profileViewCase: h.profileCase,
+                blockCase: noopBlockCase(),
+                effects: h.effects,
+              );
+              await cubit.stream.firstWhere((state) => !state.isLoading);
+              return cubit;
+            }))!;
+
+            Widget app(Widget body) => MaterialApp(
+              theme: TenturaTheme.light(),
+              locale: const Locale('en'),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              home: TenturaResponsiveScope(
+                child: MultiBlocProvider(
+                  providers: [
+                    BlocProvider<ScreenCubit>.value(value: screen),
+                    BlocProvider<PresenceCubit>.value(value: presence),
+                    BlocProvider<ProfileCubit>.value(
+                      value: _ViewerProfileCubit(),
+                    ),
+                    BlocProvider<ProfileViewCubit>.value(value: profile),
+                  ],
+                  child: Scaffold(body: body),
+                ),
+              ),
+            );
+
+            try {
+              // This is the production Trusted list body, including its person
+              // row's navigation action. Only the router boundary is adapted.
+              await tester.pumpWidget(
+                app(FriendsListBody(friendsCubit: people)),
+              );
+              await tester.pumpAndSettle();
+              await tester.tap(find.text('Bob'));
+              await tester.pump();
+              final destination = Uri.parse(
+                h.effects.emitted.whereType<NavigatePush>().single.path,
+              );
+              expect(destination.path, '$kPathProfileView/${_bob.id}');
+              expect(
+                destination.queryParameters[kQueryProfileEntry],
+                kProfileEntryPeople,
+              );
+
+              await tester.pumpWidget(
+                app(
+                  const CustomScrollView(
+                    slivers: [
+                      ProfileViewBody(
+                        showNetwork: false,
+                        peopleTagsEnabled: false,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              await tester.pumpAndSettle();
+              final l10n = L10n.of(
+                tester.element(find.byType(ProfileViewBody)),
+              )!;
+              expect(find.text(l10n.trustSentenceOneWayOut), findsOneWidget);
+              expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+
+              await tester.tap(find.byType(Switch));
+              await tester.pumpAndSettle();
+              expect(find.byType(FriendRemoveDialog), findsOneWidget);
+              expect(
+                find.text(l10n.confirmFriendRemoval(_bob.shownName)),
+                findsOneWidget,
+              );
+              expect(h.server.voteWrites, isEmpty);
+              await tester.tap(
+                find.widgetWithText(TextButton, l10n.buttonCancel),
+              );
+              await tester.pumpAndSettle();
+              expect(h.server.voteWrites, isEmpty);
+              expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+
+              await tester.tap(find.byType(Switch));
+              await tester.pumpAndSettle();
+              await tester.tap(
+                find.widgetWithText(TextButton, l10n.removeFromMyField),
+              );
+              await tester.pump(const Duration(milliseconds: 200));
+              await tester.runAsync(() async {
+                if (profile.state.profile.myVote != 0) {
+                  await profile.stream
+                      .firstWhere((state) => state.profile.myVote == 0)
+                      .timeout(const Duration(seconds: 5));
+                }
+              });
+              await tester.pumpAndSettle();
+              expect(find.byType(FriendRemoveDialog), findsNothing);
+              expect(find.text(l10n.profileTrustNotYet), findsOneWidget);
+              expect(h.server.voteWrites, [(personId: _bob.id, amount: 0)]);
+              expect(profile.state.profile.myVote, 0);
+
+              await tester.runAsync(
+                () => _waitForPublishedOneWay(h, src: _bob.id, dst: _me.id),
+              );
+              expect(
+                tester.takeException(),
+                isNull,
+                reason:
+                    'publication and the repository read must complete '
+                    'before checking the open graph',
+              );
+              h.expectOneWay(_bob.id, _me.id);
+              expect(h.loadedBob.myVote, 0);
+              expect(h.loadedBob.isMutualFriend, isFalse);
+            } finally {
+              await tester.pumpWidget(const SizedBox.shrink());
+              await tester.runAsync(() async {
+                await profile.close();
+                await people.close();
+                await presence.close();
+                await screen.close();
+              });
+            }
+          },
+          serverOverride: _WireServer(
+            publicationDelay: const Duration(milliseconds: 1400),
+          ),
+          tester: tester,
+        );
+      },
+    );
+
     test(
       'profile untrust alone removes the outgoing edge from an open graph',
       () async {
@@ -185,16 +414,26 @@ Future<void> main() async {
 Future<void> _withHarness(
   Future<void> Function(_Harness) body, {
   _WireServer? serverOverride,
+  WidgetTester? tester,
 }) async {
   final server = serverOverride ?? _WireServer();
   await http.runWithClient(
     () async {
       final h = _Harness(server);
       try {
-        await h.start();
+        if (tester == null) {
+          await h.start();
+        } else {
+          await tester.runAsync(h.start);
+        }
         await body(h);
       } finally {
-        await h.dispose();
+        if (tester == null) {
+          await h.dispose();
+        } else {
+          await tester.runAsync(h.dispose);
+        }
+        server.dispose();
       }
     },
     () => MockClient(server.handle),
@@ -220,6 +459,7 @@ final class _Harness {
   late GraphCubit graph;
 
   Future<void> start() async {
+    server.start();
     remote = RemoteApiService(const Env(), _SocketFactory(socket));
     invalidation = InvalidationService(remote);
     realtime = RealtimeSyncCase(invalidation);
@@ -376,12 +616,49 @@ final class _Harness {
 /// HTTP is the only data seam: repositories, generated operation routing,
 /// mutation responses and profile mapping remain production code.
 final class _WireServer {
+  _WireServer({this.publicationDelay = Duration.zero});
+
+  final Duration publicationDelay;
+  bool _publishedViewerTrustsBob = true;
+  bool _publishedBobTrustsViewer = true;
+  Timer? _publicationTimer;
+  Completer<void>? _publicationCompleted;
+  late Zone _serverZone;
+
+  // Server time is independent of the widget binding's fake clock.
+  void start() => _serverZone = Zone.current;
+
+  Future<void> get whenPublished =>
+      _publicationCompleted?.future ?? Future<void>.value();
+
+  void _enqueuePublication() => _serverZone.run(() {
+    _publicationTimer?.cancel();
+    final viewerTrust = viewerTrustsBob;
+    final bobTrust = bobTrustsViewer;
+    final completed = _publicationCompleted = Completer<void>();
+    void publish() {
+      _publishedViewerTrustsBob = viewerTrust;
+      _publishedBobTrustsViewer = bobTrust;
+      completed.complete();
+    }
+
+    if (publicationDelay == Duration.zero) {
+      publish();
+    } else {
+      _publicationTimer = Timer(publicationDelay, publish);
+    }
+  });
+
+  void dispose() => _publicationTimer?.cancel();
   bool viewerTrustsBob = true;
   bool bobTrustsViewer = true;
   int profileReadsAfterVote = 0;
   final voteWrites = <({String personId, int amount})>[];
 
-  void remoteUntrust() => bobTrustsViewer = false;
+  void remoteUntrust() {
+    bobTrustsViewer = false;
+    _enqueuePublication();
+  }
 
   Map<String, Object?> user(String id) => {
     '__typename': 'user',
@@ -398,8 +675,8 @@ final class _WireServer {
   };
 
   List<Map<String, Object?>> get edges => [
-    if (viewerTrustsBob) edge(_me.id, _bob.id),
-    if (bobTrustsViewer) edge(_bob.id, _me.id),
+    if (_publishedViewerTrustsBob) edge(_me.id, _bob.id),
+    if (_publishedBobTrustsViewer) edge(_bob.id, _me.id),
   ];
 
   Map<String, Object?> edge(String src, String dst) => {
@@ -433,6 +710,7 @@ final class _WireServer {
           (personId: variables['objectId']! as String, amount: amount),
         );
         viewerTrustsBob = amount > 0;
+        _enqueuePublication();
         data = {'userVote': amount};
       case 'UserFetchById':
         if (voteWrites.isNotEmpty) profileReadsAfterVote++;
@@ -486,6 +764,24 @@ final class _Socket implements RealtimeSocket {
 
 final class _Capabilities implements CapabilityRepositoryPort {
   @override
+  Future<Map<String, FriendContext>> fetchFriendContextsBatch({
+    required List<String> subjectIds,
+  }) async => const {};
+
+  @override
+  Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async =>
+      const [];
+
+  @override
+  Future<InviteSeedPromptState> fetchInviteSeedPromptState(
+    String subjectId,
+  ) async => InviteSeedPromptState(
+    inviterUserId: _me.id,
+    inviteeUserId: subjectId,
+    state: PromptStateValue.pending,
+  );
+
+  @override
   Stream<void> get changes => const Stream.empty();
   @override
   Future<PersonCapabilityCues> fetchCues(String subjectId) async =>
@@ -499,4 +795,80 @@ final class _UnusedBeaconRepository implements BeaconRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName}');
+}
+
+final class _UnusedInvitations implements InvitationRepository {
+  @override
+  Stream<void> get changes => const Stream.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+final class _UnusedFriends implements FriendsRemoteRepository {
+  @override
+  Future<Iterable<Profile>> fetch() async => const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+final class _UnusedPresence implements PresenceRepository {
+  @override
+  Stream<Map<String, UserPresenceStatus>> get presenceChanges =>
+      const Stream.empty();
+
+  @override
+  void unwatch(String sourceKey) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+final class _ViewerProfileCubit implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(profile: _me);
+
+  @override
+  Stream<ProfileState> get stream => const Stream.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+Future<void> _waitForPublishedOneWay(
+  _Harness h, {
+  required String src,
+  required String dst,
+}) async {
+  // The mutation/remote commit enqueues publication on the server clock.
+  // This waits for that update; the test never changes the published state.
+  await h.server.whenPublished.timeout(const Duration(seconds: 5));
+  expect(h.server.edges.map((edge) => (edge['src'], edge['dst'])).toSet(), {
+    (src, dst),
+  }, reason: 'the server now serves the committed one-way graph');
+  final published = await h.graphSource.fetchEdgesBetween(
+    nodeIds: {_me.id, _bob.id},
+  );
+  expect(
+    published.map((edge) => (edge.src, edge.dst)).toSet(),
+    {(src, dst)},
+    reason: 'a real repository read now receives the published response',
+  );
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  bool converged() {
+    final link = h.graph.viewerLink(_bob.id);
+    return link != null &&
+        (src == _me.id
+            ? link.fromViewer != null && link.toViewer == null
+            : link.toViewer != null && link.fromViewer == null);
+  }
+
+  while (!converged() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
 }

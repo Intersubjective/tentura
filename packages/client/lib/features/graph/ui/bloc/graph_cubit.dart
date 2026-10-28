@@ -124,7 +124,7 @@ class GraphCubit extends Cubit<GraphState> {
               ? GetIt.I<PersonTrustWritesPort>()
               : null);
       _ownTrustChanges = trustWrites?.personTrustWrites.listen(
-        (write) => _scheduleRelationshipRefresh(write.personId),
+        (write) => _scheduleRelationshipRefresh({write.personId}),
         cancelOnError: false,
       );
       final realtime =
@@ -136,11 +136,16 @@ class GraphCubit extends Cubit<GraphState> {
         _relationshipChanges = realtime
             .changesFor(const {RealtimeEntityKind.relationship})
             .listen(
-              (change) => _scheduleRelationshipRefresh(change.aggregateId),
+              // The pair is coalesced under its first sorted endpoint, so
+              // the actor may be the only hint naming the other person.
+              (change) => _scheduleRelationshipRefresh({
+                change.aggregateId,
+                change.actorUserId,
+              }),
               cancelOnError: false,
             );
         _catchUps = realtime.catchUps.listen(
-          (_) => _scheduleRelationshipRefresh(null),
+          (_) => _scheduleRelationshipRefresh(),
           cancelOnError: false,
         );
       }
@@ -193,6 +198,21 @@ class GraphCubit extends Cubit<GraphState> {
   final _relationshipHintedIds = <String>{};
 
   bool _relationshipRefreshInFlight = false;
+
+  /// Pending re-read while the published edges lag the committed votes.
+  Timer? _publicationCatchUpTimer;
+
+  /// People whose committed votes the published edges did not reflect yet.
+  final _publicationCatchUpIds = <String>{};
+
+  int _publicationCatchUpAttempt = 0;
+
+  /// First catch-up delay; each further attempt doubles it.
+  @visibleForTesting
+  static const publicationCatchUpDelay = Duration(seconds: 1);
+
+  @visibleForTesting
+  static const publicationCatchUpAttempts = 5;
 
   /// Bumped when a relationship re-read starts. A neighbourhood or closure
   /// read that began before it may carry an edge that re-read dropped, so
@@ -323,6 +343,7 @@ class GraphCubit extends Cubit<GraphState> {
   @override
   Future<void> close() async {
     _relationshipRefreshTimer?.cancel();
+    _publicationCatchUpTimer?.cancel();
     await _relationshipChanges?.cancel();
     await _ownTrustChanges?.cancel();
     await _catchUps?.cancel();
@@ -686,16 +707,43 @@ class GraphCubit extends Cubit<GraphState> {
     _recomputeVisibility();
   }
 
-  void _scheduleRelationshipRefresh(String? hintedId) {
+  void _scheduleRelationshipRefresh([Set<String?> hintedIds = const {}]) {
     if (isClosed || !_isTrustGraph) return;
-    if (hintedId != null && hintedId.isNotEmpty) {
-      _relationshipHintedIds.add(hintedId);
+    for (final id in hintedIds) {
+      if (id != null && id.isNotEmpty) _relationshipHintedIds.add(id);
     }
     // A window from the first hint, not a trailing debounce: a steady
     // stream of hints must not postpone the re-read indefinitely.
     _relationshipRefreshTimer ??= Timer(relationshipRefreshDebounce, () {
       _relationshipRefreshTimer = null;
       unawaited(_refreshLoadedRelationships());
+    });
+  }
+
+  /// Records which of the [checked] people the last edge read still did not
+  /// reflect ([unpublished]) and re-reads their relationships with a growing
+  /// delay until the published edges catch up or
+  /// [publicationCatchUpAttempts] re-reads have been spent.
+  void _schedulePublicationCatchUp(
+    Iterable<String> checked,
+    Set<String> unpublished,
+  ) {
+    _publicationCatchUpIds
+      ..removeAll(checked)
+      ..addAll(unpublished);
+    _publicationCatchUpTimer?.cancel();
+    _publicationCatchUpTimer = null;
+    if (_publicationCatchUpIds.isEmpty ||
+        _publicationCatchUpAttempt >= publicationCatchUpAttempts) {
+      _publicationCatchUpIds.clear();
+      _publicationCatchUpAttempt = 0;
+      return;
+    }
+    final delay = publicationCatchUpDelay * (1 << _publicationCatchUpAttempt);
+    _publicationCatchUpAttempt++;
+    _publicationCatchUpTimer = Timer(delay, () {
+      _publicationCatchUpTimer = null;
+      _scheduleRelationshipRefresh({..._publicationCatchUpIds});
     });
   }
 
@@ -788,6 +836,7 @@ class GraphCubit extends Cubit<GraphState> {
         return;
       }
       if (isClosed || cacheEpoch != _cacheEpoch) return;
+      final unpublished = <String>{};
       for (final profile in fetched) {
         final current = _nodes[profile.id];
         if (current is! UserNode) continue;
@@ -804,7 +853,18 @@ class GraphCubit extends Cubit<GraphState> {
                 : profile.isMutualFriend,
           ),
         );
+        // The profile carries the committed votes; the edges come from a
+        // projection published after the commit. An edge the committed vote
+        // no longer backs means the read raced publication.
+        final fromViewer = _allEdges[(egoId, profile.id)];
+        final toViewer = _allEdges[(profile.id, egoId)];
+        if ((fromViewer?.weight.sign ?? myVote.sign) != myVote.sign ||
+            (!profile.subjectExplicitlyTrustsViewer &&
+                (toViewer?.weight ?? 0) > 0)) {
+          unpublished.add(profile.id);
+        }
       }
+      _schedulePublicationCatchUp(fetched.map((p) => p.id), unpublished);
     } finally {
       _relationshipRefreshInFlight = false;
       if (_relationshipRefreshQueued && !isClosed) {
@@ -1824,7 +1884,7 @@ class GraphCubit extends Cubit<GraphState> {
   /// merged an edge that re-read had dropped: read the relationships again.
   void _rereadIfRelationshipsMoved(int revisionAtReadStart) {
     if (revisionAtReadStart != _relationshipRevision) {
-      _scheduleRelationshipRefresh(null);
+      _scheduleRelationshipRefresh();
     }
   }
 
