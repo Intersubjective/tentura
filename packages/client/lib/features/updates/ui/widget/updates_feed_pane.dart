@@ -203,10 +203,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
             controller: _searchController,
             hintText: l10n.updatesSearchHint,
             onChanged: _onSearchChanged,
-            onClear: () {
-              _searchController.clear();
-              _onSearchChanged('');
-            },
+            onClear: _clearSearch,
           ),
         if (widget.showViewControl && widget.offeredViews.length > 1)
           BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
@@ -259,6 +256,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
                 return _EmptyUpdates(
                   view: state.view,
                   searchText: state.searchText,
+                  onClearSearch: _clearSearch,
                 );
               }
               final chronologicalItems = state.items
@@ -426,6 +424,11 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     );
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    _onSearchChanged('');
+  }
+
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
@@ -495,9 +498,14 @@ String _tabIdForView(AttentionView view) => switch (view) {
 };
 
 class _EmptyUpdates extends StatelessWidget {
-  const _EmptyUpdates({required this.view, this.searchText = ''});
+  const _EmptyUpdates({
+    required this.view,
+    required this.onClearSearch,
+    this.searchText = '',
+  });
 
   final AttentionView view;
+  final VoidCallback onClearSearch;
 
   /// #425 — a non-empty search that matched nothing gets a no-results
   /// message, not the empty-inbox copy.
@@ -518,10 +526,21 @@ class _EmptyUpdates extends StatelessWidget {
     return Center(
       child: Padding(
         padding: tt.cardPadding,
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TenturaText.bodySmall(tt.textMuted),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+            if (query.isNotEmpty)
+              TenturaTextAction(
+                label: l10n.updatesSearchClear,
+                onPressed: onClearSearch,
+                minInteractive: true,
+              ),
+          ],
         ),
       ),
     );

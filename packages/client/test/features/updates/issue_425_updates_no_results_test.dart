@@ -89,7 +89,7 @@ Widget _wrap(Widget child, {Locale? locale}) {
   );
 }
 
-Future<void> _pumpPane(
+Future<UpdatesFeedCubit> _pumpPane(
   WidgetTester tester, {
   String? search,
   Locale? locale,
@@ -138,9 +138,43 @@ Future<void> _pumpPane(
   );
   await tester.pump();
   await tester.pump();
+  return cubit;
 }
 
 void main() {
+  testWidgets('no-results Clear search resets the field and feed search', (
+    tester,
+  ) async {
+    final cubit = await _pumpPane(tester, search: 'zzz');
+    final field = find.byType(TextField);
+
+    expect(tester.widget<TextField>(field).controller!.text, 'zzz');
+    expect(cubit.state.searchText, 'zzz');
+    expect(find.text('No results for “zzz”'), findsOneWidget);
+    expect(
+      find.text('All caught up. New updates will appear here.'),
+      findsNothing,
+    );
+    // The no-results action has a visible label, separate from the field's
+    // existing clear icon and its tooltip.
+    final clearSearch = find.text('Clear search');
+    expect(clearSearch, findsOneWidget);
+
+    await tester.tap(clearSearch);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+    // Observe the real cubit's public search state to verify setSearch(''),
+    // rather than accepting a change to the text controller alone.
+    expect(cubit.state.searchText, isEmpty);
+    expect(find.text('No results for “zzz”'), findsNothing);
+    expect(
+      find.text('All caught up. New updates will appear here.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('search with no matches shows a no-results state', (
     tester,
   ) async {
