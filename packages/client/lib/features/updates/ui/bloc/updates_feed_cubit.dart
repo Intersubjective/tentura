@@ -83,6 +83,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     final items = page?.items ?? const <AttentionReceipt>[];
     emit(
       state.copyWith(
+        firstLoadDone: state.firstLoadDone || page != null,
         view: session.activeView,
         searchText: session.searchText,
         summary: _attention.snapshot.summary,

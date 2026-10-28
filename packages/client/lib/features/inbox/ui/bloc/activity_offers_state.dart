@@ -11,9 +11,11 @@ export 'package:tentura/ui/bloc/state_base.dart';
 part 'activity_offers_state.freezed.dart';
 
 @freezed
-abstract class ActivityOffersState extends StateBase with _$ActivityOffersState {
+abstract class ActivityOffersState extends StateBase
+    with _$ActivityOffersState {
   const factory ActivityOffersState({
     @Default([]) List<InboxItem> items,
+    @Default(false) bool firstLoadDone,
     int? totalCount,
     @Default(false) bool countLoadFailed,
     @Default(false) bool pageLoadFailed,

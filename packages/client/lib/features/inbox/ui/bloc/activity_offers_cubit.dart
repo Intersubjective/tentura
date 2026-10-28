@@ -131,6 +131,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         : _inviteIdsOf(resolvedPage?.items ?? const []);
     emit(
       state.copyWith(
+        firstLoadDone: state.firstLoadDone || !pageFailed,
         inviteIdByBeacon: inviteIds,
         items: pageFailed ? state.items : page,
         totalCount: pageFailed ? state.totalCount : resolvedPage?.totalCount,

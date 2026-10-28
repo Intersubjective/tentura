@@ -27,6 +27,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_refresh_error_banner.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -365,26 +366,30 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
           _rememberOffers(offersState);
           return BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
             builder: (context, streamState) {
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _ActivityStreamScrollBody(
-                    scrollController: _scrollController,
-                    offersState: offersState,
-                    streamState: streamState,
-                    onRefresh: _refreshBoth,
-                    exitingOffers: _exitingOffers,
-                    onPinnedExitComplete: _finishPinnedExit,
-                    enteringForwardBeacons: _enteringForwardBeacons,
-                    onForwardRevealComplete: _finishForwardReveal,
-                    forwardRowKeyFor: _forwardRowKey,
-                  ),
-                  if (offersState.heldBackIds.isNotEmpty)
-                    _ActivityNewItemsPill(
-                      count: offersState.heldBackIds.length,
-                      onTap: _onNewItemsPillTap,
+              return TenturaFirstLoadGate(
+                ready: offersState.firstLoadDone && streamState.firstLoadDone,
+                onRetry: () => unawaited(_refreshBoth()),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _ActivityStreamScrollBody(
+                      scrollController: _scrollController,
+                      offersState: offersState,
+                      streamState: streamState,
+                      onRefresh: _refreshBoth,
+                      exitingOffers: _exitingOffers,
+                      onPinnedExitComplete: _finishPinnedExit,
+                      enteringForwardBeacons: _enteringForwardBeacons,
+                      onForwardRevealComplete: _finishForwardReveal,
+                      forwardRowKeyFor: _forwardRowKey,
                     ),
-                ],
+                    if (offersState.heldBackIds.isNotEmpty)
+                      _ActivityNewItemsPill(
+                        count: offersState.heldBackIds.length,
+                        onTap: _onNewItemsPillTap,
+                      ),
+                  ],
+                ),
               );
             },
           );
@@ -523,10 +528,6 @@ class _ActivityStreamScrollBody extends StatelessWidget {
               context.read<ActivityOffersCubit>().loadFirst(),
             ),
           ),
-        )
-      else if (offersState.isLoading && offersState.items.isEmpty)
-        const SliverToBoxAdapter(
-          child: Center(child: CircularProgressIndicator.adaptive()),
         )
       else ...[
         if (placement.pinnedReceipts.isNotEmpty)
