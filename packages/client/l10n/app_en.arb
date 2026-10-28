@@ -6746,6 +6746,30 @@
   "beaconPhaseCancelled": "Cancelled",
   "beaconPhaseCourtAuthor": "author's move",
   "beaconPhaseNoOffersYet": "no offers yet",
+  "beaconPhaseSomeDeclined": "{declined} of {total} declined",
+  "@beaconPhaseSomeDeclined": {
+    "description": "STATUS slot2 cue for the author while no offer exists and some forward recipients declined (#486)",
+    "placeholders": {
+      "declined": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconPhaseAllDeclined": "{declined} of {total} declined — forward to someone else",
+  "@beaconPhaseAllDeclined": {
+    "description": "STATUS slot2 cue for the author while no offer exists and every forward recipient declined (#486)",
+    "placeholders": {
+      "declined": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "beaconPhaseActiveToday": "active today",
   "beaconPhaseQuietForDays": "quiet {days}d",
   "@beaconPhaseQuietForDays": {

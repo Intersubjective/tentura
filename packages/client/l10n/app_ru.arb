@@ -6048,6 +6048,8 @@
   "beaconPhaseCancelled": "Отменён",
   "beaconPhaseCourtAuthor": "ход автора",
   "beaconPhaseNoOffersYet": "нет предложений",
+  "beaconPhaseSomeDeclined": "отказались: {declined} из {total}",
+  "beaconPhaseAllDeclined": "отказались: {declined} из {total} — перешлите кому-то ещё",
   "beaconPhaseActiveToday": "акт. сегодня",
   "beaconPhaseQuietForDays": "неакт. {days} д",
   "beaconYouBlockedGeneric": "Нужно снять блок",

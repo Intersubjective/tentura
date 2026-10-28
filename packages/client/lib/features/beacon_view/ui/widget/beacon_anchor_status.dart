@@ -77,13 +77,30 @@ String? _pendingOfferCue(
     // and My Work (#710) count the same unanswered ordinary offers; a backup
     // kept on standby never gets a response and is not counted.
     final count = state.unansweredHelpOffersCount;
-    return count > 0 ? l10n.beaconPhaseOffersToReview(count) : null;
+    if (count > 0) return l10n.beaconPhaseOffersToReview(count);
+    return result.slot2Kind == BeaconPhaseSlot2Kind.noOffersYet
+        ? _declinedForwardsCue(l10n, state)
+        : null;
   }
   final mine = state.myActiveHelpOffer;
   if (mine != null && _isUnansweredOffer(state, mine)) {
     return l10n.beaconPhaseOfferSent;
   }
   return null;
+}
+
+/// #486: with no offer yet, the author sees how many of the people they
+/// forwarded to have declined; when everyone did, a nudge to forward again.
+String? _declinedForwardsCue(L10n l10n, BeaconViewState state) {
+  final mine = state.myForwards.where(
+    (e) => e.sender.id == state.myProfile.id && !e.isCancelled,
+  );
+  final total = mine.length;
+  final declined = mine.where((e) => e.recipientRejected).length;
+  if (declined == 0) return null;
+  return declined == total
+      ? l10n.beaconPhaseAllDeclined(declined, total)
+      : l10n.beaconPhaseSomeDeclined(declined, total);
 }
 
 /// The viewer's own offer still waits for an answer — the same rule as
