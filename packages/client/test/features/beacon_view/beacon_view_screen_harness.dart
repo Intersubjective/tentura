@@ -584,6 +584,7 @@ Widget buildBeaconViewHarnessWidget({
   BeaconViewRoomCubitRecorder? recorder,
   // Kept by the caller across rebuilds (a route rebuilding the screen).
   PlanCubit? planCubit,
+  BeaconHierarchyCubit? hierarchyCubit,
 }) {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
@@ -601,25 +602,28 @@ Widget buildBeaconViewHarnessWidget({
       BlocProvider<ThreadsCubit>.value(value: harnessThreadsCubit),
       BlocProvider<ThreadHostCubit>.value(value: harnessHost),
       if (planCubit != null) BlocProvider<PlanCubit>.value(value: planCubit),
-      BlocProvider<BeaconHierarchyCubit>(
-        create: (_) => BeaconHierarchyCubit(
-          beaconId: beaconState.beacon.id,
-          hierarchyCase: buildBeaconHierarchyCaseForTest(
-            FakeBeaconHierarchyRepositoryPort(
-              capabilities: const BeaconHierarchyCapabilities(
-                canListChildren: false,
-                canCreateChild: false,
+      if (hierarchyCubit != null)
+        BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit)
+      else
+        BlocProvider<BeaconHierarchyCubit>(
+          create: (_) => BeaconHierarchyCubit(
+            beaconId: beaconState.beacon.id,
+            hierarchyCase: buildBeaconHierarchyCaseForTest(
+              FakeBeaconHierarchyRepositoryPort(
+                capabilities: const BeaconHierarchyCapabilities(
+                  canListChildren: false,
+                  canCreateChild: false,
+                ),
               ),
+              createCase: BeaconCreateCase(
+                _NoopBeaconWritePort(),
+                _NoopImageRepository(),
+              ),
+              beacons: _NoopBeaconWritePort(),
+              commandStore: InMemoryBeaconChildCommandStore(),
             ),
-            createCase: BeaconCreateCase(
-              _NoopBeaconWritePort(),
-              _NoopImageRepository(),
-            ),
-            beacons: _NoopBeaconWritePort(),
-            commandStore: InMemoryBeaconChildCommandStore(),
           ),
         ),
-      ),
       BlocProvider<ProfileCubit>.value(
         value: _HarnessProfileCubit(beaconState.myProfile),
       ),

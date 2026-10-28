@@ -1736,7 +1736,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         await saveDraft(context: context, showMessage: false);
         // The save reported success; the publish still has to run.
         emit(state.copyWith(status: StateStatus.isLoading));
-        await _case.publishDraft(draftId);
+        await _publishRequestDraft(context: context, id: draftId);
         emit(state.copyWith(isLive: true));
       }
 
@@ -1868,22 +1868,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         return;
       }
 
-      if (state.isChildMode) {
-        final childCommand = _childSaveCommand(
-          context: context,
-          id: id,
-          draftSafeTitle: false,
-        )!;
-        await _hierarchyCase!.publishChildDraft(
-          beaconId: id,
-          command: childCommand,
-          images: state.images,
-          coverKey: state.coverKey,
-          coverThumb: state.coverThumb,
-        );
-      } else {
-        await _case.publishDraft(id);
-      }
+      await _publishRequestDraft(context: context, id: id);
       emit(
         state.copyWith(
           draftId: id,
@@ -1904,6 +1889,29 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       _emitChildPromotionConflict(e);
     } catch (e) {
       _emitSnackError(e);
+    }
+  }
+
+  Future<void> _publishRequestDraft({
+    required String context,
+    required String id,
+  }) async {
+    final childCommand = _childSaveCommand(
+      context: context,
+      id: id,
+      draftSafeTitle: false,
+    );
+    if (childCommand != null) {
+      final hierarchyCase = _hierarchyCase ?? GetIt.I<BeaconHierarchyCase>();
+      await hierarchyCase.publishChildDraft(
+        beaconId: id,
+        command: childCommand,
+        images: state.images,
+        coverKey: state.coverKey,
+        coverThumb: state.coverThumb,
+      );
+    } else {
+      await _case.publishDraft(id);
     }
   }
 
