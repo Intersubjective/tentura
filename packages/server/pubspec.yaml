@@ -28,6 +28,7 @@ dependencies:
 
   minio: ^3.5.8
   crypto: ^3.0.7
+  shelf: ^1.4.2
   migrant: ^0.3.0
   postgres: ^3.5.20
   shelf_plus: ^1.11.0
