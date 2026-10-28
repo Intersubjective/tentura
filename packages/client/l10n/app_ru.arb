@@ -7636,5 +7636,6 @@
   "postShortenIn24h": "Через 24 часа",
   "postActionCloseNow": "Завершить сейчас",
   "postCloseNowConfirmTitle": "Завершить пост?",
-  "postCloseNowConfirmBody": "Пост уйдёт в архив, писать в него будет нельзя. Отменить это нельзя."
+  "postCloseNowConfirmBody": "Пост уйдёт в архив, писать в него будет нельзя. Отменить это нельзя.",
+  "postCloseForbiddenError": "Закрыть пост может только его автор"
 }

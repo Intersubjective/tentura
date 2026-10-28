@@ -11932,5 +11932,6 @@
   "postShortenIn24h": "In 24 hours",
   "postActionCloseNow": "End now",
   "postCloseNowConfirmTitle": "End the post?",
-  "postCloseNowConfirmBody": "The post moves to the archive and no one can write in it. This can't be undone."
+  "postCloseNowConfirmBody": "The post moves to the archive and no one can write in it. This can't be undone.",
+  "postCloseForbiddenError": "Only the author of the post can close it"
 }

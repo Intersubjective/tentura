@@ -129,6 +129,27 @@ final class PostNotOpenException extends BeaconHierarchyException
   };
 }
 
+/// Only the Post's author may close it when budding a Request from it.
+final class PostCloseForbiddenException extends BeaconHierarchyException
+    implements Localizable {
+  const PostCloseForbiddenException([super.message]);
+
+  static const codeNumber = 1351;
+
+  @override
+  String get toEn => 'Only the author of the post can close it';
+
+  @override
+  String get toRu => 'Закрыть пост может только его автор';
+
+  @override
+  String toL10n(String? locale) => switch (locale) {
+    'ru' => toRu,
+    'en' => toEn,
+    _ => 'Unsupported locale for $runtimeType',
+  };
+}
+
 /// The requested Post lifetime is outside 1…72 hours.
 final class PostLifetimeInvalidException extends BeaconHierarchyException {
   const PostLifetimeInvalidException([super.message]);
