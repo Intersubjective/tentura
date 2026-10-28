@@ -406,6 +406,15 @@ class _RoomPollCardState extends State<RoomPollCard> {
     final participantsByUserId = <String, BeaconParticipant>{
       for (final p in widget.participants) p.userId: p,
     };
+    final voterIds = showVoters
+        ? poll.variants.expand((v) => v.voterIds ?? <String>[]).toSet().toList()
+        : <String>[];
+    final voteCount = Text(
+      l10n.beaconRoomPollVotesCount(poll.totalVotes),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: cs.onSurfaceVariant,
+      ),
+    );
 
     return Card.outlined(
       margin: EdgeInsets.zero,
@@ -536,12 +545,36 @@ class _RoomPollCardState extends State<RoomPollCard> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      l10n.beaconRoomPollVotesCount(poll.totalVotes),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
+                    child: voterIds.isEmpty
+                        ? voteCount
+                        : TextButton(
+                            style: TextButton.styleFrom(
+                              alignment: AlignmentDirectional.centerStart,
+                              minimumSize: const Size(
+                                kMinInteractiveDimension,
+                                kMinInteractiveDimension,
+                              ),
+                            ),
+                            onPressed: () => showTenturaAdaptiveSheet<void>(
+                              context: context,
+                              builder: (sheetContext) => ListView(
+                                shrinkWrap: true,
+                                padding: sheetContext.tt.cardPadding,
+                                children: [
+                                  for (final id in voterIds)
+                                    ListTile(
+                                      title: Text(
+                                        participantsByUserId[id]?.displayLabel(
+                                              l10n.unknownPerson,
+                                            ) ??
+                                            l10n.unknownPerson,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            child: voteCount,
+                          ),
                   ),
                   if (voted && poll.allowRevote)
                     ExcludeFocus(
