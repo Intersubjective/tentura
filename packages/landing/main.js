@@ -354,7 +354,8 @@ function createSignInReveal(inviteCode, {
   return { existingToggle, signInBlock };
 }
 
-// Email, Google, and recovery-seed sign-in for invite pages.
+// Email and Google sign-in for invite pages; the seed link sits behind the
+// existing-account toggle (createSignInReveal).
 function renderInviteAuthOptions(inviteCode) {
   const items = [
     el('p', { class: 'section-label' }, t('Get started')),
@@ -368,7 +369,6 @@ function renderInviteAuthOptions(inviteCode) {
   } else {
     const google = ctaGoogleSignIn(inviteCode);
     if (google) items.push(google);
-    items.push(ctaRecoverSeed(inviteCode));
   }
   return items;
 }
@@ -748,6 +748,10 @@ function renderAnonymous(p) {
   // #601: a failed Google sign-in started here comes back to this invite
   // page with `?auth_error=`.
   const authError = isSignedInReturn() ? null : authErrorMessage(location.search);
+  const authOptions = renderInviteAuthOptions(code);
+  const { existingToggle, signInBlock } = createSignInReveal(code, {
+    hideOnReveal: authOptions,
+  });
   return el(
     'div',
     { class: 'content' },
@@ -758,7 +762,9 @@ function renderAnonymous(p) {
     el('p', { class: 'invite-about' }, copy.about),
     el('p', {}, copy.why),
     copy.signUp ? el('p', {}, copy.signUp) : null,
-    ...renderInviteAuthOptions(code),
+    ...authOptions,
+    existingToggle,
+    signInBlock,
   );
 }
 

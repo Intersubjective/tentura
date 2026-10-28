@@ -125,8 +125,6 @@ const RU = {
   'Everyone here is vouched for': 'Здесь за каждого кто-то поручился',
   'You joined by a personal invite, like everyone else — the friend who invited you is already in your network. Add people you trust, and post a request when you need a hand.':
     'Вы пришли по личному приглашению, как и все остальные: пригласивший вас друг уже в вашей сети. Добавляйте людей, которым доверяете, и публикуйте запрос, когда нужна помощь.',
-  'Restore an account from your recovery seed':
-    'Восстановить аккаунт по seed восстановления',
   'Tentura is where you ask for help and offer yours — no public feed, no likes, no noise.':
     'Tentura — это место, где вы просите о помощи и помогаете сами: без общей ленты, лайков и шума.',
   '{name} shared the post above with you. Join to read it and reply in its chat.':
@@ -285,8 +283,7 @@ export const ONBOARDING_PAGES = [
 ];
 
 /** Label of the seed-recovery text link on the signed-out pages (U084). */
-export const RECOVER_SEED_LINK_LABEL =
-  'Restore an account from your recovery seed';
+export const RECOVER_SEED_LINK_LABEL = 'I already have an account';
 
 /** One sentence about Tentura for the invite landing: the first sentence of
  * the first onboarding page, so both say the same thing (U084). */

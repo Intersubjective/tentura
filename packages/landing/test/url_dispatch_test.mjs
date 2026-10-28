@@ -27,13 +27,13 @@ test('anonymous render does not offer generic open-app CTA or seed signup', () =
   assert.doesNotMatch(mainJs, /I'm new — sign up/);
 });
 
-test('anonymous render surfaces email and Google auth directly', () => {
+test('anonymous render surfaces email and Google auth directly, seed link behind the existing-account toggle', () => {
   const anonymousBlock = mainJs.slice(
     mainJs.indexOf('function renderAnonymous'),
     mainJs.indexOf('function render(p)'),
   );
   assert.match(anonymousBlock, /renderInviteAuthOptions\(code\)/);
-  assert.doesNotMatch(anonymousBlock, /createSignInReveal/);
+  assert.match(anonymousBlock, /createSignInReveal\(code/);
 });
 
 test('Google CTA uses full same-origin returnTo for invite', () => {
@@ -151,7 +151,7 @@ test('renderNoInvite shows Open Tentura when signed_in=1', () => {
   assert.match(block, /ctaOpenApp\(\)/);
 });
 
-test('invite auth options include email, Google, and recover-from-seed', () => {
+test('invite auth options include email and Google; the seed link lives behind the toggle', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderInviteAuthOptions'),
     mainJs.indexOf('function renderEmailMagicLinkForm'),
@@ -160,7 +160,7 @@ test('invite auth options include email, Google, and recover-from-seed', () => {
   assert.match(block, /if \(env\.inApp\)/);
   assert.match(block, /ctaOpenInBrowser/);
   assert.match(block, /ctaGoogleSignIn\(inviteCode\)/);
-  assert.match(block, /ctaRecoverSeed\(inviteCode\)/);
+  assert.doesNotMatch(block, /ctaRecoverSeed/);
 });
 
 test('appRecoverUrl carries invite query and recover-seed hash route', () => {

@@ -53,7 +53,7 @@ test('in an in-app browser the person is told to open the link elsewhere', () =>
 test('the recovery link says what it is for', () => {
   const copy = inviteLandingCopy({ inviterName: 'Nina', inApp: false });
   assert.equal(copy.recoverLink, RECOVER_SEED_LINK_LABEL);
-  assert.match(copy.recoverLink, /recovery seed/);
+  assert.equal(copy.recoverLink, 'I already have an account');
 });
 
 // #501: a Post-scoped invite points at the post card and never says request.
