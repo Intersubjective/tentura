@@ -7,6 +7,7 @@ import 'package:tentura/app/router/browse_deep_link.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -94,17 +95,21 @@ class BeaconLobbyScreen extends StatelessWidget implements AutoRouteWrapper {
   );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: TenturaTopBar.of(
-      context,
-      leading: BeaconLobbyBackButton(beaconId: beaconId),
-      title: Text(L10n.of(context)!.beaconLobbyTitle),
-    ),
-    body: SafeArea(
-      // The same centred content column as the top bar (#658).
-      child: TenturaContentColumn(
-        child: BeaconLobbyBody(
-          myUserId: context.read<ProfileCubit>().state.profile.id,
+  Widget build(BuildContext context) => HomeRailFrame(
+    // The rail item of the Request this was opened from (its default tab).
+    selectedTab: HomeTab.work,
+    child: Scaffold(
+      appBar: TenturaTopBar.of(
+        context,
+        leading: BeaconLobbyBackButton(beaconId: beaconId),
+        title: Text(L10n.of(context)!.beaconLobbyTitle),
+      ),
+      body: SafeArea(
+        // The same centred content column as the top bar (#658).
+        child: TenturaContentColumn(
+          child: BeaconLobbyBody(
+            myUserId: context.read<ProfileCubit>().state.profile.id,
+          ),
         ),
       ),
     ),
