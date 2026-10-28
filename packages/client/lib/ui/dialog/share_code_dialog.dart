@@ -107,6 +107,9 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
             textAlign: TextAlign.center,
           )
         : null;
+    // A raw SelectionArea, not TenturaSelectionArea (#761): it lives in a
+    // short-lived dialog and keeps its touch selection on mobile; a room
+    // opening or closing under an open share dialog is not expected.
     final linkText = SelectionArea(
       // Selecting the link by hand (to copy it without the Copy button)
       // counts as used, so the hand-copied link keeps working (#605).
