@@ -512,7 +512,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 : l10n.beaconRoomMessageReadOnlyHint,
             composerSendFailedOffline: state.sendFailedOffline,
             composerSendUnconfirmed: state.sendUnconfirmed,
-            onPickFact: canWrite
+            enableComposerAttachments: widget.capabilities.composerTools,
+            enableParticipantMentions: widget.capabilities.composerTools,
+            onPickFact: canWrite && widget.capabilities.composerTools
                 ? () async {
                     // #481: an empty picker hands off to the Add-fact form
                     // when this room has one (Request rooms provide a
@@ -537,11 +539,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     }
                   }
                 : null,
-            onCreatePoll: canWrite
+            onCreatePoll: canWrite && widget.capabilities.composerTools
                 ? () =>
                       unawaited(showBeaconRoomPollSheet(context, cubit: cubit))
                 : null,
-            onCreateBaton: canWrite && widget.batonEnabled
+            onCreateBaton:
+                canWrite &&
+                    widget.batonEnabled &&
+                    widget.capabilities.composerTools
                 ? () => unawaited(
                     _showBatonCreateSheet(context, cubit, l10n, myProfile),
                   )
@@ -835,6 +840,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         message.isPromotionEligible;
     final showBatonStart =
         widget.batonEnabled &&
+        caps.composerTools &&
         canWrite &&
         RoomCubit.canReplyTo(message) &&
         message.systemMessageKind == null &&
@@ -1102,7 +1108,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       // ── Destructive (own message), divided off and last. ──
                       if (keepsPersonalActions &&
                           isOwnMessage &&
-                          !isThreadMode &&
+                          (!isThreadMode || caps.threadOwnMessageEdit) &&
                           !_suppressesRichMessageActions(message)) ...[
                         const Divider(height: 1),
                         if (canWrite && !isPoll)

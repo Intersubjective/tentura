@@ -28,6 +28,8 @@ class RoomCapabilities {
     required this.closure,
     required this.pinnedStrip,
     this.childPromotionOwnOnly = false,
+    this.composerTools = true,
+    this.threadOwnMessageEdit = false,
   });
 
   /// Every Request feature on.
@@ -40,7 +42,9 @@ class RoomCapabilities {
       commitmentSheet = true,
       closure = true,
       pinnedStrip = RoomPinnedStrip.requestBlocker,
-      childPromotionOwnOnly = false;
+      childPromotionOwnOnly = false,
+      composerTools = true,
+      threadOwnMessageEdit = false;
 
   /// Every Request-only feature off.
   const RoomCapabilities.post()
@@ -52,7 +56,25 @@ class RoomCapabilities {
       commitmentSheet = false,
       closure = false,
       pinnedStrip = RoomPinnedStrip.postRoot,
-      childPromotionOwnOnly = true;
+      childPromotionOwnOnly = true,
+      composerTools = true,
+      threadOwnMessageEdit = false;
+
+  /// A Questions thread: a plain reply thread. Everything limited to
+  /// admitted people is off, and so are the composer's attach, fact, poll and
+  /// baton tools and the mention suggestions; own messages stay editable.
+  const RoomCapabilities.questions()
+    : facts = false,
+      blocker = false,
+      plan = false,
+      coordinationItems = false,
+      childPromotion = false,
+      commitmentSheet = false,
+      closure = false,
+      pinnedStrip = RoomPinnedStrip.requestBlocker,
+      childPromotionOwnOnly = false,
+      composerTools = false,
+      threadOwnMessageEdit = true;
 
   final bool facts;
   final bool blocker;
@@ -68,6 +90,12 @@ class RoomCapabilities {
   /// gate `kPostBuddingEnabled` still decides whether the action shows.
   final bool childPromotionOwnOnly;
 
+  /// The composer offers attach, fact, poll and baton, and mention suggestions.
+  final bool composerTools;
+
+  /// Own messages can be edited and deleted inside a thread (Questions).
+  final bool threadOwnMessageEdit;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -80,7 +108,9 @@ class RoomCapabilities {
           commitmentSheet == other.commitmentSheet &&
           closure == other.closure &&
           pinnedStrip == other.pinnedStrip &&
-          childPromotionOwnOnly == other.childPromotionOwnOnly;
+          childPromotionOwnOnly == other.childPromotionOwnOnly &&
+          composerTools == other.composerTools &&
+          threadOwnMessageEdit == other.threadOwnMessageEdit;
 
   @override
   int get hashCode => Object.hash(
@@ -93,6 +123,8 @@ class RoomCapabilities {
     closure,
     pinnedStrip,
     childPromotionOwnOnly,
+    composerTools,
+    threadOwnMessageEdit,
   );
 }
 
