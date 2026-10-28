@@ -20,7 +20,7 @@ class RoomPollCard extends StatefulWidget {
 
   final RoomPollData poll;
 
-  /// Null when the viewer cannot vote (e.g. not a member).
+  /// Null when the viewer cannot vote; show read-only results instead.
   final void Function(List<String> variantIds, {int? score})? onVote;
 
   /// Room participants used to resolve voter display names for open polls.
@@ -60,7 +60,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
     _pendingRange = {};
   }
 
-  bool get _isVoted => widget.isClosed || (!_revoting && widget.poll.hasVoted);
+  bool get _isReadOnly => widget.isClosed || widget.onVote == null;
+
+  bool get _isVoted => _isReadOnly || (!_revoting && widget.poll.hasVoted);
 
   void _submitVote(List<String> variantIds, {int? score}) {
     setState(() => _revoting = false);
@@ -72,7 +74,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
     ThemeData theme,
     RoomPollVariant v,
   ) => InkWell(
-    onTap: widget.onVote == null ? null : () => _submitVote([v.id]),
+    onTap: () => _submitVote([v.id]),
     borderRadius: BorderRadius.circular(context.tt.buttonRadius),
     child: Padding(
       padding: EdgeInsets.symmetric(
@@ -231,8 +233,6 @@ class _RoomPollCardState extends State<RoomPollCard> {
     BuildContext context,
     ThemeData theme,
     RoomPollVariant v,
-    bool showVoters,
-    Map<String, BeaconParticipant> participantsByUserId,
   ) {
     final cs = theme.colorScheme;
     final isMine = widget.poll.isMyVote(v.id);
@@ -260,7 +260,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
         children: [
           Row(
             children: [
-              if (widget.isClosed && !isMine)
+              if (_isReadOnly && !isMine)
                 Icon(Icons.bar_chart, size: 20, color: cs.outline)
               else if (poll.pollType == PollType.single)
                 Icon(
@@ -318,15 +318,6 @@ class _RoomPollCardState extends State<RoomPollCard> {
               ),
             ),
           ),
-          if (showVoters && v.voterIds != null && v.voterIds!.isNotEmpty) ...[
-            SizedBox(height: context.tt.tightGap * 2),
-            _buildVoterAvatarsWrap(
-              context: context,
-              theme: theme,
-              voterIds: v.voterIds!,
-              participantsByUserId: participantsByUserId,
-            ),
-          ],
         ],
       ),
     );
@@ -410,7 +401,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
     final cs = theme.colorScheme;
     final poll = widget.poll;
     final voted = _isVoted;
-    final showVoters = !poll.isAnonymous && poll.hasVoted;
+    final showVoters = !poll.isAnonymous && (poll.hasVoted || widget.isAuthor);
 
     final participantsByUserId = <String, BeaconParticipant>{
       for (final p in widget.participants) p.userId: p,
@@ -444,7 +435,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
               ],
             ),
-            if (widget.isClosed) ...[
+            if (_isReadOnly) ...[
               SizedBox(height: context.tt.tightGap),
               Text(
                 l10n.beaconRoomPollClosedVotesCount(poll.totalVotes),
@@ -458,90 +449,89 @@ class _RoomPollCardState extends State<RoomPollCard> {
             // Poll controls stay out of the focus tree so they do not hold
             // primary focus after interaction. A focused Slider FocusNode can
             // leave the composer with a cursor but no soft keyboard on mobile.
-            if (voted)
-              ExcludeFocus(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ...poll.variants.map(
-                      (v) => Padding(
-                        padding: EdgeInsets.only(top: context.tt.iconTextGap),
-                        child: _buildVotedRow(
-                          context,
-                          theme,
-                          v,
-                          showVoters,
-                          participantsByUserId,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              ExcludeFocus(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ...poll.variants.map(
-                      (v) => Padding(
-                        padding: EdgeInsets.only(top: context.tt.iconTextGap),
-                        child: switch (poll.pollType) {
-                          PollType.multiple => _buildMultipleUnvoted(
-                            context,
-                            theme,
-                            v,
-                          ),
-                          PollType.range => _buildRangeUnvoted(
-                            context,
-                            theme,
-                            v,
-                          ),
-                          _ => _buildSingleUnvoted(
-                            context,
-                            theme,
-                            v,
-                          ),
-                        },
-                      ),
-                    ),
-                    if (poll.pollType != PollType.single) ...[
-                      SizedBox(height: context.tt.rowGap),
-                      FilledButton(
-                        onPressed: switch (poll.pollType) {
-                          PollType.multiple when _pendingMultiple.isNotEmpty =>
-                            () {
-                              _submitVote(_pendingMultiple.toList());
+            ExcludeFocus(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ...poll.variants.map(
+                    (v) => Padding(
+                      padding: EdgeInsets.only(top: context.tt.iconTextGap),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (voted)
+                            _buildVotedRow(context, theme, v)
+                          else
+                            switch (poll.pollType) {
+                              PollType.multiple => _buildMultipleUnvoted(
+                                context,
+                                theme,
+                                v,
+                              ),
+                              PollType.range => _buildRangeUnvoted(
+                                context,
+                                theme,
+                                v,
+                              ),
+                              _ => _buildSingleUnvoted(context, theme, v),
                             },
-                          PollType.range when _pendingRange.isNotEmpty => () {
-                            final scored = _pendingRange.entries
-                                .where((e) => e.value >= 1)
-                                .toList();
-                            if (scored.isEmpty) return;
-                            for (final entry in scored) {
-                              widget.onVote?.call(
-                                [entry.key],
-                                score: entry.value,
-                              );
-                            }
-                            setState(() => _revoting = false);
-                          },
-                          _ => null,
-                        },
-                        child: Text(
-                          poll.pollType == PollType.range
-                              ? l10n.beaconRoomPollSubmitRatings
-                              : l10n.beaconRoomPollSubmit,
-                        ),
+                          if (showVoters)
+                            if (v.voterIds case final voterIds?
+                                when voterIds.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: context.tt.tightGap * 2,
+                                  left: context.tt.tightGap * 2,
+                                  right: context.tt.tightGap * 2,
+                                ),
+                                child: _buildVoterAvatarsWrap(
+                                  context: context,
+                                  theme: theme,
+                                  voterIds: voterIds,
+                                  participantsByUserId: participantsByUserId,
+                                ),
+                              ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                  if (!voted && poll.pollType != PollType.single) ...[
+                    SizedBox(height: context.tt.rowGap),
+                    FilledButton(
+                      onPressed: switch (poll.pollType) {
+                        PollType.multiple when _pendingMultiple.isNotEmpty =>
+                          () {
+                            _submitVote(_pendingMultiple.toList());
+                          },
+                        PollType.range when _pendingRange.isNotEmpty => () {
+                          final scored = _pendingRange.entries
+                              .where((e) => e.value >= 1)
+                              .toList();
+                          if (scored.isEmpty) return;
+                          for (final entry in scored) {
+                            widget.onVote?.call(
+                              [entry.key],
+                              score: entry.value,
+                            );
+                          }
+                          setState(() => _revoting = false);
+                        },
+                        _ => null,
+                      },
+                      child: Text(
+                        poll.pollType == PollType.range
+                            ? l10n.beaconRoomPollSubmitRatings
+                            : l10n.beaconRoomPollSubmit,
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
+            ),
 
             // Footer: vote count + revote button. A closed poll carries the
             // count in its header instead.
-            if (!widget.isClosed) ...[
+            if (!_isReadOnly) ...[
               SizedBox(height: context.tt.rowGap),
               Row(
                 children: [
@@ -553,7 +543,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                       ),
                     ),
                   ),
-                  if (voted && poll.allowRevote && widget.onVote != null)
+                  if (voted && poll.allowRevote)
                     ExcludeFocus(
                       child: TextButton(
                         onPressed: () => setState(() {
