@@ -55,6 +55,7 @@ import 'constellation_filter_bar.dart';
 import 'constellation_minimap.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
+import 'constellation_overview_layer.dart';
 import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
@@ -152,6 +153,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ConstellationZoomLevelController? _ownZoom;
   // Outlives the minimap widget, which leaves at the close level.
   final _minimapExpanded = ValueNotifier<bool>(true);
+  final _clusterLabels = ConstellationClusterLabels();
   int _pointersDown = 0;
 
   // The level held back near a threshold while a gesture ran must catch up
@@ -219,6 +221,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
     _minimapExpanded.dispose();
+    _clusterLabels.dispose();
     _reveal.dispose();
     _edgeStrokeScale.dispose();
     _mapFocus.dispose();
@@ -1432,6 +1435,18 @@ class _ConstellationBodyState extends State<ConstellationBody>
       key: _graphStackKey,
       fit: StackFit.expand,
       children: [
+        // Beneath the map: a dot's own semantics win over a label's.
+        ConstellationClusterLabelSemantics(
+          labels: _clusterLabels,
+          onPersonTapped: (personId) {
+            final node = cubit.graphController.nodePayloadForId(
+              'fp:$personId',
+            );
+            if (node is NodeDetails) {
+              _onNodeTap(context, cubit, node);
+            }
+          },
+        ),
         // A new touch or wheel on the map cancels a running reveal pan.
         Listener(
           onPointerDown: (_) {
@@ -1760,6 +1775,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               cubit: cubit,
               frameHolder: _frameHolder,
               peopleTags: _peopleTags,
+              clusterLabels: _clusterLabels,
             ),
           ),
         ),
@@ -2128,6 +2144,11 @@ class _MinExtentSemantics extends Semantics {
   }
 }
 
+/// Half the side (screen px) of the smallest area Chrome adjusts a touch
+/// over (`kMinAdjustmentSizeDip`, 20 px), on the web build where map
+/// markers are clickable semantics elements.
+const _kBrowserTouchAreaHalfSide = 10.0;
+
 class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
   _RenderMinExtentSemantics({
     required this.neighbourOffsets,
@@ -2168,7 +2189,8 @@ class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
     // neighbour's centre: the corner nearest that neighbour may not cross it.
     // The axis the neighbour lies mostly along gives way first, down to a
     // quarter of the distance; then the other axis does too.
-    for (final offset in neighbourOffsets()) {
+    final neighbours = neighbourOffsets();
+    for (final offset in neighbours) {
       final dx = offset.dx / scale;
       final dy = offset.dy / scale;
       // A neighbour a whole target away along either axis never reaches into
@@ -2223,7 +2245,41 @@ class _RenderMinExtentSemantics extends RenderSemanticsAnnotations {
         }
       }
     }
+    // An axis cut to less than half a browser's touch area is centred on the
+    // node: its longer side gives way as far as the shorter one. A browser's
+    // touch adjustment sends a finger to the clickable box its touch area
+    // covers best, and a box that runs on past the node on one side loses
+    // that to a small neighbour's box, even under the finger (#640).
+    final halfTouchArea = _kBrowserTouchAreaHalfSide / scale;
+    if (math.min(left, right) < halfTouchArea) {
+      left = right = math.min(left, right);
+    }
+    if (math.min(up, down) < halfTouchArea) {
+      up = down = math.min(up, down);
+    }
     final c = bounds.center;
+    // Chrome expands clickable boxes to whole CSS pixels. Where a bisector
+    // runs along a shared edge, round that axis inward if it still includes
+    // the dot centre, so the boxes do not overlap again after expansion.
+    final screenCentre = localToGlobal(c);
+    if (neighbours.any(
+      (p) => p.dy == 0 && p.dx.abs() / scale <= left + right,
+    )) {
+      final start = (screenCentre.dx - left * scale).ceilToDouble();
+      final end = (screenCentre.dx + right * scale).floorToDouble();
+      if (start <= screenCentre.dx && screenCentre.dx < end) {
+        left = (screenCentre.dx - start) / scale;
+        right = (end - screenCentre.dx) / scale;
+      }
+    }
+    if (neighbours.any((p) => p.dx == 0 && p.dy.abs() / scale <= up + down)) {
+      final start = (screenCentre.dy - up * scale).ceilToDouble();
+      final end = (screenCentre.dy + down * scale).floorToDouble();
+      if (start <= screenCentre.dy && screenCentre.dy < end) {
+        up = (screenCentre.dy - start) / scale;
+        down = (end - screenCentre.dy) / scale;
+      }
+    }
     return Rect.fromLTRB(c.dx - left, c.dy - up, c.dx + right, c.dy + down);
   }
 }

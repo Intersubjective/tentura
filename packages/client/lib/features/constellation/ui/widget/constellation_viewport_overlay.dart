@@ -52,12 +52,16 @@ class ConstellationViewportOverlay extends StatefulWidget {
     required this.cubit,
     required this.frameHolder,
     this.peopleTags,
+    this.clusterLabels,
     super.key,
   });
 
   final ConstellationCubit cubit;
   final ConstellationPresentationFrameHolder frameHolder;
   final PeopleTagsCase? peopleTags;
+
+  /// Where the overview's cluster labels are laid out.
+  final ConstellationClusterLabels? clusterLabels;
 
   @override
   State<ConstellationViewportOverlay> createState() =>
@@ -831,6 +835,7 @@ class _ConstellationViewportOverlayState
                           frame: frame,
                           viewerId: viewerId,
                           peopleTags: widget.peopleTags,
+                          clusterLabels: widget.clusterLabels,
                           onClusterDragged: (personIds, delta) =>
                               widget.cubit.moveClusterBy(
                                 personIds,
