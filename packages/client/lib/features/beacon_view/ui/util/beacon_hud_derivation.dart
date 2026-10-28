@@ -188,7 +188,9 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
         return l10n.beaconHudWaitingForReviews;
       }
       if (beacon.viewerCanForward) {
-        return l10n.beaconHudYouForward;
+        return _everyForwardDeclined(state)
+            ? l10n.beaconHudYouForwardAfterDecline
+            : l10n.beaconHudYouForward;
       }
       if (authorHudShowsStatusOverflowFallback(state)) {
         return l10n.beaconHudYouChangeStatusInOverflow;
@@ -223,6 +225,14 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   }
 
   return l10n.beaconHudYouNoAction;
+}
+
+/// #486: the author forwarded to someone and every live forward was declined.
+bool _everyForwardDeclined(BeaconViewState state) {
+  final live = state.myForwards.where(
+    (e) => e.sender.id == state.myProfile.id && !e.isCancelled,
+  );
+  return live.isNotEmpty && live.every((e) => e.recipientRejected);
 }
 
 String _authorYouSituationLine(

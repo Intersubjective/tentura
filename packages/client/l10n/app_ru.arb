@@ -4673,6 +4673,7 @@
   "beaconHudBeaconUnavailable": "Запрос недоступен",
   "beaconHudYouNoActionAvailable": "Действий нет",
   "beaconHudYouForward": "Можете переслать",
+  "beaconHudYouForwardAfterDecline": "Все отказались — перешлите кому-нибудь ещё",
   "beaconHudReviewOpen": "ПОДВОДИМ ИТОГИ",
   "beaconHudTokenHelpOfferedCount": "{count} предложений",
   "@beaconHudTokenHelpOfferedCount": {

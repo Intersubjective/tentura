@@ -4997,6 +4997,7 @@
   "beaconHudBeaconUnavailable": "Request unavailable",
   "beaconHudYouNoActionAvailable": "No action available",
   "beaconHudYouForward": "You can forward",
+  "beaconHudYouForwardAfterDecline": "Everyone declined — forward to someone else",
   "beaconHudReviewOpen": "REVIEW OPEN",
   "beaconHudTokenHelpOfferedCount": "{count} offered help",
   "@beaconHudTokenHelpOfferedCount": {
