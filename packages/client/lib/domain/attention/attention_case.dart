@@ -463,6 +463,20 @@ final class AttentionCase implements AttentionReconcilePort {
     return page;
   }
 
+  /// One Request's pinned-zone row, without disturbing the loaded rows: a
+  /// live arrival learns its invite facts (#725). Null when the Request is
+  /// not in the zone.
+  Future<ActivityOfferSortRow?> activityOfferRow(String beaconId) async {
+    final page = await _repository.activityOffers(
+      limit: 1,
+      beaconId: beaconId,
+    );
+    for (final row in page.items) {
+      if (row.beaconId == beaconId) return row;
+    }
+    return null;
+  }
+
   /// The zone's total, without disturbing the loaded rows.
   Future<int> activityOffersCount() async =>
       (await _repository.activityOffers(limit: 1)).totalCount;

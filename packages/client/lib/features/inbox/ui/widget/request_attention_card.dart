@@ -69,6 +69,7 @@ class RequestAttentionCard extends StatelessWidget {
     this.onForward,
     this.onFollow,
     this.onCantHelp,
+    this.cantHelpLabel,
     this.onForwardsGraph,
     this.onComplaint,
     super.key,
@@ -148,6 +149,10 @@ class RequestAttentionCard extends StatelessWidget {
   /// dialog: declining is a social act, and must never wear the quiet private
   /// gesture (E17).
   final Future<void> Function()? onCantHelp;
+
+  /// #725: the menu words for [onCantHelp] when they are not «Can't help»
+  /// (an invited viewer's «Can't make it»).
+  final String? cantHelpLabel;
 
   final VoidCallback? onForwardsGraph;
   final VoidCallback? onComplaint;
@@ -353,6 +358,7 @@ class RequestAttentionCard extends StatelessWidget {
           key: overflowKey,
           beacon: beacon,
           onCantHelp: onCantHelp,
+          cantHelpActionLabel: cantHelpLabel,
           onForwardsGraph: onForwardsGraph,
           onActivityLog: onOpenTimeline,
           onComplaint: onComplaint,

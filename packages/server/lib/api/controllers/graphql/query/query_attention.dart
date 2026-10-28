@@ -173,12 +173,17 @@ final class QueryAttention extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get activityOffers => GraphQLObjectField(
     'activityOffers',
     gqlTypeActivityOfferPage.nonNullable(),
-    arguments: [_cursor.fieldNullable, _limit.fieldNullable],
+    arguments: [
+      _cursor.fieldNullable,
+      _limit.fieldNullable,
+      _beaconId.fieldNullable,
+    ],
     resolve: (_, args) async {
       final page = await _query.activityOffers(
         accountId: getCredentials(args).sub,
         cursor: _decodeCursor(_cursor.fromArgs(args)),
         limit: _limit.fromArgs(args) ?? 20,
+        beaconId: _boundedId(_beaconId.fromArgs(args), 'beaconId'),
       );
       return {
         'items': [
@@ -197,6 +202,7 @@ final class QueryAttention extends GqlNodeBase {
                 for (final event in item.eventsPreview) _mapReceipt(event),
               ],
               'inviteId': item.inviteId,
+              'declinedInvite': item.declinedInvite,
             },
         ],
         'totalCount': page.totalCount,

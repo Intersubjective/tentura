@@ -82,8 +82,11 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   @override
   Future<void> dismiss(String beaconId, {String note = ''}) async {}
 
+  final rejected = <({String beaconId, String message})>[];
+
   @override
-  Future<void> reject(String beaconId, {String message = ''}) async {}
+  Future<void> reject(String beaconId, {String message = ''}) async =>
+      rejected.add((beaconId: beaconId, message: message));
 
   @override
   Future<void> unreject(String beaconId) async {}
@@ -1614,6 +1617,101 @@ void main() {
         boot.inboxRepo.lastSetStatus?.rejectionMessage,
         'Away that weekend',
       );
+    });
+  });
+
+  // #725 (QA 2026-10-26, step 5): a viewer whose author invitation to this
+  // Request is answered «Can't make it» can meet the plain Request card again
+  // (restored, re-forwarded, or after a reload). Its ⋮ said "Can't help" and
+  // opened "Can't help?", and the row then said "You said you can't make it":
+  // two wordings on one route. On an invited viewer's card the route keeps
+  // the invitation's words; a forwarded Request keeps "Can't help?".
+  group("#725 the card ⋮ on an invited viewer's Request", () {
+    Future<({_Boot boot, _TestInboxCubit inbox})> bootCards(
+      WidgetTester tester, {
+      required bool declinedInvite,
+    }) async {
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(firstPage: const []);
+      final items = [_offerItem('B-725')];
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: items,
+      );
+      attentionRepo.offerRows = [
+        activityOfferSortRow(
+          items.single,
+        ).copyWith(declinedInvite: declinedInvite),
+      ];
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+        authorInviteCase: buildAuthorInviteCase(FakeAuthorInvitePort()),
+      );
+      final inbox = _TestInboxCubit(
+        const InboxState(projectionLoaded: true),
+      );
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        inbox: inbox,
+        logicalSize: const Size(360, 1600),
+      );
+      return (boot: boot, inbox: inbox);
+    }
+
+    Future<void> openMenu(WidgetTester tester) async {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(RequestAttentionCard),
+          matching: find.byIcon(Icons.more_vert),
+        ),
+      );
+      await _pumpFrames(tester);
+    }
+
+    final l10n = L10nEn();
+
+    testWidgets("an answered invitation: «Can't make it» → "
+        "«Can't make it?», never «Can't help»", (tester) async {
+      final (:boot, :inbox) = await bootCards(tester, declinedInvite: true);
+      addTearDown(boot.dispose);
+      expect(find.byType(ActivityInviteCard), findsNothing);
+
+      await openMenu(tester);
+      expect(find.text(l10n.inviteDecline), findsOneWidget);
+      expect(find.text(l10n.actionCantHelp), findsNothing);
+
+      await tester.tap(find.text(l10n.inviteDecline));
+      await _pumpFrames(tester);
+      expect(find.text(l10n.inviteDeclineDialogTitle), findsOneWidget);
+      expect(find.text(l10n.rejectionDialogTitle), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'Still away');
+      await tester.tap(find.text(l10n.buttonOk));
+      await _pumpFrames(tester);
+      expect(inbox.rejected, [(beaconId: 'B-725', message: 'Still away')]);
+    });
+
+    testWidgets("a forwarded Request keeps «Can't help» → «Can't help?»", (
+      tester,
+    ) async {
+      final (:boot, :inbox) = await bootCards(tester, declinedInvite: false);
+      addTearDown(boot.dispose);
+
+      await openMenu(tester);
+      expect(find.text(l10n.actionCantHelp), findsOneWidget);
+      expect(find.text(l10n.inviteDecline), findsNothing);
+
+      await tester.tap(find.text(l10n.actionCantHelp));
+      await _pumpFrames(tester);
+      expect(find.text(l10n.rejectionDialogTitle), findsOneWidget);
+      expect(find.text(l10n.inviteDeclineDialogTitle), findsNothing);
+
+      await tester.tap(find.text(l10n.buttonOk));
+      await _pumpFrames(tester);
+      expect(inbox.rejected, [(beaconId: 'B-725', message: '')]);
     });
   });
 }

@@ -61,6 +61,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onWatch,
     this.onStopWatching,
     this.onCantHelp,
+    this.cantHelpActionLabel,
     this.onMoveToInbox,
     this.onDelete,
     this.onComplaint,
@@ -94,6 +95,10 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
   final Future<void> Function()? onCantHelp;
+
+  /// Overrides the «Can't help» label (#725: «Can't make it» for a viewer
+  /// who answered an author invitation).
+  final String? cantHelpActionLabel;
   final VoidCallback? onMoveToInbox;
   final Future<void> Function()? onDelete;
   final VoidCallback? onComplaint;
@@ -249,7 +254,11 @@ class BeaconOverflowMenu extends StatelessWidget {
       );
     }
     if (onCantHelp != null) {
-      add('cant_help', Icons.close, l10n.actionCantHelp);
+      add(
+        'cant_help',
+        Icons.close,
+        cantHelpActionLabel ?? l10n.actionCantHelp,
+      );
     }
     if (onMoveToInbox != null) {
       add(

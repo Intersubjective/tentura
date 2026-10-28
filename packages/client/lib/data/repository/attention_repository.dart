@@ -491,13 +491,15 @@ final class AttentionRepository implements AttentionRepositoryPort {
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
     int limit = 20,
+    String? beaconId,
   }) async {
     final data = await _remoteClient
         .request(
           GActivityOffersV2Req(
             (request) => request.vars
               ..cursor = cursor
-              ..limit = limit,
+              ..limit = limit
+              ..beaconId = beaconId,
           ),
         )
         .firstWhere((response) => response.dataSource == DataSource.Link)
@@ -521,6 +523,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
                 _mapReceiptFields(preview),
             ],
             inviteId: row.inviteId,
+            declinedInvite: row.declinedInvite,
           ),
       ],
     );

@@ -21,6 +21,13 @@ abstract class ActivityOfferSortRow with _$ActivityOfferSortRow {
     /// Plan C6: the viewer's pending author invite on this Request; a row
     /// with it renders the «Для вас» invite card.
     String? inviteId,
+
+    /// #725: the viewer's latest author invitation to this Request was
+    /// answered «Can't make it». The plain card (the row is back after a
+    /// restore or a forward) then keeps the invitation's words for its
+    /// «Can't help» route, as the Activity row will say "You said you can't
+    /// make it".
+    @Default(false) bool declinedInvite,
   }) = _ActivityOfferSortRow;
 }
 

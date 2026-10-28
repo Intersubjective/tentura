@@ -28,6 +28,7 @@ abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
     int limit = 20,
+    String? beaconId,
   }) async => const ActivityOfferPage();
 
   @override

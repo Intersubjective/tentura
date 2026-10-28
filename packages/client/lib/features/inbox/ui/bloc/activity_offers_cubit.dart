@@ -133,6 +133,9 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       state.copyWith(
         firstLoadDone: state.firstLoadDone || !pageFailed,
         inviteIdByBeacon: inviteIds,
+        declinedInviteBeacons: pageFailed
+            ? state.declinedInviteBeacons
+            : _declinedInvitesOf(resolvedPage?.items ?? const []),
         items: pageFailed ? state.items : page,
         totalCount: pageFailed ? state.totalCount : resolvedPage?.totalCount,
         countLoadFailed: false,
@@ -182,6 +185,10 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
             ...state.inviteIdByBeacon,
             ..._inviteIdsOf(offerPage.items),
           },
+          declinedInviteBeacons: _withDeclinedInvitesOf(
+            state.declinedInviteBeacons,
+            offerPage.items,
+          ),
           eventsByBeacon: eventsByBeacon,
           offersNextCursor: nextCursor,
           hasMore: nextCursor != null && nextCursor.isNotEmpty,
@@ -210,6 +217,18 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   Future<void> declineInvite(String beaconId, {String message = ''}) =>
       _answerInvite(beaconId, (inviteId) async {
         await _invites.decline(inviteId);
+        // #725: the Request now carries an answered invitation; if it comes
+        // back to the zone (restored, forwarded), its card keeps these words.
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              declinedInviteBeacons: {
+                ...state.declinedInviteBeacons,
+                beaconId,
+              },
+            ),
+          );
+        }
         await _inboxCase.recordInviteDeclineNote(
           beaconId: beaconId,
           message: message,
@@ -263,11 +282,64 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     unawaited(_refreshOpenForwardsCount());
   }
 
+  static Set<String> _declinedInvitesOf(List<ActivityOfferSortRow> rows) => {
+    for (final row in rows)
+      if (row.declinedInvite) row.beaconId,
+  };
+
+  /// [current] with each returned row's answer applied: a row says whether
+  /// its Request carries a declined invitation now (a re-invite, withdrawn
+  /// or pending, clears it), so a stale mark never outlives its row.
+  static Set<String> _withDeclinedInvitesOf(
+    Set<String> current,
+    Iterable<ActivityOfferSortRow> rows,
+  ) {
+    final next = {...current};
+    for (final row in rows) {
+      if (row.declinedInvite) {
+        next.add(row.beaconId);
+      } else {
+        next.remove(row.beaconId);
+      }
+    }
+    return next;
+  }
+
   static Map<String, String> _inviteIdsOf(List<ActivityOfferSortRow> rows) => {
     for (final row in rows)
       if (row.inviteId case final inviteId? when inviteId.isNotEmpty)
         row.beaconId: inviteId,
   };
+
+  /// #725: a row that arrives live carries no invite facts (the zone's page
+  /// does). Ask for its one row: a pending invite turns it into the invite
+  /// card, a declined one keeps the invitation's words on its plain card.
+  /// Best-effort: without an answer the row stays the plain card.
+  Future<void> _learnInviteFacts(String beaconId) async {
+    // A reload that lands meanwhile carries fresher facts than this answer.
+    final generation = _loadGeneration;
+    final ActivityOfferSortRow? row;
+    try {
+      row = await _attention.activityOfferRow(beaconId);
+    } on Object {
+      return;
+    }
+    if (isClosed || row == null || generation != _loadGeneration) return;
+    final inviteId = row.inviteId;
+    final hasInvite = inviteId != null && inviteId.isNotEmpty;
+    emit(
+      state.copyWith(
+        inviteIdByBeacon: hasInvite
+            ? {...state.inviteIdByBeacon, beaconId: inviteId}
+            : state.inviteIdByBeacon,
+        declinedInviteBeacons: _withDeclinedInvitesOf(
+          state.declinedInviteBeacons,
+          [row],
+        ),
+      ),
+    );
+    if (hasInvite) await _hydrateInvites();
+  }
 
   /// Inviter and note for the invite rows; best-effort, like actor avatars.
   Future<void> _hydrateInvites() async {
@@ -368,7 +440,11 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     if (row == null) {
       _demoteBeacon(beaconId);
     } else {
+      final arrived =
+          !state.items.any((e) => e.beaconId == beaconId) &&
+          !state.heldBackIds.contains(beaconId);
       _upsertOpenForward(row);
+      if (arrived) unawaited(_learnInviteFacts(beaconId));
     }
     unawaited(_refreshOpenForwardsCount());
     unawaited(_refreshUnseenDots());

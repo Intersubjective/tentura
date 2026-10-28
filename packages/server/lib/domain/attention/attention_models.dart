@@ -775,5 +775,11 @@ abstract class ActivityOfferSortRow with _$ActivityOfferSortRow {
     /// `authorInviteReceived` receipt is folded into it rather than shown as
     /// one of its events.
     String? inviteId,
+
+    /// #725 — the viewer's latest author invite to this Request was declined
+    /// («Can't make it»): the Request is back in the zone (restored, or
+    /// forwarded again) as the plain card, whose «Can't help» route then keeps
+    /// the invitation's words, as the Activity row's `declinedInvite` does.
+    @Default(false) bool declinedInvite,
   }) = _ActivityOfferSortRow;
 }

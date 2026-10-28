@@ -582,6 +582,8 @@ class _ActivityStreamScrollBody extends StatelessWidget {
                         showUnseenDot: showDot,
                         eventsMeta: offersState.eventsByBeacon[item.beaconId],
                         actors: offersState.actors,
+                        declinedInvite: offersState.declinedInviteBeacons
+                            .contains(item.beaconId),
                       ),
               );
             }
@@ -599,6 +601,9 @@ class _ActivityStreamScrollBody extends StatelessWidget {
               showUnseenDot: showDot,
               eventsMeta: offersState.eventsByBeacon[beaconId],
               actors: offersState.actors,
+              declinedInvite: offersState.declinedInviteBeacons.contains(
+                beaconId,
+              ),
             );
             return KeyedSubtree(
               key: ValueKey('offer-exit-$beaconId'),
@@ -739,6 +744,12 @@ class _PinnedInviteCard extends StatelessWidget {
 /// «Следить» — and it deliberately carries **no** × (E17): «Не могу помочь»
 /// is a social act, lives in the overflow menu and opens the rejection
 /// dialog, so it is never worn as the quiet private gesture.
+///
+/// #725: when the viewer already answered an author invitation to this
+/// Request «Can't make it» ([declinedInvite]) and the Request is back here,
+/// the route keeps the invitation's words — «Can't make it» opens
+/// "Can't make it?" — as the row below will say "You said you can't make
+/// it". A forwarded Request keeps «Can't help» → "Can't help?".
 class _PinnedRequestCard extends StatelessWidget {
   const _PinnedRequestCard({
     required this.item,
@@ -746,6 +757,7 @@ class _PinnedRequestCard extends StatelessWidget {
     required this.showUnseenDot,
     this.eventsMeta,
     this.actors = const {},
+    this.declinedInvite = false,
   });
 
   final InboxItem item;
@@ -753,6 +765,7 @@ class _PinnedRequestCard extends StatelessWidget {
   final bool showUnseenDot;
   final ActivityOfferBeaconMeta? eventsMeta;
   final Map<String, Profile> actors;
+  final bool declinedInvite;
 
   @override
   Widget build(BuildContext context) {
@@ -769,7 +782,9 @@ class _PinnedRequestCard extends StatelessWidget {
     }
 
     Future<void> cantHelp() async {
-      final message = await showRejectionDialog(context);
+      final message = declinedInvite
+          ? await showInviteDeclineDialog(context)
+          : await showRejectionDialog(context);
       if (!context.mounted || message == null) return;
       await inboxCubit.reject(beaconId, message: message);
     }
@@ -801,6 +816,9 @@ class _PinnedRequestCard extends StatelessWidget {
               ? () => unawaited(inboxCubit.setWatching(beaconId))
               : null,
           onCantHelp: cantHelp,
+          cantHelpLabel: declinedInvite
+              ? L10n.of(context)!.inviteDecline
+              : null,
         ),
       ),
     );

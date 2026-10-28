@@ -41,6 +41,11 @@ abstract class ActivityOffersState extends StateBase
 
     /// Inviter profiles by user id, for the invite card.
     @Default(<String, Profile>{}) Map<String, Profile> inviters,
+
+    /// #725: Requests whose author invitation the viewer answered «Can't make
+    /// it» (the rows' `declinedInvite`, and declines made here). Their plain
+    /// card keeps the invitation's words: «Can't make it» → "Can't make it?".
+    @Default(<String>{}) Set<String> declinedInviteBeacons,
     @Default(StateIsLoading()) StateStatus status,
   }) = _ActivityOffersState;
 

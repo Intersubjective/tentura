@@ -499,6 +499,8 @@ final gqlTypeActivityOfferSortRow =
         ),
         // Plan C6 - the viewer's pending author invite on this Request.
         field('inviteId', graphQLString),
+        // #725 - the viewer's latest author invite here was declined.
+        field('declinedInvite', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeActivityOfferPage = GraphQLObjectType('ActivityOfferPage', null)
