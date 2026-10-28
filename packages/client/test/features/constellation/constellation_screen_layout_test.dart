@@ -162,7 +162,15 @@ void main() {
           find.byKey(const Key('constellation.post_preview')),
           findsOneWidget,
         );
-        expect(find.text('Selected Post excerpt'), findsOneWidget);
+        // The excerpt also labels the Post's node on the map; the card shows it
+        // too.
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('constellation.post_preview')),
+            matching: find.text('Selected Post excerpt'),
+          ),
+          findsOneWidget,
+        );
         await tester.tap(find.byIcon(Icons.close));
         await tester.pumpAndSettle();
         expect(cubit.state.selectedRequestId, isNull);

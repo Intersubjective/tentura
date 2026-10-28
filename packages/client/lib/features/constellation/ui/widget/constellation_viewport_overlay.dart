@@ -218,6 +218,30 @@ class _ConstellationViewportOverlayState
     return moved;
   }
 
+  // Text, line budget and plate width of a node's label; empty text = none.
+  (String, int, double) _labelSpec(
+    NodeDetails node,
+    L10n l10n,
+    TenturaTokens tt,
+  ) => switch (node) {
+    FieldPersonNode(:final person) => (
+      person.shownName,
+      1,
+      tt.graphLabelMaxWidthPerson,
+    ),
+    FieldBeaconNode(request: final request?) => (
+      request.title.isEmpty ? l10n.beaconViewTitle : request.title,
+      2,
+      tt.graphLabelMaxWidthRequest,
+    ),
+    FieldBeaconNode(post: final post?) => (
+      post.rootExcerpt,
+      2,
+      tt.graphLabelMaxWidthRequest,
+    ),
+    _ => ('', 1, tt.graphLabelMaxWidthPerson),
+  };
+
   void _maybeClearLabelCache(BuildContext context, int nodeCount) {
     final locale = Localizations.localeOf(context);
     final brightness = Theme.of(context).brightness;
@@ -432,19 +456,11 @@ class _ConstellationViewportOverlayState
                     ring: ring,
                   );
 
-              final (labelText, maxLines, plateWidth) = switch (node) {
-                FieldPersonNode(:final person) => (
-                  person.shownName,
-                  1,
-                  tt.graphLabelMaxWidthPerson,
-                ),
-                FieldBeaconNode(request: final request?) => (
-                  request.title.isEmpty ? l10n.beaconViewTitle : request.title,
-                  2,
-                  tt.graphLabelMaxWidthRequest,
-                ),
-                _ => ('', 1, tt.graphLabelMaxWidthPerson),
-              };
+              final (labelText, maxLines, plateWidth) = _labelSpec(
+                node,
+                l10n,
+                tt,
+              );
 
               final labelSize = labelText.isEmpty
                   ? Size.zero
@@ -633,21 +649,7 @@ class _ConstellationViewportOverlayState
                 if (node == null) {
                   continue;
                 }
-                final (text, maxLines, plateWidth) = switch (node) {
-                  FieldPersonNode(:final person) => (
-                    person.shownName,
-                    1,
-                    tt.graphLabelMaxWidthPerson,
-                  ),
-                  FieldBeaconNode(request: final request?) => (
-                    request.title.isEmpty
-                        ? l10n.beaconViewTitle
-                        : request.title,
-                    2,
-                    tt.graphLabelMaxWidthRequest,
-                  ),
-                  _ => ('', 1, tt.graphLabelMaxWidthPerson),
-                };
+                final (text, maxLines, plateWidth) = _labelSpec(node, l10n, tt);
                 final plateKey = (
                   text,
                   maxLines,
