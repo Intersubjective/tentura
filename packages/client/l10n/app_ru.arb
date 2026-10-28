@@ -7369,6 +7369,7 @@
   "beaconLobbyEmptyBody": "Спросите то, что нужно знать до предложения помощи: когда, где, что взять с собой. Ответ увидят все, кому отправлен этот запрос.",
   "beaconLobbyReadOnly": "Вы можете читать вопросы и ответы, но не писать здесь.",
   "beaconLobbyEntryCount": "{count, plural, =0{Вопросов пока нет} one{{count} сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
+  "beaconLobbyEntryUnread": "{count, plural, one{{count} новое} few{{count} новых} many{{count} новых} other{{count} новых}}",
   "beaconLobbyLoadOlder": "Показать более ранние сообщения",
   "beaconLobbyBannedCountSemantics": "{count, plural, one{Без доступа к вопросам: {count} человек} few{Без доступа к вопросам: {count} человека} many{Без доступа к вопросам: {count} человек} other{Без доступа к вопросам: {count} человека}}",
   "beaconRoomEmptyTitle": "Сообщений пока нет",

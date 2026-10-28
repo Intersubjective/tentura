@@ -10701,6 +10701,16 @@
       }
     }
   },
+  "beaconLobbyEntryUnread": "{count} new",
+  "@beaconLobbyEntryUnread": {
+    "description": "Request Questions: entry row badge for the author, unsettled new questions",
+    "context": "BeaconLobbyScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "beaconLobbyLoadOlder": "Show earlier messages",
   "@beaconLobbyLoadOlder": {
     "description": "Request Questions: pages back",
