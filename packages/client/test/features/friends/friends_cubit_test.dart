@@ -1,11 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/data/repository/presence_repository.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
+import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -19,8 +23,11 @@ import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
+import 'package:tentura/features/friends/ui/widget/accepted_invite_list_tile.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
+import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/fake_block_case.dart';
 import '../../support/test_realtime_sync.dart';
@@ -35,6 +42,79 @@ void main() {
     setUp(() => harness = _FriendsHarness());
 
     tearDown(() => harness.dispose());
+
+    testWidgets('profile hint refreshes the accepted invitee name once', (
+      tester,
+    ) async {
+      await initializeDateFormatting('en');
+      final acceptedAt = DateTime.utc(2026, 10, 28);
+      final invitation = InvitationEntity(
+        id: 'invite-1',
+        invitedId: 'invitee-1',
+        invitedName: 'New member',
+        inviteOrigin: 'new_account',
+        acceptedAt: acceptedAt,
+        createdAt: acceptedAt,
+        updatedAt: acceptedAt,
+      );
+      harness.invitations.acceptedResult = [invitation];
+      final cubit = InvitationCubit(
+        invitationRepository: harness.invitations,
+        effects: harness.effects,
+        serverChanges: harness.friendsCase.invitationServerChanges,
+      );
+      addTearDown(cubit.close);
+      await cubit.fetch();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: StreamBuilder<InvitationState>(
+              stream: cubit.stream,
+              initialData: cubit.state,
+              builder: (context, snapshot) => AcceptedInviteListTile(
+                invitation: snapshot.requireData.acceptedInvitations.single,
+                l10n: lookupL10n(const Locale('en')),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(
+        find.text('New member joined Tentura via this invite'),
+        findsOneWidget,
+      );
+      expect(harness.invitations.fetchCalls, 1);
+
+      harness.invitations.acceptedResult = [
+        invitation.copyWith(invitedName: 'Theo'),
+      ];
+      harness.realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.profile,
+          aggregateId: 'invitee-1',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 99));
+      expect(harness.invitations.fetchCalls, 1);
+      expect(
+        find.text('New member joined Tentura via this invite'),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      expect(harness.invitations.fetchCalls, 2);
+      expect(find.text('Theo joined Tentura via this invite'), findsOneWidget);
+      expect(
+        find.text('New member joined Tentura via this invite'),
+        findsNothing,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(harness.invitations.fetchCalls, 2);
+    });
 
     test('loads friends, contact overlays, contexts, and presence', () async {
       harness
@@ -419,6 +499,23 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
 final class _FakeInvitationRepository implements InvitationRepository {
   final _changes = StreamController<void>.broadcast();
   final accepted = <String>[];
+  List<InvitationEntity> acceptedResult = [];
+  int fetchCalls = 0;
+
+  @override
+  Future<InvitationsFetchResult> fetchMine({
+    int pendingOffset = 0,
+    int pendingLimit = 5,
+    int acceptedOffset = 0,
+    int acceptedLimit = 5,
+  }) async {
+    fetchCalls++;
+    return (
+      pending: <InvitationEntity>[],
+      accepted: acceptedResult,
+      pendingCount: 0,
+    );
+  }
 
   @override
   Stream<void> get changes => _changes.stream;
