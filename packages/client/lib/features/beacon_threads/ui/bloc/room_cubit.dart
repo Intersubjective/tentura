@@ -13,6 +13,7 @@ import 'package:tentura_root/domain/plan/plan.dart' as plan_model;
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
@@ -69,6 +70,7 @@ class RoomCubit extends Cubit<RoomState> {
   RoomCubit({
     required String beaconId,
     String? threadItemId,
+    BeaconLobbyAccess? lobbyAccess,
     DateTime? initialUnreadAnchorAt,
     BeaconThreadsCase? beaconRoomCase,
     CoordinationItemRoomSync? coordinationItemRoomSync,
@@ -89,6 +91,7 @@ class RoomCubit extends Cubit<RoomState> {
          RoomState(
            beaconId: beaconId,
            threadItemId: threadItemId,
+           lobbyCanPost: lobbyAccess?.canPost,
            unreadAnchorAt: initialUnreadAnchorAt,
            myUserId: GetIt.I<ProfileCubit>().state.profile.id,
            status: const StateIsLoading(),
@@ -164,6 +167,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   /// Null status → let the server decide (tests / before content load).
   bool get _blocksDiscussionWrite {
+    if (state.lobbyCanPost != null) return !state.lobbyCanPost!;
     if (state.beaconExpired) return true;
     final s = state.beaconStatus;
     if (s == null) return false;
@@ -816,7 +820,10 @@ class RoomCubit extends Cubit<RoomState> {
               beaconId: state.beaconId,
               messageId: pendingMessageId,
             );
-      final participantsF = _case.fetchParticipants(state.beaconId);
+      // The server refuses the participant list outside the room.
+      final participantsF = state.lobbyCanPost != null
+          ? Future.value(const <BeaconParticipant>[])
+          : _case.fetchParticipants(state.beaconId);
       final roomStateF = inThread || !capabilities.plan
           ? Future<BeaconRoomState?>.value()
           : _case.fetchBeaconRoomState(state.beaconId);

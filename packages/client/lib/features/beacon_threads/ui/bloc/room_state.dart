@@ -50,6 +50,10 @@ abstract class RoomState extends StateBase with _$RoomState {
     /// synced with [beaconStatus]; locks writes like a closed status.
     @Default(false) bool beaconExpired,
 
+    /// Questions mode only: the server's `canPost` for the viewer, which
+    /// replaces the Request-status rule. Null in every other room.
+    bool? lobbyCanPost,
+
     /// Request author's user id, synced with [beaconStatus]. The author has
     /// no participant row, so this is how [isPlanEditor] knows them (#379).
     String? beaconAuthorId,
@@ -112,9 +116,10 @@ abstract class RoomState extends StateBase with _$RoomState {
   /// Ordinary discussion writes: the status allows them and the Post is not
   /// expired. Unknown ([beaconStatus] null) is locked.
   bool get canWriteDiscussion =>
-      beaconStatus != null &&
-      beaconStatus!.allowsDiscussionWrites &&
-      !beaconExpired;
+      lobbyCanPost ??
+      (beaconStatus != null &&
+          beaconStatus!.allowsDiscussionWrites &&
+          !beaconExpired);
 
   /// Author / steward / admitted may edit the plan when coordination is allowed.
   bool get isPlanEditor {
