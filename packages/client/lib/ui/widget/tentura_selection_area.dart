@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'browser_context_menu_hold.dart';
+
 /// Whether [ThemeData.platform] is a desktop coordinator target (mouse select).
 bool tenturaDesktopSelectionEnabledFor(ThemeData theme) {
   return switch (theme.platform) {
@@ -38,16 +40,45 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
     skipTraversal: true,
   );
 
+  // Holds the child across the re-key below (#761): a new key on
+  // [SelectionArea] would otherwise rebuild everything under it, so a
+  // description someone expanded (`ShowMoreText`) would collapse again
+  // whenever a room opens or the last one closes. With a [GlobalKey] Flutter
+  // moves the child's elements and state under the fresh region instead; its
+  // text then registers with the new region's container.
+  final _childKey = GlobalKey(debugLabel: 'TenturaSelectionArea.child');
+
+  // The current region; replaced after each browser-menu flip (see [build]).
+  // A region built after a flip never sees that flip, so it keeps its key.
+  var _areaKey = GlobalKey<SelectionAreaState>();
+
+  @override
+  void initState() {
+    super.initState();
+    BrowserContextMenuHold.menuFlips.addListener(_onMenuFlip);
+  }
+
+  void _onMenuFlip() {
+    // Drop the selection while its old region still owns it. The moved
+    // child's text keeps its own selection state, so without this it would
+    // stay highlighted under a fresh region that knows nothing about it.
+    _areaKey.currentState?.selectableRegion.clearSelection();
+    setState(() => _areaKey = GlobalKey<SelectionAreaState>());
+  }
+
   @override
   void dispose() {
+    BrowserContextMenuHold.menuFlips.removeListener(_onMenuFlip);
     _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Keyed on both paths, so a platform switch keeps the child's state too.
+    final child = KeyedSubtree(key: _childKey, child: widget.child);
     if (!tenturaDesktopSelectionEnabledFor(Theme.of(context))) {
-      return widget.child;
+      return child;
     }
 
     // Nothing inside the selectable layer is a Tab stop either: on the web
@@ -55,11 +86,22 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
     // while the browser menu is on, which was one more invisible stop after
     // each message, fact or description (#415). The text here has no
     // controls of its own; a click still focuses the selection.
+    //
+    // A fresh region after each browser-menu flip (#761): SelectableRegion
+    // wraps its inner container in a browser-menu view only while that menu
+    // is on, so rebuilding a region across a flip re-creates the container
+    // under a region that still has the old one registered, and release web
+    // builds crash in SelectionContainer. Only the region and its selection
+    // are new (see [_onMenuFlip]): a selection here is dropped when a room
+    // opens or the last one closes, while the child itself keeps its state
+    // (see [_childKey]).
+    // Inside a room nothing flips (#623).
     return ExcludeFocusTraversal(
       child: SelectionArea(
+        key: _areaKey,
         focusNode: _focusNode,
         contextMenuBuilder: (_, _) => const SizedBox.shrink(),
-        child: widget.child,
+        child: child,
       ),
     );
   }

@@ -13,6 +13,9 @@ import 'package:flutter/widgets.dart';
 /// region crashes its next rebuild into a grey error box (#623). The child
 /// is therefore built only once the menu is off, and holds are counted so
 /// nested or stacked rooms hand over without turning it back on in between.
+/// Selectable text outside a room still sees each flip: [menuFlips] counts
+/// the flips that have landed, so `TenturaSelectionArea` can build a fresh
+/// region after one instead of rebuilding a stale one (#761).
 /// Off the web this is a plain pass-through.
 class BrowserContextMenuHold extends StatefulWidget {
   const BrowserContextMenuHold({
@@ -44,6 +47,25 @@ class BrowserContextMenuHold extends StatefulWidget {
   @visibleForTesting
   static int get activeHolds => _holds;
 
+  /// How many times a turn-off or turn-on of the browser menu has landed.
+  ///
+  /// Bumped only once the call has returned, when [BrowserContextMenu.enabled]
+  /// already reads the new value. A [SelectableRegion] built before a bump
+  /// must not be rebuilt after it (#623, #761).
+  static ValueListenable<int> get menuFlips => _menuFlips;
+
+  static final _menuFlips = ValueNotifier<int>(0);
+
+  static void _flipped() => _menuFlips.value++;
+
+  /// Puts the shared state back between tests.
+  @visibleForTesting
+  static void debugReset() {
+    _holds = 0;
+    _turningOff = null;
+    _menuFlips.value = 0;
+  }
+
   static bool _isWeb() => kIsWeb;
 
   static int _holds = 0;
@@ -67,6 +89,7 @@ class _BrowserContextMenuHoldState extends State<BrowserContextMenuHold> {
     if (BrowserContextMenuHold._holds++ == 0) {
       late final Future<void> turningOff;
       turningOff = BrowserContextMenuHold.disableMenu()
+          .then((_) => BrowserContextMenuHold._flipped())
           .catchError((Object _) {})
           .whenComplete(() {
             if (identical(BrowserContextMenuHold._turningOff, turningOff)) {
@@ -93,7 +116,9 @@ class _BrowserContextMenuHoldState extends State<BrowserContextMenuHold> {
     if (_holding && --BrowserContextMenuHold._holds == 0) {
       BrowserContextMenuHold._turningOff = null;
       unawaited(
-        BrowserContextMenuHold.enableMenu().catchError((Object _) {}),
+        BrowserContextMenuHold.enableMenu()
+            .then((_) => BrowserContextMenuHold._flipped())
+            .catchError((Object _) {}),
       );
     }
     super.dispose();
