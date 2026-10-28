@@ -189,6 +189,97 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
+  group('Desktop closure review content', () {
+    for (final role in [ClosureRole.author, ClosureRole.voter]) {
+      final audience = role == ClosureRole.author ? 'author' : 'helper';
+      testWidgets(
+        '$audience review body is capped and horizontally centered at 1280 px',
+        (tester) async {
+          tester.view
+            ..physicalSize = const Size(1280, 2400)
+            ..devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+
+          final repo = _SecondRoundRepository(role: role);
+          const author = ClosureMember(id: 'uAuthor', displayName: 'Author');
+          final authorCubit = role == ClosureRole.author
+              ? ClosureAuthorCubit(_case(repo), beaconId: _beaconId)
+              : null;
+          final helperCubit = role == ClosureRole.voter
+              ? ClosureHelperCubit(
+                  _case(repo),
+                  beaconId: _beaconId,
+                  viewerId: 'u1',
+                  author: author,
+                )
+              : null;
+          if (authorCubit != null) addTearDown(authorCubit.close);
+          if (helperCubit != null) addTearDown(helperCubit.close);
+
+          await tester.pumpPeopleTagsWidget(
+            MaterialApp(
+              theme: TenturaTheme.light(),
+              locale: const Locale('en'),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              // Match the app: responsive tokens also reach pushed routes.
+              builder: (context, child) =>
+                  TenturaResponsiveScope(child: child!),
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ClosureReviewPage(
+                          beaconId: _beaconId,
+                          role: role,
+                          viewerId: role == ClosureRole.author
+                              ? 'uAuthor'
+                              : 'u1',
+                          author: author,
+                          authorCubit: authorCubit,
+                          helperCubit: helperCubit,
+                        ),
+                      ),
+                    ),
+                    child: const Text('request'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('request'));
+          await tester.pumpAndSettle();
+
+          final page = find.byType(ClosureReviewPage);
+          final l10n = lookupL10n(const Locale('en'));
+          expect(
+            find.text(
+              role == ClosureRole.author
+                  ? l10n.closureAuthorTitle
+                  : l10n.closureHelperTitle,
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Bob'), findsOneWidget);
+          final body = find.descendant(
+            of: page,
+            matching: find.byType(ListView),
+          );
+          expect(body, findsOneWidget);
+          final maxWidth = tester.element(body).tt.contentMaxWidth;
+          expect(maxWidth, isNotNull);
+          final bodyRect = tester.getRect(body);
+          final pageRect = tester.getRect(page);
+          expect(pageRect.width, 1280);
+          expect(bodyRect.width, greaterThan(0));
+          expect(bodyRect.width, lessThanOrEqualTo(maxWidth!));
+          expect(bodyRect.center.dx, closeTo(pageRect.center.dx, 0.01));
+        },
+      );
+    }
+  });
+
   testWidgets('second round after a Reopen: outcomes, then Close now closes it '
       'and the page goes back to the Request', (tester) async {
     final semantics = tester.ensureSemantics();
