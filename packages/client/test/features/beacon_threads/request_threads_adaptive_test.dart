@@ -210,6 +210,7 @@ class RecordingRoomCubit extends Mock implements RoomCubit {
          beaconId: beaconId,
          threadItemId: threadItemId,
          unreadAnchorAt: initialUnreadAnchorAt,
+         firstLoadDone: true,
        );
 
   final RoomState _state;
@@ -353,6 +354,7 @@ BeaconViewState _authorBeaconState({
     updatedAt: _kNow,
   ),
   myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
+  firstLoadDone: beaconContentLoaded,
   beaconContentLoaded: beaconContentLoaded,
   roomParticipantsLoaded: true,
   roomParticipants: [
@@ -384,6 +386,7 @@ BeaconViewState _itemOnlyParticipantState({
       updatedAt: _kNow,
     ),
     myProfile: Profile(id: participantId, displayName: 'Participant'),
+    firstLoadDone: true,
     beaconContentLoaded: true,
     roomParticipantsLoaded: true,
     roomParticipants: [

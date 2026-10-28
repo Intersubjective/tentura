@@ -159,6 +159,7 @@ class BeaconViewRecordingRoomCubit extends Mock implements RoomCubit {
        _state = RoomState(
          beaconId: beaconId,
          threadItemId: threadItemId,
+         firstLoadDone: true,
        );
 
   final RoomState _state;
@@ -321,6 +322,7 @@ BeaconViewState beaconViewHarnessAuthorState({
     updatedAt: kBeaconViewHarnessNow,
   ),
   myProfile: Profile(id: authorId, displayName: 'Author'),
+  firstLoadDone: true,
   beaconContentLoaded: true,
   roomParticipantsLoaded: true,
   roomParticipants: [

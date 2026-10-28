@@ -27,6 +27,7 @@ import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
@@ -1213,7 +1214,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   final theme = Theme.of(context);
                   final scheme = theme.colorScheme;
                   final tt = context.tt;
-                  final showInitialLoading =
+                  final beaconPending =
                       state.isLoading &&
                       !state.beaconContentLoaded &&
                       state.timeline.isEmpty &&
@@ -1259,11 +1260,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       final appBarPhaseStatus = statusSlots.presentation;
 
                       Widget body;
-                      if (showInitialLoading) {
-                        body = const Center(
-                          child: CircularProgressIndicator.adaptive(),
-                        );
-                      } else if (showInitialUnavailable) {
+                      if (showInitialUnavailable) {
                         body = _beaconViewErrorBody(
                           theme: theme,
                           scheme: scheme,
@@ -1289,33 +1286,63 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               unawaited(beaconViewCubit.retryInitialLoad()),
                           onGoBack: () => _leaveBeaconView(context),
                         );
-                      } else if (showcase) {
-                        // Outsiders get no tab row: nothing to switch to
-                        // until the author lets them in (#159, #104).
-                        body = TenturaContentColumn(
-                          child: BeaconShowcaseSurface(
+                      } else {
+                        final Widget content;
+                        if (beaconPending) {
+                          content = const SizedBox.shrink();
+                        } else if (showcase) {
+                          // Outsiders get no tab row: nothing to switch to
+                          // until the author lets them in (#159, #104).
+                          content = TenturaContentColumn(
+                            child: BeaconShowcaseSurface(
+                              beaconViewCubit: beaconViewCubit,
+                              screenCubit: screenCubit,
+                              isPreview: _previewAsOutsider,
+                            ),
+                          );
+                        } else if (isSplit) {
+                          content = _buildExpandedSplitBody(
+                            beaconState: state,
                             beaconViewCubit: beaconViewCubit,
                             screenCubit: screenCubit,
-                            isPreview: _previewAsOutsider,
+                            threadsState: threadsState,
+                            hostState: hostState,
+                            tt: tt,
+                            roomLease: roomLease,
+                          );
+                        } else {
+                          content = _buildTabbedContent(
+                            beaconViewCubit: beaconViewCubit,
+                            screenCubit: screenCubit,
+                            beaconState: state,
+                            isSplit: false,
+                            roomLease: roomLease,
+                          );
+                        }
+                        // The room is primary content wherever it is shown
+                        // and opens; the gate keeps it mounted so it loads
+                        // meanwhile.
+                        final roomExpected =
+                            !showcase &&
+                            !state.isRoomAdmissionBlocked &&
+                            !_isLegacyThreadId(widget.threadId) &&
+                            !(threadsState.isSuccess &&
+                                _generalThread(threadsState) == null) &&
+                            isBeaconRoomPresented(
+                              isSplit: isSplit,
+                              selectedSurface: _selectedSurface,
+                            );
+                        final room = context.read<ThreadHostCubit>().roomCubit;
+                        body = StreamBuilder<void>(
+                          stream: room?.stream,
+                          builder: (context, _) => TenturaFirstLoadGate(
+                            ready:
+                                state.firstLoadDone &&
+                                (room?.state.firstLoadDone ?? !roomExpected),
+                            onRetry: () =>
+                                unawaited(beaconViewCubit.retryInitialLoad()),
+                            child: content,
                           ),
-                        );
-                      } else if (isSplit) {
-                        body = _buildExpandedSplitBody(
-                          beaconState: state,
-                          beaconViewCubit: beaconViewCubit,
-                          screenCubit: screenCubit,
-                          threadsState: threadsState,
-                          hostState: hostState,
-                          tt: tt,
-                          roomLease: roomLease,
-                        );
-                      } else {
-                        body = _buildTabbedContent(
-                          beaconViewCubit: beaconViewCubit,
-                          screenCubit: screenCubit,
-                          beaconState: state,
-                          isSplit: false,
-                          roomLease: roomLease,
                         );
                       }
 

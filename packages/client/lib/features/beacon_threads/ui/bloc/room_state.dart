@@ -55,6 +55,10 @@ abstract class RoomState extends StateBase with _$RoomState {
     String? beaconAuthorId,
     @Default(StateIsSuccess()) StateStatus status,
 
+    /// The first full room snapshot has arrived. Refreshes, realtime rows and
+    /// secondary slices never set or reset this first-load latch.
+    @Default(false) bool firstLoadDone,
+
     /// Message the composer is replying to; null when reply mode is off.
     RoomMessage? replyTarget,
 

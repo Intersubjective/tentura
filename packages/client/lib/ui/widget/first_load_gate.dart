@@ -68,22 +68,30 @@ class _TenturaFirstLoadGateState extends State<TenturaFirstLoadGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (_hasBeenReady) return widget.child;
-    final error = widget.error;
-    if (error != null) {
-      return ScreenLoadErrorPanel(
-        details: describeScreenLoadError(
-          error: error,
-          l10n: L10n.of(context)!,
+    final error = _hasBeenReady ? null : widget.error;
+    final revealed = _hasBeenReady || (error == null && _timedOut);
+    // The child stays mounted while hidden, so its own loads (e.g. a Request
+    // room) start behind the gate and revealing it keeps its state.
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Visibility(
+          visible: revealed,
+          maintainState: true,
+          child: widget.child,
         ),
-        onRetry: widget.onRetry,
-        onSignInAgain: widget.onSignInAgain,
-      );
-    }
-    if (_timedOut) return widget.child;
-    if (_showSpinner) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    return const SizedBox.shrink();
+        if (error != null)
+          ScreenLoadErrorPanel(
+            details: describeScreenLoadError(
+              error: error,
+              l10n: L10n.of(context)!,
+            ),
+            onRetry: widget.onRetry,
+            onSignInAgain: widget.onSignInAgain,
+          )
+        else if (!revealed && _showSpinner)
+          const Center(child: CircularProgressIndicator()),
+      ],
+    );
   }
 }

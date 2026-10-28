@@ -223,8 +223,6 @@ class RoomCubit extends Cubit<RoomState> {
   /// Wall-clock time when the newest peer-authored message was first observed.
   DateTime? _lastInboundAt;
 
-  bool _initialLoadDone = false;
-
   /// The unread band is taken once per visit (#528); later refreshes and
   /// read-to-bottom leave it alone.
   bool _unreadBandTaken = false;
@@ -755,7 +753,7 @@ class RoomCubit extends Cubit<RoomState> {
   /// advancing it). With [force] the watermark check is skipped — used by
   /// [close] after it has decided the reader was at the bottom.
   Future<void> markSeenNowIfNeeded({bool force = false}) async {
-    if (!_initialLoadDone) {
+    if (!state.firstLoadDone) {
       return;
     }
     final newestLoaded = state.messages.isEmpty
@@ -915,7 +913,6 @@ class RoomCubit extends Cubit<RoomState> {
       }
 
       if (!isClosed) {
-        _initialLoadDone = true;
         _noteInboundMessages(state.messages, messages);
         final syncedAt = _case.syncedAt(
           state.beaconId,
@@ -939,6 +936,7 @@ class RoomCubit extends Cubit<RoomState> {
               (syncedAt == null || messages.last.createdAt.isAfter(syncedAt)),
           loadError: null,
           status: const StateIsSuccess(),
+          firstLoadDone: true,
         );
         if (!_unreadBandTaken) {
           _unreadBandTaken = true;
