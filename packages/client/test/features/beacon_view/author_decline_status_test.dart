@@ -1,16 +1,49 @@
 // The author's status line says how many of the people they forwarded the
 // Request to have declined it, instead of "no offers yet", while no offer has
-// come in (#486). Once an offer exists the usual offers line takes over.
+// come in (#486). Once an offer exists the usual offers line takes over. The
+// People tab opens its Forwards fold on its own when one of those forwards was
+// declined, so the red «Dismissed» line is not hidden behind a tap.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_anchor_status.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import '../../support/people_tags_widget_harness.dart';
+
+class _MockProfileCubit extends Mock implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(profile: _author);
+
+  @override
+  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
+
+class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {
+  _MockBeaconViewCubit(this._state);
+
+  final BeaconViewState _state;
+
+  @override
+  BeaconViewState get state => _state;
+
+  @override
+  Stream<BeaconViewState> get stream => Stream<BeaconViewState>.value(_state);
+
+  @override
+  Future<void> loadForwards() async {}
+}
 
 final _t = DateTime.utc(2026, 6, 20);
 const _author = Profile(id: 'auth', displayName: 'Author');
@@ -210,6 +243,96 @@ void main() {
       final slots = beaconViewStatusSlots(en, _authorState(forwards: const []));
 
       expect(slots.displayLine, contains(en.beaconPhaseNoOffersYet));
+    });
+  });
+
+  group('People tab Forwards fold', () {
+    // The author's forwards as the cubit loads them: the same edges feed the
+    // status line (myForwards) and the Forwards fold (viewerForwardEdges).
+    BeaconViewState peopleState(List<ForwardEdge> forwards) => _authorState(
+      forwards: forwards,
+    ).copyWith(viewerForwardEdges: forwards);
+
+    Future<void> pumpPeopleTab(
+      WidgetTester tester,
+      BeaconViewState state,
+    ) async {
+      final cubit = _MockBeaconViewCubit(state);
+      await tester.pumpPeopleTagsWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+              BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+              BlocProvider<BeaconViewCubit>.value(value: cubit),
+            ],
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: BeaconPeopleTabBody(
+                  state: state,
+                  beaconViewCubit: cubit,
+                  l10n: lookupL10n(const Locale('en')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('opens on first build when a forward was declined', (
+      tester,
+    ) async {
+      await pumpPeopleTab(
+        tester,
+        peopleState([
+          _forward('r1', declined: true),
+          _forward('r2'),
+        ]),
+      );
+
+      expect(find.text('Forwards (2)'), findsOneWidget);
+      expect(find.text(en.myForwardDeclined), findsOneWidget);
+    });
+
+    testWidgets('stays closed when nobody declined', (tester) async {
+      await pumpPeopleTab(
+        tester,
+        peopleState([_forward('r1'), _forward('r2')]),
+      );
+
+      expect(find.text('Forwards (2)'), findsOneWidget);
+      expect(find.text(en.myForwardDeclined), findsNothing);
+
+      await tester.tap(find.text('Forwards (2)'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('r1'),
+        findsOneWidget,
+        reason: 'the rows are there, the fold was just closed',
+      );
+    });
+
+    testWidgets('stays closed when the only decline was cancelled', (
+      tester,
+    ) async {
+      await pumpPeopleTab(
+        tester,
+        peopleState([
+          _forward('r1'),
+          _forward('r2', declined: true, cancelled: true),
+        ]),
+      );
+
+      expect(find.textContaining('Forwards ('), findsOneWidget);
+      expect(find.text('r1'), findsNothing);
+      expect(find.text(en.myForwardDeclined), findsNothing);
     });
   });
 

@@ -685,6 +685,13 @@ class BeaconPeopleTabBody extends StatelessWidget {
           child: AccordionExpansionTile(
             framed: false,
             id: _forwardsFoldId,
+            // A decline is the news here (#486): don't hide it behind a tap.
+            initiallyExpanded: forwardEdges.any(
+              (e) =>
+                  e.sender.id == viewerId &&
+                  e.recipientRejected &&
+                  !e.isCancelled,
+            ),
             title: Text(
               forwardsTitle,
               style: theme.textTheme.titleSmall,
