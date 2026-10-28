@@ -202,9 +202,7 @@ server_unit() {
 gates() {
   local pkg="$1"
   (cd "$ROOT" && run 2m python3 scripts/check_cross_package_imports.py)
-  log "check-analyze-baseline $pkg"
-  [[ "$dry_run" -eq 1 ]] || (cd "$ROOT" && bash scripts/check-analyze-baseline.sh "$pkg")
-  (cd "$ROOT" && run 10m ./scripts/check-custom-lints.sh "$pkg")
+  (cd "$ROOT" && run 10m bash scripts/check-analysis.sh "$pkg")
 }
 
 server_pg() {

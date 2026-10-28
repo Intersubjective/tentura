@@ -708,6 +708,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           attentionByBeacon: const {},
           attentionLoaded: true,
+          firstLoadDone:
+              state.firstLoadDone || state.nonArchivedProjectionLoaded,
         ),
       );
       return;
@@ -724,6 +726,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           attentionByBeacon: _keepClearsMadeSince(startEpoch, read),
           attentionLoaded: true,
+          firstLoadDone:
+              state.firstLoadDone || state.nonArchivedProjectionLoaded,
         ),
       );
     } catch (_) {

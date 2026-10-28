@@ -27,6 +27,7 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     Object? loadError,
     @Default({}) Map<String, MyWorkBeaconAttention> attentionByBeacon,
     @Default(false) bool attentionLoaded,
+    @Default(false) bool firstLoadDone,
   }) = _MyWorkState;
 
   const MyWorkState._();

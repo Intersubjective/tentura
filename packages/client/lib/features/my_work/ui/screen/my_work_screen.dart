@@ -11,6 +11,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
+import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
@@ -295,7 +296,8 @@ class _MyWorkBody extends StatelessWidget {
   final ScrollController listScrollController;
 
   bool _shouldRebuild(MyWorkState p, MyWorkState c) {
-    if (p.status != c.status ||
+    if (p.firstLoadDone != c.firstLoadDone ||
+        p.status != c.status ||
         p.filter != c.filter ||
         p.sort != c.sort ||
         p.archivedFetchInProgress != c.archivedFetchInProgress ||
@@ -347,7 +349,15 @@ class _MyWorkBody extends StatelessWidget {
             tt: tt,
             scrollController: listScrollController,
           );
-          return TenturaContentColumn(child: listBody);
+          return TenturaFirstLoadGate(
+            ready: state.firstLoadDone,
+            error: state.loadError,
+            onRetry: cubit.fetch,
+            onSignInAgain: () => unawaited(
+              GetIt.I<RootRouter>().push(RecoverRoute()),
+            ),
+            child: TenturaContentColumn(child: listBody),
+          );
         },
       ),
     );
@@ -371,10 +381,8 @@ class _MyWorkListBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator.adaptive(),
-      );
+    if (state.isLoading && !state.firstLoadDone) {
+      return const SizedBox.shrink();
     }
     if (state.hasError) {
       final error = state.loadError!;
