@@ -6223,6 +6223,10 @@
   "updatesFallbackBodyDeadlineReminder": "Срок этого запроса наступает завтра.",
   "updatesFallbackTitleStaleReminder": "Всё ещё ждёт внимания",
   "updatesFallbackBodyStaleReminder": "В теме запроса нужно внимание.",
+  "updatesFallbackTitlePostExpiringSoon": "Пост скоро истечёт",
+  "@updatesFallbackTitlePostExpiringSoon": {
+    "description": "Updates row headline (#700) for the server-titled postExpiringSoon receipt: the author's Post expires soon. Push and email use the same words."
+  },
   "updatesFallbackTitleCommitmentAccepted": "Обязательство принято",
   "updatesFallbackBodyCommitmentAccepted": "Кто-то принял обязательство по запросу.",
   "updatesFallbackTitleCommitmentResolved": "Обязательство закрыто",
@@ -7622,6 +7626,10 @@
   "activityForwardOutcomeInviteDeclined": "Вы ответили «Не смогу»",
   "inviteDeclineDialogTitle": "Не сможете?",
   "beaconShowcaseDeclined": "Вы ответили «Не смогу». Помощь всё ещё можно предложить.",
+  "beaconShowcaseDeclinedFinalCheck": "Вы ответили «Не смогу».",
+  "@beaconShowcaseDeclinedFinalCheck": {
+    "description": "Request page (#733): the viewer declined the invitation, and the request is in its final check, so there is no Offer help below; only the fact is kept."
+  },
   "forwardDeclinedUseInvite": "Убрал(а) запрос — позовите через «Люди › Позвать»",
   "beaconCloseSheetNoVoteBody": "Когда помощников меньше трёх, им нечего решать при подведении итогов, поэтому запрос закроется сразу.",
   "beaconHudActEffectWrapUpNoVote": "Закрывает сразу: когда помощников меньше трёх, итоги не подводятся",

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/util/display_name_prompt.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
@@ -99,7 +100,8 @@ String? excerptFromPresentationPayload(String presentationPayloadJson) =>
 /// when blank.
 String? actorNameFromPresentationPayload(String presentationPayloadJson) {
   final name = _payloadString(presentationPayloadJson, 'actorName');
-  return name == null || name.isEmpty ? null : name;
+  // The server placeholder «New member» reads in the app language (#660).
+  return name == null || name.isEmpty ? null : localizedDisplayName(name);
 }
 
 /// The [BeaconStatus] a status-change event moved the Request to.
@@ -212,6 +214,19 @@ const _serverInviteAcceptedBodies = <String, String>{
 /// accepter name.
 const _serverInviteAcceptedTitles = {'Invitation accepted'};
 
+/// The server's invite-accepted title is «Name · @handle» (or the name
+/// alone); the server placeholder name «New member» reads in the app
+/// language like everywhere else a name is shown (#660, #700).
+String _localizedNameTitle(String title) {
+  final t = title.trim();
+  const sep = ' · ';
+  final cut = t.indexOf(sep);
+  if (cut < 0) return localizedDisplayName(t);
+  final name = t.substring(0, cut);
+  if (name.trim() != kNewMemberDisplayName) return t;
+  return '${localizedDisplayName(name)}${t.substring(cut)}';
+}
+
 /// In-app Updates composition for invite-accepted receipts.
 ///
 /// The body is always localized: from `inviteOrigin` in the payload, else
@@ -234,7 +249,7 @@ InviteAcceptedDisplayCopy resolveInviteAcceptedDisplayCopy({
   );
   final fallbackTitle = _serverInviteAcceptedTitles.contains(fallback.title)
       ? l10n.updatesFallbackTitleInviteAccepted
-      : fallback.title;
+      : _localizedNameTitle(fallback.title);
   final origin =
       inviteOriginFromPresentationPayload(presentationPayloadJson) ??
       _serverInviteAcceptedBodies[receiptBody.trim()];
@@ -289,6 +304,7 @@ String _fallbackTitle(
   'deadline_changed' => l10n.updatesFallbackTitleDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackTitleDeadlineReminder,
   'stale_reminder' => l10n.updatesFallbackTitleStaleReminder,
+  'post_expiring_soon' => l10n.updatesFallbackTitlePostExpiringSoon,
   'commitment_accepted' => l10n.updatesFallbackTitleCommitmentAccepted,
   'commitment_resolved' => l10n.updatesFallbackTitleCommitmentResolved,
   'commitment_cancelled' => l10n.updatesFallbackTitleCommitmentCancelled,
@@ -1167,6 +1183,7 @@ const _serverCannedBodies = {
   'The author ended your participation in this request',
   'Something in the request thread needs attention',
   'Open General to see your new assignment',
+  'Your post expires in under 3 hours',
   'You are now connected on Tentura.',
   // Written by the account-deletion scrub (m0193), which also empties the
   // payload — so these rows always take this legacy path.
@@ -1212,6 +1229,8 @@ const _serverCannedTitles = {
   'Someone trusts you less',
   'Someone reviewed you',
   'Ancestor request status changed',
+  // postExpiringSoon (#700): push and email say «Пост скоро истечёт».
+  'Your post is about to expire',
   'Child request status changed',
 };
 

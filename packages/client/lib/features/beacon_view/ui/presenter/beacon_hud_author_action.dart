@@ -152,12 +152,21 @@ IconData iconForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
 bool filledBeaconHudAuthorAction(BeaconHudAuthorAction action) =>
     action != BeaconHudAuthorAction.closeNow;
 
-String labelForBeaconHudAuthorAction(L10n l10n, BeaconHudAuthorAction action) {
+/// [noFinalCheckVote]: nobody could vote, so the close action closes at once
+/// and reads «Close now» rather than promising a final check (#733).
+String labelForBeaconHudAuthorAction(
+  L10n l10n,
+  BeaconHudAuthorAction action, {
+  bool noFinalCheckVote = false,
+}) {
   return switch (action) {
     BeaconHudAuthorAction.resolveBlocker => l10n.beaconPhaseCtaResolveBlocker,
     BeaconHudAuthorAction.reviewOffers => l10n.beaconPhaseCtaReviewOffers,
     BeaconHudAuthorAction.markEnoughHelp => l10n.beaconHudActMarkEnoughHelp,
-    BeaconHudAuthorAction.wrapUpForReview => l10n.beaconHudActWrapUpForReview,
+    BeaconHudAuthorAction.wrapUpForReview =>
+      noFinalCheckVote
+          ? l10n.beaconReviewCloseNowAction
+          : l10n.beaconHudActWrapUpForReview,
     BeaconHudAuthorAction.sumUp => l10n.closureAuthorTitle,
     BeaconHudAuthorAction.closeNow => l10n.beaconReviewCloseNowAction,
   };
@@ -192,18 +201,28 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
 }) {
   final action = deriveBeaconHudAuthorAction(state);
   if (action == null) return null;
-  final label = labelForBeaconHudAuthorAction(l10n, action);
+  final noFinalCheckVote = closureFinalCheckHasNoVote(state);
+  final label = labelForBeaconHudAuthorAction(
+    l10n,
+    action,
+    noFinalCheckVote: noFinalCheckVote,
+  );
   final effectLine = effectLineForBeaconHudAuthorAction(
     l10n,
     action,
-    noFinalCheckVote: closureFinalCheckHasNoVote(state),
+    noFinalCheckVote: noFinalCheckVote,
   );
   return BeaconHudAuthorActSpec(
     action: action,
     label: label,
     effectLine: effectLine,
     semanticsLabel: '$label. $effectLine',
-    icon: iconForBeaconHudAuthorAction(action),
+    // Closing at once is the lock, not the review glyph (#733).
+    icon: iconForBeaconHudAuthorAction(
+      noFinalCheckVote && action == BeaconHudAuthorAction.wrapUpForReview
+          ? BeaconHudAuthorAction.closeNow
+          : action,
+    ),
     filled: filledBeaconHudAuthorAction(action),
     effectPresentation: effectPresentationForBeaconHudAuthorAction(action),
   );

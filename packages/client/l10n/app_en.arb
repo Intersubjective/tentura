@@ -7047,6 +7047,10 @@
   "updatesFallbackBodyDeadlineReminder": "This request deadline is tomorrow.",
   "updatesFallbackTitleStaleReminder": "Still needs attention",
   "updatesFallbackBodyStaleReminder": "Something in a request thread needs attention.",
+  "updatesFallbackTitlePostExpiringSoon": "Your post is about to expire",
+  "@updatesFallbackTitlePostExpiringSoon": {
+    "description": "Updates row headline (#700) for the server-titled postExpiringSoon receipt: the author's Post expires soon. Push and email use the same words."
+  },
   "updatesFallbackTitleCommitmentAccepted": "Commitment accepted",
   "updatesFallbackBodyCommitmentAccepted": "Someone accepted a commitment on a request.",
   "updatesFallbackTitleCommitmentResolved": "Commitment resolved",
@@ -11900,6 +11904,10 @@
   "beaconShowcaseDeclined": "You said you can't make it. You can still offer help.",
   "@beaconShowcaseDeclined": {
     "description": "Request page (#725): the viewer declined the invitation or said they can't help; Offer help is still below."
+  },
+  "beaconShowcaseDeclinedFinalCheck": "You said you can't make it.",
+  "@beaconShowcaseDeclinedFinalCheck": {
+    "description": "Request page (#733): the viewer declined the invitation, and the request is in its final check, so there is no Offer help below; only the fact is kept."
   },
   "forwardDeclinedUseInvite": "They dismissed it — use People › Invite",
   "@forwardDeclinedUseInvite": {

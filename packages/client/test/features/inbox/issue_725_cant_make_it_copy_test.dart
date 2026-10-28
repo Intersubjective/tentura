@@ -219,6 +219,23 @@ void main() {
       expect(beaconShowcaseDeclinedText(L10nEn(), state), isNull);
     });
 
+    // #733 QA re-check: in its final check there is no Offer help, so the
+    // line must not promise it; it keeps only the fact.
+    test('in its final check keeps only «can\u2019t make it»', () {
+      final en = beaconShowcaseDeclinedText(
+        L10nEn(),
+        _page(status: BeaconStatus.reviewOpen),
+      );
+      expect(en, "You said you can't make it.");
+      expect(en, isNot(contains('offer help')));
+      final ru = beaconShowcaseDeclinedText(
+        L10nRu(),
+        _page(status: BeaconStatus.reviewOpen),
+      );
+      expect(ru, 'Вы ответили «Не смогу».');
+      expect(ru, isNot(contains('предложить')));
+    });
+
     test('says nothing on a finished Request', () {
       for (final status in [BeaconStatus.closed, BeaconStatus.cancelled]) {
         expect(
