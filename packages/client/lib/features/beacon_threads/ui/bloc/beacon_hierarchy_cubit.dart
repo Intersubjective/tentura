@@ -6,7 +6,6 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
-import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'beacon_hierarchy_state.dart';
@@ -301,9 +300,6 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
           parentReferenceError: null,
         ),
       );
-    } on BeaconHierarchyException catch (_) {
-      if (generation != _loadGeneration || isClosed) return;
-      evictHierarchyAccess();
     } on Object catch (_) {
       // Transient failure retains the current parent-reference snapshot.
     }
@@ -351,23 +347,6 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
             loading: false,
             loadingMore: false,
             error: null,
-          ),
-        ),
-      );
-    } on BeaconHierarchyException catch (e) {
-      if (generation != _loadGeneration || isClosed) return;
-      if (silent) {
-        evictHierarchyAccess();
-        return;
-      }
-      emit(
-        _replaceSlice(
-          group,
-          previous.copyWith(
-            loading: false,
-            loadingMore: false,
-            error: e,
-            items: reset ? const [] : previous.items,
           ),
         ),
       );
