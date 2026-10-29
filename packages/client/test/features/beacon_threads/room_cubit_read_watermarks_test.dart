@@ -36,7 +36,11 @@ Map<String, RoomReadWatermark> _readWatermarks(RoomState state) =>
 
 bool _readWatermarksLoaded(RoomState state) => state.readWatermarksLoaded;
 
-Future<void> _pump() => Future<void>.delayed(Duration.zero);
+Future<void> _pump() async {
+  // Deliver the async invalidation stream, then its coalesced refresh timer.
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
+}
 
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 30));

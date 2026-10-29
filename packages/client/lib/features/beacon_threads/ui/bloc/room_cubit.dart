@@ -25,6 +25,7 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_edit_state.dart'
@@ -234,6 +235,14 @@ class RoomCubit extends Cubit<RoomState> {
   _RoomRefreshScope? _queuedRefreshScope;
   bool _queuedRefreshSilent = true;
 
+  late final _hintRefreshRequests = BurstCoalescer<_RoomRefreshScope>(
+    (scopes) => unawaited(
+      _requestRefresh(
+        scope: scopes.length == 1 ? scopes.single : _RoomRefreshScope.full,
+      ),
+    ),
+  );
+
   void _onRoomInvalidation(BeaconRoomInvalidation invalidation) {
     if (isClosed || invalidation.beaconId != state.beaconId) return;
 
@@ -243,7 +252,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (id != null && id.isNotEmpty) {
         _applyConfirmedMessageDelete(id);
       }
-      unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
+      _hintRefreshRequests.request(_RoomRefreshScope.messages);
       return;
     }
 
@@ -286,7 +295,7 @@ class RoomCubit extends Cubit<RoomState> {
       BeaconRoomEntityType.roomState => _RoomRefreshScope.roomState,
       _ => _RoomRefreshScope.full,
     };
-    unawaited(_requestRefresh(scope: scope));
+    _hintRefreshRequests.request(scope);
   }
 
   void _mergePaintedMessage(RoomMessage message) {
@@ -1890,6 +1899,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   @override
   Future<void> close() async {
+    _hintRefreshRequests.dispose();
     _pinnedOffWindowMessages.clear();
     _pendingLocalDeleteIds.clear();
     _activeMessageRefreshOverlay = null;
