@@ -365,6 +365,57 @@ void main() {
   });
 
   group('InboxCubit desk-relevant invalidation', () {
+    test(
+      'refreshes the inbox once for a burst of request and help-offer hints',
+      () async {
+        final initialItem = InboxItem(
+          beaconId: 'b1',
+          latestForwardAt: DateTime.utc(2026),
+        );
+        repo.fetchResult = [initialItem];
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+        await cubit.stream.firstWhere((state) => state.isSuccess);
+        await Future<void>.delayed(Duration.zero);
+        expect(cubit.state.items, [initialItem]);
+        final initialFetchCount = repo.fetchCallCount;
+        expect(initialFetchCount, 1);
+
+        final refreshedItem = initialItem.copyWith(
+          status: InboxItemStatus.watching,
+        );
+        repo.fetchResult = [refreshedItem];
+
+        // A server hint burst arrives in one turn, without a batch identifier.
+        for (final kind in const [
+          RealtimeEntityKind.beacon,
+          RealtimeEntityKind.participant,
+          RealtimeEntityKind.coordinationItem,
+          RealtimeEntityKind.inboxItem,
+        ]) {
+          realtimePort.emitEntityChange(
+            RealtimeEntityChange(
+              kind: kind,
+              aggregateId: 'b1',
+              operation: RealtimeOperation.update,
+              source: RealtimeChangeSource.serverInvalidation,
+            ),
+          );
+        }
+        forwardRepo.emitHelpOfferChange(const HelpOfferInvalidated('b1'));
+
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+
+        expect(cubit.state.items, [refreshedItem]);
+        expect(cubit.state.isSuccess, isTrue);
+        expect(repo.fetchCallCount, initialFetchCount + 1);
+      },
+    );
+
     test('debounces duplicate room changes before refetch', () async {
       final cubit = InboxCubit(
         userId: 'u1',
@@ -937,6 +988,9 @@ class _FakeForwardRepository implements ForwardRepository {
 
   void emitForwardChange(String beaconId) => _forwardChanges.add(beaconId);
 
+  void emitHelpOfferChange(HelpOfferEvent event) =>
+      _helpOfferChanges.add(event);
+
   void emitForwardCommandCompleted(String beaconId) {
     _forwardChanges.add(beaconId);
     _forwardCommandCompleted.add(beaconId);
@@ -955,6 +1009,10 @@ class _FakeForwardRepository implements ForwardRepository {
 
 final class _TestRealtimeSyncPort implements RealtimeSyncPort {
   final _catchUps = StreamController<RealtimeCatchUp>.broadcast();
+  final _entityChanges = StreamController<RealtimeEntityChange>.broadcast();
+
+  void emitEntityChange(RealtimeEntityChange change) =>
+      _entityChanges.add(change);
 
   void emitCatchUp() {
     _catchUps.add(
@@ -974,11 +1032,14 @@ final class _TestRealtimeSyncPort implements RealtimeSyncPort {
       const Stream.empty();
 
   @override
-  Stream<RealtimeEntityChange> get entityChanges => const Stream.empty();
+  Stream<RealtimeEntityChange> get entityChanges => _entityChanges.stream;
 
   @override
   void requestCatchUp(RealtimeCatchUpReason reason) {}
 
   @override
-  Future<void> dispose() => _catchUps.close();
+  Future<void> dispose() async {
+    await _catchUps.close();
+    await _entityChanges.close();
+  }
 }

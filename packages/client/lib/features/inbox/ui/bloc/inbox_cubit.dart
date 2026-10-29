@@ -74,7 +74,7 @@ class InboxCubit extends Cubit<InboxState> {
 
   final UiEffectPort _effects;
 
-  final _deskRelevantTimers = <String, Timer>{};
+  Timer? _deskRelevantTimer;
 
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<String> _forwardCommandCompleted;
@@ -96,8 +96,8 @@ class InboxCubit extends Cubit<InboxState> {
 
   void _onHelpOfferChanged(HelpOfferEvent event) => switch (event) {
     HelpOfferCreated(:final beaconId) => _removeInboxItem(beaconId),
-    HelpOfferWithdrawn() || HelpOfferInvalidated() => unawaited(
-      fetch(showLoading: false, showError: false),
+    HelpOfferWithdrawn() || HelpOfferInvalidated() => _onDeskRelevantChanged(
+      event.beaconId,
     ),
   };
 
@@ -121,9 +121,9 @@ class InboxCubit extends Cubit<InboxState> {
 
   void _onDeskRelevantChanged(String beaconId) {
     if (isClosed || beaconId.isEmpty) return;
-    _deskRelevantTimers.remove(beaconId)?.cancel();
-    _deskRelevantTimers[beaconId] = Timer(_deskRelevantDebounce, () {
-      _deskRelevantTimers.remove(beaconId);
+    _deskRelevantTimer?.cancel();
+    _deskRelevantTimer = Timer(_deskRelevantDebounce, () {
+      _deskRelevantTimer = null;
       if (!isClosed) {
         unawaited(fetch(showLoading: false, showError: false));
       }
@@ -172,10 +172,7 @@ class InboxCubit extends Cubit<InboxState> {
 
   @override
   Future<void> close() async {
-    for (final timer in _deskRelevantTimers.values) {
-      timer.cancel();
-    }
-    _deskRelevantTimers.clear();
+    _deskRelevantTimer?.cancel();
     await _helpOfferChanges.cancel();
     await _forwardCommandCompleted.cancel();
     await _inboxLocalMutations.cancel();
