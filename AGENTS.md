@@ -168,8 +168,38 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-28
-review due: 2026-11-04
+reviewed: 2026-10-29
+review due: 2026-11-05
+
+### bead-authoring-no-commit-line
+When filing beads for Alloy, never write 'Commit: fix(...): ...' in the description: sandboxed agents read it as an order, try to git commit, hit a read-only .git and park the bead as needs-human (j9ab.2, 2026-10-27). Alloy makes the commit itself.
+
+### check-hints-analyze
+client analyze: flutter analyze --no-fatal-infos <paths> (bare flutter analyze fails on ~267 pre-existing info lints; real gate is scripts/check-custom-lints.sh packages/client). Server checks: use scripts/run_with_test_cleanup.sh from repo root, never scripts/../../../ paths
+
+### check-hints-analyze-baseline
+CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
+
+### check-hints-client-lints
+client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client' and 'bash scripts/check-analyze-baseline.sh packages/client' (same for packages/server).
+
+### check-hints-cwd-relative-tests
+client flutter tests that read files by relative path (e.g. l10n/app_ru.arb) must run from packages/client: 'cd packages/client && flutter test ...'; running 'flutter test packages/client/test/...' from repo root gives PathNotFoundException - not a regression
+
+### check-hints-mr-suite
+server mr suite: 'scripts/run_tests.sh server-mr' (only files carrying the mr tag, -j 1, -x perf -x load) takes ~3.7 min (600 tests, 2026-10-24); the old 'dart test --tags mr --exclude-tags load -j 1' loaded every suite and took 16-22 min and also ran perf suites. Run it only for Field/visibility/trust/MeritRank changes (server-regression decides). A check ending exit=-1 with an empty log was killed by the recipe's max_command_timeout_minutes (30 for medium/complex), not hung. beacon_readable_ids_parity_pg_test '5x faster' is timing-sensitive under load.
+
+### check-hints-plain-name-quoting
+flutter test --plain-name values containing spaces MUST be quoted in check commands (e.g. --plain-name='wire mapping of Post fields'), never --plain-name=wire mapping of Post fields unquoted -- the shell splits the unquoted value into separate words, which flutter test then tries to load as nonexistent test files, producing phantom 'Does not exist' failures that look like real test failures and have twice caused Alloy to wrongly override a correct 'done' judge verdict (tentura-brd4.38, tentura-brd4.39).
+
+### check-hints-test-profiles
+PREFERRED check commands (repo root, see docs/testing-resource-profile.md): per iteration 'scripts/run_tests.sh server-files <test files>' or 'scripts/run_tests.sh server-affected' (client: client-files <paths> / client-affected); ONCE before done 'scripts/run_tests.sh server-regression' (gates + unit + pg, + mr only for Field/visibility/trust changes) or 'scripts/run_tests.sh client-gates' + 'scripts/run_tests.sh client-all'. Never a whole package without tags (no plain 'dart test' / 'dart test test/data/repository' at -j 8: mixes mr/perf and fails on load), never perf/load suites. Wrapped runs queue machine-wide; 'queued behind another test run' in a log is waiting, not a hang. Timings 2026-10-24: unit 2 min, pg 9.4 min, mr 3.7 min, client-all 9.8 min.
+
+### check-hints-wrapper-selftest
+scripts/run_with_test_cleanup_selftest.sh cannot run inside the Alloy per-run sandbox (it reports 0 passed / 26 failed there: it needs real process groups, the machine-wide lock and /tmp). For changes to the test wrapper use the Python tests (e.g. python3 -m unittest scripts/test_test_cleanup_inactivity.py) as the check; the operator runs the selftest outside Alloy.
+
+### ci-pg-job-two-step-selection
+CI test-pg job (.github/workflows/pipeline.yml) runs TWO commands: (1) TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection, then (2) dart test --tags multi-connection --exclude-tags mr -j 1. test-server runs dart test --exclude-tags pg. So: any test that needs Postgres (even a meta test that spawns a pg test) MUST carry the pg tag or test-server fails; tests that size their own pool carry multi-connection and run serially (-j 1: they assert admission latency/RSS and interfere in parallel). Before pushing, run both pg commands locally, not just the changed files (a first CI run of ev3z.27 failed on exactly this). Use absolute path to scripts/run_with_test_cleanup.sh when a script cd's into packages/server.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->
