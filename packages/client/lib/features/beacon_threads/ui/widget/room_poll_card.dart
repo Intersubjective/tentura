@@ -23,7 +23,7 @@ class RoomPollCard extends StatefulWidget {
   /// Null when the viewer cannot vote; show read-only results instead.
   final void Function(List<String> variantIds, {int? score})? onVote;
 
-  /// Room participants used to resolve voter display names for open polls.
+  /// Room participants used to resolve voter display names.
   final List<BeaconParticipant> participants;
 
   /// Whether the viewer authored the poll. The author sees the results
@@ -261,23 +261,23 @@ class _RoomPollCardState extends State<RoomPollCard> {
           Row(
             children: [
               if (_isReadOnly && !isMine)
-                Icon(Icons.bar_chart, size: 20, color: cs.outline)
+                Icon(Icons.bar_chart, size: 20, color: cs.onSurfaceVariant)
               else if (poll.pollType == PollType.single)
                 Icon(
                   isMine
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
                   size: 20,
-                  color: isMine ? cs.primary : cs.outline,
+                  color: isMine ? cs.primary : cs.onSurfaceVariant,
                 )
               else if (poll.pollType == PollType.multiple)
                 Icon(
                   isMine ? Icons.check_box : Icons.check_box_outline_blank,
                   size: 20,
-                  color: isMine ? cs.primary : cs.outline,
+                  color: isMine ? cs.primary : cs.onSurfaceVariant,
                 )
               else
-                Icon(Icons.bar_chart, size: 20, color: cs.outline),
+                Icon(Icons.bar_chart, size: 20, color: cs.onSurfaceVariant),
               SizedBox(width: context.tt.rowGap),
               Expanded(
                 child: Text(
@@ -290,14 +290,16 @@ class _RoomPollCardState extends State<RoomPollCard> {
               Text(
                 primaryLabel,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: isMine ? cs.primary : cs.outline,
+                  color: isMine ? cs.primary : cs.onSurfaceVariant,
                   fontWeight: isMine ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
               SizedBox(width: context.tt.tightGap * 2),
               Text(
                 '(${v.votesCount})',
-                style: theme.textTheme.bodySmall?.copyWith(color: cs.outline),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -401,7 +403,8 @@ class _RoomPollCardState extends State<RoomPollCard> {
     final cs = theme.colorScheme;
     final poll = widget.poll;
     final voted = _isVoted;
-    final showVoters = !poll.isAnonymous && (poll.hasVoted || widget.isAuthor);
+    final showVoters =
+        !poll.isAnonymous && (_isReadOnly || poll.hasVoted || widget.isAuthor);
 
     final participantsByUserId = <String, BeaconParticipant>{
       for (final p in widget.participants) p.userId: p,
@@ -538,9 +541,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
               ),
             ),
 
-            // Footer: vote count + revote button. A closed poll carries the
-            // count in its header instead.
-            if (!_isReadOnly) ...[
+            // Keep the voter-list link available after voting closes.
+            // Anonymous closed polls carry only the count in the header.
+            if (!_isReadOnly || voterIds.isNotEmpty) ...[
               SizedBox(height: context.tt.rowGap),
               Row(
                 children: [
@@ -576,7 +579,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                             child: voteCount,
                           ),
                   ),
-                  if (voted && poll.allowRevote)
+                  if (!_isReadOnly && voted && poll.allowRevote)
                     ExcludeFocus(
                       child: TextButton(
                         onPressed: () => setState(() {
