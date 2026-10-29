@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -246,6 +247,110 @@ void main() {
   final l10n = lookupL10n(const Locale('en'));
 
   group('Questions screen renders the shared chat', () {
+    group('Questions hardware keyboard composition', () {
+      Future<_QuestionsRoomRepository> open(WidgetTester tester) async {
+        final room = _QuestionsRoomRepository();
+        await _openQuestions(
+          tester,
+          lobby: FakeLobbyPort(viewerId: _nina.id),
+          room: room,
+        );
+        await tester.tap(_composer);
+        return room;
+      }
+
+      Future<void> pressEnter(WidgetTester tester) async {
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await _pumpFrames(tester);
+      }
+
+      testWidgets('Enter sends a single character question', (tester) async {
+        final room = await open(tester);
+        await tester.enterText(_composer, 'x');
+        await pressEnter(tester);
+
+        expect(room.messages.map((m) => m.body), ['x']);
+        expect(room.createdThreadItemIds, [_lobbyId]);
+        expect(find.byType(RoomMessageTile), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(RoomMessageTile),
+            matching: find.textContaining('x'),
+          ),
+          findsWidgets,
+        );
+        expect(tester.widget<TextField>(_composer).controller!.text, isEmpty);
+      });
+
+      testWidgets('Shift+Enter inserts a newline and Enter sends one multiline '
+          'question', (tester) async {
+        final room = await open(tester);
+        await tester.enterText(_composer, 'line one');
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        try {
+          await pressEnter(tester);
+        } finally {
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        }
+
+        expect(
+          room.messages,
+          isEmpty,
+          reason: 'Shift+Enter must keep the question in the composer',
+        );
+        final draft = tester.widget<TextField>(_composer).controller!.text;
+        expect(draft, 'line one\n');
+
+        // Append only the typed characters to the actual draft. The keyboard
+        // handling must produce the newline; the test never supplies one.
+        await tester.enterText(_composer, '${draft}line two');
+        await pressEnter(tester);
+
+        expect(room.messages.map((m) => m.body), ['line one\nline two']);
+        expect(room.createdThreadItemIds, [_lobbyId]);
+        expect(find.byType(RoomMessageTile), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(RoomMessageTile),
+            matching: find.textContaining('line one\nline two'),
+          ),
+          findsWidgets,
+        );
+        expect(tester.widget<TextField>(_composer).controller!.text, isEmpty);
+      });
+
+      testWidgets('Enter accepts the selected emoji without sending and the '
+          'next Enter sends the question', (tester) async {
+        final room = await open(tester);
+        await tester.enterText(_composer, 'hi :smi');
+        await _pumpFrames(tester);
+        expect(find.text(':smile:'), findsOneWidget);
+
+        await pressEnter(tester);
+        expect(tester.widget<TextField>(_composer).controller!.text, 'hi 😄');
+        expect(find.text(':smile:'), findsNothing);
+        expect(
+          room.messages,
+          isEmpty,
+          reason: 'accepting an emoji suggestion must not send the question',
+        );
+        expect(find.byType(RoomMessageTile), findsNothing);
+
+        await pressEnter(tester);
+        expect(room.messages.map((m) => m.body), ['hi 😄']);
+        expect(room.createdThreadItemIds, [_lobbyId]);
+        expect(find.byType(RoomMessageTile), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(RoomMessageTile),
+            matching: find.textContaining('hi 😄'),
+          ),
+          findsWidgets,
+        );
+        expect(tester.widget<TextField>(_composer).controller!.text, isEmpty);
+      });
+    });
+
     testWidgets(
       'empty Questions survive inactive and leaving during completion',
       (

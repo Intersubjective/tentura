@@ -1089,6 +1089,32 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
       return KeyEventResult.ignored;
     }
     if (_suggestionCount == 0) {
+      final keyboard = HardwareKeyboard.instance;
+      final isEnter =
+          key == LogicalKeyboardKey.enter ||
+          key == LogicalKeyboardKey.numpadEnter;
+      if (isEnter &&
+          !keyboard.isControlPressed &&
+          !keyboard.isAltPressed &&
+          !keyboard.isMetaPressed &&
+          _text.value.composing.isCollapsed) {
+        if (keyboard.isShiftPressed) {
+          if (widget.readOnlyHint == null &&
+              !widget.isSending &&
+              !_submitting) {
+            final selection = _text.selection;
+            _text.value = _text.value.replaced(
+              selection.isValid
+                  ? selection
+                  : TextRange.collapsed(_text.text.length),
+              '\n',
+            );
+          }
+        } else {
+          unawaited(_submit());
+        }
+        return KeyEventResult.handled;
+      }
       return KeyEventResult.ignored;
     }
     if (key == LogicalKeyboardKey.arrowDown) {
