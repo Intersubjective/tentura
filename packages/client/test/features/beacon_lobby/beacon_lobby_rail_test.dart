@@ -1,6 +1,7 @@
 // The Questions screen keeps the app navigation rail (#726), as the Request
 // page does; compact windows get no rail and back still leaves Questions.
 
+import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,6 +25,7 @@ import '../beacon_threads/room_cubit_fakes.dart';
 import '../beacon_threads/support/room_body_harness.dart'
     show RoomBodyHarnessPresenceCubit;
 import 'fake_lobby_port.dart';
+import '../my_work/my_work_test_support.dart' show buildStubAttentionCase;
 
 final class _FakeProfileCubit extends Fake implements ProfileCubit {
   @override
@@ -71,6 +73,7 @@ Future<_TestRouter> _pump(WidgetTester tester, Size size) async {
     ..registerSingleton<UiEffectPort>(RecordingEffects())
     ..registerSingleton<ProfileCubit>(profileCubit)
     ..registerSingleton<PresenceCubit>(presenceCubit)
+    ..registerSingleton<AttentionCase>(buildStubAttentionCase())
     ..registerSingleton<BeaconThreadsCase>(
       roomCubitMakeCase(FakeBeaconThreadsRepository(userId: 'Unina')),
     )

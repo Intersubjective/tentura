@@ -29,6 +29,7 @@ class AttentionClearCase {
     }
     final capture = await _clear.captureEligible(
       accountId: accountId,
+      kind: kind,
       beaconId: beaconId,
       receiptId: receiptId,
     );

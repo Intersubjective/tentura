@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -168,6 +169,17 @@ void _openBeaconOrSelect(
         ),
       ),
     );
+    return;
+  }
+  // #656: unread Questions updates are answered in Questions; they stay on
+  // the card until Questions is opened.
+  final latest = context
+      .read<MyWorkCubit>()
+      .state
+      .attentionByBeacon[vm.beaconId]
+      ?.latestUnseen;
+  if (latest != null && isQuestionsAttentionReceipt(latest)) {
+    unawaited(context.router.push(BeaconLobbyRoute(beaconId: vm.beaconId)));
     return;
   }
   _openBeacon(context, vm.beaconId);

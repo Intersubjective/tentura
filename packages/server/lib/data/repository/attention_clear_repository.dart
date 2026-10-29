@@ -36,9 +36,17 @@ SELECT receipt.id, receipt.beacon_id
  WHERE receipt.account_id = \$1
    AND ${AttentionDismissibleSql.activeOptional('receipt')}''';
 
+  /// A message in a Request's Questions: it waits for the viewer until
+  /// Questions itself is opened.
+  static const _notQuestionsMessage = '''
+   AND NOT (receipt.presentation_key = 'room_message_posted'
+            AND receipt.destination_kind = 'beacon_room_message'
+            AND COALESCE(receipt.coordination_item_id, '') <> '')''';
+
   @override
   Future<AttentionClearCapture> captureEligible({
     required String accountId,
+    AttentionClearCaptureKind? kind,
     String? beaconId,
     String? receiptId,
     int limit = AttentionClearSnapshotToken.maxMembers,
@@ -49,6 +57,7 @@ SELECT receipt.id, receipt.beacon_id
 $_eligibleReceipts
    AND (\$2::text IS NULL OR receipt.beacon_id = \$2)
    AND (\$3::text IS NULL OR receipt.id = \$3)
+${kind == AttentionClearCaptureKind.requestOpen ? _notQuestionsMessage : ''}
  ORDER BY receipt.created_at DESC, receipt.id DESC
  LIMIT \$4
 ''',

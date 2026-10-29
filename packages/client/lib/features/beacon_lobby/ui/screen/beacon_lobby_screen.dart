@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/browse_deep_link.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -86,6 +87,7 @@ class BeaconLobbyScreen extends StatelessWidget implements AutoRouteWrapper {
         GetIt.I<BeaconLobbyCase>(),
         GetIt.I<UiEffectPort>(),
         beaconId: beaconId,
+        attention: GetIt.I<AttentionCase>(),
       );
       unawaited(cubit.load());
       return cubit;

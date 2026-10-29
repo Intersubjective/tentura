@@ -9,8 +9,12 @@ abstract interface class AttentionClearPort {
   /// The viewer's active optional receipts, scoped to [beaconId] (and to
   /// [receiptId] for a single-event dismiss), together with the Request's
   /// outcome identity at this instant.
+  ///
+  /// A [kind] of `requestOpen` leaves out the Questions messages: they are
+  /// cleared when Questions is opened, not when the Request is.
   Future<AttentionClearCapture> captureEligible({
     required String accountId,
+    AttentionClearCaptureKind? kind,
     String? beaconId,
     String? receiptId,
     int limit,

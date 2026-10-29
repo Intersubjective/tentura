@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:logging/logging.dart';
+
+import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -22,17 +26,22 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
     this._case,
     this._effects, {
     required this.beaconId,
+    this._attention,
   }) : super(const BeaconLobbyState()) {
     _accessChanges = _case
         .accessChanges(beaconId)
         .listen((_) => unawaited(_refresh()));
   }
 
+  static final _logger = Logger('BeaconLobbyCubit');
+
   final String beaconId;
 
   final BeaconLobbyCase _case;
 
   final UiEffectPort _effects;
+
+  final AttentionCase? _attention;
 
   late final StreamSubscription<void> _accessChanges;
 
@@ -51,11 +60,36 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
     );
     try {
       await _open();
+      unawaited(_clearQuestionsUpdates());
     } on BeaconLobbyUnavailableException {
       _showUnavailable();
     } catch (e) {
       if (isClosed) return;
       emit(state.copyWith(status: StateStatus.isSuccess, loadError: e));
+    }
+  }
+
+  /// Questions is on screen, so the unread messages it holds count as read:
+  /// the Request-open clear leaves them alone, this is where they are cleared.
+  Future<void> _clearQuestionsUpdates() async {
+    final attention = _attention;
+    if (attention == null) return;
+    try {
+      String? previousId;
+      while (!isClosed) {
+        final rows = await attention.myWorkAttention({beaconId});
+        final latest = rows.isEmpty ? null : rows.first.latestUnseen;
+        if (latest == null ||
+            latest.id == previousId ||
+            !isQuestionsAttentionReceipt(latest)) {
+          return;
+        }
+        previousId = latest.id;
+        await attention.clearReceipt(receiptId: latest.id);
+      }
+    } on Object catch (error, stackTrace) {
+      // A failed clear is not a failed open: Questions is already on screen.
+      _logger.warning('Questions-open clear failed', error, stackTrace);
     }
   }
 

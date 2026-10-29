@@ -349,6 +349,7 @@ class _FakeClear implements AttentionClearPort {
   @override
   Future<AttentionClearCapture> captureEligible({
     required String accountId,
+    AttentionClearCaptureKind? kind,
     String? beaconId,
     String? receiptId,
     int limit = AttentionClearSnapshotToken.maxMembers,

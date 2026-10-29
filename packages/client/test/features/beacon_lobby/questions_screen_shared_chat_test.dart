@@ -4,6 +4,7 @@
 // read-only reason as the hint of a disabled composer. The old Questions
 // list, composer and tile are gone.
 
+import 'package:tentura/domain/attention/attention_case.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ import '../beacon_threads/room_cubit_fakes.dart';
 import '../beacon_threads/support/room_body_harness.dart'
     show RoomBodyHarnessPresenceCubit, RoomBodyHarnessProfileCubit;
 import 'fake_lobby_port.dart';
+import '../my_work/my_work_test_support.dart' show buildStubAttentionCase;
 
 const _beaconId = 'B1';
 
@@ -169,6 +171,7 @@ Future<void> _openQuestions(
   getIt
     ..registerSingleton<ProfileCubit>(profileCubit)
     ..registerSingleton<PresenceCubit>(presenceCubit)
+    ..registerSingleton<AttentionCase>(buildStubAttentionCase())
     ..registerSingleton<UiEffectPort>(effects)
     ..registerSingleton<BeaconLobbyCase>(
       lobbyCaseFor(lobby, FakeRealtimeSyncPort()),
