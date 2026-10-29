@@ -188,6 +188,25 @@ void main() {
         expect(line.relationLabel, isNull);
       });
     }
+
+    test('Russian locale shows "Не принимает новые запросы до"', () {
+      final ruL10n = lookupL10n(const Locale('ru'));
+      final line = computeForwardRecipientLine2(
+        candidate: _candidate(
+          id: 'p',
+          availability: Availability(resumeOn: _resumeOn),
+        ),
+        host: ForwardRecipientRowHost.pickerStandard,
+        todayUtc: _todayUtc,
+        l10n: ruL10n,
+        locale: const Locale('ru'),
+      );
+      expect(line.presenceOrAvailabilityUsesStatusText, isTrue);
+      expect(
+        line.presenceOrAvailabilityLine,
+        contains('Не принимает новые запросы до'),
+      );
+    });
   });
 
   group('row precedence', () {
