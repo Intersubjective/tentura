@@ -4,6 +4,8 @@
 // read-only reason as the hint of a disabled composer. The old Questions
 // list, composer and tile are gone.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -78,6 +80,7 @@ class _QuestionsRoomRepository extends FakeBeaconThreadsRepository {
     String? threadItemId,
   }) async {
     fetchMessagesCallCount++;
+    await fetchMessagesCompleter?.future;
     return [
       for (final m in messages)
         if (m.threadItemId == threadItemId) m,
@@ -240,6 +243,56 @@ void main() {
   final l10n = lookupL10n(const Locale('en'));
 
   group('Questions screen renders the shared chat', () {
+    testWidgets(
+      'empty Questions survive inactive and leaving during completion',
+      (
+        tester,
+      ) async {
+        final lobby = FakeLobbyPort(viewerId: _nina.id);
+        final room = _QuestionsRoomRepository();
+        await _openQuestions(tester, lobby: lobby, room: room);
+
+        expect(find.byKey(const Key('beaconRoomEmptyState')), findsOneWidget);
+        expect(find.byType(RoomMessageTile), findsNothing);
+        expect(_composer, findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        await _pumpFrames(tester, 2);
+        expect(find.byKey(const Key('beaconRoomEmptyState')), findsOneWidget);
+        await tester.pumpWidget(const SizedBox());
+        await _pumpFrames(tester, 2);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'leaving Questions before its empty response completes is safe',
+      (
+        tester,
+      ) async {
+        final completion = Completer<void>();
+        final room = _QuestionsRoomRepository()
+          ..fetchMessagesCompleter = completion;
+        await _openQuestions(
+          tester,
+          lobby: FakeLobbyPort(viewerId: _nina.id),
+          room: room,
+        );
+        expect(room.fetchMessagesCallCount, greaterThan(0));
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+        completion.complete();
+        await _pumpFrames(tester, 4);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('messages are shared room message tiles, not the old '
         'Questions list', (tester) async {
       final lobby = FakeLobbyPort(viewerId: _nina.id);

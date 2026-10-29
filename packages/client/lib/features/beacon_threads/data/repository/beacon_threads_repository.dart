@@ -15,7 +15,7 @@ import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show Gv2_RoomBatonCandidateInput;
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
 import 'package:tentura/data/service/remote_api_service.dart'
-    show DataSource, ErrorHandler;
+    show ErrorHandler, LinkResponse;
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -190,7 +190,7 @@ class BeaconThreadsRepository {
               ..threadItemId = threadItemId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final raw =
         r.dataOrThrow(label: _label).RoomMessageList?.toList() ?? const [];
     final sorted = [...raw]
@@ -283,7 +283,7 @@ class BeaconThreadsRepository {
               ..messageId = messageId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final target = r.dataOrThrow(label: _label).roomMessageTarget;
     return target == null ? null : _toRoomMessageTarget(target);
   }
@@ -465,7 +465,7 @@ class BeaconThreadsRepository {
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {
     final r = await _remoteApiService
         .request(GBeaconRoomStateGetReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final row = r.dataOrThrow(label: _label).BeaconRoomStateGet;
     return BeaconRoomState(
       beaconId: row.beaconId,
@@ -496,7 +496,7 @@ class BeaconThreadsRepository {
               ..readThroughAt = readThroughIso,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).MarkThreadSeen);
     return DateTime.parse(row.seenAt).toUtc();
   }
@@ -517,7 +517,7 @@ class BeaconThreadsRepository {
               ..baseRevision = baseRevision,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).BeaconRoomNowLineUpdate);
     return BeaconRoomState(
       beaconId: row.beaconId,
@@ -543,7 +543,7 @@ class BeaconThreadsRepository {
               ..messageId = messageId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then(
           (r) => r.dataOrThrow(label: _label).RoomMessageMarkSemanticDone,
         );
@@ -555,7 +555,7 @@ class BeaconThreadsRepository {
         .request(
           GBeaconThreadsListReq((b) => b.vars.beaconId = beaconId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final rows =
         r.dataOrThrow(label: _label).beaconThreads?.toList() ?? const [];
     return rows.map((row) => RequestThreadRowModel(row).toEntity()).toList();
@@ -568,7 +568,7 @@ class BeaconThreadsRepository {
         .request(
           GBeaconRoomReadWatermarksReq((b) => b.vars.beaconId = beaconId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final rows =
         r.dataOrThrow(label: _label).BeaconRoomReadWatermarks?.toList() ??
         const [];
@@ -593,7 +593,7 @@ class BeaconThreadsRepository {
         .request(
           GBeaconParticipantListReq((b) => b.vars.beaconId = beaconId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final rows =
         r.dataOrThrow(label: _label).BeaconParticipantList?.toList() ??
         const [];
@@ -674,7 +674,7 @@ class BeaconThreadsRepository {
               ..clientMessageId = clientMessageId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final id = r.dataOrThrow(label: _label).RoomMessageCreate.id;
     return id;
   }
@@ -698,7 +698,7 @@ class BeaconThreadsRepository {
               ..file = file,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageAttachmentAdd);
   }
 
@@ -716,7 +716,7 @@ class BeaconThreadsRepository {
               ..body = body,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageEdit);
   }
 
@@ -732,7 +732,7 @@ class BeaconThreadsRepository {
               ..messageId = messageId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageDelete);
   }
 
@@ -753,7 +753,7 @@ class BeaconThreadsRepository {
               ..body = note,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).BeaconParticipantOfferHelp);
     return ok;
   }
@@ -770,7 +770,7 @@ class BeaconThreadsRepository {
               ..stewardUserId = stewardUserId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).BeaconStewardPromote);
     return ok;
   }
@@ -789,7 +789,7 @@ class BeaconThreadsRepository {
               ..emoji = emoji,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageReactionToggle);
     return ok;
   }
@@ -814,7 +814,7 @@ class BeaconThreadsRepository {
               ..allowRevote = allowRevote,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
   }
 
@@ -842,7 +842,7 @@ class BeaconThreadsRepository {
             ]),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).roomBatonCreate);
 
   /// Records the viewer's answer; returns their updated view.
@@ -857,7 +857,7 @@ class BeaconThreadsRepository {
             ..canHelp = canHelp,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => RoomBatonData.tryParse(
           r.dataOrThrow(label: _label).roomBatonRespond,
@@ -885,7 +885,7 @@ class BeaconThreadsRepository {
             ]),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => RoomBatonData.tryParse(
           r.dataOrThrow(label: _label).roomBatonUpdate,
@@ -904,7 +904,7 @@ class BeaconThreadsRepository {
             ..userId = userId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => RoomBatonData.tryParse(
           r.dataOrThrow(label: _label).roomBatonSelect,
@@ -913,7 +913,7 @@ class BeaconThreadsRepository {
 
   Future<bool> batonCancel({required String batonId}) => _remoteApiService
       .request(GRoomBatonCancelReq((b) => b.vars.batonId = batonId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).roomBatonCancel);
 
   @disposeMethod

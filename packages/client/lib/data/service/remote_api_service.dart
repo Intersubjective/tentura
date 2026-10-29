@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:ferry/ferry.dart' show OperationResponse;
+import 'package:ferry/ferry.dart' show DataSource, OperationResponse;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
@@ -79,4 +79,17 @@ extension ErrorHandler<TData, TVars> on OperationResponse<TData, TVars> {
 
     return data!;
   }
+}
+
+/// Awaits the authoritative response consumed by request repositories.
+extension LinkResponse<TData, TVars>
+    on Stream<OperationResponse<TData, TVars>> {
+  Future<OperationResponse<TData, TVars>> firstLinkResponse({
+    required String label,
+  }) => firstWhere(
+    (response) => response.dataSource == DataSource.Link,
+    // Cache data is not an authoritative answer. In particular, disposal
+    // may finish a request before any Link response reaches its consumer.
+    orElse: () => throw GraphQLNoDataException(label: label),
+  );
 }

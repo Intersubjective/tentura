@@ -20,7 +20,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
   Future<BeaconLobbyAccess> access(String beaconId) async {
     final r = await _remoteApiService
         .request(GBeaconLobbyAccessReq((b) => b..vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: 'BeaconLobby');
     final a = r.dataOrThrow(label: 'BeaconLobbyAccess').BeaconLobbyAccess;
     return BeaconLobbyAccess(
       canRead: a.canRead,
@@ -36,7 +36,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
   Future<BeaconLobbyInfo> open(String beaconId) async {
     final r = await _remoteApiService
         .request(GBeaconLobbyReq((b) => b..vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: 'BeaconLobby');
     final l = r.dataOrThrow(label: 'BeaconLobby').BeaconLobby;
     return BeaconLobbyInfo(
       beaconId: l.beaconId,
@@ -65,7 +65,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
               ..vars.userId = userId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: 'BeaconLobby');
     r.dataOrThrow(label: 'BeaconLobbyBan');
   }
 
@@ -79,7 +79,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
               ..vars.userId = userId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: 'BeaconLobby');
     r.dataOrThrow(label: 'BeaconLobbyUnban');
   }
 }
