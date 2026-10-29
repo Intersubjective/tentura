@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_mess
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
@@ -52,7 +53,7 @@ RoomMessage _roomMsg({
 }
 
 Future<void> _awaitCondition(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
   while (DateTime.now().isBefore(deadline)) {
     if (condition()) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -61,7 +62,7 @@ Future<void> _awaitCondition(bool Function() condition) async {
 }
 
 Future<void> _awaitFetchCount(FakeBeaconThreadsRepository room, int expected) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
   while (DateTime.now().isBefore(deadline)) {
     if (room.fetchMessagesCallCount >= expected) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));

@@ -32,6 +32,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
+import '../../support/burst_coalescer_test_timing.dart';
 import 'beacon_view_initial_load_test.dart' show pumpUntil;
 import 'beacon_view_screen_harness.dart';
 import '../../support/people_tags_widget_harness.dart';
@@ -524,6 +525,9 @@ void main() {
 
       await pumpScreen(tester, cubit);
       await tester.tap(find.text(_leaveChat));
+      await tester.pumpAndSettle();
+      // Leaving hints a refresh; let the coalescer window run out.
+      await tester.pump(burstCoalescerSettleTimeout);
       await tester.pumpAndSettle();
 
       expect(membership.postLeaveCalls, [beaconId]);

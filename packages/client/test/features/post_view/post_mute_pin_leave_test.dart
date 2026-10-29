@@ -477,7 +477,11 @@ Future<_Archive> _pumpArchive(WidgetTester tester) async {
     effects: FakeUiEffectPort(),
   );
   addTearDown(cubit.close);
-  await cubit.stream.firstWhere((s) => s.isSuccess);
+  // The fake inbox read yields on a timer: advance fake time, don't await.
+  for (var i = 0; i < 20 && !cubit.state.isSuccess; i++) {
+    await tester.pump(const Duration(milliseconds: 10));
+  }
+  expect(cubit.state.isSuccess, isTrue);
 
   await tester.binding.setSurfaceSize(const Size(400, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));

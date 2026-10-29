@@ -12,6 +12,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
+import '../../support/burst_coalescer_test_timing.dart';
 import 'beacon_view_initial_load_test.dart';
 
 /// B079 — a background refresh of the request fetches about ten slices at
@@ -104,7 +105,7 @@ void main() {
         cubit.stream,
         () => room.fetchBeaconRoomStateCalls > fetchesAfterLoad,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await pumpAfterHintBurst();
 
       expect(cubit.state.beaconRoomCue?.currentLine, 'v2');
       expect(beaconHudNowLine(l10n, cubit.state), 'v2');
@@ -144,7 +145,7 @@ void main() {
         cubit.stream,
         () => room.fetchBeaconRoomStateCalls > fetchesAfterLoad,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await pumpAfterHintBurst();
 
       // Before the fix the full refresh emitted beaconRoomCue: null.
       expect(cubit.state.beaconRoomCue?.currentLine, 'v1');

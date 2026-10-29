@@ -13,6 +13,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
+import '../../support/burst_coalescer_test_timing.dart';
 import 'beacon_view_initial_load_test.dart';
 
 /// GitHub #149 — request app-bar / header lifecycle status must track live
@@ -57,7 +58,7 @@ void main() {
 
         current = readableBeacon(status: BeaconStatus.enoughHelp);
         beaconRepo.emitUpdate(current);
-        await Future<void>.delayed(const Duration(milliseconds: 80));
+        await pumpAfterHintBurst();
 
         expect(cubit.state.beacon.status, BeaconStatus.enoughHelp);
         final after = beaconViewStatusSlots(l10n, cubit.state);
@@ -97,7 +98,7 @@ void main() {
             entityType: BeaconRoomEntityType.coordinationItem,
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 80));
+        await pumpAfterHintBurst();
 
         expect(beaconRepo.fetchByIdCalls, greaterThan(fetchesAfterLoad));
         expect(cubit.state.beacon.status, BeaconStatus.closed);

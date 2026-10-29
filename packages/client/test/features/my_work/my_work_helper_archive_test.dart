@@ -25,6 +25,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import 'my_work_test_support.dart';
 
 const _viewerId = 'helper-1';
@@ -181,6 +182,10 @@ void main() {
       expect(archived.viewerArchived, isTrue);
       expect(archived.beacon.status, BeaconStatus.open);
       expect(archived.sources, {MyWorkMembershipSource.helpOffered});
+
+      // The archive hints a refresh; let the coalescer window run out.
+      await tester.pump(burstCoalescerSettleTimeout);
+      await tester.pumpAndSettle();
     },
   );
 }

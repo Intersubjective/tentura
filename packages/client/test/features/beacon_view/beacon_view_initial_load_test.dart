@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/test_realtime_sync.dart';
 import 'beacon_view_case_test_support.dart';
@@ -523,32 +524,34 @@ void main() {
 Future<void> pumpUntil(
   Stream<BeaconViewState> stream,
   bool Function() condition, {
-  Duration timeout = const Duration(seconds: 2),
+  Duration? timeout,
 }) async {
   if (condition()) return;
-  await stream.timeout(timeout).firstWhere((_) => condition());
+  await stream.timeout(timeout ?? burstCoalescerSettleTimeout).firstWhere((_) => condition());
 }
 
 Future<void> pumpUntilEffects(
   bool Function() condition, {
-  Duration timeout = const Duration(seconds: 2),
+  Duration? timeout,
 }) async {
-  final deadline = DateTime.now().add(timeout);
+  final limit = timeout ?? burstCoalescerSettleTimeout;
+  final deadline = DateTime.now().add(limit);
   while (DateTime.now().isBefore(deadline)) {
     if (condition()) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
-  throw TimeoutException('Effect condition not met', timeout);
+  throw TimeoutException('Effect condition not met', limit);
 }
 
 Future<void> pumpUntilCondition(
   bool Function() condition, {
-  Duration timeout = const Duration(seconds: 2),
+  Duration? timeout,
 }) async {
-  final deadline = DateTime.now().add(timeout);
+  final limit = timeout ?? burstCoalescerSettleTimeout;
+  final deadline = DateTime.now().add(limit);
   while (DateTime.now().isBefore(deadline)) {
     if (condition()) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
-  throw TimeoutException('Condition not met', timeout);
+  throw TimeoutException('Condition not met', limit);
 }

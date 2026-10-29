@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -140,7 +141,11 @@ void main() {
 
         // Well past My Desk's invalidation debounce, with For You's answer
         // still held. My Desk must not have jumped ahead of the commit.
-        for (var i = 0; i < 6; i++) {
+        // The hint burst coalescer holds the refresh for its whole window
+        // first.
+        final heldSamples =
+            BurstCoalescer.window.inMilliseconds ~/ 50 + 6;
+        for (var i = 0; i < heldSamples; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 50));
           sample();
         }
@@ -154,7 +159,8 @@ void main() {
             page: AttentionFeedPage(),
           ),
         );
-        for (var i = 0; i < 8; i++) {
+        // My Desk's own re-read can sit in a second coalescer window.
+        for (var i = 0; i < heldSamples + 2; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 50));
           sample();
         }

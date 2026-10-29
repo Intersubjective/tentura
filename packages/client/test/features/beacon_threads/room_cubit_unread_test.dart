@@ -28,6 +28,7 @@ import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -270,7 +271,7 @@ Future<void> _awaitFetchCount(
   _FakeBeaconThreadsRepository room,
   int expected,
 ) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
   while (DateTime.now().isBefore(deadline)) {
     if (room.fetchMessagesCallCount >= expected) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -282,7 +283,7 @@ Future<void> _awaitFetchCount(
 }
 
 Future<void> _awaitCondition(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
   while (DateTime.now().isBefore(deadline)) {
     if (condition()) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));

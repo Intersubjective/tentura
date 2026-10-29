@@ -13,6 +13,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
+import '../../support/burst_coalescer_test_timing.dart';
 import 'beacon_view_initial_load_test.dart';
 
 /// GitHub #157 — Plan / What's next on the NOW surface must track live
@@ -156,7 +157,7 @@ void main() {
             entityType: BeaconRoomEntityType.activityEvent,
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 120));
+        await pumpAfterHintBurst();
 
         expect(
           cubit.state.beaconRoomCue?.currentLine,
@@ -198,7 +199,7 @@ void main() {
             entityType: BeaconRoomEntityType.roomMessage,
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 120));
+        await pumpAfterHintBurst();
 
         expect(
           cubit.state.beaconRoomCue?.currentLine,

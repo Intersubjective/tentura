@@ -26,6 +26,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 import '../../support/people_tags_widget_harness.dart';
@@ -222,12 +223,13 @@ class AuthorSeenHarness {
 
 Future<void> waitFor(
   bool Function() condition, {
-  Duration timeout = const Duration(seconds: 2),
+  Duration? timeout,
 }) async {
-  final deadline = DateTime.now().add(timeout);
+  final limit = timeout ?? burstCoalescerSettleTimeout;
+  final deadline = DateTime.now().add(limit);
   while (!condition()) {
     if (DateTime.now().isAfter(deadline)) {
-      throw TimeoutException('condition not met', timeout);
+      throw TimeoutException('condition not met', limit);
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }

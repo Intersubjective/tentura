@@ -35,6 +35,7 @@ import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_c
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -372,7 +373,7 @@ void main() {
         // Deliver the hint, then advance fake time so its trailing refresh
         // starts before waiting for the held network response in runAsync.
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(burstCoalescerSettleTimeout);
         await tester.runAsync(() => desk.repo.readIsHeld);
 
         // Second ×, on Request B, while that re-read is outstanding.

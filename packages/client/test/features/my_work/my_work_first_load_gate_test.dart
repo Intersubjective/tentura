@@ -35,6 +35,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -490,8 +491,8 @@ void main() {
       attentionRepo.response = Completer<List<MyWorkBeaconAttention>>();
       harness.forwards.emitForwardCompleted(_beaconActive);
       await _flush(tester);
-      // Hint reads start after the shared trailing debounce.
-      await tester.pump(const Duration(milliseconds: 100));
+      // Hint reads start after the coalescer window.
+      await tester.pump(burstCoalescerSettleTimeout);
       await _flush(tester);
       expect(repo.reads, 2);
       for (var i = 0; i < 30; i++) {
@@ -517,7 +518,7 @@ void main() {
       attentionRepo.response.complete(attentionRepo.myWorkAttentionResult);
       harness.forwards.emitForwardCompleted(_beaconActive);
       await _flush(tester);
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(burstCoalescerSettleTimeout);
       await _flush(tester);
       expect(repo.reads, 3);
       repo.response.complete((

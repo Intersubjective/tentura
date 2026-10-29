@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -160,7 +161,7 @@ void main() {
         ),
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await pumpAfterHintBurst();
 
       expect(myWorkRepo.fetchInitCallCount, greaterThan(deskFetchesBefore));
       expect(beaconViewCubit.state.youResponsibility, isNull);

@@ -22,6 +22,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../../domain/attention/attention_case_test_support.dart';
 import '../block/support/controllable_block_case.dart';
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
@@ -172,7 +173,7 @@ void main() {
           source: RealtimeChangeSource.serverInvalidation,
         ),
       );
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(burstCoalescerSettleTimeout);
       await tester.pump();
 
       // The refresh really happened; it just is not a gesture (§4).
@@ -217,7 +218,7 @@ void main() {
             source: RealtimeChangeSource.serverInvalidation,
           ),
         );
-        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(burstCoalescerSettleTimeout);
         await tester.pump();
 
         final cubit = tester
