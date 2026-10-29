@@ -46,6 +46,7 @@ function randomHex(byteCount) {
 }
 
 export function initAnalytics() {
+  if (ready) return;
   const cfg = window.TENTURA || {};
   const dsn = cfg.sentryDsn || '';
   const sentryEnvironment = cfg.sentryEnvironment || '';
