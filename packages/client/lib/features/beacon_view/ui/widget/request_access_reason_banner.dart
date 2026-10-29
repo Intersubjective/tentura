@@ -42,7 +42,10 @@ class RequestAccessReasonBanner extends StatelessWidget {
             requestAccessViaParent(beacon)
         ? parent
         : null;
-    final postTitle = post?.title.trim() ?? '';
+    final rawPostTitle = post?.title.trim() ?? '';
+    final postTitle = rawPostTitle.isNotEmpty
+        ? rawPostTitle
+        : (post?.context.trim() ?? '');
     final text = post == null
         ? l10n.requestAccessViaRelatedRequest
         : postTitle.isEmpty
