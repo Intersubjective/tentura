@@ -13,6 +13,12 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
+import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
+import 'package:tentura/domain/capability/prompt_state_value.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
+import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -186,6 +192,7 @@ Future<void> _pumpInbox(
   WidgetTester tester, {
   required _ControlledAttentionRepo attentionRepo,
   required _HarnessRouter router,
+  _DelayedJoinedProfile? joinedProfile,
 }) async {
   const logicalSize = Size(800, 800);
   tester.view.physicalSize = logicalSize;
@@ -222,10 +229,22 @@ Future<void> _pumpInbox(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attention);
-  ensureNoopAttentionActorProfilesRegistered();
+  if (joinedProfile != null) {
+    if (GetIt.I.isRegistered<AttentionActorProfilesCase>()) {
+      await GetIt.I.unregister<AttentionActorProfilesCase>();
+    }
+    final actors = AttentionActorProfilesCase(joinedProfile, accounts);
+    GetIt.I.registerSingleton<AttentionActorProfilesCase>(actors);
+    addTearDown(() async {
+      await GetIt.I.unregister<AttentionActorProfilesCase>();
+      await actors.dispose();
+    });
+  } else {
+    ensureNoopAttentionActorProfilesRegistered();
+  }
   GetIt.I.registerSingleton(inboxCase);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
-    NoopInviteAcceptedSetupPort(),
+    joinedProfile ?? NoopInviteAcceptedSetupPort(),
   );
   GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
   if (!GetIt.I.isRegistered<Logger>()) {
@@ -369,8 +388,202 @@ _visibleFrame() => (
   updates: find.text('Delivery arranged for Friday').evaluate().length,
 );
 
+/// Both profile paths see the same delayed person, as they do over the real
+/// profile repository. Prompt state is already available, isolating person I/O.
+class _DelayedJoinedProfile
+    implements InviteAcceptedSetupPort, ProfileRepositoryPort {
+  final response = Completer<Profile>();
+  final requestedIds = <String>[];
+
+  static const person = Profile(id: 'joined-person', displayName: 'QA Bob');
+  static const prompt = InviteSeedPromptState(
+    inviterUserId: 'viewer',
+    inviteeUserId: 'joined-person',
+    state: PromptStateValue.pending,
+  );
+
+  @override
+  Future<Profile> fetchProfile(String subjectId) {
+    requestedIds.add(subjectId);
+    return response.future;
+  }
+
+  @override
+  Future<Profile> fetchById(String id) => fetchProfile(id);
+
+  @override
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async {
+    requestedIds.addAll(ids);
+    final person = await response.future;
+    return ids.contains(person.id) ? [person] : [];
+  }
+
+  @override
+  Future<InviteSeedPromptState> fetchPrompt(String subjectId) async => prompt;
+
+  @override
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  ) async => {if (subjectIds.contains(person.id)) person.id: prompt};
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   group('Activity first load', () {
+    testWidgets(
+      'reveals a joined person in the final card layout without a placeholder name',
+      (tester) async {
+        final repo = _ControlledAttentionRepo();
+        final profile = _DelayedJoinedProfile();
+        final receipt = _receipt.copyWith(
+          id: 'joined-receipt',
+          category: 'connections',
+          kind: 'inviteAccepted',
+          title: 'New member',
+          body: 'New member is now on Tentura.',
+          actionUrl: '/profile/view/joined-person',
+          presentationKey: 'invite_accepted',
+          presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+          actorUserId: 'joined-person',
+          targetEntityId: 'joined-person',
+        );
+        final card = find.byType(InviteAcceptedReceiptCard);
+        final setupAction = find.descendant(
+          of: card,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is TenturaTextAction &&
+                w.semanticsIdentifier == TestIds.inviteAcceptedSetupOpen,
+          ),
+        );
+        // The gate's visible scroll content detects reveal independently of
+        // the receipt's widget type: a flat tile must not escape observation.
+        final visibleContent = find.descendant(
+          of: find.byType(TenturaFirstLoadGate),
+          matching: find.byType(CustomScrollView),
+        );
+        // Resolving the prompt behind the gate may place this receipt in
+        // the pinned zone, which has a different key and card shell.
+        final item = card;
+        double? firstVisibleHeight;
+
+        void captureFrame() {
+          // Check every frame, even when no InviteAcceptedReceiptCard exists.
+          expect(
+            find.textContaining('New member'),
+            findsNothing,
+            reason:
+                'Activity must never expose the receipt placeholder, '
+                'including in a flat row before the card appears',
+          );
+          final gate = tester.widget<TenturaFirstLoadGate>(
+            find.byType(TenturaFirstLoadGate),
+          );
+          final gateVisibility = tester.widget<Visibility>(
+            find.descendant(
+              of: find.byType(TenturaFirstLoadGate),
+              matching: find.byWidgetPredicate(
+                (w) => w is Visibility && identical(w.child, gate.child),
+                skipOffstage: false,
+              ),
+              skipOffstage: false,
+            ),
+          );
+          final revealed =
+              gateVisibility.visible &&
+              find.byType(CircularProgressIndicator).evaluate().isEmpty &&
+              visibleContent.hitTestable().evaluate().isNotEmpty;
+          if (firstVisibleHeight != null || !revealed) return;
+          // Assert immediately on the first revealed frame. If the gate
+          // opens while the profile is pending, these checks run before we
+          // release it. If it waits, they run on the first frame after release.
+          expect(
+            item,
+            findsOneWidget,
+            reason: 'The first revealed Activity frame must contain the item',
+          );
+          expect(
+            card,
+            findsOneWidget,
+            reason: 'The first revealed item must already use the card layout',
+          );
+          expect(
+            find.descendant(of: item, matching: find.byType(TenturaAvatar)),
+            findsOneWidget,
+            reason: 'The first revealed item must already contain its avatar',
+          );
+          expect(
+            setupAction,
+            findsOneWidget,
+            reason:
+                'The first revealed item must already contain its setup link',
+          );
+          firstVisibleHeight = tester.getSize(item).height;
+        }
+
+        try {
+          await _pumpInbox(
+            tester,
+            attentionRepo: repo,
+            router: _HarnessRouter(),
+            joinedProfile: profile,
+          );
+          await tester.pump(const Duration(milliseconds: 160));
+          expect(find.byType(CircularProgressIndicator), findsOneWidget);
+          captureFrame();
+          expect(
+            firstVisibleHeight,
+            isNull,
+            reason: 'Mounted content behind the gate is not a reveal',
+          );
+          repo.offersResponse.complete(
+            const ActivityOfferPage(),
+          );
+          repo.feedResponse.complete(
+            AttentionFeed(
+              summary: const AttentionSummary(),
+              page: AttentionFeedPage(items: [receipt]),
+            ),
+          );
+          // Observe individual frames, including the very first reveal. A fix
+          // may either keep the gate closed or reserve the final card layout.
+          for (var i = 0; i < 40; i++) {
+            await tester.pump(const Duration(milliseconds: 10));
+            captureFrame();
+          }
+          expect(profile.requestedIds, contains('joined-person'));
+          expect(profile.response.isCompleted, isFalse);
+          profile.response.complete(_DelayedJoinedProfile.person);
+          for (var i = 0; i < 40; i++) {
+            await tester.pump(const Duration(milliseconds: 10));
+            captureFrame();
+          }
+          expect(card, findsOneWidget);
+          expect(find.text('QA Bob'), findsOneWidget);
+          expect(find.text('Add what QA Bob can help with'), findsOneWidget);
+          expect(setupAction, findsOneWidget);
+          expect(tester.takeException(), isNull);
+          expect(firstVisibleHeight, isNotNull);
+          expect(
+            firstVisibleHeight,
+            tester.getSize(item).height,
+            reason:
+                'The first revealed item must have the same height '
+                'as the card after the joined person resolves',
+          );
+        } finally {
+          if (!profile.response.isCompleted) {
+            profile.response.complete(_DelayedJoinedProfile.person);
+          }
+          if (!repo.offersResponse.isCompleted) _finishOffers(repo);
+          if (!repo.feedResponse.isCompleted) _finishFeed(repo);
+          await _frames(tester);
+        }
+      },
+    );
+
     testWidgets(
       'reveals available offers after 2.5 seconds when updates stall',
       (tester) async {

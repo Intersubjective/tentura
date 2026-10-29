@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
@@ -29,6 +30,7 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
     this.onRetryPromptFetch,
     this.onPromptSettled,
     this.setupCase,
+    this.profile,
     this.activityOfferBoundedShell = false,
     this.activityRow = false,
     this.onDismiss,
@@ -45,6 +47,9 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
   final void Function(String subjectId, InviteSeedPromptState state)?
   onPromptSettled;
   final InviteAcceptedSetupPort? setupCase;
+
+  /// A person already resolved by the feed before revealing this row.
+  final Profile? profile;
 
   /// When true, render inside [ActivityOfferBoundedShell] (Activity pinned zone).
   final bool activityOfferBoundedShell;
@@ -97,10 +102,17 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       _openingSetup = false;
       _modalOutcomeMarkedSeen = false;
       _startProfileLoad();
+    } else if (widget.profile != null && oldWidget.profile != widget.profile) {
+      _inviteeProfile = widget.profile;
     }
   }
 
   void _startProfileLoad() {
+    final profile = widget.profile;
+    if (profile != null) {
+      _inviteeProfile = profile;
+      return;
+    }
     final subjectId = _subjectId;
     if (subjectId == null || subjectId.isEmpty) return;
     unawaited(_loadProfile(subjectId));
@@ -188,7 +200,10 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
         presentationPayloadJson: widget.receipt.presentationPayloadJson,
         presentationKey: widget.receipt.presentationKey,
         l10n: l10n,
-        profile: _inviteeProfile,
+        profile: switch (_inviteeProfile) {
+          final profile? => profileWithContactOverlay(profile),
+          null => null,
+        },
       );
 
   /// Says what the setup is for and whom (#721): «Add what Carol can help

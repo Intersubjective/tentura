@@ -76,6 +76,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   final _clearNotices = StreamController<UpdatesClearNotice>.broadcast();
   int _promptFetchEpoch = 0;
   int _actorsGeneration = 0;
+  int _projectionGeneration = 0;
 
   void _projectFromDomain() {
     final session = _attention.feedSession(_destinationId);
@@ -83,7 +84,6 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     final items = page?.items ?? const <AttentionReceipt>[];
     emit(
       state.copyWith(
-        firstLoadDone: state.firstLoadDone || page != null,
         view: session.activeView,
         searchText: session.searchText,
         summary: _attention.snapshot.summary,
@@ -93,8 +93,22 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         status: const StateIsSuccess(),
       ),
     );
-    _schedulePromptSync(items);
-    unawaited(_hydrateActors(items));
+    unawaited(_preparePresentation(items, hasPage: page != null));
+  }
+
+  Future<void> _preparePresentation(
+    List<AttentionReceipt> items, {
+    required bool hasPage,
+  }) async {
+    final generation = ++_projectionGeneration;
+    await Future.wait([
+      _schedulePromptSync(items),
+      _hydrateActors(items),
+    ]);
+    if (isClosed || generation != _projectionGeneration || !hasPage) return;
+    // Resolve the data that determines row shape before opening Activity's
+    // first-load gate. Refreshes retain already revealed content.
+    emit(state.copyWith(firstLoadDone: true));
   }
 
   Future<void> _hydrateActors(List<AttentionReceipt> items) async {
@@ -127,7 +141,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     unawaited(_refreshPromptProjections({subjectId}, force: true));
   }
 
-  void _schedulePromptSync(List<AttentionReceipt> items) {
+  Future<void> _schedulePromptSync(List<AttentionReceipt> items) {
     final subjectIds = <String>{};
     for (final receipt in items) {
       if (!receiptNeedsInvitePromptProjection(receipt)) continue;
@@ -137,8 +151,8 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       if (current != null && !current.isUnknown) continue;
       subjectIds.add(subjectId);
     }
-    if (subjectIds.isEmpty) return;
-    unawaited(_refreshPromptProjections(subjectIds));
+    if (subjectIds.isEmpty) return Future<void>.value();
+    return _refreshPromptProjections(subjectIds);
   }
 
   Future<void> retryPromptFetch(String subjectId) =>

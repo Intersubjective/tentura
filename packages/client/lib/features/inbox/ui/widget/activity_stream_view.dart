@@ -992,6 +992,7 @@ class _ActivityStreamPromptPin extends StatelessWidget {
           key: TestIds.key(TestIds.activityPromptPin(receipt.id)),
           child: InviteAcceptedReceiptCard(
             receipt: receipt,
+            profile: streamCubit.state.actors[subjectId],
             promptProjection: projection,
             onRetryPromptFetch: streamCubit.retryPromptFetch,
             onPromptSettled: streamCubit.applyKnownPrompt,
@@ -1256,6 +1257,7 @@ class _ActivityStreamCell extends StatelessWidget {
         builder: (context, projection) => InviteAcceptedReceiptCard(
           key: ValueKey(receipt.id),
           receipt: receipt,
+          profile: streamCubit.state.actors[subjectId],
           promptProjection: projection,
           onRetryPromptFetch: streamCubit.retryPromptFetch,
           onPromptSettled: streamCubit.applyKnownPrompt,
