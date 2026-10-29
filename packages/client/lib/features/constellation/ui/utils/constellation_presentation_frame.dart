@@ -261,6 +261,60 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     }
   }
 
+  final labels = <GraphNodeId, Rect>{};
+  final forcedLabels = <GraphNodeId>{};
+
+  final labelNodes =
+      nodesInPaintOrder
+          .where((n) => !culled.contains(n.id))
+          .where((n) => n.labelCandidate && n.labelSize != Size.zero)
+          .toList()
+        ..sort((a, b) {
+          final pc = a.priority.compareTo(b.priority);
+          if (pc != 0) return pc;
+          final tc = a.labelTier.compareTo(b.labelTier);
+          if (tc != 0) return tc;
+          final rc = a.ring.compareTo(b.ring);
+          if (rc != 0) return rc;
+          return a.id.compareTo(b.id);
+        });
+
+  void placeLabels(Iterable<ConstellationFrameNodeInput> nodes) {
+    for (final node in nodes) {
+      final body = bodies[node.id]!;
+      final candidates = [
+        _labelRectBelow(body, node.labelSize, gap),
+        _labelRectAbove(body, node.labelSize, gap),
+        _labelRectEnd(body, node.labelSize, gap, rtl: rtl),
+        _labelRectStart(body, node.labelSize, gap, rtl: rtl),
+      ];
+      final placed = _firstFittingCandidate(
+        candidates,
+        cullToViewport ? viewportRect : null,
+        occupied,
+      );
+      if (placed != null) {
+        labels[node.id] = placed;
+        occupied.add(placed.inflate(1));
+      } else if (node.priority <= 1 &&
+          detail == ConstellationDetailLevel.close) {
+        // Forced only at full detail: a zoomed-out label that does not fit
+        // would sit on its neighbours (#595).
+        final forced = candidates.first;
+        labels[node.id] = forced;
+        forcedLabels.add(node.id);
+        occupied.add(forced.inflate(1));
+      }
+    }
+  }
+
+  // Keep selected nodes and people named before placing controls. Request
+  // titles yield space to expansion/collapse controls so these stay nearby.
+  final priorityLabelCount = labelNodes
+      .takeWhile((node) => node.priority <= 2)
+      .length;
+  placeLabels(labelNodes.take(priorityLabelCount));
+
   final placedChips = <String, Rect>{};
   final sortedChips = [...chips]
     ..sort((a, b) => a.authorId.compareTo(b.authorId));
@@ -286,20 +340,21 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
       _chipRectStart(body, chip.size, gap, rtl: rtl),
       _chipRectAbove(body, chip.size, gap),
     ];
-    // The author's own label slot is reserved: a chip placed first must
-    // never take it (#459).
-    // Forced where it is the only way to expand (closest level) or collapse
-    // (expanded group) a group; otherwise a chip without a free slot is
-    // omitted (#459).
+    // Priority labels already occupy the collision grid. Keep expansion and
+    // collapse controls available by searching further out, never by forcing
+    // a chip onto occupied content (#459).
     final placed =
         _firstFittingCandidate(
           candidates,
           cullToViewport ? viewportRect : null,
           occupied,
-          reserved: author.labelSize.isEmpty ? null : reservedBelow.inflate(1),
         ) ??
         (detail == ConstellationDetailLevel.close || chip.expanded
-            ? candidates.first
+            ? _firstFittingCandidate(
+                _outerChipCandidates(body, chip.size, gap, rtl: rtl),
+                null,
+                occupied,
+              )
             : null);
     if (placed == null) {
       continue;
@@ -308,49 +363,7 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     occupied.add(placed.inflate(1));
   }
 
-  final labels = <GraphNodeId, Rect>{};
-  final forcedLabels = <GraphNodeId>{};
-
-  final labelNodes =
-      nodesInPaintOrder
-          .where((n) => !culled.contains(n.id))
-          .where((n) => n.labelCandidate && n.labelSize != Size.zero)
-          .toList()
-        ..sort((a, b) {
-          final pc = a.priority.compareTo(b.priority);
-          if (pc != 0) return pc;
-          final tc = a.labelTier.compareTo(b.labelTier);
-          if (tc != 0) return tc;
-          final rc = a.ring.compareTo(b.ring);
-          if (rc != 0) return rc;
-          return a.id.compareTo(b.id);
-        });
-
-  for (final node in labelNodes) {
-    final body = bodies[node.id]!;
-    final candidates = [
-      _labelRectBelow(body, node.labelSize, gap),
-      _labelRectAbove(body, node.labelSize, gap),
-      _labelRectEnd(body, node.labelSize, gap, rtl: rtl),
-      _labelRectStart(body, node.labelSize, gap, rtl: rtl),
-    ];
-    final placed = _firstFittingCandidate(
-      candidates,
-      cullToViewport ? viewportRect : null,
-      occupied,
-    );
-    if (placed != null) {
-      labels[node.id] = placed;
-      occupied.add(placed.inflate(1));
-    } else if (node.priority <= 1 && detail == ConstellationDetailLevel.close) {
-      // Forced only at full detail: a zoomed-out label that does not fit
-      // would sit on its neighbours (#595).
-      final forced = candidates.first;
-      labels[node.id] = forced;
-      forcedLabels.add(node.id);
-      occupied.add(forced.inflate(1));
-    }
-  }
+  placeLabels(labelNodes.skip(priorityLabelCount));
 
   return ConstellationPresentationFrame(
     snapshot: snapshot,
@@ -380,15 +393,13 @@ Rect _symmetricMinTargetRect(Rect body, double minTarget) {
 int constellationPlacementCount = 0;
 
 Rect? _firstFittingCandidate(
-  List<Rect> candidates,
+  Iterable<Rect> candidates,
   Rect? viewport,
-  _OccupiedGrid occupied, {
-  Rect? reserved,
-}) {
+  _OccupiedGrid occupied,
+) {
   constellationPlacementCount++;
   for (final candidate in candidates) {
     if (viewport != null && !_rectFullyInside(candidate, viewport)) continue;
-    if (reserved != null && candidate.overlaps(reserved)) continue;
     if (!occupied.intersects(candidate)) {
       return candidate;
     }
@@ -505,6 +516,33 @@ Rect _labelRectStart(
     labelSize.width,
     labelSize.height,
   );
+}
+
+// The finite set of occupied rectangles leaves an outer slot free. Searching
+// without viewport culling keeps a required control present even on a map
+// whose viewport cannot fit it; a pan can then reveal it.
+Iterable<Rect> _outerChipCandidates(
+  Rect body,
+  Size chipSize,
+  double gap, {
+  required bool rtl,
+}) sync* {
+  final step = chipSize.height + gap;
+  for (var padding = step; ; padding += step) {
+    final anchor = body.inflate(padding);
+    final candidates =
+        [
+          _chipRectBelow(anchor, chipSize, gap),
+          _chipRectAbove(anchor, chipSize, gap),
+          _chipRectEnd(anchor, chipSize, gap, rtl: rtl),
+          _chipRectStart(anchor, chipSize, gap, rtl: rtl),
+        ]..sort(
+          (a, b) => (a.center - body.center).distanceSquared.compareTo(
+            (b.center - body.center).distanceSquared,
+          ),
+        );
+    yield* candidates;
+  }
 }
 
 Rect _chipRectBelow(Rect anchor, Size chipSize, double gap) {
