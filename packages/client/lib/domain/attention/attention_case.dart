@@ -248,7 +248,7 @@ final class AttentionCase implements AttentionReconcilePort {
     }
   }
 
-  /// One Request's move across surfaces, start to finish.
+  /// One hint burst's move across surfaces, start to finish.
   ///
   /// The announcement is the **last** step, not the first. My Desk is a
   /// separate projection with its own fetch, so telling it first let it
@@ -257,34 +257,26 @@ final class AttentionCase implements AttentionReconcilePort {
   /// and exactly what the U15 test claimed to rule out while observing only
   /// My Desk's own two lists (R5).
   Future<void> _transitionAcrossSurfaces(String? beaconId) async {
-    // One in flight, one rerun — the same discipline the head refresher has
-    // always applied, and load-bearing since U15R-d put `notification` on
-    // this route: a burst of twenty NOTIFY hints must not become twenty
-    // coordinated refreshes. The rerun covers every Request named while the
-    // first was in flight, so coalescing never loses an announcement.
-    if (_transitionInFlight) {
-      _transitionQueued = true;
-      if (beaconId != null && beaconId.isNotEmpty) {
-        _transitionQueuedBeaconIds.add(beaconId);
-      }
-      return;
+    _transitionQueued = true;
+    if (beaconId != null && beaconId.isNotEmpty) {
+      _transitionQueuedBeaconIds.add(beaconId);
     }
+    if (_transitionInFlight) return;
     _transitionInFlight = true;
-    var beaconIds = <String>{
-      if (beaconId != null && beaconId.isNotEmpty) beaconId,
-    };
     try {
       do {
+        // InvalidationService expands a batch synchronously into individual
+        // hints. Collect them before reading so the whole burst shares one
+        // refresh and announcement set; hints arriving during the read rerun.
+        await Future<void>.value();
         _transitionQueued = false;
+        final beaconIds = {..._transitionQueuedBeaconIds};
+        _transitionQueuedBeaconIds.clear();
         await _refreshAcrossSurfaces();
         // Announced whatever the refresh did — including when it declined to
         // run because nothing is signed in or attached. A projection that
         // never hears about the move is worse than one that hears late.
-        for (final id in beaconIds) {
-          _invalidateRequest(id);
-        }
-        beaconIds = {..._transitionQueuedBeaconIds};
-        _transitionQueuedBeaconIds.clear();
+        beaconIds.forEach(_invalidateRequest);
       } while (_transitionQueued);
     } finally {
       _transitionInFlight = false;

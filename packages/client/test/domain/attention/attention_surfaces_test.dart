@@ -185,6 +185,141 @@ void main() {
       expect(surfaceSummaries.last, _surfaceSummary(deskCount: 5, forYouDot: true));
     });
 
+    Future<void> expectOneRefreshForSameTurnBurst(List<String> requestIds) async {
+      // A flushed invalidation batch is expanded synchronously. Keep that
+      // delivery boundary explicit without changing other tests' async ports.
+      await attention.dispose();
+      await realtimePort.dispose();
+      realtimePort = TestRealtimeSyncPort(synchronousChanges: true);
+      realtimeCase = RealtimeSyncCase(realtimePort);
+      attention = AttentionCase(
+        repository,
+        accounts,
+        realtimeCase,
+        noopBlockCase(),
+        feedSessions,
+        Logger('attention-surfaces-burst-test'),
+      );
+      final summarySubscription = attention.surfaceSummary.listen(
+        surfaceSummaries.add,
+      );
+      addTearDown(summarySubscription.cancel);
+      const destination = AttentionFeedDestinationId.activityStream;
+      attention.attachFeedSession(destination);
+      await signInAndCompleteHead();
+      final fetchCallsBefore = repository.fetchCalls;
+      final summaryCallsBefore = repository.surfaceSummaryCalls;
+      final refreshedFeed = attentionCaseTestFeed(
+        unread: 3,
+        items: [attentionCaseTestReceipt(id: 'refreshed-receipt')],
+      );
+      final refreshedSummary = _surfaceSummary(deskCount: 4, myDeskDot: true);
+      final page = Completer<AttentionFeed>();
+      final summary = Completer<AttentionSurfaceSummary>();
+      repository.pendingFetches.add(page);
+      repository.pendingSurfaceSummaries.add(summary);
+      // Supply valid responses for redundant reads too, so a duplicate
+      // refresh fails the contract assertions rather than exhausting a fake.
+      for (var i = 0; i < requestIds.length * 3 - 1; i++) {
+        repository.pendingFetches.add(
+          Completer<AttentionFeed>()..complete(refreshedFeed),
+        );
+        repository.pendingSurfaceSummaries.add(
+          Completer<AttentionSurfaceSummary>()..complete(refreshedSummary),
+        );
+      }
+      final invalidations = <String>[];
+      final summariesAtAnnouncement = <AttentionSurfaceSummary>[];
+      final receiptsAtAnnouncement = <List<String>>[];
+      final subscription = attention.requestInvalidations.listen((id) {
+        invalidations.add(id);
+        summariesAtAnnouncement.add(attention.surfaceSummarySnapshot);
+        receiptsAtAnnouncement.add(
+          attention.feedSession(destination).pages[AttentionView.all]!.items
+              .map((receipt) => receipt.id)
+              .toList(),
+        );
+      });
+      addTearDown(subscription.cancel);
+
+      final changes = [
+        for (final id in requestIds)
+          for (final kind in const [
+            RealtimeEntityKind.beacon,
+            RealtimeEntityKind.helpOffer,
+            RealtimeEntityKind.inboxItem,
+          ])
+            RealtimeEntityChange(
+              kind: kind,
+              aggregateId: id,
+              operation: RealtimeOperation.update,
+              source: RealtimeChangeSource.serverInvalidation,
+            ),
+      ];
+      final deliveredChanges = <RealtimeEntityChange>[];
+      final deliverySubscription = realtimeCase
+          .changesFor(changes.map((change) => change.kind).toSet())
+          .listen(deliveredChanges.add);
+      addTearDown(deliverySubscription.cancel);
+      for (final change in changes) {
+        realtimePort.emitChange(change);
+      }
+      // Before yielding even one microtask, every hint has reached the same
+      // RealtimeSyncCase stream consumed by AttentionCase.
+      expect(deliveredChanges, changes);
+      await attentionCaseTestSettle();
+      expect(invalidations, isEmpty);
+      page.complete(refreshedFeed);
+      await attentionCaseTestSettle();
+      expect(invalidations, isEmpty, reason: 'the summary is still pending');
+      summary.complete(refreshedSummary);
+      await attentionCaseTestSettle();
+
+      expect(surfaceSummaries, [refreshedSummary]);
+      expect(attention.surfaceSummarySnapshot, refreshedSummary);
+      expect(
+        attention.feedSession(destination).pages[AttentionView.all],
+        refreshedFeed.page,
+      );
+      expect(attention.snapshot.summary, refreshedFeed.summary);
+      expect(
+        repository.fetches.skip(fetchCallsBefore).map((fetch) => fetch.surface),
+        everyElement(AttentionSurface.activity),
+      );
+      expect(
+        {
+          'feed reads': repository.fetchCalls - fetchCallsBefore,
+          'summary reads': repository.surfaceSummaryCalls - summaryCallsBefore,
+          'request invalidations': invalidations,
+          'b1 announcements': invalidations.where((id) => id == 'b1').length,
+          'summaries at announcement': summariesAtAnnouncement,
+          'receipts at announcement': receiptsAtAnnouncement,
+        },
+        {
+          'feed reads': 1,
+          'summary reads': 1,
+          'request invalidations': unorderedEquals(requestIds),
+          'b1 announcements': 1,
+          'summaries at announcement': [
+            for (final _ in requestIds) refreshedSummary,
+          ],
+          'receipts at announcement': [
+            for (final _ in requestIds) ['refreshed-receipt'],
+          ],
+        },
+      );
+    }
+
+    test(
+      'refreshes once and announces the request once after a same-turn hint burst',
+      () => expectOneRefreshForSameTurnBurst(['b1']),
+    );
+
+    test(
+      'refreshes once and announces each distinct request once after a same-turn hint burst',
+      () => expectOneRefreshForSameTurnBurst(['b1', 'b2']),
+    );
+
     test('refreshes on catch-up', () async {
       attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       await signInAndCompleteHead();

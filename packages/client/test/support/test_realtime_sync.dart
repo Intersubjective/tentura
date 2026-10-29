@@ -7,7 +7,12 @@ import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 final class TestRealtimeSyncPort implements RealtimeSyncPort {
-  final _changes = StreamController<RealtimeEntityChange>.broadcast();
+  TestRealtimeSyncPort({bool synchronousChanges = false})
+    : _changes = StreamController<RealtimeEntityChange>.broadcast(
+        sync: synchronousChanges,
+      );
+
+  final StreamController<RealtimeEntityChange> _changes;
   final _catchUps = StreamController<RealtimeCatchUp>.broadcast();
   final _statuses = StreamController<RealtimeConnectionStatus>.broadcast();
 
