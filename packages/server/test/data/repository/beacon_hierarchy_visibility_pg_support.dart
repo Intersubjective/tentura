@@ -365,3 +365,6 @@ final class _HarnessChildBeaconRepo extends Fake implements BeaconRepositoryPort
   }) =>
       fn(_child);
 }
+
+// Support file: `dart test` loads every matching path, so it needs a main.
+void main() {}

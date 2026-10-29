@@ -148,3 +148,6 @@ class _MockTrustMaintenance extends Mock implements TrustMaintenancePort {}
 class _MockMeritrank extends Mock implements MeritrankRepositoryPort {}
 
 class _MockWitnessWindow extends Mock implements WitnessWindowPort {}
+
+// Support file: `dart test` loads every matching path, so it needs a main.
+void main() {}

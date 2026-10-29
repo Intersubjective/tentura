@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.d
 import 'package:tentura_server/domain/policy/beacon_forward_policy.dart';
 import 'package:tentura_server/domain/policy/post_expiry_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
@@ -36,11 +37,13 @@ final class InvitationCase extends UseCaseBase {
     this._forwardEdgeRepository,
     this._userBlockRepository, {
     PostLockPort? postLock,
+    BeaconRoomRepositoryPort? room,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
   }) : _postLock = postLock,
+       _room = room,
        _attentionIntents = attentionIntents,
        _attention = attention;
 
@@ -57,6 +60,8 @@ final class InvitationCase extends UseCaseBase {
   final BeaconAccessGuard _guard;
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+
+  final BeaconRoomRepositoryPort? _room;
 
   final UserBlockRepositoryPort _userBlockRepository;
 
@@ -284,10 +289,16 @@ final class InvitationCase extends UseCaseBase {
       return null;
     }
 
+    // A Post has no description of its own: its text is the root message.
+    final rootId = beacon.postRootMessageId;
+    final description = beacon.kind == BeaconKind.post && rootId != null
+        ? (await _room?.getRoomMessageById(rootId))?.body ?? ''
+        : beacon.description;
+
     return BeaconEntity(
       id: beacon.id,
       title: beacon.title,
-      description: beacon.description,
+      description: description,
       author: beacon.author,
       createdAt: beacon.createdAt,
       updatedAt: beacon.updatedAt,

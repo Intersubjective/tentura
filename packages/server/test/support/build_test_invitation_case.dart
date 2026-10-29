@@ -226,3 +226,6 @@ class _UnimplementedForwardEdgeRepositoryPort
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
+
+// Support file: `dart test` loads every matching path, so it needs a main.
+void main() {}
