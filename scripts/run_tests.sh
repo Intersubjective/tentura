@@ -240,8 +240,32 @@ server_mr() {
 
 client_run() {
   local j; j="$(concurrency client)"
-  (cd "$ROOT/packages/client" && run 60m flutter test -j "$j" \
-    --dart-define=ENV=test --dart-define-from-file=env/test.env "$@")
+  # This browser-only regression needs trusted CDP input, provided by its
+  # runner. Keep it in the selection, but execute it outside the VM batch.
+  local native_test="test/features/constellation/constellation_overlapping_dot_browser_touch_test.dart"
+  local native_runner="test/support/browser/run_overlapping_dot_touch.mjs"
+  local native=0 rc=0 f
+  local -a vm=()
+  for f in "$@"; do
+    if [[ "$f" == "$native_test" ]]; then
+      native=1
+    else
+      vm+=("$f")
+      if [[ -d "$ROOT/packages/client/$f" && "$native_test" == "${f%/}/"* ]]; then
+        native=1
+      fi
+    fi
+  done
+  # No paths is the complete client profile, including the native regression.
+  (( $# > 0 )) || native=1
+  if (( $# == 0 || ${#vm[@]} > 0 )); then
+    (cd "$ROOT/packages/client" && run 60m flutter test -j "$j" \
+      --dart-define=ENV=test --dart-define-from-file=env/test.env "${vm[@]}") || rc=1
+  fi
+  if (( native )); then
+    (cd "$ROOT/packages/client" && run 8m node "$native_runner") || rc=1
+  fi
+  return "$rc"
 }
 
 case "$profile" in

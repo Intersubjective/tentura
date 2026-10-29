@@ -4,3 +4,6 @@
 void suspendWebSemantics() {}
 
 void resumeWebSemantics() {}
+
+/// Native semantics have no hidden DOM text that can overflow hit bounds.
+void clipWebSemanticsLabels(String identifierPrefix) {}

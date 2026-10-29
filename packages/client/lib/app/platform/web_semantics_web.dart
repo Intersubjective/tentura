@@ -40,6 +40,20 @@ const _styleElementId = 'tentura-suspend-web-semantics';
 
 web.HTMLStyleElement? _styleElement;
 
+/// Keep a marker's hidden DOM label inside its semantics hit bounds.
+/// Flutter web button labels are DOM text with visible overflow: on tiny
+/// zoomed-out markers that text can intercept a neighbouring marker's tap.
+void clipWebSemanticsLabels(String identifierPrefix) {
+  final styleId = 'tentura-semantics-clip-$identifierPrefix';
+  if (web.document.getElementById(styleId) != null) return;
+  final style = web.document.createElement('style')
+    ..id = styleId
+    ..textContent =
+        '[flt-semantics-identifier^="$identifierPrefix"] '
+        '{ overflow: hidden !important; }';
+  web.document.head?.appendChild(style);
+}
+
 void suspendWebSemantics() {
   if (_styleElement != null) return;
   final style =

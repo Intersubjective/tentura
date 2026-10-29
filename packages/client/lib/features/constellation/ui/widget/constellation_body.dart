@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/app/platform/web_semantics.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
@@ -76,6 +77,8 @@ import 'constellation_tag_magnet_layer.dart';
 import 'constellation_rearrange_preview_bar.dart';
 import 'constellation_tag_view_header.dart';
 import 'constellation_viewport_overlay.dart';
+
+const _mapNodeSemanticsPrefix = 'constellation.mapNode:';
 
 class _CancelPlacementIntent extends Intent {
   const _CancelPlacementIntent();
@@ -182,6 +185,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   @override
   void initState() {
     super.initState();
+    clipWebSemanticsLabels(_mapNodeSemanticsPrefix);
     if (!kReleaseMode) ConstellationPerf.startFrameReporting();
     _graphController = context.read<ConstellationCubit>().graphController;
     _zoom = _readZoomOrOwn()
@@ -2029,6 +2033,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     // ButtonActivateIntent for Enter on web) do what a tap does. Focus alone
     // does not select.
     return _MinExtentSemantics(
+      identifier: '$_mapNodeSemanticsPrefix${node.graphNodeId}',
       container: true,
       button: true,
       selected: selected,
@@ -2112,6 +2117,7 @@ class _MinExtentSemantics extends Semantics {
   // Not const: Semantics has no const constructor taking these flags.
   _MinExtentSemantics({
     required this.neighbourOffsets,
+    super.identifier,
     super.container,
     super.button,
     super.selected,
