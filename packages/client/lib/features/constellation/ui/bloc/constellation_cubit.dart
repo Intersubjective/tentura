@@ -3396,8 +3396,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Expands or collapses [authorId]'s hidden request satellites. Expanding
   /// with [refitInsets] refits the camera once, after the new layout lands, to
-  /// the author and the satellites it revealed (#459); collapsing leaves the
-  /// camera where it is.
+  /// the author and the satellites it revealed (#459). Collapsing refits to
+  /// the author and its remaining visible satellites.
   void toggleSatelliteOverflow(String authorId, {EdgeInsets? refitInsets}) {
     if (isClosed) {
       return;
@@ -3414,18 +3414,24 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final idsBefore = graphController.renderSnapshot.topology.nodesById.keys
         .toSet();
     _recomposeAndLayout();
-    if (expanding && refitInsets != null) {
+    if (refitInsets != null) {
       _pendingOverflowRefit = (
         authorGraphId: constellationGraphNodeIdForDomain(authorId),
         idsBefore: idsBefore,
         insets: refitInsets,
+        expanding: expanding,
       );
     }
   }
 
   /// Camera refit owed to the next successful layout after an overflow
-  /// expand; any other recompose drops it.
-  ({GraphNodeId authorGraphId, Set<GraphNodeId> idsBefore, EdgeInsets insets})?
+  /// toggle; any other recompose drops it.
+  ({
+    GraphNodeId authorGraphId,
+    Set<GraphNodeId> idsBefore,
+    EdgeInsets insets,
+    bool expanding,
+  })?
   _pendingOverflowRefit;
 
   void _runPendingOverflowRefit() {
@@ -3438,7 +3444,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _scene.fitNodes(
       refit.insets,
       include: (graphId) =>
-          graphId == refit.authorGraphId || !refit.idsBefore.contains(graphId),
+          graphId == refit.authorGraphId ||
+          (refit.expanding
+              ? !refit.idsBefore.contains(graphId)
+              : switch (graphController.nodePayloadForId(graphId)) {
+                  FieldBeaconNode(:final userId) =>
+                    constellationGraphNodeIdForDomain(userId) ==
+                        refit.authorGraphId,
+                  _ => false,
+                }),
       // The overview shows no chips: never strand the expanded chip there.
       minScale: kConstellationDistrictDetailScale,
     );
