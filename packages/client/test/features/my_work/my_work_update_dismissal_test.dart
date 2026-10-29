@@ -369,6 +369,10 @@ void main() {
             source: RealtimeChangeSource.serverInvalidation,
           ),
         );
+        // Deliver the hint, then advance fake time so its trailing refresh
+        // starts before waiting for the held network response in runAsync.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
         await tester.runAsync(() => desk.repo.readIsHeld);
 
         // Second ×, on Request B, while that re-read is outstanding.

@@ -43,15 +43,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       cancelOnError: false,
     );
     _helpOfferChanges = _myWorkCase.helpOfferChanges.listen(
-      (_) => unawaited(fetch(showLoading: false)),
+      (_) => _scheduleHintRefresh(),
       cancelOnError: false,
     );
     _forwardChanges = _myWorkCase.forwardChanges.listen(
-      (_) => unawaited(fetch(showLoading: false)),
+      (_) => _scheduleHintRefresh(),
       cancelOnError: false,
     );
     _readWatermarkSub = _myWorkCase.readWatermarkChanges.listen(
-      (_) => unawaited(fetch(showLoading: false)),
+      (_) => _scheduleHintRefresh(),
       cancelOnError: false,
     );
     _deskRelevantChanges = _myWorkCase.deskRelevantInvalidations.listen(
@@ -72,11 +72,11 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       cancelOnError: false,
     );
     _bookkeepingRefresh = _myWorkCase.bookkeepingRefresh.listen(
-      (_) => unawaited(fetch(showLoading: false)),
+      (_) => _scheduleHintRefresh(),
       cancelOnError: false,
     );
     _catchUps = _myWorkCase.catchUps.listen(
-      (_) => _scheduleCatchUp(),
+      (_) => _scheduleHintRefresh(),
       cancelOnError: false,
     );
     final realtime =
@@ -88,7 +88,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       _obligationNotificationChanges = realtime
           .changesFor(const {RealtimeEntityKind.notification})
           .listen(
-            (_) => unawaited(fetch(showLoading: false)),
+            (_) => _scheduleHintRefresh(),
             cancelOnError: false,
           );
     }
@@ -97,7 +97,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
     if (block != null) {
       _blockChanges = block.changes.listen(
-        (_) => unawaited(fetch(showLoading: false)),
+        (_) => _scheduleHintRefresh(),
         cancelOnError: false,
       );
     }
@@ -105,9 +105,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   static const _pendingRetryDelay = Duration(milliseconds: 400);
-  static const _deskRelevantDebounce = Duration(milliseconds: 100);
-  static const _catchUpDebounce = Duration(milliseconds: 100);
-  static const _roomMessageHintRetryDelay = Duration(milliseconds: 300);
+  static const _hintDebounce = Duration(milliseconds: 100);
 
   final String _userId;
   final MyWorkCase _myWorkCase;
@@ -126,11 +124,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final _pendingDeskBeaconIds = <String>{};
 
   Timer? _pendingRetryTimer;
-  Timer? _catchUpTimer;
-
-  final _invalidationTimers = <String, Timer>{};
-  final _deskRelevantTimers = <String, Timer>{};
-  final _roomMessageHintRetryTimers = <String, Timer>{};
+  Timer? _hintRefreshTimer;
 
   bool _fetchInFlight = false;
   bool _fetchQueued = false;
@@ -166,19 +160,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   @override
   Future<void> close() async {
     _pendingRetryTimer?.cancel();
-    _catchUpTimer?.cancel();
-    for (final timer in _deskRelevantTimers.values) {
-      timer.cancel();
-    }
-    _deskRelevantTimers.clear();
-    for (final timer in _roomMessageHintRetryTimers.values) {
-      timer.cancel();
-    }
-    _roomMessageHintRetryTimers.clear();
-    for (final timer in _invalidationTimers.values) {
-      timer.cancel();
-    }
-    _invalidationTimers.clear();
+    _hintRefreshTimer?.cancel();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _forwardChanges.cancel();
@@ -193,61 +175,26 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     return super.close();
   }
 
-  void _scheduleCatchUp() {
+  /// All hint sources describe the same desk projection. Wait for the burst
+  /// (including AttentionCase's later announcement) before reading it once.
+  void _scheduleHintRefresh() {
     if (isClosed) return;
-    _catchUpTimer?.cancel();
-    _catchUpTimer = Timer(_catchUpDebounce, () {
-      _catchUpTimer = null;
+    _hintRefreshTimer?.cancel();
+    _hintRefreshTimer = Timer(_hintDebounce, () {
+      _hintRefreshTimer = null;
       if (!isClosed) {
         unawaited(fetch(showLoading: false));
       }
     });
   }
 
-  /// One refresh per Request, coalesced: a surface move announces the Request
-  /// once per hop and the desk should re-read once, not once per announcement.
-  ///
-  /// The whole desk is re-read rather than the single Request: the card may be
-  /// leaving, and a projection that dropped only the row it was told about
-  /// would leave the archived list and the counters saying something else.
   void _onRequestInvalidated(String beaconId) {
-    if (isClosed || beaconId.isEmpty) return;
-    _invalidationTimers.remove(beaconId)?.cancel();
-    _invalidationTimers[beaconId] = Timer(_deskRelevantDebounce, () {
-      _invalidationTimers.remove(beaconId);
-      if (!isClosed) {
-        unawaited(fetch(showLoading: false));
-      }
-    });
+    if (beaconId.isEmpty) return;
+    _scheduleHintRefresh();
   }
 
-  void _onDeskRelevantInvalidation(BeaconRoomInvalidation invalidation) {
-    final beaconId = invalidation.beaconId;
-    if (isClosed || beaconId.isEmpty) return;
-    _deskRelevantTimers.remove(beaconId)?.cancel();
-    _deskRelevantTimers[beaconId] = Timer(_deskRelevantDebounce, () {
-      _deskRelevantTimers.remove(beaconId);
-      if (!isClosed) {
-        unawaited(fetch(showLoading: false));
-        if (invalidation.entityType == BeaconRoomEntityType.roomMessage) {
-          _scheduleRoomMessageHintRetry(beaconId);
-        }
-      }
-    });
-  }
-
-  void _scheduleRoomMessageHintRetry(String beaconId) {
-    _roomMessageHintRetryTimers.remove(beaconId)?.cancel();
-    _roomMessageHintRetryTimers[beaconId] = Timer(
-      _roomMessageHintRetryDelay,
-      () {
-        _roomMessageHintRetryTimers.remove(beaconId);
-        if (!isClosed) {
-          unawaited(fetch(showLoading: false));
-        }
-      },
-    );
-  }
+  void _onDeskRelevantInvalidation(BeaconRoomInvalidation invalidation) =>
+      _onRequestInvalidated(invalidation.beaconId);
 
   Future<void> fetch({bool showLoading = true}) async {
     if (_fetchInFlight) {
@@ -458,7 +405,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     RepositoryEventUpdate<Beacon>(
       value: final b,
     ) => _onAuthoredBeaconChanged(b),
-    RepositoryEventInvalidate<Beacon>() => unawaited(fetch(showLoading: false)),
+    RepositoryEventInvalidate<Beacon>() => _scheduleHintRefresh(),
     RepositoryEventDelete<Beacon>(value: final b) => _onBeaconDeleted(b.id),
     _ => null,
   };

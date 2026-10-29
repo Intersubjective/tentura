@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
@@ -232,6 +234,94 @@ void main() {
       await cubit.close();
     });
 
+    test(
+      'one hint burst refreshes desk cards and attention only once',
+      () async {
+        final attentionRepo = StubAttentionRepository()
+          ..myWorkAttentionResult = const [
+            MyWorkBeaconAttention(beaconId: 'b1', unseenCount: 0),
+          ];
+        final attentionCase = buildStubAttentionCase(
+          repository: attentionRepo,
+          realtimeSyncCase: realtimeSyncCase,
+        );
+        addTearDown(attentionCase.dispose);
+        final case_ = buildTestMyWorkCase(
+          repo: repo,
+          beaconRepo: beaconRepo,
+          forwardRepo: forwardRepo,
+          watermarkStore: watermarkStore,
+          roomRepo: roomRepo,
+          realtimeSyncCase: realtimeSyncCase,
+          attentionCase: attentionCase,
+        );
+        final requestInvalidations = <String>[];
+        final sub = case_.requestInvalidations.listen(requestInvalidations.add);
+        addTearDown(sub.cancel);
+        final cubit = MyWorkCubit(userId: 'u1', myWorkCase: case_);
+        addTearDown(cubit.close);
+        await cubit.stream.firstWhere((s) => s.attentionLoaded);
+        expect(repo.fetchInitCallCount, 1);
+        expect(attentionRepo.myWorkAttentionCallCount, 1);
+        final attentionReadsAfterLoad = attentionRepo.myWorkAttentionCallCount;
+
+        repo.initResult = (
+          authoredNonArchived: [
+            repo.initResult.authoredNonArchived.single.copyWith(
+              title: 'Updated request',
+            ),
+          ],
+          helpOfferedNonArchived: const [],
+          obligationBeacons: const [],
+          archivedCountHint: 0,
+        );
+        attentionRepo.myWorkAttentionResult = const [
+          MyWorkBeaconAttention(beaconId: 'b1', unseenCount: 3),
+        ];
+
+        // All hints describe one committed change and arrive in one turn.
+        // The realtime hint also reaches AttentionCase, which publishes the
+        // requestInvalidations event through its normal public stream.
+        beaconRepo.emitChange(
+          RepositoryEventInvalidate(Beacon.empty.copyWith(id: 'b1')),
+        );
+        forwardRepo.emitHelpOffer(const HelpOfferInvalidated('b1'));
+        roomRepo.emitRoomInvalidation(
+          const BeaconRoomInvalidation(
+            beaconId: 'b1',
+            entityType: BeaconRoomEntityType.coordinationItem,
+          ),
+        );
+        realtimePort.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.beacon,
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+            aggregateId: 'b1',
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+
+        expect(requestInvalidations, ['b1']);
+        expect(cubit.state.isSuccess, isTrue);
+        expect(
+          cubit.state.nonArchivedCards.single.beacon.title,
+          'Updated request',
+        );
+        expect(cubit.state.attentionLoaded, isTrue);
+        expect(cubit.state.attentionByBeacon['b1']?.unseenCount, 3);
+        expect(
+          (
+            initReads: repo.fetchInitCallCount,
+            attentionReads:
+                attentionRepo.myWorkAttentionCallCount - attentionReadsAfterLoad,
+          ),
+          (initReads: 2, attentionReads: 1),
+          reason: 'The initial load plus one trailing refresh covers the burst.',
+        );
+      },
+    );
+
     test('beacon delete removes card without full refetch', () async {
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
       await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -329,7 +419,7 @@ void main() {
     );
 
     test(
-      'desk-relevant room message schedules a follow-up hint refresh',
+      'one room message hint causes one desk refresh',
       () async {
         final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
         await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -344,36 +434,38 @@ void main() {
 
         await waitForFetchCount(2);
         await Future<void>.delayed(const Duration(milliseconds: 350));
-        expect(repo.fetchInitCallCount, greaterThanOrEqualTo(3));
+        expect(repo.fetchInitCallCount, 2);
 
         await cubit.close();
       },
     );
 
-    test('overlapping desk refetches queue one rerun after in-flight fetch', () async {
-      repo.fetchInitDelay = const Duration(milliseconds: 80);
+    test('a later hint during a desk fetch queues one rerun', () async {
+      repo.fetchInitDelay = const Duration(milliseconds: 200);
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
-      await cubit.stream.firstWhere((s) => s.isSuccess);
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.attentionLoaded);
       expect(repo.fetchInitCallCount, 1);
 
-      roomRepo
-        ..emitRoomInvalidation(
-          const BeaconRoomInvalidation(
-            beaconId: 'b1',
-            entityType: BeaconRoomEntityType.roomSeen,
-          ),
-        )
-        ..emitRoomInvalidation(
-          const BeaconRoomInvalidation(
-            beaconId: 'b1',
-            entityType: BeaconRoomEntityType.roomMessage,
-          ),
-        );
+      roomRepo.emitRoomInvalidation(
+        const BeaconRoomInvalidation(
+          beaconId: 'b1',
+          entityType: BeaconRoomEntityType.roomSeen,
+        ),
+      );
+      await waitForFetchCount(2);
+      // This is a new change after the first burst's read already started.
+      roomRepo.emitRoomInvalidation(
+        const BeaconRoomInvalidation(
+          beaconId: 'b1',
+          entityType: BeaconRoomEntityType.roomMessage,
+        ),
+      );
 
       await waitForFetchCount(3);
-      expect(repo.fetchInitCallCount, greaterThanOrEqualTo(3));
-
-      await cubit.close();
+      await cubit.stream.firstWhere((s) => s.attentionLoaded);
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      expect(repo.fetchInitCallCount, 3);
     });
 
     test('overlapping refetches keep only the latest result', () async {

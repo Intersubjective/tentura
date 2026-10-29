@@ -490,6 +490,9 @@ void main() {
       attentionRepo.response = Completer<List<MyWorkBeaconAttention>>();
       harness.forwards.emitForwardCompleted(_beaconActive);
       await _flush(tester);
+      // Hint reads start after the shared trailing debounce.
+      await tester.pump(const Duration(milliseconds: 100));
+      await _flush(tester);
       expect(repo.reads, 2);
       for (var i = 0; i < 30; i++) {
         await tester.pump(const Duration(milliseconds: 100));
@@ -513,6 +516,8 @@ void main() {
       attentionRepo.response = Completer<List<MyWorkBeaconAttention>>();
       attentionRepo.response.complete(attentionRepo.myWorkAttentionResult);
       harness.forwards.emitForwardCompleted(_beaconActive);
+      await _flush(tester);
+      await tester.pump(const Duration(milliseconds: 100));
       await _flush(tester);
       expect(repo.reads, 3);
       repo.response.complete((
