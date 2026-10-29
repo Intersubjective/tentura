@@ -254,6 +254,8 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
   }
 
   final occupied = _OccupiedGrid();
+  // Name labels and chips alone: what a collapse chip may never cover.
+  final textAndControls = _OccupiedGrid();
   for (final id in paintOrder) {
     final decorated = decoratedBodies[id];
     if (decorated != null) {
@@ -296,6 +298,7 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
       if (placed != null) {
         labels[node.id] = placed;
         occupied.add(placed.inflate(1));
+        textAndControls.add(placed.inflate(1));
       } else if (node.priority <= 1 &&
           detail == ConstellationDetailLevel.close) {
         // Forced only at full detail: a zoomed-out label that does not fit
@@ -304,6 +307,7 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
         labels[node.id] = forced;
         forcedLabels.add(node.id);
         occupied.add(forced.inflate(1));
+        textAndControls.add(forced.inflate(1));
       }
     }
   }
@@ -343,24 +347,37 @@ ConstellationPresentationFrame computeConstellationPresentationFrame({
     // Priority labels already occupy the collision grid. Keep expansion and
     // collapse controls available by searching further out, never by forcing
     // a chip onto occupied content (#459).
-    final placed =
-        _firstFittingCandidate(
-          candidates,
-          cullToViewport ? viewportRect : null,
-          occupied,
-        ) ??
+    Rect? place(Rect? within, _OccupiedGrid occupied) =>
+        _firstFittingCandidate(candidates, within, occupied) ??
         (detail == ConstellationDetailLevel.close || chip.expanded
             ? _firstFittingCandidate(
-                _outerChipCandidates(body, chip.size, gap, rtl: rtl),
-                null,
+                _outerChipCandidates(
+                  body,
+                  chip.size,
+                  gap,
+                  rtl: rtl,
+                  within: within,
+                ),
+                within,
                 occupied,
               )
             : null);
+    // The collapse chip is the only way back from an expansion, which can
+    // fill a phone screen: it takes a spot on screen even where one beside
+    // its author runs off the edge, covering node bodies if it must, though
+    // never text or another chip.
+    final placed =
+        (chip.expanded
+            ? place(viewportRect, occupied) ??
+                  place(viewportRect, textAndControls)
+            : null) ??
+        place(cullToViewport ? viewportRect : null, occupied);
     if (placed == null) {
       continue;
     }
     placedChips[chip.authorId] = placed;
     occupied.add(placed.inflate(1));
+    textAndControls.add(placed.inflate(1));
   }
 
   placeLabels(labelNodes.skip(priorityLabelCount));
@@ -521,15 +538,21 @@ Rect _labelRectStart(
 // The finite set of occupied rectangles leaves an outer slot free. Searching
 // without viewport culling keeps a required control present even on a map
 // whose viewport cannot fit it; a pan can then reveal it.
+/// Chip spots on ever wider rings around [body]; with [within], only the
+/// rings that can still reach into it.
 Iterable<Rect> _outerChipCandidates(
   Rect body,
   Size chipSize,
   double gap, {
   required bool rtl,
+  Rect? within,
 }) sync* {
   final step = chipSize.height + gap;
   for (var padding = step; ; padding += step) {
     final anchor = body.inflate(padding);
+    if (within != null && _rectFullyInside(within, anchor)) {
+      return;
+    }
     final candidates =
         [
           _chipRectBelow(anchor, chipSize, gap),

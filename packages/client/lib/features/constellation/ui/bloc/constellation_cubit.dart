@@ -3397,7 +3397,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Expands or collapses [authorId]'s hidden request satellites. Expanding
   /// with [refitInsets] refits the camera once, after the new layout lands, to
   /// the author and the satellites it revealed (#459). Collapsing refits to
-  /// the author and its remaining visible satellites.
+  /// the whole collapsed field, or recentres on the author where that field
+  /// cannot show at close detail.
   void toggleSatelliteOverflow(String authorId, {EdgeInsets? refitInsets}) {
     if (isClosed) {
       return;
@@ -3416,7 +3417,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
     if (refitInsets != null) {
       _pendingOverflowRefit = (
-        authorGraphId: constellationGraphNodeIdForDomain(authorId),
+        authorId: authorId,
         idsBefore: idsBefore,
         insets: refitInsets,
         expanding: expanding,
@@ -3427,7 +3428,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Camera refit owed to the next successful layout after an overflow
   /// toggle; any other recompose drops it.
   ({
-    GraphNodeId authorGraphId,
+    String authorId,
     Set<GraphNodeId> idsBefore,
     EdgeInsets insets,
     bool expanding,
@@ -3441,21 +3442,29 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    _scene.fitNodes(
-      refit.insets,
-      include: (graphId) =>
-          graphId == refit.authorGraphId ||
-          (refit.expanding
-              ? !refit.idsBefore.contains(graphId)
-              : switch (graphController.nodePayloadForId(graphId)) {
-                  FieldBeaconNode(:final userId) =>
-                    constellationGraphNodeIdForDomain(userId) ==
-                        refit.authorGraphId,
-                  _ => false,
-                }),
-      // The overview shows no chips: never strand the expanded chip there.
-      minScale: kConstellationDistrictDetailScale,
-    );
+    final authorGraphId = constellationGraphNodeIdForDomain(refit.authorId);
+    if (refit.expanding) {
+      _scene.fitNodes(
+        refit.insets,
+        include: (graphId) =>
+            graphId == authorGraphId || !refit.idsBefore.contains(graphId),
+        // The overview shows no chips: never strand the expanded chip there.
+        minScale: kConstellationDistrictDetailScale,
+        // Content too large for that scale stays framed on the author, so its
+        // chip lands mid-screen, clear of the corner controls.
+        focus: authorGraphId,
+      );
+      return;
+    }
+    // A collapsed «+N more» chip is sure of a spot only at close detail. A
+    // field too large to show whole there (a phone) centres on the author at
+    // full scale instead, as Center view does.
+    final fieldScale = _scene.wholeFieldFitScale(refit.insets);
+    if (fieldScale != null && fieldScale >= kConstellationCloseDetailScale) {
+      _scene.fitWholeField(refit.insets);
+    } else {
+      _scene.centreOnPerson(refit.authorId, refit.insets, resetScale: true);
+    }
   }
 
   bool isSatelliteOverflowExpanded(String authorId) =>

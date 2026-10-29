@@ -887,19 +887,86 @@ class ConstellationSceneController {
 
   void fitWholeField(EdgeInsets insets) => fitNodes(insets);
 
+  /// Scene pixels [GraphController.fitToRect] reserves around a fitted rect
+  /// by default.
+  static const _fitPadding = 48.0;
+
   /// Fits the camera (never zooming past 1) to the placed footprints of the
   /// nodes [include] accepts, or of every node when [include] is null.
   ///
   /// [minScale] keeps the fit from landing below it (the content may then
-  /// overflow the viewport).
+  /// overflow the viewport). Content that overflows is then framed as close
+  /// to [focus] as it allows, when given.
   void fitNodes(
     EdgeInsets insets, {
     bool Function(GraphNodeId)? include,
     double? minScale,
+    GraphNodeId? focus,
   }) {
     if (!graphController.canLayout) {
       return;
     }
+    var bounds = _placedBounds(include);
+    if (bounds == null) {
+      return;
+    }
+    final focusPoint = focus == null
+        ? null
+        : graphController.renderSnapshot.resolvePosition(focus);
+    final viewport = graphController.viewportSize;
+    if (minScale != null &&
+        focusPoint != null &&
+        viewport != null &&
+        _fitScale(bounds, insets, viewport) < minScale) {
+      // The scene window [minScale] shows, moved toward [focus] only as far
+      // as it keeps every footprint in view (or, when they cannot all fit,
+      // stays within their span).
+      final window = insets.deflateSize(viewport) / minScale;
+      double towardFocus(double focus, double low, double high, double size) {
+        final a = high - size / 2;
+        final b = low + size / 2;
+        return focus.clamp(math.min(a, b), math.max(a, b));
+      }
+
+      bounds = Rect.fromCenter(
+        center: Offset(
+          towardFocus(focusPoint.x, bounds.left, bounds.right, window.width),
+          towardFocus(focusPoint.y, bounds.top, bounds.bottom, window.height),
+        ),
+        width: window.width - 2 * _fitPadding,
+        height: window.height - 2 * _fitPadding,
+      );
+    }
+    graphController.fitToRect(
+      bounds,
+      viewportInsets: insets,
+      maxScale: 1,
+      minScale: minScale,
+    );
+  }
+
+  /// The scale a fit of the whole field needs, before any floor or cap; null
+  /// while there is no laid-out field or viewport.
+  double? wholeFieldFitScale(EdgeInsets insets) {
+    final bounds = graphController.canLayout ? _placedBounds(null) : null;
+    final viewport = graphController.viewportSize;
+    return bounds == null || viewport == null
+        ? null
+        : _fitScale(bounds, insets, viewport);
+  }
+
+  static double _fitScale(Rect bounds, EdgeInsets insets, Size viewport) {
+    final padded = bounds.inflate(_fitPadding);
+    final usable = insets.deflateSize(viewport);
+    return math.min(
+      usable.width / padded.width,
+      usable.height / padded.height,
+    );
+  }
+
+  /// The placed footprints of the nodes [include] accepts (every node when
+  /// null), or null when none is placed.
+  Rect? _placedBounds(bool Function(GraphNodeId)? include) {
     final snapshot = graphController.renderSnapshot;
     Rect? bounds;
     for (final entry in snapshot.topology.nodesById.entries) {
@@ -929,15 +996,7 @@ class ConstellationSceneController {
       );
       bounds = bounds == null ? rect : bounds.expandToInclude(rect);
     }
-    if (bounds == null) {
-      return;
-    }
-    graphController.fitToRect(
-      bounds,
-      viewportInsets: insets,
-      maxScale: 1,
-      minScale: minScale,
-    );
+    return bounds;
   }
 
   void centreOnBeacon(String beaconId, EdgeInsets insets) {
@@ -1035,9 +1094,13 @@ class ConstellationSceneController {
   void centreOnEgo(String viewerId, EdgeInsets insets) =>
       _centreOnPersonNode(viewerId, insets, resetScale: true);
 
-  /// Centres the camera on [personId]'s node at the current zoom.
-  void centreOnPerson(String personId, EdgeInsets insets) =>
-      _centreOnPersonNode(personId, insets, resetScale: false);
+  /// Centres the camera on [personId]'s node at the current zoom, or at
+  /// full scale with [resetScale].
+  void centreOnPerson(
+    String personId,
+    EdgeInsets insets, {
+    bool resetScale = false,
+  }) => _centreOnPersonNode(personId, insets, resetScale: resetScale);
 
   void _centreOnPersonNode(
     String personId,
