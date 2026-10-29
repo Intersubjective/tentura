@@ -324,7 +324,7 @@ class InvalidationService implements RealtimeSyncPort {
   ) {
     final latestByProjectionKey =
         <
-          (RealtimeEntityKind, String, String?, String?, DateTime?),
+          (RealtimeEntityKind, String, String?, String?, DateTime?, String?),
           RealtimeEntityChange
         >{};
     for (final change in batch) {
@@ -334,6 +334,9 @@ class InvalidationService implements RealtimeSyncPort {
         change.roomMessagePaint?.id,
         change.seenPeer?.userId,
         change.peopleSeenAt,
+        change.kind == RealtimeEntityKind.relationship
+            ? change.actorUserId
+            : null,
       );
       // A later plain `beacon` hint must not erase an earlier next-step
       // flag in the same batch (#654).

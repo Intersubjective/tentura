@@ -8,6 +8,7 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'add_to_tag_sheet.dart';
 import 'person_auto_tag_name.dart';
@@ -15,9 +16,13 @@ import 'person_auto_tag_name.dart';
 /// The viewer's private tags on one person: own tags with ×, the automatic
 /// ones without, and "+ Tag" to edit the person's membership.
 class PersonTagsBlock extends StatefulWidget {
-  const PersonTagsBlock({required this.personId, super.key});
+  const PersonTagsBlock({required this.personId, this.trust, super.key});
 
   final String personId;
+
+  /// Live explicit trust from the selected profile, including pending writes.
+  /// Other automatic tags still come from the person's server snapshot.
+  final ({bool viewerTrusts, bool trustsViewer})? trust;
 
   @override
   State<PersonTagsBlock> createState() => _PersonTagsBlockState();
@@ -74,6 +79,27 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
     ];
   }
 
+  List<PersonAutoTagOf> _currentAutoTags(List<PersonAutoTagOf> tags) {
+    final trust = widget.trust;
+    if (trust == null) return _onePerKind(tags);
+    const trustKinds = {
+      PersonAutoTagKind.mutualContact,
+      PersonAutoTagKind.iTrust,
+      PersonAutoTagKind.trustsMe,
+    };
+    return _onePerKind([
+      for (final kind in [
+        if (trust.viewerTrusts && trust.trustsViewer)
+          PersonAutoTagKind.mutualContact,
+        if (trust.viewerTrusts) PersonAutoTagKind.iTrust,
+        if (trust.trustsViewer) PersonAutoTagKind.trustsMe,
+      ])
+        PersonAutoTagOf(kind: kind.smallintValue, n: 1, direction: 0),
+      for (final tag in tags)
+        if (!trustKinds.any((kind) => kind.smallintValue == tag.kind)) tag,
+    ]);
+  }
+
   static String _autoName(L10n l10n, PersonAutoTagOf tag) {
     final name = personAutoTagName(l10n, tag.kind);
     return tag.n > 1 ? '$name · ${tag.n}' : name;
@@ -119,7 +145,7 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
             FutureBuilder<List<PersonAutoTagOf>>(
               future: _auto,
               builder: (context, snapshot) {
-                final auto = _onePerKind(
+                final auto = _currentAutoTags(
                   snapshot.data ?? const <PersonAutoTagOf>[],
                 );
                 if (auto.isEmpty) return const SizedBox.shrink();

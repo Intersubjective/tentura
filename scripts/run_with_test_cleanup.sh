@@ -47,6 +47,10 @@
 set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+# Analyzer plugins write generated packages into their state directory. The
+# default ~/.dartServer can be read-only in agent sandboxes; use the writable
+# cache already used by this launcher, while preserving explicit SDK overrides.
+export ANALYZER_STATE_LOCATION_OVERRIDE="${ANALYZER_STATE_LOCATION_OVERRIDE:-${XDG_CACHE_HOME:-$HOME/.cache}/tentura/analyzer}"
 # A RAM-backed (tmpfs) directory with at least TENTURA_TEST_TMP_MIN_MB free.
 pick_ram_tmpdir() {
   local min_mb="${TENTURA_TEST_TMP_MIN_MB:-3072}" base free_mb

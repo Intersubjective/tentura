@@ -119,6 +119,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
 
   late final List<StreamSubscription<Object?>> _subscriptions;
   final _changes = StreamController<ConstellationFieldStoreState>.broadcast();
+  final _visibilityChanges = StreamController<bool>.broadcast();
   final _leases = <_StoreLease>{};
   final _accountReady = Completer<void>();
 
@@ -169,6 +170,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   Future<void>? Function()? _anchorHintHold;
 
   Stream<ConstellationFieldStoreState> get changes => _changes.stream;
+
+  /// Effective visibility across the browser tab and the screen leases.
+  Stream<bool> get visibilityChanges => _visibilityChanges.stream;
 
   ConstellationFieldStoreState get current => _state;
   ConstellationProjectionParams get projectionParams => _params;
@@ -509,6 +513,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       await subscription.cancel();
     }
     await _changes.close();
+    await _visibilityChanges.close();
   }
 
   Future<void> _onCatchUp() async {
@@ -558,6 +563,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       return;
     }
     _wasVisible = visible;
+    if (!_visibilityChanges.isClosed) _visibilityChanges.add(visible);
     if (!visible) {
       if (_timer != null) {
         _markStale();

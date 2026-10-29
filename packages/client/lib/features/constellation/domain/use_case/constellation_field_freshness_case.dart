@@ -27,8 +27,8 @@ import 'constellation_field_store_case.dart';
 ///   Request) fetches just that Request through the authorized read and adds
 ///   it when its author is on the field inside the visible set.
 ///
-/// While the field is hidden nothing is read: the store refreshes once when
-/// it is shown again.
+/// While the field is hidden nothing is read; pending hints are drained when
+/// it is shown again, alongside the store's lazy refresh.
 @Order(3)
 @singleton
 final class ConstellationFieldFreshnessCase extends UseCaseBase {
@@ -42,7 +42,21 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
     required super.env,
     required super.logger,
   }) {
+    _generation = _store.current.generation;
     _subscriptions = [
+      _store.changes.listen((state) {
+        if (state.generation == _generation) return;
+        _generation = state.generation;
+        _timer?.cancel();
+        _timer = null;
+        _pendingRelationIds.clear();
+        _pendingRequestIds.clear();
+        _ownChangeElsewhere = false;
+        _lastOwnAckAt = null;
+      }),
+      _store.visibilityChanges.listen((visible) {
+        if (visible) _schedule();
+      }),
       trustWrites.personTrustWrites.listen(_onOwnTrust),
       realtime
           .changesFor(const {RealtimeEntityKind.relationship})
@@ -58,6 +72,7 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
   final WakeUpPort _wakeUp;
   final ClockPort _clock;
   late final List<StreamSubscription<Object?>> _subscriptions;
+  late int _generation;
 
   /// Hints of one burst share a read; a steady stream cannot postpone it.
   static const batchWindow = Duration(milliseconds: 250);
@@ -106,18 +121,27 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
         _ownChangeElsewhere = true;
         _schedule();
       }
-      return;
+      if (change.actorUserId != null) return;
+      // Statement hints may name only the viewer without an actor (system
+      // writes). Re-read the on-field relations rather than lose the change.
+      named
+        ..addAll([
+          ...field.peers.map((p) => p.id),
+          ...field.resolvedAnchorProjection.pinnedPeers.map((p) => p.id),
+          ...field.resolvedAnchorProjection.supportPeers.map((p) => p.id),
+        ])
+        ..remove(viewerId);
     }
     final onField = [
       for (final id in named)
         if (constellationFieldHasPerson(field, id)) id,
     ];
     if (onField.isEmpty) return;
+    _pendingRelationIds.addAll(onField);
     if (!_store.canFetch) {
       unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
       return;
     }
-    _pendingRelationIds.addAll(onField);
     _schedule();
   }
 
@@ -138,16 +162,23 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
         !constellationFieldHasVisiblePerson(field, actor)) {
       return;
     }
+    _pendingRequestIds.add(change.aggregateId);
     if (!_store.canFetch) {
       unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
       return;
     }
-    _pendingRequestIds.add(change.aggregateId);
     _schedule();
   }
 
   void _schedule() {
-    if (_timer != null || _inFlight != null) return;
+    if (!_store.canFetch ||
+        _timer != null ||
+        _inFlight != null ||
+        (_pendingRelationIds.isEmpty &&
+            _pendingRequestIds.isEmpty &&
+            !_ownChangeElsewhere)) {
+      return;
+    }
     _timer = _wakeUp.schedule(batchWindow, () {
       _timer = null;
       unawaited(
@@ -164,6 +195,7 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
   }
 
   Future<void> _drain() async {
+    if (!_store.canFetch) return;
     if (_ownChangeElsewhere) {
       _ownChangeElsewhere = false;
       final lastAck = _lastOwnAckAt;
@@ -175,14 +207,6 @@ final class ConstellationFieldFreshnessCase extends UseCaseBase {
         // to someone not on the field.
         unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
       }
-    }
-    if (!_store.canFetch) {
-      if (_pendingRelationIds.isNotEmpty || _pendingRequestIds.isNotEmpty) {
-        unawaited(_store.requestRefresh(ConstellationRefreshReason.realtime));
-      }
-      _pendingRelationIds.clear();
-      _pendingRequestIds.clear();
-      return;
     }
     if (_pendingRelationIds.isNotEmpty) {
       final ids = _pendingRelationIds.toList();

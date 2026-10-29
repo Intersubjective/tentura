@@ -146,7 +146,15 @@ class GraphPersonContextPanel extends StatelessWidget {
         ),
         if (peopleTagsEnabled) ...[
           SizedBox(height: tt.sectionGap),
-          PersonTagsBlock(personId: profile.id),
+          PersonTagsBlock(
+            personId: profile.id,
+            trust: contextState.selectedProfile?.id == profile.id
+                ? (
+                    viewerTrusts: profile.viewerExplicitlyTrustsSubject,
+                    trustsViewer: profile.subjectExplicitlyTrustsViewer,
+                  )
+                : null,
+          ),
         ],
         if (discoverableRequests.isNotEmpty &&
             onToggleRequestsExpanded != null) ...[
