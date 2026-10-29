@@ -5,6 +5,13 @@ import 'package:flutter/material.dart';
 abstract final class TenturaText {
   static const String _kFontFamily = 'Inter';
 
+  /// Fallback font families for emoji resolution across platforms (#410).
+  static const List<String> kEmojiFontFallback = [
+    'Noto Color Emoji',
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+  ];
+
   static const FontFeature tabularFigures = FontFeature.tabularFigures();
 
   static TextStyle withTabular(TextStyle s) =>
@@ -20,6 +27,7 @@ abstract final class TenturaText {
       TextStyle(
         color: color,
         fontFamily: _kFontFamily,
+        fontFamilyFallback: kEmojiFontFallback,
         fontSize: fontSize,
         fontWeight: fontWeight,
         height: height,

@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
+import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 
 /// Emoji the first screens are most likely to show: common request-title
@@ -40,7 +41,16 @@ void warmUpEmojiFallbackFont({
   }
 }
 
-void _layOutOffscreen(String text) =>
-    (ui.ParagraphBuilder(ui.ParagraphStyle())..addText(text)).build()
-      ..layout(const ui.ParagraphConstraints(width: 4096))
-      ..dispose();
+void _layOutOffscreen(String text) {
+  final builder = ui.ParagraphBuilder(ui.ParagraphStyle())
+    ..pushStyle(
+      ui.TextStyle(
+        fontFamily: 'Inter',
+        fontFamilyFallback: TenturaText.kEmojiFontFallback,
+        fontSize: 15,
+      ),
+    )
+    ..addText(text);
+  (builder.build()..layout(const ui.ParagraphConstraints(width: 4096)))
+      .dispose();
+}

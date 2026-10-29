@@ -3,6 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 void main() {
+  test('TenturaText and TenturaTheme styles include emoji fallback font family', () {
+    final titleStyle = TenturaText.title(Colors.black);
+    expect(titleStyle.fontFamilyFallback, contains('Noto Color Emoji'));
+
+    final lightTheme = TenturaTheme.light();
+    expect(
+      lightTheme.textTheme.bodyMedium?.fontFamilyFallback,
+      contains('Noto Color Emoji'),
+    );
+    expect(
+      lightTheme.textTheme.titleMedium?.fontFamilyFallback,
+      contains('Noto Color Emoji'),
+    );
+  });
+
   testWidgets('TenturaTheme exposes TenturaTokens extension', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
