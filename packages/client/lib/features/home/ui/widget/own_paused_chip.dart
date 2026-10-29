@@ -70,21 +70,55 @@ class OwnPausedChip extends StatelessWidget {
         }
         if (dense) {
           final palette = context.palette;
+          final color = palette.onWarnContainer;
+          const radius = BorderRadius.all(
+            Radius.circular(TenturaRadii.cardDense),
+          );
           return Tooltip(
             message: label,
-            child: Material(
-              type: MaterialType.circle,
-              color: palette.warnContainer,
+            excludeFromSemantics: true,
+            child: Semantics(
+              container: true,
+              button: true,
+              label: label,
+              excludeSemantics: true,
               child: InkWell(
                 key: chipKey,
                 onTap: onPressed,
-                customBorder: const CircleBorder(),
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Icon(
-                    Icons.pause_circle_filled,
-                    size: 16,
-                    color: palette.onWarnContainer,
+                customBorder: const RoundedRectangleBorder(
+                  borderRadius: radius,
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: palette.warnContainer,
+                    border: Border.all(color: palette.warn),
+                    borderRadius: radius,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: TenturaSpacing.tight,
+                      vertical: TenturaSpacing.tight,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.pause_circle_outline,
+                          size: 14,
+                          color: color,
+                        ),
+                        Text(
+                          availabilityWhenShortLabel(
+                            l10n,
+                            resumeOn,
+                            todayUtc,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TenturaText.labelSmall(color),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

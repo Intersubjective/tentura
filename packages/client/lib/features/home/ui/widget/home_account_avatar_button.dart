@@ -75,12 +75,11 @@ class HomeAccountAvatarButton extends StatelessWidget {
 /// [kTopBarPausedChipWidthShare] of the window so it never crowds the title.
 Widget? homeTopBarAccount(BuildContext context) =>
     context.windowClass == WindowClass.compact
-    ? const Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomRight,
+    ? const Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          HomeAccountAvatarButton(),
           OwnPausedChip(dense: true),
+          HomeAccountAvatarButton(),
         ],
       )
     : null;

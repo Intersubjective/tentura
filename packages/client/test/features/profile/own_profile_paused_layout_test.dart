@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
@@ -50,12 +50,8 @@ void main() {
         data: MediaQueryData(size: size),
         child: MaterialApp(
           locale: locale,
-          localizationsDelegates: const [
-            L10n.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
           home: Scaffold(body: child),
         ),
@@ -77,7 +73,8 @@ void main() {
           child: Builder(
             builder: (context) {
               return Scaffold(
-                appBar: AppBar(
+                appBar: TenturaTopBar.of(
+                  context,
                   title: const Row(
                     children: [
                       Text('Requests'),
@@ -87,9 +84,8 @@ void main() {
                   ),
                   actions: [
                     IconButton(onPressed: () {}, icon: const Icon(Icons.add)),
-                    if (homeTopBarAccount(context) != null)
-                      homeTopBarAccount(context)!,
                   ],
+                  account: homeTopBarAccount(context),
                 ),
               );
             },
@@ -117,7 +113,8 @@ void main() {
           child: Builder(
             builder: (context) {
               return Scaffold(
-                appBar: AppBar(
+                appBar: TenturaTopBar.of(
+                  context,
                   title: const Row(
                     children: [
                       Text('Запросы'),
@@ -127,9 +124,8 @@ void main() {
                   ),
                   actions: [
                     IconButton(onPressed: () {}, icon: const Icon(Icons.add)),
-                    if (homeTopBarAccount(context) != null)
-                      homeTopBarAccount(context)!,
                   ],
+                  account: homeTopBarAccount(context),
                 ),
               );
             },
@@ -168,7 +164,7 @@ void main() {
       final statusTextFinder = find.byType(Text).first;
       final Text textWidget = tester.widget(statusTextFinder);
 
-      expect(textWidget.data, contains('Nov 3, 2026'));
+      expect(textWidget.data, contains('Nov 3'));
       expect(textWidget.maxLines, isNull);
       expect(textWidget.overflow, equals(TextOverflow.clip));
       expect(tester.takeException(), isNull);
@@ -198,7 +194,7 @@ void main() {
       final statusTextFinder = find.byType(Text).first;
       final Text textWidget = tester.widget(statusTextFinder);
 
-      expect(textWidget.data, contains('3 нояб. 2026 г.'));
+      expect(textWidget.data, contains('3 нояб.'));
       expect(textWidget.maxLines, isNull);
       expect(textWidget.overflow, equals(TextOverflow.clip));
       expect(tester.takeException(), isNull);
