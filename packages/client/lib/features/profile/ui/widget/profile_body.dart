@@ -57,12 +57,8 @@ class OwnProfileAvailabilityControl extends StatelessWidget {
       todayUtc,
     );
 
-    // Centred: the Change action's 44 dp target sat on another baseline
-    // than the one-line status it changes.
     return Row(
-      crossAxisAlignment: secondaryLine == null
-          ? CrossAxisAlignment.center
-          : CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
@@ -72,6 +68,7 @@ class OwnProfileAvailabilityControl extends StatelessWidget {
                 primaryLine,
                 tone: _ownAvailabilityPrimaryTone(availability, todayUtc),
                 maxLines: null,
+                overflow: TextOverflow.clip,
                 softWrap: true,
               ),
               if (secondaryLine != null) ...[
@@ -80,6 +77,7 @@ class OwnProfileAvailabilityControl extends StatelessWidget {
                   secondaryLine,
                   tone: TenturaTone.info,
                   maxLines: null,
+                  overflow: TextOverflow.clip,
                   softWrap: true,
                 ),
               ],

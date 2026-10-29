@@ -75,24 +75,15 @@ class HomeAccountAvatarButton extends StatelessWidget {
 /// [kTopBarPausedChipWidthShare] of the window so it never crowds the title.
 Widget? homeTopBarAccount(BuildContext context) =>
     context.windowClass == WindowClass.compact
-    ? Row(
-        mainAxisSize: MainAxisSize.min,
+    ? const Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomRight,
         children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth:
-                  MediaQuery.sizeOf(context).width *
-                  kTopBarPausedChipWidthShare,
-            ),
-            child: const OwnPausedChip(dense: true),
-          ),
-          const HomeAccountAvatarButton(),
+          HomeAccountAvatarButton(),
+          OwnPausedChip(dense: true),
         ],
       )
     : null;
-
-/// Share of the window width the top bar's paused chip may take (#267).
-const kTopBarPausedChipWidthShare = 0.4;
 
 /// Opens Home's Me tab, from inside Home or from a route pushed above it.
 void openMyProfile(BuildContext context) {

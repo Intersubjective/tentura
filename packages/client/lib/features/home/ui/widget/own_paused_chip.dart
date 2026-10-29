@@ -70,63 +70,21 @@ class OwnPausedChip extends StatelessWidget {
         }
         if (dense) {
           final scheme = Theme.of(context).colorScheme;
-          final color = scheme.onSurfaceVariant;
-          const radius = BorderRadius.all(
-            Radius.circular(TenturaRadii.cardDense),
-          );
           return Tooltip(
             message: label,
-            excludeFromSemantics: true,
-            child: Semantics(
-              container: true,
-              button: true,
-              label: label,
-              excludeSemantics: true,
+            child: Material(
+              type: MaterialType.circle,
+              color: scheme.warnContainer,
               child: InkWell(
                 key: chipKey,
                 onTap: onPressed,
-                customBorder: const RoundedRectangleBorder(
-                  borderRadius: radius,
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: kMinInteractiveDimension,
-                    minHeight: kMinInteractiveDimension,
-                  ),
-                  child: Center(
-                    widthFactor: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: scheme.outlineVariant),
-                        borderRadius: radius,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: TenturaSpacing.iconText,
-                          vertical: TenturaSpacing.tight,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.pause_circle_outline,
-                              size: 16,
-                              color: color,
-                            ),
-                            Text(
-                              availabilityWhenShortLabel(
-                                l10n,
-                                resumeOn,
-                                todayUtc,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TenturaText.labelSmall(color),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                customBorder: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.pause_circle_filled,
+                    size: 16,
+                    color: scheme.onWarnContainer,
                   ),
                 ),
               ),
