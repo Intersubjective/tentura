@@ -188,7 +188,16 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
     final profile = widget.actor == null
         ? null
         : profileWithContactOverlay(widget.actor!);
-    final shownName = profile?.shownName.trim() ?? '';
+    var shownName = profile?.shownName.trim() ?? '';
+    if (shownName.isEmpty && isQuestionsAttentionReceipt(widget.receipt)) {
+      shownName = resolveUpdatesFeedRowCopy(
+        title: widget.receipt.title,
+        body: widget.receipt.body,
+        presentationKey: widget.receipt.presentationKey,
+        presentationPayloadJson: widget.receipt.presentationPayloadJson,
+        l10n: l10n,
+      ).headline;
+    }
     final scoped = requestScopedEventCopy(
       title: widget.receipt.title,
       body: widget.receipt.body,
