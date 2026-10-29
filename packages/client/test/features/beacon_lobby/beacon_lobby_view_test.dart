@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -133,18 +134,119 @@ RoomMessage _message(String id, String authorId, String name, String body) =>
     );
 
 /// Opens the actions of the chat message reading [body].
-Future<void> _openActions(WidgetTester tester, String body) async {
+Future<void> _openActions(
+  WidgetTester tester,
+  String body, {
+  bool secondaryTap = false,
+}) async {
   final text = find.ancestor(
     of: find.textContaining(body),
     matching: find.byWidgetPredicate(
       (w) => w is RoomMessageTextBody || w is ShowMoreText,
     ),
   );
-  await tester.longPressAt(tester.getTopLeft(text.first) + const Offset(8, 8));
+  final position = tester.getTopLeft(text.first) + const Offset(8, 8);
+  if (secondaryTap) {
+    final mouse = await tester.startGesture(
+      position,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await mouse.up();
+  } else {
+    await tester.longPressAt(position);
+  }
   await _pumpFrames(tester, 10);
 }
 
 void main() {
+  group('Questions message removal actions', () {
+    for (final secondaryTap in [false, true]) {
+      final gesture = secondaryTap ? 'secondary tap' : 'long press';
+      testWidgets(
+        '$gesture lets the author confirm removal of another person once',
+        (tester) async {
+          final port = FakeLobbyPort(viewerId: 'Uauthor');
+          await _pumpLobby(
+            tester,
+            port,
+            'Uauthor',
+            messages: [
+              _message('M1', 'Unina', 'Nina', 'Which Saturday?'),
+              _message('M2', 'Uauthor', 'Anna', 'The 18th'),
+            ],
+          );
+
+          Future<void> openActions(String body) =>
+              _openActions(tester, body, secondaryTap: secondaryTap);
+
+          await openActions('The 18th');
+          expect(find.text('Copy text'), findsOneWidget);
+          expect(find.text('Remove from Questions'), findsNothing);
+          await tester.tapAt(const Offset(10, 10));
+          await _pumpFrames(tester, 10);
+
+          await openActions('Which Saturday?');
+          expect(find.text('Remove from Questions'), findsOneWidget);
+          expect(port.banned, isEmpty);
+          expect(port.calls.where((c) => c.startsWith('ban ')), isEmpty);
+          await tester.tap(find.text('Remove from Questions'));
+          await _pumpFrames(tester, 10);
+          expect(find.byType(TenturaConfirmDialog), findsOneWidget);
+          expect(find.text('Remove Nina from Questions?'), findsOneWidget);
+          expect(port.calls.where((c) => c.startsWith('ban ')), isEmpty);
+          expect(port.banned, isEmpty);
+          await tester.tap(find.text('Remove from Questions').last);
+          await _pumpFrames(tester, 10);
+          expect(port.calls.where((c) => c.startsWith('ban ')), ['ban Unina']);
+          expect(port.banned, ['Unina']);
+        },
+      );
+      testWidgets('$gesture hides removal on a closed Request', (tester) async {
+        final port = FakeLobbyPort(viewerId: 'Uauthor')
+          ..takesOffers = false
+          ..canPost = false
+          ..limitReason = BeaconLobbyLimitReason.closed;
+        await _pumpLobby(
+          tester,
+          port,
+          'Uauthor',
+          messages: [
+            _message('M1', 'Unina', 'Nina', 'Which Saturday?'),
+          ],
+        );
+        expect(find.textContaining('Which Saturday?'), findsWidgets);
+        await _openActions(
+          tester,
+          'Which Saturday?',
+          secondaryTap: secondaryTap,
+        );
+        expect(find.text('Copy text'), findsOneWidget);
+        expect(find.text('Remove from Questions'), findsNothing);
+        expect(port.calls.where((c) => c.startsWith('ban ')), isEmpty);
+        expect(port.banned, isEmpty);
+      });
+
+      testWidgets('$gesture hides removal for a recipient', (tester) async {
+        final port = FakeLobbyPort(viewerId: 'Unina');
+        await _pumpLobby(
+          tester,
+          port,
+          'Unina',
+          messages: [
+            _message('M2', 'Uauthor', 'Anna', 'The 18th'),
+          ],
+        );
+        expect(find.textContaining('The 18th'), findsWidgets);
+        await _openActions(tester, 'The 18th', secondaryTap: secondaryTap);
+        expect(find.text('Copy text'), findsOneWidget);
+        expect(find.text('Remove from Questions'), findsNothing);
+        expect(port.calls.where((c) => c.startsWith('ban ')), isEmpty);
+        expect(port.banned, isEmpty);
+      });
+    }
+  });
+
   group('the way into Questions follows the server policy', () {
     tearDown(() => GetIt.I.reset());
 
@@ -200,9 +302,12 @@ void main() {
         find.textContaining("This doesn't touch a help offer they made"),
         findsOneWidget,
       );
+      expect(port.banned, isEmpty);
+      expect(port.calls.where((c) => c.startsWith('ban ')), isEmpty);
       await tester.tap(find.text('Remove from Questions').last);
       await _pumpFrames(tester, 10);
       expect(port.banned, ['Unina']);
+      expect(port.calls.where((c) => c.startsWith('ban ')), ['ban Unina']);
       expect(find.text('Removed from Questions'), findsOneWidget);
       expect(
         find.bySemanticsLabel('Removed from Questions: 1 person'),
