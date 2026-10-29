@@ -69,12 +69,12 @@ class OwnPausedChip extends StatelessWidget {
           );
         }
         if (dense) {
-          final scheme = Theme.of(context).colorScheme;
+          final palette = context.palette;
           return Tooltip(
             message: label,
             child: Material(
               type: MaterialType.circle,
-              color: scheme.warnContainer,
+              color: palette.warnContainer,
               child: InkWell(
                 key: chipKey,
                 onTap: onPressed,
@@ -84,7 +84,7 @@ class OwnPausedChip extends StatelessWidget {
                   child: Icon(
                     Icons.pause_circle_filled,
                     size: 16,
-                    color: scheme.onWarnContainer,
+                    color: palette.onWarnContainer,
                   ),
                 ),
               ),

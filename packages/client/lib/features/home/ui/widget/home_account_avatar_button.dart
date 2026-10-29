@@ -85,6 +85,9 @@ Widget? homeTopBarAccount(BuildContext context) =>
       )
     : null;
 
+/// Share of the window width the top bar's paused chip took when side-by-side (#267).
+const kTopBarPausedChipWidthShare = 0.4;
+
 /// Opens Home's Me tab, from inside Home or from a route pushed above it.
 void openMyProfile(BuildContext context) {
   final root = context.router.root;

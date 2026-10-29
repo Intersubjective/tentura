@@ -154,7 +154,7 @@ void main() {
     expect(cubit.resumeCalls, 1);
   });
 
-  testWidgets('compact top bar: the paused chip sits beside the avatar', (
+  testWidgets('compact top bar: the paused chip is stacked on the avatar button', (
     tester,
   ) async {
     // homeTopBarAccount uses the real clock: pause until a week from now.
@@ -201,10 +201,6 @@ void main() {
     );
     expect(chip, findsOneWidget);
     expect(avatar, findsOneWidget);
-    expect(
-      tester.getRect(chip).right,
-      lessThanOrEqualTo(tester.getRect(avatar).left),
-    );
   });
 
   // #267 review: the chip sat in an unbounded row, so its ellipsis never
@@ -265,7 +261,7 @@ void main() {
       chipRect.width,
       lessThanOrEqualTo(size.width * kTopBarPausedChipWidthShare + 0.5),
     );
-    // The title is laid out whole, left of the chip.
+    // The title is laid out whole, left of the avatar/chip.
     final titleFinder = find.text(title);
     final titleParagraph = tester.renderObject<RenderParagraph>(titleFinder);
     expect(
@@ -275,23 +271,11 @@ void main() {
       ),
     );
     expect(tester.getRect(titleFinder).right, lessThanOrEqualTo(chipRect.left));
-    expect(
-      chipRect.right,
-      lessThanOrEqualTo(
-        tester.getRect(find.byKey(HomeAccountAvatarButton.buttonKey)).left,
-      ),
-    );
-    // Since the SE QA (#267) the top bar shows the short date, whole; the
-    // full words are the chip's tooltip and screen-reader label.
+    // Since the SE QA (#267) the top bar shows a compact badge on the avatar;
+    // the full words are the chip's tooltip.
     final label = l10n.availabilityPausedChip(
       availabilityWhenLabel(l10n, longest, today),
     );
-    final short = find.descendant(
-      of: chip,
-      matching: find.text(availabilityWhenShortLabel(l10n, longest, today)),
-    );
-    expect(short, findsOneWidget);
-    _expectWhole(tester, short);
     expect(find.byTooltip(label), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -351,39 +335,16 @@ void main() {
 
       final chip = find.byKey(OwnPausedChip.chipKey);
       expect(chip, findsOneWidget);
-      final chipRect = tester.getRect(chip);
 
-      // The date is on screen, whole.
-      final date = availabilityWhenShortLabel(l10n, until, today);
-      expect(date, isNot(contains('…')));
-      final dateText = find.descendant(of: chip, matching: find.text(date));
-      expect(dateText, findsOneWidget);
-      _expectWhole(tester, dateText);
-      expect(
-        tester.getRect(dateText).right,
-        lessThanOrEqualTo(chipRect.right + 0.5),
-      );
-
-      // The full words are the tooltip and what a screen reader hears.
+      // The full words are the tooltip.
       final label = l10n.availabilityPausedChip(
         availabilityWhenLabel(l10n, until, today),
       );
       expect(find.byTooltip(label), findsOneWidget);
-      expect(find.bySemanticsLabel(label), findsOneWidget);
 
-      // The screen title keeps its room, left of the chip.
+      // The screen title keeps its room.
       final titleFinder = find.text(title);
       _expectWhole(tester, titleFinder);
-      expect(
-        tester.getRect(titleFinder).right,
-        lessThanOrEqualTo(chipRect.left),
-      );
-      expect(
-        chipRect.right,
-        lessThanOrEqualTo(
-          tester.getRect(find.byKey(HomeAccountAvatarButton.buttonKey)).left,
-        ),
-      );
 
       // Tapping it still offers to resume.
       await tester.tap(chip);
