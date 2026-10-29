@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
@@ -278,6 +279,12 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   } else if (isBeaconYouRowVisible(input: situationInput)) {
     final hasAuthorReviewObligation =
         state.isAuthorOrSteward && authorUnreviewedHelpOfferCount > 0;
+    final authorForwardCue =
+        state.isBeaconMine &&
+        beacon.viewerCanForward &&
+        deriveBeaconHudAuthorAction(state) == null &&
+        deriveBeaconYouEmptyFallback(input: situationInput) ==
+            BeaconYouEmptyFallback.noOpenItems;
     entries.add(
       BeaconHudMetadataEntry(
         icon: BeaconHudRowIcons.you,
@@ -286,18 +293,27 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
         semanticsValue: hasAuthorReviewObligation
             ? l10n.beaconHudYouAuthorReview(authorUnreviewedHelpOfferCount)
             : null,
-        body: BeaconYouResponsibilityLine(
-          beacon: beacon,
-          responsibility: youResponsibility,
-          isAuthorOrSteward: state.isAuthorOrSteward,
-          tableRowWidth: rowWidth,
-          showNewBadges: false,
-          viewerUserId: viewerId,
-          openBlocker: openBlocker,
-          phaseResult: phaseResult,
-          isAwaitingAuthorReview: isAwaitingAuthorReview,
-          authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
-        ),
+        // #486: an author with nothing else to do is nudged to forward
+        // instead of being told there are no open items.
+        body: authorForwardCue
+            ? TenturaStatusText(
+                beaconHudYouLine(l10n, state),
+                maxLines: null,
+                overflow: TextOverflow.visible,
+              )
+            : BeaconYouResponsibilityLine(
+                beacon: beacon,
+                responsibility: youResponsibility,
+                isAuthorOrSteward: state.isAuthorOrSteward,
+                tableRowWidth: rowWidth,
+                showNewBadges: false,
+                viewerUserId: viewerId,
+                openBlocker: openBlocker,
+                phaseResult: phaseResult,
+                isAwaitingAuthorReview: isAwaitingAuthorReview,
+                authorUnreviewedHelpOfferCount:
+                    authorUnreviewedHelpOfferCount,
+              ),
       ),
     );
   }
