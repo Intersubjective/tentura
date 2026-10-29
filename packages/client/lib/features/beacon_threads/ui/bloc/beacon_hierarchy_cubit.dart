@@ -116,7 +116,6 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
         state.copyWith(
           capabilities: capabilities,
           capabilitiesError: null,
-          status: const StateIsSuccess(),
         ),
       );
       await _loadGroup(
@@ -136,6 +135,8 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
         generation: generation,
         reset: true,
       );
+      if (generation != _loadGeneration || isClosed) return;
+      emit(state.copyWith(status: const StateIsSuccess()));
     } on Object catch (e) {
       if (generation != _loadGeneration || isClosed) return;
       emit(

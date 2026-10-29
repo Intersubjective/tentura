@@ -11,6 +11,8 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/room_composer_intent.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
@@ -1345,14 +1347,32 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                         final room = context.read<ThreadHostCubit>().roomCubit;
                         body = StreamBuilder<void>(
                           stream: room?.stream,
-                          builder: (context, _) => TenturaFirstLoadGate(
-                            ready:
-                                state.firstLoadDone &&
-                                (room?.state.firstLoadDone ?? !roomExpected),
-                            onRetry: () =>
-                                unawaited(beaconViewCubit.retryInitialLoad()),
-                            child: content,
-                          ),
+                          builder: (context, _) =>
+                              BlocBuilder<
+                                BeaconHierarchyCubit,
+                                BeaconHierarchyState
+                              >(
+                                builder: (context, hierarchy) =>
+                                    TenturaFirstLoadGate(
+                                      ready:
+                                          state.firstLoadDone &&
+                                          (room?.state.firstLoadDone ??
+                                              !roomExpected) &&
+                                          (showcase ||
+                                              (!isSplit &&
+                                                  _selectedSurface !=
+                                                      BeaconSurface.now) ||
+                                              (!hierarchy.isLoading &&
+                                                  (hierarchy.hasCapabilities ||
+                                                      hierarchy
+                                                              .capabilitiesError !=
+                                                          null))),
+                                      onRetry: () => unawaited(
+                                        beaconViewCubit.retryInitialLoad(),
+                                      ),
+                                      child: content,
+                                    ),
+                              ),
                         );
                       }
 
