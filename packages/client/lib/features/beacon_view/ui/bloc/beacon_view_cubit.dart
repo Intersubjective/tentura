@@ -24,6 +24,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -216,6 +217,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   bool _fetchInProgress = false;
   bool _fetchPending = false;
 
+  late final _fullRefreshRequests = BurstCoalescer<String>(
+    (_) => _flushFullRefresh(),
+  );
+
   bool _closingBeacon = false;
 
   /// Set while a successful reopen / cancel / close now notifies other
@@ -244,6 +249,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   @override
   Future<void> close() async {
+    _fullRefreshRequests.dispose();
     if (_watchedTeam.isNotEmpty) _case.unwatchTeamPresence(state.beacon.id);
     await _forwardChangesSub.cancel();
     await _helpOfferChangesSub.cancel();
@@ -268,6 +274,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   void _requestFullRefresh() {
+    if (isClosed) return;
+    _fullRefreshRequests.request(state.beacon.id);
+  }
+
+  // Drain a hint burst before entering the gate so its remaining hints do not
+  // queue a duplicate. A later burst still queues a refresh if one is running.
+  void _flushFullRefresh() {
     if (isClosed) return;
     if (_fetchInProgress) {
       _fetchPending = true;
