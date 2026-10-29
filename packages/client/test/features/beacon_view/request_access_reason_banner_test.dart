@@ -30,9 +30,11 @@ Beacon _beacon({
 Beacon _parent({
   BeaconKind kind = BeaconKind.post,
   String title = 'GQ1024: planning a weekend',
+  String context = '',
 }) => Beacon(
   id: 'P1',
   title: title,
+  context: context,
   kind: kind,
   author: const Profile(id: 'U1', displayName: 'a'),
   createdAt: DateTime.utc(2026, 6, 19),
@@ -180,6 +182,20 @@ void main() {
         find.byKey(RequestAccessReasonBanner.openParentKey),
         findsOneWidget,
       );
+    });
+
+    testWidgets('a post with empty title falls back to context for title', (
+      tester,
+    ) async {
+      await _pumpBanner(
+        tester,
+        budded,
+        parent: _parent(
+          title: '',
+          context: 'GQ1024: planning a weekend',
+        ),
+      );
+      expect(find.text(_postBannerText), findsOneWidget);
     });
 
     testWidgets('guard: a Request parent keeps the related-request line', (
