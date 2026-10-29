@@ -1131,6 +1131,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   Widget _buildAppBarTitle({
     required bool isSplit,
+    required bool showStatus,
     required BeaconViewState state,
     required bool showBeaconContent,
     required L10n l10n,
@@ -1142,6 +1143,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     return BeaconViewAppBarTitle(
       beacon: state.beacon,
       showBeaconContent: showBeaconContent,
+      showStatus: showStatus,
       phaseStatus: beaconViewStatusSlots(l10n, state).presentation,
       l10n: l10n,
     );
@@ -1258,6 +1260,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
                       final statusSlots = beaconViewStatusSlots(l10n, state);
                       final appBarPhaseStatus = statusSlots.presentation;
+                      // A status too long for the title's line goes under the
+                      // bar row instead (#486).
+                      final statusBottom = showcase || isSplit
+                          ? null
+                          : BeaconViewStatusBottom.maybeOf(
+                              context,
+                              appBarPhaseStatus,
+                            );
 
                       Widget body;
                       if (showInitialUnavailable) {
@@ -1433,6 +1443,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             child: Scaffold(
                               appBar: TenturaTopBar.of(
                                 context,
+                                bottom: statusBottom,
                                 alignment: isSplit
                                     ? TenturaTopBarAlignment.edgeToEdge
                                     : TenturaTopBarAlignment.content,
@@ -1449,6 +1460,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                     ? const SizedBox.shrink()
                                     : _buildAppBarTitle(
                                         isSplit: isSplit,
+                                        showStatus: statusBottom == null,
                                         state: state,
                                         showBeaconContent: showBeaconContent,
                                         l10n: l10n,

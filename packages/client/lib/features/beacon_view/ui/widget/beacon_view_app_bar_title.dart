@@ -18,6 +18,7 @@ class BeaconViewAppBarTitle extends StatelessWidget {
     required this.phaseStatus,
     required this.l10n,
     this.showBeaconContent = true,
+    this.showStatus = true,
     this.onTap,
     this.tooltipMessage,
     this.roomUnreadBadgeCount,
@@ -28,6 +29,9 @@ class BeaconViewAppBarTitle extends StatelessWidget {
 
   /// When false (loading / gated null), do not render beacon title or identity.
   final bool showBeaconContent;
+
+  /// False when the status is shown by [BeaconViewStatusBottom] instead.
+  final bool showStatus;
 
   /// Single-line operational status (dual-tone when slot2 is set).
   final BeaconPhaseStatusPresentation phaseStatus;
@@ -95,12 +99,13 @@ class BeaconViewAppBarTitle extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TenturaText.titleSmall(scheme.onSurface),
               ),
-              TenturaStatusLine(
-                slot1: phaseStatus.slot1,
-                slot2: phaseStatus.slot2,
-                slot1Tone: phaseStatus.slot1Tone,
-                slot2Tone: phaseStatus.slot2Tone,
-              ),
+              if (showStatus)
+                TenturaStatusLine(
+                  slot1: phaseStatus.slot1,
+                  slot2: phaseStatus.slot2,
+                  slot1Tone: phaseStatus.slot1Tone,
+                  slot2Tone: phaseStatus.slot2Tone,
+                ),
             ],
           ),
         ),
@@ -150,4 +155,70 @@ class BeaconViewAppBarTitle extends StatelessWidget {
       child: row,
     );
   }
+}
+
+/// The whole status line under the app-bar row, wrapped to as many lines as it
+/// needs, for a status too long for the one line beside the title (#486): the
+/// guidance at its end is never cut. The bar is a fixed-height widget, so the
+/// height is measured up front.
+class BeaconViewStatusBottom extends StatelessWidget
+    implements PreferredSizeWidget {
+  const BeaconViewStatusBottom._({
+    required this.phaseStatus,
+    required this.height,
+  });
+
+  /// The bottom for [phaseStatus], or null when it fits on the title's own
+  /// line and [BeaconViewAppBarTitle] keeps showing it.
+  static BeaconViewStatusBottom? maybeOf(
+    BuildContext context,
+    BeaconPhaseStatusPresentation phaseStatus,
+  ) {
+    final tt = context.tt;
+    final width = MediaQuery.sizeOf(context).width - 2 * tt.screenHPadding;
+    // Room beside the title: back, ⋮ and the identity tile with their gaps.
+    final titleSlot =
+        width -
+        3 * kMinInteractiveDimension -
+        BeaconViewAppBarTitle._identitySize -
+        3 * tt.iconTextGap;
+
+    (int lines, double height) measure(double maxWidth) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: phaseStatus.statusLine,
+          style: TenturaText.status(Theme.of(context).colorScheme.onSurface),
+        ),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout(maxWidth: maxWidth);
+      final result = (painter.computeLineMetrics().length, painter.height);
+      painter.dispose();
+      return result;
+    }
+
+    if (measure(titleSlot).$1 == 1) return null;
+    return BeaconViewStatusBottom._(
+      phaseStatus: phaseStatus,
+      height: measure(width).$2,
+    );
+  }
+
+  final BeaconPhaseStatusPresentation phaseStatus;
+  final double height;
+
+  @override
+  Size get preferredSize => Size.fromHeight(height);
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: AlignmentDirectional.topStart,
+    child: TenturaStatusLine(
+      slot1: phaseStatus.slot1,
+      slot2: phaseStatus.slot2,
+      slot1Tone: phaseStatus.slot1Tone,
+      slot2Tone: phaseStatus.slot2Tone,
+      overflow: TextOverflow.visible,
+    ),
+  );
 }
