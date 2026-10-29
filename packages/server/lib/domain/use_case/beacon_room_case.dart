@@ -312,11 +312,11 @@ class BeaconRoomCase extends UseCaseBase {
   }) async {
     final lobby = _lobby;
     final access = await _questionsAccess(beaconId: beaconId, userId: userId);
-    var messageCount = 0;
+    var counts = (messageCount: 0, unreadCount: 0);
     if (lobby != null && access.canRead) {
       final lobbyId = await lobby.findLobby(beaconId);
       if (lobbyId != null) {
-        messageCount = await lobby.countVisibleMessages(
+        counts = await lobby.countVisibleMessages(
           lobbyId: lobbyId,
           viewerId: userId,
         );
@@ -330,7 +330,8 @@ class BeaconRoomCase extends UseCaseBase {
       'beaconId': beaconId,
       'canRead': access.canRead,
       'canPost': access.canWrite && !lifecycleBlocks,
-      'messageCount': messageCount,
+      'messageCount': counts.messageCount,
+      'unreadCount': counts.unreadCount,
       'readOnlyReason': _questionsLimitReason(
         standing,
         access: access,

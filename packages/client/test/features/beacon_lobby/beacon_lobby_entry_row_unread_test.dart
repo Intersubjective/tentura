@@ -14,9 +14,16 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
 import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_entry_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
+
+import '../beacon_threads/room_cubit_fakes.dart';
 
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/noop_attention_actor_profiles.dart';
@@ -24,7 +31,7 @@ import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import 'fake_lobby_port.dart';
 
-/// A Questions notice for [beaconId] that the author has not settled.
+/// Independent attention state; these notices never define Questions unread.
 AttentionReceipt _questionsReceipt(
   String id, {
   String beaconId = 'B1',
@@ -55,8 +62,8 @@ AttentionReceipt _questionsReceipt(
   settledAt: settlementKind == null ? null : DateTime.utc(2026, 10, 25),
 );
 
-/// The server's attention store, answering every read path with the same
-/// receipts, so the row may take its numbers from whichever one it likes.
+/// Attention state is deliberately absent or disagrees with the Questions
+/// messages and read cursor, so counting notices cannot satisfy these tests.
 class _AttentionServer extends AttentionRepositoryFake {
   _AttentionServer(Iterable<AttentionReceipt> receipts)
     : _receipts = {for (final r in receipts) r.id: r};
@@ -170,45 +177,122 @@ Widget _app(Locale locale, Widget child) => MaterialApp(
   home: child,
 );
 
+/// The existing room API supplies Questions messages, independently of the
+/// attention API. Restrict reads to the requested Request and Questions scope.
+class _QuestionsMessages extends FakeBeaconThreadsRepository {
+  _QuestionsMessages() : super(userId: 'Uauthor');
+
+  @override
+  Future<List<RoomMessage>> fetchMessages({
+    required String beaconId,
+    String? beforeIso,
+    String? threadItemId,
+  }) async => [
+    for (final message in messages)
+      if (message.beaconId == beaconId && message.threadItemId == threadItemId)
+        message,
+  ];
+}
+
+/// Models the server probe's counts from its messages and persisted cursor.
+/// The row consumes this probe, rather than downloading room history itself.
+class _QuestionsLobbyPort extends FakeLobbyPort {
+  _QuestionsLobbyPort(this.room, this.watermarks) : super(viewerId: 'Uauthor');
+
+  final _QuestionsMessages room;
+  final RoomReadWatermarkStore watermarks;
+
+  @override
+  Future<BeaconLobbyAccess> access(String beaconId) async {
+    final access = await super.access(beaconId);
+    final seen = watermarks.readThrough(beaconId, threadId: 'Llobby');
+    return access.copyWith(
+      unreadCount: room.messages
+          .where(
+            (message) =>
+                message.beaconId == beaconId &&
+                message.threadItemId == 'Llobby' &&
+                message.authorId != viewerId &&
+                (seen == null || message.createdAt.isAfter(seen)),
+          )
+          .length,
+    );
+  }
+}
+
 void main() {
-  group('the Questions row tells the author how many questions are new', () {
+  group('author Questions counts follow the Questions read cursor', () {
     late AttentionCase attention;
+    late RoomReadWatermarkStore watermarks;
+    late _QuestionsMessages room;
 
     tearDown(() async {
       await GetIt.I.reset();
     });
 
-    /// The author's Request B1 holds [messages] Questions messages; the
-    /// server holds [receipts] for the author.
+    /// Five actual Questions messages, with the first three already read.
+    /// Acknowledging attention is deliberately a separate state transition.
     Future<void> pumpRow(
-      WidgetTester tester,
-      List<AttentionReceipt> receipts, {
+      WidgetTester tester, {
+      List<AttentionReceipt> notices = const [],
+      bool allQuestionsRead = false,
       Locale locale = const Locale('en'),
-      int messages = 5,
     }) async {
       await GetIt.I.reset();
-      final port = FakeLobbyPort(viewerId: 'Uauthor')..messageCount = messages;
-      GetIt.I.registerSingleton<BeaconLobbyCase>(
-        lobbyCaseFor(port, FakeRealtimeSyncPort()),
-      );
-
-      final accounts = _Accounts();
-      addTearDown(accounts.close);
+      final at = DateTime.utc(2026, 10, 24, 12);
+      room = _QuestionsMessages()
+        ..messages = [
+          for (var i = 1; i <= 5; i++)
+            RoomMessage(
+              id: 'M$i',
+              beaconId: 'B1',
+              threadItemId: 'Llobby',
+              body: 'Question $i',
+              authorId: i.isOdd ? 'Ubob' : 'Ucarol',
+              author: Profile(
+                id: i.isOdd ? 'Ubob' : 'Ucarol',
+                displayName: i.isOdd ? 'Bob' : 'Carol',
+              ),
+              createdAt: at.add(Duration(minutes: i)),
+            ),
+        ];
+      watermarks = RoomReadWatermarkStore.testing()
+        ..confirmSynced(
+          'B1',
+          room.messages[allQuestionsRead ? 4 : 2].createdAt,
+          threadId: 'Llobby',
+        );
+      addTearDown(watermarks.dispose);
+      final lobbySync = FakeRealtimeSyncPort();
+      addTearDown(lobbySync.dispose);
+      final port = _QuestionsLobbyPort(room, watermarks)..messageCount = 5;
       final sync = buildTestRealtimeSync();
       addTearDown(sync.port.dispose);
+      GetIt.I
+        ..registerSingleton<BeaconLobbyCase>(lobbyCaseFor(port, lobbySync))
+        ..registerSingleton<RoomReadWatermarkStore>(watermarks)
+        ..registerSingleton<BeaconThreadsCase>(
+          roomCubitMakeCase(
+            room,
+            watermarkStore: watermarks,
+            realtimeSyncCase: sync.case_,
+          ),
+        );
+      registerRoomCubitProfileCubit('Uauthor');
+      final accounts = _Accounts();
+      addTearDown(accounts.close);
       attention = AttentionCase(
-        _AttentionServer(receipts),
+        _AttentionServer(notices),
         accounts,
         sync.case_,
         noopBlockCase(),
         FeedSessionRegistry(),
-        Logger('beacon-lobby-entry-row-unread-test'),
+        Logger('questions-read-cursor-widget-test'),
       );
       addTearDown(attention.dispose);
       GetIt.I.registerSingleton<AttentionCase>(attention);
       ensureNoopAttentionActorProfilesRegistered();
       accounts.signIn('Uauthor');
-
       await tester.pumpWidget(
         _app(
           locale,
@@ -220,65 +304,64 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('two unsettled Questions notices read "2 new"', (
+    testWidgets('two unread Questions replace the total with "2 new"', (
       tester,
     ) async {
-      await pumpRow(tester, [
-        _questionsReceipt('r1'),
-        _questionsReceipt('r2'),
-        // Not this Request's Questions: another Request, a General message,
-        // and a question the author has already dealt with.
-        _questionsReceipt('other', beaconId: 'B2'),
-        _questionsReceipt('general', coordinationItemId: null),
-        _questionsReceipt('done', settlementKind: 'resolved'),
-      ]);
+      await pumpRow(tester);
       expect(find.text('Questions'), findsOneWidget);
-      // The total stays next to it.
-      expect(find.text('5 messages'), findsOneWidget);
       expect(find.text('2 new'), findsOneWidget);
+      expect(find.text('5 messages'), findsNothing);
     });
 
-    testWidgets('no unsettled Questions notice, no badge', (tester) async {
-      await pumpRow(tester, [
-        _questionsReceipt('other', beaconId: 'B2'),
-        _questionsReceipt('general', coordinationItemId: null),
-        _questionsReceipt('done', settlementKind: 'resolved'),
-      ]);
+    testWidgets('read Questions show the total despite pending notices', (
+      tester,
+    ) async {
+      await pumpRow(
+        tester,
+        allQuestionsRead: true,
+        notices: [
+          _questionsReceipt('r1'),
+          _questionsReceipt('r2'),
+        ],
+      );
       expect(find.text('5 messages'), findsOneWidget);
       expect(find.textContaining(RegExp(r'\bnew\b')), findsNothing);
     });
 
-    testWidgets('settling the notices clears the badge', (tester) async {
-      await pumpRow(tester, [_questionsReceipt('r1'), _questionsReceipt('r2')]);
+    testWidgets('settling notices leaves unread Questions unchanged', (
+      tester,
+    ) async {
+      await pumpRow(
+        tester,
+        notices: [
+          _questionsReceipt('r1'),
+          _questionsReceipt('r2'),
+        ],
+      );
       expect(find.text('2 new'), findsOneWidget);
-
+      final lastRead = watermarks.readThrough('B1', threadId: 'Llobby');
       await attention.settleReceipt('r1');
       await tester.pumpAndSettle();
-      expect(find.text('1 new'), findsOneWidget);
-
+      expect(
+        find.text('2 new'),
+        findsOneWidget,
+        reason: 'Settling a notice does not read its Questions message.',
+      );
       await attention.settleReceipt('r2');
       await tester.pumpAndSettle();
-      expect(find.textContaining(RegExp(r'\bnew\b')), findsNothing);
-      expect(find.text('5 messages'), findsOneWidget);
+      expect(watermarks.readThrough('B1', threadId: 'Llobby'), lastRead);
+      expect(find.text('2 new'), findsOneWidget);
+      expect(find.text('5 messages'), findsNothing);
     });
 
-    testWidgets('the badge is written in Russian for a Russian reader', (
+    testWidgets('two unread Questions are localized for a Russian reader', (
       tester,
     ) async {
-      await pumpRow(tester, [
-        _questionsReceipt('r1'),
-        _questionsReceipt('r2'),
-      ], locale: const Locale('ru'));
+      await pumpRow(tester, locale: const Locale('ru'));
+      final l10n = lookupL10n(const Locale('ru'));
+      expect(find.text(l10n.beaconLobbyEntryUnread(2)), findsOneWidget);
+      expect(find.text(l10n.beaconLobbyEntryCount(5)), findsNothing);
       expect(find.text('2 new'), findsNothing);
-      expect(
-        find.byWidgetPredicate(
-          (w) =>
-              w is Text &&
-              (w.data ?? '').contains('2') &&
-              (w.data ?? '').toLowerCase().contains('нов'),
-        ),
-        findsOneWidget,
-      );
     });
   });
 }

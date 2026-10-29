@@ -26,6 +26,7 @@ class BeaconLobbyRepository implements BeaconLobbyPort {
       canRead: a.canRead,
       canPost: a.canPost,
       messageCount: a.messageCount,
+      unreadCount: a.unreadCount,
       limitReason: BeaconLobbyLimitReason.fromWire(a.readOnlyReason),
       isHelper: a.isHelper,
       takesOffers: a.takesOffers,

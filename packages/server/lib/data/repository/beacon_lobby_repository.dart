@@ -176,13 +176,19 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
   }
 
   @override
-  Future<int> countVisibleMessages({
+  Future<({int messageCount, int unreadCount})> countVisibleMessages({
     required String lobbyId,
     required String viewerId,
   }) async {
     final row = await _db
         .customSelect(
-          'SELECT count(*)::integer AS n FROM public.beacon_room_message m '
+          'SELECT count(*)::integer AS message_count, '
+          r'count(*) FILTER (WHERE m.author_id <> $2 '
+          'AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at))'
+          '::integer AS unread_count FROM public.beacon_room_message m '
+          'LEFT JOIN public.beacon_room_seen s '
+          r'ON s.thread_item_id = m.thread_item_id AND s.user_id = $2 '
+          'AND s.beacon_id = m.beacon_id '
           r'WHERE m.thread_item_id = $1 '
           r'AND (m.author_id IS NULL OR NOT public.block_hides(m.author_id, $2))',
           variables: [
@@ -191,7 +197,10 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
           ],
         )
         .getSingle();
-    return row.read<int>('n');
+    return (
+      messageCount: row.read<int>('message_count'),
+      unreadCount: row.read<int>('unread_count'),
+    );
   }
 
   @override

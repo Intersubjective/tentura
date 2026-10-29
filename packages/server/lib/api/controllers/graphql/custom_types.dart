@@ -288,6 +288,7 @@ final gqlTypeBeaconLobbyAccess = GraphQLObjectType('BeaconLobbyAccess', null)
     field('canRead', graphQLBoolean.nonNullable()),
     field('canPost', graphQLBoolean.nonNullable()),
     field('messageCount', graphQLInt.nonNullable()),
+    field('unreadCount', graphQLInt.nonNullable()),
     // Why the caller reads only or cannot open Questions
     // (`QuestionsLimitReason.wire`: closed, cant_help, withdrew, declined,
     // removed), or null. Only ever about the caller.

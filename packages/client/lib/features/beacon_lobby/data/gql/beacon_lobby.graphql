@@ -24,6 +24,7 @@ query BeaconLobbyAccess($beaconId: String!) {
     canRead
     canPost
     messageCount
+    unreadCount
     readOnlyReason
     isHelper
     takesOffers

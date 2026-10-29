@@ -4,14 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/entity/beacon_lobby.dart';
 import '../../domain/use_case/beacon_lobby_case.dart';
 import '../bloc/beacon_lobby_entry_cubit.dart';
-import '../bloc/beacon_lobby_unread_cubit.dart';
 import 'beacon_lobby_subtitle.dart';
 
 /// The way into a Request's Questions. Shown only when the server policy
@@ -68,17 +66,22 @@ class BeaconLobbyEntryRow extends StatelessWidget {
                 if (access == null || !access.canRead) {
                   return const SizedBox.shrink();
                 }
-                void open() =>
-                    context.router.push(BeaconLobbyRoute(beaconId: beaconId));
+                Future<void> open() async {
+                  await context.router.push(
+                    BeaconLobbyRoute(beaconId: beaconId),
+                  );
+                  if (context.mounted) {
+                    await context.read<BeaconLobbyEntryCubit>().load();
+                  }
+                }
+
                 return prominent
                     ? _EntryCard(
-                        beaconId: beaconId,
                         access: access,
                         isAuthor: isAuthor,
                         onTap: open,
                       )
                     : _EntryTile(
-                        beaconId: beaconId,
                         access: access,
                         isAuthor: isAuthor,
                         onTap: open,
@@ -127,57 +130,29 @@ String _subtitle(
   ),
 );
 
-/// The message total and, for the author, how many Questions notices are
-/// still unsettled.
+/// The viewer's unread Questions, falling back to the visible total.
 class _CountLine extends StatelessWidget {
-  const _CountLine({
-    required this.beaconId,
-    required this.access,
-    required this.isAuthor,
-  });
+  const _CountLine({required this.access});
 
-  final String beaconId;
   final BeaconLobbyAccess access;
-  final bool isAuthor;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final total = TenturaMetaText(
-      l10n.beaconLobbyEntryCount(access.messageCount),
-    );
-    // Not wired (isolated widget tests): the total alone.
-    if (!isAuthor || !GetIt.I.isRegistered<AttentionCase>()) return total;
-    return BlocProvider(
-      key: ValueKey(beaconId),
-      create: (_) => BeaconLobbyUnreadCubit(
-        GetIt.I<AttentionCase>(),
-        beaconId: beaconId,
-      ),
-      child: BlocBuilder<BeaconLobbyUnreadCubit, int>(
-        builder: (context, unread) => unread == 0
-            ? total
-            : Wrap(
-                spacing: context.tt.iconTextGap,
-                children: [
-                  total,
-                  TenturaMetaText(l10n.beaconLobbyEntryUnread(unread)),
-                ],
-              ),
-      ),
+    return TenturaMetaText(
+      access.unreadCount == 0
+          ? l10n.beaconLobbyEntryCount(access.messageCount)
+          : l10n.beaconLobbyEntryUnread(access.unreadCount),
     );
   }
 }
 
 class _EntryTile extends StatelessWidget {
   const _EntryTile({
-    required this.beaconId,
     required this.access,
     required this.isAuthor,
     required this.onTap,
   });
-
-  final String beaconId;
 
   final BeaconLobbyAccess access;
   final bool isAuthor;
@@ -194,7 +169,7 @@ class _EntryTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(_subtitle(l10n, access, isAuthor: isAuthor)),
-          _CountLine(beaconId: beaconId, access: access, isAuthor: isAuthor),
+          _CountLine(access: access),
         ],
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -207,13 +182,10 @@ class _EntryTile extends StatelessWidget {
 /// messages are already there.
 class _EntryCard extends StatelessWidget {
   const _EntryCard({
-    required this.beaconId,
     required this.access,
     required this.isAuthor,
     required this.onTap,
   });
-
-  final String beaconId;
 
   final BeaconLobbyAccess access;
   final bool isAuthor;
@@ -252,11 +224,7 @@ class _EntryCard extends StatelessWidget {
                       _subtitle(l10n, access, isAuthor: isAuthor),
                       style: TenturaText.bodySmall(tt.textMuted),
                     ),
-                    _CountLine(
-                      beaconId: beaconId,
-                      access: access,
-                      isAuthor: isAuthor,
-                    ),
+                    _CountLine(access: access),
                   ],
                 ),
               ),

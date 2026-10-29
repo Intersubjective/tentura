@@ -132,9 +132,8 @@ mention candidates and realtime hints.
 
 ## Known limits
 
-- No unread badge for Questions beyond the author's attention items (the
-  entry shows a total, not "new"); the Timeline sheet names the sender but
-  never the question's text (notices carry none, by design).
+- The Timeline sheet names the sender but never the question's text
+  (notices carry none, by design).
 - No attachments in Questions: room images are served from the shared image
   store, which the Questions policy does not gate. Reactions work through the
   API with write access but the screen does not show them yet.

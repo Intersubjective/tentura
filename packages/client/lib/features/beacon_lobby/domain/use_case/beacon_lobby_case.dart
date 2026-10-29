@@ -48,6 +48,7 @@ final class BeaconLobbyCase {
             RealtimeEntityKind.beacon,
             // "Can't help" moves the viewer's own inbox item (#655, #657).
             RealtimeEntityKind.inboxItem,
+            RealtimeEntityKind.roomSeen,
           },
           aggregateId: beaconId,
         )

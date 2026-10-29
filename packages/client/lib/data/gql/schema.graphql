@@ -8633,6 +8633,7 @@ type v2_BeaconLobbyAccess {
   canRead: Boolean!
   isHelper: Boolean!
   messageCount: Int!
+  unreadCount: Int!
   readOnlyReason: String
   takesOffers: Boolean!
 }

@@ -80,6 +80,9 @@ abstract class BeaconLobbyAccess with _$BeaconLobbyAccess {
     required bool canPost,
     @Default(0) int messageCount,
 
+    /// Visible messages newer than this viewer's Questions read cursor.
+    @Default(0) int unreadCount,
+
     /// Why the viewer reads only, or cannot open Questions, when the server
     /// can say.
     BeaconLobbyLimitReason? limitReason,

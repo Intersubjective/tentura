@@ -36,8 +36,8 @@ abstract class BeaconLobbyRepositoryPort {
   Future<List<QuestionsAudienceMember>> audience(String beaconId);
 
   /// Messages of [lobbyId] that [viewerId] would see (authors with a block
-  /// either way are hidden).
-  Future<int> countVisibleMessages({
+  /// either way are hidden), including unread after the viewer's Questions cursor.
+  Future<({int messageCount, int unreadCount})> countVisibleMessages({
     required String lobbyId,
     required String viewerId,
   });

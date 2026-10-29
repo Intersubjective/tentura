@@ -606,6 +606,60 @@ Future<void> main() async {
       },
     );
 
+    test(
+      "Questions unread follows each viewer's persisted read cursor",
+      () async {
+        final lobbyId = await openAsAuthor();
+        for (final sender in [forwardee, addressee, author]) {
+          await rooms.createMessage(
+            beaconId: beaconId,
+            userId: sender,
+            body: 'Message from $sender',
+            threadItemId: lobbyId,
+          );
+        }
+        // A historical message from a now-blocked sender is never counted.
+        await seedMessage(blocksAuthor, lobbyId, 'hidden question');
+        Future<Map<String, Object?>> probe(String viewer) =>
+            rooms.beaconLobbyAccess(beaconId: beaconId, userId: viewer);
+        final before = await probe(author);
+        expect(before['messageCount'], 3);
+        expect(
+          before['unreadCount'],
+          2,
+          reason: 'Own messages and blocked senders are not unread Questions.',
+        );
+        final otherViewer = await probe(addressee);
+        expect(otherViewer['unreadCount'], greaterThan(0));
+
+        await rooms.markThreadSeen(
+          beaconId: beaconId,
+          userId: author,
+          threadId: lobbyId,
+        );
+        final read = await probe(author);
+        expect(read['messageCount'], 3);
+        expect(read['unreadCount'], 0);
+        expect(
+          (await probe(addressee))['unreadCount'],
+          otherViewer['unreadCount'],
+        );
+
+        await rooms.createMessage(
+          beaconId: beaconId,
+          userId: forwardee,
+          body: 'A later question',
+          threadItemId: lobbyId,
+        );
+        final later = await probe(author);
+        expect(later['messageCount'], 4);
+        expect(later['unreadCount'], 1);
+        final denied = await probe(discovery);
+        expect(denied['messageCount'], 0);
+        expect(denied['unreadCount'], 0);
+      },
+    );
+
     test('post, react, edit and delete: write standing only', () async {
       final lobbyId = await openAsAuthor();
       final authorMessage = await rooms.createMessage(
