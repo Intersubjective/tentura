@@ -74,6 +74,102 @@ const _colors = GraphEdgeColors(
 Future<void> main() async {
   group('Trust graph follows committed profile and remote untrust', () {
     test(
+      'profile withdrawal rereads the open graph and applies the returned one-way edge',
+      () async {
+        await _withHarness((h) async {
+          final originalGraph = h.graph;
+          final profile = ProfileViewCubit(
+            id: _bob.id,
+            profileViewCase: h.profileCase,
+            blockCase: noopBlockCase(),
+            effects: h.effects,
+          );
+          final responseGate = Completer<void>();
+          final publicationGate = Completer<void>();
+          final refreshRequested = Completer<void>();
+          try {
+            if (profile.state.isLoading) {
+              await profile.stream.firstWhere((state) => !state.isLoading);
+            }
+            expect(profile.state.profile.myVote, 1);
+            final readsBefore = h.server.closureRequests.length;
+            h.server
+              ..closureResponseGate = responseGate
+              ..closureRequested = refreshRequested
+              ..publicationGate = publicationGate
+              ..committedClosureWeight = 0.375;
+
+            await profile.removeFriend();
+            h.expectProfileUntrustCommitted(profile.state.profile);
+            await refreshRequested.future.timeout(const Duration(seconds: 5));
+            expect(h.server.closureRequests.length, greaterThan(readsBefore));
+            final variables = h.server.closureRequests.last;
+            expect(variables['node_ids'], contains(_me.id));
+            expect(variables['node_ids'], contains(_bob.id));
+            expect(variables['positive_only'], isTrue);
+
+            final response =
+                jsonDecode(h.server.closureResponses.last.body)
+                    as Map<String, dynamic>;
+            final data = response['data'] as Map<String, dynamic>;
+            final rows = List<Map<String, dynamic>>.from(
+              data['graph_edges_between'] as List<dynamic>,
+            );
+            expect(
+              rows.map((row) => (row['src'], row['dst'], row['dst_score'])),
+              [(_bob.id, _me.id, 0.375)],
+              reason:
+                  'these exact response bytes must carry the requested '
+                  'pair in only the remaining direction',
+            );
+            final mutualPublishedPair = {(_me.id, _bob.id), (_bob.id, _me.id)};
+            expect(
+              h.server.edges.map((edge) => (edge['src'], edge['dst'])).toSet(),
+              mutualPublishedPair,
+            );
+
+            // Publication and HTTP delivery have independent gates. The
+            // committed closure is one-way, but its response has not reached
+            // the cubit and the published neighbourhood is still mutual.
+            expect(h.graph.viewerLink(_bob.id), (
+              fromViewer: 1.0,
+              toViewer: 1.0,
+            ));
+            responseGate.complete();
+            await h.waitForRealtimeWindow();
+
+            expect(identical(h.graph, originalGraph), isTrue);
+            h.expectOneWay(_bob.id, _me.id);
+            expect(h.graph.viewerLink(_bob.id), (
+              fromViewer: null,
+              toViewer: 0.375,
+            ));
+            expect(h.loadedBob.myVote, 0);
+            expect(h.loadedBob.isMutualFriend, isFalse);
+            expect(publicationGate.isCompleted, isFalse);
+            expect(
+              h.server.edges.map((edge) => (edge['src'], edge['dst'])).toSet(),
+              mutualPublishedPair,
+              reason:
+                  'the graph updated from the closure response while '
+                  'publication was still held',
+            );
+            publicationGate.complete();
+            await h.server.whenPublished.timeout(const Duration(seconds: 5));
+            expect(
+              h.server.edges.map((edge) => (edge['src'], edge['dst'])).toSet(),
+              {(_bob.id, _me.id)},
+            );
+          } finally {
+            if (!responseGate.isCompleted) responseGate.complete();
+            if (!publicationGate.isCompleted) publicationGate.complete();
+            await profile.close();
+          }
+        });
+      },
+    );
+
+    test(
       'profile untrust converges without reload after graph publication catches up',
       () async {
         await _withHarness(
@@ -637,6 +733,11 @@ final class _WireServer {
     final bobTrust = bobTrustsViewer;
     final completed = _publicationCompleted = Completer<void>();
     void publish() {
+      final gate = publicationGate;
+      if (gate != null && !gate.isCompleted) {
+        unawaited(gate.future.then((_) => publish()));
+        return;
+      }
       _publishedViewerTrustsBob = viewerTrust;
       _publishedBobTrustsViewer = bobTrust;
       completed.complete();
@@ -654,6 +755,12 @@ final class _WireServer {
   bool bobTrustsViewer = true;
   int profileReadsAfterVote = 0;
   final voteWrites = <({String personId, int amount})>[];
+  final closureRequests = <Map<String, dynamic>>[];
+  final closureResponses = <http.Response>[];
+  Completer<void>? closureResponseGate;
+  Completer<void>? closureRequested;
+  Completer<void>? publicationGate;
+  double? committedClosureWeight;
 
   void remoteUntrust() {
     bobTrustsViewer = false;
@@ -724,7 +831,26 @@ final class _WireServer {
       case 'GraphFetch':
         data = {'graph': edges, 'beacon_by_pk': null};
       case 'GraphEdgesBetween':
-        data = {'graph_edges_between': edges};
+        closureRequests.add(Map<String, dynamic>.of(variables));
+        final committedWeight = committedClosureWeight;
+        final closure = committedWeight == null
+            ? edges
+            : [
+                if (viewerTrustsBob)
+                  {...edge(_me.id, _bob.id), 'dst_score': committedWeight},
+                if (bobTrustsViewer)
+                  {...edge(_bob.id, _me.id), 'dst_score': committedWeight},
+              ];
+        // Freeze the actual HTTP bytes before delivery, independently of any
+        // later mutation/publication of the neighbourhood's shared state.
+        final response = _response({
+          'data': {'graph_edges_between': closure},
+        });
+        closureResponses.add(response);
+        final requested = closureRequested;
+        if (requested != null && !requested.isCompleted) requested.complete();
+        await closureResponseGate?.future;
+        return response;
       default:
         throw StateError('Unexpected operation ${body['operationName']}');
     }

@@ -209,7 +209,7 @@ WHERE subject = '$_me' AND object = '$_bob'
         'is unchanged',
         () async {
           // Reproduce the persisted mismatch: the profile has stopped
-          // trusting, but the committed projection and MR are still mutual.
+          // trusting, but the stored projection and MR are still mutual.
           // This is setup for recovery, not a claim that the current
           // UserVote resolver created the mismatch.
           await fixture.db.customStatement('''
@@ -218,8 +218,16 @@ WHERE subject = '$_me' AND object = '$_bob'
 ''');
           expect(await fixture.voteAmount(_me, _bob), 0);
           expect(await fixture.voteAmount(_bob, _me), 1);
-          expect(await fixture.edges(), {(_me, _bob), (_bob, _me)});
-          expect(await graphEdges(), {(_me, _bob), (_bob, _me)});
+          final staleOutgoing = await fixture.db.customSelect('''
+SELECT target_w FROM public.user_trust_edge
+WHERE subject = '$_me' AND object = '$_bob'
+''').getSingle();
+          expect(staleOutgoing.read<double>('target_w'), greaterThan(0));
+          expect(await publishedEdges(), {(_me, _bob), (_bob, _me)});
+          // Readers already honor the committed vote, independently of the
+          // stale storage that the idempotent mutation still must reconcile.
+          expect(await fixture.edges(), {(_bob, _me)});
+          expect(await graphEdges(), {(_bob, _me)});
           expect(await publisher.readBatch(100), isEmpty);
 
           // Retry the exact production profile untrust mutation. A successful
