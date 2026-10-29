@@ -34,8 +34,7 @@ BeaconFactCard _doorCode() => BeaconFactCard(
   status: 0,
 );
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 30));
+Future<void> _settle() => pumpEventQueue(times: 30);
 
 void main() {
   test('a fact pinned by the host shows in the room after '

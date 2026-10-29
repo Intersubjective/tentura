@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
@@ -81,8 +82,7 @@ BeaconThreadsCase _makeCase(
   logger: Logger('test'),
 );
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 30));
+Future<void> _settle() => pumpAfterHintBurst();
 
 void main() {
   late FakeBeaconThreadsRepository fakeRoom;

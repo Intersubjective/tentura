@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/util/burst_coalescer.dart';
 
 void main() {
-  test('one turn unions keys including requests from microtasks', () {
+  test('one batch unions keys including requests from microtasks', () {
     fakeAsync((async) {
       final batches = <Set<String>>[];
       final coalescer = BurstCoalescer<String>(batches.add)..request('beacon');
@@ -15,7 +15,7 @@ void main() {
       expect(batches, isEmpty);
       async
         ..flushMicrotasks()
-        ..elapse(Duration.zero);
+        ..elapse(BurstCoalescer.window);
       expect(batches, [
         {'beacon', 'participant', 'offer'},
       ]);
@@ -37,7 +37,11 @@ void main() {
         }
       });
       coalescer.request('first');
-      async.elapse(Duration.zero);
+      async.elapse(BurstCoalescer.window);
+      expect(batches, [
+        {'first'},
+      ]);
+      async.elapse(BurstCoalescer.window);
       expect(batches, [
         {'first'},
         {'later', 'another'},
@@ -55,7 +59,7 @@ void main() {
         ..dispose()
         ..dispose()
         ..request('after-dispose');
-      async.elapse(Duration.zero);
+      async.elapse(BurstCoalescer.window);
       expect(batches, isEmpty);
     });
   });

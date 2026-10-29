@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 
@@ -229,7 +230,7 @@ Future<void> _pumpUntil(
 /// gate twice (full refresh -> queued follow-up), so this uses a larger
 /// `times` than the repo's typical `times: 5` to give that extra depth room
 /// to fully unwind before assertions run.
-Future<void> _settle() => pumpEventQueue(times: 30);
+Future<void> _settle() => pumpAfterHintBurst();
 
 /// Waits until [count] reaches [target], for scenarios that must observe an
 /// in-flight call (one that is synchronously counted but then blocks on an
@@ -238,7 +239,7 @@ Future<void> _settle() => pumpEventQueue(times: 30);
 Future<void> _pumpUntilCallCount(
   int Function() count,
   int target, {
-  Duration timeout = const Duration(seconds: 2),
+  Duration timeout = const Duration(milliseconds: 3000),
 }) async {
   final deadline = DateTime.now().add(timeout);
   while (count() < target) {
@@ -247,6 +248,7 @@ Future<void> _pumpUntilCallCount(
         'call count did not reach $target within $timeout',
       );
     }
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await pumpEventQueue(times: 5);
   }
 }

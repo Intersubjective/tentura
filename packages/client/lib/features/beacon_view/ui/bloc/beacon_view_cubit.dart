@@ -217,8 +217,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   bool _fetchInProgress = false;
   bool _fetchPending = false;
 
-  late final _fullRefreshRequests = BurstCoalescer<String>(
-    (_) => _flushFullRefresh(),
+  /// Refreshes asked for by one hint burst: room kinds name the slices they
+  /// changed, null asks for the full Request read (which covers them all).
+  late final _refreshRequests = BurstCoalescer<BeaconRoomEntityType?>(
+    _flushRefreshRequests,
   );
 
   bool _closingBeacon = false;
@@ -249,7 +251,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   @override
   Future<void> close() async {
-    _fullRefreshRequests.dispose();
+    _refreshRequests.dispose();
     if (_watchedTeam.isNotEmpty) _case.unwatchTeamPresence(state.beacon.id);
     await _forwardChangesSub.cancel();
     await _helpOfferChangesSub.cancel();
@@ -275,18 +277,26 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   void _requestFullRefresh() {
     if (isClosed) return;
-    _fullRefreshRequests.request(state.beacon.id);
+    _refreshRequests.request(null);
   }
 
   // Drain a hint burst before entering the gate so its remaining hints do not
   // queue a duplicate. A later burst still queues a refresh if one is running.
-  void _flushFullRefresh() {
+  void _flushRefreshRequests(Set<BeaconRoomEntityType?> types) {
     if (isClosed) return;
-    if (_fetchInProgress) {
-      _fetchPending = true;
+    if (types.contains(null)) {
+      if (_fetchInProgress) {
+        _fetchPending = true;
+        return;
+      }
+      unawaited(_runFetchWithGate());
       return;
     }
-    unawaited(_runFetchWithGate());
+    if (_fetchInProgress) {
+      _pendingRoomTypes.addAll(types.nonNulls);
+      return;
+    }
+    unawaited(_runTargetedFetch(types.nonNulls.toSet()));
   }
 
   /// A `people_seen` frame: the author or a steward opened the People
@@ -1056,11 +1066,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       _requestFullRefresh();
       return;
     }
-    if (_fetchInProgress) {
-      _pendingRoomTypes.add(inv.entityType);
-      return;
-    }
-    unawaited(_runTargetedFetch({inv.entityType}));
+    _refreshRequests.request(inv.entityType);
   }
 
   Future<void> _runTargetedFetch(Set<BeaconRoomEntityType> types) async {

@@ -12,6 +12,7 @@ import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart'
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../my_work/my_work_test_support.dart';
@@ -274,7 +275,7 @@ void main() {
         // stream; neither cubit is manually refreshed.
         final viewClosed = view.stream
             .firstWhere((state) => state.beacon.status == BeaconStatus.closed)
-            .timeout(const Duration(seconds: 2));
+            .timeout(burstCoalescerSettleTimeout);
         final deskClosed = desk.stream
             .firstWhere(
               (state) =>
@@ -284,7 +285,7 @@ void main() {
                         card.beacon.status == BeaconStatus.closed,
                   ),
             )
-            .timeout(const Duration(seconds: 2));
+            .timeout(burstCoalescerSettleTimeout);
         realtime.port.emitChange(
           const RealtimeEntityChange(
             kind: RealtimeEntityKind.beacon,
@@ -294,7 +295,7 @@ void main() {
           ),
         );
         await Future.wait([viewClosed, deskClosed]);
-        await pumpEventQueue(times: 30);
+        await pumpAfterHintBurst();
 
         expect(deskRepo.fetchInitCallCount, greaterThan(deskFetches));
         final card = [

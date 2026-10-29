@@ -21,6 +21,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
@@ -158,9 +159,15 @@ class _Harness {
 /// Matches exactly one call of each name in [names], in any order.
 Matcher _calledOnce(List<String> names) => unorderedEquals(names);
 
-Future<void> _settle() => pumpEventQueue(times: 40);
+Future<void> _settle() => pumpAfterHintBurst();
 
-const _requestOnly = ['roomState', 'plan', 'facts', 'blocker', 'coordinationItems'];
+const _requestOnly = [
+  'roomState',
+  'plan',
+  'facts',
+  'blocker',
+  'coordinationItems',
+];
 
 final _generalThread = RequestThread(
   threadId: RequestThread.generalId,
@@ -257,17 +264,19 @@ void main() {
       expect(cubit.state.status, isA<StateIsSuccess>());
     });
 
-    test('message-delete invalidation refresh makes no Request-only fetch',
-        () async {
-      h.room.emitInvalidation(
-        BeaconRoomEntityType.roomMessage,
-        operation: RealtimeOperation.delete,
-        messageId: 'gone',
-      );
-      await _settle();
-      expect(h.calls, isEmpty);
-      expect(cubit.state.status, isA<StateIsSuccess>());
-    });
+    test(
+      'message-delete invalidation refresh makes no Request-only fetch',
+      () async {
+        h.room.emitInvalidation(
+          BeaconRoomEntityType.roomMessage,
+          operation: RealtimeOperation.delete,
+          messageId: 'gone',
+        );
+        await _settle();
+        expect(h.calls, isEmpty);
+        expect(cubit.state.status, isA<StateIsSuccess>());
+      },
+    );
 
     test('missing scroll target reload makes no Request-only fetch', () async {
       h.room.messages = [
@@ -336,25 +345,27 @@ void main() {
       expect(h.calls, _calledOnce(_requestOnly));
     });
 
-    test('missing scroll target reload calls each Request-only fetch once',
-        () async {
-      h.room.messages = [
-        RoomMessage(
-          id: 'm1',
-          beaconId: kRoomCubitFakeBeaconId,
-          authorId: 'other',
-          body: 'hi',
-          createdAt: DateTime.utc(2026),
-        ),
-      ];
-      await cubit.reloadMessages();
-      h.calls.clear();
+    test(
+      'missing scroll target reload calls each Request-only fetch once',
+      () async {
+        h.room.messages = [
+          RoomMessage(
+            id: 'm1',
+            beaconId: kRoomCubitFakeBeaconId,
+            authorId: 'other',
+            body: 'hi',
+            createdAt: DateTime.utc(2026),
+          ),
+        ];
+        await cubit.reloadMessages();
+        h.calls.clear();
 
-      cubit.prepareThreadScroll(messageId: 'not-loaded');
-      await _settle();
+        cubit.prepareThreadScroll(messageId: 'not-loaded');
+        await _settle();
 
-      expect(h.calls, _calledOnce(_requestOnly));
-    });
+        expect(h.calls, _calledOnce(_requestOnly));
+      },
+    );
 
     for (final type in [
       BeaconRoomEntityType.participant,
@@ -410,24 +421,26 @@ void main() {
   });
 
   group('ThreadHostCubit capabilities (production room factory)', () {
-    test('builds a post-capability RoomCubit that skips Request-only fetches',
-        () async {
-      final h = _Harness(throwing: true);
-      _registerRoomDependencies(h);
-      final host = ThreadHostCubit(
-        beaconId: kRoomCubitFakeBeaconId,
-        capabilities: const RoomCapabilities.post(),
-      );
-      addTearDown(host.close);
+    test(
+      'builds a post-capability RoomCubit that skips Request-only fetches',
+      () async {
+        final h = _Harness(throwing: true);
+        _registerRoomDependencies(h);
+        final host = ThreadHostCubit(
+          beaconId: kRoomCubitFakeBeaconId,
+          capabilities: const RoomCapabilities.post(),
+        );
+        addTearDown(host.close);
 
-      await host.ensureGeneral(_generalThread);
-      final room = host.roomCubit!;
-      await awaitRoomCubitLoad(room);
+        await host.ensureGeneral(_generalThread);
+        final room = host.roomCubit!;
+        await awaitRoomCubitLoad(room);
 
-      expect(room.capabilities, const RoomCapabilities.post());
-      expect(h.calls, isEmpty);
-      expect(room.state.status, isA<StateIsSuccess>());
-    });
+        expect(room.capabilities, const RoomCapabilities.post());
+        expect(h.calls, isEmpty);
+        expect(room.state.status, isA<StateIsSuccess>());
+      },
+    );
 
     test('builds a request-capability RoomCubit by default', () async {
       final h = _Harness(throwing: false);

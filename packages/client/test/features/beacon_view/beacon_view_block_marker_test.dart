@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
@@ -71,7 +72,7 @@ void main() {
     realtime.port.emitChange(_marker('Ublocker'));
     await cubit.stream
         .firstWhere((s) => s.beacon.title == 'Help me move (van booked)')
-        .timeout(const Duration(seconds: 2));
+        .timeout(burstCoalescerSettleTimeout);
 
     expect(repo.fetchByIdCalls, greaterThan(reads));
   });
@@ -83,7 +84,7 @@ void main() {
     realtime.port.emitChange(_marker('Ublocker'));
     await cubit.stream
         .firstWhere((s) => s.beaconUnavailable)
-        .timeout(const Duration(seconds: 2));
+        .timeout(burstCoalescerSettleTimeout);
 
     expect(cubit.state.beaconContentLoaded, isFalse);
     expect(effects.emitted.whereType<ShowError>(), isEmpty);
@@ -107,7 +108,7 @@ void main() {
       realtime.port.emitChange(_marker('Ublocker'));
       await cubit.stream
           .firstWhere((s) => s.beaconUnavailable)
-          .timeout(const Duration(seconds: 2));
+          .timeout(burstCoalescerSettleTimeout);
 
       staleRead.complete(_request());
       await reload;
@@ -123,9 +124,7 @@ void main() {
     server = (_) async => throw const BeaconFetchException();
 
     realtime.port.emitCatchUp();
-    // Room for the read and its 300 ms retry.
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    await pumpEventQueue();
+    await pumpAfterHintBurst();
 
     expect(cubit.state.beaconUnavailable, isFalse);
     expect(cubit.state.beaconContentLoaded, isTrue);

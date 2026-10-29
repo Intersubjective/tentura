@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 import 'beacon_view_case_test_support.dart';
@@ -158,10 +159,13 @@ Future<void> _pumpUntil(
   bool Function() ready, {
   required String reason,
 }) async {
-  // Stay well inside the gate's 2.5 s escape timeout: it must be readiness
-  // that reveals the content in these tests, not the timeout.
-  for (var i = 0; i < 30; i++) {
-    await tester.pump(const Duration(milliseconds: 10));
+  // Realtime refreshes wait for [BurstCoalescer.window] before starting.
+  for (
+    var elapsed = Duration.zero;
+    elapsed < burstCoalescerSettleTimeout;
+    elapsed += const Duration(milliseconds: 50)
+  ) {
+    await tester.pump(const Duration(milliseconds: 50));
     if (ready()) return;
   }
   fail(reason);

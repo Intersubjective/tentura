@@ -75,8 +75,35 @@ final class InboxCase extends UseCaseBase {
 
   Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
-  Future<List<InboxItem>> fetch({required String userId}) =>
-      _repository.fetch(userId: userId);
+  /// The read started in this event-loop turn, if any.
+  ({String userId, Future<List<InboxItem>> read})? _turnRead;
+  int _turnReadEpoch = 0;
+  int? _sharedReadEpoch;
+
+  /// Inbox lists mounted together (Home's and Watching's) share one turn's read
+  /// while it is still open on this case. [forceFresh] skips sharing.
+  Future<List<InboxItem>> fetch({
+    required String userId,
+    bool forceFresh = false,
+  }) {
+    if (!forceFresh) {
+      final shared = _turnRead;
+      if (shared != null &&
+          shared.userId == userId &&
+          _sharedReadEpoch == _turnReadEpoch) {
+        return shared.read;
+      }
+    }
+    final epoch = ++_turnReadEpoch;
+    final turnRead = (userId: userId, read: _repository.fetch(userId: userId));
+    _turnRead = turnRead;
+    _sharedReadEpoch = epoch;
+    Timer.run(() {
+      if (identical(_turnRead, turnRead)) _turnRead = null;
+      if (_sharedReadEpoch == epoch) _sharedReadEpoch = null;
+    });
+    return turnRead.read;
+  }
 
   Future<({List<InboxItem> page, int totalCount})>
   fetchActivityOffersFirstPage({

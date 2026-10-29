@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import 'room_cubit_fakes.dart';
 
 final _kAnchorTime = DateTime.utc(2026, 1, 1, 12);
@@ -36,14 +37,11 @@ Map<String, RoomReadWatermark> _readWatermarks(RoomState state) =>
 
 bool _readWatermarksLoaded(RoomState state) => state.readWatermarksLoaded;
 
-Future<void> _pump() async {
-  // Deliver the async invalidation stream, then its coalesced refresh timer.
-  await Future<void>.delayed(Duration.zero);
-  await Future<void>.delayed(Duration.zero);
-}
+Future<void> _pump() => pumpHintDelivery();
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 30));
+Future<void> _pumpAfterHint() => pumpCoalescedHintRefresh();
+
+Future<void> _settle() => pumpAfterHintBurst();
 
 Future<void> _awaitPeerHandlerSettled(
   FakeBeaconThreadsRepository fakeRoom, {
@@ -100,11 +98,12 @@ void main() {
           'peer-b',
           _kAnchorTime.add(const Duration(minutes: 5)),
         );
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..messages = [_msg('m1', _kAnchorTime)]
-          ..mainRoomReadWatermarks = [peerA, peerB];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [_msg('m1', _kAnchorTime)]
+              ..mainRoomReadWatermarks = [peerA, peerB];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -135,20 +134,21 @@ void main() {
         final watermarkStore = RoomReadWatermarkStore.testing();
         addTearDown(watermarkStore.dispose);
 
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..participants = const <BeaconParticipant>[]
-          ..mainRoomReadWatermarks = [
-            _watermark(kRoomCubitFakeMyUserId, watermarkTime),
-          ]
-          ..messages = [
-            _msg(
-              'before',
-              watermarkTime.subtract(const Duration(minutes: 1)),
-            ),
-            _msg('after', watermarkTime.add(const Duration(minutes: 1))),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..participants = const <BeaconParticipant>[]
+              ..mainRoomReadWatermarks = [
+                _watermark(kRoomCubitFakeMyUserId, watermarkTime),
+              ]
+              ..messages = [
+                _msg(
+                  'before',
+                  watermarkTime.subtract(const Duration(minutes: 1)),
+                ),
+                _msg('after', watermarkTime.add(const Duration(minutes: 1))),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final case_ = roomCubitMakeCase(
@@ -179,23 +179,26 @@ void main() {
       () async {
         registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
 
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..fetchMainRoomReadWatermarksError = StateError('watermark offline')
-          ..messages = [_msg('stable', _kAnchorTime)]
-          ..participants = [
-            BeaconParticipant(
-              id: 'p-viewer',
-              beaconId: kRoomCubitFakeBeaconId,
-              userId: kRoomCubitFakeMyUserId,
-              role: 0,
-              status: 0,
-              roomAccess: 1,
-              createdAt: DateTime.utc(2026),
-              updatedAt: DateTime.utc(2026),
-            ),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..fetchMainRoomReadWatermarksError = StateError(
+                'watermark offline',
+              )
+              ..messages = [_msg('stable', _kAnchorTime)]
+              ..participants = [
+                BeaconParticipant(
+                  id: 'p-viewer',
+                  beaconId: kRoomCubitFakeBeaconId,
+                  userId: kRoomCubitFakeMyUserId,
+                  role: 0,
+                  status: 0,
+                  roomAccess: 1,
+                  createdAt: DateTime.utc(2026),
+                  updatedAt: DateTime.utc(2026),
+                ),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -218,13 +221,14 @@ void main() {
         registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
 
         const peerUserId = 'peer-u';
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..messages = [_msg('m1', _kAnchorTime)]
-          ..mainRoomReadWatermarks = [
-            _watermark(peerUserId, _kNewerWatermark),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [_msg('m1', _kAnchorTime)]
+              ..mainRoomReadWatermarks = [
+                _watermark(peerUserId, _kNewerWatermark),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -258,13 +262,14 @@ void main() {
         registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
 
         const peerUserId = 'peer-seen';
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..messages = [_msg('m1', _kAnchorTime)]
-          ..mainRoomReadWatermarks = [
-            _watermark(peerUserId, _kOlderWatermark),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [_msg('m1', _kAnchorTime)]
+              ..mainRoomReadWatermarks = [
+                _watermark(peerUserId, _kOlderWatermark),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -303,13 +308,14 @@ void main() {
         registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
 
         const peerUserId = 'peer-stale';
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..messages = [_msg('m1', _kAnchorTime)]
-          ..mainRoomReadWatermarks = [
-            _watermark(peerUserId, _kNewerWatermark),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [_msg('m1', _kAnchorTime)]
+              ..mainRoomReadWatermarks = [
+                _watermark(peerUserId, _kNewerWatermark),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -351,13 +357,14 @@ void main() {
       registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
 
       const peerUserId = 'peer-same';
-      final fakeRoom = FakeBeaconThreadsRepository(
-        userId: kRoomCubitFakeMyUserId,
-      )
-        ..messages = [_msg('m1', _kAnchorTime)]
-        ..mainRoomReadWatermarks = [
-          _watermark(peerUserId, _kNewerWatermark),
-        ];
+      final fakeRoom =
+          FakeBeaconThreadsRepository(
+              userId: kRoomCubitFakeMyUserId,
+            )
+            ..messages = [_msg('m1', _kAnchorTime)]
+            ..mainRoomReadWatermarks = [
+              _watermark(peerUserId, _kNewerWatermark),
+            ];
       addTearDown(fakeRoom.dispose);
 
       final cubit = roomCubitForTest(fakeRoom);
@@ -397,14 +404,15 @@ void main() {
         const peerUserId = 'peer-preload';
         final preloadWatermark = _kAnchorTime.add(const Duration(hours: 3));
         final loadGate = Completer<void>();
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..messages = [_msg('m1', _kAnchorTime)]
-          ..fetchMessagesCompleter = loadGate
-          ..mainRoomReadWatermarks = [
-            _watermark(peerUserId, _kOlderWatermark),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [_msg('m1', _kAnchorTime)]
+              ..fetchMessagesCompleter = loadGate
+              ..mainRoomReadWatermarks = [
+                _watermark(peerUserId, _kOlderWatermark),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -432,13 +440,14 @@ void main() {
       registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
 
       final viewerWatermark = _kAnchorTime.add(const Duration(hours: 4));
-      final fakeRoom = FakeBeaconThreadsRepository(
-        userId: kRoomCubitFakeMyUserId,
-      )
-        ..messages = [_msg('m1', _kAnchorTime)]
-        ..mainRoomReadWatermarks = [
-          _watermark(kRoomCubitFakeMyUserId, _kOlderWatermark),
-        ];
+      final fakeRoom =
+          FakeBeaconThreadsRepository(
+              userId: kRoomCubitFakeMyUserId,
+            )
+            ..messages = [_msg('m1', _kAnchorTime)]
+            ..mainRoomReadWatermarks = [
+              _watermark(kRoomCubitFakeMyUserId, _kOlderWatermark),
+            ];
       addTearDown(fakeRoom.dispose);
 
       final cubit = roomCubitForTest(fakeRoom);
@@ -467,13 +476,14 @@ void main() {
 
         const peerUserId = 'peer-inflight';
         final inflightWatermark = _kAnchorTime.add(const Duration(hours: 5));
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )
-          ..messages = [_msg('m1', _kAnchorTime)]
-          ..mainRoomReadWatermarks = [
-            _watermark(peerUserId, _kOlderWatermark),
-          ];
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [_msg('m1', _kAnchorTime)]
+              ..mainRoomReadWatermarks = [
+                _watermark(peerUserId, _kOlderWatermark),
+              ];
         addTearDown(fakeRoom.dispose);
 
         final cubit = roomCubitForTest(fakeRoom);
@@ -489,7 +499,7 @@ void main() {
             _watermark(peerUserId, _kOlderWatermark),
           ];
         fakeRoom.emitInvalidation(BeaconRoomEntityType.participant);
-        await _pump();
+        await _pumpAfterHint();
         expect(fakeRoom.fetchMessagesCallCount, greaterThan(1));
 
         _emitSeenPeer(

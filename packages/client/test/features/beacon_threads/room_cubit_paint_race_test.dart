@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart'
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import 'room_cubit_fakes.dart';
 
@@ -41,14 +42,11 @@ RealtimeRoomMessagePaint _paint(
   threadItemId: threadItemId,
 );
 
-Future<void> _pump() async {
-  // Deliver the async invalidation stream, then its coalesced refresh timer.
-  await Future<void>.delayed(Duration.zero);
-  await Future<void>.delayed(Duration.zero);
-}
+Future<void> _pump() => pumpHintDelivery();
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 30));
+Future<void> _pumpAfterHint() => pumpCoalescedHintRefresh();
+
+Future<void> _settle() => pumpAfterHintBurst();
 
 void main() {
   group('RoomCubit peer paint vs stale refresh', () {
@@ -72,7 +70,7 @@ void main() {
         final gate = Completer<void>();
         fakeRoom.fetchMessagesCompleter = gate;
         fakeRoom.emitInvalidation(BeaconRoomEntityType.roomReaction);
-        await _pump();
+        await _pumpAfterHint();
         expect(fakeRoom.fetchMessagesCallCount, greaterThan(1));
 
         final paint = _paint('m-paint');
@@ -120,7 +118,7 @@ void main() {
           ..fetchMessagesCompleter = messagesGate
           ..fetchParticipantsCompleter = participantsGate;
         fakeRoom.emitInvalidation(BeaconRoomEntityType.participant);
-        await _pump();
+        await _pumpAfterHint();
         expect(fakeRoom.fetchMessagesCallCount, greaterThan(1));
 
         messagesGate.complete();
@@ -163,7 +161,7 @@ void main() {
         final gate = Completer<void>();
         fakeRoom.fetchMessagesCompleter = gate;
         fakeRoom.emitInvalidation(BeaconRoomEntityType.roomReaction);
-        await _pump();
+        await _pumpAfterHint();
 
         final paint = _paint('m-hydrate', body: 'paint body');
         fakeRoom.emitInvalidation(
@@ -241,7 +239,7 @@ void main() {
         final gate = Completer<void>();
         fakeRoom.fetchMessagesCompleter = gate;
         fakeRoom.emitInvalidation(BeaconRoomEntityType.roomReaction);
-        await _pump();
+        await _pumpAfterHint();
 
         final paint = _paint('m-del');
         fakeRoom.emitInvalidation(
@@ -294,7 +292,7 @@ void main() {
           ..fetchMessagesCompleter = fetchGate
           ..deleteMessageGate = deleteGate;
         fakeRoom.emitInvalidation(BeaconRoomEntityType.roomReaction);
-        await _pump();
+        await _pumpAfterHint();
 
         final deleteFuture = cubit.deleteMessage(messageId: victim.id);
         await _pump();
@@ -319,10 +317,12 @@ void main() {
       () async {
         registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
         final victim = _msg('m-local-fail');
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )..messages = [victim]
-          ..deleteMessageError = StateError('nope');
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [victim]
+              ..deleteMessageError = StateError('nope');
         addTearDown(fakeRoom.dispose);
         final cubit = roomCubitForTest(fakeRoom);
         addTearDown(cubit.close);
@@ -352,7 +352,7 @@ void main() {
           ..fetchMessagesCompleter = fetchGate
           ..createMessageGate = createGate;
         fakeRoom.emitInvalidation(BeaconRoomEntityType.roomReaction);
-        await _pump();
+        await _pumpAfterHint();
 
         final sendFuture = cubit.sendMessage(body: 'from me');
         await _pump();
@@ -370,7 +370,8 @@ void main() {
 
         // Stale snapshot still lacks the server id.
         fetchGate.complete();
-        await _settle();
+        await _pump();
+        await pumpEventQueue(times: 30);
 
         expect(
           cubit.state.messages.any((m) => m.id == 'msg-created'),
@@ -465,10 +466,12 @@ void main() {
           'm-pin',
           createdAt: _kBaseTime.subtract(const Duration(days: 1)),
         );
-        final fakeRoom = FakeBeaconThreadsRepository(
-          userId: kRoomCubitFakeMyUserId,
-        )..messages = [inWindow]
-          ..fetchMessageTargetsById[offWindow.id] = offWindow;
+        final fakeRoom =
+            FakeBeaconThreadsRepository(
+                userId: kRoomCubitFakeMyUserId,
+              )
+              ..messages = [inWindow]
+              ..fetchMessageTargetsById[offWindow.id] = offWindow;
         addTearDown(fakeRoom.dispose);
         final cubit = roomCubitForTest(fakeRoom);
         addTearDown(cubit.close);

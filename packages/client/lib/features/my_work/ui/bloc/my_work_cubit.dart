@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
@@ -105,7 +106,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   static const _pendingRetryDelay = Duration(milliseconds: 400);
-  static const _hintDebounce = Duration(milliseconds: 100);
 
   final String _userId;
   final MyWorkCase _myWorkCase;
@@ -124,7 +124,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final _pendingDeskBeaconIds = <String>{};
 
   Timer? _pendingRetryTimer;
-  Timer? _hintRefreshTimer;
+  late final _hintRefreshRequests = BurstCoalescer<void>((_) {
+    if (!isClosed) unawaited(fetch(showLoading: false));
+  });
 
   bool _fetchInFlight = false;
   bool _fetchQueued = false;
@@ -160,7 +162,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   @override
   Future<void> close() async {
     _pendingRetryTimer?.cancel();
-    _hintRefreshTimer?.cancel();
+    _hintRefreshRequests.dispose();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _forwardChanges.cancel();
@@ -179,13 +181,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   /// (including AttentionCase's later announcement) before reading it once.
   void _scheduleHintRefresh() {
     if (isClosed) return;
-    _hintRefreshTimer?.cancel();
-    _hintRefreshTimer = Timer(_hintDebounce, () {
-      _hintRefreshTimer = null;
-      if (!isClosed) {
-        unawaited(fetch(showLoading: false));
-      }
-    });
+    _hintRefreshRequests.request(null);
   }
 
   void _onRequestInvalidated(String beaconId) {

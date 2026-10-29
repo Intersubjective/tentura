@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -49,7 +50,10 @@ class InboxCubit extends Cubit<InboxState> {
       cancelOnError: false,
     );
     _inboxLocalMutations = _inboxCase.localMutations.listen(
-      (_) => unawaited(fetch(showLoading: false, showError: false)),
+      (_) {
+        _forceNextInboxRead = true;
+        unawaited(fetch(showLoading: false, showError: false));
+      },
       cancelOnError: false,
     );
     _deskRelevantChanges = _inboxCase.deskRelevantChanges.listen(
@@ -57,13 +61,11 @@ class InboxCubit extends Cubit<InboxState> {
       cancelOnError: false,
     );
     _catchUps = _inboxCase.catchUps.listen(
-      (_) => unawaited(fetch(showLoading: false, showError: false)),
+      (_) => _deskRelevantRequests.request(null),
       cancelOnError: false,
     );
     unawaited(fetch());
   }
-
-  static const _deskRelevantDebounce = Duration(milliseconds: 50);
 
   final String _userId;
   final InboxCase _inboxCase;
@@ -74,7 +76,9 @@ class InboxCubit extends Cubit<InboxState> {
 
   final UiEffectPort _effects;
 
-  Timer? _deskRelevantTimer;
+  late final _deskRelevantRequests = BurstCoalescer<void>((_) {
+    if (!isClosed) unawaited(fetch(showLoading: false, showError: false));
+  });
 
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<String> _forwardCommandCompleted;
@@ -86,6 +90,7 @@ class InboxCubit extends Cubit<InboxState> {
   /// an in-flight initial load and leave [StateIsLoading] stuck.
   Completer<bool>? _fetchGate;
   var _fetchQueued = false;
+  var _forceNextInboxRead = false;
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -121,13 +126,7 @@ class InboxCubit extends Cubit<InboxState> {
 
   void _onDeskRelevantChanged(String beaconId) {
     if (isClosed || beaconId.isEmpty) return;
-    _deskRelevantTimer?.cancel();
-    _deskRelevantTimer = Timer(_deskRelevantDebounce, () {
-      _deskRelevantTimer = null;
-      if (!isClosed) {
-        unawaited(fetch(showLoading: false, showError: false));
-      }
-    });
+    _deskRelevantRequests.request(null);
   }
 
   Future<void> _fetchAndNotifyIfMoved(String beaconId) async {
@@ -172,7 +171,7 @@ class InboxCubit extends Cubit<InboxState> {
 
   @override
   Future<void> close() async {
-    _deskRelevantTimer?.cancel();
+    _deskRelevantRequests.dispose();
     await _helpOfferChanges.cancel();
     await _forwardCommandCompleted.cancel();
     await _inboxLocalMutations.cancel();
@@ -209,10 +208,17 @@ class InboxCubit extends Cubit<InboxState> {
     _fetchGate = gate;
     var ok = false;
     try {
-      ok = await _runFetch(showLoading: showLoading, showError: showError);
+      ok = await _runFetch(
+        showLoading: showLoading,
+        showError: showError,
+      );
       while (_fetchQueued && !isClosed) {
         _fetchQueued = false;
-        ok = await _runFetch(showLoading: false, showError: false);
+        ok = await _runFetch(
+          showLoading: false,
+          showError: false,
+          forceFreshInboxRead: true,
+        );
       }
     } finally {
       _fetchGate = null;
@@ -226,6 +232,7 @@ class InboxCubit extends Cubit<InboxState> {
   Future<bool> _runFetch({
     required bool showLoading,
     required bool showError,
+    bool forceFreshInboxRead = false,
   }) async {
     if (showLoading) {
       emit(
@@ -236,7 +243,13 @@ class InboxCubit extends Cubit<InboxState> {
       );
     }
     try {
-      final raw = await _inboxCase.fetch(userId: _userId);
+      final forceFresh =
+          forceFreshInboxRead || showLoading || _forceNextInboxRead;
+      _forceNextInboxRead = false;
+      final raw = await _inboxCase.fetch(
+        userId: _userId,
+        forceFresh: forceFresh,
+      );
       if (isClosed) return false;
       final items = [
         for (final item in raw) _withResolvedRoomUnread(item),

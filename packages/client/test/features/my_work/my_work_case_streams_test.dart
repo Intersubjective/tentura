@@ -14,6 +14,7 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import 'my_work_test_support.dart';
 
@@ -169,7 +170,7 @@ void main() {
             ),
           ],
           helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
+          obligationBeacons: const [],
           archivedCountHint: 0,
         );
     });
@@ -192,7 +193,7 @@ void main() {
     );
 
     Future<void> waitForFetchCount(int expected) async {
-      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
       while (DateTime.now().isBefore(deadline)) {
         if (repo.fetchInitCallCount >= expected) {
           return;
@@ -300,7 +301,7 @@ void main() {
             aggregateId: 'b1',
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await pumpAfterHintBurst();
 
         expect(requestInvalidations, ['b1']);
         expect(cubit.state.isSuccess, isTrue);
@@ -314,10 +315,12 @@ void main() {
           (
             initReads: repo.fetchInitCallCount,
             attentionReads:
-                attentionRepo.myWorkAttentionCallCount - attentionReadsAfterLoad,
+                attentionRepo.myWorkAttentionCallCount -
+                attentionReadsAfterLoad,
           ),
           (initReads: 2, attentionReads: 1),
-          reason: 'The initial load plus one trailing refresh covers the burst.',
+          reason:
+              'The initial load plus one trailing refresh covers the burst.',
         );
       },
     );
@@ -372,7 +375,7 @@ void main() {
         ..emitCatchUp(connectionEpoch: 4);
 
       await waitForFetchCount(2);
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await pumpAfterHintBurst();
       expect(repo.fetchInitCallCount, 2);
 
       await cubit.close();
@@ -410,7 +413,7 @@ void main() {
             ),
           );
 
-        await Future<void>.delayed(const Duration(milliseconds: 150));
+        await pumpAfterHintBurst();
 
         expect(repo.fetchInitCallCount, 2);
 
@@ -433,7 +436,7 @@ void main() {
         );
 
         await waitForFetchCount(2);
-        await Future<void>.delayed(const Duration(milliseconds: 350));
+        await pumpAfterHintBurst();
         expect(repo.fetchInitCallCount, 2);
 
         await cubit.close();
@@ -464,7 +467,7 @@ void main() {
 
       await waitForFetchCount(3);
       await cubit.stream.firstWhere((s) => s.attentionLoaded);
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await pumpAfterHintBurst();
       expect(repo.fetchInitCallCount, 3);
     });
 
@@ -479,7 +482,7 @@ void main() {
             ),
           ],
           helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
+          obligationBeacons: const [],
           archivedCountHint: 0,
         );
 
@@ -600,7 +603,7 @@ void main() {
             authoredBeacon('b-new', updatedAt: DateTime(2025, 9)),
           ],
           helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
+          obligationBeacons: const [],
           archivedCountHint: 0,
         );
 

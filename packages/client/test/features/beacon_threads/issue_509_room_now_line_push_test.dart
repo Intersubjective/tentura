@@ -16,6 +16,7 @@ import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invali
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
@@ -74,8 +75,12 @@ RealtimeEntityChange _beaconUpdate(
 );
 
 Future<void> _pumpUntil(bool Function() done) async {
-  for (var i = 0; i < 40 && !done(); i++) {
-    await Future<void>.delayed(const Duration(milliseconds: 25));
+  final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
+  while (!done() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  if (!done()) {
+    fail('condition not met within $burstCoalescerSettleTimeout');
   }
 }
 

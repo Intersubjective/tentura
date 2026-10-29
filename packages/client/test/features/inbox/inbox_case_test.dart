@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -18,8 +19,12 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
-import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/block/data/repository/block_repository.dart';
+import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
+import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
@@ -28,6 +33,7 @@ import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../block/support/controllable_block_case.dart';
 
@@ -408,7 +414,7 @@ void main() {
         }
         forwardRepo.emitHelpOfferChange(const HelpOfferInvalidated('b1'));
 
-        await Future<void>.delayed(const Duration(milliseconds: 150));
+        await pumpAfterHintBurst();
 
         expect(cubit.state.items, [refreshedItem]);
         expect(cubit.state.isSuccess, isTrue);
@@ -439,7 +445,7 @@ void main() {
           ),
         );
 
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await pumpAfterHintBurst();
 
       expect(repo.fetchCallCount, 2);
 
@@ -468,7 +474,7 @@ void main() {
           entityType: BeaconRoomEntityType.roomSeen,
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await pumpAfterHintBurst();
 
       expect(cubit.state.items.single.roomHints?.roomUnreadCount, 0);
       expect(effects.emitted, isEmpty);
@@ -489,7 +495,7 @@ void main() {
         repo.fetchResult = [_item(status: InboxItemStatus.watching)];
 
         forwardRepo.emitForwardChange('b-forward');
-        await Future<void>.delayed(const Duration(milliseconds: 150));
+        await pumpAfterHintBurst();
 
         expect(cubit.state.items.single.status, InboxItemStatus.watching);
         expect(cubit.state.pendingMovedNudge, isNull);
@@ -529,21 +535,24 @@ void main() {
       repo.fetchResult = [_item(status: InboxItemStatus.rejected)];
 
       realtimePort.emitCatchUp();
-      await Future<void>.delayed(Duration.zero);
-
-      expect(cubit.state.items.single.status, InboxItemStatus.rejected);
+      await cubit.stream
+          .firstWhere(
+            (s) => s.items.single.status == InboxItemStatus.rejected,
+          )
+          .timeout(burstCoalescerSettleTimeout);
       expect(cubit.state.pendingMovedNudge, isNull);
       await cubit.close();
     });
 
     test('block change silently refreshes the authoritative list', () async {
-      final blockCase = ControllableBlockCase();
+      final blockRepo = _ControllableBlockRepository();
+      addTearDown(blockRepo.dispose);
       final blockInboxCase = buildTestInboxCase(
         repo,
         beaconRoom,
         forwardRepository: forwardRepo,
         realtimeSyncCase: realtimeSyncCase,
-        blockCase: blockCase,
+        blockCase: BlockCase(blockRepo),
       );
       repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
       final cubit = InboxCubit(
@@ -555,13 +564,12 @@ void main() {
       expect(repo.fetchCallCount, 1);
       repo.fetchResult = [_item(status: InboxItemStatus.rejected)];
 
-      blockCase.emitBlock();
-      await Future<void>.delayed(Duration.zero);
-
-      expect(cubit.state.items.single.status, InboxItemStatus.rejected);
+      blockRepo.emitBlock();
+      await cubit.stream.firstWhere(
+        (s) => s.items.single.status == InboxItemStatus.rejected,
+      );
       expect(cubit.state.pendingMovedNudge, isNull);
       await cubit.close();
-      await blockCase.dispose();
     });
 
     test('overlapping fetches coalesce; latest snapshot wins', () async {
@@ -572,6 +580,8 @@ void main() {
         effects: FakeUiEffectPort(),
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
+      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue(times: 5);
 
       final first = Completer<List<InboxItem>>();
       final second = Completer<List<InboxItem>>();
@@ -581,7 +591,7 @@ void main() {
       final b = cubit.fetch(showLoading: false, showError: false);
 
       first.complete([_item(status: InboxItemStatus.watching)]);
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue(times: 30);
       second.complete([_item(status: InboxItemStatus.rejected)]);
 
       expect(await a, isTrue);
@@ -600,9 +610,14 @@ void main() {
         effects: FakeUiEffectPort(),
       );
       expect(cubit.state.isLoading, isTrue);
+      final failed = cubit.stream.firstWhere((s) => s.projectionFailed);
 
-      initial.completeError(Exception('initial fetch failed'));
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue(times: 30);
+      expect(repo.fetchCallCount, 1);
+      scheduleMicrotask(
+        () => initial.completeError(Exception('initial fetch failed')),
+      );
+      await failed;
 
       expect(cubit.state.projectionLoaded, isFalse);
       expect(cubit.state.projectionFailed, isTrue);
@@ -618,14 +633,19 @@ void main() {
         inboxCase: case_,
         effects: FakeUiEffectPort(),
       );
+      final failed = cubit.stream.firstWhere((s) => s.projectionFailed);
 
-      initial.completeError(Exception('initial fetch failed'));
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue(times: 30);
+      expect(repo.fetchCallCount, 1);
+      scheduleMicrotask(
+        () => initial.completeError(Exception('initial fetch failed')),
+      );
+      await failed;
       expect(cubit.state.projectionFailed, isTrue);
 
       repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
       await cubit.fetch();
-      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.projectionLoaded, isTrue);
 
       expect(cubit.state.projectionLoaded, isTrue);
       expect(cubit.state.projectionFailed, isFalse);
@@ -644,12 +664,19 @@ void main() {
         await cubit.stream.firstWhere((state) => state.projectionLoaded);
         expect(cubit.state.projectionFailed, isFalse);
 
+        await Future<void>.delayed(BurstCoalescer.window);
         final silent = Completer<List<InboxItem>>();
         repo.pendingFetches.add(silent);
-        unawaited(cubit.fetch(showLoading: false, showError: false));
-        await Future<void>.delayed(Duration.zero);
-        silent.completeError(Exception('silent refresh failed'));
-        await Future<void>.delayed(Duration.zero);
+        final fetchDone = cubit.fetch(showLoading: false, showError: false);
+        final deadline = DateTime.now().add(const Duration(seconds: 3));
+        while (repo.fetchCallCount < 2 && DateTime.now().isBefore(deadline)) {
+          await pumpEventQueue(times: 5);
+        }
+        expect(repo.fetchCallCount, 2);
+        scheduleMicrotask(
+          () => silent.completeError(Exception('silent refresh failed')),
+        );
+        expect(await fetchDone, isFalse);
 
         expect(cubit.state.projectionLoaded, isTrue);
         expect(cubit.state.projectionFailed, isFalse);
@@ -670,14 +697,20 @@ void main() {
           effects: FakeUiEffectPort(),
         );
         expect(cubit.state.isLoading, isTrue);
+        final settled = cubit.stream.firstWhere(
+          (s) => s.isSuccess && s.projectionLoaded,
+        );
 
         realtimePort.emitCatchUp();
-        await Future<void>.delayed(Duration.zero);
-
         initial.complete(const []);
-        await Future<void>.delayed(Duration.zero);
-        silent.completeError(Exception('silent refresh failed'));
-        await Future<void>.delayed(Duration.zero);
+        await pumpEventQueue(times: 30);
+        expect(repo.fetchCallCount, greaterThanOrEqualTo(1));
+        await Future<void>.delayed(BurstCoalescer.window);
+        expect(repo.fetchCallCount, 2);
+        scheduleMicrotask(
+          () => silent.completeError(Exception('silent refresh failed')),
+        );
+        await settled.timeout(burstCoalescerSettleTimeout);
 
         expect(cubit.state.isSuccess, isTrue);
         expect(cubit.state.projectionLoaded, isTrue);
@@ -780,6 +813,25 @@ class _FakePollingRepository implements PollingRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _ControllableBlockRepository implements BlockRepository {
+  final _changes = StreamController<RepositoryEvent<BlockIntent>>.broadcast();
+
+  @override
+  Stream<RepositoryEvent<BlockIntent>> get changes => _changes.stream;
+
+  void emitBlock({String objectId = 'U-blocked'}) {
+    _changes.add(
+      RepositoryEventCreate(BlockIntent(blocked: Profile(id: objectId))),
+    );
+  }
+
+  @override
+  Future<void> dispose() => _changes.close();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class FakeInboxRepository implements InboxRepository {
   ({String beaconId, String privateNote})? lastDismiss;
   final _localMutationsController = StreamController<void>.broadcast();
@@ -818,6 +870,7 @@ class FakeInboxRepository implements InboxRepository {
     if (pendingFetches.isNotEmpty) {
       return pendingFetches.removeAt(0).future;
     }
+    await Future<void>.delayed(Duration.zero);
     return fetchResult;
   }
 

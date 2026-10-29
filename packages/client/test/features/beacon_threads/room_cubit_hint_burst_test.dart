@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invali
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
 
@@ -96,17 +97,16 @@ void main() {
               ..emitInvalidation(BeaconRoomEntityType.participant)
               ..emitInvalidation(BeaconRoomEntityType.helpOffer)
               ..emitInvalidation(BeaconRoomEntityType.coordinationItem);
-            // Let any debounce expire while the snapshot remains in flight.
-            async.elapse(const Duration(seconds: 1));
+            // Let the coalesced refresh start while the snapshot remains in flight.
+            elapseAfterHintBurst(async);
             expect(repo.fetchMessagesCallCount - messagesAfterLoad, 1);
             expect(gate.isCompleted, isFalse);
             expect(repo.fetchRoomStateCalls - roomStateAfterLoad, 0);
             expect(cubit.state.messages, isEmpty);
 
             gate.complete();
-            async
-              ..flushMicrotasks()
-              ..elapse(const Duration(seconds: 1));
+            async.flushMicrotasks();
+            elapseAfterHintBurst(async);
 
             expect(cubit.state.loadError, isNull);
             expect(cubit.state.messages.single.id, 'fresh-message');

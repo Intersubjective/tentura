@@ -8,6 +8,7 @@ import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invali
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
+import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 
@@ -81,7 +82,7 @@ void main() {
               .firstWhere((state) => state.beaconContextLoaded)
               .timeout(const Duration(seconds: 2));
         }
-        await pumpEventQueue(times: 30);
+        await pumpAfterHintBurst();
         expect(h.cubit.state.beacon.title, 'Initial title');
         final detailAfterLoad = h.beaconRepo.fetchByIdCalls;
         final offersAfterLoad = h.coordination.fetchHelpOffersCalls;
@@ -130,8 +131,14 @@ void main() {
           ..invalidateRoom(BeaconRoomEntityType.participant)
           ..invalidateRoom(BeaconRoomEntityType.helpOffer)
           ..invalidateRoom(BeaconRoomEntityType.coordinationItem);
-        await allHintsDelivered.future.timeout(const Duration(seconds: 2));
-        await fetchStarted.future.timeout(const Duration(seconds: 2));
+        await allHintsDelivered.future.timeout(burstCoalescerSettleTimeout);
+        await pumpAfterHintBurst();
+        expect(
+          fetchStarted.isCompleted,
+          isTrue,
+          reason:
+              'BurstCoalescer must start the held detail read after its window',
+        );
         // Flush the streams and chained cubit callbacks while the first read
         // is still blocked. Every hint must have reached its listener here.
         await pumpEventQueue(times: 30);
@@ -157,7 +164,7 @@ void main() {
 
         heldFetch.complete(_readableBeacon('Burst title'));
         // Drain the full refresh and any queued follow-up before counting.
-        await pumpEventQueue(times: 30);
+        await pumpAfterHintBurst();
         expect(h.cubit.state.beacon.title, 'Burst title');
         final burstReads = (
           detail: h.beaconRepo.fetchByIdCalls - detailAfterLoad,
@@ -174,7 +181,7 @@ void main() {
         h.beaconRepo.fetchByIdHandler = (_) async =>
             _readableBeacon('Later participant title');
         h.invalidateRoom(BeaconRoomEntityType.participant);
-        await pumpEventQueue(times: 30);
+        await pumpAfterHintBurst();
         expect(h.cubit.state.beacon.title, 'Later participant title');
 
         expect(
