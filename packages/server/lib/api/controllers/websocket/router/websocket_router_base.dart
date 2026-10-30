@@ -34,6 +34,12 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
             '[WebsocketRouterBase] PG entity_changes error: $e',
           ),
         );
+    _presenceSubscription = pgNotificationService.presenceNotifications.listen(
+      _onPresenceNotification,
+      onError: (Object e) => logger.severe(
+        '[WebsocketRouterBase] PG user_presence error: $e',
+      ),
+    );
     _recoverySubscription = pgNotificationService.recoveryNotifications.listen(
       _onPgListenerRecovery,
       onError: (Object e) => logger.severe(
@@ -45,11 +51,13 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
   final PgNotificationService pgNotificationService;
 
   late final StreamSubscription<String> _entityChangeSubscription;
+  late final StreamSubscription<String> _presenceSubscription;
   late final StreamSubscription<PgNotificationRecovery> _recoverySubscription;
 
   Future<void> dispose() async {
     disposeEntityChanges();
     await _entityChangeSubscription.cancel();
+    await _presenceSubscription.cancel();
     await _recoverySubscription.cancel();
   }
 
@@ -71,6 +79,39 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
       'sequence=${recovery.sequence} sessions=${sessions.length} '
       'isolate=${Isolate.current.debugName ?? 'unnamed'}',
     );
+  }
+
+  /// Carries the change to every web worker, this one included: a watcher's
+  /// socket may live on another isolate than the watched user's (#533).
+  /// Without a NOTIFY connection, at least this worker's watchers hear it.
+  @override
+  Future<void> broadcastPresenceForUser(String userId) async {
+    try {
+      await pgNotificationService.notify(
+        PgNotificationService.presenceChannel,
+        jsonEncode({'user_id': userId}),
+      );
+    } on Object catch (e) {
+      logger.warning(
+        '[WebsocketRouterBase] presence NOTIFY failed, local fan-out only: $e',
+      );
+      await fanOutPresenceLocally(userId);
+    }
+  }
+
+  void _onPresenceNotification(String payload) {
+    unawaited(() async {
+      try {
+        final data = jsonDecode(payload);
+        final userId = data is Map<String, dynamic> ? data['user_id'] : null;
+        if (userId is! String || userId.isEmpty) return;
+        await fanOutPresenceLocally(userId);
+      } catch (e) {
+        logger.warning(
+          '[WebsocketRouterBase] presence notification failed: $e',
+        );
+      }
+    }());
   }
 
   void _onEntityChangeNotification(String payload) {
