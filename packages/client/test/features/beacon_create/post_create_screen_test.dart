@@ -555,10 +555,8 @@ void main() {
 
       expect(h.port.policies.single, BeaconForwardPolicyValue.closed);
     });
-    // #607 (#439): the author writes their own Post, so the per-person note
-    // field reads as an optional note, not «Заметка для Клары».
     testWidgets(
-      'the per-person note hint is an optional note, not «Заметка для»',
+      'the Post recipients step shows no per-person note field',
       (
         tester,
       ) async {
@@ -584,21 +582,7 @@ void main() {
         );
         await _settle(tester);
 
-        final hints = [
-          for (final field in tester.widgetList<TextField>(
-            find.descendant(
-              of: find.byType(PerRecipientNoteInput),
-              matching: find.byType(TextField),
-            ),
-          ))
-            field.decoration?.hintText,
-        ];
-        // Precondition: Клара has the per-person note field under her row.
-        expect(hints, isNotEmpty);
-        expect(
-          hints,
-          everyElement('Добавьте заметку для этого человека (необязательно)'),
-        );
+        expect(find.byType(PerRecipientNoteInput), findsNothing);
         expect(find.textContaining('Заметка для'), findsNothing);
       },
     );
