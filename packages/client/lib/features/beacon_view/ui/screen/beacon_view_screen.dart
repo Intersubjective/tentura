@@ -1354,6 +1354,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               >(
                                 builder: (context, hierarchy) =>
                                     TenturaFirstLoadGate(
+                                      // Timeout may reveal other partial data,
+                                      // but child reads must finish first.
+                                      revealOnTimeout: !hierarchy.isLoading,
                                       ready:
                                           state.firstLoadDone &&
                                           (room?.state.firstLoadDone ??

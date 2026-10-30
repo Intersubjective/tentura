@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
-/// Gates initial screen content until it is ready, fails, or times out.
+/// Gates initial screen content until it is ready, fails, or optionally times out.
 class TenturaFirstLoadGate extends StatefulWidget {
   const TenturaFirstLoadGate({
     required this.ready,
@@ -13,6 +13,7 @@ class TenturaFirstLoadGate extends StatefulWidget {
     required this.onRetry,
     this.error,
     this.onSignInAgain,
+    this.revealOnTimeout = true,
     super.key,
   });
 
@@ -21,6 +22,9 @@ class TenturaFirstLoadGate extends StatefulWidget {
   final Object? error;
   final VoidCallback onRetry;
   final VoidCallback? onSignInAgain;
+
+  /// Disable when revealing partial content would expose unfinished sections.
+  final bool revealOnTimeout;
 
   @override
   State<TenturaFirstLoadGate> createState() => _TenturaFirstLoadGateState();
@@ -69,7 +73,8 @@ class _TenturaFirstLoadGateState extends State<TenturaFirstLoadGate> {
   @override
   Widget build(BuildContext context) {
     final error = _hasBeenReady ? null : widget.error;
-    final revealed = _hasBeenReady || (error == null && _timedOut);
+    final revealed =
+        _hasBeenReady || (widget.revealOnTimeout && error == null && _timedOut);
     // The child stays mounted while hidden, so its own loads (e.g. a Request
     // room) start behind the gate and revealing it keeps its state.
     return Stack(
