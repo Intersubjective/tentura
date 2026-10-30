@@ -168,8 +168,8 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-29
-review due: 2026-11-05
+reviewed: 2026-10-30
+review due: 2026-11-06
 
 ### bead-authoring-no-commit-line
 When filing beads for Alloy, never write 'Commit: fix(...): ...' in the description: sandboxed agents read it as an order, try to git commit, hit a read-only .git and park the bead as needs-human (j9ab.2, 2026-10-27). Alloy makes the commit itself.
