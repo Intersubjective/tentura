@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
+import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/domain/plan_assignable_people.dart';
@@ -175,6 +176,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
             admissionAction: c.admissionAction,
             lastDeclineReason: c.lastDeclineReason,
             lastRemoveReason: c.lastRemoveReason,
+            stakeState: c.stakeState,
+            withdrawReason: c.withdrawReason,
           ),
         )
         .toList(growable: false);
@@ -325,17 +328,34 @@ class BeaconPeopleTabBody extends StatelessWidget {
     final viewerId = state.myProfile.id;
     final forwardEdges = state.viewerTrail;
     final withdrawn = state.helpOffers
-        .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
+        .where(
+          (c) =>
+              _offerEndKind(c) == HelpOfferEndKind.withdrew &&
+              assignedUserIds.add(c.user.id),
+        )
         .toList(growable: false);
-    // People whose only help offers are withdrawn (no live offer).
+    // Forwards names the offer's end. A later live offer wins: re-offering
+    // is not still "withdrew" (#396).
     final liveOfferUserIds = {
       for (final c in state.helpOffers)
-        if (!c.isWithdrawn) c.user.id,
+        if (_offerEndKind(c) == HelpOfferEndKind.none) c.user.id,
     };
-    final withdrawnOnlyUserIds = {
-      for (final c in state.helpOffers)
-        if (c.isWithdrawn && !liveOfferUserIds.contains(c.user.id)) c.user.id,
-    };
+    final participationEndedForwardIds = <String>{};
+    final declinedForwardIds = <String>{};
+    final withdrewForwardIds = <String>{};
+    for (final c in state.helpOffers) {
+      if (liveOfferUserIds.contains(c.user.id)) continue;
+      switch (_offerEndKind(c)) {
+        case HelpOfferEndKind.participationEnded:
+          participationEndedForwardIds.add(c.user.id);
+        case HelpOfferEndKind.declined:
+          declinedForwardIds.add(c.user.id);
+        case HelpOfferEndKind.withdrew:
+          withdrewForwardIds.add(c.user.id);
+        case HelpOfferEndKind.none:
+          break;
+      }
+    }
 
     bool isDirectAuthorForward(String userId) {
       for (final c in state.helpOffers) {
@@ -386,13 +406,18 @@ class BeaconPeopleTabBody extends StatelessWidget {
             viewerIsAuthor: state.isAuthorOrSteward,
           );
 
-    /// The row's live (non-withdrawn) help offer, or null when there is none
-    /// (e.g. the author's own row).
+    /// The offer this People row should render. A live offer wins. An ended
+    /// or declined offer is deactivated (`isWithdrawn`) and is still the row
+    /// (#783): dropping it would paint an empty card labelled as withdrawn.
     TimelineHelpOffer? liveHelpOfferForRow(BeaconPeopleRow row) {
+      TimelineHelpOffer? closed;
       for (final c in state.helpOffers) {
-        if (c.user.id == row.userId && !c.isWithdrawn) return c;
+        if (c.user.id != row.userId) continue;
+        final kind = _offerEndKind(c);
+        if (kind == HelpOfferEndKind.none) return c;
+        closed ??= c;
       }
-      return null;
+      return closed;
     }
 
     // #533: the team's presence (BeaconViewCubit watches it on every
@@ -408,13 +433,14 @@ class BeaconPeopleTabBody extends StatelessWidget {
       BeaconPeopleRow row, {
       required bool isOnline,
     }) {
-      final liveOffer = liveHelpOfferForRow(row);
-      final hasHelpOffer = liveOffer != null;
-      // No help offer behind this row: there is nothing that could have been
-      // edited, so do not derive an "edited" marker from the participant
-      // row's timestamp. The tile still needs an offer to render the row.
+      final shown = liveHelpOfferForRow(row);
+      // Accept / Decline / End participation apply to an open offer. An
+      // ended or declined row still renders that offer so the badge can
+      // name what happened.
+      final hasHelpOffer =
+          shown != null && _offerEndKind(shown) == HelpOfferEndKind.none;
       final c =
-          liveOffer ??
+          shown ??
           TimelineHelpOffer(
             user: row.profile,
             message: '',
@@ -618,7 +644,9 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 helpOffered: state.involvementHelpOfferedIds,
                 watching: state.involvementWatchingIds,
                 onward: state.involvementOnwardForwarderIds,
-                withdrawn: withdrawnOnlyUserIds,
+                withdrawn: withdrewForwardIds,
+                participationEnded: participationEndedForwardIds,
+                declined: declinedForwardIds,
                 reasonSlugs:
                     state
                         .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
@@ -903,6 +931,14 @@ class BeaconPeopleTabBody extends StatelessWidget {
     );
   }
 }
+
+HelpOfferEndKind _offerEndKind(TimelineHelpOffer offer) => helpOfferEndKind(
+  isWithdrawn: offer.isWithdrawn,
+  admissionAction: offer.admissionAction,
+  stakeState: offer.stakeState,
+  withdrawReason: offer.withdrawReason,
+  coordinationResponse: offer.coordinationResponse,
+);
 
 PresenceCubit? _presenceOf(BuildContext context) {
   try {

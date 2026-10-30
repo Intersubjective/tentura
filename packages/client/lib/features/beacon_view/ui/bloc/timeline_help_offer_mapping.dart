@@ -35,6 +35,11 @@ typedef HelpOfferWithCoordinationRow = ({
 /// offer, as it looked before the server change (#401). A helper who withdraws
 /// after being removed sets a withdraw reason; the server no longer re-admits
 /// that offer, so it is withdrawn here too.
+///
+/// A non-author is not sent admissionAction (the server clears it), so
+/// this flag is true for an ended or declined offer as well. Labels and
+/// People groups use helpOfferEndKind, which still has stake, response
+/// and withdraw reason (#783).
 bool _isWithdrawnRow(HelpOfferWithCoordinationRow c) =>
     c.status == 1 &&
     !(HelpOfferAdmissionAction.tryFromInt(c.admissionAction) ==
