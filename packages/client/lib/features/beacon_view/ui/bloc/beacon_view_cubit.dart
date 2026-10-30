@@ -230,6 +230,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   /// a second full refresh (#366, #611).
   bool _applyingLifecycleStatus = false;
 
+  /// The viewer's own offer, written locally after they offer help, until a
+  /// refetch returns a different slice. A read that still has the pre-offer
+  /// rows is lag: it must not put the old decline back on the page (#744).
+  _OwnOfferOverlay? _ownOfferOverlay;
+
+  /// Last help-offer slice the server actually returned, before that overlay.
+  List<HelpOfferRowRecord> _serverOfferRows = const [];
+
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
   /// Team ids whose presence this screen asked for (U093).
@@ -655,6 +663,18 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         helpTypes: helpTypes,
         notifyHelpOfferListeners: !wasAlreadyHelpOffered,
       );
+      if (isClosed) return;
+      // The write succeeded. Show that offer now; a refetch that still has
+      // the withdrawn row is behind the write (#744).
+      _publishOwnOffer(
+        _ownOfferRow(
+          message: message,
+          helpTypes: helpTypes,
+          offerKind: wasEnoughHelp
+              ? TimelineHelpOffer.offerKindBackup
+              : TimelineHelpOffer.offerKindRegular,
+        ),
+      );
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError && !wasAlreadyHelpOffered) {
         _effects.emit(
@@ -684,6 +704,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         message: message,
         withdrawReason: withdrawReason,
       );
+      if (isClosed) return;
+      // The offer is gone: do not splice the local one back over this read.
+      _ownOfferOverlay = null;
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError) {
         _effects.emit(const ShowMessage(MovedToInboxMessage()));
@@ -1154,11 +1177,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       beaconId: beaconId,
     );
     if (!isClosed && beaconId == state.beacon.id) {
+      final applied = _applyOfferRows(helpOffers);
       emit(
         state.copyWith(
-          helpOffers: _mergeLocalAuthorSeen(
-            _timelineHelpOffersFromRemote(helpOffers),
-          ),
+          helpOffers: applied.helpOffers,
+          isHelpOffered: applied.isHelpOffered,
         ),
       );
     }
@@ -1409,6 +1432,100 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     return true;
   }
 
+  /// Shows [row] as the viewer's offer immediately. A later read that still
+  /// matches the pre-write slice keeps [row]; any other slice replaces it.
+  void _publishOwnOffer(HelpOfferRowRecord row) {
+    if (isClosed) return;
+    _ownOfferOverlay = _OwnOfferOverlay(
+      baseline: List<HelpOfferRowRecord>.of(_serverOfferRows),
+      row: row,
+    );
+    final applied = _applyOfferRows(_serverOfferRows);
+    emit(
+      state.copyWith(
+        helpOffers: applied.helpOffers,
+        isHelpOffered: applied.isHelpOffered,
+      ),
+    );
+  }
+
+  HelpOfferRowRecord _ownOfferRow({
+    required String message,
+    required int offerKind,
+    List<String>? helpTypes,
+  }) {
+    final now = DateTime.now().toUtc();
+    return (
+      beaconId: state.beacon.id,
+      userId: state.myProfile.id,
+      user: state.myProfile,
+      message: message,
+      helpType: helpTypes == null || helpTypes.isEmpty
+          ? null
+          : helpTypes.join(','),
+      roleLabel: null,
+      status: 0,
+      withdrawReason: null,
+      createdAt: now,
+      updatedAt: now,
+      editedAt: null,
+      responseType: null,
+      responseUpdatedAt: null,
+      responseAuthorUserId: null,
+      roomAccess: null,
+      admissionAction: null,
+      lastDeclineReason: null,
+      lastRemoveReason: null,
+      stakeState: CommitmentStakeState.offered.index,
+      offerKind: offerKind,
+      isDirectAuthorForward: false,
+      authorSeenAt: null,
+    );
+  }
+
+  ({
+    List<TimelineHelpOffer> helpOffers,
+    bool isHelpOffered,
+    List<HelpOfferRowRecord> rows,
+  })
+  _applyOfferRows(List<HelpOfferRowRecord> remote) {
+    final rows = _reconcileOfferRows(remote);
+    _serverOfferRows = List<HelpOfferRowRecord>.of(remote);
+    final myId = state.myProfile.id;
+    return (
+      helpOffers: _mergeLocalAuthorSeen(timelineHelpOffersFromRemote(rows)),
+      isHelpOffered: rows.any(
+        (offer) => offer.status == 0 && offer.userId == myId,
+      ),
+      rows: rows,
+    );
+  }
+
+  List<HelpOfferRowRecord> _reconcileOfferRows(
+    List<HelpOfferRowRecord> remote,
+  ) {
+    final overlay = _ownOfferOverlay;
+    if (overlay == null) return remote;
+    if (!_sameOfferRows(remote, overlay.baseline)) {
+      _ownOfferOverlay = null;
+      return remote;
+    }
+    final myId = overlay.row.userId;
+    return [
+      for (final row in remote)
+        if (row.userId != myId) row,
+      overlay.row,
+    ];
+  }
+
+  bool _sameOfferRows(List<HelpOfferRowRecord> a, List<HelpOfferRowRecord> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   Future<List<HelpOfferRowRecord>> _fetchMyHelpOfferAsList(
     String beaconId,
   ) async {
@@ -1522,28 +1639,27 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       BeaconViewState withOffers(
         BeaconViewState current,
         List<HelpOfferRowRecord> offers,
-      ) => current.copyWith(
-        helpOffers: _mergeLocalAuthorSeen(
-          timelineHelpOffersFromRemote(offers),
-        ),
-        isHelpOffered: offers.any(
-          (offer) => offer.status == 0 && offer.userId == myUserId,
-        ),
-        timeline: (<TimelineEntry>[
-          for (final offer in offers)
-            ...helpOfferRowsToTimelineEntries(beacon: beacon, row: offer),
-          if (beacon.statusChangedAt != null)
-            TimelineBeaconCoordinationStatusChanged(
+      ) {
+        final applied = _applyOfferRows(offers);
+        return current.copyWith(
+          helpOffers: applied.helpOffers,
+          isHelpOffered: applied.isHelpOffered,
+          timeline: (<TimelineEntry>[
+            for (final offer in applied.rows)
+              ...helpOfferRowsToTimelineEntries(beacon: beacon, row: offer),
+            if (beacon.statusChangedAt != null)
+              TimelineBeaconCoordinationStatusChanged(
+                author: beacon.author,
+                status: beacon.status,
+                at: beacon.statusChangedAt!,
+              ),
+            TimelineCreation(
               author: beacon.author,
-              status: beacon.status,
-              at: beacon.statusChangedAt!,
+              createdAt: beacon.createdAt,
             ),
-          TimelineCreation(
-            author: beacon.author,
-            createdAt: beacon.createdAt,
-          ),
-        ]..sort()),
-      );
+          ]..sort()),
+        );
+      }
 
       Future<List<HelpOfferRowRecord>> loadOffers() async {
         final offers = await (skipInvolvement
@@ -1872,6 +1988,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           loadError: 'Wrong id: $id',
         ),
       };
+}
+
+/// The viewer's offer as this page shows it, until a refetch differs from
+/// [baseline] (the slice from before the write).
+final class _OwnOfferOverlay {
+  const _OwnOfferOverlay({required this.baseline, required this.row});
+
+  final List<HelpOfferRowRecord> baseline;
+  final HelpOfferRowRecord row;
 }
 
 /// One help offer row → ordered timeline events (offer / author response / edit / withdraw).
