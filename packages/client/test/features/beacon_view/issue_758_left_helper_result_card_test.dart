@@ -7,12 +7,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
@@ -320,7 +318,7 @@ void main() {
           },
         },
         sent,
-        (RemoteApiService remote) async {
+        (remote) async {
           await _pump(
             tester,
             repository: ClosureRepository(remote),

@@ -285,6 +285,38 @@ String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
   };
 }
 
+/// Drops the Log's «Final check» step when the server says the review window
+/// never applied (#825). The close that followed reads as a direct close.
+List<BeaconActivityEvent> omitSkippedFinalCheckActivityEvents(
+  List<BeaconActivityEvent> events,
+) {
+  BeaconActivityEvent? opened;
+  for (final event in events) {
+    final reason = lifecycleChangeReasonFromEvent(event);
+    if (reason == BeaconLifecycleChangeReason.closureOpened ||
+        reason == BeaconLifecycleChangeReason.legacyClosureOpenReason) {
+      opened = event;
+    }
+  }
+  if (opened == null) return events;
+  final fromState = _lifecycleDiffValue(opened, 'fromState');
+  return [
+    for (final event in events)
+      if (event.id != opened.id)
+        if (lifecycleChangeReasonFromEvent(event) ==
+            BeaconLifecycleChangeReason.authorCloseNow)
+          event.copyWith(
+            diffJson: jsonEncode({
+              'fromState': fromState,
+              'toState': _lifecycleDiffValue(event, 'toState'),
+              'reason': BeaconLifecycleChangeReason.directClose,
+            }),
+          )
+        else
+          event,
+  ];
+}
+
 String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
   if (e.type >= 100 && e.type < 500) {
     final kind = e.type ~/ 100;

@@ -7515,6 +7515,10 @@
   "@closureResultLeftNoShare": {
     "description": "Outcome line for a viewer who had left or been removed before the review ended and has no share (band none) (#489)."
   },
+  "closureResultClosedWithoutFinalCheck": "This request closed without a final check.",
+  "@closureResultClosedWithoutFinalCheck": {
+    "description": "Results card when the server says the review window never applied (earlyCloseAt is null for a voter), so a default could-not-judge is not the author's mark (#825)."
+  },
   "closureResultBandRaised": "Colleagues raised your share",
   "@closureResultBandRaised": {
     "description": "Band sentence of the Results card."

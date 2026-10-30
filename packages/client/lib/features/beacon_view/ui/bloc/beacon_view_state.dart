@@ -351,6 +351,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// the server already has for them (#758). Someone who never offered has
   /// no row.
   bool get viewerOfferedHelp =>
+      isHelpOffered ||
       helpOffers.any((offer) => offer.user.id == myProfile.id);
 
   /// The author's own live Request that is discoverable in the Field: the

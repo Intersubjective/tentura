@@ -100,21 +100,23 @@ class _ClosureResultCardState extends State<ClosureResultCard> {
             Text(l10n.closureResultTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: TenturaSpacing.row),
             Text(
-              _outcomeLine(l10n, result),
+              _outcomeLine(l10n, result, state),
               style: theme.textTheme.bodyMedium,
             ),
-            if (_bandLine(l10n, result) case final band?) ...[
-              const SizedBox(height: TenturaSpacing.tight),
-              Text(band, style: theme.textTheme.bodyMedium),
-            ],
-            if (_draftLine(l10n, result) case final draft?) ...[
-              const SizedBox(height: TenturaSpacing.row),
-              Text(
-                draft,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            if (!_closedWithoutJudgment(result, state)) ...[
+              if (_bandLine(l10n, result) case final band?) ...[
+                const SizedBox(height: TenturaSpacing.tight),
+                Text(band, style: theme.textTheme.bodyMedium),
+              ],
+              if (_draftLine(l10n, result) case final draft?) ...[
+                const SizedBox(height: TenturaSpacing.row),
+                Text(
+                  draft,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
+              ],
             ],
             const SizedBox(height: TenturaSpacing.section),
             Text(
@@ -133,22 +135,31 @@ class _ClosureResultCardState extends State<ClosureResultCard> {
     );
   }
 
+  /// A default «could not judge» on an epoch the server says had no review
+  /// window is not the author's mark (#825).
+  static bool _closedWithoutJudgment(ClosureResult r, ClosureState state) =>
+      state.hadNoFinalCheck && r.outcome == ClosureOutcome.cantJudge;
+
   /// notDone with no band means the member has no share in the results (V8);
   /// with a band (peer support, V6) the outcome line stands alone. An
   /// unjudged voluntary leaver ([ClosureResult.unjudgedLeaver], #489) did not
   /// get notDone from the author, so their line says why instead. A leaver
   /// the author marked, or a removed member, keeps the author's mark.
-  static String _outcomeLine(L10n l10n, ClosureResult r) => switch (r.outcome) {
-    ClosureOutcome.notDone
-        when r.unjudgedLeaver && r.band == ClosureBand.none =>
-      l10n.closureResultLeftNoShare,
-    ClosureOutcome.notDone when r.unjudgedLeaver => l10n.closureResultLeft,
-    ClosureOutcome.done => l10n.closureResultOutcomeDone,
-    ClosureOutcome.notDone when r.band == ClosureBand.none =>
-      l10n.closureResultNoShare,
-    ClosureOutcome.notDone => l10n.closureResultOutcomeNotDone,
-    ClosureOutcome.cantJudge => l10n.closureResultOutcomeCantJudge,
-  };
+  static String _outcomeLine(L10n l10n, ClosureResult r, ClosureState state) =>
+      _closedWithoutJudgment(r, state)
+      ? l10n.closureResultClosedWithoutFinalCheck
+      : switch (r.outcome) {
+          ClosureOutcome.notDone
+              when r.unjudgedLeaver && r.band == ClosureBand.none =>
+            l10n.closureResultLeftNoShare,
+          ClosureOutcome.notDone when r.unjudgedLeaver =>
+            l10n.closureResultLeft,
+          ClosureOutcome.done => l10n.closureResultOutcomeDone,
+          ClosureOutcome.notDone when r.band == ClosureBand.none =>
+            l10n.closureResultNoShare,
+          ClosureOutcome.notDone => l10n.closureResultOutcomeNotDone,
+          ClosureOutcome.cantJudge => l10n.closureResultOutcomeCantJudge,
+        };
 
   static String? _bandLine(L10n l10n, ClosureResult r) => switch (r.band) {
     ClosureBand.raised => l10n.closureResultBandRaised,
