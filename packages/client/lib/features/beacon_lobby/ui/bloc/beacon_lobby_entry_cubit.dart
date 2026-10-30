@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'package:tentura/domain/util/burst_coalescer.dart';
+
 import '../../domain/entity/beacon_lobby.dart';
 import '../../domain/use_case/beacon_lobby_case.dart';
 
@@ -25,13 +27,10 @@ class BeaconLobbyEntryCubit extends Cubit<BeaconLobbyAccess?> {
       Duration(seconds: 20),
     ],
   }) : super(null) {
-    _changes =
-        MergeStream<void>([
-              _case.messageChanges(beaconId),
-              _case.accessChanges(beaconId),
-            ])
-            .debounceTime(const Duration(milliseconds: 300))
-            .listen((_) => unawaited(load()));
+    _changes = MergeStream<void>([
+      _case.messageChanges(beaconId),
+      _case.accessChanges(beaconId),
+    ]).listen((_) => _hintRefreshRequests.request(null));
   }
 
   final String beaconId;
@@ -42,6 +41,10 @@ class BeaconLobbyEntryCubit extends Cubit<BeaconLobbyAccess?> {
   final BeaconLobbyCase _case;
 
   late final StreamSubscription<void> _changes;
+
+  late final _hintRefreshRequests = BurstCoalescer<void>((_) {
+    if (!isClosed) unawaited(load());
+  });
 
   Timer? _retry;
 
@@ -72,6 +75,7 @@ class BeaconLobbyEntryCubit extends Cubit<BeaconLobbyAccess?> {
 
   @override
   Future<void> close() async {
+    _hintRefreshRequests.dispose();
     _retry?.cancel();
     await _changes.cancel();
     return super.close();

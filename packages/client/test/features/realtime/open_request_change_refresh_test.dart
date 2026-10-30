@@ -26,6 +26,8 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
+import 'package:tentura/features/beacon_lobby/ui/bloc/beacon_lobby_entry_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
@@ -43,6 +45,7 @@ import '../../domain/attention/attention_case_test_support.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
+import '../beacon_lobby/fake_lobby_port.dart' show FakeLobbyPort;
 import '../beacon_threads/room_cubit_fakes.dart' as discussion;
 import '../beacon_view/beacon_view_case_test_support.dart' as detail;
 import '../block/support/controllable_block_case.dart';
@@ -105,7 +108,7 @@ class _AttentionSnapshots extends desk.StubAttentionRepository {
 /// emits HelpOfferInvalidated, and rooms use fromRealtimeChange. It performs
 /// no batching, read suppression or timing of its own.
 class _OpenClient {
-  _OpenClient(this.scenario, this.clock) {
+  _OpenClient(this.scenario, this.clock, {int initialGeneration = 0}) {
     registerProfile();
     invalidations = InvalidationService.forTesting(socket.stream);
     realtime = RealtimeSyncCase(invalidations);
@@ -136,6 +139,9 @@ class _OpenClient {
         at: clock.elapsed,
         kind: change.kind,
         aggregateId: change.aggregateId,
+        operation: change.operation,
+        actorUserId: change.actorUserId,
+        childId: change.childId,
       ));
       if (change.kind == RealtimeEntityKind.beacon) {
         beaconRepo.emitInvalidation(change.aggregateId);
@@ -157,7 +163,7 @@ class _OpenClient {
         );
       }
     });
-    setSnapshot(0);
+    setSnapshot(initialGeneration);
     view = BeaconViewCubit(
       id: _beaconId,
       myProfile: Profile(id: viewerId),
@@ -234,7 +240,16 @@ class _OpenClient {
 
   /// What InvalidationService hands to the app, and when.
   final delivered =
-      <({Duration at, RealtimeEntityKind kind, String aggregateId})>[];
+      <
+        ({
+          Duration at,
+          RealtimeEntityKind kind,
+          String aggregateId,
+          RealtimeOperation operation,
+          String? actorUserId,
+          String? childId,
+        })
+      >[];
   final beaconRepo = detail.TrackingBeaconRepository();
   final forward = _ForwardSnapshots();
   final deskForward = desk.FakeForwardRepository();
@@ -257,13 +272,14 @@ class _OpenClient {
   late final MyWorkCubit myWork;
   late final BeaconHierarchyCubit children;
 
-  void setSnapshot(int generation) {
+  void setSnapshot(int generation, {BeaconStatus? statusOverride}) {
     final status =
-        scenario == RequestChangeReplay.helperLeaves || generation == 0
-        ? BeaconStatus.open
-        : generation == 1
-        ? BeaconStatus.enoughHelp
-        : BeaconStatus.needsMoreHelp;
+        statusOverride ??
+        (scenario == RequestChangeReplay.helperLeaves || generation == 0
+            ? BeaconStatus.open
+            : generation == 1
+            ? BeaconStatus.enoughHelp
+            : BeaconStatus.needsMoreHelp);
     final beacon = Beacon(
       id: _beaconId,
       title: 'Request snapshot $generation',
@@ -307,7 +323,11 @@ class _OpenClient {
               beaconId: _beaconId,
               authorId: actorFor(generation),
               body: scenario == RequestChangeReplay.enoughHelp
-                  ? (generation == 1 ? 'Enough help' : 'Needs more help')
+                  ? (status == BeaconStatus.open
+                        ? 'Open'
+                        : generation == 1
+                        ? 'Enough help'
+                        : 'Needs more help')
                   : 'Helper left the discussion',
               createdAt: DateTime.utc(2026, 1, 1, 0, 0, generation),
             ),
@@ -397,17 +417,18 @@ class _OpenClient {
       'children.BeaconChildren(${group.name})': childReads[group] ?? 0,
   };
 
-  void expectSnapshot(int generation) {
+  void expectSnapshot(int generation, {BeaconStatus? statusOverride}) {
     expect(view.state.loadError, isNull);
     expect(room.state.loadError, isNull);
     expect(view.state.beacon.title, 'Request snapshot $generation');
     expect(
       view.state.beacon.status,
-      generation == 0 || scenario == RequestChangeReplay.helperLeaves
-          ? BeaconStatus.open
-          : generation == 1
-          ? BeaconStatus.enoughHelp
-          : BeaconStatus.needsMoreHelp,
+      statusOverride ??
+          (generation == 0 || scenario == RequestChangeReplay.helperLeaves
+              ? BeaconStatus.open
+              : generation == 1
+              ? BeaconStatus.enoughHelp
+              : BeaconStatus.needsMoreHelp),
     );
     expect(view.state.beaconRoomCue?.currentLine, 'Bring the tools');
     expect(room.state.roomState?.currentLine, 'Bring the tools');
@@ -446,7 +467,11 @@ class _OpenClient {
       expect(
         room.state.messages.single.body,
         scenario == RequestChangeReplay.enoughHelp
-            ? (generation == 1 ? 'Enough help' : 'Needs more help')
+            ? (statusOverride == BeaconStatus.open
+                  ? 'Open'
+                  : generation == 1
+                  ? 'Enough help'
+                  : 'Needs more help')
             : 'Helper left the discussion',
       );
       expect(
@@ -538,6 +563,209 @@ Map<String, int> _replayChange(
 }
 
 void main() {
+  group('An observer receives one refresh for a Request status change', () {
+    for (final target in [BeaconStatus.enoughHelp, BeaconStatus.open]) {
+      test(
+        target == BeaconStatus.enoughHelp
+            ? 'Enough help updates all mounted surfaces without repeated reads'
+            : 'returning to Open updates all mounted surfaces without repeated reads',
+        () {
+          fakeAsync((clock) {
+            final initialGeneration = target == BeaconStatus.open ? 1 : 0;
+            final client = _OpenClient(
+              RequestChangeReplay.enoughHelp,
+              clock,
+              initialGeneration: initialGeneration,
+            );
+            addTearDown(client.dispose);
+            final questionsPort =
+                FakeLobbyPort(
+                    viewerId: _helperId,
+                    authorId: _authorId,
+                    offerers: {_helperId},
+                  )
+                  ..isHelper = true
+                  ..messageCount = 7 + initialGeneration;
+            final questions = BeaconLobbyEntryCubit(
+              BeaconLobbyCase(questionsPort, client.realtime),
+              beaconId: _beaconId,
+            );
+            addTearDown(questions.close);
+            unawaited(questions.load());
+
+            clock.elapse(const Duration(seconds: 8));
+            client.expectSnapshot(initialGeneration);
+            expect(questions.state?.canRead, isTrue);
+            expect(questions.state?.isHelper, isTrue);
+            expect(questions.state?.messageCount, 7 + initialGeneration);
+
+            Map<String, int> reads() => {
+              ...client.readCounts(),
+              'detail.BeaconFetchById': client.beaconRepo.fetchByIdCalls,
+              'questions.BeaconLobbyAccess': questionsPort.calls
+                  .where((call) => call == 'access')
+                  .length,
+              'detail.BeaconParticipantList':
+                  client.viewRoom.fetchParticipantsCalls,
+              'discussion.BeaconParticipantList':
+                  client.roomRepo.fetchParticipantsCallCount,
+              'discussion.BeaconRoomReadWatermarks':
+                  client.roomRepo.fetchMainRoomReadWatermarksCallCount,
+            };
+
+            final before = reads();
+            final startedAt = clock.elapsed;
+            client.delivered.clear();
+            final generation = initialGeneration + 1;
+            client.setSnapshot(generation, statusOverride: target);
+            // A distinct server-returned projection proves that Questions
+            // really re-read its access result. This count is a fixture
+            // freshness marker, not a client rule about status or posting.
+            questionsPort.messageCount = 7 + generation;
+
+            // Use the server-derived observer envelopes and their existing
+            // two-second delivery model. QA reports read waves around 0,
+            // 2.4 and 6 seconds, NOT per-hint arrival times. Do not invent
+            // late server hints from those read timestamps: whether the
+            // server actually exceeds the 2.5-second window needs a capture.
+            client.scenario.deliver(
+              clock: clock,
+              socket: client.socket,
+              beaconId: _beaconId,
+              generation: generation,
+            );
+            // Observe beyond the reported last wave and two further windows,
+            // so a refresh that re-arms itself cannot escape measurement.
+            clock.elapse(const Duration(seconds: 10));
+
+            final frames = client.scenario.viewerFrames(
+              beaconId: _beaconId,
+              generation: generation,
+            );
+            expect(
+              [
+                for (final hint in client.delivered)
+                  (
+                    hint.kind,
+                    hint.aggregateId,
+                    hint.operation,
+                    hint.actorUserId,
+                    hint.childId,
+                  ),
+              ],
+              [
+                for (final frame in frames)
+                  (
+                    RealtimeEntityKind.fromWire(
+                      (frame['payload'] as Map<String, dynamic>)['entity'],
+                    ),
+                    (frame['payload'] as Map<String, dynamic>)['id'],
+                    RealtimeOperation.values.byName(
+                      (frame['payload'] as Map<String, dynamic>)['event']
+                          as String,
+                    ),
+                    (frame['payload'] as Map<String, dynamic>)['actor_user_id'],
+                    (frame['payload'] as Map<String, dynamic>)['message_id'],
+                  ),
+              ],
+              reason:
+                  'Every observer envelope must retain its identity and order',
+            );
+            expect(
+              client.delivered.map((hint) => hint.at).toSet(),
+              hasLength(frames.length),
+            );
+            expect(
+              client.delivered.last.at - client.delivered.first.at,
+              greaterThanOrEqualTo(const Duration(milliseconds: 1900)),
+            );
+            expect(clock.elapsed - startedAt, const Duration(seconds: 12));
+
+            // Fresh visible snapshots are required before considering the
+            // read budget: suppressing all refreshes must fail this test.
+            client.expectSnapshot(generation, statusOverride: target);
+            expect(
+              client.myWork.state.nonArchivedCards.single.beacon.status,
+              target,
+            );
+            for (final inbox in [client.homeInbox, client.watchingInbox]) {
+              expect(inbox.state.items.single.beacon?.status, target);
+            }
+            expect(questions.state?.canRead, isTrue);
+            expect(
+              questions.state?.messageCount,
+              7 + generation,
+              reason:
+                  'Questions must show the refreshed server access snapshot',
+            );
+            final delta = _difference(reads(), before);
+            expect(
+              delta['questions.BeaconLobbyAccess'],
+              1,
+              reason: 'Questions must refresh its access exactly once',
+            );
+            // A surface owns a budget of operations, not one budget per
+            // cubit or child group. Different consumers may each read once;
+            // only another read by the same consumer is a duplicate wave.
+            // Include every tracked detail/discussion slice so a repeated
+            // partial refresh cannot hide behind a single BeaconFetchById.
+            final surfaceReads = <String, Map<String, int>>{
+              'Request detail': {
+                for (final entry in delta.entries)
+                  if (entry.key.startsWith('detail.') ||
+                      entry.key.startsWith('discussion.'))
+                    entry.key: entry.value,
+              },
+              'Questions access': {
+                'questions.BeaconLobbyAccess':
+                    delta['questions.BeaconLobbyAccess']!,
+              },
+              'child Requests': {
+                for (final entry in delta.entries)
+                  if (entry.key.startsWith('children.')) entry.key: entry.value,
+              },
+              'My Work': {'desk.MyWorkInit': delta['desk.MyWorkInit']!},
+              'Inbox': {
+                'home+watching.InboxFetch': delta['home+watching.InboxFetch']!,
+              },
+            };
+            // Reading active/finished/deleted once each is ONE hierarchy
+            // refresh, as is reading only the active slice. Unused operations
+            // may stay at zero. The maximum multiplicity detects a repeated
+            // full refresh or repeated partial refresh without adding
+            // independent reads or demanding every child group be fetched.
+            expect(
+              {
+                for (final surface in surfaceReads.entries)
+                  surface.key: surface.value.values.fold<int>(
+                    0,
+                    (largest, count) => count > largest ? count : largest,
+                  ),
+              },
+              {
+                'Request detail': 1,
+                'Questions access': 1,
+                'child Requests': 1,
+                'My Work': 1,
+                'Inbox': 1,
+              },
+              reason:
+                  'One author status change must converge every observer '
+                  'surface without repeated reads. Surface budgets: '
+                  '$surfaceReads; '
+                  'delivered hints: ${client.delivered}',
+            );
+            expect(
+              delta,
+              everyReadAtMostOnce,
+              reason: 'Each consumer may issue each read at most once: $delta',
+            );
+          });
+        },
+      );
+    }
+  });
+
   group('An open Request refreshes each surface once per server change', () {
     for (final scenario in RequestChangeReplay.values) {
       test(

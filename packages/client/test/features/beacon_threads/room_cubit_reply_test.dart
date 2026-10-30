@@ -512,7 +512,12 @@ void main() {
       final edited = pinned.copyWith(body: 'fresh server body');
       fakeRoom.messages = [visible, edited];
       fakeRoom.emitInvalidation(BeaconRoomEntityType.roomMessage);
-      await _awaitFetchCount(fakeRoom, 2);
+      await _awaitCondition(
+        () => cubit.state.messages.any(
+          (message) => message.id == edited.id && message.body == edited.body,
+        ),
+      );
+      expect(fakeRoom.fetchMessagesCallCount, greaterThanOrEqualTo(2));
 
       final merged = cubit.state.messages.firstWhere((m) => m.id == 'pin-me');
       expect(merged.body, 'fresh server body');
