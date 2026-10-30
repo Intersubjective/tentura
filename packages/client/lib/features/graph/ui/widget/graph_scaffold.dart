@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 
 import 'graph_app_bar_actions.dart';
 import 'graph_body.dart';
@@ -12,6 +13,7 @@ class GraphScaffold extends StatefulWidget {
     this.leading,
     this.progress,
     this.personContextEnabled = false,
+    this.beaconKindHint,
     super.key,
   });
 
@@ -19,6 +21,9 @@ class GraphScaffold extends StatefulWidget {
   final Widget? leading;
   final Widget? progress;
   final bool personContextEnabled;
+
+  /// See [GraphBody.beaconKindHint].
+  final BeaconKind? beaconKindHint;
 
   @override
   State<GraphScaffold> createState() => _GraphScaffoldState();
@@ -50,6 +55,7 @@ class _GraphScaffoldState extends State<GraphScaffold> {
           legendExpanded: _legendExpanded,
           onToggleLegend: _toggleLegend,
           personContextEnabled: widget.personContextEnabled,
+          beaconKindHint: widget.beaconKindHint,
         ),
       ),
     );

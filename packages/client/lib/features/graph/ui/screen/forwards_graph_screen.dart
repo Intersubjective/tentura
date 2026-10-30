@@ -62,7 +62,10 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final routeKind = BeaconKind.values.asNameMap()[kind?.trim()];
     return GraphScaffold(
+      // The legend goes by the route's kind too until the beacon loads.
+      beaconKindHint: routeKind,
       leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
       title: BlocBuilder<GraphCubit, GraphState>(
         buildWhen: (p, c) =>
@@ -72,6 +75,16 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
           future: context.read<GraphCubit>().forwardsBeacon,
           builder: (context, snapshot) {
             final beacon = snapshot.data;
+            // Neither the route nor the beacon says yet whether this is a
+            // Post or a Request: no title until it is known, rather than
+            // "request" flipping to "post" (#611, #501). An unreadable beacon
+            // falls back to the Request wording.
+            final routeKind = kind?.trim() ?? '';
+            if (beacon == null &&
+                routeKind.isEmpty &&
+                snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox.shrink();
+            }
             // A heading for screen readers (#601), its own node so the
             // beacon title under it is read as plain text.
             final title = Semantics(
