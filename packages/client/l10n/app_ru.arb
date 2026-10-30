@@ -4,18 +4,6 @@
   "@appTitle": {
     "context": "App"
   },
-  "labelTitle": "Название",
-  "@labelTitle": {
-    "context": "Utils"
-  },
-  "labelTitleOptional": "Название (необязательно)",
-  "@labelTitleOptional": {
-    "context": "Utils"
-  },
-  "labelBody": "Подробности",
-  "@labelBody": {
-    "context": "Utils"
-  },
   "labelDescription": "Описание",
   "@labelDescription": {
     "context": "Utils"
@@ -1353,10 +1341,6 @@
   "helpOffererForwardPathTooltip": "Показать путь пересылок",
   "@helpOffererForwardPathTooltip": {
     "context": "HelpOfferTile — IconButton tooltip"
-  },
-  "myField": "Поле",
-  "@myField": {
-    "context": "HomeScreen"
   },
   "inbox": "Активность",
   "@inbox": {
@@ -3186,10 +3170,6 @@
   "@myWorkFilterMenuTooltip": {
     "context": "MyWorkScreen"
   },
-  "myWorkOverflowArchive": "Архив",
-  "@myWorkOverflowArchive": {
-    "context": "MyWorkScreen"
-  },
   "myWorkEmptyAll": "Пока нет ваших запросов или предложений помощи",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
@@ -3417,40 +3397,8 @@
       }
     }
   },
-  "myWorkYouAuthor": "Вы (автор)",
-  "@myWorkYouAuthor": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipAuthor": "Автор",
-  "@myWorkChipAuthor": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipDraft": "Черновик",
-  "@myWorkChipDraft": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipHelpOffered": "Я предложил(а) помощь",
-  "@myWorkChipHelpOffered": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipReviewPending": "Ожидает проверки",
-  "@myWorkChipReviewPending": {
-    "context": "MyWorkScreen"
-  },
   "myWorkChipReviewWindowOpen": "Подводим итоги",
   "@myWorkChipReviewWindowOpen": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipReadyForReview": "Готово к проверке",
-  "@myWorkChipReadyForReview": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipMoreHelp": "Нужна ещё помощь",
-  "@myWorkChipMoreHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipForwarded": "Я переслал(а)",
-  "@myWorkChipForwarded": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusNeedsMoreHelp": "Нужна ещё помощь",
@@ -3459,10 +3407,6 @@
   },
   "myWorkStatusEnoughHelp": "Помощи хватает",
   "@myWorkStatusEnoughHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusClosed": "Закрыто",
-  "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusOverdue": "Срок прошёл",
@@ -3486,10 +3430,6 @@
         "type": "String"
       }
     }
-  },
-  "myWorkStatusHelpOfferedPersonal": "Помощь предложена",
-  "@myWorkStatusHelpOfferedPersonal": {
-    "context": "MyWorkScreen"
   },
   "myWorkOfferAwaitingAuthor": "Ждёт ответа автора",
   "@myWorkOfferAwaitingAuthor": {
@@ -3685,15 +3625,6 @@
   "@myWorkObligationOfferMissing": {
     "context": "MyWorkScreen"
   },
-  "myWorkObligationMore": "{count, plural, one{ещё {count}} other{ещё {count}}}",
-  "@myWorkObligationMore": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "myWorkWhatsNew": "{count, plural, one{{count} новых · {headline}} other{{count} новых · {headline}}}",
   "@myWorkWhatsNew": {
     "context": "MyWorkScreen",
@@ -3884,62 +3815,8 @@
   "@myWorkLastEventAuthorSuffix": {
     "context": "MyWorkScreen"
   },
-  "myWorkDraftStatusLine": "{count} · Разбираемся",
-  "@myWorkDraftStatusLine": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "myWorkHelpOffersShort": "{count}",
-  "@myWorkHelpOffersShort": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "myWorkArchivePlaceholder": "Архив появится в следующих версиях",
-  "@myWorkArchivePlaceholder": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmpty": "Нет активных дел",
-  "@myWorkEmpty": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionDrafts": "Черновики",
-  "@myWorkSectionDrafts": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionActive": "Активные",
-  "@myWorkSectionActive": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionReview": "На проверке",
-  "@myWorkSectionReview": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionClosed": "Закрытые",
-  "@myWorkSectionClosed": {
-    "context": "MyWorkScreen"
-  },
   "myWorkEmptyDrafts": "Нет черновиков",
   "@myWorkEmptyDrafts": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyActive": "Нет активных дел",
-  "@myWorkEmptyActive": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyReview": "Нет дел на проверке",
-  "@myWorkEmptyReview": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyClosed": "Нет закрытых дел",
-  "@myWorkEmptyClosed": {
     "context": "MyWorkScreen"
   },
   "beaconViewTitle": "Запрос",
@@ -3978,10 +3855,6 @@
   "@beaconFactsRowLabel": {
     "context": "BeaconViewScreen"
   },
-  "labelHelpOffered": "Помощь предложена",
-  "@labelHelpOffered": {
-    "context": "BeaconViewScreen"
-  },
   "labelOfferHelp": "Предложить помощь",
   "@labelOfferHelp": {
     "context": "BeaconViewScreen"
@@ -4011,10 +3884,6 @@
   },
   "noActivityYet": "Пока нет активности",
   "@noActivityYet": {
-    "context": "BeaconViewScreen"
-  },
-  "labelForwardChain": "Цепочка пересылок",
-  "@labelForwardChain": {
     "context": "BeaconViewScreen"
   },
   "timelineForwarded": "{sender} переслал(а) для {recipient}",
@@ -4118,11 +3987,6 @@
       }
     }
   },
-  "labelHelpOffers": "Люди",
-  "@labelHelpOffers": {
-    "context": "BeaconViewScreen",
-    "description": "Tab title for help offers list"
-  },
   "labelForwards": "Пересылки",
   "@labelForwards": {
     "context": "BeaconViewScreen",
@@ -4147,11 +4011,6 @@
         "type": "int"
       }
     }
-  },
-  "myForwardsSectionLabel": "Мои пересылки",
-  "@myForwardsSectionLabel": {
-    "context": "BeaconViewScreen",
-    "description": "Subsection header in the Forwards tab showing who the current user forwarded to"
   },
   "myForwardDeclined": "Убрано",
   "@myForwardDeclined": {
@@ -4346,7 +4205,6 @@
     }
   },
   "durationRemainingLessThanMinute": "<1м",
-  "labelHelpTypeOptional": "Тип помощи (необязательно)",
   "labelWithdrawReasonRequired": "Почему вы отзываете помощь?",
   "coordinationNeutral": "—",
   "coordinationMoreHelpNeeded": "Нужна ещё или другая помощь",
@@ -4364,21 +4222,7 @@
   "withdrawWrongFit": "Не мой формат",
   "withdrawSomeoneElseTookOver": "Кто-то другой подхватил",
   "withdrawOther": "Другое",
-  "labelCoordinationStatus": "Координация",
-  "labelHelpOfferCount": "{count} предложений помощи",
-  "@labelHelpOfferCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "labelSetCoordinationResponse": "Сигнал координации",
-  "labelBeaconCoordinationSummary": "Покрытие потребности запроса",
-  "labelBeaconTabStatus": "Статус",
-  "labelBeaconTabActivity": "Хронология",
   "labelBeaconTabLog": "Журнал",
-  "labelBeaconTabThreads": "Темы",
   "labelBeaconTabNow": "Обзор",
   "labelBeaconTabChat": "Обсуждение",
   "beaconChildRequestsTitle": "Дочерние запросы",
@@ -4629,8 +4473,6 @@
   "@beaconCloseNowCta": {
     "description": "Primary CTA on My Work when all required reviews are done"
   },
-  "myWorkFinishedStatusClosed": "Закрыт",
-  "myWorkFinishedStatusCancelled": "Отменён",
   "myWorkSectionNeedsYou": "Требует вас",
   "@myWorkSectionNeedsYou": {
     "description": "My Work section header when live obligations are present"
@@ -4645,7 +4487,6 @@
   },
   "myWorkFinishedHint": "Завершённые запросы остаются здесь, пока вы их не архивируете.",
   "myWorkStatusWrappingUp": "Подводим итоги",
-  "myWorkStatusCancelled": "Отменён",
   "myWorkUnarchive": "Вернуть из архива",
   "@myWorkUnarchive": {
     "context": "MyWorkScreen"
