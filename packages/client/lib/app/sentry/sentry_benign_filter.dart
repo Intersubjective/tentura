@@ -225,9 +225,12 @@ bool _isUnlaidOutHitTest({
 /// * `Description is required` — GraphQL validation (business) error.
 /// * `Id not found: [<id>]` — expected not-found for a missing / deleted id.
 /// * `[<label>] load failed ... kind=network` — screen-load diagnostic for an
-///   offline / timeout failure (see `logScreenLoadError`). A screen-load
-///   message of another kind is dropped only when its `error=` / `detail=`
-///   line is one of the expected texts above; `kind=server` etc. still report.
+///   offline / timeout failure (see `logScreenLoadError`). A cancelled request
+///   (`kind=cancelled`) or an unavailable server (`kind=unavailable`, HTTP 5xx
+///   / 408 / 429) is dropped the same way while that attempt will be retried
+///   (`retrying=1`). Once the load has failed for good, those two kinds are
+///   reported. `kind=server` (a GraphQL error) and `kind=unknown` (a parse or
+///   mapping error) are always reported. The screen label is not a filter.
 ///
 /// The three texts match only when they are the whole exception text
 /// (optionally behind `Exception: ` / `label: ` prefixes), so a programming
@@ -252,6 +255,8 @@ final _screenLoadMessage = RegExp(r'^\[[^\]\n]+\] load failed\b');
 
 final _screenLoadKind = RegExp(r'(?:^|\s)kind=(\w+)');
 
+final _screenLoadRetrying = RegExp(r'(?:^|\n)retrying=1\b');
+
 bool _isExpectedErrorText(String text) =>
     _expectedErrorText.hasMatch(text.trim());
 
@@ -259,7 +264,15 @@ bool _isExpectedScreenLoadMessage(String text) {
   if (!_screenLoadMessage.hasMatch(text)) {
     return false;
   }
-  if (_screenLoadKind.firstMatch(text)?.group(1) == 'network') {
+  final kind = _screenLoadKind.firstMatch(text)?.group(1);
+  if (kind == 'network') {
+    return true;
+  }
+  // A cancelled read or an unavailable server, only for the attempt that is
+  // about to be retried. The attempt that gives up has no `retrying=1` and
+  // is reported. `kind=server` / `kind=unknown` are never dropped here.
+  if (_screenLoadRetrying.hasMatch(text) &&
+      (kind == 'cancelled' || kind == 'unavailable')) {
     return true;
   }
   for (final line in text.split('\n')) {

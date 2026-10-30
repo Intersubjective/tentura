@@ -2,22 +2,40 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/app/sentry/report_sentry_message.dart';
+import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 
 enum ScreenLoadErrorKind {
+  /// Offline, or the request timed out (including a timeout wrapped by a
+  /// parallel desk read).
   network,
+
+  /// The in-flight read was aborted. A retry of this kind is not a Sentry
+  /// issue; the attempt that gives up is.
+  cancelled,
+
   session,
   permissions,
+
+  /// The server was unavailable (HTTP 5xx, 408, 429). A retry of this kind is
+  /// not a Sentry issue; the attempt that gives up is.
+  unavailable,
+
+  /// The server answered with a GraphQL error.
   server,
+
+  /// A parse, mapping, or other non-transient failure.
   unknown,
 }
 
@@ -57,6 +75,7 @@ void logScreenLoadError({
   required String label,
   required Object error,
   required ScreenLoadErrorDetails details,
+  bool willRetry = false,
 }) {
   final buffer = StringBuffer()
     ..writeln('[$label] load failed (ref ${details.supportRef})')
@@ -66,13 +85,126 @@ void logScreenLoadError({
   if (details.detail != null && details.detail!.isNotEmpty) {
     buffer.writeln('detail=${details.detail}');
   }
+  // Only a transient attempt that is about to be retried. A GraphQL or parse
+  // error never carries this, so it cannot hide behind the retry.
+  if (willRetry && isTransientScreenLoadFailure(error)) {
+    buffer.writeln('retrying=1');
+  }
   buffer.write('error=$error');
   final message = buffer.toString();
   GetIt.I<Logger>().warning(message);
   reportSentryMessage(message);
 }
 
-ScreenLoadErrorKind _classifyLoadError(Object error) {
+/// One Sentry report per My Work load-failure streak.
+///
+/// A transient failure (timeout, cancel, offline, server unavailable) is sent
+/// once the streak is still failing after one retry — the second consecutive
+/// transient failure — or from [reportFinal] if the screen goes away first.
+/// [observe] with a null error is a success and starts a new streak. A parse
+/// or GraphQL error is sent immediately, still once per streak.
+final class ScreenLoadReportGate {
+  Object? _error;
+  ScreenLoadErrorDetails? _details;
+  String? _label;
+  var _reported = false;
+  var _transientAttempts = 0;
+
+  void observe({
+    required String label,
+    required Object? error,
+    ScreenLoadErrorDetails? details,
+  }) {
+    if (error == null) {
+      _reset();
+      return;
+    }
+    if (identical(error, _error)) return;
+    _error = error;
+    _label = label;
+    if (!isTransientScreenLoadFailure(error)) {
+      _details = null;
+      _transientAttempts = 0;
+      _send(error, details);
+      return;
+    }
+    _details = details;
+    _transientAttempts++;
+    if (_transientAttempts >= 2) {
+      _send(error, details);
+    }
+  }
+
+  /// The failure still showing when the screen goes away, if this streak has
+  /// not already been reported.
+  void reportFinal() {
+    _send(_error, _details);
+  }
+
+  void _send(Object? error, ScreenLoadErrorDetails? details) {
+    final label = _label;
+    if (error == null || details == null || label == null || _reported) {
+      return;
+    }
+    if (!GetIt.I.isRegistered<Logger>()) return;
+    logScreenLoadError(label: label, error: error, details: details);
+    _reported = true;
+    _details = null;
+  }
+
+  void _reset() {
+    _error = null;
+    _details = null;
+    _label = null;
+    _reported = false;
+    _transientAttempts = 0;
+  }
+}
+
+/// Timeout, cancelled read, connectivity loss, or the server being unavailable.
+/// A parse, mapping, or GraphQL error is not transient.
+bool isTransientScreenLoadFailure(Object error) =>
+    _isTransientKind(_classifyLoadError(error));
+
+bool _isTransientKind(ScreenLoadErrorKind kind) => switch (kind) {
+  ScreenLoadErrorKind.network ||
+  ScreenLoadErrorKind.cancelled ||
+  ScreenLoadErrorKind.unavailable => true,
+  ScreenLoadErrorKind.session ||
+  ScreenLoadErrorKind.permissions ||
+  ScreenLoadErrorKind.server ||
+  ScreenLoadErrorKind.unknown => false,
+};
+
+/// Pull a timeout or abort out of the wrappers a parallel desk read leaves
+/// around it ([ParallelWaitError], [GraphQLException]). A sibling that is not
+/// transient wins, so a mapping error is not reclassified as a timeout.
+Object _unwrapLoadError(Object error) {
+  if (error is GraphQLException) {
+    final inner = error.error;
+    if (inner != null && !identical(inner, error)) {
+      return _unwrapLoadError(inner);
+    }
+  }
+  final causes = parallelWaitCauses(error);
+  if (causes != null && causes.isNotEmpty) {
+    Object? firstTransient;
+    for (final cause in causes) {
+      final inner = _unwrapLoadError(cause);
+      if (!_isTransientKind(_classifyFlat(inner))) {
+        return inner;
+      }
+      firstTransient ??= inner;
+    }
+    return firstTransient ?? error;
+  }
+  return error;
+}
+
+ScreenLoadErrorKind _classifyLoadError(Object error) =>
+    _classifyFlat(_unwrapLoadError(error));
+
+ScreenLoadErrorKind _classifyFlat(Object error) {
   if (error is AuthSessionLostException ||
       error is SessionAuthRejectedException) {
     return ScreenLoadErrorKind.session;
@@ -82,12 +214,19 @@ ScreenLoadErrorKind _classifyLoadError(Object error) {
       error is TimeoutException) {
     return ScreenLoadErrorKind.network;
   }
+  if (error is http.RequestAbortedException ||
+      error is GraphQLNoDataException) {
+    return ScreenLoadErrorKind.cancelled;
+  }
   if (error is ServerStatusException) {
     if (error.statusCode == 401 || error.statusCode == 403) {
       return ScreenLoadErrorKind.session;
     }
     if (error.statusCode == 404) {
       return ScreenLoadErrorKind.permissions;
+    }
+    if (_isUnavailableStatus(error.statusCode)) {
+      return ScreenLoadErrorKind.unavailable;
     }
     return ScreenLoadErrorKind.server;
   }
@@ -101,12 +240,28 @@ ScreenLoadErrorKind _classifyLoadError(Object error) {
     if (_looksLikePermissionFailure(message)) {
       return ScreenLoadErrorKind.permissions;
     }
+    final status = _serverHttpStatus(error.message);
+    if (status != null && _isUnavailableStatus(status)) {
+      return ScreenLoadErrorKind.unavailable;
+    }
     return ScreenLoadErrorKind.server;
   }
   if (error is ServerException) {
     return ScreenLoadErrorKind.server;
   }
   return ScreenLoadErrorKind.unknown;
+}
+
+/// HTTP 5xx, 408 and 429: the server did not produce a GraphQL answer.
+bool _isUnavailableStatus(int status) =>
+    status >= 500 || status == 408 || status == 429;
+
+final _serverHttpStatusPattern = RegExp(r'^Server error \(HTTP (\d+)\)$');
+
+int? _serverHttpStatus(String message) {
+  final match = _serverHttpStatusPattern.firstMatch(message.trim());
+  if (match == null) return null;
+  return int.tryParse(match.group(1)!);
 }
 
 bool _looksLikePermissionFailure(String message) {
@@ -144,8 +299,10 @@ String _supportRefFor(Object error) {
 
 String _titleFor(ScreenLoadErrorKind kind, L10n l10n) => switch (kind) {
   ScreenLoadErrorKind.network => l10n.screenLoadErrorNetworkTitle,
+  ScreenLoadErrorKind.cancelled => l10n.screenLoadErrorUnknownTitle,
   ScreenLoadErrorKind.session => l10n.screenLoadErrorSessionTitle,
   ScreenLoadErrorKind.permissions => l10n.screenLoadErrorPermissionsTitle,
+  ScreenLoadErrorKind.unavailable => l10n.screenLoadErrorServerTitle,
   ScreenLoadErrorKind.server => l10n.screenLoadErrorServerTitle,
   ScreenLoadErrorKind.unknown => l10n.screenLoadErrorUnknownTitle,
 };
@@ -156,8 +313,10 @@ String _messageFor(ScreenLoadErrorKind kind, Object error, L10n l10n) {
   }
   return switch (kind) {
     ScreenLoadErrorKind.network => l10n.screenLoadErrorNetworkBody,
+    ScreenLoadErrorKind.cancelled => l10n.screenLoadErrorUnknownBody,
     ScreenLoadErrorKind.session => l10n.screenLoadErrorSessionBody,
     ScreenLoadErrorKind.permissions => l10n.screenLoadErrorPermissionsBody,
+    ScreenLoadErrorKind.unavailable => l10n.screenLoadErrorServerBody,
     ScreenLoadErrorKind.server => l10n.screenLoadErrorServerBody,
     ScreenLoadErrorKind.unknown => l10n.screenLoadErrorUnknownBody,
   };
