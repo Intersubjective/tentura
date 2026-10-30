@@ -1,3 +1,6 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+import 'package:tentura/domain/attention/closed_request_attention.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/for_you_stream_entries.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
@@ -59,6 +62,12 @@ RequestAttentionCardModel? requestCardFromReceipt(
 
   final authorId = receipt.beaconAuthorId ?? '';
   final unseen = receipt.eventUnseenCount ?? 0;
+  // A grouped row does not carry `beacon.status`. The receipts it already
+  // holds name the status (`toStatus`, or a finalized closure).
+  final reported = beaconStatusFromAttentionReceipts([
+    receipt,
+    ...receipt.eventsPreview,
+  ]);
 
   return RequestAttentionCardModel(
     beacon: Beacon(
@@ -66,6 +75,7 @@ RequestAttentionCardModel? requestCardFromReceipt(
       title: receipt.title,
       createdAt: receipt.createdAt,
       updatedAt: receipt.createdAt,
+      status: reported ?? BeaconStatus.open,
       endAt: receipt.beaconEndAt,
       coverImageId: _nonEmpty(receipt.beaconImageId),
       author: Profile(
