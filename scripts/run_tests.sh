@@ -155,7 +155,7 @@ affected_tests() {
   done < <(changed_in "$pkg")
   if (( ${#libs[@]} > 0 )); then
     local pattern
-    pattern="$(printf 'package:%s/%s\n' "$package_name" "${libs[@]}" | sed 's/[.]/\\./g' | paste -sd'|')"
+    pattern="$(printf "package:${package_name}/%s\n" "${libs[@]}" | sed 's/[.]/\\./g' | paste -sd'|')"
     while IFS= read -r f; do tests+=("$f"); done < <(
       cd "$ROOT/$pkg" && grep -rlE "($pattern)['\"]" test --include='*_test.dart' 2>/dev/null || true)
   fi
