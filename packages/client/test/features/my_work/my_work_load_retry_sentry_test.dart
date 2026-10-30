@@ -9,6 +9,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -102,6 +103,23 @@ void main() {
   List<String> reportedBeforeControl() =>
       transport.texts.where((t) => !t.contains(_sentinel)).toList();
 
+  void follow(MyWorkCubit cubit, ScreenLoadReportGate gate) {
+    final reports = cubit.stream.listen((state) {
+      final error = state.loadError;
+      gate.observe(
+        label: 'MyWork',
+        error: error,
+        details: error == null
+            ? null
+            : describeScreenLoadError(error: error, l10n: l10n),
+      );
+    });
+    addTearDown(() async {
+      await reports.cancel();
+      await cubit.close();
+    });
+  }
+
   test(
     'a My Work load that times out and then succeeds reports nothing',
     () async {
@@ -119,33 +137,59 @@ void main() {
         userId: 'user-1',
         myWorkCase: buildTestMyWorkCase(repo: repo, roomHints: hints),
       );
-      // The screen reports whatever load error the cubit settles on.
-      final reports = cubit.stream.listen((state) {
-        final error = state.loadError;
-        if (error == null) return;
-        logScreenLoadError(
-          label: 'MyWork',
-          error: error,
-          details: describeScreenLoadError(error: error, l10n: l10n),
-        );
-      });
-      addTearDown(() async {
-        await reports.cancel();
-        await cubit.close();
-      });
+      final gate = ScreenLoadReportGate();
+      follow(cubit, gate);
 
       await cubit.stream
-          .firstWhere((s) => s.nonArchivedProjectionLoaded || s.hasError)
+          .firstWhere((s) => s.hasError)
           .timeout(const Duration(seconds: 5));
-      await flush();
+      expect(hints.calls, 1);
 
-      expect(reportedBeforeControl(), isEmpty);
+      await cubit.fetch();
       expect(cubit.state.hasError, isFalse);
       expect(
         cubit.state.nonArchivedCards.map((c) => c.beaconId),
         contains('b1'),
       );
       expect(hints.calls, 2);
+      await Future<void>.delayed(Duration.zero);
+      gate.reportFinal();
+      await flush();
+
+      expect(reportedBeforeControl(), isEmpty);
     },
   );
+
+  test('two failed My Work loads are reported once', () async {
+    final repo = FakeMyWorkRepository()
+      ..fetchInitError = RemoteApiException('Server error (HTTP 503)');
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(repo: repo),
+    );
+    final gate = ScreenLoadReportGate();
+    follow(cubit, gate);
+
+    await cubit.stream
+        .firstWhere((s) => s.hasError)
+        .timeout(const Duration(seconds: 5));
+    expect(repo.fetchInitCallCount, 1);
+
+    repo.fetchInitError = RemoteApiException('Server error (HTTP 504)');
+    await cubit.fetch();
+    await Future<void>.delayed(Duration.zero);
+    expect(repo.fetchInitCallCount, 2);
+    expect(cubit.state.hasError, isTrue);
+    expect('${cubit.state.loadError}', contains('HTTP 504'));
+    gate.reportFinal();
+    gate.reportFinal();
+    await flush();
+
+    final reported = reportedBeforeControl();
+    expect(reported, hasLength(1));
+    expect(reported.single, contains('kind=unavailable'));
+    expect(reported.single, contains('[MyWork] load failed'));
+    expect(reported.single, contains('HTTP 504'));
+    expect(reported.single, isNot(contains('HTTP 503')));
+  });
 }

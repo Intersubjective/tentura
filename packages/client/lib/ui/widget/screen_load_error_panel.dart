@@ -96,6 +96,58 @@ void logScreenLoadError({
   reportSentryMessage(message);
 }
 
+/// Holds My Work's latest load failure and reports it once.
+///
+/// A transient failure (timeout, cancel, offline, server unavailable) is not
+/// sent while the user can still retry. [observe] with a null error drops it
+/// when the retry succeeds. [reportFinal] sends the failure still showing
+/// when the screen goes away. A parse or GraphQL error is sent immediately,
+/// and a later attempt in the same streak does not send another.
+final class ScreenLoadReportGate {
+  Object? _error;
+  ScreenLoadErrorDetails? _details;
+  String? _label;
+  var _reported = false;
+
+  void observe({
+    required String label,
+    required Object? error,
+    ScreenLoadErrorDetails? details,
+  }) {
+    if (error == null) {
+      _error = null;
+      _details = null;
+      _label = null;
+      _reported = false;
+      return;
+    }
+    if (identical(error, _error)) return;
+    _error = error;
+    _label = label;
+    if (!isTransientScreenLoadFailure(error)) {
+      _details = null;
+      if (_reported) return;
+      logScreenLoadError(label: label, error: error, details: details!);
+      _reported = true;
+      return;
+    }
+    _details = details;
+  }
+
+  void reportFinal() {
+    final error = _error;
+    final details = _details;
+    final label = _label;
+    if (error == null || details == null || label == null || _reported) {
+      return;
+    }
+    if (!GetIt.I.isRegistered<Logger>()) return;
+    logScreenLoadError(label: label, error: error, details: details);
+    _reported = true;
+    _details = null;
+  }
+}
+
 /// Timeout, cancelled read, connectivity loss, or the server being unavailable.
 /// A parse, mapping, or GraphQL error is not transient.
 bool isTransientScreenLoadFailure(Object error) =>

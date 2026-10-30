@@ -17,7 +17,6 @@ import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/port/my_work_sort_preference_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
-import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 import 'my_work_state.dart';
 
@@ -107,11 +106,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   static const _pendingRetryDelay = Duration(milliseconds: 400);
-
-  /// One automatic retry of a transient desk read (timeout, cancel, offline,
-  /// server unavailable). The error panel and Sentry see only the attempt
-  /// that gives up.
-  static const _maxTransientLoadAttempts = 2;
 
   final String _userId;
   final MyWorkCase _myWorkCase;
@@ -221,68 +215,58 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           ),
         );
       }
-      for (var attempt = 1; attempt <= _maxTransientLoadAttempts; attempt++) {
-        try {
-          final init = await _myWorkCase.loadDeskInit(userId: _userId);
-          if (isClosed || seq != _fetchSeq) {
-            return;
-          }
-          final withClosureStates = await _myWorkCase.loadClosureStates(
-            init.nonArchivedCards,
-          );
-          if (isClosed || seq != _fetchSeq) {
-            return;
-          }
-          final merged = mergeMyWorkDeskCards(
-            serverCards: withClosureStates,
-            localCards: state.nonArchivedCards,
-            preferIds: _pendingDeskBeaconIds,
-          );
-          final mergedIds = merged.map((c) => c.beaconId).toSet();
-          final stillPending = _pendingDeskBeaconIds.difference(mergedIds);
-          // A local card kept over a stale server row stays pending, so a
-          // later stale read cannot revert it.
-          final keptOverServer = {
-            for (final c in merged)
-              if (withClosureStates.any((s) => s.beaconId == c.beaconId) &&
-                  !withClosureStates.any((s) => identical(s, c)))
-                c.beaconId,
-          };
-          _pendingDeskBeaconIds.removeWhere(
-            (id) => mergedIds.contains(id) && !keptOverServer.contains(id),
-          );
-          emit(
-            state.copyWith(
-              status: const StateIsSuccess(),
-              loadError: null,
-              nonArchivedProjectionLoaded: true,
-              nonArchivedCards: merged,
-              archivedCountHint: init.archivedCountHint,
-              archivedCards: const [],
-              archivedDataFetched: false,
-            ),
-          );
-          _schedulePendingRetryIfNeeded(stillPending);
-          await _loadAttentionIfEnabled(seq);
-          if (filterBefore == MyWorkFilter.archived) {
-            emit(state.copyWith(archivedFetchInProgress: true));
-            unawaited(_loadArchived(seq));
-          }
+      try {
+        final init = await _myWorkCase.loadDeskInit(userId: _userId);
+        if (isClosed || seq != _fetchSeq) {
           return;
-        } catch (e) {
-          if (isClosed || seq != _fetchSeq) {
-            return;
-          }
-          final willRetry =
-              attempt < _maxTransientLoadAttempts &&
-              isTransientScreenLoadFailure(e);
-          if (willRetry) {
-            continue;
-          }
-          if (_shouldShowFullScreenLoadError(showLoading: showLoading)) {
-            emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
-          }
+        }
+        final withClosureStates = await _myWorkCase.loadClosureStates(
+          init.nonArchivedCards,
+        );
+        if (isClosed || seq != _fetchSeq) {
           return;
+        }
+        final merged = mergeMyWorkDeskCards(
+          serverCards: withClosureStates,
+          localCards: state.nonArchivedCards,
+          preferIds: _pendingDeskBeaconIds,
+        );
+        final mergedIds = merged.map((c) => c.beaconId).toSet();
+        final stillPending = _pendingDeskBeaconIds.difference(mergedIds);
+        // A local card kept over a stale server row stays pending, so a later
+        // stale read cannot revert it.
+        final keptOverServer = {
+          for (final c in merged)
+            if (withClosureStates.any((s) => s.beaconId == c.beaconId) &&
+                !withClosureStates.any((s) => identical(s, c)))
+              c.beaconId,
+        };
+        _pendingDeskBeaconIds.removeWhere(
+          (id) => mergedIds.contains(id) && !keptOverServer.contains(id),
+        );
+        emit(
+          state.copyWith(
+            status: const StateIsSuccess(),
+            loadError: null,
+            nonArchivedProjectionLoaded: true,
+            nonArchivedCards: merged,
+            archivedCountHint: init.archivedCountHint,
+            archivedCards: const [],
+            archivedDataFetched: false,
+          ),
+        );
+        _schedulePendingRetryIfNeeded(stillPending);
+        await _loadAttentionIfEnabled(seq);
+        if (filterBefore == MyWorkFilter.archived) {
+          emit(state.copyWith(archivedFetchInProgress: true));
+          unawaited(_loadArchived(seq));
+        }
+      } catch (e) {
+        if (isClosed || seq != _fetchSeq) {
+          return;
+        }
+        if (_shouldShowFullScreenLoadError(showLoading: showLoading)) {
+          emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
         }
       }
     } finally {
