@@ -23,10 +23,15 @@ import 'graph_legend_mode.dart';
 class GraphLegendContent extends StatelessWidget {
   const GraphLegendContent({
     required this.mode,
+    this.showHelpOffererRing = true,
     super.key,
   });
 
   final GraphLegendMode mode;
+
+  /// Forwards graph only: whether the "offered help" ring is explained. A
+  /// Post takes no help offers, so its graph leaves the row out (#611, #501).
+  final bool showHelpOffererRing;
 
   @override
   Widget build(BuildContext context) {
@@ -247,12 +252,14 @@ class GraphLegendContent extends StatelessWidget {
           ),
         ]);
       case GraphLegendMode.forwards:
-        rows.add(
-          row(
-            _HelpOffererRingSwatch(color: scheme.tertiary),
-            l10n.graphLegendHelpOfferer,
-          ),
-        );
+        if (showHelpOffererRing) {
+          rows.add(
+            row(
+              _HelpOffererRingSwatch(color: scheme.tertiary),
+              l10n.graphLegendHelpOfferer,
+            ),
+          );
+        }
       case GraphLegendMode.genealogy:
         rows.addAll([
           row(

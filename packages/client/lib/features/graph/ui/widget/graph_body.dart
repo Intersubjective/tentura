@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -32,6 +34,7 @@ class GraphBody extends StatefulWidget {
     this.scaleRange = const Offset(0.1, 3),
     this.animationDuration = const Duration(seconds: 2),
     this.canvasSize = const GraphCanvasSize.fixed(Size(4096, 4096)),
+    this.beaconKindHint,
     super.key,
   });
 
@@ -45,6 +48,11 @@ class GraphBody extends StatefulWidget {
   final Offset scaleRange;
   final Duration animationDuration;
   final GraphCanvasSize canvasSize;
+
+  /// Forwards graph: the beacon kind the route named, used until the beacon
+  /// itself is read, so a Post's legend never shows the help-offerer ring
+  /// while the beacon loads (PR #819 review). The loaded beacon wins.
+  final BeaconKind? beaconKindHint;
 
   @override
   GraphBodyState createState() => GraphBodyState();
@@ -447,11 +455,24 @@ class GraphBodyState extends State<GraphBody>
     required double viewportHeight,
   }) {
     final tt = context.tt;
-    final legend = GraphLegendPanel(
-      mode: _legendMode,
-      expanded: true,
-      onToggle: widget.onToggleLegend,
-    );
+    GraphLegendPanel panel({bool showHelpOffererRing = true}) =>
+        GraphLegendPanel(
+          mode: _legendMode,
+          expanded: true,
+          onToggle: widget.onToggleLegend,
+          showHelpOffererRing: showHelpOffererRing,
+        );
+    // A Post's forwards graph has no help offerers to explain (#611, #501).
+    final legend = _graphCubit.mode == GraphMode.forwards
+        ? FutureBuilder<Beacon?>(
+            future: _graphCubit.forwardsBeacon,
+            builder: (context, snapshot) => panel(
+              showHelpOffererRing:
+                  (snapshot.data?.kind ?? widget.beaconKindHint) !=
+                  BeaconKind.post,
+            ),
+          )
+        : panel();
     if (!panelVisible || context.windowClass != WindowClass.compact) {
       return legend;
     }
