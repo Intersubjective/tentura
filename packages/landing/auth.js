@@ -83,15 +83,29 @@ export async function startTestLogin({ email, code }) {
   } catch (e) {
     throw new EmailLinkError(t('Could not reach the server ({error}).', { error: e }));
   }
+  if (res.status === 409) {
+    // The invite on this page is used, expired or unknown (#788, /invite/):
+    // an expected answer shown inline, no Sentry issue.
+    const data = await res.json().catch(() => null);
+    const message =
+      {
+        invite_used: 'This invite has already been used.',
+        invite_expired: 'This invite has expired.',
+      }[data?.error] ?? 'This invite link is no longer valid';
+    throw new EmailLinkError(t(message), { expected: true });
+  }
   if (!res.ok) {
     // A 400 is the server refusing this address (QA domain not allowed or
     // malformed): expected, shown inline, no Sentry issue (#788), the same
     // rule saveDisplayName uses (#762). Anything else stays a fault: 404
     // means QA_SIMPLE_LOGIN_MODE is off on a server whose landing shows the
     // button (config mismatch), 403/429/other 4xx and 5xx likewise.
-    throw new EmailLinkError('Test login failed. Check the email domain and try again.', {
-      expected: res.status === 400,
-    });
+    throw new EmailLinkError(
+      t('Test login failed. Check the email domain and try again.'),
+      {
+        expected: res.status === 400,
+      },
+    );
   }
   const data = await res.json();
   return {

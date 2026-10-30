@@ -127,7 +127,7 @@ void main() {
             theme: theme,
             localizationsDelegates: L10n.localizationsDelegates,
             home: MediaQuery(
-              data: const MediaQueryData(size: Size(360, 800)),
+              data: const MediaQueryData(size: Size(800, 800)),
               child: TenturaResponsiveScope(
                 child: Builder(
                   builder: (context) => Scaffold(
@@ -139,7 +139,7 @@ void main() {
                         markAllLabel: 'Read all',
                         hasUnread: true,
                         onMarkAll: () {},
-                        showSearchIcon: true,
+                        showSearchIcon: false,
                         searchOpen: false,
                         onSearchPressed: () {},
                         searchTooltip: 'Search',

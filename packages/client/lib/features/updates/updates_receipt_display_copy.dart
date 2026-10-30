@@ -304,6 +304,7 @@ String _fallbackTitle(
   'deadline_changed' => l10n.updatesFallbackTitleDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackTitleDeadlineReminder,
   'stale_reminder' => l10n.updatesFallbackTitleStaleReminder,
+  'post_first_response' => l10n.updatesFallbackTitlePostFirstResponse,
   'post_expiring_soon' => l10n.updatesFallbackTitlePostExpiringSoon,
   'commitment_accepted' => l10n.updatesFallbackTitleCommitmentAccepted,
   'commitment_resolved' => l10n.updatesFallbackTitleCommitmentResolved,
@@ -343,6 +344,8 @@ String _fallbackBody(
   'deadline_changed' => l10n.updatesFallbackBodyDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackBodyDeadlineReminder,
   'stale_reminder' => l10n.updatesFallbackBodyStaleReminder,
+  'post_first_response' => l10n.updatesFallbackBodyPostFirstResponse,
+  'post_expiring_soon' => l10n.updatesFallbackBodyPostExpiringSoon,
   'commitment_accepted' => l10n.updatesFallbackBodyCommitmentAccepted,
   'commitment_resolved' => l10n.updatesFallbackBodyCommitmentResolved,
   'commitment_cancelled' => l10n.updatesFallbackBodyCommitmentCancelled,
@@ -743,7 +746,28 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   String? headlineOverride,
   String? bodyOverride,
   String? actorName,
+  bool isPost = false,
+  String? postRootExcerpt,
 }) {
+  final shared = isPost
+      ? _postSharedRowCopy(
+          title: title,
+          presentationKey: presentationKey,
+          presentationPayloadJson: presentationPayloadJson,
+          l10n: l10n,
+          actorName: actorName,
+          postRootExcerpt: postRootExcerpt,
+        )
+      : null;
+  if (shared != null) {
+    final override = headlineOverride?.trim();
+    return UpdatesFeedRowCopy(
+      headline: override != null && override.isNotEmpty
+          ? override
+          : shared.headline,
+      body: shared.body,
+    );
+  }
   final baton = batonReceiptDisplayCopy(
     title: title,
     presentationKey: presentationKey,
@@ -927,6 +951,33 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   return UpdatesFeedRowCopy(
     headline: headline,
     body: _isServerCannedSentence(line2) ? '' : line2,
+  );
+}
+
+/// A Post shared with the viewer (`relay_received` on a Post, #736): the
+/// server titles it with the sender's name and a Post has no title, so the
+/// row says «`<name>` shared a post» over the Post's root message, like the
+/// Activity row. Null for any other receipt or when no name is known.
+UpdatesFeedRowCopy? _postSharedRowCopy({
+  required String title,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+  String? postRootExcerpt,
+}) {
+  if (presentationKey != 'relay_received') return null;
+  final known = actorName?.trim() ?? '';
+  final name = known.isNotEmpty
+      ? known
+      : actorNameFromPresentationPayload(presentationPayloadJson) ??
+            localizedDisplayName(title.trim());
+  if (name.trim().isEmpty) return null;
+  final post = postRootExcerpt?.trim() ?? '';
+  final note = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  return UpdatesFeedRowCopy(
+    headline: l10n.postRowSharedBy(name),
+    body: [if (post.isNotEmpty) post, if (note.isNotEmpty) note].join(' · '),
   );
 }
 

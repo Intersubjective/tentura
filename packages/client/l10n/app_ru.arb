@@ -5868,9 +5868,21 @@
   "updatesFallbackBodyDeadlineReminder": "Срок этого запроса наступает завтра.",
   "updatesFallbackTitleStaleReminder": "Всё ещё ждёт внимания",
   "updatesFallbackBodyStaleReminder": "В теме запроса нужно внимание.",
+  "updatesFallbackTitlePostFirstResponse": "Отклик на ваш пост",
+  "@updatesFallbackTitlePostFirstResponse": {
+    "description": "Updates row headline when the server stores no title on a postFirstResponse receipt."
+  },
+  "updatesFallbackBodyPostFirstResponse": "Кто-то откликнулся на ваш пост.",
+  "@updatesFallbackBodyPostFirstResponse": {
+    "description": "Updates row body fallback for postFirstResponse when the server sends no excerpt."
+  },
   "updatesFallbackTitlePostExpiringSoon": "Пост скоро истечёт",
   "@updatesFallbackTitlePostExpiringSoon": {
     "description": "Updates row headline (#700) for the server-titled postExpiringSoon receipt: the author's Post expires soon. Push and email use the same words."
+  },
+  "updatesFallbackBodyPostExpiringSoon": "Пост истекает меньше чем через 3 часа.",
+  "@updatesFallbackBodyPostExpiringSoon": {
+    "description": "Updates row body fallback for postExpiringSoon when the server body is blank."
   },
   "updatesFallbackTitleCommitmentAccepted": "Обязательство принято",
   "updatesFallbackBodyCommitmentAccepted": "Кто-то принял обязательство по запросу.",
@@ -6276,6 +6288,7 @@
   "closureResultNoShare": "Автор отметил: не выполнено — части в итогах нет",
   "closureResultLeft": "К закрытию тебя уже не было в запросе",
   "closureResultLeftNoShare": "К закрытию тебя уже не было в запросе — части в итогах нет",
+  "closureResultClosedWithoutFinalCheck": "Запрос закрыт без подведения итогов.",
   "closureResultBandRaised": "Коллеги подняли твою часть",
   "closureResultBandAsIfSilent": "Твоя часть — как если бы коллеги промолчали",
   "closureResultBandLowered": "Коллеги опустили твою часть",

@@ -138,6 +138,8 @@ final class _FakeClosureRepository implements ClosureRepository {
         ClosureMember(id: 'c$i', displayName: 'Name c$i'),
     ],
     closesAt: DateTime.utc(2030, 1, 10, 12),
+    // A real final check: the server sends earlyCloseAt (#825).
+    earlyCloseAt: DateTime.utc(2030, 1, 8, 12),
     myMarks: [...marks],
   );
 

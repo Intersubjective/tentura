@@ -2,6 +2,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 String beaconPeopleRoleLabel(L10n l10n, int role) {
@@ -72,6 +73,54 @@ String beaconPeopleStatusLabel(
     return l10n.beaconPeopleStatusWithdrawn;
   }
   return l10n.beaconPeopleStatusUnknown(status);
+}
+
+/// Participant status `withdrawn` is also what a stripped row looks like.
+/// When the offer's end reason says otherwise, the role line follows that.
+String beaconPeopleOfferStatusLine(
+  L10n l10n, {
+  required int status,
+  required HelpOfferEndKind endKind,
+  CoordinationResponseType? coordinationResponse,
+  HelpOfferAdmissionAction? admissionAction,
+}) {
+  if (status == BeaconParticipantStatusBits.withdrawn &&
+      (endKind == HelpOfferEndKind.participationEnded ||
+          endKind == HelpOfferEndKind.declined)) {
+    return helpOfferEndLabel(
+      l10n,
+      endKind,
+      HelpOfferEndLabelSurface.peopleBadge,
+    );
+  }
+  return beaconPeopleStatusLabel(
+    l10n,
+    status,
+    coordinationResponse,
+    admissionAction: admissionAction,
+  );
+}
+
+/// People-card badge and the Forwards reaction use different words for a
+/// real withdrawal («Withdrawn» / «Withdrew commitment»). Ended and declined
+/// share one phrase on both surfaces.
+enum HelpOfferEndLabelSurface { peopleBadge, forwardRow }
+
+String helpOfferEndLabel(
+  L10n l10n,
+  HelpOfferEndKind kind,
+  HelpOfferEndLabelSurface surface,
+) {
+  return switch (kind) {
+    HelpOfferEndKind.withdrew => switch (surface) {
+      HelpOfferEndLabelSurface.peopleBadge => l10n.labelWithdrawn,
+      HelpOfferEndLabelSurface.forwardRow => l10n.forwardWithdrawn,
+    },
+    HelpOfferEndKind.participationEnded =>
+      l10n.helpOfferParticipationEndedLabel,
+    HelpOfferEndKind.declined => l10n.helpOfferStatusDeclined,
+    HelpOfferEndKind.none => '',
+  };
 }
 
 /// Participation stake label for help-offer tiles (P4 — keyed on [stakeState]).

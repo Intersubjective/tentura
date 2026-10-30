@@ -107,6 +107,8 @@ const RU = {
   'Signing in…': 'Входим…',
   'Test login failed. Try again.':
     'Тестовый вход не удался. Попробуйте ещё раз.',
+  'Test login failed. Check the email domain and try again.':
+    'Тестовый вход не удался. Проверьте домен почты и попробуйте ещё раз.',
   'QA only — immediate sign-in for test email domains.':
     'Только для QA — мгновенный вход для тестовых доменов почты.',
   'Test email': 'Тестовый адрес',
@@ -210,6 +212,27 @@ export function pickLocale({ languages, language, search = '' } = {}) {
 
 export function getLocale() {
   return current;
+}
+
+/**
+ * Adds `?lang=` (or merges it) when the reader chose a non-English locale,
+ * so redirects and links keep the landing in that language.
+ * @param {string} urlString absolute or relative URL
+ * @param {string} [base] optional base for relative paths
+ */
+export function withPreservedLocale(urlString, base) {
+  if (current === DEFAULT_LOCALE) return urlString;
+  try {
+    const url = new URL(
+      urlString,
+      base ??
+        (typeof location !== 'undefined' ? location.href : 'https://localhost/'),
+    );
+    url.searchParams.set('lang', current);
+    return url.toString();
+  } catch {
+    return urlString;
+  }
 }
 
 export function setLocale(locale) {

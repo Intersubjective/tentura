@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -204,6 +205,46 @@ void main() {
     expect(patched.single.userId, 'h1');
     expect(patched.single.roomAccess, RoomAccessBits.admitted);
   });
+
+  // #783: a non-author is not sent admissionAction. Stake and response
+  // still separate an ended helper and a declined offer from a withdrawal.
+  test(
+    'stripped admission still separates ended and declined from withdrawn',
+    () {
+      final sections = classifyBeaconPeopleSections(
+        beacon: _beacon(authorId: 'auth'),
+        helpOffers: const [
+          BeaconPeopleHelpOfferInput(
+            userId: 'ended',
+            profile: Profile(id: 'ended', displayName: 'Dave'),
+            isWithdrawn: true,
+            stakeState: CommitmentStakeState.released,
+            coordinationResponse: CoordinationResponseType.useful,
+          ),
+          BeaconPeopleHelpOfferInput(
+            userId: 'declined',
+            profile: Profile(id: 'declined', displayName: 'Bob'),
+            isWithdrawn: true,
+            stakeState: CommitmentStakeState.offered,
+            coordinationResponse: CoordinationResponseType.notSuitable,
+          ),
+          BeaconPeopleHelpOfferInput(
+            userId: 'left',
+            profile: Profile(id: 'left', displayName: 'Eve'),
+            isWithdrawn: true,
+            stakeState: CommitmentStakeState.exited,
+            withdrawReason: 'other',
+          ),
+        ],
+        roomParticipants: const [],
+        viewerUserId: 'carol',
+      );
+      expect(sections.participationEnded.map((r) => r.userId), ['ended']);
+      expect(sections.notFitting.map((r) => r.userId), ['declined']);
+      expect(sections.willingToHelp, isEmpty);
+      expect(sections.participationEnded.single.profile.displayName, 'Dave');
+    },
+  );
 
   test('withdrawn help offer is excluded from willing and not fitting', () {
     final sections = classifyBeaconPeopleSections(

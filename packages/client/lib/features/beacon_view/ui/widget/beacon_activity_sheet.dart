@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 
 Future<void> showBeaconActivitySheet(
   BuildContext pageContext, {
@@ -58,7 +59,8 @@ class _BeaconActivitySheetBody extends StatelessWidget {
                 previous.roomActivityEvents != current.roomActivityEvents ||
                 previous.roomParticipants != current.roomParticipants ||
                 previous.beacon != current.beacon ||
-                previous.isBeaconMine != current.isBeaconMine,
+                previous.isBeaconMine != current.isBeaconMine ||
+                previous.closureState != current.closureState,
             builder: (context, state) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,7 +91,12 @@ class _BeaconActivitySheetBody extends StatelessWidget {
                         timeline: const [],
                         beacon: state.beacon,
                         isAuthorView: state.isBeaconMine,
-                        roomActivityEvents: state.roomActivityEvents,
+                        roomActivityEvents:
+                            state.closureState?.hadNoFinalCheck == true
+                            ? omitSkippedFinalCheckActivityEvents(
+                                state.roomActivityEvents,
+                              )
+                            : state.roomActivityEvents,
                         coordinationLogOnly: true,
                         onTapCoordinationEvent: (event) =>
                             _onRowTap(context, event),

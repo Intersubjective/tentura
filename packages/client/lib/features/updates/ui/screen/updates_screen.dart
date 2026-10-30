@@ -58,14 +58,26 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 leading: const AutoLeadingWithFallback(
                   fallbackPath: kPathInbox,
                 ),
-                title: Text(l10n.notificationHistoryTitle),
+                title: Text(
+                  l10n.notificationHistoryTitle,
+                  overflow: TextOverflow.clip,
+                ),
                 actions: [
-                  TenturaTextAction(
-                    label: l10n.updatesMarkAllSeen,
-                    onPressed: hasUnread
-                        ? () => unawaited(markAllUpdatesSeen(context))
-                        : null,
-                  ),
+                  if (compact)
+                    IconButton(
+                      tooltip: l10n.updatesMarkAllSeen,
+                      onPressed: hasUnread
+                          ? () => unawaited(markAllUpdatesSeen(context))
+                          : null,
+                      icon: const Icon(Icons.done_all_outlined),
+                    )
+                  else
+                    TenturaTextAction(
+                      label: l10n.updatesMarkAllSeen,
+                      onPressed: hasUnread
+                          ? () => unawaited(markAllUpdatesSeen(context))
+                          : null,
+                    ),
                   if (compact)
                     ValueListenableBuilder<bool>(
                       valueListenable: _searchOpen,

@@ -6686,9 +6686,21 @@
   "updatesFallbackBodyDeadlineReminder": "This request deadline is tomorrow.",
   "updatesFallbackTitleStaleReminder": "Still needs attention",
   "updatesFallbackBodyStaleReminder": "Something in a request thread needs attention.",
+  "updatesFallbackTitlePostFirstResponse": "Reply on your post",
+  "@updatesFallbackTitlePostFirstResponse": {
+    "description": "Updates row headline when the server stores no title on a postFirstResponse receipt."
+  },
+  "updatesFallbackBodyPostFirstResponse": "Someone replied to your post.",
+  "@updatesFallbackBodyPostFirstResponse": {
+    "description": "Updates row body fallback for postFirstResponse when the server sends no excerpt."
+  },
   "updatesFallbackTitlePostExpiringSoon": "Your post is about to expire",
   "@updatesFallbackTitlePostExpiringSoon": {
     "description": "Updates row headline (#700) for the server-titled postExpiringSoon receipt: the author's Post expires soon. Push and email use the same words."
+  },
+  "updatesFallbackBodyPostExpiringSoon": "Your post expires in under 3 hours.",
+  "@updatesFallbackBodyPostExpiringSoon": {
+    "description": "Updates row body fallback for postExpiringSoon when the server body is blank."
   },
   "updatesFallbackTitleCommitmentAccepted": "Commitment accepted",
   "updatesFallbackBodyCommitmentAccepted": "Someone accepted a commitment on a request.",
@@ -7514,6 +7526,10 @@
   "closureResultLeftNoShare": "You were no longer in the request when it closed — no share in the results",
   "@closureResultLeftNoShare": {
     "description": "Outcome line for a viewer who had left or been removed before the review ended and has no share (band none) (#489)."
+  },
+  "closureResultClosedWithoutFinalCheck": "This request closed without a final check.",
+  "@closureResultClosedWithoutFinalCheck": {
+    "description": "Results card when the server says the review window never applied (earlyCloseAt is null for a voter), so a default could-not-judge is not the author's mark (#825)."
   },
   "closureResultBandRaised": "Colleagues raised your share",
   "@closureResultBandRaised": {

@@ -113,10 +113,35 @@ final class AuthEmailController extends BaseController {
           ),
         ),
       );
+    } on InvitationWrongException catch (e) {
+      return _testLoginInviteFailure(e);
+    } on IdNotFoundException catch (e, st) {
+      if (_looksLikeInviteFailure(e)) return _testLoginInviteFailure(e);
+      _log.severe('qa test login failed', e, st);
+      return Response.internalServerError(body: 'test login failed');
     } catch (e, st) {
       _log.severe('qa test login failed', e, st);
       return Response.internalServerError(body: 'test login failed');
     }
+  }
+
+  /// A used, expired or unknown invite on the page is an expected answer
+  /// (409 + reason), not a 500 the landing reports to Sentry (#788).
+  Response _testLoginInviteFailure(ExceptionBase e) {
+    final lower = e.description.toLowerCase();
+    final error = lower.contains('expired')
+        ? 'invite_expired'
+        : lower.contains('already used') || lower.contains('consumed')
+        ? 'invite_used'
+        : 'invite_invalid';
+    return Response(
+      409,
+      body: jsonEncode({'error': error}),
+      headers: {
+        kHeaderContentType: kContentApplicationJson,
+        kHeaderCacheControl: kCacheControlNoStore,
+      },
+    );
   }
 
   /// `POST /api/v2/auth/email/link/start` (Bearer) — add an email to the

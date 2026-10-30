@@ -121,11 +121,42 @@ test('a 400 from QA test login shows the message without a Sentry issue', async 
     err.message,
     'Test login failed. Check the email domain and try again.',
   );
+  const { setLocale } = await import('../onboarding.js');
+  setLocale('ru');
+  const errRu = await rejection(startTestLogin({ email: 'u@example.com' }));
+  assert.equal(
+    errRu.message,
+    'Тестовый вход не удался. Проверьте домен почты и попробуйте ещё раз.',
+  );
+  setLocale('en');
   trackError('qa_test_login_error', err);
   assert.equal(exceptions.length, 0);
   assert.equal(breadcrumbs.length, 1);
   assert.equal(breadcrumbs[0].message, 'qa_test_login_error');
 });
+
+// #788 round 2 (TENTURA-LANDING-R on /invite/): a QA test login on an
+// invite page whose invite is already used or expired. The server answers 409
+// with the invite reason (it used to answer 500); the page shows the invite
+// message and no Sentry issue opens.
+for (const [error, message] of [
+  ['invite_used', 'This invite has already been used.'],
+  ['invite_expired', 'This invite has expired.'],
+  ['invite_invalid', 'This invite link is no longer valid'],
+]) {
+  test(`a 409 ${error} from QA test login shows the invite message without a Sentry issue`, async () => {
+    reset();
+    respond(409, { error });
+    const err = await rejection(
+      startTestLogin({ email: 'u@test.tentura.local', code: 'Iused' }),
+    );
+    assert.equal(err.name, 'EmailLinkError');
+    assert.equal(err.message, message);
+    trackError('qa_test_login_error', err);
+    assert.equal(exceptions.length, 0);
+    assert.equal(breadcrumbs.length, 1);
+  });
+}
 
 for (const status of [403, 404, 429, 503]) {
   test(`a ${status} from QA test login is still a Sentry issue`, async () => {

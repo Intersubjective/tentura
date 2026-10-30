@@ -2,7 +2,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 /// Room participant rows filtered for the Beacon view **People** lens (Phase 4).
@@ -157,10 +157,16 @@ BeaconPeopleSections classifyBeaconPeopleSections({
   final participantByUserId = {
     for (final p in visibleParticipants) p.userId: p,
   };
-  final helpOfferByUserId = {
-    for (final ho in helpOffers)
-      if (!ho.isWithdrawn) ho.userId: ho,
-  };
+  // A closed offer is the only name we have once the live row is gone
+  // (declined, or participation ended for a viewer who was not told the
+  // admission action). Prefer a live offer when both exist.
+  final helpOfferByUserId = <String, BeaconPeopleHelpOfferInput>{};
+  for (final ho in helpOffers) {
+    final current = helpOfferByUserId[ho.userId];
+    if (current == null || (current.isWithdrawn && !ho.isWithdrawn)) {
+      helpOfferByUserId[ho.userId] = ho;
+    }
+  }
 
   Profile profileFor(String userId) {
     if (userId == authorId) return beacon.author;
@@ -199,31 +205,54 @@ BeaconPeopleSections classifyBeaconPeopleSections({
   final willingToHelp = <BeaconPeopleRow>[];
   final notFitting = <BeaconPeopleRow>[];
   final participationEnded = <BeaconPeopleRow>[];
-  // #701: the author's last word on these offers was "remove" — ending a
-  // helper's participation is one — so they were never declined.
-  final endedUserIds = {
-    for (final ho in helpOffers)
-      if (!ho.isWithdrawn &&
-          ho.admissionAction == HelpOfferAdmissionAction.remove)
-        ho.userId,
-  };
-  final notFittingUserIds = {
-    for (final ho in helpOffers)
-      if (!ho.isWithdrawn && ho.coordinationResponse != null) ho.userId,
-  };
+  // One person, one bucket: a later offer can be the one that was declined
+  // or ended, so the sets are collected before the first row is placed.
+  final endedUserIds = <String>{};
+  final declinedUserIds = <String>{};
+  final answeredUserIds = <String>{};
+  for (final ho in helpOffers) {
+    final kind = helpOfferEndKind(
+      isWithdrawn: ho.isWithdrawn,
+      admissionAction: ho.admissionAction,
+      stakeState: ho.stakeState,
+      withdrawReason: ho.withdrawReason,
+      coordinationResponse: ho.coordinationResponse,
+    );
+    if (kind == HelpOfferEndKind.participationEnded) {
+      endedUserIds.add(ho.userId);
+    } else if (kind == HelpOfferEndKind.declined) {
+      declinedUserIds.add(ho.userId);
+    }
+    if (!ho.isWithdrawn && ho.coordinationResponse != null) {
+      answeredUserIds.add(ho.userId);
+    }
+  }
   final assignedUserIds = {
     authorId,
     ...admittedUserIds,
   };
   for (final ho in helpOffers) {
-    if (ho.isWithdrawn || !assignedUserIds.add(ho.userId)) continue;
+    final kind = helpOfferEndKind(
+      isWithdrawn: ho.isWithdrawn,
+      admissionAction: ho.admissionAction,
+      stakeState: ho.stakeState,
+      withdrawReason: ho.withdrawReason,
+      coordinationResponse: ho.coordinationResponse,
+    );
+    // A real withdrawal stays in the closed-offers fold. Ended and declined
+    // offers are deactivated too, including when the viewer was not sent
+    // the admission action (#783).
+    if (kind == HelpOfferEndKind.withdrew || !assignedUserIds.add(ho.userId)) {
+      continue;
+    }
     final row = rowFor(ho.userId, isAuthor: false);
     if (endedUserIds.contains(ho.userId)) {
       participationEnded.add(row);
-    } else if (!notFittingUserIds.contains(ho.userId)) {
-      willingToHelp.add(row);
-    } else {
+    } else if (declinedUserIds.contains(ho.userId) ||
+        answeredUserIds.contains(ho.userId)) {
       notFitting.add(row);
+    } else {
+      willingToHelp.add(row);
     }
   }
 

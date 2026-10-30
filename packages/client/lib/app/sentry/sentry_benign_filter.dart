@@ -12,7 +12,7 @@ import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_except
 /// Whether [error] is an expected, user-facing failure that should not
 /// become a Sentry issue (connectivity loss, session expiry, etc.).
 bool isBenignSentryThrowable(Object? error) {
-  if (error is PollDuplicateVariantException) return true;
+  if (error is BeaconPlanException) return true;
   if (error == null) {
     return false;
   }
@@ -52,7 +52,7 @@ bool isBenignSentryThrowable(Object? error) {
 // Closed Request, room access, Questions access and admission backoff.
 // Only known business rejections: unfamiliar codes must still report.
 bool _isExpectedDomainCode(String? code) =>
-    const {'1500', '1102', '1347', '1704'}.contains(code?.trim());
+    const {'1500', '1102', '1338', '1347', '1704'}.contains(code?.trim());
 
 /// Flutter web: a pointer packet hit-tests a render box before first layout.
 ///
