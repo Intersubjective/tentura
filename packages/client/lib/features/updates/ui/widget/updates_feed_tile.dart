@@ -151,8 +151,10 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
 
   /// #736: the dot. On the Unread view a read row that is not cleared keeps
   /// its dot, so the dots add up to the count; nothing else changes for it.
+  /// A row off Unread (e.g. cleared by opening its Request, but never read)
+  /// has no dot on All either: a dot always means "on Unread and counted".
   bool get _showDot =>
-      _isUnread || (widget.unreadView && isInUnreadView(widget.receipt));
+      isInUnreadView(widget.receipt) && (_isUnread || widget.unreadView);
 
   /// #711: a read optional row can still be on Unread (it is not cleared), so
   /// its menu offers the clear too, not only "Mark unread".
@@ -224,6 +226,9 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       actorName: widget.actor == null
           ? null
           : profileWithContactOverlay(widget.actor!).shownName,
+      // Beacon kind 1 is a Post (0 a Request).
+      isPost: widget.receipt.beaconKind == 1,
+      postRootExcerpt: widget.receipt.postRootExcerpt,
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
