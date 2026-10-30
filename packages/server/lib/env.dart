@@ -95,7 +95,9 @@ Duration? _parseEnvDuration(String? raw) {
 /// `expires_at`, archived Posts or the new shorten/close mutations.
 /// Raised to 7.58.0 for the QA batch of 2026-10-24 (#482 voter list for the
 /// poll author, #337 Updates search by actor, #545 first-load gate).
-const kDefaultMinClientVersion = '7.58.0';
+/// Raised to 7.59.14 for the Posts list fields of 2026-10-25 (#719
+/// `forwardedById`/`forwardedByName`, #767 `lastMessageIsRoot`).
+const kDefaultMinClientVersion = '7.59.14';
 
 class Env {
   Env({

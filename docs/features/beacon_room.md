@@ -262,3 +262,23 @@ Discussion child lists and parent references subscribe to the `beacon_hierarchy`
 | Nested request | child request | дочерний запрос |
 
 Internal code, storage, GraphQL, and routes retain **beacon** / **room** identifiers — see [`../../CONTEXT.md`](../../CONTEXT.md) and [`.cursor/rules/terminology.mdc`](../../.cursor/rules/terminology.mdc).
+
+## Schema and server batch — 7.59.14
+
+This batch (#765, #717, #719, #767) requires client **7.59.14**;
+the server's baked minimum and the web bootstrap cache key match it.
+
+- **Post invite receipts (#717):** accepting a Post invite produces a
+  “shared a post” Activity receipt for both new and existing accounts.
+- **Posts list provenance (#719):** summaries expose `forwardedById` and
+  `forwardedByName` for the latest active inbound sender other than the
+  author, when present. The client row shows the author and “via” sender.
+- **Posts list previews (#767):** `lastMessageIsRoot` identifies the latest
+  non-system message as the root by message identity (migration m0276).
+  The client suppresses that repeated root preview; a distinct reply with
+  identical text still appears.
+- **Legacy blocked helpers (#765):** data migration m0275 unassigns live
+  plan steps and clears pending plan-member state for legacy block-withdrawn
+  helpers who no longer have discussion admission. Authors, stewards and
+  still-admitted participants keep their assignments. This one-off repair
+  creates no plan revision entry.
