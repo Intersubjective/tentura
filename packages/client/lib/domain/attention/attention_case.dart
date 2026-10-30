@@ -1411,9 +1411,9 @@ final class AttentionCase implements AttentionReconcilePort {
   // No optimistic §6 summary deltas: home nav indicators are server-composed
   // from scope / obligation predicates the client does not hold locally, so
   // guessing them during ack would reintroduce M1 drift. The optimistic frame
-  // the user sees is the *list*,
-  // which `_applyOptimisticAcks` still moves; the indicators follow on the
-  // refresh `_requestSurfaceSummaryRefresh` already queues.
+  // the user sees is the *list*, which `_applyOptimisticAcks` still moves; the
+  // indicators follow on the refresh `_requestSurfaceSummaryRefresh` already
+  // queues.
 
   void _applyOptimisticAcks({
     int unreadDelta = 0,
