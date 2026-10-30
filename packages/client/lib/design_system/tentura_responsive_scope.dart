@@ -116,33 +116,6 @@ class TenturaChatColumn extends StatelessWidget {
   }
 }
 
-/// Master list width for expanded master–detail shells.
-/// Production Inbox/My Work no longer call this; packing tests keep the geometry.
-double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
-    (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
-
-/// Minimum usable width for an expanded master–detail detail pane.
-const double kDeskDetailMinWidth = 360.0;
-
-/// Horizontal chrome between expanded master list and detail pane.
-double deskMasterDetailSeparatorWidth(TenturaTokens tt) =>
-    tt.screenHPadding * 2 + 1;
-
-/// @deprecated Use [deskMasterDetailSeparatorWidth].
-double myWorkMasterDetailSeparatorWidth(TenturaTokens tt) =>
-    deskMasterDetailSeparatorWidth(tt);
-
-/// Detail pane width after master list and separator at [bodyWidth].
-double deskDetailBudget(double bodyWidth, TenturaTokens tt) {
-  final master = deskMasterPaneWidth(bodyWidth, tt);
-  return bodyWidth - master - deskMasterDetailSeparatorWidth(tt);
-}
-
-/// Whether [bodyWidth] can show master list and detail side by side.
-/// Legacy packing-test helper; Inbox no longer uses master–detail.
-bool deskFitsMasterDetail(double bodyWidth, TenturaTokens tt) =>
-    deskDetailBudget(bodyWidth, tt) >= kDeskDetailMinWidth;
-
 /// Expands [child] to the full viewport width.
 ///
 /// Kept for graph routes; a no-op when the app root is already full width.

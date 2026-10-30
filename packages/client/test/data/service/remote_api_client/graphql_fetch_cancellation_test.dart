@@ -33,7 +33,7 @@ void main() {
     addTearDown(() async {
       // Complete the fake network before awaiting async* cancellation. An
       // uncancellable production request must fail an assertion, not hang
-      // teardown in gql_dedupe_link's internal first-response subscriber.
+      // teardown in [CancellableDedupeLink]'s internal first-response subscriber.
       transport.respondToAll();
       for (final subscription in subscriptions) {
         await subscription.cancel().timeout(const Duration(seconds: 2));

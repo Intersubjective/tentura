@@ -17,6 +17,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
+import '../../support/beacon_activity_event_visibility_bits.dart';
 import 'beacon_view_screen_harness.dart';
 
 // #450: the same request date read "Oct 17 – Oct 18" in the editor,
