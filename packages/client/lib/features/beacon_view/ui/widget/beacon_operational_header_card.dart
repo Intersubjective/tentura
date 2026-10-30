@@ -121,7 +121,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           if (showHudRows) ClosedRequestBanner(beacon: state.beacon),
           if (state.beacon.status == BeaconStatus.closed &&
               !state.isBeaconMine &&
-              state.isHelpOffered)
+              state.viewerOfferedHelp)
             Padding(
               padding: EdgeInsets.only(bottom: tt.cardGap),
               child: ClosureResultCard(

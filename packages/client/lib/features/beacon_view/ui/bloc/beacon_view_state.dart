@@ -345,6 +345,14 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   bool get isBeaconMine => beacon.author.id == myProfile.id;
 
+  /// The viewer has a help-offer row on this Request, including one they
+  /// withdrew or the author removed. [isHelpOffered] is only a live offer
+  /// (status 0), so a helper who left before close would miss the result
+  /// the server already has for them (#758). Someone who never offered has
+  /// no row.
+  bool get viewerOfferedHelp =>
+      helpOffers.any((offer) => offer.user.id == myProfile.id);
+
   /// The author's own live Request that is discoverable in the Field: the
   /// case where "sent to nobody yet" is worth saying (#484).
   bool get _isAuthorsLiveFieldRequest =>
