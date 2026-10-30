@@ -65,6 +65,35 @@ void main() {
       });
     });
 
+    // #796: the cookie probe already fetched this session account's access
+    // token; signing in again fetched a second one in series, and every
+    // first-paint GraphQL request (and so every cover thumbnail) waited on
+    // both round trips (150 ms in Chromium/Firefox, ~700 ms in WebKit).
+    test('a restored cookie session costs one access-token round trip', () {
+      fakeAsync((async) {
+        final remote = _ScriptedRemote([_Step.ok]);
+        final cubit = _hydrate(async, remote);
+
+        async.elapse(const Duration(seconds: 1));
+
+        expect(cubit.state.currentAccountId, 'U-session');
+        expect(cubit.state.authRecoveryNeeded, isFalse);
+        expect(remote.calls, 1);
+      });
+    });
+
+    test('a seed account matched by the cookie probe still signs in', () {
+      fakeAsync((async) {
+        final remote = _ScriptedRemote([_Step.ok]);
+        final cubit = _hydrate(async, remote, local: _SeedLocal());
+
+        async.elapse(const Duration(seconds: 1));
+
+        expect(cubit.state.currentAccountId, 'U-session');
+        expect(remote.seedSignIns, 1);
+      });
+    });
+
     test('server rejection still signs the user out', () {
       fakeAsync((async) {
         final remote = _ScriptedRemote([_Step.reject]);
@@ -79,15 +108,19 @@ void main() {
   });
 }
 
-AuthCubit _hydrate(FakeAsync async, _ScriptedRemote remote) {
-  final local = _SessionLocal();
+AuthCubit _hydrate(
+  FakeAsync async,
+  _ScriptedRemote remote, {
+  _SessionLocal? local,
+}) {
+  final accounts = local ?? _SessionLocal();
   AuthCubit? cubit;
   unawaited(
     AuthCubit.hydrated(
       const Env(),
-      buildTestAuthCase(local, remote),
+      buildTestAuthCase(accounts, remote),
       AccountCase(
-        local,
+        accounts,
         remote,
         _FakePlatform(),
         _FakeProfiles(),
@@ -116,6 +149,8 @@ final class _ScriptedRemote extends EmptyAuthRemote {
 
   int calls = 0;
 
+  int seedSignIns = 0;
+
   void release(String userId) => _hanging.complete(userId);
 
   @override
@@ -129,9 +164,15 @@ final class _ScriptedRemote extends EmptyAuthRemote {
       _Step.reject => throw const SessionAuthRejectedException(),
     };
   }
+
+  @override
+  Future<String> signIn(String seed, {String? authAttemptId}) async {
+    seedSignIns++;
+    return 'U-session';
+  }
 }
 
-final class _SessionLocal extends EmptyAuthLocal {
+class _SessionLocal extends EmptyAuthLocal {
   String _current = 'U-session';
 
   @override
@@ -145,6 +186,12 @@ final class _SessionLocal extends EmptyAuthLocal {
 
   @override
   Future<String> getSeedByAccountId(String id) async => 'seed';
+}
+
+/// A seed (key) account on this device that also holds a cookie session.
+final class _SeedLocal extends _SessionLocal {
+  @override
+  Future<bool> isSessionAccount(String id) async => false;
 }
 
 final class _FakePlatform extends Fake implements PlatformRepositoryPort {}

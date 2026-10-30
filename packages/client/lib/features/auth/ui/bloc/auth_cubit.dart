@@ -242,7 +242,7 @@ class AuthCubit extends Cubit<AuthState> {
         _authCase.noteAuthenticatedBoot();
       }
       try {
-        await _authCase.signIn(userId: accountId);
+        await _authCase.signInRestored(bootstrap);
       } on AuthServerUnavailableException {
         rethrow;
       } on TimeoutException {
@@ -322,7 +322,8 @@ class AuthCubit extends Cubit<AuthState> {
     });
   }
 
-  Future<bool> hasSeedOnlyLocalAccounts() => _authCase.hasSeedOnlyLocalAccounts();
+  Future<bool> hasSeedOnlyLocalAccounts() =>
+      _authCase.hasSeedOnlyLocalAccounts();
 
   ({bool pageUnloading, AuthRecoveryNavigation? pending}) _applyRecoveryOutcome(
     AuthRecoveryOutcome outcome,
