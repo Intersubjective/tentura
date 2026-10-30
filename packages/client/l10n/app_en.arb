@@ -4,18 +4,6 @@
   "@appTitle": {
     "context": "App"
   },
-  "labelTitle": "Title",
-  "@labelTitle": {
-    "context": "Utils"
-  },
-  "labelTitleOptional": "Title (optional)",
-  "@labelTitleOptional": {
-    "context": "Utils"
-  },
-  "labelBody": "Details",
-  "@labelBody": {
-    "context": "Utils"
-  },
   "labelDescription": "Description",
   "@labelDescription": {
     "context": "Utils"
@@ -1440,10 +1428,6 @@
   "helpOffererForwardPathTooltip": "Show forward path",
   "@helpOffererForwardPathTooltip": {
     "context": "HelpOfferTile — IconButton tooltip for helper forward path graph"
-  },
-  "myField": "Field",
-  "@myField": {
-    "context": "HomeScreen"
   },
   "inbox": "Activity",
   "@inbox": {
@@ -3346,10 +3330,6 @@
   "@myWorkFilterMenuTooltip": {
     "context": "MyWorkScreen"
   },
-  "myWorkOverflowArchive": "Archived",
-  "@myWorkOverflowArchive": {
-    "context": "MyWorkScreen"
-  },
   "myWorkEmptyAll": "No requests or help offers yet",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
@@ -3577,40 +3557,8 @@
       }
     }
   },
-  "myWorkYouAuthor": "You (author)",
-  "@myWorkYouAuthor": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipAuthor": "Author",
-  "@myWorkChipAuthor": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipDraft": "Draft",
-  "@myWorkChipDraft": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipHelpOffered": "I offered help",
-  "@myWorkChipHelpOffered": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipReviewPending": "Review pending",
-  "@myWorkChipReviewPending": {
-    "context": "MyWorkScreen"
-  },
   "myWorkChipReviewWindowOpen": "Final check",
   "@myWorkChipReviewWindowOpen": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipReadyForReview": "Ready for review",
-  "@myWorkChipReadyForReview": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipMoreHelp": "More help needed",
-  "@myWorkChipMoreHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkChipForwarded": "I forwarded",
-  "@myWorkChipForwarded": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusNeedsMoreHelp": "Needs more help",
@@ -3619,10 +3567,6 @@
   },
   "myWorkStatusEnoughHelp": "Enough help",
   "@myWorkStatusEnoughHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusClosed": "Closed",
-  "@myWorkStatusClosed": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusOverdue": "Deadline passed",
@@ -3646,10 +3590,6 @@
         "type": "String"
       }
     }
-  },
-  "myWorkStatusHelpOfferedPersonal": "Help offered",
-  "@myWorkStatusHelpOfferedPersonal": {
-    "context": "MyWorkScreen"
   },
   "myWorkOfferAwaitingAuthor": "Waiting for the author's reply",
   "@myWorkOfferAwaitingAuthor": {
@@ -3844,15 +3784,6 @@
   "myWorkObligationOfferMissing": "This help offer is no longer available.",
   "@myWorkObligationOfferMissing": {
     "context": "MyWorkScreen"
-  },
-  "myWorkObligationMore": "{count, plural, one{{count} more} other{{count} more}}",
-  "@myWorkObligationMore": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "myWorkWhatsNew": "{count, plural, one{{count} new · {headline}} other{{count} new · {headline}}}",
   "@myWorkWhatsNew": {
@@ -4135,62 +4066,8 @@
   "@myWorkLastEventAuthorSuffix": {
     "context": "MyWorkScreen"
   },
-  "myWorkDraftStatusLine": "{count} · Investigation in progress",
-  "@myWorkDraftStatusLine": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "myWorkHelpOffersShort": "{count}",
-  "@myWorkHelpOffersShort": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "myWorkArchivePlaceholder": "Archive will be available in a future update",
-  "@myWorkArchivePlaceholder": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmpty": "No active work",
-  "@myWorkEmpty": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionDrafts": "Drafts",
-  "@myWorkSectionDrafts": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionActive": "Active",
-  "@myWorkSectionActive": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionReview": "Review",
-  "@myWorkSectionReview": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkSectionClosed": "Closed",
-  "@myWorkSectionClosed": {
-    "context": "MyWorkScreen"
-  },
   "myWorkEmptyDrafts": "No drafts",
   "@myWorkEmptyDrafts": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyActive": "No active work",
-  "@myWorkEmptyActive": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyReview": "Nothing in review",
-  "@myWorkEmptyReview": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkEmptyClosed": "No closed work",
-  "@myWorkEmptyClosed": {
     "context": "MyWorkScreen"
   },
   "beaconViewTitle": "Request",
@@ -4229,10 +4106,6 @@
   "@beaconFactsRowLabel": {
     "context": "BeaconViewScreen"
   },
-  "labelHelpOffered": "Help offered",
-  "@labelHelpOffered": {
-    "context": "BeaconViewScreen"
-  },
   "labelOfferHelp": "Offer help",
   "@labelOfferHelp": {
     "context": "BeaconViewScreen"
@@ -4262,10 +4135,6 @@
   },
   "noActivityYet": "No activity yet",
   "@noActivityYet": {
-    "context": "BeaconViewScreen"
-  },
-  "labelForwardChain": "Forward chain",
-  "@labelForwardChain": {
     "context": "BeaconViewScreen"
   },
   "timelineForwarded": "{sender} forwarded to {recipient}",
@@ -4372,11 +4241,6 @@
       }
     }
   },
-  "labelHelpOffers": "People",
-  "@labelHelpOffers": {
-    "context": "BeaconViewScreen",
-    "description": "Tab title for help offers list"
-  },
   "labelForwards": "Forwards",
   "@labelForwards": {
     "context": "BeaconViewScreen",
@@ -4401,11 +4265,6 @@
         "type": "int"
       }
     }
-  },
-  "myForwardsSectionLabel": "My forwards",
-  "@myForwardsSectionLabel": {
-    "context": "BeaconViewScreen",
-    "description": "Subsection header in the Forwards tab showing who the current user forwarded to"
   },
   "myForwardDeclined": "Dismissed",
   "@myForwardDeclined": {
@@ -4600,7 +4459,6 @@
     }
   },
   "durationRemainingLessThanMinute": "<1m",
-  "labelHelpTypeOptional": "Type of help (optional)",
   "labelWithdrawReasonRequired": "Why are you stepping back?",
   "coordinationNeutral": "—",
   "coordinationMoreHelpNeeded": "More or different help needed",
@@ -4621,21 +4479,7 @@
   "withdrawWrongFit": "Wrong fit",
   "withdrawSomeoneElseTookOver": "Someone else took over",
   "withdrawOther": "Other",
-  "labelCoordinationStatus": "Coordination",
-  "labelHelpOfferCount": "{count} help offers",
-  "@labelHelpOfferCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "labelSetCoordinationResponse": "Set coordination signal",
-  "labelBeaconCoordinationSummary": "Coverage on this request",
-  "labelBeaconTabStatus": "Status",
-  "labelBeaconTabActivity": "Timeline",
   "labelBeaconTabLog": "Log",
-  "labelBeaconTabThreads": "Threads",
   "labelBeaconTabNow": "Overview",
   "labelBeaconTabChat": "Discussion",
   "beaconChildRequestsTitle": "Child requests",
@@ -4965,8 +4809,6 @@
   "@beaconCloseNowCta": {
     "description": "Primary CTA on My Work when all required reviews are done"
   },
-  "myWorkFinishedStatusClosed": "Closed",
-  "myWorkFinishedStatusCancelled": "Cancelled",
   "myWorkSectionNeedsYou": "Needs you",
   "@myWorkSectionNeedsYou": {
     "description": "My Work section header when live obligations are present"
@@ -4981,7 +4823,6 @@
   },
   "myWorkFinishedHint": "Finished requests stay here until you archive them.",
   "myWorkStatusWrappingUp": "Final check",
-  "myWorkStatusCancelled": "Cancelled",
   "beaconClosurePanelTitleReady": "Close the loop",
   "beaconClosurePanelTitleReview": "Review before closing",
   "beaconClosurePanelTitlePremature": "Closure not ready",
