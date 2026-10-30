@@ -1332,7 +1332,6 @@ ranked AS (
   FROM visible v
   WHERE v.surface = 'activity'
     AND v.beacon_id IN ($placeholders)
-    AND v.presentation_key IS DISTINCT FROM 'relay_received'
     AND ${AttentionDismissibleSql.relayShellExcluded('v')}
     -- #189: optional events only — For You never carries an obligation.
     AND ${AttentionDismissibleSql.activeOptional('v')}

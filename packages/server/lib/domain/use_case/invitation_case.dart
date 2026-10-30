@@ -210,20 +210,6 @@ final class InvitationCase extends UseCaseBase {
         ? InviteCodeStatus.expired
         : InviteCodeStatus.available;
 
-    final InviteCallerStatus callerStatus;
-    if (callerUserId == null) {
-      callerStatus = InviteCallerStatus.anonymous;
-    } else if (callerUserId == invitation.issuer.id) {
-      callerStatus = InviteCallerStatus.isInviter;
-    } else if (await _friendshipLookup.isReciprocalSubscribe(
-      viewerId: callerUserId,
-      peerId: invitation.issuer.id,
-    )) {
-      callerStatus = InviteCallerStatus.alreadyFriends;
-    } else {
-      callerStatus = InviteCallerStatus.existingUser;
-    }
-
     BeaconEntity? beacon;
     final beaconId = invitation.beaconId;
     if (beaconId != null) {
@@ -234,6 +220,21 @@ final class InvitationCase extends UseCaseBase {
         invitationConsumed: invitation.isAccepted,
         invitationExpired: invitation.isExpired,
       );
+    }
+
+    final InviteCallerStatus callerStatus;
+    if (callerUserId == null) {
+      callerStatus = InviteCallerStatus.anonymous;
+    } else if (callerUserId == invitation.issuer.id) {
+      callerStatus = InviteCallerStatus.isInviter;
+    } else if (beacon?.kind != BeaconKind.post &&
+        await _friendshipLookup.isReciprocalSubscribe(
+          viewerId: callerUserId,
+          peerId: invitation.issuer.id,
+        )) {
+      callerStatus = InviteCallerStatus.alreadyFriends;
+    } else {
+      callerStatus = InviteCallerStatus.existingUser;
     }
 
     var inviter = invitation.issuer;
