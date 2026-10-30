@@ -1493,6 +1493,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
             )
           : slice;
 
+      final needsAuthorForwards =
+          !skipRoom &&
+          !_authorForwardStatusTried &&
+          state.needsAuthorForwardStatus;
+      var authorForwardStatusLoaded = !needsAuthorForwards;
       var displayStatusLoaded = false;
       List<HelpOfferRowRecord>? loadedOffers;
       BeaconDisplayStatusDto? loadedDisplayStatus;
@@ -1506,7 +1511,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         }
         emit(
           next.copyWith(
-            firstLoadDone: loadedOffers != null && displayStatusLoaded,
+            firstLoadDone:
+                loadedOffers != null &&
+                displayStatusLoaded &&
+                authorForwardStatusLoaded,
           ),
         );
       }
@@ -1676,16 +1684,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       );
       if (!skipRoom && wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
-      } else if (!_authorForwardStatusTried &&
-          (state.needsAuthorForwardStatus ||
-              state.needsTrailForDirectForward)) {
+      } else if (needsAuthorForwards ||
+          (!_authorForwardStatusTried && state.needsTrailForDirectForward)) {
         _authorForwardStatusTried = true;
         // #484: the Now panel tells the author of a live Request that it was
         // sent to nobody yet; that needs the author's own forwards. #496: a
         // helper card's "forwarded directly" line follows the same trail.
         // Best effort: a failed read leaves the status unknown (no line, no
         // error; the card says "Joined via the network").
-        unawaited(_loadForwards(silent: true));
+        await _loadForwards(silent: true);
+        authorForwardStatusLoaded = true;
+        emitPrimary(state);
       }
     } catch (e) {
       if (isClosed) return;

@@ -297,6 +297,98 @@ Future<void> main() async {
     );
 
     test(
+      'deleting a populated tag returns its counts and an undoable snapshot',
+      () async {
+        final tag = await create('Friends', glyph: 'Q', color: 3);
+        await run(
+          r'''
+mutation AddMember($ops: [PersonTagMemberOpInput!]!, $clientOpId: String!) {
+  personTagMembersApply(ops: $ops, clientOpId: $clientOpId)
+}
+''',
+          {
+            'ops': [
+              {
+                'tagId': tag['id'],
+                'personId': _other,
+                'op': 'add',
+                'source': 2,
+              },
+            ],
+            'clientOpId': 'add-member',
+          },
+        );
+
+        const countedTags = '''
+query { personTags { id name glyph color ord count countOffField } }
+''';
+        final before =
+            ((await run(countedTags, {}))['personTags'] as List).single
+                as Map<String, dynamic>;
+        expect(before['count'], 1);
+        expect(before['countOffField'], 1);
+
+        // Select the same fields as the client's PersonTagDelete operation.
+        // parseAndExecute throws on GraphQL errors, including null counts.
+        final snapshot = await field(
+          r'''
+mutation Delete($id: String!, $clientOpId: String!) {
+  personTagDelete(id: $id, clientOpId: $clientOpId) {
+    tag { id name glyph color ord count countOffField }
+    memberIds
+    sources
+  }
+}
+''',
+          {'id': tag['id'], 'clientOpId': 'delete-populated'},
+          'personTagDelete',
+        );
+        expect(snapshot['tag'], before);
+        expect(snapshot['memberIds'], [_other]);
+        expect(snapshot['sources'], [2]);
+        expect(await listed(), isEmpty);
+        expect(
+          (await run(
+            'query { personTagMemberships { tagId personIds } }',
+            {},
+          ))['personTagMemberships'],
+          isEmpty,
+        );
+
+        // Like the client undo flow, send the writable tag fields and the
+        // returned membership arrays; counts are output-only fields.
+        // populated_tag_delete_screen_pg_test also exercises the production
+        // client's mapping of the complete response when Undo is tapped.
+        final snapshotTag = snapshot['tag']! as Map<String, dynamic>;
+        final restored = await field(_restoreDoc, {
+          'snapshot': {
+            'tag': {
+              for (final key in ['id', 'name', 'glyph', 'color', 'ord'])
+                key: snapshotTag[key],
+            },
+            'memberIds': snapshot['memberIds'],
+            'sources': snapshot['sources'],
+          },
+          'clientOpId': 'restore-populated',
+        }, 'personTagRestore');
+        expect(restored, tag);
+        expect((await run(countedTags, {}))['personTags'], [before]);
+        expect(
+          (await run(
+            'query { personTagMemberships { tagId personIds } }',
+            {},
+          ))['personTagMemberships'],
+          [
+            {
+              'tagId': tag['id'],
+              'personIds': [_other],
+            },
+          ],
+        );
+      },
+    );
+
+    test(
       'a repeated delete and a repeated restore replay their results',
       () async {
         final tag = await create('Friends');
