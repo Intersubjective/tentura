@@ -3397,8 +3397,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Expands or collapses [authorId]'s hidden request satellites. Expanding
   /// with [refitInsets] refits the camera once, after the new layout lands, to
   /// the author and the satellites it revealed (#459). Collapsing refits to
-  /// the whole collapsed field, or recentres on the author where that field
-  /// cannot show at close detail.
+  /// the author at full scale, as Center view does.
   void toggleSatelliteOverflow(String authorId, {EdgeInsets? refitInsets}) {
     if (isClosed) {
       return;
@@ -3456,15 +3455,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
       return;
     }
-    // A collapsed «+N more» chip is sure of a spot only at close detail. A
-    // field too large to show whole there (a phone) centres on the author at
-    // full scale instead, as Center view does.
-    final fieldScale = _scene.wholeFieldFitScale(refit.insets);
-    if (fieldScale != null && fieldScale >= kConstellationCloseDetailScale) {
-      _scene.fitWholeField(refit.insets);
-    } else {
-      _scene.centreOnPerson(refit.authorId, refit.insets, resetScale: true);
-    }
+    // A collapsed «+N more» chip is sure of a spot only at close detail:
+    // centre on the author at full scale, as Center view does.
+    _scene.centreOnPerson(refit.authorId, refit.insets, resetScale: true);
   }
 
   bool isSatelliteOverflowExpanded(String authorId) =>

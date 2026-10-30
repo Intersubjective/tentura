@@ -11,8 +11,6 @@
 // and a saved tag magnet, as the QA account has them. Only the repositories
 // and the slice scheduler's frame pacing are stand-ins.
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +19,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_tag_magnet.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_tag_magnet_repository_port.dart';
@@ -29,9 +26,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_tag
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -297,75 +292,6 @@ Matrix4 _cameraMatrix(WidgetTester tester) => tester
     .value
     .clone();
 
-// Geometry-only oracle: the camera fit of every node on the collapsed field,
-// derived from node positions and the camera's constraints, never from a
-// camera fit action. A collapsed «+N more» chip is sure of a spot only at
-// close detail; a field too large to show whole there (a phone) gets the
-// camera [recentred], the one Center view gave on the owner, which showed
-// the chip.
-Matrix4 _collapsedFieldFit(
-  WidgetTester tester,
-  ConstellationCubit cubit, {
-  required Matrix4 recentred,
-}) {
-  final controller = cubit.graphController;
-  final snapshot = controller.renderSnapshot;
-  Rect? bounds;
-  for (final entry in snapshot.topology.nodesById.entries) {
-    final point = snapshot.resolvePosition(entry.key)!;
-    final footprint = constellationPlacedNodeBounds(
-      centre: (x: point.x, y: point.y),
-      footprint: cubit.layoutFootprints[entry.key],
-      size: (
-        width: entry.value.size.width,
-        height: entry.value.size.height,
-      ),
-    );
-    final rect = Rect.fromLTRB(
-      footprint.left,
-      footprint.top,
-      footprint.right,
-      footprint.bottom,
-    );
-    bounds = bounds == null ? rect : bounds.expandToInclude(rect);
-  }
-  // Field fits reserve 48 scene pixels around the visible footprints.
-  final padded = bounds!.inflate(48);
-  final pixel = controller.viewportSize!;
-  final insets = ConstellationCameraControls.cameraViewportInsets(
-    tester.element(find.byType(ConstellationBody)),
-    contextPanelVisible: false,
-  );
-  final usable = Rect.fromLTRB(
-    insets.left,
-    insets.top,
-    pixel.width - insets.right,
-    pixel.height - insets.bottom,
-  );
-  final canvas = controller.canvasSize;
-  // A zero-margin InteractiveViewer cannot zoom out beyond its canvas.
-  final boundaryFloor = math.max(
-    0.1,
-    math.max(pixel.width / canvas.width, pixel.height / canvas.height),
-  );
-  final lower = math.min(boundaryFloor, 1);
-  final upper = math.max(boundaryFloor, 1);
-  final fit = math.min(
-    usable.width / padded.width,
-    usable.height / padded.height,
-  );
-  if (fit < kConstellationCloseDetailScale) {
-    return recentred;
-  }
-  final scale = fit.clamp(lower, upper).toDouble();
-  return Matrix4.identity()
-    ..setEntry(0, 0, scale)
-    ..setEntry(1, 1, scale)
-    ..setEntry(2, 2, scale)
-    ..setEntry(0, 3, usable.center.dx - padded.center.dx * scale)
-    ..setEntry(1, 3, usable.center.dy - padded.center.dy * scale);
-}
-
 void main() {
   group('Show fewer on the Field screen', () {
     for (final MapEntry(key: name, value: size) in _viewports.entries) {
@@ -435,11 +361,7 @@ void main() {
           );
 
           final collapsedCamera = _cameraMatrix(tester);
-          final expectedCamera = _collapsedFieldFit(
-            tester,
-            cubit,
-            recentred: recentredCamera,
-          );
+          final expectedCamera = recentredCamera;
           expect(
             expectedCamera.storage,
             isNot(
@@ -447,14 +369,14 @@ void main() {
                 expandedCamera.storage.map((v) => closeTo(v, 0.000001)),
               ),
             ),
-            reason: 'the collapsed fit differs from the expanded one',
+            reason: 'the recentred camera differs from the expanded one',
           );
           expect(
             collapsedCamera.storage,
             orderedEquals(
               expectedCamera.storage.map((v) => closeTo(v, 0.000001)),
             ),
-            reason: 'Show fewer refits the camera to the collapsed field',
+            reason: 'Show fewer returns the camera to the recentred framing',
           );
         },
       );

@@ -945,16 +945,6 @@ class ConstellationSceneController {
     );
   }
 
-  /// The scale a fit of the whole field needs, before any floor or cap; null
-  /// while there is no laid-out field or viewport.
-  double? wholeFieldFitScale(EdgeInsets insets) {
-    final bounds = graphController.canLayout ? _placedBounds(null) : null;
-    final viewport = graphController.viewportSize;
-    return bounds == null || viewport == null
-        ? null
-        : _fitScale(bounds, insets, viewport);
-  }
-
   static double _fitScale(Rect bounds, EdgeInsets insets, Size viewport) {
     final padded = bounds.inflate(_fitPadding);
     final usable = insets.deflateSize(viewport);
