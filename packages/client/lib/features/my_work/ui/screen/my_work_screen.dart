@@ -399,8 +399,8 @@ class _MyWorkBody extends StatelessWidget {
   }
 }
 
-/// Reports the desk load that is still failed when this screen goes away,
-/// not each attempt the user retries.
+/// One transient desk failure per streak: the second consecutive miss, or
+/// the one still showing when this screen goes away.
 class _MyWorkLoadReport extends StatefulWidget {
   const _MyWorkLoadReport({required this.child});
 

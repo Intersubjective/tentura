@@ -89,10 +89,21 @@ void main() {
     await GetIt.I.reset();
   });
 
+  /// State is updated before the broadcast stream delivers it. A few turns
+  /// let the report gate observe that state.
+  Future<void> _deliver() async {
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  var _flushCount = 0;
+
   Future<void> flush() async {
-    reportUserFacingError(StateError(_sentinel));
+    final mark = '$_sentinel ${_flushCount++}';
+    reportUserFacingError(StateError(mark));
     for (var i = 0; i < 100; i++) {
-      if (transport.texts.any((t) => t.contains(_sentinel))) {
+      if (transport.texts.any((t) => t.contains(mark))) {
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -192,4 +203,62 @@ void main() {
     expect(reported.single, contains('HTTP 504'));
     expect(reported.single, isNot(contains('HTTP 503')));
   });
+
+  test(
+    'fail, retry fails again → exactly one report; then retry succeeds → '
+    'no further report; a new failure starts a new streak',
+    () async {
+      final repo = FakeMyWorkRepository()
+        ..fetchInitError = RemoteApiException('Server error (HTTP 503)');
+      final cubit = MyWorkCubit(
+        userId: 'user-1',
+        myWorkCase: buildTestMyWorkCase(repo: repo),
+      );
+      final gate = ScreenLoadReportGate();
+      follow(cubit, gate);
+
+      await cubit.stream
+          .firstWhere((s) => s.hasError)
+          .timeout(const Duration(seconds: 5));
+      await _deliver();
+      await flush();
+      expect(reportedBeforeControl(), isEmpty);
+
+      repo.fetchInitError = RemoteApiException('Server error (HTTP 504)');
+      await cubit.fetch();
+      await _deliver();
+      expect('${cubit.state.loadError}', contains('HTTP 504'));
+      await flush();
+      expect(reportedBeforeControl(), hasLength(1));
+      expect(reportedBeforeControl().single, contains('HTTP 504'));
+
+      repo.fetchInitError = null;
+      await cubit.fetch();
+      await _deliver();
+      expect(cubit.state.loadError, isNull);
+      await flush();
+      expect(reportedBeforeControl(), hasLength(1));
+
+      repo.fetchInitError = RemoteApiException('Server error (HTTP 502)');
+      await cubit.fetch();
+      await _deliver();
+      expect('${cubit.state.loadError}', contains('HTTP 502'));
+      await flush();
+      expect(
+        reportedBeforeControl(),
+        hasLength(1),
+        reason: 'the first failure of a new streak is not reported yet',
+      );
+
+      repo.fetchInitError = RemoteApiException('Server error (HTTP 500)');
+      await cubit.fetch();
+      await _deliver();
+      expect('${cubit.state.loadError}', contains('HTTP 500'));
+      await flush();
+      final reported = reportedBeforeControl();
+      expect(reported, hasLength(2));
+      expect(reported.last, contains('HTTP 500'));
+      expect(reported.last, isNot(contains('HTTP 502')));
+    },
+  );
 }

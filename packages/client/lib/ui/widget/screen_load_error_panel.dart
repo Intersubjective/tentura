@@ -96,18 +96,19 @@ void logScreenLoadError({
   reportSentryMessage(message);
 }
 
-/// Holds My Work's latest load failure and reports it once.
+/// One Sentry report per My Work load-failure streak.
 ///
-/// A transient failure (timeout, cancel, offline, server unavailable) is not
-/// sent while the user can still retry. [observe] with a null error drops it
-/// when the retry succeeds. [reportFinal] sends the failure still showing
-/// when the screen goes away. A parse or GraphQL error is sent immediately,
-/// and a later attempt in the same streak does not send another.
+/// A transient failure (timeout, cancel, offline, server unavailable) is sent
+/// once the streak is still failing after one retry — the second consecutive
+/// transient failure — or from [reportFinal] if the screen goes away first.
+/// [observe] with a null error is a success and starts a new streak. A parse
+/// or GraphQL error is sent immediately, still once per streak.
 final class ScreenLoadReportGate {
   Object? _error;
   ScreenLoadErrorDetails? _details;
   String? _label;
   var _reported = false;
+  var _transientAttempts = 0;
 
   void observe({
     required String label,
@@ -115,10 +116,7 @@ final class ScreenLoadReportGate {
     ScreenLoadErrorDetails? details,
   }) {
     if (error == null) {
-      _error = null;
-      _details = null;
-      _label = null;
-      _reported = false;
+      _reset();
       return;
     }
     if (identical(error, _error)) return;
@@ -126,17 +124,24 @@ final class ScreenLoadReportGate {
     _label = label;
     if (!isTransientScreenLoadFailure(error)) {
       _details = null;
-      if (_reported) return;
-      logScreenLoadError(label: label, error: error, details: details!);
-      _reported = true;
+      _transientAttempts = 0;
+      _send(error, details);
       return;
     }
     _details = details;
+    _transientAttempts++;
+    if (_transientAttempts >= 2) {
+      _send(error, details);
+    }
   }
 
+  /// The failure still showing when the screen goes away, if this streak has
+  /// not already been reported.
   void reportFinal() {
-    final error = _error;
-    final details = _details;
+    _send(_error, _details);
+  }
+
+  void _send(Object? error, ScreenLoadErrorDetails? details) {
     final label = _label;
     if (error == null || details == null || label == null || _reported) {
       return;
@@ -145,6 +150,14 @@ final class ScreenLoadReportGate {
     logScreenLoadError(label: label, error: error, details: details);
     _reported = true;
     _details = null;
+  }
+
+  void _reset() {
+    _error = null;
+    _details = null;
+    _label = null;
+    _reported = false;
+    _transientAttempts = 0;
   }
 }
 
