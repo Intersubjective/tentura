@@ -135,13 +135,16 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(false) bool viewerIsAuthor,
     @Default(false) bool viewerHasActiveHelpOffer,
     @Default([]) List<ForwardBandRow> band,
+    ForwardTargetProfile? targetProfile,
   }) = _ForwardState;
 
   const ForwardState._();
 
-  ForwardTargetProfile get profile => beacon?.kind == BeaconKind.post
-      ? ForwardTargetProfile.post
-      : ForwardTargetProfile.request;
+  ForwardTargetProfile get profile =>
+      targetProfile ??
+      (beacon?.kind == BeaconKind.post
+          ? ForwardTargetProfile.post
+          : ForwardTargetProfile.request);
 
   Set<String> get bandMemberIds => band.map((row) => row.userId).toSet();
 

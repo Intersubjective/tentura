@@ -61,6 +61,7 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => ForwardCubit(
           beaconId: '',
           embedded: true,
+          targetProfile: ForwardTargetProfile.post,
           initialSelectedIds: {
             ...initialRecipientIds,
             if (forwardToUserId.isNotEmpty) forwardToUserId,

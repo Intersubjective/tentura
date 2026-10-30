@@ -37,6 +37,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     this.initialTagIds = const {},
     Map<String, String> initialNotes = const {},
     this.embedded = false,
+    ForwardTargetProfile? targetProfile,
     DateTime Function()? clock,
   }) : _forwardCase =
            forwardCase ??
@@ -48,6 +49,7 @@ class ForwardCubit extends Cubit<ForwardState> {
              ForwardState(
                beaconId: beaconId,
                context: context,
+               targetProfile: targetProfile,
                perRecipientNotes: {
                  for (final e in initialNotes.entries)
                    if (initialSelectedIds.contains(e.key)) e.key: e.value,
@@ -207,6 +209,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       final load = await forwardCase.loadForwardCandidates(
         beaconId: state.beaconId,
         context: state.context,
+        isPost: state.profile == ForwardTargetProfile.post,
       );
       if (isClosed) {
         return;
@@ -734,7 +737,9 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   Future<List<ForwardInboundSource>> fetchInboundSources() async {
     final forwardCase = _forwardCase;
-    if (forwardCase == null) return const [];
+    if (forwardCase == null || state.profile == ForwardTargetProfile.post) {
+      return const [];
+    }
     return forwardCase.fetchInboundForwardSources(beaconId: state.beaconId);
   }
 
