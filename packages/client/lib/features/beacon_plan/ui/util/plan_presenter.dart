@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
 
@@ -122,6 +123,25 @@ String planConflictNoticeText(
   );
 }
 
+String? _planErrorTextForCode(String? code, L10n l10n) =>
+    switch (code?.trim()) {
+      '${PlanEditConflictException.codeNumber}' => l10n.planErrorConflict,
+      '${PlanStepNotFoundException.codeNumber}' => l10n.planErrorStepNotFound,
+      '${PlanNotEditableException.codeNumber}' => l10n.planErrorNotEditable,
+      '${PlanActionStaleException.codeNumber}' => l10n.planErrorActionStale,
+      '${PlanRestoreSourceMissingException.codeNumber}' =>
+        l10n.planErrorRestoreSourceMissing,
+      '${PlanRateLimitedException.codeNumber}' => l10n.planErrorRateLimited,
+      '${PlanAssigneeNotAdmittedException.codeNumber}' =>
+        l10n.planErrorAssigneeNotAdmitted,
+      '${PlanTooLargeException.codeNumber}' => l10n.planErrorTooLarge,
+      '${PlanDisabledException.codeNumber}' => l10n.planErrorDisabled,
+      '${PlanInvalidException.codeNumber}' => l10n.planErrorInvalid,
+      '${PollDuplicateVariantException.codeNumber}' =>
+        l10n.pollErrorDuplicateVariant,
+      _ => null,
+    };
+
 /// User-facing text for a plan write error.
 String planErrorText(Object error, L10n l10n) => switch (error) {
   PlanEditConflictException() => l10n.planErrorConflict,
@@ -134,6 +154,9 @@ String planErrorText(Object error, L10n l10n) => switch (error) {
   PlanTooLargeException() => l10n.planErrorTooLarge,
   PlanDisabledException() => l10n.planErrorDisabled,
   PlanInvalidException() => l10n.planErrorInvalid,
+  PollDuplicateVariantException() => l10n.pollErrorDuplicateVariant,
+  RemoteApiException(:final code) =>
+    _planErrorTextForCode(code, l10n) ?? error.message,
   _ => error.toString(),
 };
 
