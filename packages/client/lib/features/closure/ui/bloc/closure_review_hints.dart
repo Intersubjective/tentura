@@ -28,7 +28,7 @@ StreamSubscription<RepositoryEvent<Beacon>>? listenForClosureReviewHints({
     }
     final gen = ++generation;
     unawaited(() async {
-      BeaconStatus? beaconStatus = switch (event) {
+      var beaconStatus = switch (event) {
         RepositoryEventUpdate<Beacon>(:final value) => value.status,
         _ => null,
       };
