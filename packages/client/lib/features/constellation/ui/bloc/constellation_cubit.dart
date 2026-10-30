@@ -3336,7 +3336,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// no person is selected (or the field is not composed yet).
   ///
   /// When the field shows no chain, the one the server named (if any) stands
-  /// in for it.
+  /// in for it, unless it passes through people the switches hide.
   ConstellationTrustChain? get selectedTrustChain {
     final local = _localTrustChain;
     if (local is! ConstellationTrustChainNone) {
@@ -3344,6 +3344,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final served = _serverTrustChains[state.selectedPersonId];
     if (served == null || served.length < 2) {
+      return local;
+    }
+    // A chain through people the switches hide is not shown (#641): the
+    // panel says some people are hidden instead, and nothing is drawn.
+    if (state.visibility.hidesPeople &&
+        !constellationServedChainShown(
+          path: [for (final p in served) p.id],
+          visibility: state.visibility,
+          degrees: _shownMemo.degrees,
+        )) {
       return local;
     }
     return served.length == 2

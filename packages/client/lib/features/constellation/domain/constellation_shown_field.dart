@@ -60,6 +60,38 @@ ConstellationTrustChain constellationTrustChainFor({
   );
 }
 
+/// Whether a chain the server named (#779) may stand in for "no chain" while
+/// [visibility] hides people by trust degree (#641): only when nobody between
+/// the viewer and the person is of a hidden degree, so the panel never names
+/// a hidden person and no chain is drawn through one.
+///
+/// A person the field holds has the degree [degrees] gives them (the one the
+/// switches hide them by); someone on no field is placed by their step on the
+/// chain, which is the server's shortest one (step 1 first, step 2 second,
+/// further on further).
+bool constellationServedChainShown({
+  required List<String> path,
+  required ConstellationVisibility visibility,
+  required Map<String, ConstellationTrustDegree> degrees,
+}) {
+  if (!visibility.hidesPeople) {
+    return true;
+  }
+  for (var i = 1; i + 1 < path.length; i++) {
+    final degree =
+        degrees[path[i]] ??
+        switch (i) {
+          1 => ConstellationTrustDegree.first,
+          2 => ConstellationTrustDegree.second,
+          _ => ConstellationTrustDegree.further,
+        };
+    if (!visibility.showsDegree(degree)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// Memoises the field as [ConstellationVisibility] shows it and the selected
 /// person's trust chain, so a rebuild does not recompute either.
 final class ConstellationShownFieldMemo {
@@ -69,10 +101,15 @@ final class ConstellationShownFieldMemo {
   DateTime? _asOfUtc;
   late ConstellationField _shown;
   Set<String> _hiddenItemHolderIds = const {};
+  Map<String, ConstellationTrustDegree> _degrees = const {};
 
   /// Holders the last [shown] field keeps although their items are hidden
   /// by type (see [constellationHiddenItemHolderIds]).
   Set<String> get hiddenItemHolderIds => _hiddenItemHolderIds;
+
+  /// Every person of the last [shown] field's source by trust degree, while
+  /// its visibility hides people; empty otherwise.
+  Map<String, ConstellationTrustDegree> get degrees => _degrees;
 
   ConstellationField shown(
     ConstellationField field, {
@@ -91,6 +128,7 @@ final class ConstellationShownFieldMemo {
       final degrees = visibility.hidesPeople
           ? constellationTrustDegrees(field: field, viewerId: viewerId)
           : null;
+      _degrees = degrees ?? const {};
       _shown = constellationVisibleField(
         field: field,
         viewerId: viewerId,
