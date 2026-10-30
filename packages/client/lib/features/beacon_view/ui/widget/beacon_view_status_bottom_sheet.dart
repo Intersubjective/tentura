@@ -17,7 +17,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart'
-    show beaconViewOpenClosureReview;
+    show beaconViewOpenClosureReview, beaconViewRunAuthorCloseSheet;
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -57,6 +57,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
             canReopen: closure.canReopen,
           ),
     serverCanCancel: state.displayStatus?.canCancel,
+    closesWithoutFinalCheck: closureFinalCheckHasNoVote(state),
   );
   final rows = buildBeaconStatusMenuRows(menuInput);
 
@@ -369,6 +370,15 @@ Future<void> beaconViewDispatchStatusMenuAction(
         context: context,
       );
       if (confirmed) await cubit.closeBeaconNow();
+    case BeaconStatusMenuAction.closeWithoutFinalCheck:
+      if (!context.mounted) return;
+      await beaconViewRunAuthorCloseSheet(
+        context: context,
+        cubit: cubit,
+        l10n: l10n,
+        onOpenPeopleTab: onOpenPeopleTab ?? () {},
+        onOpenGeneralThread: onOpenGeneralThread ?? () {},
+      );
     case BeaconStatusMenuAction.extendReview:
       await cubit.extendReview();
     case BeaconStatusMenuAction.openReview:

@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_status_change.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -34,6 +35,8 @@ import 'package:tentura/consts.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
+
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
 import '../bloc/room_cubit.dart';
 import '../util/room_reply_excerpt.dart';
@@ -436,7 +439,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       ),
                     ),
                   ),
-            messages: state.messages,
+            messages: _discussionMessages(context, state.messages),
             myProfile: myProfile,
             participants: state.participants,
             isLoading: state.isLoading,
@@ -1943,4 +1946,22 @@ class _PinnedPostRootRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Chat lines for this Request. When the closure the viewer loaded says the
+/// review window never applied, the phantom Final check step is not shown
+/// (#825). A room opened without the Request cubit keeps every line.
+List<RoomMessage> _discussionMessages(
+  BuildContext context,
+  List<RoomMessage> messages,
+) {
+  BeaconViewCubit? view;
+  try {
+    view = context.read<BeaconViewCubit>();
+  } on ProviderNotFoundException {
+    view = null;
+  }
+  final closure = view?.state.closureState;
+  if (closure == null || !closure.hadNoFinalCheck) return messages;
+  return omitSkippedFinalCheckStatusLines(messages);
 }

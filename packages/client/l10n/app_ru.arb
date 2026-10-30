@@ -6288,6 +6288,7 @@
   "closureResultNoShare": "Автор отметил: не выполнено — части в итогах нет",
   "closureResultLeft": "К закрытию тебя уже не было в запросе",
   "closureResultLeftNoShare": "К закрытию тебя уже не было в запросе — части в итогах нет",
+  "closureResultClosedWithoutFinalCheck": "Запрос закрыт без подведения итогов.",
   "closureResultBandRaised": "Коллеги подняли твою часть",
   "closureResultBandAsIfSilent": "Твоя часть — как если бы коллеги промолчали",
   "closureResultBandLowered": "Коллеги опустили твою часть",

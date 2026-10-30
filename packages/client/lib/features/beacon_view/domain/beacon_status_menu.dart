@@ -27,6 +27,10 @@ enum BeaconStatusMenuAction {
   startWrappingUp,
   closeDirect,
   closeNow,
+
+  /// Opens the same close sheet as the HUD when nobody could vote, so the
+  /// Request closes without a final check (#825).
+  closeWithoutFinalCheck,
   extendReview,
   reopen,
   cancel,
@@ -56,6 +60,10 @@ enum BeaconStatusMenuDisabledReason {
   /// reopen lands in Open): marking «Enough help» is the step before
   /// wrapping up or closing (B081).
   markEnoughHelpFirst,
+
+  /// Nobody could vote, so there is no final check to start. The row says
+  /// the request closes right away, with the HUD's copy (#825).
+  closesWithoutFinalCheck,
 }
 
 class ClosureMenuSnapshot {
@@ -91,6 +99,7 @@ class BeaconStatusMenuInput {
     this.allowForceCloseWhenBlocked = false,
     this.serverCanCancel,
     this.closureBlockedOnlyByNeedsMoreHelp = false,
+    this.closesWithoutFinalCheck = false,
   });
 
   final Beacon beacon;
@@ -105,6 +114,12 @@ class BeaconStatusMenuInput {
   /// True when «Needs more help» is the only closure-blocking state (no open
   /// blocker, no blocked or needs-info participant).
   final bool closureBlockedOnlyByNeedsMoreHelp;
+
+  /// [closureFinalCheckHasNoVote]: the server display status says nobody
+  /// could vote, so closing does not open a final check. The menu does not
+  /// count helpers itself; the HUD and this sheet share that one function
+  /// (#825).
+  final bool closesWithoutFinalCheck;
 }
 
 class BeaconStatusMenuRow {
@@ -409,6 +424,16 @@ BeaconStatusMenuRow _wrappingUpRow(BeaconStatusMenuInput input) {
     );
   }
 
+  if (input.closesWithoutFinalCheck) {
+    return const BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.wrappingUp,
+      action: BeaconStatusMenuAction.startWrappingUp,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.closesWithoutFinalCheck,
+    );
+  }
+
   return const BeaconStatusMenuRow(
     id: BeaconStatusMenuRowId.wrappingUp,
     action: BeaconStatusMenuAction.startWrappingUp,
@@ -464,6 +489,15 @@ BeaconStatusMenuRow _closedRow(BeaconStatusMenuInput input) {
       isSelected: false,
       isEnabled: false,
       disabledReason: _closeBlockedReason(input),
+    );
+  }
+
+  if (input.hasCommitters && input.closesWithoutFinalCheck) {
+    return const BeaconStatusMenuRow(
+      id: BeaconStatusMenuRowId.closed,
+      action: BeaconStatusMenuAction.closeWithoutFinalCheck,
+      isSelected: false,
+      isEnabled: true,
     );
   }
 

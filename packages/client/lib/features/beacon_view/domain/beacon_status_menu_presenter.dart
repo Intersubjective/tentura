@@ -29,36 +29,37 @@ String beaconStatusMenuOpenRowLabel(L10n l10n, Beacon beacon) {
 String beaconStatusMenuDisabledReasonLabel(
   L10n l10n,
   BeaconStatusMenuDisabledReason reason,
-) =>
-    switch (reason) {
-      BeaconStatusMenuDisabledReason.none => '',
-      BeaconStatusMenuDisabledReason.publishFirst =>
-        l10n.beaconStatusHintPublishFirst,
-      BeaconStatusMenuDisabledReason.finishReviewFirst =>
-        l10n.beaconStatusHintFinishReviewFirst,
-      BeaconStatusMenuDisabledReason.noCommitters =>
-        l10n.beaconStatusHintNoCommitters,
-      BeaconStatusMenuDisabledReason.noHelpersYet =>
-        l10n.beaconStatusHintNoHelpersYet,
-      BeaconStatusMenuDisabledReason.cancelHasOffers =>
-        l10n.beaconStatusHintCancelHasOffers,
-      BeaconStatusMenuDisabledReason.cancelWrappingUp =>
-        l10n.beaconStatusHintCancelWrappingUp,
-      BeaconStatusMenuDisabledReason.blocked => l10n.beaconStatusHintBlocked,
-      BeaconStatusMenuDisabledReason.notReadyToClose =>
-        l10n.beaconStatusHintNotReadyToClose,
-      BeaconStatusMenuDisabledReason.waitingForReviewers =>
-        l10n.beaconReviewCloseNowBlocked,
-      BeaconStatusMenuDisabledReason.lifecycleAuthorOnly =>
-        l10n.beaconStatusHintAuthorOnly,
-      BeaconStatusMenuDisabledReason.terminalState => '',
-      BeaconStatusMenuDisabledReason.cancelHasCommitters =>
-        l10n.beaconStatusCancelHasCommitters,
-      BeaconStatusMenuDisabledReason.reopenLimitReached =>
-        l10n.beaconStatusHintReopenLimitReached,
-      BeaconStatusMenuDisabledReason.markEnoughHelpFirst =>
-        l10n.beaconStatusHintMarkEnoughHelpFirst,
-    };
+) => switch (reason) {
+  BeaconStatusMenuDisabledReason.none => '',
+  BeaconStatusMenuDisabledReason.publishFirst =>
+    l10n.beaconStatusHintPublishFirst,
+  BeaconStatusMenuDisabledReason.finishReviewFirst =>
+    l10n.beaconStatusHintFinishReviewFirst,
+  BeaconStatusMenuDisabledReason.noCommitters =>
+    l10n.beaconStatusHintNoCommitters,
+  BeaconStatusMenuDisabledReason.noHelpersYet =>
+    l10n.beaconStatusHintNoHelpersYet,
+  BeaconStatusMenuDisabledReason.cancelHasOffers =>
+    l10n.beaconStatusHintCancelHasOffers,
+  BeaconStatusMenuDisabledReason.cancelWrappingUp =>
+    l10n.beaconStatusHintCancelWrappingUp,
+  BeaconStatusMenuDisabledReason.blocked => l10n.beaconStatusHintBlocked,
+  BeaconStatusMenuDisabledReason.notReadyToClose =>
+    l10n.beaconStatusHintNotReadyToClose,
+  BeaconStatusMenuDisabledReason.waitingForReviewers =>
+    l10n.beaconReviewCloseNowBlocked,
+  BeaconStatusMenuDisabledReason.lifecycleAuthorOnly =>
+    l10n.beaconStatusHintAuthorOnly,
+  BeaconStatusMenuDisabledReason.terminalState => '',
+  BeaconStatusMenuDisabledReason.cancelHasCommitters =>
+    l10n.beaconStatusCancelHasCommitters,
+  BeaconStatusMenuDisabledReason.reopenLimitReached =>
+    l10n.beaconStatusHintReopenLimitReached,
+  BeaconStatusMenuDisabledReason.markEnoughHelpFirst =>
+    l10n.beaconStatusHintMarkEnoughHelpFirst,
+  BeaconStatusMenuDisabledReason.closesWithoutFinalCheck =>
+    l10n.beaconHudActEffectWrapUpNoVote,
+};
 
 /// Subtitle under a status row. The current Wrapping-up row opens the
 /// review when enabled, so it says so instead of describing the step.
@@ -66,14 +67,16 @@ String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRow row) =>
     row.action == BeaconStatusMenuAction.openReview && row.isEnabled
     ? l10n.beaconStatusRowOutcomeSumUp
     : switch (row.id) {
-      BeaconStatusMenuRowId.draft => l10n.beaconStatusRowOutcomeDraft,
-      BeaconStatusMenuRowId.open => l10n.beaconStatusRowOutcomeOpen,
-      BeaconStatusMenuRowId.moreHelp => l10n.beaconStatusRowOutcomeMoreHelp,
-      BeaconStatusMenuRowId.enoughHelp => l10n.beaconStatusRowOutcomeEnoughHelp,
-      BeaconStatusMenuRowId.wrappingUp => l10n.beaconStatusRowOutcomeWrappingUp,
-      BeaconStatusMenuRowId.closed => l10n.beaconStatusRowOutcomeClosed,
-      BeaconStatusMenuRowId.cancelled => l10n.beaconStatusRowOutcomeCancelled,
-    };
+        BeaconStatusMenuRowId.draft => l10n.beaconStatusRowOutcomeDraft,
+        BeaconStatusMenuRowId.open => l10n.beaconStatusRowOutcomeOpen,
+        BeaconStatusMenuRowId.moreHelp => l10n.beaconStatusRowOutcomeMoreHelp,
+        BeaconStatusMenuRowId.enoughHelp =>
+          l10n.beaconStatusRowOutcomeEnoughHelp,
+        BeaconStatusMenuRowId.wrappingUp =>
+          l10n.beaconStatusRowOutcomeWrappingUp,
+        BeaconStatusMenuRowId.closed => l10n.beaconStatusRowOutcomeClosed,
+        BeaconStatusMenuRowId.cancelled => l10n.beaconStatusRowOutcomeCancelled,
+      };
 
 /// User-facing request status label for activity timeline entries (status only).
 String requestStatusActivityLabel(L10n l10n, BeaconStatus status) =>
