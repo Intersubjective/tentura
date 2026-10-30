@@ -53,8 +53,8 @@ final class BeaconMyInviteCubit extends Cubit<BeaconMyInviteState> {
   final String beaconId;
 
   /// Called once the server took the answer: the Request page reloads, so
-  /// an accepted invitee lands inside at once.
-  final Future<void> Function()? onAnswered;
+  /// an accepted invitee lands inside at once. `accepted` is «Принять».
+  final Future<void> Function({bool accepted})? onAnswered;
 
   final AuthorInviteCase _invites;
 
@@ -87,7 +87,7 @@ final class BeaconMyInviteCubit extends Cubit<BeaconMyInviteState> {
   }
 
   /// «Принять»: the viewer's own confirmation; the author already asked.
-  Future<void> accept() => _answer(_invites.accept);
+  Future<void> accept() => _answer(_invites.accept, accepted: true);
 
   /// «Не смогу», with the rejection dialog's optional [message].
   Future<void> decline({String message = ''}) =>
@@ -95,6 +95,7 @@ final class BeaconMyInviteCubit extends Cubit<BeaconMyInviteState> {
 
   Future<void> _answer(
     Future<Object?> Function(String inviteId) send, {
+    bool accepted = false,
     String note = '',
   }) async {
     final invite = state.invite;
@@ -115,6 +116,6 @@ final class BeaconMyInviteCubit extends Cubit<BeaconMyInviteState> {
     if (isClosed) return;
     emit(BeaconMyInviteState(inviter: state.inviter));
     await _inbox.recordInviteDeclineNote(beaconId: beaconId, message: note);
-    await onAnswered?.call();
+    await onAnswered?.call(accepted: accepted);
   }
 }

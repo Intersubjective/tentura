@@ -42,6 +42,7 @@ void main() {
     late FakeUiEffectPort effects;
     late FakeInboxRepository inbox;
     late int answered;
+    bool? lastAccepted;
 
     BeaconMyInviteCubit build(String beaconId) => BeaconMyInviteCubit(
       beaconId: beaconId,
@@ -49,7 +50,10 @@ void main() {
       actorProfiles: buildActorProfiles(const [_mira]),
       inboxCase: buildTestInboxCase(inbox, buildTestBeaconThreadsCase()),
       effects: effects,
-      onAnswered: () async => answered++,
+      onAnswered: ({accepted = false}) async {
+        answered++;
+        lastAccepted = accepted;
+      },
     );
 
     setUp(() {
@@ -61,6 +65,7 @@ void main() {
       effects = FakeUiEffectPort();
       inbox = FakeInboxRepository();
       answered = 0;
+      lastAccepted = null;
     });
 
     test(
@@ -136,6 +141,7 @@ void main() {
       expect(cubit.state.invite, isNull);
       expect(cubit.state.busy, isFalse);
       expect(answered, 1);
+      expect(lastAccepted, isTrue);
     });
 
     test('decline answers the invite and records the note', () async {
@@ -145,6 +151,7 @@ void main() {
       await cubit.decline(message: 'Away that weekend');
       expect(port.declined, ['I1']);
       expect(cubit.state.invite, isNull);
+      expect(lastAccepted, isFalse);
       // The same note write as the Activity invite card: on the inbox row.
       expect(inbox.lastSetStatus, (
         beaconId: 'B1',

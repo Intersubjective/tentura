@@ -150,7 +150,13 @@ BeaconHelperHudActions buildBeaconHelperHudActions({
   }
 
   final out = <BeaconHudActionSpec>[];
-  if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
+  // A helper already offered: Follow sits beside Offer help, and both go
+  // once that offer exists (#751). The header passes these callbacks only
+  // while [BeaconViewState.isHelpOffered] is false; the showcase always
+  // passes them, so the gate lives here too.
+  if (!state.isHelpOffered &&
+      state.inboxStatus == InboxItemStatus.needsMe &&
+      onWatch != null) {
     out.add(
       BeaconHudActionSpec(
         icon: Icons.visibility_outlined,
@@ -159,7 +165,8 @@ BeaconHelperHudActions buildBeaconHelperHudActions({
         filled: false,
       ),
     );
-  } else if (state.inboxStatus == InboxItemStatus.watching &&
+  } else if (!state.isHelpOffered &&
+      state.inboxStatus == InboxItemStatus.watching &&
       onStopWatching != null) {
     out.add(
       BeaconHudActionSpec(
