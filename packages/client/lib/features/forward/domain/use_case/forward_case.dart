@@ -5,6 +5,7 @@ import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
@@ -120,6 +121,7 @@ final class ForwardCase extends UseCaseBase {
   Future<ForwardLoad> loadForwardCandidates({
     required String beaconId,
     String context = '',
+    bool isPost = false,
   }) async {
     await _contactsCase.refresh();
 
@@ -130,17 +132,21 @@ final class ForwardCase extends UseCaseBase {
     final profiles = results[0] as Iterable<Profile>;
     final involvement = results[1] as BeaconInvolvementData;
 
+    final effectiveIsPost =
+        isPost || involvement.beacon.kind == BeaconKind.post;
+
     final parentId = involvement.beacon.lineageParentBeaconId;
-    final lineage = parentId != null && parentId.isNotEmpty
-        ? await _forwardRepository.fetchLineageForwardSuggestions(
-            beaconId: beaconId,
-          )
-        : const LineageForwardSuggestions(
-            sourceBeaconId: '',
-            rootBeaconId: '',
-            suggestedNote: '',
-            suggestions: [],
-          );
+    final lineage =
+        !effectiveIsPost && parentId != null && parentId.isNotEmpty
+            ? await _forwardRepository.fetchLineageForwardSuggestions(
+                beaconId: beaconId,
+              )
+            : const LineageForwardSuggestions(
+                sourceBeaconId: '',
+                rootBeaconId: '',
+                suggestedNote: '',
+                suggestions: [],
+              );
 
     final myId = await getCurrentAccountId();
 
@@ -243,13 +249,15 @@ final class ForwardCase extends UseCaseBase {
         .toSet();
 
     var band = const <ForwardBandRow>[];
-    try {
-      band = await GetIt.I<CapabilityRepositoryPort>().fetchForwardContext(
-        beaconId: beaconId,
-        context: context.isEmpty ? null : context,
-      );
-    } catch (_) {
-      // Non-critical: contextual band is best-effort enhancement.
+    if (!effectiveIsPost && beaconId.isNotEmpty) {
+      try {
+        band = await GetIt.I<CapabilityRepositoryPort>().fetchForwardContext(
+          beaconId: beaconId,
+          context: context.isEmpty ? null : context,
+        );
+      } catch (_) {
+        // Non-critical: contextual band is best-effort enhancement.
+      }
     }
 
     if (band.isNotEmpty) {
