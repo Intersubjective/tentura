@@ -28,20 +28,28 @@ class UpdatesFeedAppBarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final compact = context.windowClass == WindowClass.compact;
+    final markAllControl = compact
+        ? IconButton(
+            tooltip: markAllLabel,
+            onPressed: hasUnread ? onMarkAll : null,
+            icon: const Icon(Icons.done_all_outlined),
+          )
+        : TenturaTextAction(
+            label: markAllLabel,
+            onPressed: hasUnread ? onMarkAll : null,
+          );
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            overflow: TextOverflow.clip,
             style: TenturaText.titleLarge(tt.text),
           ),
         ),
-        TenturaTextAction(
-          label: markAllLabel,
-          onPressed: hasUnread ? onMarkAll : null,
-        ),
+        markAllControl,
         if (showSearchIcon)
           IconButton(
             tooltip: searchTooltip,
