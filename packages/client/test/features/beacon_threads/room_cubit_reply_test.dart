@@ -18,6 +18,7 @@ import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
+import 'room_cubit_reply_refresh_wait.dart';
 
 final _kBaseTime = DateTime.utc(2026, 1, 1, 12);
 
@@ -61,16 +62,18 @@ Future<void> _awaitCondition(bool Function() condition) async {
   fail('Timed out waiting for room cubit condition.');
 }
 
-Future<void> _awaitFetchCount(FakeBeaconThreadsRepository room, int expected) async {
-  final deadline = DateTime.now().add(burstCoalescerSettleTimeout);
-  while (DateTime.now().isBefore(deadline)) {
-    if (room.fetchMessagesCallCount >= expected) return;
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-  fail(
-    'Expected at least $expected message fetches, got ${room.fetchMessagesCallCount}.',
-  );
-}
+Future<void> _awaitFetchCount(
+  FakeBeaconThreadsRepository room,
+  int expected, {
+  required RoomCubit cubit,
+  required bool Function() reflectsRefreshedSnapshot,
+}) =>
+    awaitRoomReplyRefreshSettled(
+      room: room,
+      cubit: cubit,
+      expectedFetchCount: expected,
+      reflectsRefreshedSnapshot: reflectsRefreshedSnapshot,
+    );
 
 RoomMessage? _latestLocalMessage(RoomCubit cubit) {
   for (final message in cubit.state.messages.reversed) {
@@ -444,7 +447,14 @@ void main() {
 
       fakeRoom.messages = [visible];
       fakeRoom.emitInvalidation(BeaconRoomEntityType.roomMessage);
-      await _awaitFetchCount(fakeRoom, 2);
+      await _awaitFetchCount(
+        fakeRoom,
+        2,
+        cubit: cubit,
+        reflectsRefreshedSnapshot: () =>
+            cubit.state.messages.any((message) => message.id == 'off-window') &&
+            cubit.state.pinnedJumpMessageIds.contains('off-window'),
+      );
 
       expect(
         cubit.state.messages.any((message) => message.id == 'off-window'),
@@ -480,7 +490,14 @@ void main() {
 
       fakeRoom.messages = [visible];
       realtime.port.emitCatchUp(connectionEpoch: 2);
-      await _awaitFetchCount(fakeRoom, 2);
+      await _awaitFetchCount(
+        fakeRoom,
+        2,
+        cubit: cubit,
+        reflectsRefreshedSnapshot: () =>
+            cubit.state.messages.any((message) => message.id == 'off-window') &&
+            cubit.state.pinnedJumpMessageIds.contains('off-window'),
+      );
 
       expect(
         cubit.state.messages.any((message) => message.id == 'off-window'),
@@ -522,6 +539,149 @@ void main() {
       final merged = cubit.state.messages.firstWhere((m) => m.id == 'pin-me');
       expect(merged.body, 'fresh server body');
     });
+
+    test(
+      'invalidation refresh wait does not return before edited pin is merged',
+      () async {
+        registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+        final visible = _roomMsg(
+          id: 'visible',
+          createdAt: _kBaseTime.add(const Duration(minutes: 5)),
+        );
+        final pinned = _roomMsg(
+          id: 'pin-me',
+          createdAt: _kBaseTime,
+          body: 'stale pin body',
+        );
+        final fakeRoom = FakeBeaconThreadsRepository(
+          userId: kRoomCubitFakeMyUserId,
+        )..messages = [visible];
+        fakeRoom.fetchMessageTargetsById['pin-me'] = pinned;
+        final cubit = roomCubitForTest(fakeRoom);
+        addTearDown(cubit.close);
+
+        await awaitRoomCubitLoad(cubit);
+        expect(await cubit.jumpToRepliedMessage('pin-me'), isTrue);
+
+        final edited = pinned.copyWith(body: 'fresh server body');
+        final gate = Completer<void>();
+        addTearDown(() {
+          if (!gate.isCompleted) {
+            gate.complete();
+          }
+        });
+        fakeRoom
+          ..messages = [visible, edited]
+          ..fetchMessagesCompleter = gate;
+        fakeRoom.emitInvalidation(BeaconRoomEntityType.roomMessage);
+
+        bool reflectsEditedPin() => cubit.state.messages.any(
+          (message) =>
+              message.id == edited.id && message.body == edited.body,
+        );
+
+        var settled = false;
+        final wait = _awaitFetchCount(
+          fakeRoom,
+          2,
+          cubit: cubit,
+          reflectsRefreshedSnapshot: reflectsEditedPin,
+        ).then((_) => settled = true);
+        unawaited(wait);
+
+        await _awaitCondition(
+          () => fakeRoom.fetchMessagesCallCount >= 2,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        expect(reflectsEditedPin(), isFalse);
+        expect(
+          settled,
+          isFalse,
+          reason:
+              '_awaitFetchCount must wait for cubit merge, not fetch start, '
+              'before reply tests assert refreshed pin content',
+        );
+
+        gate.complete();
+        await wait;
+        expect(reflectsEditedPin(), isTrue);
+      },
+    );
+
+    test(
+      'catch-up refresh wait does not return before edited pin is merged',
+      () async {
+        registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
+        final realtime = buildTestRealtimeSync();
+        addTearDown(realtime.port.dispose);
+        final visible = _roomMsg(
+          id: 'visible',
+          createdAt: _kBaseTime.add(const Duration(minutes: 5)),
+        );
+        final pinned = _roomMsg(
+          id: 'pin-me',
+          createdAt: _kBaseTime,
+          body: 'stale pin body',
+        );
+        final fakeRoom = FakeBeaconThreadsRepository(
+          userId: kRoomCubitFakeMyUserId,
+        )..messages = [visible];
+        fakeRoom.fetchMessageTargetsById['pin-me'] = pinned;
+        final cubit = roomCubitForTest(
+          fakeRoom,
+          realtimeSyncCase: realtime.case_,
+        );
+        addTearDown(cubit.close);
+
+        await awaitRoomCubitLoad(cubit);
+        expect(await cubit.jumpToRepliedMessage('pin-me'), isTrue);
+
+        final edited = pinned.copyWith(body: 'fresh server body');
+        final gate = Completer<void>();
+        addTearDown(() {
+          if (!gate.isCompleted) {
+            gate.complete();
+          }
+        });
+        fakeRoom
+          ..messages = [visible, edited]
+          ..fetchMessagesCompleter = gate;
+        realtime.port.emitCatchUp(connectionEpoch: 2);
+
+        bool reflectsEditedPin() => cubit.state.messages.any(
+          (message) =>
+              message.id == edited.id && message.body == edited.body,
+        );
+
+        var settled = false;
+        final wait = _awaitFetchCount(
+          fakeRoom,
+          2,
+          cubit: cubit,
+          reflectsRefreshedSnapshot: reflectsEditedPin,
+        ).then((_) => settled = true);
+        unawaited(wait);
+
+        await _awaitCondition(
+          () => fakeRoom.fetchMessagesCallCount >= 2,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        expect(reflectsEditedPin(), isFalse);
+        expect(
+          settled,
+          isFalse,
+          reason:
+              '_awaitFetchCount must wait for cubit merge, not fetch start, '
+              'before reply tests assert refreshed pin content',
+        );
+
+        gate.complete();
+        await wait;
+        expect(reflectsEditedPin(), isTrue);
+      },
+    );
 
     test('LRU evicts oldest pin after 21 off-window jumps', () async {
       registerRoomCubitProfileCubit(kRoomCubitFakeMyUserId);
