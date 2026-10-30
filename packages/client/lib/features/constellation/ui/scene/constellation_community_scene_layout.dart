@@ -18,6 +18,12 @@ class ConstellationCommunitySceneLayouts {
   /// without a rebuild.
   final Map<String, LayoutTransitionStage> transitionStages = {};
 
+  /// Close-detail seats, including magnets, for an atomic recenter jump.
+  Map<String, ScenePoint>? get normalPositions {
+    final data = _data;
+    return data != null && data.normalReady ? data.normalPositions : null;
+  }
+
   void clear() {
     _data = null;
     transitionStages.clear();

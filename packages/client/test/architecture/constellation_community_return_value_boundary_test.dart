@@ -354,6 +354,75 @@ Map<String, Object> overview() {
       },
     );
 
+    test('alias tracking respects lexical scope and follows captured values', () {
+      for (final source in [
+        '''
+void inspect() {
+  final data = computeConstellationCommunities();
+}
+void move() {
+  final data = ordinaryGeometry();
+  positions[0] = data;
+}
+''',
+        '''
+class Overview {
+  final data = computeConstellationCommunities();
+}
+class Geometry {
+  final data = ordinaryGeometry();
+  void move() { positions[0] = data; }
+}
+''',
+        '''
+void draw() {
+  final data = computeConstellationCommunities();
+  {
+    final data = ordinaryGeometry();
+    positions[0] = data;
+  }
+}
+''',
+      ]) {
+        expect(
+          _returnedDataLeaks(_parse(source), isBoundary: false),
+          isEmpty,
+          reason:
+              'Unrelated bindings with the same name do not carry data: $source',
+        );
+      }
+      for (final source in [
+        '''
+void draw() {
+  final data = computeConstellationCommunities();
+  void persist() { store.save(data.communities); }
+}
+''',
+        '''
+void draw(OverviewLayout data) {
+  void persist() { store.save(data.groups); }
+}
+''',
+        '''
+class Overview {
+  final data = computeConstellationCommunities();
+  void persist() { store.save(data.communities); }
+}
+''',
+      ]) {
+        expect(
+          _returnedDataLeaks(
+            _parse(source),
+            isBoundary: false,
+            resultTypes: {'OverviewLayout'},
+          ),
+          isNotEmpty,
+          reason:
+              'References to an outer binding must still be followed: $source',
+        );
+      }
+    });
+
     test(
       'the returned layout type cannot cross entity, persistence or wire boundaries under any name',
       () {
@@ -445,6 +514,51 @@ Object paint(OverviewLayout layout, Canvas canvas) {
   });
 }
 
+// Bind references to declarations before following data flow. A spelling can
+// name unrelated locals or fields; nested functions still see outer bindings.
+class _LexicalBindings extends RecursiveAstVisitor<void> {
+  final _byScope = <AstNode, Map<String, AstNode>>{};
+
+  AstNode? resolve(AstNode reference, String name) {
+    for (AstNode? scope = reference; scope != null; scope = scope.parent) {
+      final declaration = _byScope[scope]?[name];
+      if (declaration != null) return declaration;
+    }
+    return null;
+  }
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    for (var scope = node.parent; scope != null; scope = scope.parent) {
+      if (scope is Block ||
+          scope is ForStatement ||
+          scope is ClassDeclaration ||
+          scope is MixinDeclaration ||
+          scope is EnumDeclaration ||
+          scope is ExtensionDeclaration ||
+          scope is ExtensionTypeDeclaration ||
+          scope is CompilationUnit) {
+        (_byScope[scope] ??= {})[node.name.lexeme] = node;
+        break;
+      }
+    }
+    super.visitVariableDeclaration(node);
+  }
+
+  @override
+  void visitFormalParameterList(FormalParameterList node) {
+    final scope = node.parent;
+    if (scope != null) {
+      for (final parameter in node.parameters) {
+        if (parameter.name case final name?) {
+          (_byScope[scope] ??= {})[name.lexeme] = parameter;
+        }
+      }
+    }
+    super.visitFormalParameterList(node);
+  }
+}
+
 // Follow the computation's value, not the spelling of a field or storage key.
 // Aliases and expressions derived from the result stay marked through map
 // copies, projections and encoders. Positions alone are ordinary geometry.
@@ -453,12 +567,14 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
     required this.isBoundary,
     required this.resultTypes,
     required this.entityTypes,
+    required this.bindings,
   });
   final bool isBoundary;
   final Set<String> resultTypes;
   final Set<String> entityTypes;
-  final aliases = <String>{};
-  final retainedNames = <String>{};
+  final _LexicalBindings bindings;
+  final aliases = <AstNode>{};
+  final retainedNames = <AstNode>{};
   final violations = <String>{};
 
   bool carriesResult(AstNode? node) {
@@ -470,13 +586,13 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
       return false;
     }
     if (node is SimpleIdentifier &&
-        (aliases.contains(node.name) ||
+        (aliases.contains(bindings.resolve(node, node.name)) ||
             node.name == 'computeConstellationCommunities')) {
       return true;
     }
     if (node is MethodInvocation &&
         (node.methodName.name == 'computeConstellationCommunities' ||
-            aliases.contains(node.methodName.name))) {
+            aliases.contains(bindings.resolve(node, node.methodName.name)))) {
       return true;
     }
     return node.childEntities.whereType<AstNode>().any(carriesResult);
@@ -503,7 +619,7 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
   void visitFormalParameterList(FormalParameterList node) {
     for (final parameter in node.parameters) {
       if (parameter.name != null && mentionsResultType(parameter)) {
-        aliases.add(parameter.name!.lexeme);
+        aliases.add(parameter);
       }
     }
     super.visitFormalParameterList(node);
@@ -512,14 +628,14 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
   @override
   void visitVariableDeclarationList(VariableDeclarationList node) {
     if (mentionsResultType(node.type)) {
-      aliases.addAll(node.variables.map((v) => v.name.lexeme));
+      aliases.addAll(node.variables);
     }
     super.visitVariableDeclarationList(node);
   }
 
   @override
   void visitFieldDeclaration(FieldDeclaration node) {
-    retainedNames.addAll(node.fields.variables.map((v) => v.name.lexeme));
+    retainedNames.addAll(node.fields.variables);
     for (final variable in node.fields.variables) {
       if (isBoundary && carriesResult(variable.initializer)) {
         violations.add(node.toSource());
@@ -530,7 +646,7 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
 
   @override
   void visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
-    retainedNames.addAll(node.variables.variables.map((v) => v.name.lexeme));
+    retainedNames.addAll(node.variables.variables);
     for (final variable in node.variables.variables) {
       if (carriesResult(variable.initializer)) violations.add(node.toSource());
     }
@@ -539,7 +655,7 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
 
   @override
   void visitVariableDeclaration(VariableDeclaration node) {
-    if (carriesResult(node.initializer)) aliases.add(node.name.lexeme);
+    if (carriesResult(node.initializer)) aliases.add(node);
     super.visitVariableDeclaration(node);
   }
 
@@ -547,9 +663,12 @@ class _ReturnedDataFlow extends RecursiveAstVisitor<void> {
   void visitAssignmentExpression(AssignmentExpression node) {
     if (carriesResult(node.rightHandSide)) {
       final target = node.leftHandSide;
-      if (target is SimpleIdentifier &&
-          (!isBoundary || !retainedNames.contains(target.name))) {
-        aliases.add(target.name);
+      final declaration = target is SimpleIdentifier
+          ? bindings.resolve(target, target.name)
+          : null;
+      if (declaration != null &&
+          (!isBoundary || !retainedNames.contains(declaration))) {
+        aliases.add(declaration);
       } else {
         violations.add(node.toSource());
       }
@@ -599,7 +718,10 @@ Set<String> _returnedDataLeaks(
   Set<String> resultTypes = const {},
   Set<String> entityTypes = const {},
 }) {
+  final bindings = _LexicalBindings();
+  unit.accept(bindings);
   final flow = _ReturnedDataFlow(
+    bindings: bindings,
     isBoundary: isBoundary,
     resultTypes: resultTypes,
     entityTypes: entityTypes,

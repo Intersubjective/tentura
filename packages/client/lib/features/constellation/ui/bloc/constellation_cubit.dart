@@ -436,16 +436,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _scene.ephemeralOwnedLayoutAlgorithm != null) {
       return _withMagnets(normal);
     }
-    return _withMagnets(
-      _communityLayouts.select(
-        normal: normal,
-        field: field,
-        egoId: viewerId,
-        anchors: _scene.layoutAnchorByNodeId,
-        initialPositions:
-            graphController.renderSnapshot.layout?.positions ?? const {},
-        overview: _overviewLayout,
-      ),
+    return _communityLayouts.select(
+      normal: _withMagnets(normal),
+      field: field,
+      egoId: viewerId,
+      anchors: _scene.layoutAnchorByNodeId,
+      initialPositions:
+          graphController.renderSnapshot.layout?.positions ?? const {},
+      overview: _overviewLayout,
     );
   }
 
@@ -2382,6 +2380,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void centerOnEgo({required EdgeInsets insets}) {
     if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
+    }
+    // Recenter is an instant camera jump to close detail. Restore its cached
+    // geometry in the same turn, before labels are placed at the new scale.
+    if (_overviewLayout &&
+        semanticZoomEnabled &&
+        !state.isComposing &&
+        state.tagView == null) {
+      final positions = _communityLayouts.normalPositions;
+      if (positions != null) {
+        graphController.animateTo(positions, animate: false);
+      }
     }
     _scene.centreOnEgo(_viewer.id, insets);
   }

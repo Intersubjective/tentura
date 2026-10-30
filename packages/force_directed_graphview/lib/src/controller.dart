@@ -810,10 +810,12 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   /// Moves nodes from their displayed positions, tweening distances over 2 px.
-  /// Nodes in [skip] keep their displayed positions.
+  /// Nodes in [skip] keep their displayed positions. With [animate] false,
+  /// destinations take effect immediately, clearing an active transition.
   void animateTo(
     Map<GraphNodeId, ScenePoint> targets, {
     Set<GraphNodeId> skip = const {},
+    bool animate = true,
   }) {
     final from = _captureDisplayedPositions();
     final destinations = Map<GraphNodeId, ScenePoint>.from(from);
@@ -823,7 +825,7 @@ class GraphController<N, E> with ChangeNotifier {
       }
     }
     _scene.setLayoutPositions(destinations);
-    _startTransition(destinations, from);
+    _startTransition(destinations, animate ? from : destinations);
   }
 
   void _startTransition(
