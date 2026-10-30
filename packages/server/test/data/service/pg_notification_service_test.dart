@@ -38,8 +38,44 @@ void main() {
 
       expect(await notification, 'payload-1');
       expect(recoveries, isEmpty);
-      expect(connector.connections.single.listenedChannels, ['entity_changes']);
+      expect(
+        connector.connections.single.listenedChannels,
+        ['entity_changes', 'user_presence'],
+      );
     });
+
+    test(
+      'forwards user_presence payloads on their own stream, also after a '
+      'reconnect (#533)',
+      () async {
+        final connector = _FakePgNotificationConnector();
+        final service = await PgNotificationService.createForTesting(
+          Env.test(),
+          connector,
+        );
+        addTearDown(service.dispose);
+
+        final entityChanges = <String>[];
+        final entitySub = service.entityChangeNotifications.listen(
+          entityChanges.add,
+        );
+        addTearDown(entitySub.cancel);
+        final presence = service.presenceNotifications.first;
+        connector.connections.single.addOn('user_presence', '{"user_id":"U1"}');
+        expect(await presence, '{"user_id":"U1"}');
+        expect(entityChanges, isEmpty);
+
+        await connector.connections.single.failAndClose();
+        await _waitUntil(() => connector.connections.length == 2);
+        expect(
+          connector.connections.last.listenedChannels,
+          ['entity_changes', 'user_presence'],
+        );
+        final afterRecovery = service.presenceNotifications.first;
+        connector.connections.last.addOn('user_presence', '{"user_id":"U2"}');
+        expect(await afterRecovery, '{"user_id":"U2"}');
+      },
+    );
 
     test(
       'emits one recovery after error and onDone from the same gap',
@@ -119,6 +155,9 @@ final class _FakePgNotificationConnection implements PgNotificationConnection {
       (_channels[name] ??= StreamController<String>.broadcast()).stream;
 
   void add(String payload) => _channels['entity_changes']!.add(payload);
+
+  void addOn(String channel, String payload) =>
+      _channels[channel]!.add(payload);
 
   Future<void> failAndClose() async {
     final controller = _channels['entity_changes']!;

@@ -26,15 +26,22 @@ class PgNotificationService {
   static final _log = Logger('PgNotificationService');
   static const _channel = 'entity_changes';
 
+  /// Presence changes between web workers (#533): each worker isolate keeps
+  /// its own sockets, so a status change made on one must reach watchers on
+  /// all of them. The payload names the user; receivers read the status.
+  static const presenceChannel = 'user_presence';
+
   final Env _env;
   final PgNotificationConnector _connector;
   final Duration Function(int attempt) _reconnectDelay;
   final _controller = StreamController<String>.broadcast();
+  final _presenceController = StreamController<String>.broadcast();
   final _recoveryController =
       StreamController<PgNotificationRecovery>.broadcast();
 
   PgNotificationConnection? _connection;
   StreamSubscription<String>? _sub;
+  StreamSubscription<String>? _presenceSub;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   int _recoverySequence = 0;
@@ -72,6 +79,9 @@ class PgNotificationService {
 
   Stream<String> get entityChangeNotifications => _controller.stream;
 
+  /// Payloads on [presenceChannel], from every worker this one included.
+  Stream<String> get presenceNotifications => _presenceController.stream;
+
   /// Emits once after a failed LISTEN connection has been replaced.
   /// Initial startup deliberately emits nothing.
   Stream<PgNotificationRecovery> get recoveryNotifications =>
@@ -91,7 +101,15 @@ class PgNotificationService {
       settings: _env.pgEndpointSettings,
     );
     await connection.listen(_channel);
+    await connection.listen(presenceChannel);
     _connection = connection;
+    _presenceSub = connection
+        .channel(presenceChannel)
+        .listen(
+          _presenceController.add,
+          // The entity_changes subscription below owns reconnects.
+          onError: (Object _) {},
+        );
     _sub = connection
         .channel(_channel)
         .listen(
@@ -137,6 +155,7 @@ class PgNotificationService {
     if (_disposed) return;
     try {
       await _sub?.cancel();
+      await _presenceSub?.cancel();
       await _connection?.close();
       _connection = null;
       await _connect(isRecovery: true);
@@ -160,8 +179,10 @@ class PgNotificationService {
     _disposed = true;
     _reconnectTimer?.cancel();
     await _sub?.cancel();
+    await _presenceSub?.cancel();
     await _connection?.close();
     await _controller.close();
+    await _presenceController.close();
     await _recoveryController.close();
   }
 }
