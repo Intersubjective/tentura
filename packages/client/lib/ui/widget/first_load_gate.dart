@@ -14,6 +14,7 @@ class TenturaFirstLoadGate extends StatefulWidget {
     this.error,
     this.onSignInAgain,
     this.revealOnTimeout = true,
+    this.frameBuilder,
     super.key,
   });
 
@@ -25,6 +26,15 @@ class TenturaFirstLoadGate extends StatefulWidget {
 
   /// Disable when revealing partial content would expose unfinished sections.
   final bool revealOnTimeout;
+
+  /// Builds a frame around the gated stack in the same build that decides
+  /// whether the gate has revealed. Chrome outside the body (a top-bar status)
+  /// uses that flag instead of a second copy of [ready] / [revealOnTimeout].
+  /// Omit it and the gate itself is the stack. The stack argument is the
+  /// hidden child plus the spinner or error; put it in the body so the bar
+  /// stays up while the gate is closed.
+  final Widget Function(BuildContext context, bool revealed, Widget gated)?
+  frameBuilder;
 
   @override
   State<TenturaFirstLoadGate> createState() => _TenturaFirstLoadGateState();
@@ -77,7 +87,7 @@ class _TenturaFirstLoadGateState extends State<TenturaFirstLoadGate> {
         _hasBeenReady || (widget.revealOnTimeout && error == null && _timedOut);
     // The child stays mounted while hidden, so its own loads (e.g. a Request
     // room) start behind the gate and revealing it keeps its state.
-    return Stack(
+    final gated = Stack(
       fit: StackFit.passthrough,
       children: [
         Visibility(
@@ -98,5 +108,8 @@ class _TenturaFirstLoadGateState extends State<TenturaFirstLoadGate> {
           const Center(child: CircularProgressIndicator()),
       ],
     );
+    final frame = widget.frameBuilder;
+    if (frame == null) return gated;
+    return frame(context, revealed, gated);
   }
 }
