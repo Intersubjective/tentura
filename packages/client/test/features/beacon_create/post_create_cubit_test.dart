@@ -223,6 +223,20 @@ void main() {
     });
 
     test(
+      'creating and publishing a Post never calls Request-only media ops',
+      () async {
+        // BeaconStageImage / BeaconSetMedia throw BeaconNotRequestException
+        // («Operation is only available for Requests») on a Post (#749).
+        await cubit.ensureDraft(context: '', showMessage: false);
+        await publish();
+
+        expect(write.stagedKeys, isEmpty);
+        expect(write.setMediaCalls, isEmpty);
+        expect(port.publishCalls, hasLength(1));
+      },
+    );
+
+    test(
       'a Request cubit still creates a Request with the draft title',
       () async {
         final requestCubit = BeaconCreateCubit(
