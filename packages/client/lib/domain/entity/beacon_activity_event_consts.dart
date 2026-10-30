@@ -1,9 +1,3 @@
-/// Mirrors server `beacon_activity_event` visibility.
-abstract final class BeaconActivityEventVisibilityBits {
-  static const public = 0;
-  static const room = 1;
-}
-
 /// Mirrors server `beacon_activity_event.type` (Phase 5+).
 ///
 /// Two encodings share the `type` int:
