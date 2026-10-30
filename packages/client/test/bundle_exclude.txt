@@ -3,6 +3,8 @@
 # per-file reset between bundled files cannot put back.
 
 # Registers the real Inter font with the engine (FontLoader); there is no
+# (scripts/gen_test_bundles.py now keeps any file that loads a font out of
+# the bundles by itself; these lines stay as documentation)
 # way to unregister it, and every later file in the isolate would measure
 # text with Inter instead of the test font (#609, PR8 CI: the 360 px tab
 # bar then keeps its labels and drops the icons other files look for).
