@@ -1,13 +1,20 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/closure/domain/closure_split.dart';
 import 'package:tentura/features/closure/domain/entity/closure_outcome.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+
+import 'closure_helper_cubit.dart' show kClosureStatusEvaluating;
+import 'closure_review_hints.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -54,21 +61,66 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
   ClosureAuthorCubit(
     this._case, {
     required this.beaconId,
+    Stream<RepositoryEvent<Beacon>>? requestChanges,
+    Future<BeaconStatus?> Function()? readBeaconStatus,
   }) : super(const ClosureAuthorState()) {
+    _requestChanges = listenForClosureReviewHints(
+      changes: requestChanges,
+      beaconId: beaconId,
+      isClosed: () => isClosed,
+      readBeaconStatus: readBeaconStatus,
+      reload: fetch,
+      onReloaded: _onReviewHint,
+    );
     unawaited(fetch());
   }
 
-  factory ClosureAuthorCubit.fromGetIt({required String beaconId}) =>
-      ClosureAuthorCubit(GetIt.I<ClosureCase>(), beaconId: beaconId);
+  factory ClosureAuthorCubit.fromGetIt({required String beaconId}) {
+    final beacons = GetIt.I<BeaconRepository>();
+    return ClosureAuthorCubit(
+      GetIt.I<ClosureCase>(),
+      beaconId: beaconId,
+      requestChanges: beacons.changes,
+      readBeaconStatus: () async {
+        try {
+          return (await beacons.fetchBeaconById(beaconId)).status;
+        } on Object {
+          return null;
+        }
+      },
+    );
+  }
 
   final ClosureCase _case;
   final String beaconId;
 
+  StreamSubscription<RepositoryEvent<Beacon>>? _requestChanges;
+  var _loadGeneration = 0;
+
+  /// A reload that shows the epoch has ended pops via the status listener.
+  /// A beacon that left the final check while the reload still shows the
+  /// evaluating epoch (a reopen answers not-found) ends the review here.
+  void _onReviewHint({required bool beaconLeftReview}) {
+    if (isClosed || state.ended) return;
+    final stillEvaluating =
+        state.data == null || state.data!.status == kClosureStatusEvaluating;
+    if (beaconLeftReview && stillEvaluating) {
+      emit(state.copyWith(ended: true));
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _requestChanges?.cancel();
+    return super.close();
+  }
+
   Future<void> fetch() async {
+    final generation = ++_loadGeneration;
     emit(state.copyWith(status: StateStatus.isLoading, loadError: null));
     try {
       final data = await _case.fetchState(beaconId);
-      if (isClosed) return;
+      if (isClosed || generation != _loadGeneration) return;
       emit(
         state.copyWith(
           status: StateStatus.isSuccess,
@@ -79,7 +131,7 @@ class ClosureAuthorCubit extends Cubit<ClosureAuthorState> {
         ),
       );
     } on Object catch (e) {
-      if (isClosed) return;
+      if (isClosed || generation != _loadGeneration) return;
       emit(state.copyWith(status: StateStatus.isSuccess, loadError: e));
     }
   }

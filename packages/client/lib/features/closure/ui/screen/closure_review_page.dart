@@ -91,7 +91,14 @@ class ClosureReviewPage extends StatelessWidget {
                 viewerId: viewerId,
                 author: author,
               ),
-              child: const ClosureHelperView(),
+              child: BlocListener<ClosureHelperCubit, ClosureHelperState>(
+                // Same navigation as the author: once the Request leaves the
+                // final check, go back to it. The Request page reloads from
+                // the same beacon hint.
+                listenWhen: (p, c) => !p.leftReview && c.leftReview,
+                listener: (context, _) => Navigator.of(context).maybePop(),
+                child: const ClosureHelperView(),
+              ),
             ),
     );
   }

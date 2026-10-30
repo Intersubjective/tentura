@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
+import 'package:tentura/domain/attention/closed_request_attention.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
 import 'package:tentura/domain/attention/request_card_zones.dart';
@@ -165,7 +168,20 @@ class RequestAttentionCard extends StatelessWidget {
     final tt = context.tt;
     final visibleCap = context.windowClass == WindowClass.compact ? 1 : 3;
 
-    final zones = RequestCardZones.fromPreview(eventsPreview);
+    final rawZones = RequestCardZones.fromPreview(eventsPreview);
+    // One status for the whole row (#740): a closed Request is not a call
+    // to action. A stale invitation in the preview is not «something for
+    // you»; a person's message, or the viewer's own result, still is.
+    final closed = _surfaceClosed;
+    final zones = closed
+        ? RequestCardZones(
+            personalRows: [
+              for (final row in rawZones.personalRows)
+                if (attentionAddressedAfterClose(row.newest)) row,
+            ],
+            changeLine: rawZones.changeLine,
+          )
+        : rawZones;
     final notes = _noteForwards();
     // CAP (#189): the cap counts «вам» rows only and is absolute. Notes come
     // first (D-171-5a, K7), then one row per sender, newest first; what does
@@ -248,6 +264,12 @@ class RequestAttentionCard extends StatelessWidget {
                     onTap: onEventTap == null
                         ? null
                         : () => onEventTap!(change),
+                  )
+                else if (closed)
+                  _ChangeLine(
+                    key: changeLineKey,
+                    receipt: _closedOutcomeReceipt(),
+                    text: _closedOutcome(l10n),
                   ),
                 if (_isPinned) ...[
                   if (hiddenEvents > 0)
@@ -819,8 +841,17 @@ class RequestAttentionCard extends StatelessWidget {
     ),
   );
 
+  /// Offer help and Forward share this. A closed Request offers neither.
+  bool get _offersHelpOrForward => !_surfaceClosed;
+
+  bool get _surfaceClosed => attentionSurfaceIsClosed(
+    beacon: beacon,
+    representative: representative,
+    eventsPreview: eventsPreview,
+  );
+
   List<Widget> _actions(L10n l10n, TenturaTokens tt) => [
-    if (onForward != null && beacon.viewerCanForward)
+    if (_offersHelpOrForward && onForward != null && beacon.viewerCanForward)
       TenturaTextAction(
         key: forwardKey,
         label: l10n.labelForward,
@@ -832,7 +863,7 @@ class RequestAttentionCard extends StatelessWidget {
         label: l10n.beaconHeaderWatch,
         onPressed: onFollow,
       ),
-    if (onOfferHelp != null)
+    if (_offersHelpOrForward && onOfferHelp != null)
       // #723: one node carries the name, the tap and the identifier.
       OneNodeButton(
         identifier: TestIds.inboxOfferHelp,
@@ -856,9 +887,43 @@ class RequestAttentionCard extends StatelessWidget {
   ];
 
   /// An undismissed «вам» item: a personal receipt, or a forward still
-  /// awaiting the viewer's decision.
-  bool _hasPersonal(RequestCardZones zones) =>
-      zones.hasPersonal || facts.pendingForward;
+  /// awaiting the viewer's decision. A closed Request keeps the mark only
+  /// for a live address (a message, the viewer's own result).
+  bool _hasPersonal(RequestCardZones zones) {
+    if (_surfaceClosed) {
+      return zones.hasPersonal ||
+          attentionPreviewHasOwnOutcome([
+            ?representative,
+            ...eventsPreview,
+          ]);
+    }
+    return zones.hasPersonal || facts.pendingForward;
+  }
+
+  AttentionReceipt _closedOutcomeReceipt() => AttentionReceipt(
+    id: 'closed:${beacon.id}',
+    category: 'requestProgress',
+    kind: 'roomActivityLowPriority',
+    priority: 'low',
+    title: beacon.title,
+    body: '',
+    actionUrl: '/#/',
+    createdAt: beacon.statusChangedAt ?? beacon.updatedAt,
+    collapsedCount: 1,
+    presentationKey: 'request_status_changed',
+    presentationPayloadJson:
+        '{"eventType":"requestStatusChanged","toStatus":"${beacon.status.name}"}',
+    surface: AttentionSurface.activity,
+    beaconId: beacon.id,
+  );
+
+  String _closedOutcome(L10n l10n) => l10n.attentionEventStatusChanged(
+    switch (beacon.status) {
+      BeaconStatus.cancelled => l10n.requestStatusActivityCancelled,
+      BeaconStatus.deleted => l10n.beaconHudBeaconUnavailable,
+      _ => l10n.requestStatusActivityClosed,
+    },
+  );
 
   /// §11 — the whole sentence, so no state is carried by a chip alone.
   String _semanticsLabel(L10n l10n, RequestCardZones zones) {
