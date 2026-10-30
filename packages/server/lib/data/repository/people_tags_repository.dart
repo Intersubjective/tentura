@@ -184,7 +184,7 @@ UPDATE public.person_tag
     fingerprint,
     decode: PersonTagSnapshot.fromJson,
     run: () async {
-      final tags = await _list(ownerId);
+      final tags = await _list(ownerId, withCounts: true);
       final tag = _find(tags, id);
       final members = await _database
           .customSelect(
@@ -207,7 +207,7 @@ UPDATE public.person_tag
         sources: [for (final m in members) m.read<int>('source')],
       );
     },
-    encode: (s) => s.toJson(),
+    encode: (s) => s.toGraphQL(),
   );
 
   @override

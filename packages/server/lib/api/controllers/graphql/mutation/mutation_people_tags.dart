@@ -98,7 +98,7 @@ final class MutationPeopleTags extends GqlNodeBase {
           ownerId: getCredentials(args).sub,
           id: _id.fromArgsNonNullable(args),
           clientOpId: _clientOpId.fromArgsNonNullable(args),
-        )).toJson(),
+        )).toGraphQL(),
       );
 
   GraphQLObjectField<dynamic, dynamic> get personTagRestore =>
