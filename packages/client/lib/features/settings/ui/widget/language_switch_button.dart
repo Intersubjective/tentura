@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/settings_cubit.dart';
+import 'settings_value_segments.dart';
 
 class LanguageSwitchButton extends StatelessWidget {
   const LanguageSwitchButton({super.key});
@@ -16,29 +17,28 @@ class LanguageSwitchButton extends StatelessWidget {
       child: BlocSelector<SettingsCubit, SettingsState, String>(
         bloc: GetIt.I<SettingsCubit>(),
         selector: (state) => state.localePreference,
-        builder: (_, localePreference) => SegmentedButton<String>(
+        builder: (_, localePreference) => SettingsValueSegments<String>(
           selected: <String>{localePreference},
-          showSelectedIcon: false,
           segments: [
-            ButtonSegment<String>(
+            SettingsValueSegment<String>(
               icon: const Icon(Icons.language_outlined),
-              label: Text(l10n.languageSystem),
+              label: l10n.languageSystem,
               tooltip: l10n.languageSystem,
               value: kLocalePreferenceSystem,
             ),
-            ButtonSegment<String>(
-              label: const Text('EN'),
+            SettingsValueSegment<String>(
+              label: 'EN',
               tooltip: l10n.english,
               value: kLocalePreferenceEn,
             ),
-            ButtonSegment<String>(
-              label: const Text('RU'),
+            SettingsValueSegment<String>(
+              label: 'RU',
               tooltip: l10n.russian,
               value: kLocalePreferenceRu,
             ),
           ],
-          onSelectionChanged: (selected) => GetIt.I<SettingsCubit>()
-              .setLocalePreference(selected.single),
+          onSelectionChanged: (selected) =>
+              GetIt.I<SettingsCubit>().setLocalePreference(selected.single),
         ),
       ),
     );
