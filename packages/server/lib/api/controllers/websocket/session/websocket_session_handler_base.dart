@@ -151,10 +151,37 @@ base class WebsocketSessionHandlerBase {
     );
   }
 
-  /// Fan-out presence for [userId] to all sessions that subscribed to that peer.
-  Future<void> broadcastPresenceForUser(String userId) async {
+  /// Tells every watcher of [userId] its current presence.
+  ///
+  /// This base handler only knows its own sockets; `WebsocketRouterBase`
+  /// carries the change to every web worker over Postgres NOTIFY, and each
+  /// worker then runs [fanOutPresenceLocally] (#533).
+  Future<void> broadcastPresenceForUser(String userId) =>
+      fanOutPresenceLocally(userId);
+
+  /// Sends [userId]'s stored presence to the sockets on this worker that
+  /// watch them.
+  ///
+  /// A user is offline only when their last socket on every worker is gone,
+  /// and a worker sees only its own sockets: when a tab on another worker (or
+  /// an old tab closing late) stored "offline" while this worker still holds
+  /// a live socket of theirs, this worker puts "online" back and announces
+  /// that instead of showing a live person as gone (#533).
+  Future<void> fanOutPresenceLocally(String userId) async {
+    final watchers = _sessionsWatchingUser(userId).toList();
+    final hasLocalSession = hasSessionsForUser(userId);
+    if (watchers.isEmpty && !hasLocalSession) return;
     final entity =
         await userPresenceCase.get(userId) ?? _defaultPresence(userId);
+    if (entity.status == UserPresenceStatus.offline &&
+        hasSessionsForUser(userId)) {
+      await userPresenceCase.setStatus(
+        userId: userId,
+        status: UserPresenceStatus.online,
+      );
+      await broadcastPresenceForUser(userId);
+      return;
+    }
     final json = jsonEncode({
       'type': 'subscription',
       'path': 'user_presence',
@@ -166,6 +193,18 @@ base class WebsocketSessionHandlerBase {
     for (final s in _sessionsWatchingUser(userId)) {
       s.send(json);
     }
+  }
+
+  /// A socket is gone (closed or failed): forget it and, when it was the
+  /// user's last socket on this worker, store and announce "offline".
+  Future<void> onSessionGone(WebSocketSession session) async {
+    final jwt = removeSession(session);
+    if (jwt == null || hasSessionsForUser(jwt.sub)) return;
+    await userPresenceCase.setStatus(
+      userId: jwt.sub,
+      status: UserPresenceStatus.offline,
+    );
+    await broadcastPresenceForUser(jwt.sub);
   }
 
   JwtEntity getJwtBySession(WebSocketSession session) =>

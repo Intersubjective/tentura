@@ -2,8 +2,6 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
-import 'package:tentura_root/domain/enums.dart';
-
 import 'websocket/router/websocket_router_base.dart';
 
 @Singleton(order: 3)
@@ -21,32 +19,16 @@ final class WebSocketController extends WebsocketRouterBase {
   );
 
   WebSocketSession handler() => WebSocketSession(
-    onClose: (session) {
-      unawaited(() async {
-        final jwt = removeSession(session);
-        if (jwt != null) {
-          await userPresenceCase.setStatus(
-            userId: jwt.sub,
-            status: UserPresenceStatus.offline,
-          );
-          await broadcastPresenceForUser(jwt.sub);
-        }
-      }());
-    },
+    // Another tab of the same user may still be open on this worker; then
+    // they stay online (#533).
+    onClose: (session) => unawaited(onSessionGone(session)),
     onError: (session, error) async {
       logger.warning('WebSocket error', error);
       // Clean up session state and mark the user offline here too: closing the
       // sender normally triggers onClose, but that is not guaranteed on every
       // error path, so do not rely on it for cleanup. removeSession is
       // idempotent, so a subsequent onClose is a harmless no-op.
-      final jwt = removeSession(session);
-      if (jwt != null && !hasSessionsForUser(jwt.sub)) {
-        await userPresenceCase.setStatus(
-          userId: jwt.sub,
-          status: UserPresenceStatus.offline,
-        );
-        await broadcastPresenceForUser(jwt.sub);
-      }
+      await onSessionGone(session);
       await session.sender.close(1011, 'Internal error');
     },
     onMessage: (session, data) => switch (data) {
