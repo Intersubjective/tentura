@@ -14,12 +14,12 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 |---|---|---|---|
 | 1 | **Skipped** | 11 | Tests explicitly skipped via `skip:` or `markTestSkipped` |
 | 2 | **No assertions** | 8 | Tests with zero assertions or trivial expectations (`expect(true, isTrue)`) |
-| 3 | **Stale behaviour** | 5 | Tests asserting removed screens (`UpdatesScreen`) or legacy wire protocols |
-| 4 | **Dead targets** | 6 | Tests exercising classes/mocks in `lib/` that production code never references |
+| 3 | **Stale behaviour** | 1 | Tests asserting legacy pre-redesign wire fallback constants |
+| 4 | **Dead targets** | 7 | Classes/widgets/mocks defined in production `lib/` with 0 production callers |
 | 5 | **Duplicates** | 9 | Copy-pasted test suites or duplicate test names within the same file |
-| 6 | **Unreachable in CI** | 21 | Test files excluded from CI (root `test/` tree, client `pg` tests, bench files) |
-| 7 | **Orphan support** | 6 | Unused support files and fixtures under `test/support` and `test/fixtures` |
-| **Total** | | **66** | |
+| 6 | **Unreachable in CI** | 16 | Test files excluded from CI (root `test/` tree, client `pg` tests) |
+| 7 | **Orphan support** | 3 | Unused support/fixture files unreferenced across the entire repository |
+| **Total** | | **55** | |
 
 ---
 
@@ -60,11 +60,7 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 
 | # | File:line | Test name | Why it's dead or weak | Recommendation |
 |---|---|---|---|---|
-| 1 | `packages/client/test/features/updates/notification_history_screen_test.dart:188` | `history screen shows receipts...` | Instantiates `home: const UpdatesScreen()`. `UpdatesScreen` was removed from client navigation and routes in June 2026 (`docs/client-ui-inventory.md`). | Remove or update test suite to target `NotificationCenterScreen`. |
-| 2 | `packages/client/test/features/updates/notification_history_screen_test.dart:214` | `history search filters visible receipts` | Renders removed `UpdatesScreen()`. | Update test to target active notification UI. |
-| 3 | `packages/client/test/features/updates/notification_history_screen_test.dart:240` | `history uses unscoped destination...` | Renders removed `UpdatesScreen()`. | Update test to target active notification UI. |
-| 4 | `packages/client/lib/domain/entity/beacon_activity_event_consts.dart:56` | Legacy activity change reason `reviewWindowOpened` | Production constant `legacyClosureOpenReason = 'reviewWindowOpened'` is only asserted by tests after closure redesign. | Remove legacy pre-redesign wire fallback once DB migrations complete. |
-| 5 | `packages/server/test/domain/use_case/beacon_room_case_plan_thread_test.dart:42` | `plan thread case` | Exercises legacy thread room creation logic before General-only room consolidation. | Rewrite to assert single General room semantics. |
+| 1 | `packages/client/lib/domain/entity/beacon_activity_event_consts.dart:56` | Legacy activity change reason `reviewWindowOpened` | Production constant `legacyClosureOpenReason = 'reviewWindowOpened'` is only asserted by tests after closure redesign. Grep evidence: `grep -rn "legacyClosureOpenReason" packages/client/lib/ packages/client/test/` (3 hits in `lib/`, 1 hit in `test/`). | Remove legacy pre-redesign wire fallback once DB migrations complete. |
 
 ---
 
@@ -72,12 +68,13 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 
 | # | File:line | Test name | Why it's dead or weak | Recommendation |
 |---|---|---|---|---|
-| 1 | `packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` | `BeaconActivityEventVisibilityBits` | Defined in `lib/` but has 0 production callers across `packages/client/lib`. Referenced only by 10 client test files. | Move constant into test helper or remove if unused in domain. |
-| 2 | `packages/client/lib/data/gql/timestamptz_serializer.dart:7` | `TimestamptzSerializer` | Custom serializer defined in `lib/data/gql/` with 0 production call sites in `lib/`. Used only by GQL test utilities. | Remove or wire into Ferry GQL serializer plugin. |
-| 3 | `packages/client/lib/data/repository/mock/client_repository_mocks.dart:7` | `ClosureRepositoryMock`, `BeaconLobbyRepositoryMock` | Mock classes defined inside production `lib/` tree (`packages/client/lib/data/repository/mock/`). Production code never references them. | Move mock classes from `lib/` to `test/support/`. |
-| 4 | `packages/server/lib/data/repository/mock/pair_block_query_repository_mock.dart:6` | `PairBlockQueryRepositoryMock` | Mock class defined in server `lib/data/repository/mock/`. 0 callers in `packages/server/lib`. | Move mock repository out of production `lib/` into `test/support/`. |
-| 5 | `packages/server/lib/data/repository/mock/trust_ledger_repository_mock.dart:5` | `TrustLedgerRepositoryMock` | Mock class defined in production `lib/`. 0 production references. | Move to `test/support/`. |
-| 6 | `packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart:5` | `InviteSeedPromptRepositoryMock` | Mock class defined in production `lib/`. 0 production references. | Move to `test/support/`. |
+| 1 | `packages/client/lib/features/updates/ui/screen/updates_screen.dart:19` | `UpdatesScreen` | Unwired screen in `packages/client/lib`. Grep evidence: `grep -rn "UpdatesScreen" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only, 0 callers], 3 hits in `test/` [`notification_history_screen_test.dart`]). Production routing and widgets never instantiate `UpdatesScreen`. | Remove dead `UpdatesScreen` or wire into router/navigation. Update tests to target active `NotificationCenterScreen`. |
+| 2 | `packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` | `BeaconActivityEventVisibilityBits` | Defined in `lib/` but has 0 production callers across `packages/client/lib`. Grep evidence: `grep -rn "BeaconActivityEventVisibilityBits" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 10 hits across `test/`). | Move constant into test helper or remove if unused in domain. |
+| 3 | `packages/client/lib/data/gql/timestamptz_serializer.dart:7` | `TimestamptzSerializer` | Custom serializer defined in `lib/data/gql/` with 0 production call sites in `lib/`. Grep evidence: `grep -rn "TimestamptzSerializer" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 3 hits in `test/`). | Remove or wire into Ferry GQL serializer plugin. |
+| 4 | `packages/client/lib/data/repository/mock/client_repository_mocks.dart:7` | `ClosureRepositoryMock`, `BeaconLobbyRepositoryMock` | Mock classes defined inside production `lib/` tree (`packages/client/lib/data/repository/mock/`). Grep evidence: `grep -rn "ClosureRepositoryMock" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 15 hits in `test/`). Production code never references them. | Move mock classes from `lib/` to `test/support/`. |
+| 5 | `packages/server/lib/data/repository/mock/pair_block_query_repository_mock.dart:6` | `PairBlockQueryRepositoryMock` | Mock class defined in server `lib/data/repository/mock/`. Grep evidence: `grep -rn "PairBlockQueryRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 1 hit in `test/`). 0 callers in `packages/server/lib`. | Move mock repository out of production `lib/` into `test/support/`. |
+| 6 | `packages/server/lib/data/repository/mock/trust_ledger_repository_mock.dart:5` | `TrustLedgerRepositoryMock` | Mock class defined in production `lib/`. Grep evidence: `grep -rn "TrustLedgerRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 3 hits in `test/`). 0 production references. | Move to `test/support/`. |
+| 7 | `packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart:5` | `InviteSeedPromptRepositoryMock` | Mock class defined in production `lib/`. Grep evidence: `grep -rn "InviteSeedPromptRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 56 hits in `test/`). 0 production references. | Move to `test/support/`. |
 
 ---
 
@@ -117,11 +114,6 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 | 14 | `packages/client/test/features/profile_view/profile_untrust_mutation_contract_test.dart:1` | `@Tags(['pg'])` client test | Tagged `pg`; excluded in CI client shards. | Refactor or run in local-only integration suite. |
 | 15 | `packages/client/test/features/people_tags/populated_tag_delete_screen_pg_test.dart:1` | `@Tags(['pg'])` client test | Tagged `pg`; excluded in CI client shards. | Refactor or run in local-only integration suite. |
 | 16 | `packages/client/test/features/inbox/inbox_provenance_latest_note_test.dart:1` | `@Tags(['pg'])` client test | Tagged `pg`; excluded in CI client shards. | Refactor or run in local-only integration suite. |
-| 17 | `packages/client/test/bench/spatial_index_bench.dart:1` | Non-`_test.dart` benchmark | File named `spatial_index_bench.dart`. Test selection script `ci_select_tests.py` filters for `*_test.dart` only; this file is ignored by CI. | Rename to `spatial_index_bench_test.dart` or add to bench runner. |
-| 18 | `packages/client/test/bench/uniform_grid_index.dart:1` | Non-`_test.dart` file | Ignored by CI selection scripts (`ci_select_tests.py`). | Rename or include in spatial bench test entrypoint. |
-| 19 | `packages/client/test/bench/dynamic_aabb_tree_index.dart:1` | Non-`_test.dart` file | Ignored by CI selection scripts (`ci_select_tests.py`). | Rename or include in spatial bench test entrypoint. |
-| 20 | `packages/client/test/bench/spatial_bench_geometry.dart:1` | Non-`_test.dart` file | Ignored by CI selection scripts (`ci_select_tests.py`). | Rename or include in spatial bench test entrypoint. |
-| 21 | `packages/client/test/bench/sweep_and_prune_index.dart:1` | Non-`_test.dart` file | Ignored by CI selection scripts (`ci_select_tests.py`). | Rename or include in spatial bench test entrypoint. |
 
 ---
 
@@ -129,12 +121,9 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 
 | # | File:line | Test name / File | Why it's dead or weak | Recommendation |
 |---|---|---|---|---|
-| 1 | `packages/server/test/support/lane_hold_perf_workloads.dart:1` | `lane_hold_perf_workloads.dart` | Support file under `packages/server/test/support/` with 0 import references across all test files in the repository. | Delete orphan support file or wire into perf benchmark harness. |
-| 2 | `packages/client/test/fixtures/tentura_q8s8_beacon_operational_header_pre_mount.dart:1` | `tentura_q8s8_beacon_operational_header_pre_mount.dart` | Fixture file under `packages/client/test/fixtures/` with 0 import references across tests. | Delete orphan fixture. |
-| 3 | `packages/client/test/features/constellation/fixtures/legacy_layout/5b8493621d3934eca8059b23197a01029123d952/constellation_layout.dart.txt:1` | `constellation_layout.dart.txt` | Text layout fixture with 0 references in client test files. | Delete stale legacy layout fixture. |
-| 4 | `packages/client/test/features/constellation/fixtures/legacy_layout/5b8493621d3934eca8059b23197a01029123d952/radial_hop_positions.dart.txt:1` | `radial_hop_positions.dart.txt` | Text position fixture with 0 references in client test files. | Delete stale legacy layout fixture. |
-| 5 | `test/fixtures/agents_alloy_memory_5zq_lesson_snippet.txt:1` | `agents_alloy_memory_5zq_lesson_snippet.txt` | Root fixture file unreferenced by any test. | Delete orphan text fixture. |
-| 6 | `test/fixtures/agents_alloy_memory_tail_unified_after_5zq.txt:1` | `agents_alloy_memory_tail_unified_after_5zq.txt` | Root fixture file unreferenced by any test. | Delete orphan text fixture. |
+| 1 | `packages/client/test/fixtures/tentura_q8s8_beacon_operational_header_pre_mount.dart:1` | `tentura_q8s8_beacon_operational_header_pre_mount.dart` | Fixture file under `packages/client/test/fixtures/` with 0 references across the whole repository (`grep -rn "tentura_q8s8_beacon_operational_header_pre_mount"`: 0 hits outside self). | Delete orphan fixture. |
+| 2 | `test/fixtures/agents_alloy_memory_5zq_lesson_snippet.txt:1` | `agents_alloy_memory_5zq_lesson_snippet.txt` | Root fixture file unreferenced across the entire repository. | Delete orphan text fixture. |
+| 3 | `test/fixtures/agents_alloy_memory_tail_unified_after_5zq.txt:1` | `agents_alloy_memory_tail_unified_after_5zq.txt` | Root fixture file unreferenced across the entire repository. | Delete orphan text fixture. |
 
 ---
 
@@ -144,7 +133,7 @@ Based on CI impact, dead code clutter, and risk of false confidence, here are th
 
 1. **Root `test/` directory test files (`test/mention_span_validation_test.dart:1`, `test/domain/...`)** — 11 test files in the repository root are completely bypassed by CI pipeline jobs (`pipeline.yml`). Move them to `packages/client/test` or `packages/server/test`.
 2. **`packages/client/test/widget_test.dart:8` (`placeholder`)** — Trivial `expect(true, isTrue)` placeholder test providing zero test coverage. Replace with real UI smoke test or remove.
-3. **`packages/client/test/features/updates/notification_history_screen_test.dart:188`** — Asserts removed `UpdatesScreen` widget; replace target with active notification screen.
+3. **`packages/client/lib/features/updates/ui/screen/updates_screen.dart:19` (`UpdatesScreen`)** — Unwired screen in `packages/client/lib` with 0 production callers (`grep -rn "UpdatesScreen" packages/client/lib` hit count: 1, declaration only). Remove dead screen or wire into router; update `notification_history_screen_test.dart` to target `NotificationCenterScreen`.
 4. **`packages/client/test/domain/attention/attention_read_clear_axis_test.dart:1` (and 4 other client `pg` tests)** — Client tests tagged `pg` are silently excluded in CI (`--exclude-tags pg`). Refactor to unit mocks or provide Postgres in client CI runner.
 5. **`packages/client/test/drift/tentura/migration_test.dart:53`** — Hardcoded `skip` on schema data integrity migration test. Wire real schema verifier fixtures.
 6. **`packages/client/lib/data/repository/mock/client_repository_mocks.dart:7`** — Production `lib/` mock repository implementations. Move out of `lib/` to `test/support/`.
@@ -152,8 +141,8 @@ Based on CI impact, dead code clutter, and risk of false confidence, here are th
 8. **`packages/server/test/api/hasura_beacon_expires_at_pg_test.dart:45` (and 5 matching files)** — Empty `Docker unavailable` test functions with no assertions; remove dummy test blocks.
 9. **`packages/server/test/domain/attention/attention_intent_case_test.dart:498`** — Duplicate test blocks with identical names in the same test file (lines 498, 534, 604). Consolidate test cases.
 10. **`packages/server/test/domain/use_case/beacon_case_media_test.dart:243`** — Duplicate test blocks in the same file (lines 243 & 358). Remove duplicate block.
-11. **`packages/client/test/bench/spatial_index_bench.dart:1` (and benchmark support files)** — Benchmark files missing `_test.dart` suffix, causing `ci_select_tests.py` to skip them. Rename to `*_test.dart` or add explicit bench runner script.
-12. **`packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` (`BeaconActivityEventVisibilityBits`)** — Dead `lib/` entity with 0 production references. Remove or relocate to test support.
-13. **`packages/server/test/support/lane_hold_perf_workloads.dart:1`** — Orphan support file with 0 imports. Delete.
-14. **`packages/client/test/fixtures/tentura_q8s8_beacon_operational_header_pre_mount.dart:1`** — Orphan fixture file with 0 imports. Delete.
+11. **`packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` (`BeaconActivityEventVisibilityBits`)** — Dead `lib/` entity with 0 production references (`grep -rn "BeaconActivityEventVisibilityBits" packages/client/lib`: 1 hit [declaration only]). Remove or relocate to test support.
+12. **`packages/client/lib/data/gql/timestamptz_serializer.dart:7` (`TimestamptzSerializer`)** — Dead serializer class in `lib/` (`grep -rn "TimestamptzSerializer" packages/client/lib`: 1 hit [declaration only]). Remove or wire into Ferry plugin.
+13. **`packages/client/test/fixtures/tentura_q8s8_beacon_operational_header_pre_mount.dart:1`** — Orphan fixture file with 0 references across the entire repository. Delete.
+14. **`test/fixtures/agents_alloy_memory_5zq_lesson_snippet.txt:1`** — Root orphan text fixture with 0 references across the repo. Delete.
 15. **`test/domain/availability_test.dart:92`** — Duplicate availability entity test suite matching client/server unit test files. Delete root duplicate.
