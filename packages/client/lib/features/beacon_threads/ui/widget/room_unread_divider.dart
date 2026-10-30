@@ -19,44 +19,47 @@ class RoomUnreadDivider extends StatelessWidget {
       label: chipText,
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: context.tt.sectionGap),
-        child: Row(
-          children: [
-            Expanded(
-              child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
-            ),
-            // Flexible so the chip ellipsizes instead of overflowing on a
-            // narrow phone with large text.
-            Flexible(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.tt.screenHPadding,
-                ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(TenturaRadii.avatar),
-                    border: Border.all(
-                      color: scheme.primary.withValues(alpha: 0.45),
-                    ),
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            children: [
+              Expanded(
+                child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
+              ),
+              // Give the label its natural width before the lines share the
+              // remainder, while still bounding it for large text on phones.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.tt.screenHPadding,
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.tt.screenHPadding,
-                      vertical: context.tt.iconTextGap,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(TenturaRadii.avatar),
+                      border: Border.all(
+                        color: scheme.primary.withValues(alpha: 0.45),
+                      ),
                     ),
-                    child: Text(
-                      chipText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.tabLabel(scheme.primary),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.tt.screenHPadding,
+                        vertical: context.tt.iconTextGap,
+                      ),
+                      child: Text(
+                        chipText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.tabLabel(scheme.primary),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
-            ),
-          ],
+              Expanded(
+                child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
+              ),
+            ],
+          ),
         ),
       ),
     );
