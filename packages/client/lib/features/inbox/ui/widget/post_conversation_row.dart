@@ -45,8 +45,11 @@ class PostConversationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final forwardedByName = post.forwardedByName;
     final addressing = post.isAuthor
         ? l10n.postConversationYours
+        : forwardedByName != null
+        ? l10n.postConversationForwarded(post.authorName, forwardedByName)
         : l10n.postConversationAddressed(post.authorName);
     final lastMessage = post.lastMessageExcerpt?.trim() ?? '';
     // #667: while the root is the only message, the last message is the root;

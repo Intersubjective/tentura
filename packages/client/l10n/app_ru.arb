@@ -6653,6 +6653,7 @@
   "postsTabNewPost": "Новый пост",
   "postConversationYours": "Ваш пост",
   "postConversationAddressed": "{author} · вам",
+  "postConversationForwarded": "{author} · через {sender}",
   "postConversationMuted": "Звук выключен",
   "postViewTitle": "{author}: {excerpt}",
   "@postViewTitle": {

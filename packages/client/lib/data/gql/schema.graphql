@@ -9458,6 +9458,7 @@ type v2_PostSummary {
   authorId: String!
   authorName: String!
   authorAvatar: String!
+  forwardedByName: String
   rootImageUrl: String
   rootExcerpt: String
   lastMessageExcerpt: String

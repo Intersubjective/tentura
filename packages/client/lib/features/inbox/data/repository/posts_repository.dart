@@ -38,6 +38,7 @@ class PostsRepository implements PostsRepositoryPort {
     authorId: row.authorId,
     authorName: row.authorName,
     authorAvatar: row.authorAvatar,
+    forwardedByName: row.forwardedByName,
     rootImageUrl: row.rootImageUrl,
     rootExcerpt: row.rootExcerpt ?? '',
     lastMessageExcerpt: row.lastMessageExcerpt,

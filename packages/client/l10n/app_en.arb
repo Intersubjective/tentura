@@ -7987,6 +7987,18 @@
       }
     }
   },
+  "postConversationForwarded": "{author} · via {sender}",
+  "@postConversationForwarded": {
+    "description": "Addressing line naming the author and forwarder of a Post.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "sender": {
+        "type": "String"
+      }
+    }
+  },
   "postConversationMuted": "Muted",
   "@postConversationMuted": {
     "description": "Semantic label of the muted icon on a conversations row."
