@@ -97,7 +97,6 @@ final class _FakeClosureRepository implements ClosureRepository {
     this.draftFlag = ClosureDraftFlag.none,
     this.meNotInRequest = false,
     this.unjudgedLeaver = false,
-    this.hadReviewWindow = true,
     List<String> marks = const [],
   }) : marks = [...marks];
 
@@ -107,10 +106,6 @@ final class _FakeClosureRepository implements ClosureRepository {
   /// #489: the server says the viewer left on their own and the author never
   /// judged them.
   final bool unjudgedLeaver;
-
-  /// A real final check: the server sends [ClosureState.earlyCloseAt]. A
-  /// close with no review window leaves it null (#825).
-  final bool hadReviewWindow;
 
   final ClosureOutcome outcome;
   final ClosureBand band;
@@ -143,7 +138,8 @@ final class _FakeClosureRepository implements ClosureRepository {
         ClosureMember(id: 'c$i', displayName: 'Name c$i'),
     ],
     closesAt: DateTime.utc(2030, 1, 10, 12),
-    earlyCloseAt: hadReviewWindow ? DateTime.utc(2030, 1, 8, 12) : null,
+    // A real final check: the server sends earlyCloseAt (#825).
+    earlyCloseAt: DateTime.utc(2030, 1, 8, 12),
     myMarks: [...marks],
   );
 
