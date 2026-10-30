@@ -497,7 +497,7 @@ WHERE id = 'Bstartat001'
       expect(snapshot.requests.any((r) => r.id == 'Bp03hidden'), isFalse);
     }, skip: skipReason);
 
-    test('blocked pinned person omitted without leaking id; restore keeps coords',
+    test('person who blocked the viewer is omitted; unblocking restores the pin',
         () async {
       const peer = 'Ucfp03block';
       await insertUser(peer);
@@ -512,13 +512,13 @@ WHERE id = 'Bstartat001'
           coordinateSpaceVersion: 1,
         ),
       );
-      await insertBlock(egoId, peer);
+      await insertBlock(peer, egoId);
       final blocked = await readField(viewerId: egoId);
       expect(blocked.anchorProjection.anchors, isEmpty);
       expect(blocked.anchorProjection.pinnedPeers, isEmpty);
 
       await db.customStatement(
-        'DELETE FROM public.user_block WHERE blocker_id = \'$egoId\' AND blocked_id = \'$peer\'',
+        'DELETE FROM public.user_block WHERE blocker_id = \'$peer\' AND blocked_id = \'$egoId\'',
       );
       final restored = await readField(viewerId: egoId);
       expect(restored.anchorProjection.anchors.single.position.xUnits, -3);
@@ -538,7 +538,7 @@ WHERE id = 'Bstartat001'
       expect(snapshot.edges, isEmpty);
     }, skip: skipReason);
 
-    test('showClosed false hides wrapping-up pinned Request in filter list only',
+    test('wrapping-up pin keeps its content and badge while counted by the filter',
         () async {
       const author = 'Ucfp03wrap';
       await insertUser(author);
@@ -556,7 +556,11 @@ WHERE id = 'Bstartat001'
         ),
       );
       final snapshot = await readField(viewerId: egoId);
-      expect(snapshot.anchorProjection.pinnedRequests, isEmpty);
+      final record = snapshot.anchorProjection.pinnedRequests.single;
+      expect(record.id, 'Bp03wrap');
+      expect(record.authorId, author);
+      expect(record.status, 5);
+      expect(record.pinState, 'wrappingUp');
       expect(snapshot.anchorProjection.serverFilteredBeaconIds, ['Bp03wrap']);
       expect(snapshot.anchorProjection.serverFilteredBeaconCount, 1);
       expect(snapshot.anchorProjection.anchors, isNotEmpty);
@@ -698,7 +702,7 @@ WHERE id = 'Bstartat001'
       expect(afterRequest.requests.map((r) => r.id), isNot(contains('Bp03sibA')));
     }, skip: skipReason);
 
-    test('cancelled pinned Beacon stays dormant without filter-hidden leakage',
+    test('cancelled pinned Request retains content and state at its saved position',
         () async {
       const author = 'Ucfp03cancel';
       await insertUser(author);
@@ -721,7 +725,11 @@ WHERE id = 'Bstartat001'
           snapshot.anchorProjection.anchors.single.position.yUnits,
           0.75,
         );
-        expect(snapshot.anchorProjection.pinnedRequests, isEmpty);
+        final record = snapshot.anchorProjection.pinnedRequests.single;
+        expect(record.id, 'Bp03cancel');
+        expect(record.authorId, author);
+        expect(record.status, 1);
+        expect(record.pinState, 'cancelled');
         expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
         expect(snapshot.anchorProjection.serverFilteredBeaconCount, 0);
       }
@@ -732,14 +740,14 @@ WHERE id = 'Bstartat001'
       expect(restored.anchorProjection.anchors.single.position.yUnits, 0.75);
     }, skip: skipReason);
 
-    test('blocked pinned Beacon returns no authorized anchor', () async {
+    test('Request whose author blocked the viewer returns no anchor', () async {
       const author = 'Ucfp03block';
       await insertUser(author);
       await reciprocalTrust(egoId, author);
       await insertBeacon(id: 'Bp03block', authorId: author);
       await insertHelpOffer(beaconId: 'Bp03block', userId: egoId);
       await pinBeacon(beaconId: 'Bp03block');
-      await insertBlock(egoId, author);
+      await insertBlock(author, egoId);
       final snapshot = await readField(viewerId: egoId);
       expect(snapshot.anchorProjection.anchors, isEmpty);
       expect(snapshot.anchorProjection.pinnedRequests, isEmpty);

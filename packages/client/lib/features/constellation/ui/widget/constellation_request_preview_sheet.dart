@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'constellation_anchor_controls.dart';
+import 'constellation_pin_placeholder_sheet.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
 
@@ -40,7 +41,7 @@ String? constellationHeldOpenViewTab(ConstellationHeldState held) =>
 
 /// Whether [Forward] is shown as a permitted secondary action.
 bool constellationPreviewShowsForward(ConstellationRequest request) {
-  if (request.isMine) {
+  if (request.isMine || request.isPlaceholder) {
     return false;
   }
   return BeaconStatus.fromSmallint(request.status).isOpenFamily;
@@ -71,6 +72,13 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (request.isPlaceholder) {
+      return ConstellationPinPlaceholderSheet(
+        target: ConstellationAnchorTarget.beacon(request.id),
+        pinState: request.pinState,
+        onClose: onClose,
+      );
+    }
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;

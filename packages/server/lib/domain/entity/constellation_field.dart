@@ -226,19 +226,21 @@ class ConstellationPeerRecord {
 
   /// This record marked inside or outside the viewer's visible set; outside
   /// it, the record is identity only (no handle).
-  ConstellationPeerRecord withVisible({required bool visible}) =>
-      ConstellationPeerRecord(
-        id: id,
-        displayName: displayName,
-        handle: visible ? handle : null,
-        image: image,
-        pinState: pinState,
-        visible: visible,
-        contactOnly: contactOnly,
-        presence: presence,
-        temporaryBeaconId: temporaryBeaconId,
-        bondContexts: bondContexts,
-      );
+  ConstellationPeerRecord withVisible({
+    required bool visible,
+    String? pinState,
+  }) => ConstellationPeerRecord(
+    id: id,
+    displayName: displayName,
+    handle: visible ? handle : null,
+    image: image,
+    pinState: pinState ?? this.pinState,
+    visible: visible,
+    contactOnly: contactOnly,
+    presence: presence,
+    temporaryBeaconId: temporaryBeaconId,
+    bondContexts: bondContexts,
+  );
 
   /// The identity-only form of this record for a contact node (#246).
   ConstellationPeerRecord asContactOnly() => ConstellationPeerRecord(
@@ -326,27 +328,32 @@ class ConstellationRequestRecord {
   });
 
   /// Placeholder for a pinned Request that was deleted: identity only.
-  const ConstellationRequestRecord.tombstone(this.id)
-    : authorId = '',
-      title = '',
-      status = 0,
-      needs = const [],
-      primaryNeedSlug = null,
-      startAt = null,
-      endAt = null,
-      addressLabel = null,
-      hasCoordinates = false,
-      isMine = false,
-      viewerHasActiveHelpOffer = false,
-      viewerIsRoomParticipant = false,
-      viewerHasForwardEdge = false,
-      helpOfferCount = 0,
-      kind = 0,
-      coverSource = 0,
-      coverThumb = null,
-      viewerParticipates = null,
-      pinState = kConstellationPinStateTombstone,
-      parentBeaconId = null;
+  const ConstellationRequestRecord.tombstone(String id)
+    : this.placeholder(id, pinState: kConstellationPinStateTombstone);
+
+  /// Identity-only record for an inaccessible pinned Request.
+  const ConstellationRequestRecord.placeholder(
+    this.id, {
+    required this.pinState,
+  }) : authorId = '',
+       title = '',
+       status = 0,
+       needs = const [],
+       primaryNeedSlug = null,
+       startAt = null,
+       endAt = null,
+       addressLabel = null,
+       hasCoordinates = false,
+       isMine = false,
+       viewerHasActiveHelpOffer = false,
+       viewerIsRoomParticipant = false,
+       viewerHasForwardEdge = false,
+       helpOfferCount = 0,
+       kind = 0,
+       coverSource = 0,
+       coverThumb = null,
+       viewerParticipates = null,
+       parentBeaconId = null;
 
   final String id;
   final String authorId;
@@ -374,8 +381,14 @@ class ConstellationRequestRecord {
   /// When set (pinned batch load), full C2 participation predicate; otherwise null.
   final bool? viewerParticipates;
 
-  /// Null for a live Request, [kConstellationPinStateTombstone] when deleted.
+  /// A lifecycle badge for a readable pin or the reason for a placeholder.
   final String? pinState;
+
+  bool get isPlaceholder => switch (pinState) {
+    'noAccess' || 'deleted' || 'tombstone' || 'blockedByMe' => true,
+    'unpublished' => !isMine,
+    _ => false,
+  };
 
   /// The Post this Request budded from, only when the viewer can read it.
   final String? parentBeaconId;

@@ -15,6 +15,7 @@ query ConstellationAnchorsFetch(
     requestsCapped
     peers {
       id
+      pinState
       displayName
       handle
       image {
@@ -28,6 +29,7 @@ query ConstellationAnchorsFetch(
     }
     requests {
       id
+      pinState
       authorId
       title
       status
@@ -61,6 +63,7 @@ query ConstellationAnchorsFetch(
       }
       pinnedPeers {
         id
+        pinState
         visible
         displayName
         handle
@@ -70,6 +73,7 @@ query ConstellationAnchorsFetch(
       }
       pinnedRequests {
         id
+        pinState
         authorId
         title
         status

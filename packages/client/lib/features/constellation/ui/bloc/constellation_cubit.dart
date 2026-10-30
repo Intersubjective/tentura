@@ -2083,7 +2083,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         selectedPersonId: requestId != null ? null : state.selectedPersonId,
       ),
     );
-    if (requestId != null) {
+    if (requestId != null && requestById(requestId)?.isPlaceholder != true) {
       unawaited(_fetchRequestWebs(requestId));
     }
     if (previousMemberId != _selectedRequestMemberId ||
@@ -2107,7 +2107,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// so a Post with many recipients shows them only while it is selected.
   List<ConstellationMemberWeb> get _selectedRequestWebs {
     final selectedId = state.selectedRequestId;
-    if (selectedId == null) {
+    if (selectedId == null || requestById(selectedId)?.isPlaceholder == true) {
       return const [];
     }
     if (_isPostId(selectedId)) {
@@ -3100,6 +3100,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       };
 
   bool canDragNode(NodeDetails node) {
+    if (node is FieldBeaconNode && node.request?.isPlaceholder == true) {
+      return false;
+    }
     return anchorTargetForNode(node) != null;
   }
 
@@ -3788,11 +3791,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null) {
       return null;
     }
-    for (final request in field.requests) {
-      if (request.id == requestId) {
-        return request;
-      }
-    }
     final overlay = state.composition?.anchorOverlay;
     if (overlay != null) {
       for (final request in overlay.pinnedRequests) {
@@ -3809,6 +3807,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         }
       }
     }
+    for (final request in field.requests) {
+      if (request.id == requestId) {
+        return request;
+      }
+    }
     return null;
   }
 
@@ -3821,8 +3824,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final projection = field.resolvedAnchorProjection;
     for (final peers in [
-      field.peers,
       projection.pinnedPeers,
+      field.peers,
       projection.supportPeers,
     ]) {
       for (final peer in peers) {
@@ -3844,8 +3847,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final projection = field.resolvedAnchorProjection;
     for (final peers in [
-      field.peers,
       projection.pinnedPeers,
+      field.peers,
       projection.supportPeers,
     ]) {
       for (final peer in peers) {
@@ -3927,13 +3930,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null) {
       return const [];
     }
-    final byId = <String, ConstellationRequest>{
-      for (final request in [
-        ...field.requests,
-        ...field.resolvedAnchorProjection.pinnedRequests,
-      ])
-        if (request.authorId == personId) request.id: request,
-    };
+    final byId =
+        <String, ConstellationRequest>{
+          for (final request in [
+            ...field.requests,
+            ...field.resolvedAnchorProjection.pinnedRequests,
+          ])
+            request.id: request,
+        }..removeWhere(
+          (_, request) => request.isPlaceholder || request.authorId != personId,
+        );
     final filteredRequestIds = _filteredRequestIds(field, byId.values);
     return [
       for (final request in byId.values)

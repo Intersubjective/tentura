@@ -32,8 +32,13 @@ String constellationNodeSemanticLabel({
               field: field,
               viewerId: cubit.viewerId,
             )[person.id];
+      final pinState = cubit.fieldPersonById(person.id)?.pinState;
       final base = [
-        person.shownName,
+        if (pinState == 'tombstone')
+          l10n.constellationPinAccountDeleted
+        else
+          person.shownName,
+        if (pinState == 'blockedByMe') l10n.constellationPinBlocked,
         if (trust != null) constellationTrustBadgeLabel(l10n, trust),
         if (online) l10n.chatPresenceOnline,
       ].join(', ');
@@ -61,6 +66,10 @@ String constellationNodeSemanticLabel({
       return labelled;
     }(),
     FieldBeaconNode(request: final request?) => () {
+      if (request.isPlaceholder) {
+        return '${constellationPinStateLabel(l10n, request.pinState)}, '
+            '${l10n.constellationPinMarkerSemantics}';
+      }
       final title = request.title.trim();
       final titlePart = title.isEmpty
           ? l10n.beaconViewTitle

@@ -10,6 +10,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/app/platform/web_semantics.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -62,6 +63,7 @@ import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
+import 'constellation_pin_placeholder_sheet.dart';
 import 'constellation_post_preview_sheet.dart';
 import 'constellation_presence_line.dart';
 import 'constellation_temporary_outline.dart';
@@ -706,6 +708,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
   }
 
+  Future<void> _unblockPerson(BuildContext context, String personId) async {
+    try {
+      await GetIt.I<BlockCase>().unblock(objectId: personId);
+    } on Object catch (error) {
+      if (context.mounted) {
+        _showActionMessage(context, error.toString());
+      }
+    }
+  }
+
   void _showActionMessage(BuildContext context, String message) {
     showSnackBar(context, text: message);
   }
@@ -717,6 +729,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ) {
     final personId = state.selectedPersonId;
     if (personId != null && personId != cubit.viewerId) {
+      if (cubit.fieldPersonById(personId)?.pinState == 'tombstone') {
+        return AdaptiveContextOverlay(
+          child: ConstellationPinPlaceholderSheet(
+            target: ConstellationAnchorTarget.person(personId),
+            pinState: 'accountDeleted',
+            onClose: () => cubit.selectPerson(null),
+          ),
+        );
+      }
       final profile = cubit.profileForPersonId(personId);
       if (profile == null) {
         return const SizedBox.shrink();
@@ -724,11 +745,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return AdaptiveContextOverlay(
         child: GraphPersonContextPanel(
           profile: profile,
+          isBlocked: cubit.fieldPersonById(personId)?.pinState == 'blockedByMe',
+          onUnblock: () => unawaited(_unblockPerson(context, personId)),
           focusedNode: UserNode(user: profile),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (cubit.fieldPersonById(personId)?.pinState == 'blockedByMe')
+                TenturaStatusText(L10n.of(context)!.constellationPinBlocked),
               if (widget.fieldMembershipV2Enabled)
                 ConstellationPresenceLine(personId: personId),
               ConstellationTrustChainLine(personId: personId),
@@ -1627,10 +1652,25 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 final l10n = L10n.of(context)!;
                 final tt = context.tt;
                 final scheme = Theme.of(context).colorScheme;
+                final personPinState = node is FieldPersonNode
+                    ? cubit.fieldPersonById(node.person.id)?.pinState
+                    : null;
                 final mapNode = switch (node) {
                   FieldPersonNode(:final ring, :final person) =>
                     _ConstellationMapNode(
                       detail: _detail,
+                      statusBadge: personPinState != null
+                          ? ExcludeSemantics(
+                              child: ConstellationMarkerBadge.pinState(
+                                pinState: personPinState == 'tombstone'
+                                    ? 'accountDeleted'
+                                    : personPinState,
+                                l10n: l10n,
+                                tt: tt,
+                                scheme: scheme,
+                              ),
+                            )
+                          : null,
                       dot: ring == 0
                           ? null
                           : _OverviewDotSpec(
@@ -1692,13 +1732,21 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               ),
                             )
                           : null,
-                      statusBadge:
-                          constellationRequestStatusPresentation(
-                                rawStatus: request.status,
+                      statusBadge: request.isPlaceholder
+                          ? ExcludeSemantics(
+                              child: ConstellationMarkerBadge.pinState(
+                                pinState: request.pinState,
                                 l10n: l10n,
                                 tt: tt,
-                              ) ==
-                              null
+                                scheme: scheme,
+                              ),
+                            )
+                          : constellationRequestStatusPresentation(
+                                  rawStatus: request.status,
+                                  l10n: l10n,
+                                  tt: tt,
+                                ) ==
+                                null
                           ? null
                           : ExcludeSemantics(
                               child: ConstellationMarkerBadge.status(

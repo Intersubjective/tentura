@@ -81,6 +81,7 @@ abstract class ConstellationPerson with _$ConstellationPerson {
     String? displayName,
     String? handle,
     ImageEntity? image,
+    String? pinState,
 
     /// False for a pinned person outside the viewer's visible set.
     @Default(true) bool visible,
@@ -125,6 +126,7 @@ abstract class ConstellationRequest with _$ConstellationRequest {
     required String authorId,
     required String title,
     required int status,
+    String? pinState,
     @Default([]) List<String> needs,
     String? primaryNeedSlug,
     DateTime? startAt,
@@ -144,6 +146,13 @@ abstract class ConstellationRequest with _$ConstellationRequest {
   }) = _ConstellationRequest;
 
   const ConstellationRequest._();
+
+  /// Inaccessible pins retain identity and placement, never Request actions.
+  bool get isPlaceholder => switch (pinState) {
+    'noAccess' || 'deleted' || 'tombstone' || 'blockedByMe' => true,
+    'unpublished' => !isMine,
+    _ => false,
+  };
 
   ConstellationHeldState get heldState {
     if (isMine) {

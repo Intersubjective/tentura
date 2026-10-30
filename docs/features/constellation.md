@@ -25,7 +25,9 @@ visible people (**V**), shared-Request bond peers (**B**) and temporary Request
 forwarding peers (**T**) can appear without a Request satellite of their own.
 This supersedes **D9**: people no longer need to author an active discoverable
 Request or lie on a path to an author to remain on the Field. Existing contact
-and pin rules still apply; blocks exclude people in either direction.
+and pin rules still apply. Blocks exclude automatic people in either direction;
+a person you pinned and then blocked stays marked **Blocked**. Someone who
+blocked you stays hidden.
 
 When categories overlap, presence follows `visible > bond > temporary >
 contactOnly > pinnedOnly`. Bond presence shows shared Request context; temporary
@@ -150,7 +152,7 @@ When people tags are enabled as well, **Open tag view** provides a separate auto
 
 Pins belong to the viewing account and describe a stable personal map. They may overlap; the most recently stored placement is drawn and tapped on top. This overlap allowance is for pins only — automatic placement keeps every unpinned node's readable footprint (body, label, badges) clear of avoidable overlap with other placed nodes, including its own author. A pin is not a saved request: **Favorites** and Constellation pins are independent actions.
 
-If a pinned request is temporarily outside the active field, its placement remains stored. **Show closed** can reveal readable wrapping-up and closed requests, while cancelled, deleted, unpublished, blocked, and otherwise unreadable requests never render. When an eligible request returns, it returns at its saved position. A pinned person may remain even when that person currently has no active readable requests. A pinned person who is no longer visible to you (lost friendship or MeritRank visibility) stays at the pin, drawn with no path, no stub and no Requests, and disappears only when either side blocks the other or you unpin.
+Pinned Requests retain their saved placement. Readable wrapping-up, closed, cancelled and author-owned unpublished Requests keep their content and state mark. An inaccessible, deleted or non-author unpublished Request stays as a content-free placeholder with a lock/state mark, an explanation and **Unpin** only; it cannot open the Request or its Chat and is not listed as content in Text view. A Request by someone you blocked is a **Blocked** placeholder; someone who blocked you and their Requests stay hidden. Access restored on a later read restores the full record at the same pin. A pinned person who loses friendship or MeritRank visibility stays with name and avatar but no path, stub or extra Requests; your own block marks them **Blocked**, while their block hides them. Deleted targets retain a placeholder until you unpin.
 
 Request state is visible in both Map and Text views. The legend pairs each state with text and a non-colour marker: Open, Needs more help, Enough help, Wrapping up, and Closed. The pin glyph identifies placement only; it does not imply participation or priority.
 
