@@ -374,18 +374,26 @@ Widget beaconViewAppBarOverflow({
   final pages = BeaconPlanPageScope.maybeOf(context);
   final showsManagement = !inRoomSurface || combineSplitPanes;
   if (planCubit == null || pages == null || !showsManagement) return menu();
-  bool canAddPlan(PlanState s) {
-    final plan = s.plan;
-    return plan != null && plan.editable && !beaconPlanHasSteps(plan);
+  bool canAddPlan(BeaconViewState beaconState, PlanState planState) {
+    final plan = planState.plan;
+    return beaconAllowsEdit(beaconState.beacon) &&
+        plan != null &&
+        plan.editable &&
+        !beaconPlanHasSteps(plan);
   }
 
-  return BlocBuilder<PlanCubit, PlanState>(
-    bloc: planCubit,
-    buildWhen: (p, c) => canAddPlan(p) != canAddPlan(c),
-    builder: (context, planState) => menu(
-      onAddPlan: canAddPlan(planState)
-          ? () => pages.open(BeaconPlanPage.edit)
-          : null,
+  return BlocBuilder<BeaconViewCubit, BeaconViewState>(
+    bloc: cubit,
+    buildWhen: (p, c) => p.beacon.status != c.beacon.status,
+    builder: (context, beaconState) => BlocBuilder<PlanCubit, PlanState>(
+      bloc: planCubit,
+      buildWhen: (p, c) =>
+          canAddPlan(beaconState, p) != canAddPlan(beaconState, c),
+      builder: (context, planState) => menu(
+        onAddPlan: canAddPlan(beaconState, planState)
+            ? () => pages.open(BeaconPlanPage.edit)
+            : null,
+      ),
     ),
   );
 }

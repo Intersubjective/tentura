@@ -121,6 +121,14 @@ test('a 400 from QA test login shows the message without a Sentry issue', async 
     err.message,
     'Test login failed. Check the email domain and try again.',
   );
+  const { setLocale } = await import('../onboarding.js');
+  setLocale('ru');
+  const errRu = await rejection(startTestLogin({ email: 'u@example.com' }));
+  assert.equal(
+    errRu.message,
+    'Тестовый вход не удался. Проверьте домен почты и попробуйте ещё раз.',
+  );
+  setLocale('en');
   trackError('qa_test_login_error', err);
   assert.equal(exceptions.length, 0);
   assert.equal(breadcrumbs.length, 1);

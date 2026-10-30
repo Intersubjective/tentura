@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
@@ -94,10 +95,18 @@ class HelpOfferTile extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final isWithdrawn = helpOffer.isWithdrawn;
-    // A declined offer is stored as withdrawn too; say what really happened
-    // and keep the author's reason visible (UI review, People tab). The
-    // pair's last action outlives that offer: a later active offer (a backup
-    // kept as standby, a re-offer) is not declined (#708).
+    // A declined or ended offer is stored as withdrawn too (status 1). The
+    // badge follows the end reason, which a non-author can still read from
+    // stake and response after admission fields are stripped (#783). A later
+    // active offer (a backup kept as standby, a re-offer) is not declined
+    // (#708): that requires the row to still be withdrawn.
+    final endKind = helpOfferEndKind(
+      isWithdrawn: isWithdrawn,
+      admissionAction: helpOffer.admissionAction,
+      stakeState: helpOffer.stakeState,
+      withdrawReason: helpOffer.withdrawReason,
+      coordinationResponse: helpOffer.coordinationResponse,
+    );
     final isDeclinedByAuthor =
         isWithdrawn &&
         helpOffer.admissionAction == HelpOfferAdmissionAction.decline;
@@ -176,31 +185,30 @@ class HelpOfferTile extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, innerConstraints) {
                     Widget? trailingBadge({int? maxLines = 1}) {
-                      if (isDeclinedByAuthor) {
-                        return TenturaStatusText(
-                          l10n.helpOfferStatusDeclined,
-                          tone: TenturaTone.danger,
-                          maxLines: maxLines,
-                        );
-                      }
-                      if (isWithdrawn) {
-                        return TenturaStatusText(
-                          l10n.labelWithdrawn,
-                          maxLines: maxLines,
-                        );
-                      }
-                      if (stakeParticipationLabel != null) {
-                        return TenturaStatusText(
-                          stakeParticipationLabel,
-                          maxLines: maxLines,
-                        );
-                      }
-                      return null;
+                      final endedOrDeclined =
+                          endKind == HelpOfferEndKind.participationEnded ||
+                          endKind == HelpOfferEndKind.declined;
+                      final label =
+                          endedOrDeclined ||
+                              endKind == HelpOfferEndKind.withdrew
+                          ? helpOfferEndLabel(
+                              l10n,
+                              endKind,
+                              HelpOfferEndLabelSurface.peopleBadge,
+                            )
+                          : stakeParticipationLabel;
+                      if (label == null || label.isEmpty) return null;
+                      return TenturaStatusText(
+                        label,
+                        tone: endKind == HelpOfferEndKind.declined
+                            ? TenturaTone.danger
+                            : TenturaTone.neutral,
+                        maxLines: maxLines,
+                      );
                     }
 
                     final hasTrailingBadge =
-                        isDeclinedByAuthor ||
-                        isWithdrawn ||
+                        endKind != HelpOfferEndKind.none ||
                         stakeParticipationLabel != null;
 
                     final textColumn = Column(
@@ -242,10 +250,11 @@ class HelpOfferTile extends StatelessWidget {
                         SizedBox(height: tt.tightGap / 2),
                         if (participantMeta != null) ...[
                           Text(
-                            '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleStatusLabel(
+                            '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleOfferStatusLine(
                               l10n,
-                              participantMeta.status,
-                              helpOffer.coordinationResponse,
+                              status: participantMeta.status,
+                              endKind: endKind,
+                              coordinationResponse: helpOffer.coordinationResponse,
                               admissionAction: helpOffer.admissionAction,
                             )}',
                             style: TenturaText.status(
@@ -284,9 +293,7 @@ class HelpOfferTile extends StatelessWidget {
                     const minTextWidth = kMinInteractiveDimension * 3;
                     final sideBySide =
                         innerConstraints.maxWidth >=
-                        minTextWidth +
-                            tt.rowGap +
-                            kMinInteractiveDimension * 4;
+                        minTextWidth + tt.rowGap + kMinInteractiveDimension * 4;
                     if (sideBySide) {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,

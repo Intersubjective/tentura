@@ -125,6 +125,7 @@ class BeaconViewHarness {
     required this.host,
     required this.recorder,
     required this.mediaKey,
+    required this.beaconViewCubit,
   });
 
   final BeaconViewHarnessRouter router;
@@ -132,6 +133,17 @@ class BeaconViewHarness {
   final ThreadHostCubit host;
   final BeaconViewRoomCubitRecorder recorder;
   final GlobalKey<BeaconViewResizableMediaQueryState> mediaKey;
+  final BeaconViewCubit beaconViewCubit;
+}
+
+/// Drives a harness [BeaconViewCubit] as if the Request status changed live.
+void harnessSetBeaconViewState(
+  BeaconViewCubit cubit,
+  BeaconViewState state,
+) {
+  if (cubit is _HarnessBeaconViewCubit) {
+    cubit.setHarnessState(state);
+  }
 }
 
 class BeaconViewRoomCubitRecorder {
@@ -258,6 +270,12 @@ class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
 
   @override
   Future<void> reportPeopleSurfaceViewed() async {}
+
+  /// Simulates a live Request status change (another tab closed it, etc.).
+  void setHarnessState(BeaconViewState value) {
+    _state = value;
+    _controller.add(value);
+  }
 
   @override
   Future<void> close() async {
@@ -569,6 +587,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
     host: harnessHost,
     recorder: harnessRecorder,
     mediaKey: mediaKey,
+    beaconViewCubit: beaconCubit,
   );
 }
 

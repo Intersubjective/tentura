@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -18,6 +19,8 @@ class BeaconPeopleHelpOfferInput {
     this.admissionAction,
     this.lastDeclineReason,
     this.lastRemoveReason,
+    this.stakeState = CommitmentStakeState.none,
+    this.withdrawReason,
   });
 
   final String userId;
@@ -28,6 +31,8 @@ class BeaconPeopleHelpOfferInput {
   final HelpOfferAdmissionAction? admissionAction;
   final String? lastDeclineReason;
   final String? lastRemoveReason;
+  final CommitmentStakeState stakeState;
+  final String? withdrawReason;
 }
 
 @freezed
