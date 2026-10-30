@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
@@ -207,6 +208,19 @@ class BeaconCreateCase {
     // BeaconSetMedia: when that extra call failed ("retry later"), the saved
     // edit looked like a failure and the editor stayed open (B080).
     if (kind == _Save.edit && _mediaUnchanged(command, written)) {
+      return BeaconSaveResult(
+        beacon: written,
+        images: command.images,
+        coverThumb: command.coverThumb,
+      );
+    }
+
+    // A Post's files go on its root message (`postPublish`). BeaconStageImage
+    // and BeaconSetMedia are Request-only and throw BeaconNotRequestException
+    // («Operation is only available for Requests», #749) when the Post editor
+    // drafts or publishes.
+    if (command.fields.kind == BeaconKind.post ||
+        written.kind == BeaconKind.post) {
       return BeaconSaveResult(
         beacon: written,
         images: command.images,
