@@ -62,10 +62,9 @@ WHERE ${AttentionDismissibleSql.activeAttention('receipt')}
   }) async {
     final rows = await _database
         .customSelect(
-          '''SELECT DISTINCT receipt.beacon_id
-$_authorizedReceiptJoin
-WHERE receipt.requires_action
-  AND receipt.settlement_kind IS NULL''',
+          r'''
+SELECT DISTINCT (visible.receipt).beacon_id AS beacon_id
+FROM public.visible_attention_receipts($1, true) visible''',
           variables: [Variable<String>(accountId)],
         )
         .get();
@@ -775,7 +774,8 @@ page_stream AS (
     final streamAlias = surface == AttentionSurface.activity
         ? 'stream'
         : 'visible';
-    final actorNameMatch = '''
+    final actorNameMatch =
+        '''
 EXISTS (
       SELECT 1 FROM public."user" actor
       WHERE actor.id = $streamAlias.actor_user_id

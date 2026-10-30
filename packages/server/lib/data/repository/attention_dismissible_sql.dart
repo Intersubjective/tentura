@@ -54,10 +54,8 @@ abstract final class AttentionDismissibleSql {
   /// the same membership.
   static const visibleWithSurface = r'''
 visible_raw AS (
-  SELECT outbox.*, authorized.tombstone_copy
+  SELECT (authorized.receipt).*, authorized.tombstone_copy
   FROM public.visible_attention_receipts($1) authorized
-  JOIN public.notification_outbox outbox
-    ON outbox.id = authorized.receipt_id
 ),
 scope AS (
   SELECT base.beacon_id

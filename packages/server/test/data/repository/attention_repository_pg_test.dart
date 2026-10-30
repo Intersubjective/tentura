@@ -304,7 +304,7 @@ INSERT INTO public.notification_preference (
 
         final definition = await writer.execute('''
 SELECT pg_get_functiondef(
-  'public.visible_attention_receipts(text)'::regprocedure
+  'public.visible_attention_receipts(text, boolean)'::regprocedure
 )
 ''');
         final sql = definition.single.single! as String;
