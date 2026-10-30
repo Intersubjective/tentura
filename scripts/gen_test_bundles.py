@@ -33,6 +33,9 @@ A file runs on its own (is not bundled) when it:
     takes no tags or timeout);
   * is tagged `pg` (server: per-suite tags drive the MeritRank suite lock);
   * compares goldens (golden paths resolve against the entrypoint's location);
+  * registers a real font with the engine (`FontLoader`, `loadFontFromList`):
+    fonts can't be unregistered, so every later file in the isolate would
+    measure text with that font instead of the test font;
   * is listed in `<package-dir>/test/bundle_exclude.txt` (one path per line,
     relative to the package, `#` comments allowed) because it leaks or
     depends on process-wide state that another file in the same isolate
@@ -64,6 +67,7 @@ EXCLUDE_FILE = Path("test") / "bundle_exclude.txt"
 
 SYNC_MAIN = re.compile(r"^void main\(\)", re.MULTILINE)
 GOLDEN = re.compile(r"\bmatchesGoldenFile\b")
+FONT_LOADER = re.compile(r"\b(FontLoader|loadFontFromList)\b")
 # File-level annotations sit before the first import/library/part directive.
 DIRECTIVE = re.compile(r"^(import|export|library|part)\b", re.MULTILINE)
 ANNOTATION = re.compile(r"^@(\w+)\s*\(", re.MULTILINE)
@@ -206,6 +210,7 @@ def main(argv: list[str]) -> int:
             or options is None
             or not SYNC_MAIN.search(source)
             or GOLDEN.search(source)
+            or FONT_LOADER.search(source)
             or re.search(r"['\"]pg['\"]", annotations.get("Tags", ""))
         ):
             standalone.append(rel)
