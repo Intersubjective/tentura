@@ -24,8 +24,6 @@ dependencies:
   image:
   get_it:
   logging:
-  latlong2:
-  drift_dev:
   collection:
   injectable:
   tentura_root:
@@ -105,6 +103,7 @@ dev_dependencies:
   lints:
   freezed:
   build_runner:
+  drift_dev:
   json_serializable:
   very_good_analysis:
   injectable_generator:
