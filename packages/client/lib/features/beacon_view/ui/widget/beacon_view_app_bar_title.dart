@@ -73,7 +73,9 @@ class BeaconViewAppBarTitle extends StatelessWidget {
         ? l10n.beaconViewTitle
         : beacon.title;
 
-    final semanticsLabel = '$titleText. $statusLine';
+    // A hidden status must not be announced: on a phone the line stays out
+    // until the first-load gate reveals (#545).
+    final semanticsLabel = showStatus ? '$titleText. $statusLine' : titleText;
 
     // A neutral tile is a placeholder, not identity: give its width to the
     // title instead.
