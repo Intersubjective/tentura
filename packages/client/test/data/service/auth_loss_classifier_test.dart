@@ -11,6 +11,7 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart'
     hide ServerException;
 import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 import 'package:tentura/features/constellation/domain/exception.dart';
 
@@ -318,6 +319,7 @@ void main() {
 
   group('mapRemoteFailure — pass-through', () {
     const typedFailures = <Exception>[
+      PlanNotEditableException(),
       BatonNotFoundException(),
       BatonNotAuthorException(),
       BatonNotCandidateException(),
