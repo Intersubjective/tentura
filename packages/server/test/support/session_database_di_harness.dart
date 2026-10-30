@@ -17,6 +17,9 @@ final class _UnusedPgNotifications implements PgNotificationService {
   Stream<String> get entityChangeNotifications => const Stream.empty();
 
   @override
+  Stream<String> get presenceNotifications => const Stream.empty();
+
+  @override
   Stream<PgNotificationRecovery> get recoveryNotifications =>
       const Stream.empty();
 
