@@ -25,8 +25,9 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     super.coParticipantLookup,
     super.roomMessageSnapshotLookup,
     super.qaRealtimeSocketGate,
-    this.pgNotificationService,
-  ) {
+    this.pgNotificationService, {
+    super.presenceOfflineGrace,
+  }) {
     _entityChangeSubscription = pgNotificationService.entityChangeNotifications
         .listen(
           _onEntityChangeNotification,
@@ -55,6 +56,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
   late final StreamSubscription<PgNotificationRecovery> _recoverySubscription;
 
   Future<void> dispose() async {
+    cancelPendingPresenceWrites();
     disposeEntityChanges();
     await _entityChangeSubscription.cancel();
     await _presenceSubscription.cancel();
@@ -73,6 +75,11 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     });
     for (final session in sessions) {
       session.send(message);
+    }
+    // Presence NOTIFYs sent while this worker was not listening are lost:
+    // send watchers the stored status again.
+    for (final userId in locallyRelevantPresenceUserIds) {
+      unawaited(_fanOutPresenceQuietly(userId));
     }
     logger.info(
       '[RealtimeRecovery] realtime_event=listener_recovered '
@@ -99,13 +106,40 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     }
   }
 
+  @override
+  Future<void> announcePresenceLeaving(String userId) async {
+    try {
+      await pgNotificationService.notify(
+        PgNotificationService.presenceChannel,
+        jsonEncode({'user_id': userId, 'leaving': true}),
+      );
+    } on Object catch (e) {
+      logger.warning(
+        '[WebsocketRouterBase] presence leaving NOTIFY failed: $e',
+      );
+    }
+  }
+
+  Future<void> _fanOutPresenceQuietly(String userId) async {
+    try {
+      await fanOutPresenceLocally(userId);
+    } on Object catch (e) {
+      logger.warning('[WebsocketRouterBase] presence fan-out failed: $e');
+    }
+  }
+
   void _onPresenceNotification(String payload) {
     unawaited(() async {
       try {
         final data = jsonDecode(payload);
-        final userId = data is Map<String, dynamic> ? data['user_id'] : null;
+        if (data is! Map<String, dynamic>) return;
+        final userId = data['user_id'];
         if (userId is! String || userId.isEmpty) return;
-        await fanOutPresenceLocally(userId);
+        if (data['leaving'] == true) {
+          await claimPresenceIfLocal(userId);
+        } else {
+          await fanOutPresenceLocally(userId);
+        }
       } catch (e) {
         logger.warning(
           '[WebsocketRouterBase] presence notification failed: $e',

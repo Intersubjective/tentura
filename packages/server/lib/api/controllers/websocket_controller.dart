@@ -15,8 +15,9 @@ final class WebSocketController extends WebsocketRouterBase {
     super.coParticipantLookup,
     super.roomMessageSnapshotLookup,
     super.qaRealtimeSocketGate,
-    super.pgNotificationService,
-  );
+    super.pgNotificationService, {
+    @ignoreParam super.presenceOfflineGrace,
+  });
 
   WebSocketSession handler() => WebSocketSession(
     // Another tab of the same user may still be open on this worker; then

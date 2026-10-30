@@ -25,6 +25,9 @@ import 'websocket_realtime_protocol_test.mocks.dart';
 const _aliceId = 'Ua11ce0000001';
 const _bobId = 'Ub0b000000001';
 
+/// The offline grace period the test workers use instead of the 3 s default.
+const _testGrace = Duration(milliseconds: 30);
+
 /// #533: the server runs one web worker per isolate behind a shared port, so
 /// a watcher and the person they watch are often on different workers. A
 /// presence change has to reach watchers on every worker, the way Postgres
@@ -73,8 +76,10 @@ void main() {
 
         second.handler().onClose!(bob);
 
-        await _waitUntil(() => _lastStatusFor(alice, _bobId) != null);
-        expect(_lastStatusFor(alice, _bobId), 'offline');
+        // Wait for "offline" itself: Bob's sign-in "online" fan-out can still
+        // reach Alice after the clear above, so "any frame" is not enough.
+        await _waitUntil(() => _lastStatusFor(alice, _bobId) == 'offline');
+        expect(cluster.presence.statuses[_bobId], UserPresenceStatus.offline);
       },
     );
 
@@ -95,15 +100,95 @@ void main() {
 
         first.handler().onClose!(oldTab);
 
-        await _waitUntil(
-          () =>
-              cluster.presence.statuses[_bobId] == UserPresenceStatus.online &&
-              _lastStatusFor(alice, _bobId) == 'online',
-        );
-        // Let any late offline frame land before the final check.
-        await Future<void>.delayed(const Duration(milliseconds: 20));
+        // Past the grace period, when "offline" would have been stored.
+        await Future<void>.delayed(_testGrace * 4);
         expect(cluster.presence.statuses[_bobId], UserPresenceStatus.online);
+        expect(_statusesFor(alice, _bobId), isNot(contains('offline')));
+      },
+    );
+
+    test(
+      'a new tab opening on another worker while the old tab closes never '
+      'shows the person offline',
+      () async {
+        final first = await cluster.worker();
+        final second = await cluster.worker();
+        final alice = _RecordingSession();
+        final oldTab = _RecordingSession();
+        await cluster.authenticate(first, alice, _aliceId);
+        await cluster.authenticate(first, oldTab, _bobId);
+        await first.sendPresenceSnapshotForPeers(alice, [_bobId]);
+        alice.sent.clear();
+
+        // A reload: the old socket closes, the new one lands on another
+        // worker a moment later.
+        first.handler().onClose!(oldTab);
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await cluster.authenticate(second, _RecordingSession(), _bobId);
+
+        await Future<void>.delayed(_testGrace * 4);
+        expect(cluster.presence.statuses[_bobId], UserPresenceStatus.online);
+        expect(_statusesFor(alice, _bobId), isNot(contains('offline')));
+      },
+    );
+
+    test(
+      'an "online" repair that lands after the socket closed does not leave '
+      'the person stuck online',
+      () async {
+        final worker = await cluster.worker();
+        final alice = _RecordingSession();
+        final bob = _RecordingSession();
+        await cluster.authenticate(worker, alice, _aliceId);
+        await cluster.authenticate(worker, bob, _bobId);
+        await worker.sendPresenceSnapshotForPeers(alice, [_bobId]);
+        alice.sent.clear();
+
+        // Another worker stored "offline" while this one holds Bob's socket,
+        // so this worker repairs it; the repair's write is slow to land.
+        cluster.presence.statuses[_bobId] = UserPresenceStatus.offline;
+        final release = cluster.presence.holdNextWrite(
+          UserPresenceStatus.online,
+        );
+        unawaited(worker.fanOutPresenceLocally(_bobId));
+        await _waitUntil(() => cluster.presence.heldWrites == 1);
+
+        // Bob's socket closes while the "online" write is in flight.
+        worker.handler().onClose!(bob);
+        await Future<void>.delayed(_testGrace * 3);
+        release.complete();
+        await _waitUntil(() => cluster.presence.heldWrites == 0);
+        await Future<void>.delayed(_testGrace * 3);
+
+        expect(cluster.presence.statuses[_bobId], UserPresenceStatus.offline);
+        expect(_lastStatusFor(alice, _bobId), 'offline');
+      },
+    );
+
+    test(
+      'presence missed while the LISTEN connection was down reaches watchers '
+      'after it recovers',
+      () async {
+        final first = await cluster.worker(
+          reconnectDelay: const Duration(milliseconds: 100),
+        );
+        final second = await cluster.worker();
+        final alice = _RecordingSession();
+        final bob = _RecordingSession();
+        await cluster.authenticate(first, alice, _aliceId);
+        await cluster.authenticate(second, bob, _bobId);
+        await first.sendPresenceSnapshotForPeers(alice, [_bobId]);
         expect(_lastStatusFor(alice, _bobId), 'online');
+        alice.sent.clear();
+
+        // The first worker's LISTEN connection drops; Bob leaves meanwhile.
+        cluster.bus.connections.first.failAndClose();
+        second.handler().onClose!(bob);
+
+        // Wait for "offline" itself: Bob's sign-in "online" fan-out can still
+        // reach Alice after the clear above, so "any frame" is not enough.
+        await _waitUntil(() => _lastStatusFor(alice, _bobId) == 'offline');
+        expect(cluster.presence.statuses[_bobId], UserPresenceStatus.offline);
       },
     );
 
@@ -133,17 +218,20 @@ void main() {
 
 /// The status of the last presence event for [userId] that [session] got.
 String? _lastStatusFor(_RecordingSession session, String userId) {
-  String? status;
-  for (final raw in session.sent) {
-    final frame = jsonDecode(raw! as String) as Map<String, dynamic>;
-    if (frame['path'] != 'user_presence') continue;
-    final events = (frame['payload'] as Map)['events'] as List;
-    for (final e in events.cast<Map<String, dynamic>>()) {
-      if (e['user_id'] == userId) status = e['status'] as String;
-    }
-  }
-  return status;
+  final statuses = _statusesFor(session, userId);
+  return statuses.isEmpty ? null : statuses.last;
 }
+
+/// Every presence status for [userId] that [session] got, in order.
+List<String> _statusesFor(_RecordingSession session, String userId) => [
+  for (final raw in session.sent)
+    if (jsonDecode(raw! as String) case {
+      'path': 'user_presence',
+      'payload': {'events': final List<dynamic> events},
+    })
+      for (final e in events.cast<Map<String, dynamic>>())
+        if (e['user_id'] == userId) e['status'] as String,
+];
 
 Future<void> _waitUntil(
   bool Function() condition, {
@@ -173,10 +261,13 @@ final class _Cluster {
   final _workers = <WebSocketController>[];
   final _services = <PgNotificationService>[];
 
-  Future<WebSocketController> worker() async {
+  Future<WebSocketController> worker({
+    Duration reconnectDelay = Duration.zero,
+  }) async {
     final notifications = await PgNotificationService.createForTesting(
       env,
       bus,
+      reconnectDelay: reconnectDelay,
     );
     final controller = WebSocketController(
       env,
@@ -188,6 +279,7 @@ final class _Cluster {
       MockRoomMessageSnapshotLookupPort(),
       QaRealtimeSocketGate(),
       notifications,
+      presenceOfflineGrace: _testGrace,
     );
     _services.add(notifications);
     _workers.add(controller);
@@ -218,6 +310,18 @@ final class _InMemoryPresenceRepository implements UserPresenceRepositoryPort {
   final statuses = <String, UserPresenceStatus>{};
   final _lastSeen = <String, DateTime>{};
 
+  /// Writes started but not yet landed, see [holdNextWrite].
+  int heldWrites = 0;
+  UserPresenceStatus? _holdStatus;
+  Completer<void>? _hold;
+
+  /// Delays the next write of [status] until the returned completer
+  /// completes, like a pooled DB write that lands after a later one.
+  Completer<void> holdNextWrite(UserPresenceStatus status) {
+    _holdStatus = status;
+    return _hold = Completer<void>();
+  }
+
   @override
   Future<UserPresenceEntity?> get(String userId) async {
     final status = statuses[userId];
@@ -238,6 +342,14 @@ final class _InMemoryPresenceRepository implements UserPresenceRepositoryPort {
     DateTime? lastNotifiedAt,
     UserPresenceStatus? status,
   }) async {
+    final hold = _hold;
+    if (hold != null && status == _holdStatus) {
+      _hold = null;
+      _holdStatus = null;
+      heldWrites++;
+      await hold.future;
+      heldWrites--;
+    }
     if (status != null) statuses[userId] = status;
     _lastSeen[userId] = lastSeenAt ?? _lastSeen[userId] ?? DateTime.timestamp();
   }
@@ -282,6 +394,9 @@ final class _EveryoneIsAFriend
 final class _NotifyBus implements PgNotificationConnector {
   final _connections = <_BusConnection>[];
 
+  /// Every connection opened so far, oldest first.
+  List<_BusConnection> get connections => List.unmodifiable(_connections);
+
   @override
   Future<PgNotificationConnection> open(
     Endpoint endpoint, {
@@ -314,6 +429,13 @@ final class _BusConnection implements PgNotificationConnection {
 
   @override
   Stream<String> channel(String name) => controllerFor(name).stream;
+
+  /// The LISTEN connection drops: nothing more reaches it, and the service
+  /// sees the error and reconnects.
+  void failAndClose() {
+    closed = true;
+    controllerFor('entity_changes').addError(StateError('connection lost'));
+  }
 
   @override
   Future<void> listen(String channel) async => listened.add(channel);
