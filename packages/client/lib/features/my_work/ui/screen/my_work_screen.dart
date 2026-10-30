@@ -66,25 +66,11 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
       onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
       icon: const Icon(Icons.add),
     );
-    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
-      listenWhen: (prev, curr) =>
-          prev.myWorkReselectCount != curr.myWorkReselectCount,
-      listener: (context, _) {
-        context.read<MyWorkCubit>()
-          ..setFilter(MyWorkFilter.active)
-          ..setSort(MyWorkSort.recent);
-      },
-      child: BlocSelector<ProfileCubit, ProfileState, bool>(
-        bloc: GetIt.I.isRegistered<ProfileCubit>()
-            ? GetIt.I<ProfileCubit>()
-            : null,
-        selector: (state) {
-          final availability = state.profile.availability;
-          final todayUtc = availabilityTodayUtc();
-          return availability.resumeOn != null &&
-              availability.effectiveOn(todayUtc) == AvailabilityView.paused;
-        },
-        builder: (context, isPaused) => Scaffold(
+    final profileCubit = GetIt.I.isRegistered<ProfileCubit>()
+        ? GetIt.I<ProfileCubit>()
+        : null;
+
+    Widget buildBar({required bool isPaused}) => Scaffold(
           backgroundColor: scheme.surface,
           appBar: TenturaTopBar.of(
             context,
@@ -134,8 +120,31 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
               listScrollController: _listScrollController,
             ),
           ),
-        ),
-      ),
+        );
+
+    final content = profileCubit == null
+        ? buildBar(isPaused: false)
+        : BlocSelector<ProfileCubit, ProfileState, bool>(
+            bloc: profileCubit,
+            selector: (state) {
+              final availability = state.profile.availability;
+              final todayUtc = availabilityTodayUtc();
+              return availability.resumeOn != null &&
+                  availability.effectiveOn(todayUtc) ==
+                      AvailabilityView.paused;
+            },
+            builder: (context, isPaused) => buildBar(isPaused: isPaused),
+          );
+
+    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+      listenWhen: (prev, curr) =>
+          prev.myWorkReselectCount != curr.myWorkReselectCount,
+      listener: (context, _) {
+        context.read<MyWorkCubit>()
+          ..setFilter(MyWorkFilter.active)
+          ..setSort(MyWorkSort.recent);
+      },
+      child: content,
     );
   }
 }
