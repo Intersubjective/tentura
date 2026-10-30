@@ -212,7 +212,8 @@ LPoint branchUnitDirection({
       (x: 0, y: 1); // canvas "down" when everything coincides
 }
 
-/// Amenity chord matching the legacy 30° step at [ringGap].
+/// Chord length for adjacent amenity nodes on a ring of radius [ringGap]
+/// when fan step is π/12 rad (15°).
 double amenityChordForRingGap(double ringGap) =>
     2 * ringGap * math.sin(math.pi / 12);
 

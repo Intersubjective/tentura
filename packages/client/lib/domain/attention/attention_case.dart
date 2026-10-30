@@ -624,9 +624,8 @@ final class AttentionCase implements AttentionReconcilePort {
     // R2/D02 — a read moves the **read** axis and nothing else. `unreadTotal`
     // below this line is defined by the server as *active attention*:
     // `NOT requires_action AND cleared_at IS NULL`, union live obligations.
-    // `seen_at` is not in it, so a read must not move it. (U18c retired the
-    // two surface totals this note also named; the §6 indicators the surface
-    // summary now carries are not client-derived at all.)
+    // `seen_at` is not in it, so a read must not move it. Home nav §6 indicators
+    // are server-composed; the client does not derive them from markSeen.
     final token = _acks.markSeen(pending);
     _applyOptimisticAcks();
     try {
@@ -1409,14 +1408,10 @@ final class AttentionCase implements AttentionReconcilePort {
     return n;
   }
 
-  // U18c removed `_surfaceActiveOptionalDeltas` and
-  // `_applyOptimisticSurfaceSummary`. They existed only to move
-  // `activityUnreadTotal` / `myWorkUnreadTotal` optimistically while a clear
-  // was in flight, and those totals are retired. Nothing replaces them: §6's
-  // four indicators are server-composed from predicates the client does not
-  // hold (`scope`, Set O, the pinned zone), so an optimistic frame for them
-  // would be a client guess at a server rule — the M1 drift this plan spent
-  // three units removing. The optimistic frame the user sees is the *list*,
+  // No optimistic §6 summary deltas: home nav indicators are server-composed
+  // from scope / obligation predicates the client does not hold locally, so
+  // guessing them during ack would reintroduce M1 drift. The optimistic frame
+  // the user sees is the *list*,
   // which `_applyOptimisticAcks` still moves; the indicators follow on the
   // refresh `_requestSurfaceSummaryRefresh` already queues.
 
