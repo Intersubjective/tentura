@@ -869,6 +869,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     unawaited(
       showModalBottomSheet<void>(
         context: context,
+        isScrollControlled: true,
         showDragHandle: true,
         // useRootNavigator: true is required on Web.
         //
@@ -889,310 +890,295 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         builder: (ctx) {
           final theme = Theme.of(ctx);
           final tt = ctx.tt;
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: tt.contentMaxWidth ?? double.infinity,
-              ),
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(
-                          left: tt.screenHPadding,
-                          right: tt.screenHPadding,
-                          top: tt.rowGap,
-                        ),
-                        child: Text(
-                          l10n.beaconRoomMessageActionsTitle,
-                          style: Theme.of(ctx).textTheme.titleMedium,
-                        ),
-                      ),
-                      if (canWrite)
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: tt.screenHPadding,
-                          ),
-                          child: ReactionQuickPicker(
-                            selected: viewerReactions,
-                            onPick: (emoji) {
-                              Navigator.pop(ctx);
-                              unawaited(
-                                cubit.toggleReaction(
-                                  messageId: message.id,
-                                  emoji: emoji,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      if (isOwnMessage)
-                        ..._messageActionsReadByRows(
-                          sheetContext: ctx,
-                          hostContext: context,
-                          cubit: cubit,
-                          l10n: l10n,
-                          viewer: viewer,
-                          message: message,
-                        ),
-                      if (showBatonStart)
-                        ListTile(
-                          leading: const Icon(Icons.pan_tool_alt_outlined),
-                          title: Text(l10n.batonActionStart),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _showBatonCreateSheet(
-                                context,
-                                cubit,
-                                l10n,
-                                viewer,
-                                replyTo: message,
-                              ),
-                            );
-                          },
-                        ),
-                      if (showBud)
-                        ListTile(
-                          key: const Key('Room.BudRequestAction'),
-                          leading: const Icon(
-                            Icons.subdirectory_arrow_right_outlined,
-                          ),
-                          title: Text(l10n.postBudAction),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            _openChildRequestComposerFromMessage(
-                              context,
-                              cubit,
-                              message,
-                            );
-                          },
-                        ),
-                      if (canWrite && RoomCubit.canReplyTo(message))
-                        ListTile(
-                          leading: const Icon(Icons.reply_outlined),
-                          title: Text(l10n.beaconRoomActionReply),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            cubit.startReplyTo(message);
-                          },
-                        ),
-                      // ── Coordination: turn a plain message into an item … ──
-                      if (showCreateChild) ...[
-                        Padding(
-                          padding: EdgeInsets.only(
-                            left: tt.screenHPadding,
-                            right: tt.screenHPadding,
-                            top: tt.rowGap,
-                          ),
-                          child: Text(
-                            l10n.beaconRoomActionTurnInto,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        ListTile(
-                          leading: const Icon(
-                            Icons.subdirectory_arrow_right_outlined,
-                          ),
-                          title: Text(l10n.beaconCreateChildRequest),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            _openChildRequestComposerFromMessage(
-                              context,
-                              cubit,
-                              message,
-                            );
-                          },
-                        ),
-                        // Same gate as the plan strip / app-bar (#379):
-                        // plan editor AND allowsCoordination.
-                        if (caps.plan && !isPoll && cubit.state.canUpdatePlan)
-                          ListTile(
-                            leading: const Icon(Icons.edit_note_outlined),
-                            title: Text(
-                              l10n.beaconRoomActionUpdatePlanFromMessage,
-                            ),
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              unawaited(
-                                _showUpdatePlanFromMessageSheet(
-                                  context,
-                                  cubit,
-                                  l10n,
-                                  message,
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                      // ── …or open / resolve an already-linked item. ──
-                      if (caps.plan &&
-                          linkedItem != null &&
-                          linkedItem.kind == CoordinationItemKind.plan &&
-                          (!isThreadMode ||
-                              widget.onOpenCoordinationItem != null)) ...[
-                        ListTile(
-                          leading: const Icon(
-                            Icons.subdirectory_arrow_left_outlined,
-                          ),
-                          title: Text(l10n.beaconRoomActionJumpToPlan),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            final open = widget.onOpenCoordinationItem;
-                            if (open != null) {
-                              open(linkedItem);
-                              return;
-                            }
-                            unawaited(
-                              openCoordinationItemFromRoom(
-                                context,
-                                item: linkedItem,
-                                roomCubit: cubit,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                      // ── Fact pin (state-aware). ──
-                      if (canWrite && showFactInMenu && pf == null)
-                        ListTile(
-                          leading: const Icon(Icons.fact_check_outlined),
-                          title: Text(l10n.beaconRoomActionPinFact),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _pinOrManageFactForMessage(
-                                context,
-                                cubit,
-                                l10n,
-                                message,
-                                null,
-                              ),
-                            );
-                          },
-                        ),
-                      if (showFactInMenu && pf != null)
-                        ListTile(
-                          leading: const Icon(Icons.fact_check_outlined),
-                          title: Text(l10n.beaconRoomActionViewPinnedFact),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              showFactActionsSheet(
-                                context,
-                                cubit: cubit,
-                                fact: pf,
-                                onQuoteInChat: (f) =>
-                                    _quoteFactInChat(cubit, f),
-                              ),
-                            );
-                          },
-                        ),
-                      if (canWrite && showFactInMenu && pf != null)
-                        ListTile(
-                          leading: Icon(
-                            Icons.push_pin_outlined,
-                            color: theme.colorScheme.error,
-                          ),
-                          title: Text(
-                            l10n.beaconRoomFactCardActionRemove,
-                            style: TextStyle(color: theme.colorScheme.error),
-                          ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _confirmUnpinFactFromMessage(
-                                context,
-                                cubit,
-                                l10n,
-                                pf,
-                              ),
-                            );
-                          },
-                        ),
-                      // ── Generic utilities. ──
-                      if (hasBodyText)
-                        ListTile(
-                          leading: const Icon(Icons.copy_outlined),
-                          title: Text(l10n.beaconRoomActionCopyText),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(_copyMessageText(context, l10n, message));
-                          },
-                        ),
-                      if (widget.onRemoveAuthor case final removeAuthor?
-                          when !isOwnMessage) ...[
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: Icon(
-                            Icons.person_remove_outlined,
-                            color: theme.colorScheme.error,
-                          ),
-                          title: Text(
-                            l10n.beaconLobbyBanAction,
-                            style: TextStyle(color: theme.colorScheme.error),
-                          ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            removeAuthor(message);
-                          },
-                        ),
-                      ],
-                      // ── Destructive (own message), divided off and last. ──
-                      if (keepsPersonalActions &&
-                          isOwnMessage &&
-                          (!isThreadMode || caps.threadOwnMessageEdit) &&
-                          !_suppressesRichMessageActions(message)) ...[
-                        const Divider(height: 1),
-                        if (canWrite && !isPoll)
-                          ListTile(
-                            leading: const Icon(Icons.edit_outlined),
-                            title: Text(l10n.beaconRoomActionEditMessage),
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              unawaited(
-                                _showEditMessageSheet(
-                                  context,
-                                  cubit,
-                                  l10n,
-                                  message,
-                                ),
-                              );
-                            },
-                          ),
-                        ListTile(
-                          leading: Icon(
-                            Icons.delete_outline,
-                            color: theme.colorScheme.error,
-                          ),
-                          title: Text(
-                            l10n.beaconRoomActionDeleteMessage,
-                            style: TextStyle(color: theme.colorScheme.error),
-                          ),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            unawaited(
-                              _confirmDeleteMessage(
-                                context,
-                                cubit,
-                                l10n,
-                                message,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
+          return _boundedRoomActionSheet(
+            context: ctx,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding,
+                  right: tt.screenHPadding,
+                  top: tt.rowGap,
+                ),
+                child: Text(
+                  l10n.beaconRoomMessageActionsTitle,
+                  style: Theme.of(ctx).textTheme.titleMedium,
                 ),
               ),
-            ),
+              if (canWrite)
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: tt.screenHPadding,
+                  ),
+                  child: ReactionQuickPicker(
+                    selected: viewerReactions,
+                    onPick: (emoji) {
+                      Navigator.pop(ctx);
+                      unawaited(
+                        cubit.toggleReaction(
+                          messageId: message.id,
+                          emoji: emoji,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              if (isOwnMessage)
+                ..._messageActionsReadByRows(
+                  sheetContext: ctx,
+                  hostContext: context,
+                  cubit: cubit,
+                  l10n: l10n,
+                  viewer: viewer,
+                  message: message,
+                ),
+              if (showBatonStart)
+                ListTile(
+                  leading: const Icon(Icons.pan_tool_alt_outlined),
+                  title: Text(l10n.batonActionStart),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _showBatonCreateSheet(
+                        context,
+                        cubit,
+                        l10n,
+                        viewer,
+                        replyTo: message,
+                      ),
+                    );
+                  },
+                ),
+              if (showBud)
+                ListTile(
+                  key: const Key('Room.BudRequestAction'),
+                  leading: const Icon(
+                    Icons.subdirectory_arrow_right_outlined,
+                  ),
+                  title: Text(l10n.postBudAction),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _openChildRequestComposerFromMessage(
+                      context,
+                      cubit,
+                      message,
+                    );
+                  },
+                ),
+              if (canWrite && RoomCubit.canReplyTo(message))
+                ListTile(
+                  leading: const Icon(Icons.reply_outlined),
+                  title: Text(l10n.beaconRoomActionReply),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    cubit.startReplyTo(message);
+                  },
+                ),
+              // ── Coordination: turn a plain message into an item … ──
+              if (showCreateChild) ...[
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: tt.screenHPadding,
+                    right: tt.screenHPadding,
+                    top: tt.rowGap,
+                  ),
+                  child: Text(
+                    l10n.beaconRoomActionTurnInto,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.subdirectory_arrow_right_outlined,
+                  ),
+                  title: Text(l10n.beaconCreateChildRequest),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _openChildRequestComposerFromMessage(
+                      context,
+                      cubit,
+                      message,
+                    );
+                  },
+                ),
+                // Same gate as the plan strip / app-bar (#379):
+                // plan editor AND allowsCoordination.
+                if (caps.plan && !isPoll && cubit.state.canUpdatePlan)
+                  ListTile(
+                    leading: const Icon(Icons.edit_note_outlined),
+                    title: Text(
+                      l10n.beaconRoomActionUpdatePlanFromMessage,
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(
+                        _showUpdatePlanFromMessageSheet(
+                          context,
+                          cubit,
+                          l10n,
+                          message,
+                        ),
+                      );
+                    },
+                  ),
+              ],
+              // ── …or open / resolve an already-linked item. ──
+              if (caps.plan &&
+                  linkedItem != null &&
+                  linkedItem.kind == CoordinationItemKind.plan &&
+                  (!isThreadMode || widget.onOpenCoordinationItem != null)) ...[
+                ListTile(
+                  leading: const Icon(
+                    Icons.subdirectory_arrow_left_outlined,
+                  ),
+                  title: Text(l10n.beaconRoomActionJumpToPlan),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    final open = widget.onOpenCoordinationItem;
+                    if (open != null) {
+                      open(linkedItem);
+                      return;
+                    }
+                    unawaited(
+                      openCoordinationItemFromRoom(
+                        context,
+                        item: linkedItem,
+                        roomCubit: cubit,
+                      ),
+                    );
+                  },
+                ),
+              ],
+              // ── Fact pin (state-aware). ──
+              if (canWrite && showFactInMenu && pf == null)
+                ListTile(
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: Text(l10n.beaconRoomActionPinFact),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _pinOrManageFactForMessage(
+                        context,
+                        cubit,
+                        l10n,
+                        message,
+                        null,
+                      ),
+                    );
+                  },
+                ),
+              if (showFactInMenu && pf != null)
+                ListTile(
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: Text(l10n.beaconRoomActionViewPinnedFact),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      showFactActionsSheet(
+                        context,
+                        cubit: cubit,
+                        fact: pf,
+                        onQuoteInChat: (f) => _quoteFactInChat(cubit, f),
+                      ),
+                    );
+                  },
+                ),
+              if (canWrite && showFactInMenu && pf != null)
+                ListTile(
+                  leading: Icon(
+                    Icons.push_pin_outlined,
+                    color: theme.colorScheme.error,
+                  ),
+                  title: Text(
+                    l10n.beaconRoomFactCardActionRemove,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _confirmUnpinFactFromMessage(
+                        context,
+                        cubit,
+                        l10n,
+                        pf,
+                      ),
+                    );
+                  },
+                ),
+              // ── Generic utilities. ──
+              if (hasBodyText)
+                ListTile(
+                  leading: const Icon(Icons.copy_outlined),
+                  title: Text(l10n.beaconRoomActionCopyText),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(_copyMessageText(context, l10n, message));
+                  },
+                ),
+              if (widget.onRemoveAuthor case final removeAuthor?
+                  when !isOwnMessage) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(
+                    Icons.person_remove_outlined,
+                    color: theme.colorScheme.error,
+                  ),
+                  title: Text(
+                    l10n.beaconLobbyBanAction,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    removeAuthor(message);
+                  },
+                ),
+              ],
+              // ── Destructive (own message), divided off and last. ──
+              if (keepsPersonalActions &&
+                  isOwnMessage &&
+                  (!isThreadMode || caps.threadOwnMessageEdit) &&
+                  !_suppressesRichMessageActions(message)) ...[
+                const Divider(height: 1),
+                if (canWrite && !isPoll)
+                  ListTile(
+                    leading: const Icon(Icons.edit_outlined),
+                    title: Text(l10n.beaconRoomActionEditMessage),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(
+                        _showEditMessageSheet(
+                          context,
+                          cubit,
+                          l10n,
+                          message,
+                        ),
+                      );
+                    },
+                  ),
+                ListTile(
+                  leading: Icon(
+                    Icons.delete_outline,
+                    color: theme.colorScheme.error,
+                  ),
+                  title: Text(
+                    l10n.beaconRoomActionDeleteMessage,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _confirmDeleteMessage(
+                        context,
+                        cubit,
+                        l10n,
+                        message,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ],
           );
         },
       ),
@@ -1225,87 +1211,76 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     unawaited(
       showModalBottomSheet<void>(
         context: context,
+        isScrollControlled: true,
         showDragHandle: true,
         // Root navigator for the same Web PopScope reason as the message
         // actions sheet above.
         useRootNavigator: true,
         builder: (ctx) {
-          final tt = ctx.tt;
           final error = Theme.of(ctx).colorScheme.error;
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: tt.contentMaxWidth ?? double.infinity,
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (canManage)
-                      ListTile(
-                        leading: const Icon(Icons.edit_outlined),
-                        title: Text(l10n.batonActionEdit),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          unawaited(
-                            _showBatonEditSheet(
-                              context,
-                              cubit,
-                              l10n,
-                              viewer,
-                              message,
-                              authorView,
-                            ),
-                          );
-                        },
+          return _boundedRoomActionSheet(
+            context: ctx,
+            children: [
+              if (canManage)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: Text(l10n.batonActionEdit),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _showBatonEditSheet(
+                        context,
+                        cubit,
+                        l10n,
+                        viewer,
+                        message,
+                        authorView,
                       ),
-                    if (canReply)
-                      ListTile(
-                        leading: const Icon(Icons.reply_outlined),
-                        title: Text(l10n.beaconRoomActionReply),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          cubit.startReplyTo(message);
-                        },
-                      ),
-                    if (canManage)
-                      ListTile(
-                        leading: const Icon(Icons.cancel_outlined),
-                        title: Text(l10n.batonCancel),
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          if (await confirmRoomBatonCancel(context)) {
-                            await cubit.batonCancel(batonId: baton.id);
-                          }
-                        },
-                      ),
-                    if (canDelete) ...[
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: Icon(Icons.delete_outline, color: error),
-                        title: Text(
-                          l10n.beaconRoomActionDeleteMessage,
-                          style: TextStyle(color: error),
-                        ),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          unawaited(
-                            _confirmDeleteMessage(
-                              context,
-                              cubit,
-                              l10n,
-                              message,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ],
+                    );
+                  },
                 ),
-              ),
-            ),
+              if (canReply)
+                ListTile(
+                  leading: const Icon(Icons.reply_outlined),
+                  title: Text(l10n.beaconRoomActionReply),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    cubit.startReplyTo(message);
+                  },
+                ),
+              if (canManage)
+                ListTile(
+                  leading: const Icon(Icons.cancel_outlined),
+                  title: Text(l10n.batonCancel),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    if (await confirmRoomBatonCancel(context)) {
+                      await cubit.batonCancel(batonId: baton.id);
+                    }
+                  },
+                ),
+              if (canDelete) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: error),
+                  title: Text(
+                    l10n.beaconRoomActionDeleteMessage,
+                    style: TextStyle(color: error),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _confirmDeleteMessage(
+                        context,
+                        cubit,
+                        l10n,
+                        message,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ],
           );
         },
       ),
@@ -1622,6 +1597,41 @@ Future<bool> _editPlanLine(
     baseRevision = refused.currentRevision;
     notice = refused.toL10n(l10n.localeName);
   }
+}
+
+/// Caps sheet content to the modal height and scrolls inside it (#809).
+Widget _boundedRoomActionSheet({
+  required BuildContext context,
+  required List<Widget> children,
+}) {
+  final tt = context.tt;
+  return Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: tt.contentMaxWidth ?? double.infinity,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : MediaQuery.sizeOf(context).height * 0.9;
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _BeaconRoomTextBottomSheet extends StatefulWidget {

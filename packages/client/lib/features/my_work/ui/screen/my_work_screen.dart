@@ -373,17 +373,7 @@ class _MyWorkBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final cubit = context.read<MyWorkCubit>();
     final tt = context.tt;
-    return BlocListener<MyWorkCubit, MyWorkState>(
-      listenWhen: (previous, current) =>
-          current.hasError && previous.loadError != current.loadError,
-      listener: (context, state) {
-        final error = state.loadError!;
-        final details = describeScreenLoadError(error: error, l10n: l10n);
-        logScreenLoadError(label: 'MyWork', error: error, details: details);
-        if (error is AuthSessionLostException) {
-          GetIt.I<AuthCubit>().noteAuthSessionLoss(error);
-        }
-      },
+    return _MyWorkLoadReport(
       child: BlocBuilder<MyWorkCubit, MyWorkState>(
         buildWhen: _shouldRebuild,
         builder: (_, state) {
@@ -405,6 +395,50 @@ class _MyWorkBody extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// One transient desk failure per streak: the second consecutive miss, or
+/// the one still showing when this screen goes away.
+class _MyWorkLoadReport extends StatefulWidget {
+  const _MyWorkLoadReport({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_MyWorkLoadReport> createState() => _MyWorkLoadReportState();
+}
+
+class _MyWorkLoadReportState extends State<_MyWorkLoadReport> {
+  final _gate = ScreenLoadReportGate();
+
+  @override
+  void dispose() {
+    _gate.reportFinal();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    return BlocListener<MyWorkCubit, MyWorkState>(
+      listenWhen: (previous, current) =>
+          previous.loadError != current.loadError,
+      listener: (context, state) {
+        final error = state.loadError;
+        if (error is AuthSessionLostException) {
+          GetIt.I<AuthCubit>().noteAuthSessionLoss(error);
+        }
+        _gate.observe(
+          label: 'MyWork',
+          error: error,
+          details: error == null
+              ? null
+              : describeScreenLoadError(error: error, l10n: l10n),
+        );
+      },
+      child: widget.child,
     );
   }
 }

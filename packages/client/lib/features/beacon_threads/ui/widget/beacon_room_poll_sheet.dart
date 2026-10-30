@@ -150,138 +150,164 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
     return TenturaSheetDismissGuard(
       isDirty: _isDirty,
       useRootNavigator: true,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: tt.screenHPadding,
-          right: tt.screenHPadding,
-          top: tt.sectionGap,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + tt.sectionGap,
-        ),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.beaconRoomCreatePoll,
-                        style: theme.textTheme.titleMedium,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final mediaHeight = MediaQuery.sizeOf(context).height;
+          final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : mediaHeight * 0.9;
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: tt.screenHPadding,
+                right: tt.screenHPadding,
+                top: tt.sectionGap,
+                bottom: viewInsets + tt.sectionGap,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    l10n.beaconRoomCreatePoll,
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                ),
+                                // Same discard check as the scrim and Escape (#737).
+                                IconButton(
+                                  tooltip: l10n.buttonClose,
+                                  onPressed: () => unawaited(_requestClose()),
+                                  icon: Icon(Icons.close, size: tt.iconSize),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: tt.sectionGap),
+                            PollingQuestionInput(
+                              labelText: l10n.pollQuestionFieldLabel,
+                              onChanged: (v) => setState(() => _question = v),
+                            ),
+                            SizedBox(height: tt.sectionGap),
+                            Text(
+                              l10n.pollOptionsLabel,
+                              style: theme.textTheme.labelLarge,
+                            ),
+                            SizedBox(height: tt.rowGap),
+                            ..._variants.asMap().entries.map(
+                              (entry) {
+                                final idx = entry.key;
+                                return Padding(
+                                  key: _variantKeys[idx],
+                                  padding: EdgeInsets.only(bottom: tt.rowGap),
+                                  child: PollingVariantInput(
+                                    labelText: l10n.optionLabel(idx + 1),
+                                    isDuplicate: (v) => _isDuplicateAt(idx, v),
+                                    onChanged: (v) =>
+                                        setState(() => _variants[idx] = v),
+                                    onRemove: _variants.length > 2
+                                        ? () => _removeVariant(idx)
+                                        : () {},
+                                  ),
+                                );
+                              },
+                            ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: Text(l10n.addOptionButton),
+                              onPressed:
+                                  _variants.length < 10 ? _addVariant : null,
+                            ),
+                            SizedBox(height: tt.sectionGap),
+
+                            // Poll type selector
+                            Align(
+                              child: SegmentedButton<String>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: 'single',
+                                    label: Text(l10n.beaconRoomPollTypeSingle),
+                                  ),
+                                  ButtonSegment(
+                                    value: 'multiple',
+                                    label: Text(
+                                      l10n.beaconRoomPollTypeMultiple,
+                                    ),
+                                  ),
+                                  ButtonSegment(
+                                    value: 'range',
+                                    label: Text(l10n.beaconRoomPollTypeRange),
+                                  ),
+                                ],
+                                selected: {_pollType},
+                                onSelectionChanged: (s) =>
+                                    setState(() => _pollType = s.first),
+                                style: const ButtonStyle(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: tt.rowGap),
+
+                            // Anonymous / open toggle
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l10n.beaconRoomPollAnonymousTitle),
+                              subtitle: Text(
+                                l10n.beaconRoomPollAnonymousSubtitle,
+                              ),
+                              value: _isAnonymous,
+                              onChanged: (v) => setState(() => _isAnonymous = v),
+                            ),
+
+                            // Allow revote toggle
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l10n.beaconRoomPollAllowRevoteTitle),
+                              value: _allowRevote,
+                              onChanged: (v) =>
+                                  setState(() => _allowRevote = v),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    // Same discard check as the scrim and Escape (#737).
-                    IconButton(
-                      tooltip: l10n.buttonClose,
-                      onPressed: () => unawaited(_requestClose()),
-                      icon: Icon(Icons.close, size: tt.iconSize),
+                  ),
+                  SizedBox(height: tt.rowGap),
+                  // Says why Send poll is disabled before any field is touched
+                  // (#728), as the recipients step does (#720).
+                  if (!_canSend) ...[
+                    Text(
+                      l10n.beaconRoomPollSendHint,
+                      textAlign: TextAlign.center,
+                      style: TenturaText.bodySmall(tt.textMuted),
                     ),
+                    SizedBox(height: tt.rowGap / 2),
                   ],
-                ),
-                SizedBox(height: tt.sectionGap),
-                PollingQuestionInput(
-                  labelText: l10n.pollQuestionFieldLabel,
-                  onChanged: (v) => setState(() => _question = v),
-                ),
-                SizedBox(height: tt.sectionGap),
-                Text(
-                  l10n.pollOptionsLabel,
-                  style: theme.textTheme.labelLarge,
-                ),
-                SizedBox(height: tt.rowGap),
-                ..._variants.asMap().entries.map(
-                  (entry) {
-                    final idx = entry.key;
-                    return Padding(
-                      key: _variantKeys[idx],
-                      padding: EdgeInsets.only(bottom: tt.rowGap),
-                      child: PollingVariantInput(
-                        labelText: l10n.optionLabel(idx + 1),
-                        isDuplicate: (v) => _isDuplicateAt(idx, v),
-                        onChanged: (v) => setState(() => _variants[idx] = v),
-                        onRemove: _variants.length > 2
-                            ? () => _removeVariant(idx)
-                            : () {},
-                      ),
-                    );
-                  },
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: Text(l10n.addOptionButton),
-                  onPressed: _variants.length < 10 ? _addVariant : null,
-                ),
-                SizedBox(height: tt.sectionGap),
-
-                // Poll type selector
-                Align(
-                  child: SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(
-                        value: 'single',
-                        label: Text(l10n.beaconRoomPollTypeSingle),
-                      ),
-                      ButtonSegment(
-                        value: 'multiple',
-                        label: Text(l10n.beaconRoomPollTypeMultiple),
-                      ),
-                      ButtonSegment(
-                        value: 'range',
-                        label: Text(l10n.beaconRoomPollTypeRange),
-                      ),
-                    ],
-                    selected: {_pollType},
-                    onSelectionChanged: (s) =>
-                        setState(() => _pollType = s.first),
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
-                    ),
+                  TenturaSheetActions(
+                    cancelLabel: l10n.buttonCancel,
+                    onCancel: () => unawaited(_requestClose()),
+                    primaryLabel: l10n.beaconRoomSendPollButton,
+                    onPrimary: _sending || !_canSend
+                        ? null
+                        : () => unawaited(_send()),
                   ),
-                ),
-                SizedBox(height: tt.rowGap),
-
-                // Anonymous / open toggle
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l10n.beaconRoomPollAnonymousTitle),
-                  subtitle: Text(l10n.beaconRoomPollAnonymousSubtitle),
-                  value: _isAnonymous,
-                  onChanged: (v) => setState(() => _isAnonymous = v),
-                ),
-
-                // Allow revote toggle
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l10n.beaconRoomPollAllowRevoteTitle),
-                  value: _allowRevote,
-                  onChanged: (v) => setState(() => _allowRevote = v),
-                ),
-
-                SizedBox(height: tt.rowGap),
-                // Says why Send poll is disabled before any field is touched
-                // (#728), as the recipients step does (#720).
-                if (!_canSend) ...[
-                  Text(
-                    l10n.beaconRoomPollSendHint,
-                    textAlign: TextAlign.center,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
-                  SizedBox(height: tt.rowGap / 2),
                 ],
-                TenturaSheetActions(
-                  cancelLabel: l10n.buttonCancel,
-                  onCancel: () => unawaited(_requestClose()),
-                  primaryLabel: l10n.beaconRoomSendPollButton,
-                  onPrimary: _sending || !_canSend
-                      ? null
-                      : () => unawaited(_send()),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
