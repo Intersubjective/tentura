@@ -963,7 +963,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                   ),
                 ),
         ),
-        if (state.selectedIds.contains(lineage[i].id) &&
+        if (_profile(state).showsPersonalNotes &&
+            state.selectedIds.contains(lineage[i].id) &&
             !state.skippedPersonalNoteIds.contains(lineage[i].id))
           Padding(
             padding: EdgeInsets.symmetric(
@@ -1091,7 +1092,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           ),
         );
       }
-      if (state.selectedIds.contains(ordered[i].id) &&
+      if (_profile(state).showsPersonalNotes &&
+          state.selectedIds.contains(ordered[i].id) &&
           !state.skippedPersonalNoteIds.contains(ordered[i].id)) {
         children.add(
           Padding(

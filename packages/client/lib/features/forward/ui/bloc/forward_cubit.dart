@@ -790,11 +790,12 @@ class ForwardCubit extends Cubit<ForwardState> {
       return false;
     }
 
-    if (uncoveredRecipientIds(
-      selectedIds: state.selectedIds,
-      perRecipientNotes: state.perRecipientNotes,
-      skippedPersonalNoteIds: state.skippedPersonalNoteIds,
-    ).isNotEmpty) {
+    if (state.profile.showsPersonalNotes &&
+        uncoveredRecipientIds(
+          selectedIds: state.selectedIds,
+          perRecipientNotes: state.perRecipientNotes,
+          skippedPersonalNoteIds: state.skippedPersonalNoteIds,
+        ).isNotEmpty) {
       return false;
     }
 
@@ -836,13 +837,15 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
 
       final perNotes = <String, String>{};
-      for (final id in recipientIdsToSend) {
-        if (state.skippedPersonalNoteIds.contains(id)) {
-          continue;
-        }
-        final personal = state.perRecipientNotes[id];
-        if (personal != null && personal.trim().isNotEmpty) {
-          perNotes[id] = personal.trim();
+      if (state.profile.showsPersonalNotes) {
+        for (final id in recipientIdsToSend) {
+          if (state.skippedPersonalNoteIds.contains(id)) {
+            continue;
+          }
+          final personal = state.perRecipientNotes[id];
+          if (personal != null && personal.trim().isNotEmpty) {
+            perNotes[id] = personal.trim();
+          }
         }
       }
       final composedNote = state.note.trim();
