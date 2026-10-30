@@ -14,53 +14,58 @@ class RoomUnreadDivider extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final l10n = L10n.of(context)!;
     final chipText = l10n.beaconRoomUnreadDividerCount(unreadCount);
+    final compact = context.windowClass == WindowClass.compact;
+
+    final chip = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(TenturaRadii.avatar),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.tt.screenHPadding,
+          vertical: context.tt.iconTextGap,
+        ),
+        child: Text(
+          chipText,
+          textAlign: TextAlign.center,
+          softWrap: true,
+          style: TenturaText.tabLabel(scheme.primary),
+        ),
+      ),
+    );
+
+    final line = Divider(color: scheme.primary.withValues(alpha: 0.35));
 
     return Semantics(
       label: chipText,
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: context.tt.sectionGap),
-        child: LayoutBuilder(
-          builder: (context, constraints) => Row(
-            children: [
-              Expanded(
-                child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
-              ),
-              // Give the label its natural width before the lines share the
-              // remainder, while still bounding it for large text on phones.
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.tt.screenHPadding,
-                  ),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(TenturaRadii.avatar),
-                      border: Border.all(
-                        color: scheme.primary.withValues(alpha: 0.45),
-                      ),
-                    ),
-                    child: Padding(
+        child: compact
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: context.tt.tightGap,
+                children: [
+                  chip,
+                  line,
+                ],
+              )
+            : LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    Expanded(child: line),
+                    Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: context.tt.screenHPadding,
-                        vertical: context.tt.iconTextGap,
                       ),
-                      child: Text(
-                        chipText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.tabLabel(scheme.primary),
-                      ),
+                      child: chip,
                     ),
-                  ),
+                    Expanded(child: line),
+                  ],
                 ),
               ),
-              Expanded(
-                child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -89,9 +89,12 @@ export async function startTestLogin({ email, code }) {
     // rule saveDisplayName uses (#762). Anything else stays a fault: 404
     // means QA_SIMPLE_LOGIN_MODE is off on a server whose landing shows the
     // button (config mismatch), 403/429/other 4xx and 5xx likewise.
-    throw new EmailLinkError('Test login failed. Check the email domain and try again.', {
-      expected: res.status === 400,
-    });
+    throw new EmailLinkError(
+      t('Test login failed. Check the email domain and try again.'),
+      {
+        expected: res.status === 400,
+      },
+    );
   }
   const data = await res.json();
   return {

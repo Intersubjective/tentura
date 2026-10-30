@@ -23,6 +23,7 @@ import {
   inviterDisplayName,
   initLocale,
   t,
+  withPreservedLocale,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -248,7 +249,7 @@ function ctaGoogleSignIn(inviteCode) {
     url.searchParams.set('invite', inviteCode);
     const returnTo = googleReturnTo(inviteCode);
     if (returnTo) {
-      const returnUrl = new URL(returnTo);
+      const returnUrl = new URL(withPreservedLocale(returnTo));
       returnUrl.searchParams.set('auth_attempt_id', attemptId);
       url.searchParams.set('returnTo', returnUrl.toString());
     }
@@ -513,7 +514,7 @@ function renderQaTestLoginForm(inviteCode) {
       });
       track('qa_test_login_accepted');
       if (redirectUrl) {
-        location.assign(redirectUrl);
+        location.assign(withPreservedLocale(redirectUrl));
         return;
       }
       throw new Error('missing redirect');
@@ -566,7 +567,7 @@ function renderInviteEntryForm() {
       return;
     }
     track('cta_invite_entry', { method: 'manual' });
-    location.assign(invitePathForCode(result.code));
+    location.assign(withPreservedLocale(invitePathForCode(result.code)));
   };
 
   return el(
@@ -914,7 +915,9 @@ async function main() {
     }
 
     if (rawCode && code && rawCode !== code && INVITE_CODE_PATTERN.test(code)) {
-      const next = invitePathForCode(code) + location.search + location.hash;
+      const next = withPreservedLocale(
+        invitePathForCode(code) + location.search + location.hash,
+      );
       location.replace(next);
       return;
     }
