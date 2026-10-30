@@ -502,13 +502,15 @@ jobs:
                     # chunks: flutter test runs two suites at a time here, and
                     # each bundle costs ~20 s of compile.
                     entrypoints=$(python3 ../../scripts/gen_test_bundles.py . --chunks 2 --balance client $shard_files)
-                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+                    # The client runner has no Postgres: a client test tagged
+                    # `pg` (it starts a server fixture) runs locally only.
+                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --exclude-tags pg \
                       --file-reporter "json:$reports/client--$SHARD_NAME.json" $entrypoints
                   else
                     # Only the tagged files: flutter test pays ~1.5 s to load
                     # each file it is given, tagged or not.
                     repo_files=$(python3 ../../scripts/ci_select_tests.py test --tag repo-files)
-                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --tags repo-files \
+                    flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env --tags repo-files --exclude-tags pg \
                       --file-reporter "json:$reports/client--$SHARD_NAME.json" $repo_files
                   fi
                   ;;
