@@ -156,6 +156,12 @@ class _AllowGuard implements BeaconAccessGuard {
   }) async => allowed;
 
   @override
+  Future<Set<String>> readableContentIds({
+    required Iterable<String> beaconIds,
+    required String viewerId,
+  }) async => allowed ? beaconIds.toSet() : {};
+
+  @override
   Future<bool> canReadInvolvement({
     required String beaconId,
     required String viewerId,

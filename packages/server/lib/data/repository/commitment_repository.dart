@@ -1,3 +1,4 @@
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
@@ -81,16 +82,22 @@ WHERE beacon_id = $2 AND user_id = $3
   @override
   Future<Map<String, List<CommitmentEvent>>> eventsByUser(
     String beaconId,
-  ) async {
+  ) async => (await eventsByUserByBeaconIds([beaconId]))[beaconId] ?? {};
+
+  @override
+  Future<Map<String, Map<String, List<CommitmentEvent>>>>
+  eventsByUserByBeaconIds(Iterable<String> beaconIds) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
     final rows = await _selectRows(
-      whereSql: 'beacon_id = \$1',
-      variables: [Variable<String>(beaconId)],
-      orderSql: 'ORDER BY user_id, seq ASC',
+      whereSql: 'beacon_id = ANY(\$1::text[])',
+      variables: [Variable<List<String>>(ids, PgTypes.textArray)],
+      orderSql: 'ORDER BY beacon_id, user_id, seq ASC',
     );
-    final grouped = <String, List<CommitmentEvent>>{};
+    final grouped = <String, Map<String, List<CommitmentEvent>>>{};
     for (final row in rows) {
       final event = _mapRow(row);
-      grouped.putIfAbsent(event.userId, () => []).add(event);
+      ((grouped[event.beaconId] ??= {})[event.userId] ??= []).add(event);
     }
     return grouped;
   }

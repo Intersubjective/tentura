@@ -62,4 +62,9 @@ class CoordinationRepositoryMock implements CoordinationRepositoryPort {
   Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
     String beaconId,
   ) => Future.value(const {});
+
+  @override
+  Future<Map<String, Map<String, int>>> coordinationResponseTypesByBeaconIds(
+    Iterable<String> beaconIds,
+  ) => Future.value(const {});
 }

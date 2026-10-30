@@ -44,6 +44,21 @@ abstract class BeaconRoomRepositoryPort {
     required String viewerUserId,
   });
 
+  /// [RoomViewerFacts] of [viewerUserId] for each existing Request of
+  /// [beaconIds], keyed by beacon id, read in one query.
+  Future<Map<String, RoomViewerFacts>> roomViewerFacts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  });
+
+  /// Main-room messages by others after [viewerUserId]'s watermark (all of
+  /// them without one), keyed by beacon id, read in one query; the batch
+  /// form of [countRoomMessagesAfter].
+  Future<Map<String, int>> unreadMainRoomMessageCounts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  });
+
   /// Root labels for readable Posts, including Posts the viewer has left.
   Future<Map<String, String>> postRootExcerpts(
     Iterable<String> beaconIds, {
@@ -192,6 +207,11 @@ abstract class BeaconRoomRepositoryPort {
   });
 
   Future<List<BeaconParticipantRecord>> listParticipants(String beaconId);
+
+  /// [listParticipants] of each of [beaconIds], keyed by beacon id, read in
+  /// one query; a Request without participants has no entry.
+  Future<Map<String, List<BeaconParticipantRecord>>>
+  listParticipantsByBeaconIds(Iterable<String> beaconIds);
 
   Future<List<String>> listStewardUserIds(String beaconId);
 

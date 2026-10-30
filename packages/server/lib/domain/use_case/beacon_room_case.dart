@@ -479,18 +479,30 @@ class BeaconRoomCase extends UseCaseBase {
   Future<bool> _canUseRoom({
     required String beaconId,
     required String userId,
+  }) => _roomGate(
+    isAuthor: () => _room.isBeaconAuthor(beaconId: beaconId, userId: userId),
+    isBlockedFromPost: () =>
+        _isBlockedFromPost(beaconId: beaconId, userId: userId),
+    isSteward: () => _room.isBeaconSteward(beaconId: beaconId, userId: userId),
+    roomAccess: () async => (await _room.findParticipant(
+      beaconId: beaconId,
+      userId: userId,
+    ))?.roomAccess,
+  );
+
+  /// Who may use a Request's room, in this order: its author; nobody with a
+  /// block either way with a Post's author; a steward; an admitted
+  /// participant. Each fact is read only when the ones before do not decide.
+  static Future<bool> _roomGate({
+    required Future<bool> Function() isAuthor,
+    required Future<bool> Function() isBlockedFromPost,
+    required Future<bool> Function() isSteward,
+    required Future<int?> Function() roomAccess,
   }) async {
-    if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    if (await _isBlockedFromPost(beaconId: beaconId, userId: userId)) {
-      return false;
-    }
-    if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    final p = await _room.findParticipant(beaconId: beaconId, userId: userId);
-    return p?.roomAccess == RoomAccessBits.admitted;
+    if (await isAuthor()) return true;
+    if (await isBlockedFromPost()) return false;
+    if (await isSteward()) return true;
+    return await roomAccess() == RoomAccessBits.admitted;
   }
 
   // DORMANT(item-threads): item-thread participant access helper.
@@ -1319,15 +1331,52 @@ class BeaconRoomCase extends UseCaseBase {
       slice,
       viewerUserId: userId,
     );
+    // #747 — every per-Request fact below is one batched read for the whole
+    // slice, never a read per card.
+    final facts = await _room.roomViewerFacts(slice, viewerUserId: userId);
+    final blockedPostAuthors = await _userBlockRepository.hiddenPeerIds(
+      viewerId: userId,
+      peerIds: {
+        for (final f in facts.values)
+          if (f.kind == BeaconKind.post && f.authorId != userId) ?f.authorId,
+      },
+    );
+    final members = <String, RoomViewerFacts>{
+      for (final f in facts.values)
+        if (await _roomGate(
+          isAuthor: () async => f.authorId == userId,
+          isBlockedFromPost: () async =>
+              f.kind == BeaconKind.post &&
+              blockedPostAuthors.contains(f.authorId),
+          isSteward: () async => f.isSteward,
+          roomAccess: () async => f.participantRoomAccess,
+        ))
+          f.beaconId: f,
+    };
+    final unread = await _room.unreadMainRoomMessageCounts(
+      members.keys,
+      viewerUserId: userId,
+    );
+    final blockers = await _items.openBlockersByBeaconIds(
+      members.keys,
+      viewerUserId: userId,
+    );
+    final blockerCreators = {for (final b in blockers.values) b.creatorId};
+    final creatorTitles = blockerCreators.isEmpty
+        ? const <String, String>{}
+        : await _room.userTitlesByIds(blockerCreators);
+    final creatorPics = blockerCreators.isEmpty
+        ? null
+        : await _room.userPicMetaByIds(blockerCreators);
     final out = <Map<String, Object?>>[];
     for (final bid in slice) {
-      final allowed = await _canUseRoom(beaconId: bid, userId: userId);
+      final member = members[bid];
       final factSnippet = snippets[bid];
       final parentFields = {
         ..._parentReferenceBatchFields(parents[bid]),
         'postRootExcerpt': postExcerpts[bid],
       };
-      if (!allowed) {
+      if (member == null) {
         out.add({
           'beaconId': bid,
           'isRoomMember': false,
@@ -1345,32 +1394,23 @@ class BeaconRoomCase extends UseCaseBase {
         });
         continue;
       }
-      final p = await _room.findParticipant(beaconId: bid, userId: userId);
-      final st = await _room.getBeaconRoomState(bid);
-      final seenAt = await _room.getMainRoomLastSeen(
-        beaconId: bid,
-        userId: userId,
-      );
-      final unread = await _room.countRoomMessagesAfter(
-        beaconId: bid,
-        after: seenAt,
-        excludeAuthorId: userId,
-      );
-      final openBlocker = await _findOpenCoordinationBlocker(
-        bid,
-        viewerUserId: userId,
-      );
-      final blockerFields = await _openBlockerBatchFields(openBlocker);
+      final openBlocker = blockers[bid];
+      final creatorPic = creatorPics?[openBlocker?.creatorId];
       out.add({
         'beaconId': bid,
         'isRoomMember': true,
-        'currentLine': st?.currentLine,
-        'lastRoomMeaningfulChange': st?.lastRoomMeaningfulChange,
-        'nextMoveText': p?.nextMoveText,
-        'roomUnreadCount': unread,
-        'lastSeenAt': seenAt?.toUtc().toIso8601String(),
+        'currentLine': member.currentLine,
+        'lastRoomMeaningfulChange': member.lastRoomMeaningfulChange,
+        'nextMoveText': member.nextMoveText,
+        'roomUnreadCount': unread[bid] ?? 0,
+        'lastSeenAt': member.lastSeenAt?.toUtc().toIso8601String(),
         'openBlockerTitle': openBlocker?.title,
-        ...blockerFields,
+        ..._openBlockerBatchFields(
+          openBlocker,
+          creatorDisplayName: creatorTitles[openBlocker?.creatorId] ?? '',
+          creatorImageId: creatorPic?.imageId,
+          creatorHasPicture: creatorPic?.hasPicture ?? false,
+        ),
         'publicFactSnippet': factSnippet,
         'planSliceJson': null,
         ..._emptyLatestActivityBatchFields(),
@@ -2412,9 +2452,12 @@ class BeaconRoomCase extends UseCaseBase {
     'openBlockerCreatorHasPicture': false,
   };
 
-  Future<Map<String, Object?>> _openBlockerBatchFields(
-    CoordinationItemRecord? openBlocker,
-  ) async {
+  Map<String, Object?> _openBlockerBatchFields(
+    CoordinationItemRecord? openBlocker, {
+    required String creatorDisplayName,
+    required String? creatorImageId,
+    required bool creatorHasPicture,
+  }) {
     if (openBlocker == null) {
       return _emptyOpenBlockerBatchFields();
     }
@@ -2423,17 +2466,14 @@ class BeaconRoomCase extends UseCaseBase {
     final responsible = target != null && target.isNotEmpty
         ? target
         : creatorId;
-    final titles = await _room.userTitlesByIds([creatorId]);
-    final pics = await _room.userPicMetaByIds([creatorId]);
-    final pic = pics[creatorId];
     return {
       'openBlockerCreatorId': creatorId,
       'openBlockerTargetPersonId': target,
       'openBlockerResponsibleUserId': responsible,
       'openBlockerCreatedAt': openBlocker.createdAt.toUtc().toIso8601String(),
-      'openBlockerCreatorDisplayName': titles[creatorId] ?? '',
-      'openBlockerCreatorImageId': pic?.imageId,
-      'openBlockerCreatorHasPicture': pic?.hasPicture ?? false,
+      'openBlockerCreatorDisplayName': creatorDisplayName,
+      'openBlockerCreatorImageId': creatorImageId,
+      'openBlockerCreatorHasPicture': creatorHasPicture,
     };
   }
 }

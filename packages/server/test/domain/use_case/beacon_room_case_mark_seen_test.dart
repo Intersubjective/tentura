@@ -25,10 +25,13 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/per_request_room_reads.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 
-class _StubItems extends Fake implements CoordinationItemRepositoryPort {
+class _StubItems extends Fake
+    with OpenBlockersFromListByBeacon
+    implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? itemById;
 
   @override
@@ -48,7 +51,9 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
       const [];
 }
 
-class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
+class _MarkSeenStubRoom extends Fake
+    with RoomReadsFromPerRequestStubs
+    implements BeaconRoomRepositoryPort {
   @override
   Future<Map<String, String>> postRootExcerpts(
     Iterable<String> beaconIds, {

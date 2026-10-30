@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -18,13 +19,27 @@ final class CommitmentQueryCase extends UseCaseBase {
   final CommitmentRepositoryPort _commitmentRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
 
-  Future<Set<String>> everAcknowledgedUserIds(String beaconId) async {
-    final byUser = await _commitmentRepository.eventsByUser(beaconId);
-    return {
-      for (final entry in byUser.entries)
-        if (everAcknowledged(entry.value)) entry.key,
-    };
-  }
+  Future<Set<String>> everAcknowledgedUserIds(String beaconId) async =>
+      _everAcknowledged(await _commitmentRepository.eventsByUser(beaconId));
+
+  /// [everAcknowledgedUserIds] of each of [beaconIds], keyed by beacon id,
+  /// read in one batch; a Request nobody ever committed to has no entry.
+  Future<Map<String, Set<String>>> everAcknowledgedUserIdsByBeaconIds(
+    Iterable<String> beaconIds,
+  ) async => {
+    for (final MapEntry(key: beaconId, value: byUser)
+        in (await _commitmentRepository.eventsByUserByBeaconIds(
+          beaconIds,
+        )).entries)
+      beaconId: _everAcknowledged(byUser),
+  };
+
+  static Set<String> _everAcknowledged(
+    Map<String, List<CommitmentEvent>> eventsByUser,
+  ) => {
+    for (final entry in eventsByUser.entries)
+      if (everAcknowledged(entry.value)) entry.key,
+  };
 
   Future<Set<String>> currentCommitterUserIds(String beaconId) async {
     final byUser = await _commitmentRepository.eventsByUser(beaconId);

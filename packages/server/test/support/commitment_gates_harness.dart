@@ -126,6 +126,16 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
           .toList();
 
   @override
+  Future<Map<String, List<HelpOfferEntity>>> fetchByBeaconIds(
+    Iterable<String> beaconIds,
+  ) async => {
+    for (final beaconId in beaconIds.toSet())
+      if (await fetchByBeaconId(beaconId) case final offers
+          when offers.isNotEmpty)
+        beaconId: offers,
+  };
+
+  @override
   Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async =>
       _offers.values.where((o) => o.beaconId == beaconId).toList();
 

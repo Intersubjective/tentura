@@ -1014,6 +1014,19 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
           as _i3.Future<List<_i14.HelpOfferEntity>>);
 
   @override
+  _i3.Future<Map<String, List<_i14.HelpOfferEntity>>> fetchByBeaconIds(
+    Iterable<String>? beaconIds,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchByBeaconIds, [beaconIds]),
+            returnValue:
+                _i3.Future<Map<String, List<_i14.HelpOfferEntity>>>.value(
+                  <String, List<_i14.HelpOfferEntity>>{},
+                ),
+          )
+          as _i3.Future<Map<String, List<_i14.HelpOfferEntity>>>);
+
+  @override
   _i3.Future<List<_i14.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchAllByBeaconId, [beaconId]),
@@ -1222,6 +1235,19 @@ class MockCoordinationRepositoryPort extends _i1.Mock
                 ),
           )
           as _i3.Future<List<_i16.HelpOfferWithCoordinationRow>>);
+
+  @override
+  _i3.Future<Map<String, Map<String, int>>>
+  coordinationResponseTypesByBeaconIds(Iterable<String>? beaconIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#coordinationResponseTypesByBeaconIds, [
+              beaconIds,
+            ]),
+            returnValue: _i3.Future<Map<String, Map<String, int>>>.value(
+              <String, Map<String, int>>{},
+            ),
+          )
+          as _i3.Future<Map<String, Map<String, int>>>);
 
   @override
   _i3.Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
@@ -2135,6 +2161,38 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, _i25.RoomLatestActivity>>);
 
   @override
+  _i3.Future<Map<String, _i24.RoomViewerFacts>> roomViewerFacts(
+    Iterable<String>? beaconIds, {
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #roomViewerFacts,
+              [beaconIds],
+              {#viewerUserId: viewerUserId},
+            ),
+            returnValue: _i3.Future<Map<String, _i24.RoomViewerFacts>>.value(
+              <String, _i24.RoomViewerFacts>{},
+            ),
+          )
+          as _i3.Future<Map<String, _i24.RoomViewerFacts>>);
+
+  @override
+  _i3.Future<Map<String, int>> unreadMainRoomMessageCounts(
+    Iterable<String>? beaconIds, {
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #unreadMainRoomMessageCounts,
+              [beaconIds],
+              {#viewerUserId: viewerUserId},
+            ),
+            returnValue: _i3.Future<Map<String, int>>.value(<String, int>{}),
+          )
+          as _i3.Future<Map<String, int>>);
+
+  @override
   _i3.Future<Map<String, String>> postRootExcerpts(
     Iterable<String>? beaconIds, {
     required String? viewerUserId,
@@ -2550,6 +2608,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<List<_i24.BeaconParticipantRecord>>);
+
+  @override
+  _i3.Future<Map<String, List<_i24.BeaconParticipantRecord>>>
+  listParticipantsByBeaconIds(Iterable<String>? beaconIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#listParticipantsByBeaconIds, [beaconIds]),
+            returnValue:
+                _i3.Future<
+                  Map<String, List<_i24.BeaconParticipantRecord>>
+                >.value(<String, List<_i24.BeaconParticipantRecord>>{}),
+          )
+          as _i3.Future<Map<String, List<_i24.BeaconParticipantRecord>>>);
 
   @override
   _i3.Future<List<String>> listStewardUserIds(String? beaconId) =>

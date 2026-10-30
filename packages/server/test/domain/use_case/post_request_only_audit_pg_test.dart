@@ -775,7 +775,6 @@ final class _Harness {
       beacons: beacons,
       children: children,
       display: BeaconDisplayCase(
-        beaconRepository,
         helpOfferRepository,
         coordinationRepository,
         closureRepository,

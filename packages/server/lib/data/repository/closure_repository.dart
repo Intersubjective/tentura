@@ -66,17 +66,28 @@ settlement_params::text AS settlement_params
   );
 
   @override
-  Future<ClosureEpoch?> liveEpoch(String beaconId) => _database
-      .customSelect(
-        '''
+  Future<ClosureEpoch?> liveEpoch(String beaconId) async =>
+      (await liveEpochsByBeaconIds([beaconId]))[beaconId];
+
+  @override
+  Future<Map<String, ClosureEpoch>> liveEpochsByBeaconIds(
+    Iterable<String> beaconIds,
+  ) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
+    final epochs = await _database
+        .customSelect(
+          '''
 SELECT $_epochColumns
 FROM public.beacon_closure
-WHERE beacon_id = \$1 AND status = 0
+WHERE beacon_id = ANY(\$1::text[]) AND status = 0
 ''',
-        variables: [Variable<String>(beaconId)],
-      )
-      .map(_mapEpoch)
-      .getSingleOrNull();
+          variables: [Variable<List<String>>(ids, PgTypes.textArray)],
+        )
+        .map(_mapEpoch)
+        .get();
+    return {for (final epoch in epochs) epoch.beaconId: epoch};
+  }
 
   @override
   Future<ClosureEpoch?> latestEpoch(String beaconId) => _database

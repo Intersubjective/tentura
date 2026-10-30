@@ -48,6 +48,13 @@ abstract class CoordinationItemRepositoryPort {
     required String actorId,
   });
 
+  /// The first open blocker [listByBeacon] lists to [viewerUserId] on each
+  /// of [beaconIds], keyed by beacon id, read in one query.
+  Future<Map<String, CoordinationItemRecord>> openBlockersByBeaconIds(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  });
+
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {
     required String viewerUserId,

@@ -24,6 +24,7 @@ import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/noop_commitment_query_case.dart';
 import '../../support/recording_commitment_repository.dart';
+import '../../support/room_viewer_facts_from_stubs.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
 class _FakeClosureRepository extends Fake implements ClosureRepositoryPort {
@@ -31,6 +32,13 @@ class _FakeClosureRepository extends Fake implements ClosureRepositoryPort {
 
   @override
   Future<ClosureEpoch?> liveEpoch(String beaconId) async => live;
+
+  @override
+  Future<Map<String, ClosureEpoch>> liveEpochsByBeaconIds(
+    Iterable<String> beaconIds,
+  ) async => {
+    for (final id in beaconIds) id: ?await liveEpoch(id),
+  };
 }
 
 void main() {
@@ -91,7 +99,6 @@ void main() {
     );
 
     case_ = BeaconDisplayCase(
-      beaconRepo,
       helpOfferRepo,
       coordinationRepo,
       closureRepo,
@@ -127,6 +134,44 @@ void main() {
     when(
       roomRepo.listParticipants(any),
     ).thenAnswer((_) async => const <BeaconParticipantRecord>[]);
+
+    // The case reads every fact in one batch per list; answer the batched
+    // reads from the per-Request stubs each test sets.
+    when(
+      roomRepo.roomViewerFacts(any, viewerUserId: anyNamed('viewerUserId')),
+    ).thenAnswer((invocation) async {
+      final viewerId = invocation.namedArguments[#viewerUserId] as String;
+      return {
+        for (final id in invocation.positionalArguments.single as Iterable)
+          id as String: await roomViewerFactsFromStubs(
+            beacon: await beaconRepo.getBeaconById(beaconId: id),
+            viewerId: viewerId,
+            isSteward: () =>
+                roomRepo.isBeaconSteward(beaconId: id, userId: viewerId),
+            participant: () =>
+                roomRepo.findParticipant(beaconId: id, userId: viewerId),
+          ),
+      };
+    });
+    when(roomRepo.listParticipantsByBeaconIds(any)).thenAnswer(
+      (invocation) async => {
+        for (final id in invocation.positionalArguments.single as Iterable)
+          id as String: await roomRepo.listParticipants(id),
+      },
+    );
+    when(helpOfferRepo.fetchByBeaconIds(any)).thenAnswer(
+      (invocation) async => {
+        for (final id in invocation.positionalArguments.single as Iterable)
+          id as String: await helpOfferRepo.fetchByBeaconId(id),
+      },
+    );
+    when(coordinationRepo.coordinationResponseTypesByBeaconIds(any)).thenAnswer(
+      (invocation) async => {
+        for (final id in invocation.positionalArguments.single as Iterable)
+          id as String: await coordinationRepo
+              .coordinationResponseTypeByOfferUserId(id),
+      },
+    );
   });
 
   BeaconParticipantRecord admitted(
@@ -537,7 +582,6 @@ void main() {
         final displayCase = queryCase == null
             ? case_
             : BeaconDisplayCase(
-                beaconRepo,
                 helpOfferRepo,
                 coordinationRepo,
                 closureRepo,
@@ -606,7 +650,6 @@ void main() {
           ),
         ).thenAnswer((_) async => true);
         final displayCase = BeaconDisplayCase(
-          beaconRepo,
           helpOfferRepo,
           coordinationRepo,
           closureRepo,

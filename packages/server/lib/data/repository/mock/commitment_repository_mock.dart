@@ -25,6 +25,10 @@ class CommitmentRepositoryMock implements CommitmentRepositoryPort {
       Future.value(const {});
 
   @override
+  Future<Map<String, Map<String, List<CommitmentEvent>>>>
+  eventsByUserByBeaconIds(Iterable<String> beaconIds) => Future.value(const {});
+
+  @override
   Future<List<CommitmentEvent>> eventsForPair({
     required String beaconId,
     required String userId,

@@ -31,6 +31,12 @@ abstract class HelpOfferRepositoryPort {
 
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId);
 
+  /// [fetchByBeaconId] of each of [beaconIds], keyed by beacon id, read in
+  /// one query; a Request without active offers has no entry.
+  Future<Map<String, List<HelpOfferEntity>>> fetchByBeaconIds(
+    Iterable<String> beaconIds,
+  );
+
   Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId);
 
   Future<List<HelpOfferEntity>> fetchByUserId(String userId);

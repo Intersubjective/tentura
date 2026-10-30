@@ -46,6 +46,12 @@ abstract class CoordinationRepositoryPort {
   });
 
   /// Offer user id → `beacon_help_offer_coordination.response_type`.
+  /// [coordinationResponseTypeByOfferUserId] of each of [beaconIds], keyed
+  /// by beacon id, read in one query.
+  Future<Map<String, Map<String, int>>> coordinationResponseTypesByBeaconIds(
+    Iterable<String> beaconIds,
+  );
+
   Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
     String beaconId,
   );

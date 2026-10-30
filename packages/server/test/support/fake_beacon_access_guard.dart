@@ -19,6 +19,12 @@ class FakeBeaconAccessGuard implements BeaconAccessGuard {
       contentAllowed;
 
   @override
+  Future<Set<String>> readableContentIds({
+    required Iterable<String> beaconIds,
+    required String viewerId,
+  }) async => contentAllowed ? beaconIds.toSet() : {};
+
+  @override
   Future<bool> canReadInvolvement({
     required String beaconId,
     required String viewerId,

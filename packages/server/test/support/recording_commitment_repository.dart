@@ -98,6 +98,14 @@ final class RecordingCommitmentRepository extends Fake
   }
 
   @override
+  Future<Map<String, Map<String, List<CommitmentEvent>>>>
+  eventsByUserByBeaconIds(Iterable<String> beaconIds) async => {
+    for (final beaconId in beaconIds.toSet())
+      if (await eventsByUser(beaconId) case final byUser when byUser.isNotEmpty)
+        beaconId: byUser,
+  };
+
+  @override
   Future<List<CommitmentEvent>> eventsForPair({
     required String beaconId,
     required String userId,
@@ -125,6 +133,10 @@ final class NoOpCommitmentRepository extends Fake
     String beaconId,
   ) async =>
       {};
+
+  @override
+  Future<Map<String, Map<String, List<CommitmentEvent>>>>
+  eventsByUserByBeaconIds(Iterable<String> beaconIds) async => {};
 
   @override
   Future<List<CommitmentEvent>> eventsForPair({

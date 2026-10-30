@@ -41,6 +41,11 @@ class HelpOfferRepositoryMock implements HelpOfferRepositoryPort {
       Future.value(const []);
 
   @override
+  Future<Map<String, List<HelpOfferEntity>>> fetchByBeaconIds(
+    Iterable<String> beaconIds,
+  ) => Future.value(const {});
+
+  @override
   Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) =>
       Future.value(const []);
 

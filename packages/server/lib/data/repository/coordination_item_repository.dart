@@ -802,6 +802,38 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         return getById(itemId);
       });
 
+  /// The items of [beaconIds] listed to [viewerUserId], in list order.
+  SimpleSelectStatement<$CoordinationItemsTable, CoordinationItem> _listed(
+    List<String> beaconIds, {
+    required String viewerUserId,
+  }) => _db.select(_db.coordinationItems)
+    ..where((t) => t.beaconId.isIn(beaconIds))
+    // The Request Questions scope item is not a coordination item to list
+    // (its message counts would reach people outside its audience).
+    ..where((t) => t.kind.equals(coordinationItemKindLobby).not())
+    ..where((t) => t.published.equals(true) | t.creatorId.equals(viewerUserId))
+    ..orderBy([
+      (t) => OrderingTerm(expression: t.ordering),
+      (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+    ]);
+
+  @override
+  Future<Map<String, CoordinationItemRecord>> openBlockersByBeaconIds(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
+    final q = _listed(ids, viewerUserId: viewerUserId)
+      ..where((t) => t.kind.equals(coordinationItemKindBlocker))
+      ..where((t) => t.status.equals(coordinationItemStatusOpen));
+    final out = <String, CoordinationItemRecord>{};
+    for (final item in await q.get()) {
+      out.putIfAbsent(item.beaconId, item.toRecord);
+    }
+    return out;
+  }
+
   @override
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {
@@ -813,20 +845,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String? linkedParentItemId,
     bool rootOnly = false,
   }) async {
-    final q = _db.select(_db.coordinationItems)
-      ..where((t) => t.beaconId.equals(beaconId))
-      // The Request Questions scope item is not a coordination item to list
-      // (its message counts would reach people outside its audience).
-      ..where((t) => t.kind.equals(coordinationItemKindLobby).not())
-      ..where(
-        (t) =>
-            t.published.equals(true) |
-            t.creatorId.equals(viewerUserId),
-      )
-      ..orderBy([
-        (t) => OrderingTerm(expression: t.ordering),
-        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
-      ]);
+    final q = _listed([beaconId], viewerUserId: viewerUserId);
     if (status != null) {
       q.where((t) => t.status.equals(status));
     }

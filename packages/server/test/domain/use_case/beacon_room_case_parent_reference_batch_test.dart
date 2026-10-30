@@ -22,6 +22,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/per_request_room_reads.dart';
 
 /// #487 — on the Requests list a child Request ("Child: borrow moving
 /// straps") read as an unrelated sibling of its parent ("Need a hand moving
@@ -184,7 +185,9 @@ void main() {
   });
 }
 
-class _ParentStubRoom extends Fake implements BeaconRoomRepositoryPort {
+class _ParentStubRoom extends Fake
+    with RoomReadsFromPerRequestStubs
+    implements BeaconRoomRepositoryPort {
   @override
   Future<Map<String, String>> postRootExcerpts(
     Iterable<String> beaconIds, {
@@ -247,7 +250,9 @@ class _NoFactCards extends Fake implements BeaconFactCardRepositoryPort {
   ) async => const {};
 }
 
-class _StubItems extends Fake implements CoordinationItemRepositoryPort {
+class _StubItems extends Fake
+    with OpenBlockersFromListByBeacon
+    implements CoordinationItemRepositoryPort {
   @override
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {

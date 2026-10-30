@@ -48,6 +48,7 @@ import '../../support/fake_user_block_repository.dart';
 import '../../support/noop_commitment_query_case.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
+import '../../support/room_viewer_facts_from_stubs.dart';
 import 'help_offer_case_mocks.mocks.dart';
 
 const _beaconId = 'Bpostguard001';
@@ -122,6 +123,11 @@ class _EvaluatingClosureRepo extends Fake implements ClosureRepositoryPort {
 
   @override
   Future<ClosureEpoch?> liveEpoch(String beaconId) async => _epoch;
+
+  @override
+  Future<Map<String, ClosureEpoch>> liveEpochsByBeaconIds(
+    Iterable<String> beaconIds,
+  ) async => {for (final id in beaconIds) id: _epoch};
 
   @override
   Future<ClosureEpoch?> latestEpoch(String beaconId) async => _epoch;
@@ -829,7 +835,6 @@ void main() {
     setUp(() {
       mockBeaconRepo = MockBeaconRepositoryPort();
       displayCase = BeaconDisplayCase(
-        mockBeaconRepo,
         helpOfferRepo,
         coordinationRepo,
         _EvaluatingClosureRepo(),
@@ -865,6 +870,45 @@ void main() {
           userId: anyNamed('userId'),
         ),
       ).thenAnswer((_) async => null);
+      // The case reads every fact in one batch per list; answer the batched
+      // reads from the per-Request stubs above.
+      when(
+        roomRepo.roomViewerFacts(any, viewerUserId: anyNamed('viewerUserId')),
+      ).thenAnswer((invocation) async {
+        final viewerId = invocation.namedArguments[#viewerUserId] as String;
+        return {
+          for (final id in invocation.positionalArguments.single as Iterable)
+            id as String: await roomViewerFactsFromStubs(
+              beacon: await mockBeaconRepo.getBeaconById(beaconId: id),
+              viewerId: viewerId,
+              isSteward: () =>
+                  roomRepo.isBeaconSteward(beaconId: id, userId: viewerId),
+              participant: () =>
+                  roomRepo.findParticipant(beaconId: id, userId: viewerId),
+            ),
+        };
+      });
+      when(roomRepo.listParticipantsByBeaconIds(any)).thenAnswer(
+        (invocation) async => {
+          for (final id in invocation.positionalArguments.single as Iterable)
+            id as String: await roomRepo.listParticipants(id),
+        },
+      );
+      when(helpOfferRepo.fetchByBeaconIds(any)).thenAnswer(
+        (invocation) async => {
+          for (final id in invocation.positionalArguments.single as Iterable)
+            id as String: await helpOfferRepo.fetchByBeaconId(id),
+        },
+      );
+      when(
+        coordinationRepo.coordinationResponseTypesByBeaconIds(any),
+      ).thenAnswer(
+        (invocation) async => {
+          for (final id in invocation.positionalArguments.single as Iterable)
+            id as String: await coordinationRepo
+                .coordinationResponseTypeByOfferUserId(id),
+        },
+      );
     });
 
     test('returns no entry for a Post', () async {

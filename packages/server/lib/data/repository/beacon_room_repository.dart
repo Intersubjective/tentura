@@ -10,6 +10,8 @@ import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
@@ -1196,11 +1198,21 @@ RETURNING *
 
   Future<List<BeaconParticipantRecord>> listParticipants(
     String beaconId,
-  ) async {
-    final rows = await _db.managers.beaconParticipants
-        .filter((r) => r.beaconId.id(beaconId))
-        .get();
-    return rows.map((r) => r.toRecord()).toList();
+  ) async => (await listParticipantsByBeaconIds([beaconId]))[beaconId] ?? [];
+
+  @override
+  Future<Map<String, List<BeaconParticipantRecord>>>
+  listParticipantsByBeaconIds(Iterable<String> beaconIds) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
+    final rows = await (_db.select(
+      _db.beaconParticipants,
+    )..where((r) => r.beaconId.isIn(ids))).get();
+    final out = <String, List<BeaconParticipantRecord>>{};
+    for (final row in rows) {
+      out.putIfAbsent(row.beaconId, () => []).add(row.toRecord());
+    }
+    return out;
   }
 
   @override
@@ -1877,23 +1889,106 @@ LEFT JOIN public."user" u ON u.id = lm.author_id
           ],
         )
         .get();
-    DateTime? at(Map<String, Object?> data, String column) =>
-        switch (data[column]) {
-          final DateTime d => d.toUtc(),
-          final PgDateTime d => d.dateTime.toUtc(),
-          _ => null,
-        };
     return {
       for (final row in rows)
         row.data['beacon_id']! as String: RoomLatestActivity(
-          lastActivityAt: at(row.data, 'last_activity_at'),
-          lastMessageAt: at(row.data, 'last_message_at'),
+          lastActivityAt: _utcOrNull(row.data['last_activity_at']),
+          lastMessageAt: _utcOrNull(row.data['last_message_at']),
           lastMessageBody: row.data['last_message_body'] as String?,
           lastMessageAuthorId: row.data['last_message_author_id'] as String?,
           lastMessageAuthorName:
               row.data['last_message_author_name'] as String?,
           lastMessageKind: row.data['last_message_kind'] as String?,
         ),
+    };
+  }
+
+  @override
+  Future<Map<String, RoomViewerFacts>> roomViewerFacts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
+    final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return {};
+    // One round trip for a whole Requests list (#747); every join is a key
+    // lookup per requested Request.
+    final rows = await _db
+        .customSelect(
+          r'''
+SELECT b.id, b.user_id, b.kind, b.status, b.updated_at,
+  EXISTS (SELECT 1 FROM public.beacon_steward bs
+    WHERE bs.beacon_id = b.id AND bs.user_id = $2) AS is_steward,
+  p.room_access, p.next_move_text,
+  st.current_line, st.last_room_meaningful_change,
+  seen.last_seen_at
+FROM public.beacon b
+LEFT JOIN public.beacon_participant p
+  ON p.beacon_id = b.id AND p.user_id = $2
+LEFT JOIN public.beacon_room_state st ON st.beacon_id = b.id
+LEFT JOIN public.beacon_room_seen seen
+  ON seen.beacon_id = b.id AND seen.user_id = $2
+  AND seen.thread_item_id IS NULL
+WHERE b.id = ANY($1::text[])
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, ids)),
+            Variable<String>(viewerUserId),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('id'): RoomViewerFacts(
+          beaconId: row.read<String>('id'),
+          authorId: row.readNullable<String>('user_id'),
+          kind: BeaconKind.fromValue(row.read<int>('kind')),
+          status: BeaconStatus.fromSmallint(row.read<int>('status')),
+          updatedAt: _utcOrNull(row.data['updated_at'])!,
+          isSteward: row.read<bool>('is_steward'),
+          participantRoomAccess: row.readNullable<int>('room_access'),
+          nextMoveText: row.readNullable<String>('next_move_text'),
+          currentLine: row.readNullable<String>('current_line'),
+          lastRoomMeaningfulChange: row.readNullable<String>(
+            'last_room_meaningful_change',
+          ),
+          lastSeenAt: _utcOrNull(row.data['last_seen_at']),
+        ),
+    };
+  }
+
+  @override
+  Future<Map<String, int>> unreadMainRoomMessageCounts(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
+    final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return {};
+    // Same rule as [countRoomMessagesAfter]: the viewer's own messages are
+    // never unread (`<>` also leaves out authorless rows).
+    final rows = await _db
+        .customSelect(
+          r'''
+SELECT ids.beacon_id,
+  (SELECT count(*) FROM public.beacon_room_message m
+    WHERE m.beacon_id = ids.beacon_id
+      AND m.thread_item_id IS NULL
+      AND m.author_id <> $2
+      AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
+  )::int AS unread
+FROM unnest($1::text[]) AS ids(beacon_id)
+LEFT JOIN public.beacon_room_seen seen
+  ON seen.beacon_id = ids.beacon_id AND seen.user_id = $2
+  AND seen.thread_item_id IS NULL
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, ids)),
+            Variable<String>(viewerUserId),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('beacon_id'): row.read<int>('unread'),
     };
   }
 
@@ -2551,3 +2646,9 @@ WHERE author_id = \$1 AND created_at >= \$2
         );
   });
 }
+
+DateTime? _utcOrNull(Object? value) => switch (value) {
+  final DateTime d => d.toUtc(),
+  final PgDateTime d => d.dateTime.toUtc(),
+  _ => null,
+};

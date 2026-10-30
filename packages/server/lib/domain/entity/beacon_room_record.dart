@@ -1,3 +1,7 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
+
 /// Domain projection of [`beacon_room_message`].
 final class BeaconRoomMessageRecord {
   const BeaconRoomMessageRecord({
@@ -149,4 +153,43 @@ final class PollingVotePolicy {
 
   final String pollType;
   final bool allowRevote;
+}
+
+/// One Request and its room as one viewer sees them: what the Requests list
+/// reads for every card, in one batch over many Requests (#747).
+final class RoomViewerFacts {
+  const RoomViewerFacts({
+    required this.beaconId,
+    required this.authorId,
+    required this.kind,
+    required this.status,
+    required this.updatedAt,
+    required this.isSteward,
+    this.participantRoomAccess,
+    this.nextMoveText,
+    this.currentLine,
+    this.lastRoomMeaningfulChange,
+    this.lastSeenAt,
+  });
+
+  final String beaconId;
+  final String? authorId;
+  final BeaconKind kind;
+  final BeaconStatus status;
+  final DateTime updatedAt;
+  final bool isSteward;
+
+  /// The viewer's `beacon_participant.room_access`; null when they have no
+  /// participant row.
+  final int? participantRoomAccess;
+  final String? nextMoveText;
+
+  /// From `beacon_room_state`; null when the room has no state row.
+  final String? currentLine;
+  final String? lastRoomMeaningfulChange;
+
+  /// The viewer's main-room watermark.
+  final DateTime? lastSeenAt;
+
+  bool get isParticipant => participantRoomAccess != null;
 }

@@ -132,13 +132,7 @@ final class RequestDbScope extends QueryInterceptor implements Session {
     List<Object?> args,
   ) async {
     if (statement.trimLeft().toUpperCase().startsWith('ROLLBACK')) {
-      await _cancelDrain;
-      _rollingBack = true;
-      try {
-        await executor.runCustom(statement, args);
-      } finally {
-        _rollingBack = false;
-      }
+      await _rollBack(() => executor.runCustom(statement, args));
     } else {
       _request.check();
       _firstInTransaction = statement.trimLeft().toUpperCase().startsWith(
@@ -149,6 +143,25 @@ final class RequestDbScope extends QueryInterceptor implements Session {
       } finally {
         _firstInTransaction = false;
       }
+    }
+  }
+
+  /// Drift rolls a transaction back (also after a refused COMMIT) through
+  /// the transaction executor, not [runCustom]. A cancelled request must
+  /// still end its transaction, or the rollback fails as well.
+  @override
+  Future<void> rollbackTransaction(TransactionExecutor inner) =>
+      _rollBack(inner.rollback);
+
+  /// Rollback is cleanup: it runs past the request's cancellation, bounded
+  /// by its own timeout in [_run].
+  Future<void> _rollBack(Future<void> Function() rollback) async {
+    await _cancelDrain;
+    _rollingBack = true;
+    try {
+      await rollback();
+    } finally {
+      _rollingBack = false;
     }
   }
 

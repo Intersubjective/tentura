@@ -22,6 +22,11 @@ abstract class CommitmentRepositoryPort {
   /// Все события запроса, сгруппированные по userId, отсортированные по seq ASC.
   Future<Map<String, List<CommitmentEvent>>> eventsByUser(String beaconId);
 
+  /// [eventsByUser] of each of [beaconIds] with events, keyed by beacon id,
+  /// read in one query.
+  Future<Map<String, Map<String, List<CommitmentEvent>>>>
+  eventsByUserByBeaconIds(Iterable<String> beaconIds);
+
   Future<List<CommitmentEvent>> eventsForPair({
     required String beaconId,
     required String userId,

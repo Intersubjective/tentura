@@ -20,6 +20,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/per_request_room_reads.dart';
 
 /// tentura-617.15 (issue #181 plan §8.6): `inboxRoomContextBatch` reads the
 /// public fact snippets of all its beacons with one
@@ -166,7 +167,9 @@ class _CountingFactCards extends Fake implements BeaconFactCardRepositoryPort {
   }
 }
 
-class _InboxStubRoom extends Fake implements BeaconRoomRepositoryPort {
+class _InboxStubRoom extends Fake
+    with RoomReadsFromPerRequestStubs
+    implements BeaconRoomRepositoryPort {
   @override
   Future<Map<String, String>> postRootExcerpts(
     Iterable<String> beaconIds, {
@@ -224,7 +227,9 @@ class _InboxStubRoom extends Fake implements BeaconRoomRepositoryPort {
       0;
 }
 
-class _StubItems extends Fake implements CoordinationItemRepositoryPort {
+class _StubItems extends Fake
+    with OpenBlockersFromListByBeacon
+    implements CoordinationItemRepositoryPort {
   @override
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {

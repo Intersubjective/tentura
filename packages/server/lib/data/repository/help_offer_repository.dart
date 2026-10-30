@@ -136,11 +136,24 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
   }
 
   @override
-  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) =>
-      _database.managers.beaconHelpOffers
-          .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
-          .get()
-          .then((rows) => rows.map(_toEntity).toList());
+  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
+      (await fetchByBeaconIds([beaconId]))[beaconId] ?? [];
+
+  @override
+  Future<Map<String, List<HelpOfferEntity>>> fetchByBeaconIds(
+    Iterable<String> beaconIds,
+  ) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
+    final rows = await _database.managers.beaconHelpOffers
+        .filter((e) => e.beaconId.id.isIn(ids) & e.status.equals(0))
+        .get();
+    final out = <String, List<HelpOfferEntity>>{};
+    for (final offer in rows.map(_toEntity)) {
+      out.putIfAbsent(offer.beaconId, () => []).add(offer);
+    }
+    return out;
+  }
 
   /// Active and withdrawn rows (status 0 and 1). Used for forward involvement.
   @override

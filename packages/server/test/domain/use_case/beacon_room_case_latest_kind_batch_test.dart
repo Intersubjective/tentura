@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/per_request_room_reads.dart';
 
 /// #498 — the Requests card preview of a photo-, file-, poll- or fact-only
 /// message. `inboxRoomContextBatch` carries the latest message's kind
@@ -104,7 +105,9 @@ void main() {
   });
 }
 
-class _LatestStubRoom extends Fake implements BeaconRoomRepositoryPort {
+class _LatestStubRoom extends Fake
+    with RoomReadsFromPerRequestStubs
+    implements BeaconRoomRepositoryPort {
   @override
   Future<Map<String, String>> postRootExcerpts(
     Iterable<String> beaconIds, {
@@ -169,7 +172,9 @@ class _NoFactCards extends Fake implements BeaconFactCardRepositoryPort {
   ) async => const {};
 }
 
-class _StubItems extends Fake implements CoordinationItemRepositoryPort {
+class _StubItems extends Fake
+    with OpenBlockersFromListByBeacon
+    implements CoordinationItemRepositoryPort {
   @override
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {

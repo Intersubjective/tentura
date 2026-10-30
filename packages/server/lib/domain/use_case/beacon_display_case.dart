@@ -5,8 +5,9 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/coordination/derive_beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_display_status.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
-import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/closure_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -19,7 +20,6 @@ import '_use_case_base.dart';
 @Singleton(order: 2)
 final class BeaconDisplayCase extends UseCaseBase {
   BeaconDisplayCase(
-    this._beaconRepository,
     this._helpOfferRepository,
     this._coordinationRepository,
     this._closureRepository,
@@ -31,7 +31,6 @@ final class BeaconDisplayCase extends UseCaseBase {
     required super.logger,
   });
 
-  final BeaconRepositoryPort _beaconRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final CoordinationRepositoryPort _coordinationRepository;
   final ClosureRepositoryPort _closureRepository;
@@ -46,67 +45,98 @@ final class BeaconDisplayCase extends UseCaseBase {
   }) async {
     if (beaconIds.isEmpty) return const [];
 
+    // #747 — every per-Request fact is one batched read for the whole list,
+    // never a read per card.
+    final readable = await _guard.readableContentIds(
+      beaconIds: beaconIds,
+      viewerId: viewerId,
+    );
+    final facts = await _beaconRoomRepository.roomViewerFacts(
+      readable,
+      viewerUserId: viewerId,
+    );
+    final requests = [
+      for (final beaconId in beaconIds)
+        if (facts[beaconId] case final request?
+            when readable.contains(beaconId) &&
+                request.kind == BeaconKind.request)
+          request,
+    ];
+    if (requests.isEmpty) return const [];
+    final requestIds = {for (final r in requests) r.beaconId};
+
+    final offersByBeacon = await _helpOfferRepository.fetchByBeaconIds(
+      requestIds,
+    );
+    final coordsByBeacon = await _coordinationRepository
+        .coordinationResponseTypesByBeaconIds(requestIds);
+    final liveEpochs = await _closureRepository.liveEpochsByBeaconIds({
+      for (final r in requests)
+        if (r.status == BeaconStatus.reviewOpen) r.beaconId,
+    });
+
+    // Same rule as the `beacon_admitted_helper` view the client counts
+    // (m0210): admitted, not the author, not a Post addressee kept after a
+    // conversion — an addressee is not a helper (B075) — and not hidden
+    // from the author by a block either way (`block_hides`).
+    final participantsByBeacon = await _beaconRoomRepository
+        .listParticipantsByBeaconIds(requestIds);
+    final admittedHelpersByBeacon = {
+      for (final r in requests)
+        r.beaconId: {
+          for (final p
+              in participantsByBeacon[r.beaconId] ??
+                  const <BeaconParticipantRecord>[])
+            if (p.roomAccess == RoomAccessBits.admitted &&
+                p.role != BeaconParticipantRoleBits.addressee &&
+                p.userId != r.authorId)
+              p.userId,
+        },
+    };
+    final blockUsers = {
+      for (final r in requests)
+        if (admittedHelpersByBeacon[r.beaconId]!.isNotEmpty) ...{
+          ?r.authorId,
+          ...admittedHelpersByBeacon[r.beaconId]!,
+        },
+    };
+    final blocked = blockUsers.isEmpty
+        ? const <(String, String)>{}
+        : await _blocks.blockedPairsAmong(userIds: blockUsers);
+
+    final authorCoordinationIds = {
+      for (final r in requests)
+        if (r.authorId == viewerId) r.beaconId,
+    };
+    final everAckByBeacon = await _commitmentQueryCase
+        .everAcknowledgedUserIdsByBeaconIds(authorCoordinationIds);
+
     final out = <BeaconDisplayStatus>[];
-    for (final beaconId in beaconIds) {
-      if (!await _guard.canReadContent(
-        beaconId: beaconId,
-        viewerId: viewerId,
-      )) {
-        continue;
-      }
+    for (final beacon in requests) {
+      final beaconId = beacon.beaconId;
+      final authorId = beacon.authorId;
+      final tier =
+          authorId == viewerId || beacon.isSteward || beacon.isParticipant
+          ? BeaconDisplayTier.coordination
+          : BeaconDisplayTier.public;
 
-      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-      if (beacon.kind != BeaconKind.request) continue;
-      final tier = await _resolveTier(
-        beaconId: beaconId,
-        viewerId: viewerId,
-        authorId: beacon.author.id,
-      );
-
-      final offers = await _helpOfferRepository.fetchByBeaconId(beaconId);
+      final offers = offersByBeacon[beaconId] ?? const <HelpOfferEntity>[];
       final activeOffers = offers.where((o) => o.status == 0).length;
-      final coords = await _coordinationRepository
-          .coordinationResponseTypeByOfferUserId(beaconId);
+      final coords = coordsByBeacon[beaconId] ?? const <String, int>{};
 
       final hasUnreviewed =
           beacon.status.isOpenFamily &&
           offers.any(
             (o) =>
-                o.status == 0 &&
-                o.offerKind == 0 &&
-                coords[o.userId] == null,
+                o.status == 0 && o.offerKind == 0 && coords[o.userId] == null,
           );
 
-      DateTime? reviewClosesAt;
-      if (beacon.status == BeaconStatus.reviewOpen) {
-        reviewClosesAt = (await _closureRepository.liveEpoch(beaconId))
-            ?.closesAt;
-      }
-
-      // Same rule as the `beacon_admitted_helper` view the client counts
-      // (m0210): admitted, not the author, not a Post addressee kept after a
-      // conversion — an addressee is not a helper (B075) — and not hidden
-      // from the author by a block either way (`block_hides`).
-      final admittedHelpers =
-          (await _beaconRoomRepository.listParticipants(beaconId))
-              .where(
-                (p) =>
-                    p.roomAccess == RoomAccessBits.admitted &&
-                    p.role != BeaconParticipantRoleBits.addressee &&
-                    p.userId != beacon.author.id,
-              )
-              .map((p) => p.userId)
-              .toSet();
-      if (admittedHelpers.isNotEmpty) {
-        final blocked = await _blocks.blockedPairsAmong(
-          userIds: {beacon.author.id, ...admittedHelpers},
-        );
-        admittedHelpers.removeWhere(
+      final admittedHelpers = admittedHelpersByBeacon[beaconId]!
+        ..removeWhere(
           (helperId) =>
-              blocked.contains((beacon.author.id, helperId)) ||
-              blocked.contains((helperId, beacon.author.id)),
+              blocked.contains((authorId, helperId)) ||
+              blocked.contains((helperId, authorId)),
         );
-      }
       final admittedHelperCount = admittedHelpers.length;
 
       final derived = deriveBeaconDisplayStatus(
@@ -116,27 +146,18 @@ final class BeaconDisplayCase extends UseCaseBase {
           helpOfferCount: activeOffers,
           admittedHelperCount: admittedHelperCount,
           hasUnreviewedOffers: hasUnreviewed,
-          reviewClosesAt: reviewClosesAt,
+          reviewClosesAt: liveEpochs[beaconId]?.closesAt,
           updatedAt: beacon.updatedAt,
         ),
       );
 
-      final isAuthorCoordination =
-          tier == BeaconDisplayTier.coordination &&
-          viewerId == beacon.author.id;
       var canCancel = false;
       var canDelete = false;
       var everAcknowledgedCommitterCount = 0;
-      if (isAuthorCoordination) {
-        final everAck = await _commitmentQueryCase.everAcknowledgedUserIds(
-          beaconId,
-        );
-        final isAuthor = viewerId == beacon.author.id;
-        canCancel =
-            isAuthor && beacon.status.isOpenFamily && everAck.isEmpty;
-        canDelete =
-            isAuthor &&
-            (beacon.status == BeaconStatus.draft || everAck.isEmpty);
+      if (authorCoordinationIds.contains(beaconId)) {
+        final everAck = everAckByBeacon[beaconId] ?? const <String>{};
+        canCancel = beacon.status.isOpenFamily && everAck.isEmpty;
+        canDelete = beacon.status == BeaconStatus.draft || everAck.isEmpty;
         everAcknowledgedCommitterCount = everAck.length;
       }
 
@@ -158,25 +179,5 @@ final class BeaconDisplayCase extends UseCaseBase {
       );
     }
     return out;
-  }
-
-  Future<BeaconDisplayTier> _resolveTier({
-    required String beaconId,
-    required String viewerId,
-    required String authorId,
-  }) async {
-    if (viewerId == authorId) return BeaconDisplayTier.coordination;
-    final steward = await _beaconRoomRepository.isBeaconSteward(
-      beaconId: beaconId,
-      userId: viewerId,
-    );
-    if (steward) return BeaconDisplayTier.coordination;
-    final participant = await _beaconRoomRepository.findParticipant(
-      beaconId: beaconId,
-      userId: viewerId,
-    );
-    return participant != null
-        ? BeaconDisplayTier.coordination
-        : BeaconDisplayTier.public;
   }
 }

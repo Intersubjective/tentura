@@ -21,6 +21,12 @@ abstract class ClosureRepositoryPort {
   /// no longer live.
   Future<ClosureEpoch?> liveEpoch(String beaconId);
 
+  /// [liveEpoch] of each of [beaconIds] that has one, keyed by beacon id,
+  /// read in one query.
+  Future<Map<String, ClosureEpoch>> liveEpochsByBeaconIds(
+    Iterable<String> beaconIds,
+  );
+
   /// The most recently created epoch in any status, if any.
   Future<ClosureEpoch?> latestEpoch(String beaconId);
 

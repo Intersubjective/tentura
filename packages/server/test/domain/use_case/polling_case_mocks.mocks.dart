@@ -241,6 +241,38 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, _i8.RoomLatestActivity>>);
 
   @override
+  _i3.Future<Map<String, _i5.RoomViewerFacts>> roomViewerFacts(
+    Iterable<String>? beaconIds, {
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #roomViewerFacts,
+              [beaconIds],
+              {#viewerUserId: viewerUserId},
+            ),
+            returnValue: _i3.Future<Map<String, _i5.RoomViewerFacts>>.value(
+              <String, _i5.RoomViewerFacts>{},
+            ),
+          )
+          as _i3.Future<Map<String, _i5.RoomViewerFacts>>);
+
+  @override
+  _i3.Future<Map<String, int>> unreadMainRoomMessageCounts(
+    Iterable<String>? beaconIds, {
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #unreadMainRoomMessageCounts,
+              [beaconIds],
+              {#viewerUserId: viewerUserId},
+            ),
+            returnValue: _i3.Future<Map<String, int>>.value(<String, int>{}),
+          )
+          as _i3.Future<Map<String, int>>);
+
+  @override
   _i3.Future<Map<String, String>> postRootExcerpts(
     Iterable<String>? beaconIds, {
     required String? viewerUserId,
@@ -655,6 +687,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<List<_i5.BeaconParticipantRecord>>);
+
+  @override
+  _i3.Future<Map<String, List<_i5.BeaconParticipantRecord>>>
+  listParticipantsByBeaconIds(Iterable<String>? beaconIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#listParticipantsByBeaconIds, [beaconIds]),
+            returnValue:
+                _i3.Future<
+                  Map<String, List<_i5.BeaconParticipantRecord>>
+                >.value(<String, List<_i5.BeaconParticipantRecord>>{}),
+          )
+          as _i3.Future<Map<String, List<_i5.BeaconParticipantRecord>>>);
 
   @override
   _i3.Future<List<String>> listStewardUserIds(String? beaconId) =>

@@ -416,10 +416,22 @@ ORDER BY beacon_id, offer_user_id, seq DESC
   @override
   Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
     String beaconId,
+  ) async =>
+      (await coordinationResponseTypesByBeaconIds([beaconId]))[beaconId] ?? {};
+
+  @override
+  Future<Map<String, Map<String, int>>> coordinationResponseTypesByBeaconIds(
+    Iterable<String> beaconIds,
   ) async {
+    final ids = beaconIds.toSet().toList();
+    if (ids.isEmpty) return {};
     final rows = await _database.managers.beaconHelpOfferCoordinations
-        .filter((e) => e.offerBeaconId.id(beaconId))
+        .filter((e) => e.offerBeaconId.id.isIn(ids))
         .get();
-    return {for (final r in rows) r.offerUserId: r.responseType};
+    final out = <String, Map<String, int>>{};
+    for (final r in rows) {
+      (out[r.offerBeaconId] ??= {})[r.offerUserId] = r.responseType;
+    }
+    return out;
   }
 }

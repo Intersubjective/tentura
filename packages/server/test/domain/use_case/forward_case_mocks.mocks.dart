@@ -1471,6 +1471,19 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
           as _i3.Future<List<_i20.HelpOfferEntity>>);
 
   @override
+  _i3.Future<Map<String, List<_i20.HelpOfferEntity>>> fetchByBeaconIds(
+    Iterable<String>? beaconIds,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchByBeaconIds, [beaconIds]),
+            returnValue:
+                _i3.Future<Map<String, List<_i20.HelpOfferEntity>>>.value(
+                  <String, List<_i20.HelpOfferEntity>>{},
+                ),
+          )
+          as _i3.Future<Map<String, List<_i20.HelpOfferEntity>>>);
+
+  @override
   _i3.Future<List<_i20.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchAllByBeaconId, [beaconId]),
