@@ -9462,6 +9462,7 @@ type v2_PostSummary {
   rootImageUrl: String
   rootExcerpt: String
   lastMessageExcerpt: String
+  lastMessageIsRoot: Boolean!
   lastMessageAt: String
   lastActivityAt: String
   pinnedAt: String

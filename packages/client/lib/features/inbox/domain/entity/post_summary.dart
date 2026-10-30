@@ -15,6 +15,7 @@ final class PostSummary {
     this.rootImageUrl,
     this.rootExcerpt = '',
     this.lastMessageExcerpt,
+    this.lastMessageIsRoot = false,
     this.pinnedAt,
     this.mutedUntil,
     this.mutedForever = false,
@@ -34,6 +35,9 @@ final class PostSummary {
   final String? rootImageUrl;
   final String rootExcerpt;
   final String? lastMessageExcerpt;
+
+  /// Whether the latest message has the Post root message id.
+  final bool lastMessageIsRoot;
   final DateTime lastActivityAt;
   final DateTime? pinnedAt;
   final DateTime? mutedUntil;

@@ -17,6 +17,7 @@ Map<String, dynamic> _row(String? expiresAt) => {
   'rootImageUrl': null,
   'rootExcerpt': 'Who has a ladder?',
   'lastMessageExcerpt': null,
+  'lastMessageIsRoot': false,
   'lastMessageAt': null,
   'lastActivityAt': '2026-10-26T11:00:00.000Z',
   'pinnedAt': null,

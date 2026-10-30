@@ -18,6 +18,7 @@ Map<String, dynamic> _row(String id, int status) => {
   'rootImageUrl': null,
   'rootExcerpt': 'Who has a ladder?',
   'lastMessageExcerpt': null,
+  'lastMessageIsRoot': status == 0,
   'lastMessageAt': null,
   'lastActivityAt': '2026-10-11T08:00:00.000Z',
   'pinnedAt': null,
@@ -43,6 +44,8 @@ void main() {
         posts = await PostsRepository(remote).myPosts();
       },
     );
+    expect(posts.first.lastMessageIsRoot, isTrue);
+    expect(posts.last.lastMessageIsRoot, isFalse);
     expect(posts.first.status, BeaconStatus.open);
     expect(posts.first.isClosed, isFalse);
     expect(posts.last.status, BeaconStatus.closed);
@@ -64,5 +67,6 @@ void main() {
       },
     );
     expect(post?.isClosed, isTrue);
+    expect(post?.lastMessageIsRoot, isFalse);
   });
 }

@@ -457,6 +457,7 @@ Object? _fieldData(FieldNode field) => switch (field.name.value) {
       'authorName': 'Workshop author',
       'authorAvatar': '',
       'rootExcerpt': 'Workshop conversation',
+      'lastMessageIsRoot': true,
       'mutedForever': false,
       'unreadCount': 1,
       'isAuthor': true,

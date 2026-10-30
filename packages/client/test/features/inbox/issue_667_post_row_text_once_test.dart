@@ -17,7 +17,11 @@ void main() {
   final now = DateTime.utc(2030, 1, 1, 12);
   final l10n = lookupL10n(const Locale('en'));
 
-  Future<void> pumpRow(WidgetTester tester, {String? lastMessage}) async {
+  Future<void> pumpRow(
+    WidgetTester tester, {
+    String? lastMessage,
+    bool lastMessageIsRoot = false,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
@@ -33,6 +37,7 @@ void main() {
                 authorName: 'Theo',
                 rootExcerpt: _root,
                 lastMessageExcerpt: lastMessage,
+                lastMessageIsRoot: lastMessageIsRoot,
                 lastActivityAt: now.subtract(const Duration(minutes: 5)),
               ),
               now: now,
@@ -69,7 +74,7 @@ void main() {
     testWidgets('a root-only Post shows its text once and keeps the age', (
       tester,
     ) async {
-      await pumpRow(tester, lastMessage: _root);
+      await pumpRow(tester, lastMessage: _root, lastMessageIsRoot: true);
 
       expect(find.text(_root), findsOneWidget);
       expect(age(), findsOneWidget);
@@ -79,13 +84,25 @@ void main() {
       );
     });
 
-    testWidgets('padding around the same text still counts as the root', (
+    testWidgets('a root with a different excerpt is hidden by identity', (
       tester,
     ) async {
-      await pumpRow(tester, lastMessage: '  $_root\n');
+      await pumpRow(tester, lastMessage: _reply, lastMessageIsRoot: true);
 
-      expect(find.textContaining(_root), findsOneWidget);
+      expect(find.text(_root), findsOneWidget);
+      expect(find.text(_reply), findsNothing);
       expect(age(), findsOneWidget);
+    });
+
+    testWidgets('a reply equal to the root is still shown', (tester) async {
+      await pumpRow(tester, lastMessage: _root);
+
+      expect(find.text(_root), findsNWidgets(2));
+      expect(age(), findsOneWidget);
+      expect(
+        RegExp(RegExp.escape(_root)).allMatches(rowLabel(tester)).length,
+        2,
+      );
     });
 
     testWidgets('a Post with a reply shows the root and the reply', (

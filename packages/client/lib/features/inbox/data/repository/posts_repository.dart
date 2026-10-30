@@ -42,6 +42,7 @@ class PostsRepository implements PostsRepositoryPort {
     rootImageUrl: row.rootImageUrl,
     rootExcerpt: row.rootExcerpt ?? '',
     lastMessageExcerpt: row.lastMessageExcerpt,
+    lastMessageIsRoot: row.lastMessageIsRoot,
     lastActivityAt:
         _parse(row.lastActivityAt) ??
         _parse(row.lastMessageAt) ??

@@ -54,9 +54,7 @@ class PostConversationRow extends StatelessWidget {
     final lastMessage = post.lastMessageExcerpt?.trim() ?? '';
     // #667: while the root is the only message, the last message is the root;
     // the row names it once and keeps the age.
-    final lastMessageText = lastMessage == post.rootExcerpt.trim()
-        ? ''
-        : lastMessage;
+    final lastMessageText = post.lastMessageIsRoot ? '' : lastMessage;
     final muted = post.isMutedAt(now);
     final lifetime = _lifetimeMarker(l10n);
 

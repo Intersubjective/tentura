@@ -25,6 +25,7 @@ Future<PostSummary> _loadPost(String? forwardedByName) async {
             'rootImageUrl': null,
             'rootExcerpt': 'Root message',
             'lastMessageExcerpt': null,
+            'lastMessageIsRoot': false,
             'lastMessageAt': null,
             'lastActivityAt': '2030-01-01T00:00:00.000Z',
             'pinnedAt': null,

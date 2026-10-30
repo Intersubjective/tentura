@@ -7,6 +7,7 @@ fragment PostSummaryFields on v2_PostSummary {
   rootImageUrl
   rootExcerpt
   lastMessageExcerpt
+  lastMessageIsRoot
   lastMessageAt
   lastActivityAt
   pinnedAt
