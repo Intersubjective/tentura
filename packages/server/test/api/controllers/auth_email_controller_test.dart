@@ -540,5 +540,57 @@ void main() {
       expect(body['redirectUrl'], contains('new=1'));
       expect(res.headers['set-cookie'], contains(kCookieSessionName));
     });
+    // #788 (TENTURA-LANDING-R on /invite/): a QA test login for a new address
+    // on a used or expired invite is an expected answer, not a 500.
+    for (final (description, error) in [
+      ('Invitation already used!', 'invite_used'),
+      ('Invitation expired!', 'invite_expired'),
+      ('Can`t update invitation!', 'invite_invalid'),
+    ]) {
+      test('new account on a bad invite answers 409 $error', () async {
+        final qaEnv = Env(
+          environment: Environment.test,
+          publicOrigin: 'https://dev.tentura.io',
+          qaSimpleLoginMode: true,
+          isNeedInvite: true,
+        );
+        final userRepo = MockUserRepositoryPort();
+        final contactRepo = MockVerifiedContactRepositoryPort();
+        when(
+          userRepo.getByCredential(
+            type: anyNamed('type'),
+            identifier: anyNamed('identifier'),
+          ),
+        ).thenThrow(const IdNotFoundException());
+        when(
+          contactRepo.findAccountIdsByContacts(any),
+        ).thenAnswer((_) async => {});
+        when(
+          userRepo.createInvitedWithCredential(
+            invitationId: anyNamed('invitationId'),
+            type: anyNamed('type'),
+            identifier: anyNamed('identifier'),
+            displayName: anyNamed('displayName'),
+            handle: anyNamed('handle'),
+            publicData: anyNamed('publicData'),
+            contacts: anyNamed('contacts'),
+            onPostForwardCreated: anyNamed('onPostForwardCreated'),
+          ),
+        ).thenThrow(InvitationWrongException(description: description));
+
+        final res = await buildQaController(
+          qaEnv: qaEnv,
+          userRepo: userRepo,
+          contactRepo: contactRepo,
+        ).testLogin(
+          qaRequest('{"email":"u@test.tentura.local","inviteCode":"Iused"}'),
+        );
+
+        expect(res.statusCode, 409);
+        final body =
+            jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+        expect(body['error'], error);
+      });
+    }
   });
 }
