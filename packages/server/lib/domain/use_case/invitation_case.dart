@@ -332,7 +332,7 @@ final class InvitationCase extends UseCaseBase {
       invitation: invitation,
       userId: userId,
       emitMutualConnection: true,
-      mutation: () async {
+      mutation: (_) async {
         if (invitation.beaconId != null) {
           await _requireIssuerCanForward(invitation);
         }
@@ -377,9 +377,10 @@ final class InvitationCase extends UseCaseBase {
           invitation: invitation,
           userId: userId,
           emitInviteAccepted: false,
-          mutation: () => _acceptBeaconInviteOnly(
+          mutation: (transaction) => _acceptBeaconInviteOnly(
             invitation: invitation,
             userId: userId,
+            transaction: transaction,
           ),
         );
       }
@@ -394,9 +395,10 @@ final class InvitationCase extends UseCaseBase {
         invitation: invitation,
         userId: userId,
         emitInviteAccepted: false,
-        mutation: () => _acceptBeaconInviteOnly(
+        mutation: (transaction) => _acceptBeaconInviteOnly(
           invitation: invitation,
           userId: userId,
+          transaction: transaction,
         ),
       );
     }
@@ -407,13 +409,13 @@ final class InvitationCase extends UseCaseBase {
   Future<bool> _acceptAndRecord({
     required InvitationEntity invitation,
     required String userId,
-    required Future<bool> Function() mutation,
+    required Future<bool> Function(AttentionTransaction transaction) mutation,
     bool emitMutualConnection = false,
     bool emitInviteAccepted = true,
   }) => _attention!.runAction(
     actorUserId: userId,
     action: (transaction) async {
-      final accepted = await mutation();
+      final accepted = await mutation(transaction);
       if (accepted) {
         if (emitInviteAccepted) {
           final accepter = await _userRepository.getById(userId);
@@ -448,6 +450,7 @@ final class InvitationCase extends UseCaseBase {
   Future<bool> _acceptBeaconInviteOnly({
     required InvitationEntity invitation,
     required String userId,
+    required AttentionTransaction transaction,
   }) async {
     final beaconId = invitation.beaconId!;
     if (!await _guard.canReadContent(
@@ -469,6 +472,20 @@ final class InvitationCase extends UseCaseBase {
       invitationId: invitation.id,
       userId: userId,
       bindFriendship: false,
+      onForwardCreated: beacon.kind == BeaconKind.post
+          ? () async {
+              await transaction.record(
+                await _attentionIntents!.relayReceived(
+                  beaconId: beacon.id,
+                  senderId: invitation.issuer.id,
+                  beaconAuthorId: beacon.author.id,
+                  recipientIds: [userId],
+                  beaconKind: beacon.kind,
+                  sourceEventKey: 'invitation:${invitation.id}:forward',
+                ),
+              );
+            }
+          : null,
     );
   }
 

@@ -137,9 +137,12 @@ abstract class UserRepositoryPort {
 
   Future<void> deleteById({required String id});
 
+  /// [onForwardCreated] runs inside the accepting transaction only when a
+  /// beacon invite inserts a new forward edge, never for an existing edge.
   Future<bool> bindMutual({
     required String invitationId,
     required String userId,
     bool bindFriendship = true,
+    Future<void> Function()? onForwardCreated,
   });
 }

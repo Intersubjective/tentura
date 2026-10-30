@@ -927,6 +927,7 @@ class UserRepository implements UserRepositoryPort {
     required String invitationId,
     required String userId,
     bool bindFriendship = true,
+    Future<void> Function()? onForwardCreated,
   }) => (() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -971,12 +972,13 @@ class UserRepository implements UserRepositoryPort {
     );
 
     if (invitation.beaconId != null) {
-      await _materializeBeaconInviteForward(
+      final created = await _materializeBeaconInviteForward(
         beaconId: invitation.beaconId!,
         senderId: invitation.userId,
         recipientId: userId,
         parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
+      if (created) await onForwardCreated?.call();
     }
 
     if (bindFriendship) {

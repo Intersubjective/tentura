@@ -538,12 +538,14 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? invitationId,
     required String? userId,
     bool? bindFriendship = true,
+    _i6.Future<void> Function()? onForwardCreated,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#bindMutual, [], {
               #invitationId: invitationId,
               #userId: userId,
               #bindFriendship: bindFriendship,
+              #onForwardCreated: onForwardCreated,
             }),
             returnValue: _i6.Future<bool>.value(false),
             returnValueForMissingStub: _i6.Future<bool>.value(false),

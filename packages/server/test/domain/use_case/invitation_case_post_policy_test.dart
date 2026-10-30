@@ -116,6 +116,7 @@ void main() {
         invitationId: anyNamed('invitationId'),
         userId: anyNamed('userId'),
         bindFriendship: anyNamed('bindFriendship'),
+        onForwardCreated: anyNamed('onForwardCreated'),
       ),
     );
   }
@@ -126,6 +127,7 @@ void main() {
         invitationId: _invitationId,
         userId: _joinerId,
         bindFriendship: bindFriendship,
+        onForwardCreated: anyNamed('onForwardCreated'),
       ),
     ).called(1);
   }
@@ -233,6 +235,7 @@ void main() {
         invitationId: anyNamed('invitationId'),
         userId: anyNamed('userId'),
         bindFriendship: anyNamed('bindFriendship'),
+        onForwardCreated: anyNamed('onForwardCreated'),
       ),
     ).thenAnswer((_) async => true);
     when(
