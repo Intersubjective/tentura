@@ -2,7 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
+import 'package:tentura/features/home/ui/widget/own_paused_chip.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -107,7 +111,12 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                   ],
                 )
               : null,
-          account: homeTopBarAccount(context),
+          account: useCompactTopBar
+              ? const HomeAccountAvatarButton()
+              : homeTopBarAccount(context),
+          bottom: useCompactTopBar
+              ? const _MyWorkTopBarPausedBottom()
+              : null,
         ),
         body: SafeArea(
           minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
@@ -116,6 +125,59 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MyWorkTopBarPausedBottom extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _MyWorkTopBarPausedBottom({
+    this.profileCubit,
+    this.clock,
+    super.key,
+  });
+
+  final ProfileCubit? profileCubit;
+  final DateTime Function()? clock;
+
+  ProfileCubit? _resolveCubit() =>
+      profileCubit ??
+      (GetIt.I.isRegistered<ProfileCubit>() ? GetIt.I<ProfileCubit>() : null);
+
+  @override
+  Size get preferredSize {
+    final cubit = _resolveCubit();
+    if (cubit == null) return Size.zero;
+    final availability = cubit.state.profile.availability;
+    final todayUtc = availabilityTodayUtc(clock);
+    final isPaused = availability.resumeOn != null &&
+        availability.effectiveOn(todayUtc) == AvailabilityView.paused;
+    return isPaused ? const Size.fromHeight(28) : Size.zero;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = _resolveCubit();
+    if (cubit == null) return const SizedBox.shrink();
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      bloc: cubit,
+      buildWhen: (p, c) => p.profile.availability != c.profile.availability,
+      builder: (context, state) {
+        final availability = state.profile.availability;
+        final todayUtc = availabilityTodayUtc(clock);
+        if (availability.resumeOn == null ||
+            availability.effectiveOn(todayUtc) != AvailabilityView.paused) {
+          return const SizedBox.shrink();
+        }
+        return Align(
+          alignment: Alignment.centerRight,
+          child: OwnPausedChip(
+            profileCubit: cubit,
+            clock: clock,
+            dense: true,
+          ),
+        );
+      },
     );
   }
 }
