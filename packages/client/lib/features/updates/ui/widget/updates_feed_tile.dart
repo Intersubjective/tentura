@@ -224,6 +224,9 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       actorName: widget.actor == null
           ? null
           : profileWithContactOverlay(widget.actor!).shownName,
+      // Beacon kind 1 is a Post (0 a Request).
+      isPost: widget.receipt.beaconKind == 1,
+      postRootExcerpt: widget.receipt.postRootExcerpt,
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
