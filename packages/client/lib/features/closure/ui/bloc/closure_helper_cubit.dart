@@ -1,13 +1,19 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/domain/entity/closure_role.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+
+import 'closure_review_hints.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -33,6 +39,10 @@ abstract class ClosureHelperState extends StateBase with _$ClosureHelperState {
     /// Last failed write; [noticeTick] changes with every new one.
     Object? notice,
     @Default(0) int noticeTick,
+
+    /// The Request left the final check (closed, or reopened) while this
+    /// page was open. The page returns to the Request, as the author's does.
+    @Default(false) bool leftReview,
   }) = _ClosureHelperState;
 
   const ClosureHelperState._();
@@ -44,7 +54,17 @@ class ClosureHelperCubit extends Cubit<ClosureHelperState> {
     required this.beaconId,
     required this.viewerId,
     required this.author,
+    Stream<RepositoryEvent<Beacon>>? requestChanges,
+    Future<BeaconStatus?> Function()? readBeaconStatus,
   }) : super(const ClosureHelperState()) {
+    _requestChanges = listenForClosureReviewHints(
+      changes: requestChanges,
+      beaconId: beaconId,
+      isClosed: () => isClosed,
+      readBeaconStatus: readBeaconStatus,
+      reload: fetch,
+      onReloaded: _onReviewHint,
+    );
     unawaited(fetch());
   }
 
@@ -52,17 +72,50 @@ class ClosureHelperCubit extends Cubit<ClosureHelperState> {
     required String beaconId,
     required String viewerId,
     required ClosureMember author,
-  }) => ClosureHelperCubit(
-    GetIt.I<ClosureCase>(),
-    beaconId: beaconId,
-    viewerId: viewerId,
-    author: author,
-  );
+  }) {
+    final beacons = GetIt.I<BeaconRepository>();
+    return ClosureHelperCubit(
+      GetIt.I<ClosureCase>(),
+      beaconId: beaconId,
+      viewerId: viewerId,
+      author: author,
+      requestChanges: beacons.changes,
+      readBeaconStatus: () async {
+        try {
+          return (await beacons.fetchBeaconById(beaconId)).status;
+        } on Object {
+          return null;
+        }
+      },
+    );
+  }
 
   final ClosureCase _case;
   final String beaconId;
   final String viewerId;
   final ClosureMember author;
+
+  StreamSubscription<RepositoryEvent<Beacon>>? _requestChanges;
+  var _loadGeneration = 0;
+
+  void _onReviewHint({required bool beaconLeftReview}) {
+    if (isClosed || state.leftReview) return;
+    final stillEvaluating =
+        state.data == null || state.data!.status == kClosureStatusEvaluating;
+    if (beaconLeftReview && stillEvaluating) {
+      emit(state.copyWith(leftReview: true));
+      return;
+    }
+    if (state.data != null && state.data!.status != kClosureStatusEvaluating) {
+      emit(state.copyWith(leftReview: true));
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _requestChanges?.cancel();
+    return super.close();
+  }
 
   /// Everyone on the roster except the viewer.
   List<ClosureMember> get colleagues => [
@@ -81,13 +134,14 @@ class ClosureHelperCubit extends Cubit<ClosureHelperState> {
   }
 
   Future<void> fetch() async {
+    final generation = ++_loadGeneration;
     emit(state.copyWith(status: StateStatus.isLoading, loadError: null));
     try {
       final data = await _case.fetchState(beaconId);
-      if (isClosed) return;
+      if (isClosed || generation != _loadGeneration) return;
       emit(state.copyWith(status: StateStatus.isSuccess, data: data));
     } on Object catch (e) {
-      if (isClosed) return;
+      if (isClosed || generation != _loadGeneration) return;
       emit(state.copyWith(status: StateStatus.isSuccess, loadError: e));
     }
   }
