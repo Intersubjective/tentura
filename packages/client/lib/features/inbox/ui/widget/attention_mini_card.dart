@@ -374,20 +374,28 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
 
   // Only the age and the phrase that speaks it tick (U092): the rest of the
   // card (avatar, payload copy, quote) is not rebuilt every 30 s.
-  Widget _eventText(String eventLine, TextStyle style) =>
-      RelativeTimestampTicker(
-        builder: (context) => Semantics(
-          // Spoken as one phrase: actor + event + age.
-          label: _semanticsLabel(eventLine, _spokenAge(L10n.of(context)!)),
-          excludeSemantics: true,
-          child: Text(
-            eventLine,
-            style: style,
-            maxLines: widget.eventMaxLines,
-            overflow: TextOverflow.ellipsis,
-          ),
+  Widget _eventText(String eventLine, TextStyle style) {
+    // Questions headlines are long in RU; a two-line cap ellipsised «вопросах»
+    // on a phone while EN still fit (#656).
+    final maxLines = isQuestionsAttentionReceipt(widget.receipt)
+        ? null
+        : widget.eventMaxLines;
+    return RelativeTimestampTicker(
+      builder: (context) => Semantics(
+        // Spoken as one phrase: actor + event + age.
+        label: _semanticsLabel(eventLine, _spokenAge(L10n.of(context)!)),
+        excludeSemantics: true,
+        child: Text(
+          eventLine,
+          style: style,
+          maxLines: maxLines,
+          overflow: maxLines == null
+              ? TextOverflow.clip
+              : TextOverflow.ellipsis,
         ),
-      );
+      ),
+    );
+  }
 
   Widget _ageText(TenturaTokens tt, String absoluteTime) =>
       RelativeTimestampTicker(
