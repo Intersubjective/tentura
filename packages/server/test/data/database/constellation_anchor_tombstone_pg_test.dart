@@ -420,16 +420,20 @@ void _expectIdentityOnlyTombstone(
     expect(targetRecord['presence'], 'pinnedOnly');
     expect(targetRecord['bondContexts'], isEmpty);
   }
-  _expectNoContent(targetRecord, const {
-    'id',
-    'kind',
-    'targetKind',
-    'pinState',
-    'visible',
-    'contactOnly',
-    'presence',
-    'bondContexts',
-  });
+  if (target.kind == ConstellationAnchorTargetKind.beacon) {
+    expectContentFreeConstellationRequestWire(targetRecord);
+  } else {
+    _expectNoContent(targetRecord, const {
+      'id',
+      'kind',
+      'targetKind',
+      'pinState',
+      'visible',
+      'contactOnly',
+      'presence',
+      'bondContexts',
+    });
+  }
   expect(projection.supportPeers, isEmpty);
   expect(projection.supportEdges, isEmpty);
 }

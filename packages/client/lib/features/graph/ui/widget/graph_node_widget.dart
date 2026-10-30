@@ -158,6 +158,11 @@ class GraphNodeWidget extends StatelessWidget {
           );
         },
       ),
+      FieldBeaconNode(request: final request?) when request.isPlaceholder =>
+        CircleAvatar(
+          radius: nodeDetails.size / 2,
+          child: Icon(Icons.lock_outline, size: nodeDetails.size * 0.45),
+        ),
       FieldBeaconNode(request: final request?) => BeaconIdentityTile(
         beacon: constellationRequestAsIdentityBeacon(request),
         size: nodeDetails.size,

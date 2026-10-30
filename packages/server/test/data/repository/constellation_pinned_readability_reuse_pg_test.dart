@@ -320,9 +320,8 @@ VALUES ('$viewer', '$blockedAuthor', '$viewer')
     );
   });
 
-  // The expectations below are the snapshot content produced before the
-  // readability and profile results were reused inside a transaction; they
-  // pin that output so the reuse cannot change it.
+  // Reuse must preserve the rev 10 section 5.10 content contract: readable
+  // lifecycle pins keep their content; inaccessible pins carry identity only.
   group('FULL snapshot content with transaction-local reuse', () {
     test(
       'lists the pinned Requests, peers and posts of the fixtures',
@@ -334,8 +333,15 @@ VALUES ('$viewer', '$blockedAuthor', '$viewer')
         final projection = snapshot.anchorProjection;
         expect(
           projection.pinnedRequests.map((r) => r.id),
-          unorderedEquals([ownPost, ownRequest, peerRequest]),
+          unorderedEquals(allPinned),
         );
+        final wrappingUp = projection.pinnedRequests.singleWhere(
+          (r) => r.id == closedRequest,
+        );
+        expect(wrappingUp.pinState, 'wrappingUp');
+        expect(wrappingUp.authorId, author);
+        expect(wrappingUp.title, 'title-$closedRequest');
+        expect(wrappingUp.isPlaceholder, isFalse);
         expect(projection.serverFilteredBeaconIds, [closedRequest]);
         expect(
           snapshot.peers.map((p) => p.id),
@@ -355,7 +361,7 @@ VALUES ('$viewer', '$blockedAuthor', '$viewer')
     );
 
     test(
-      'leaves pinned Requests the viewer cannot read out of every list',
+      'retains inaccessible pins as placeholders without exposing their content',
       () async {
         final snapshot = await readSnapshot(
           projection: ConstellationProjection.full,
@@ -364,19 +370,35 @@ VALUES ('$viewer', '$blockedAuthor', '$viewer')
         const unreadable = [hiddenClosedRequest, blockedAuthorRequest];
         final projection = snapshot.anchorProjection;
         final listed = <String>{
-          ...projection.pinnedRequests.map((r) => r.id),
           ...projection.serverFilteredBeaconIds,
           ...snapshot.requests.map((r) => r.id),
           ...snapshot.posts.map((p) => p.id),
         };
         for (final id in unreadable) {
           expect(listed, isNot(contains(id)), reason: id);
+          expect(projection.anchors.map((a) => a.target.id), contains(id));
+          final placeholder = projection.pinnedRequests.singleWhere(
+            (r) => r.id == id,
+          );
+          expect(
+            placeholder.pinState,
+            id == blockedAuthorRequest ? 'blockedByMe' : 'noAccess',
+          );
+          expect(placeholder.isPlaceholder, isTrue);
+          expect(placeholder.title, isEmpty);
+          expect(placeholder.authorId, isEmpty);
+          expect(placeholder.needs, isEmpty);
+          expect(placeholder.addressLabel, isNull);
+          expect(placeholder.coverThumb, isNull);
+          expect(placeholder.isMine, isFalse);
+          expect(placeholder.parentBeaconId, isNull);
         }
+        expect(snapshot.peers.map((p) => p.id), isNot(contains(blockedAuthor)));
       },
     );
 
     test(
-      'checks each unreadable pinned Request once while hiding it',
+      'checks each unreadable pinned Request once while returning its placeholder',
       () async {
         final calls = await readabilityCallsDuring(
           const [hiddenClosedRequest, blockedAuthorRequest],
@@ -427,12 +449,15 @@ VALUES ('$viewer', '$blockedAuthor', '$viewer')
       final anchorPeerIds = {
         ...projection.pinnedPeers.map((p) => p.id),
         ...projection.supportPeers.map((p) => p.id),
-        ...projection.pinnedRequests.map((r) => r.authorId),
+        for (final request in projection.pinnedRequests)
+          if (!request.isPlaceholder) request.authorId,
       };
       final requested = profiles.requestedIds;
       expect(requested, isNotEmpty);
       expect(requested.toSet(), hasLength(requested.length));
       expect(requested.toSet().containsAll(anchorPeerIds), isTrue);
+      expect(requested, isNot(contains('')));
+      expect(requested, isNot(contains(blockedAuthor)));
     });
   });
 }

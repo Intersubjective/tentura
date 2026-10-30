@@ -492,7 +492,7 @@ class ConstellationSceneController {
     };
     if (overlay != null) {
       for (final request in overlay.pinnedRequests) {
-        requestsById.putIfAbsent(request.id, () => request);
+        requestsById[request.id] = request;
       }
     }
     final drawnRequests = [

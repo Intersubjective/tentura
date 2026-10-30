@@ -281,7 +281,7 @@ SET x_units = EXCLUDED.x_units, y_units = EXCLUDED.y_units''',
       );
 
       test(
-        'omits a pinned person who became blocked, like the snapshot read',
+        'keeps a viewer-blocked pinned person marked, like the snapshot read',
         () async {
           await pin(ConstellationAnchorTarget.person(blocked), 5, 5);
           await pin(ConstellationAnchorTarget.person(pinnedPerson), 1, 1);
@@ -293,7 +293,39 @@ SET x_units = EXCLUDED.x_units, y_units = EXCLUDED.y_units''',
           final expected = await anchorsSnapshotProjection();
           final actual = await extractedProjection();
 
-          expect(expected.pinnedPeers.map((p) => p.id), [pinnedPerson]);
+          expect(
+            expected.pinnedPeers.map((p) => p.id),
+            unorderedEquals([pinnedPerson, blocked]),
+          );
+          final marked = expected.pinnedPeers.singleWhere(
+            (p) => p.id == blocked,
+          );
+          expect(marked.pinState, 'blockedByMe');
+          expect(marked.displayName, blocked);
+          expect(marked.visible, isFalse);
+          final unblocked = expected.pinnedPeers.singleWhere(
+            (p) => p.id == pinnedPerson,
+          );
+          expect(unblocked.pinState, isNull);
+          expect(unblocked.displayName, pinnedPerson);
+          expect(unblocked.visible, isTrue);
+          final anchor = expected.anchors.singleWhere(
+            (a) => a.target.id == blocked,
+          );
+          expect(anchor.position.xUnits, 5);
+          expect(anchor.position.yUnits, 5);
+          // Assert the reader's records independently as well as parity with
+          // the snapshot, so neither path can mark every person as blocked.
+          expect(
+            actual.pinnedPeers.singleWhere((p) => p.id == blocked).pinState,
+            'blockedByMe',
+          );
+          expect(
+            actual.pinnedPeers
+                .singleWhere((p) => p.id == pinnedPerson)
+                .pinState,
+            isNull,
+          );
           expect(actual, expected);
         },
       );

@@ -120,6 +120,7 @@ ConstellationField mapConstellationFieldFromAnchorsFetch(
 ConstellationPerson _mapPersonFields({
   required String id,
   String? displayName,
+  String? pinState,
   String? handle,
   ImageModelV2? image,
   bool visible = true,
@@ -129,6 +130,7 @@ ConstellationPerson _mapPersonFields({
   Iterable<({String beaconId, String title})> bondContexts = const [],
 }) => ConstellationPerson(
   id: id,
+  pinState: pinState,
   visible: visible,
   contactOnly: contactOnly,
   fieldMembership: _membershipFromWire(presence),
@@ -155,6 +157,7 @@ ConstellationPerson _mapFieldFetchPerson(
   GConstellationFieldFetchData_constellationField_peers peer,
 ) => _mapPersonFields(
   id: peer.id,
+  pinState: peer.pinState,
   contactOnly: peer.contactOnly,
   visible: !peer.contactOnly,
   presence: peer.presence,
@@ -172,6 +175,7 @@ ConstellationPerson _mapAnchorsFetchPerson(
   GConstellationAnchorsFetchData_constellationField_peers peer,
 ) => _mapPersonFields(
   id: peer.id,
+  pinState: peer.pinState,
   displayName: peer.displayName,
   handle: peer.handle,
   image: peer.image as ImageModelV2?,
@@ -211,6 +215,7 @@ ConstellationRequest _mapRequestFields({
   required bool viewerHasForwardEdge,
   required int helpOfferCount,
   required int coverSource,
+  String? pinState,
   String? primaryNeedSlug,
   String? startAt,
   String? endAt,
@@ -219,6 +224,7 @@ ConstellationRequest _mapRequestFields({
   String? parentBeaconId,
 }) => ConstellationRequest(
   id: id,
+  pinState: pinState,
   authorId: authorId,
   title: title,
   status: status,
@@ -242,6 +248,7 @@ ConstellationRequest _mapFieldFetchRequest(
   GConstellationFieldFetchData_constellationField_requests request,
 ) => _mapRequestFields(
   id: request.id,
+  pinState: request.pinState,
   authorId: request.authorId,
   title: request.title,
   status: request.status,
@@ -265,6 +272,7 @@ ConstellationRequest _mapAnchorsFetchRequest(
   GConstellationAnchorsFetchData_constellationField_requests request,
 ) => _mapRequestFields(
   id: request.id,
+  pinState: request.pinState,
   authorId: request.authorId,
   title: request.title,
   status: request.status,
@@ -295,6 +303,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
     for (final peer in projection.pinnedPeers)
       _mapPersonFields(
         id: peer.id,
+        pinState: peer.pinState,
         visible: peer.visible,
         presence: peer.presence,
         temporaryBeaconId: peer.temporaryBeaconId,
@@ -311,6 +320,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
     for (final request in projection.pinnedRequests)
       _mapRequestFields(
         id: request.id,
+        pinState: request.pinState,
         authorId: request.authorId,
         title: request.title,
         status: request.status,
@@ -360,6 +370,7 @@ ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
     for (final peer in projection.pinnedPeers)
       _mapPersonFields(
         id: peer.id,
+        pinState: peer.pinState,
         visible: peer.visible,
         displayName: peer.displayName,
         handle: peer.handle,
@@ -370,6 +381,7 @@ ConstellationAnchorProjection _mapAnchorsFetchAnchorProjection(
     for (final request in projection.pinnedRequests)
       _mapRequestFields(
         id: request.id,
+        pinState: request.pinState,
         authorId: request.authorId,
         title: request.title,
         status: request.status,

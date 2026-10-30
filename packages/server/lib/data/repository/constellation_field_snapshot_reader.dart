@@ -83,7 +83,8 @@ final class ConstellationFieldSnapshotReader {
     final reservedPeerIds = <String>{
       for (final peer in anchorProjection.pinnedPeers) peer.id,
       for (final peer in anchorProjection.supportPeers) peer.id,
-      for (final request in anchorProjection.pinnedRequests) request.authorId,
+      for (final request in anchorProjection.pinnedRequests)
+        if (!request.isPlaceholder) request.authorId,
     };
 
     // Everyone the viewer trusts directly is on the field (#246) and outside

@@ -7295,5 +7295,15 @@
   "postActionCloseNow": "Завершить сейчас",
   "postCloseNowConfirmTitle": "Завершить пост?",
   "postCloseNowConfirmBody": "Пост уйдёт в архив, писать в него будет нельзя. Отменить это нельзя.",
-  "postCloseForbiddenError": "Закрыть пост может только его автор"
+  "postCloseForbiddenError": "Закрыть пост может только его автор",
+  "constellationPinNoAccess": "Нет доступа",
+  "constellationPinUnpublished": "Не опубликован",
+  "constellationPinDeleted": "Удалён",
+  "constellationPinAccountDeleted": "Аккаунт удалён",
+  "constellationPinBlocked": "Заблокирован",
+  "constellationPinNoAccessExplanation": "У вас больше нет доступа к этому запросу.",
+  "constellationPinUnpublishedExplanation": "Этот запрос не опубликован.",
+  "constellationPinDeletedExplanation": "Этот запрос был удалён.",
+  "constellationPinAccountDeletedExplanation": "Этот аккаунт был удалён.",
+  "constellationPinBlockedExplanation": "Вы заблокировали автора этого запроса."
 }

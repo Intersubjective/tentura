@@ -59,11 +59,8 @@ final class ConstellationAnchorProjectionReader {
     final visible =
         visiblePeerIds ??
         await visiblePeers(viewerId: viewerId, context: context);
-    final existing = await _loadAuthorizedAnchors(
-      viewerId: viewerId,
-      visiblePeerIds: visible,
-      authorize: false,
-    );
+    final existing = await _loadAnchors(viewerId);
+    final blocks = await _blocks(viewerId);
     final targets = {...existing.map((a) => a.target), ...upsertTargets};
     final beaconIds = targets
         .whereType<ConstellationAnchorBeaconTarget>()
@@ -71,7 +68,11 @@ final class ConstellationAnchorProjectionReader {
         .toList();
     final beacons = beaconIds.isEmpty
         ? const <ConstellationRequestRecord>[]
-        : await _pinnedBeaconRecords(viewerId: viewerId, beaconIds: beaconIds);
+        : await _pinnedBeaconRecords(
+            viewerId: viewerId,
+            beaconIds: beaconIds,
+            blocks: blocks,
+          );
     final edges = await _repo.trustEdges(
       viewerId: viewerId,
       context: context,
@@ -79,19 +80,14 @@ final class ConstellationAnchorProjectionReader {
     );
     final pinnedPeerIds = {
       for (final target in targets)
-        if (target is ConstellationAnchorPersonTarget) target.id,
+        if (target is ConstellationAnchorPersonTarget &&
+            !blocks.blockingViewer.contains(target.id))
+          target.id,
     };
     final holderIds = {
       ...pinnedPeerIds,
       for (final beacon in beacons)
-        if (classifyAuthorizedPinnedBeacon(
-              status: beacon.status,
-              showClosed: filters.showClosed,
-              participatedOnly: filters.participatedOnly,
-              viewerParticipates: beacon.viewerParticipates ?? beacon.isMine,
-            ) ==
-            ConstellationPinnedBeaconLayer.visiblePinned)
-          beacon.authorId,
+        if (!beacon.isPlaceholder) beacon.authorId,
     };
     final closure = _supportClosure(
       viewerId: viewerId,
@@ -121,25 +117,13 @@ final class ConstellationAnchorProjectionReader {
     required PreparedConstellationAnchors prepared,
     ConstellationAnchorRevision? revision,
   }) async {
-    final rows = await _loadAuthorizedAnchors(
-      viewerId: viewerId,
-      visiblePeerIds: prepared.visiblePeerIds,
-      authorize: false,
-    );
-    final readableBeacons = prepared.beacons.map((b) => b.id).toSet();
-    final blocked = await _blockedPeerIds(viewerId);
+    final rows = await _loadAnchors(viewerId);
     return _buildAnchorProjection(
       viewerId: viewerId,
       context: context,
       filters: filters,
       watermark: revision ?? await _readWatermark(viewerId),
-      anchorRows: rows
-          .where(
-            (a) => a.target.kind == ConstellationAnchorTargetKind.person
-                ? !blocked.contains(a.target.id)
-                : readableBeacons.contains(a.target.id),
-          )
-          .toList(),
+      anchorRows: rows,
       visiblePeerIds: prepared.visiblePeerIds,
       trustEdges: () async => prepared.edges,
       peerProfiles: (_) async => prepared.profiles,
@@ -183,10 +167,7 @@ final class ConstellationAnchorProjectionReader {
     peerProfiles,
   }) async {
     final watermark = await _readWatermark(viewerId);
-    final anchorRows = await _loadAuthorizedAnchors(
-      viewerId: viewerId,
-      visiblePeerIds: visiblePeerIds,
-    );
+    final anchorRows = await _loadAnchors(viewerId);
     return _buildAnchorProjection(
       viewerId: viewerId,
       context: context,
@@ -223,18 +204,10 @@ WHERE viewer_id = $1
     };
   }
 
-  Future<List<ConstellationAnchor>> _loadAuthorizedAnchors({
-    required String viewerId,
-    required List<String> visiblePeerIds,
-    bool authorize = true,
-  }) async {
-    final beaconReadable = constellationBeaconContentReadableSql(
-      viewerParam: r'$1',
-      beaconAlias: 'b',
-    );
+  Future<List<ConstellationAnchor>> _loadAnchors(String viewerId) async {
     final rows = await _database
         .customSelect(
-          '''
+          r'''
 SELECT
   ca.person_id,
   ca.beacon_id,
@@ -243,38 +216,16 @@ SELECT
   ca.coordinate_space_version,
   ca.revision::text AS revision,
   ca.placed_at
-${authorize ? ', (b.id IS NOT NULL AND $beaconReadable) AS beacon_readable' : ''}
 FROM public.constellation_anchor ca
--- Join (not EXISTS): an EXISTS here gets planned as a hashed SubPlan that
--- runs beacon_can_read_content over every beacon in the table (12s+ on dev).
-${authorize ? 'LEFT JOIN public.beacon b ON b.id = ca.beacon_id' : ''}
-WHERE ca.viewer_id = \$1 AND ca.tombstone_at IS NULL
+WHERE ca.viewer_id = $1 AND ca.tombstone_at IS NULL
 ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 ''',
           variables: [Variable.withString(viewerId)],
         )
         .get();
 
-    // A pinned person stays unless blocked in either direction, even when
-    // outside the visible peer set.
-    final blocked = authorize
-        ? await _blockedPeerIds(viewerId)
-        : const <String>{};
-    final authorized = authorize
-        ? [
-            for (final row in rows)
-              if (row.readNullable<String>('person_id') != null
-                  ? !blocked.contains(row.read<String>('person_id'))
-                  : _rememberReadability(
-                      row.read<String>('beacon_id'),
-                      row.readNullable<bool>('beacon_readable') ?? false,
-                    ))
-                row,
-          ]
-        : rows;
-
     return [
-      for (final row in authorized)
+      for (final row in rows)
         ConstellationAnchor(
           target: row.readNullable<String>('person_id') != null
               ? ConstellationAnchorTarget.person(
@@ -334,23 +285,30 @@ WHERE viewer_id = $1 AND tombstone_at IS NOT NULL
     ];
   }
 
-  /// People blocked by or blocking the viewer.
-  Future<Set<String>> _blockedPeerIds(String viewerId) async {
+  /// Only incoming blocks hide pins. Outgoing blocks mark them instead.
+  Future<({Set<String> blockedByViewer, Set<String> blockingViewer})> _blocks(
+    String viewerId,
+  ) async {
     final rows = await _database
         .customSelect(
-          r'''
-SELECT ub.blocked_id AS id FROM public.user_block ub WHERE ub.blocker_id = $1
-UNION
-SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
-''',
+          'SELECT blocker_id, blocked_id FROM public.user_block '
+          r'WHERE blocker_id = $1 OR blocked_id = $1',
           variables: [Variable.withString(viewerId)],
         )
         .get();
-    return {for (final row in rows) row.read<String>('id')};
+    return (
+      blockedByViewer: {
+        for (final row in rows)
+          if (row.read<String>('blocker_id') == viewerId)
+            row.read<String>('blocked_id'),
+      },
+      blockingViewer: {
+        for (final row in rows)
+          if (row.read<String>('blocked_id') == viewerId)
+            row.read<String>('blocker_id'),
+      },
+    );
   }
-
-  bool _rememberReadability(String beaconId, bool readable) =>
-      pinnedBeaconReadability[beaconId] = readable;
 
   Future<ConstellationAnchorProjection> _buildAnchorProjection({
     required String viewerId,
@@ -386,8 +344,7 @@ SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
       );
     }
 
-    final anchors = [...anchorRows, ...tombstoned]
-      ..sort(ConstellationAnchor.comparePaintOrder);
+    final blocks = await _blocks(viewerId);
 
     final beaconIds = [
       for (final anchor in anchorRows)
@@ -401,20 +358,28 @@ SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
             : await _pinnedBeaconRecords(
                 viewerId: viewerId,
                 beaconIds: beaconIds,
-                readabilityKnown: beaconIds.every(
-                  (id) => pinnedBeaconReadability[id] ?? false,
-                ),
+                blocks: blocks,
               ));
 
     final byBeaconId = {
       for (final record in pinnedBeaconRecords) record.id: record,
     };
 
+    final shownAnchors = [
+      for (final anchor in anchorRows)
+        if (anchor.target is ConstellationAnchorPersonTarget
+            ? !blocks.blockingViewer.contains(anchor.target.id)
+            : byBeaconId.containsKey(anchor.target.id))
+          anchor,
+    ];
+    final anchors = [...shownAnchors, ...tombstoned]
+      ..sort(ConstellationAnchor.comparePaintOrder);
+
     final pinnedPeerIds = <String>[];
     final pinnedRequests = <ConstellationRequestRecord>[];
     final filterHiddenIds = <String>[];
 
-    for (final anchor in anchorRows) {
+    for (final anchor in shownAnchors) {
       final target = anchor.target;
       if (target is ConstellationAnchorPersonTarget) {
         pinnedPeerIds.add(target.id);
@@ -426,6 +391,10 @@ SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
         if (record == null) {
           continue;
         }
+        if (record.isPlaceholder) {
+          pinnedRequests.add(record);
+          continue;
+        }
         final participates = record.viewerParticipates ?? record.isMine;
         final layer = classifyAuthorizedPinnedBeacon(
           status: record.status,
@@ -433,9 +402,12 @@ SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
           participatedOnly: filters.participatedOnly,
           viewerParticipates: participates,
         );
+        // Non-open readable pins keep their content and state badge even
+        // when the field filter hides that lifecycle. Keep its counter too.
+        if (record.pinState != null) pinnedRequests.add(record);
         switch (layer) {
           case ConstellationPinnedBeaconLayer.visiblePinned:
-            pinnedRequests.add(record);
+            if (record.pinState == null) pinnedRequests.add(record);
           case ConstellationPinnedBeaconLayer.filterHidden:
             filterHiddenIds.add(id);
           case ConstellationPinnedBeaconLayer.dormantAnchor:
@@ -448,7 +420,8 @@ SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
 
     final pathHolderIds = <String>{
       ...pinnedPeerIds,
-      for (final request in pinnedRequests) request.authorId,
+      for (final request in pinnedRequests)
+        if (!request.isPlaceholder) request.authorId,
     };
 
     // Holders outside the visible set never had edges: trust edges only
@@ -472,7 +445,12 @@ SELECT ub.blocker_id FROM public.user_block ub WHERE ub.blocked_id = $1
     final pinnedPeers = [
       for (final id in pinnedPeerIds..sort())
         (profileById[id] ?? ConstellationPeerRecord(id: id, displayName: id))
-            .withVisible(visible: visibleSet.contains(id)),
+            .withVisible(
+              visible: visibleSet.contains(id),
+              pinState: blocks.blockedByViewer.contains(id)
+                  ? 'blockedByMe'
+                  : null,
+            ),
       for (final a in tombstoned)
         if (a.target is ConstellationAnchorPersonTarget)
           ConstellationPeerRecord.tombstone(a.target.id),
@@ -581,8 +559,61 @@ SELECT ARRAY(
   Future<List<ConstellationRequestRecord>> _pinnedBeaconRecords({
     required String viewerId,
     required List<String> beaconIds,
-    bool readabilityKnown = false,
+    required ({Set<String> blockedByViewer, Set<String> blockingViewer}) blocks,
   }) async {
+    // Classify using only identity, lifecycle and the canonical read wall.
+    // Fetch content separately, for readable targets only.
+    final states = await _database
+        .customSelect(
+          r'''
+SELECT b.id, b.user_id AS author_id, b.status,
+       ((b.published_at IS NOT NULL OR b.status = 3)
+         AND public.beacon_can_read_content(b.id, $1)) AS readable
+FROM public.beacon b
+WHERE b.id = ANY($2::text[])
+''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, beaconIds)),
+          ],
+        )
+        .get();
+    final placeholders = <ConstellationRequestRecord>[];
+    final readableStates = <String, String?>{};
+    for (final row in states) {
+      final id = row.read<String>('id');
+      final authorId = row.readNullable<String>('author_id');
+      final status = row.read<int>('status');
+      final incoming = blocks.blockingViewer.contains(authorId);
+      final outgoing = blocks.blockedByViewer.contains(authorId);
+      final readable = !incoming && !outgoing && row.read<bool>('readable');
+      pinnedBeaconReadability[id] = readable;
+      if (incoming) continue;
+      final placeholderState = outgoing
+          ? 'blockedByMe'
+          : status == 2
+          ? 'deleted'
+          : !readable
+          ? (status == 3 ? 'unpublished' : 'noAccess')
+          : null;
+      if (placeholderState != null) {
+        placeholders.add(
+          ConstellationRequestRecord.placeholder(
+            id,
+            pinState: placeholderState,
+          ),
+        );
+      } else {
+        readableStates[id] = switch (status) {
+          1 => 'cancelled',
+          3 => 'unpublished',
+          4 || 6 => 'closed',
+          5 => 'wrappingUp',
+          _ => null,
+        };
+      }
+    }
+    if (readableStates.isEmpty) return placeholders;
     final participation = constellationViewerParticipatesSql(
       viewerParam: r'$1',
       beaconAlias: 'b',
@@ -595,21 +626,22 @@ SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.id = ANY(\$2::text[])
-  ${readabilityKnown ? '' : 'AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}'}
 ORDER BY b.id
 ''',
           variables: [
             Variable.withString(viewerId),
-            Variable(TypedValue(Type.textArray, beaconIds)),
+            Variable(TypedValue(Type.textArray, readableStates.keys.toList())),
           ],
         )
         .get();
 
     return [
+      ...placeholders,
       for (final row in rows)
         readConstellationRequestRow(
           row,
           viewerParticipates: row.read<bool>('viewer_participates'),
+          pinState: readableStates[row.read<String>('id')],
         ),
     ];
   }

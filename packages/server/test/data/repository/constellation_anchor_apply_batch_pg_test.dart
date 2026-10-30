@@ -447,7 +447,10 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
         expect(replay.beforeRevision, currentRevision);
         expect(replay.afterRevision, currentRevision);
         expect(await databaseState(), beforeReplay);
-        expect((await freshAnchors()).pinnedPeers, isEmpty);
+        final peer = (await freshAnchors()).pinnedPeers.single;
+        expect(peer.id, firstPeer);
+        expect(peer.pinState, 'blockedByMe');
+        expect(peer.visible, isFalse);
         await expectFreshProjection(replay);
       },
     );
@@ -1038,8 +1041,7 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
           expect(
             snapshot.anchors.map((a) => a.target),
             unorderedEquals([
-              if (revokeWithUserDeletion)
-                ConstellationAnchorTarget.person(firstPeer),
+              ConstellationAnchorTarget.person(firstPeer),
               ConstellationAnchorTarget.person(secondPeer),
               ConstellationAnchorTarget.beacon(openBeacon),
             ]),
@@ -1047,10 +1049,33 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
           expect(
             snapshot.pinnedPeers.map((p) => p.id),
             unorderedEquals([
-              if (revokeWithUserDeletion) firstPeer,
+              firstPeer,
               secondPeer,
             ]),
           );
+          final retainedPeer = snapshot.pinnedPeers.singleWhere(
+            (peer) => peer.id == firstPeer,
+          );
+          expect(
+            retainedPeer.pinState,
+            revokeWithUserDeletion ? 'tombstone' : 'blockedByMe',
+          );
+          expect(
+            snapshot.pinnedPeers
+                .singleWhere((peer) => peer.id == secondPeer)
+                .pinState,
+            isNull,
+          );
+          if (!revokeWithUserDeletion) {
+            expect(retainedPeer.visible, isFalse);
+            expect(retainedPeer.displayName, firstPeer);
+            expect(
+              snapshot.anchors
+                  .singleWhere((a) => a.target.id == firstPeer)
+                  .position,
+              position(3, -1),
+            );
+          }
           expect(snapshot.pinnedRequests.map((r) => r.id), [openBeacon]);
           expect(snapshot.serverFilteredBeaconIds, isEmpty);
           final wire = constellationAnchorProjectionToGqlMap(snapshot);
@@ -1077,6 +1102,10 @@ VALUES ('$viewer', '$firstPeer', '$firstPeer')
           };
           for (final placeholder in placeholders) {
             expect(placeholder['pinState'], 'tombstone');
+            if (placeholder == requestRecord) {
+              expectContentFreeConstellationRequestWire(placeholder);
+              continue;
+            }
             if (placeholder.containsKey('presence')) {
               expect(placeholder['presence'], 'pinnedOnly');
               expect(placeholder['bondContexts'], isEmpty);
@@ -1248,7 +1277,12 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$openBeacon'
           (await freshAnchors()).anchors.single.target,
           ConstellationAnchorTarget.beacon(closedBeacon),
         );
-        expect((await freshAnchors()).pinnedRequests, isEmpty);
+        final record = (await freshAnchors()).pinnedRequests.single;
+        expect(record.id, closedBeacon);
+        expect(record.authorId, firstPeer);
+        expect(record.title, closedBeacon);
+        expect(record.status, 5);
+        expect(record.pinState, 'wrappingUp');
         expect((await freshAnchors()).serverFilteredBeaconIds, [closedBeacon]);
         expect((await freshAnchors()).serverFilteredBeaconCount, 1);
         final stored = await session.writer.execute('''

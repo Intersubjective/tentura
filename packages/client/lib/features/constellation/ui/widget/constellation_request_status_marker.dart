@@ -7,6 +7,24 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../domain/entity/constellation_anchor_projection.dart';
 
+String constellationPinStateLabel(L10n l10n, String? pinState) =>
+    switch (pinState) {
+      'unpublished' => l10n.constellationPinUnpublished,
+      'deleted' || 'tombstone' => l10n.constellationPinDeleted,
+      'accountDeleted' => l10n.constellationPinAccountDeleted,
+      'blockedByMe' => l10n.constellationPinBlocked,
+      _ => l10n.constellationPinNoAccess,
+    };
+
+String constellationPinStateExplanation(L10n l10n, String? pinState) =>
+    switch (pinState) {
+      'unpublished' => l10n.constellationPinUnpublishedExplanation,
+      'deleted' || 'tombstone' => l10n.constellationPinDeletedExplanation,
+      'accountDeleted' => l10n.constellationPinAccountDeletedExplanation,
+      'blockedByMe' => l10n.constellationPinBlockedExplanation,
+      _ => l10n.constellationPinNoAccessExplanation,
+    };
+
 /// Validated constellation request status presentation (C2 / D status table).
 @immutable
 class ConstellationRequestStatusPresentation {
@@ -31,7 +49,9 @@ ConstellationRequestStatusPresentation? constellationRequestStatusPresentation({
   required L10n l10n,
   required TenturaTokens tt,
 }) {
-  if (!isKnownConstellationBeaconStatus(rawStatus)) {
+  if (!isKnownConstellationBeaconStatus(rawStatus) &&
+      rawStatus != 1 &&
+      rawStatus != 3) {
     return null;
   }
   final status = BeaconStatus.fromSmallint(rawStatus);
@@ -63,6 +83,20 @@ ConstellationRequestStatusPresentation? constellationRequestStatusPresentation({
       icon: Icons.schedule,
       color: tt.info,
       label: l10n.constellationRequestStatusWrappingUp,
+    ),
+    BeaconStatus.cancelled => ConstellationRequestStatusPresentation(
+      rawStatus: rawStatus,
+      status: status,
+      icon: Icons.cancel_outlined,
+      color: tt.textMuted,
+      label: l10n.beaconLifecycleCancelled,
+    ),
+    BeaconStatus.draft => ConstellationRequestStatusPresentation(
+      rawStatus: rawStatus,
+      status: status,
+      icon: Icons.edit_outlined,
+      color: tt.textMuted,
+      label: l10n.constellationPinUnpublished,
     ),
     BeaconStatus.closed => ConstellationRequestStatusPresentation(
       rawStatus: rawStatus,
@@ -243,6 +277,25 @@ class ConstellationMarkerBadge extends StatelessWidget {
       ),
     );
   }
+
+  factory ConstellationMarkerBadge.pinState({
+    required String? pinState,
+    required L10n l10n,
+    required TenturaTokens tt,
+    required ColorScheme scheme,
+  }) => ConstellationMarkerBadge._(
+    semanticsKey: ValueKey('constellation.pin_state.$pinState'),
+    semanticsLabel: constellationPinStateLabel(l10n, pinState),
+    child: _badgeShell(
+      scheme: scheme,
+      tt: tt,
+      child: Icon(
+        pinState == 'blockedByMe' ? Icons.block : Icons.lock_outline,
+        size: tt.iconSize * 0.85,
+        color: tt.textMuted,
+      ),
+    ),
+  );
 
   final Widget child;
   final String semanticsLabel;
