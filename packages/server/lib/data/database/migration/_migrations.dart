@@ -86,6 +86,7 @@ part 'm0271.dart';
 part 'm0272.dart';
 part 'm0273.dart';
 part 'm0274.dart';
+part 'm0275.dart';
 
 /// `m0193` is a squashed baseline, not an ordinary migration: it is a generated
 /// `pg_dump` of the schema that `m0001`…`m0192` (plus the out-of-band `0161a`
@@ -193,6 +194,7 @@ final _allMigrations = <Migration>[
   m0272,
   m0273,
   m0274,
+  m0275,
 ];
 
 /// Test inventory in the exact order passed to migrant.

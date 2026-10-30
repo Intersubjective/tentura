@@ -68,8 +68,9 @@ const _none = 0;
 const _seededAt = '2026-01-01 00:00:00+00';
 
 /// The data migration registered after m0252 that repairs blocked rows.
-/// Looked up by content so it does not depend on the number it gets.
-Migration _repairMigration() => migrationsForTesting.singleWhere(
+/// Looked up by content so it does not depend on the number it gets; the
+/// first match is the repair (later migrations may mention `'blocked'` too).
+Migration _repairMigration() => migrationsForTesting.firstWhere(
   (m) =>
       m.version.compareTo('0252') > 0 &&
       m.statements.any((s) => s.contains("'blocked'")),
