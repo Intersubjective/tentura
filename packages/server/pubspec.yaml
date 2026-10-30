@@ -18,7 +18,6 @@ dependencies:
   drift:
   get_it:
   logging:
-  latlong2:
   injectable:
   collection:
   tentura_root:
