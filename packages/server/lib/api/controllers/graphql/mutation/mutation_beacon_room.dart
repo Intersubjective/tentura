@@ -18,6 +18,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
   final _replyToMessageId = InputFieldString(fieldName: 'replyToMessageId');
 
   // DORMANT(item-threads): GraphQL threadItemId arg on RoomMessageCreate; always null in production.
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   final _threadItemId = InputFieldString(fieldName: 'threadItemId');
 
@@ -289,6 +290,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
       );
 
   // DORMANT(item-threads): MarkThreadSeen with non-general threadId maps to item-thread scope.
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   GraphQLObjectField<dynamic, dynamic> get markThreadSeen => GraphQLObjectField(
     'MarkThreadSeen',

@@ -116,6 +116,7 @@ Short pointers for agents — read only what your task needs.
 | [`adr/0010-attention-receipt-extension.md`](adr/0010-attention-receipt-extension.md) | Attention receipts / Updates outbox extension |
 | [`adr/0011-attention-durable-topology.md`](adr/0011-attention-durable-topology.md) | Durable attention topology (T-20) |
 | [`adr/0012-subjective-help-tag-evidence.md`](adr/0012-subjective-help-tag-evidence.md) | Subjective help-tag evidence (D1–D24, plan §3 deviations) |
+| [`adr/0013-item-thread-plumbing-kept-dormant.md`](adr/0013-item-thread-plumbing-kept-dormant.md) | Dormant item-thread plumbing kept for revival; Questions lobby reuse |
 
 **Root vocabulary:** [`../CONTEXT.md`](../CONTEXT.md) · **Agent entry:** [`../AGENTS.md`](../AGENTS.md) · **Dev conventions:** [`../DEV_GUIDELINES.md`](../DEV_GUIDELINES.md)
 
