@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/settings_cubit.dart';
+import 'settings_value_segments.dart';
 
 class ThemeSwitchButton extends StatelessWidget {
   const ThemeSwitchButton({super.key});
@@ -19,25 +20,24 @@ class ThemeSwitchButton extends StatelessWidget {
         // Same order and shape as the language control above it: System
         // first, every segment labelled. Three near-identical sun glyphs
         // (the dark one was a sun too) could not be told apart.
-        builder: (_, themeMode) => SegmentedButton<ThemeMode>(
+        builder: (_, themeMode) => SettingsValueSegments<ThemeMode>(
           selected: <ThemeMode>{themeMode},
-          showSelectedIcon: false,
           segments: [
-            ButtonSegment<ThemeMode>(
+            SettingsValueSegment<ThemeMode>(
               icon: const Icon(Icons.brightness_auto_outlined),
-              label: Text(l10n.system),
+              label: l10n.system,
               tooltip: l10n.system,
               value: ThemeMode.system,
             ),
-            ButtonSegment<ThemeMode>(
+            SettingsValueSegment<ThemeMode>(
               icon: const Icon(Icons.light_mode_outlined),
-              label: Text(l10n.light),
+              label: l10n.light,
               tooltip: l10n.light,
               value: ThemeMode.light,
             ),
-            ButtonSegment<ThemeMode>(
+            SettingsValueSegment<ThemeMode>(
               icon: const Icon(Icons.dark_mode_outlined),
-              label: Text(l10n.dark),
+              label: l10n.dark,
               tooltip: l10n.dark,
               value: ThemeMode.dark,
             ),
