@@ -72,6 +72,23 @@ Retired **ask**, **commitment (promise)**, and **blocker** coordination-item thr
 
 **Plan** and plan-step coordination items are not Discussion list rows; plan work surfaces in General and the Log.
 
+### Dormant item-thread plumbing
+
+Per-item discussion threads (non-null `thread_item_id` on `beacon_room_message`)
+were retired with General-only Chat, but the **server and client wiring is kept
+on purpose** — columns, GraphQL args, access helpers, and `DORMANT(item-threads)`
+markers — so sub-discussions inside a request could return without a greenfield
+schema. Production enforcement remains the DB General-only guards plus
+`DiscussionScopeDisabledException`; the item-participant access path is
+dormant under production policy.
+
+The **live** reuse of that plumbing is Request **Questions** (lobby,
+`coordination_item` kind 7): one scoped thread per request, separate from
+General, with its own audience policy. See [`beacon_questions.md`](beacon_questions.md).
+
+Full rationale, live vs dormant inventory, revival outline, and reviewer rules:
+[`../adr/0013-item-thread-plumbing-kept-dormant.md`](../adr/0013-item-thread-plumbing-kept-dormant.md).
+
 ### Child requests (nesting)
 
 A **child request** is a normal beacon with its own owner, membership, help offers, forwarding, review window, and trust attribution. Parentage is immutable and assigned only at creation.

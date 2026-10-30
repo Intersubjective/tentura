@@ -175,6 +175,7 @@ class BeaconThreadsRepository {
   }
 
   // DORMANT(item-threads): threadItemId filters item-thread messages; always null in production.
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,
@@ -480,6 +481,7 @@ class BeaconThreadsRepository {
   }
 
   // DORMANT(item-threads): non-general threadId marks item-thread seen watermarks.
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<DateTime> markThreadSeen({
     required String beaconId,
@@ -632,6 +634,7 @@ class BeaconThreadsRepository {
   }
 
   // DORMANT(item-threads): threadItemId targets item-thread scope; always null in production.
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<String> createMessage({
     required String beaconId,

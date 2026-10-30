@@ -510,7 +510,18 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   // DORMANT(item-threads): item-thread access gate (non-room members).
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
+  ///
+  /// Thread scope access for non-null [threadItemId].
+  ///
+  /// **Live:** when [threadItemId] is the request's Questions lobby item (kind 7,
+  /// U088), delegates to `questions_access_levels` via [_questionsAccess].
+  ///
+  /// **Dormant:** otherwise, room members pass; non-members pass only if they
+  /// are item participants ([_isItemParticipant]). Under production
+  /// [DiscussionProductPolicyPort.generalOnly], non-lobby scopes never reach the
+  /// participant branch. See `docs/adr/0013-item-thread-plumbing-kept-dormant.md`.
   Future<bool> _canAccessThread({
     required String beaconId,
     required String userId,
