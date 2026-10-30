@@ -58,23 +58,36 @@ class _MockPresenceCubit extends Mock implements PresenceCubit {
 Rect _viewport(WidgetTester tester) =>
     Offset.zero & (tester.view.physicalSize / tester.view.devicePixelRatio);
 
-void _expectFullyVisible(WidgetTester tester, Finder finder) {
+void _expectFullyVisible(
+  WidgetTester tester,
+  Finder finder, {
+  double maxBottomInset = 0,
+}) {
   expect(finder.hitTestable(), findsOneWidget);
   final rect = tester.getRect(finder);
   final view = _viewport(tester);
+  final maxBottom = view.bottom - maxBottomInset;
   expect(rect.top, greaterThanOrEqualTo(view.top));
-  expect(rect.bottom, lessThanOrEqualTo(view.bottom + 0.5));
+  expect(rect.bottom, lessThanOrEqualTo(maxBottom + 0.5));
 }
 
 void main() {
   const viewer = Profile(id: 'me', displayName: 'Me');
   const author = Profile(id: 'other', displayName: 'Alex');
 
-  Future<void> pumpRoom(WidgetTester tester) async {
+  Future<void> pumpRoom(
+    WidgetTester tester, {
+    double bottomSafeInset = 0,
+  }) async {
     const viewport = Size(375, 667);
     tester.view.physicalSize = viewport;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final mediaQuery = MediaQueryData(
+      size: viewport,
+      padding: EdgeInsets.only(bottom: bottomSafeInset),
+      viewPadding: EdgeInsets.only(bottom: bottomSafeInset),
+    );
 
     final profileCubit = _MockProfileCubit(viewer);
     final presenceCubit = _MockPresenceCubit();
@@ -130,9 +143,12 @@ void main() {
           theme: TenturaTheme.light(),
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
-          home: const TenturaResponsiveScope(
-            child: Scaffold(
-              body: BeaconRoomBody(enableComposer: false),
+          home: MediaQuery(
+            data: mediaQuery,
+            child: const TenturaResponsiveScope(
+              child: Scaffold(
+                body: BeaconRoomBody(enableComposer: false),
+              ),
             ),
           ),
         ),
@@ -166,6 +182,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    '#809 Create child request stays above home indicator inset at 375×667',
+    (tester) async {
+      const homeIndicatorInset = 34.0;
+      final l10n = lookupL10n(const Locale('en'));
+      await pumpRoom(tester, bottomSafeInset: homeIndicatorInset);
+
+      final body = find.byType(RoomMessageTextBody);
+      await tester.longPressAt(tester.getTopLeft(body) + const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      final createChild = find.text(l10n.beaconCreateChildRequest);
+      if (createChild.hitTestable().evaluate().isEmpty) {
+        final sheetScroll = find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(Scrollable),
+        );
+        expect(sheetScroll, findsWidgets);
+        await tester.drag(sheetScroll.first, const Offset(0, -120));
+        await tester.pumpAndSettle();
+      }
+
+      _expectFullyVisible(
+        tester,
+        createChild,
+        maxBottomInset: homeIndicatorInset,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test('hover toolbar clears the child-request footer strip', () {
     const bounds = Rect.fromLTWH(0, 0, 320, 600);
     const strip = Size(160, 40);
@@ -193,5 +240,4 @@ void main() {
     expect(withoutPos.dy, lessThan(bubble.bottom + clearance));
     expect(withPos.dy, greaterThanOrEqualTo(bubble.bottom + clearance));
   });
-
 }
