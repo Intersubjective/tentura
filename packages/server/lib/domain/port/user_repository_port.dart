@@ -1,6 +1,15 @@
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+
+/// Called inside the signup transaction only after a new Post forward edge
+/// has been inserted. Existing edges do not trigger another receipt.
+typedef InvitedPostForwardCreated =
+    Future<void> Function(
+      BeaconEntity beacon,
+      String recipientId,
+    );
 
 /// Persistence port for users (implemented by the server user repository).
 abstract class UserRepositoryPort {
@@ -15,6 +24,7 @@ abstract class UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
+    InvitedPostForwardCreated? onPostForwardCreated,
   });
 
   /// Seedless account with a single non-device credential (e.g. OIDC).
@@ -36,6 +46,7 @@ abstract class UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
+    InvitedPostForwardCreated? onPostForwardCreated,
   });
 
   Future<UserEntity> getById(String id);

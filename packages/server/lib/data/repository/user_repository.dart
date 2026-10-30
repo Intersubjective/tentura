@@ -112,7 +112,7 @@ class UserRepository implements UserRepositoryPort {
   /// ADR 0008: consuming a beacon-tied invite materializes a forward edge
   /// (sharer→invitee). Inbox for the recipient is maintained by DB trigger
   /// `inbox_item_on_forward_insert`.
-  Future<void> _materializeBeaconInviteForward({
+  Future<bool> _materializeBeaconInviteForward({
     required String beaconId,
     required String senderId,
     required String recipientId,
@@ -121,7 +121,7 @@ class UserRepository implements UserRepositoryPort {
     if (!await _lockActiveInviteParentChain(parentForwardEdgeId)) {
       throw IdNotFoundException(id: parentForwardEdgeId!);
     }
-    if (senderId == recipientId) return;
+    if (senderId == recipientId) return false;
     final existing = await _database.managers.beaconForwardEdges
         .filter(
           (e) =>
@@ -131,11 +131,11 @@ class UserRepository implements UserRepositoryPort {
               e.cancelledAt.isNull(),
         )
         .getSingleOrNull();
-    if (existing != null) return;
+    if (existing != null) return false;
 
-    await _database
+    final created = await _database
         .into(_database.beaconForwardEdges)
-        .insert(
+        .insertReturningOrNull(
           BeaconForwardEdgesCompanion.insert(
             beaconId: beaconId,
             senderId: senderId,
@@ -145,11 +145,12 @@ class UserRepository implements UserRepositoryPort {
           ),
           onConflict: DoNothing(),
         );
+    return created != null;
   }
 
   /// The invite's issuer must still be allowed to forward its beacon. For a
   /// Post the Post lock is taken first and the beacon is judged under it.
-  Future<void> _requireInviteIssuerMayForward({
+  Future<BeaconEntity> _requireInviteIssuerMayForward({
     required String beaconId,
     required String issuerId,
   }) async {
@@ -187,6 +188,7 @@ class UserRepository implements UserRepositoryPort {
         description: 'Forwarding is off for this post',
       );
     }
+    return beacon;
   }
 
   /// Called inside the accepting transaction. Keep every ancestor locked until
@@ -217,6 +219,7 @@ class UserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
+    InvitedPostForwardCreated? onPostForwardCreated,
   }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -232,12 +235,13 @@ class UserRepository implements UserRepositoryPort {
       throw const InvitationWrongException(description: 'Invitation expired!');
     }
 
-    if (invitation.beaconId != null) {
-      await _requireInviteIssuerMayForward(
-        beaconId: invitation.beaconId!,
+    final beacon = switch (invitation.beaconId) {
+      final beaconId? => await _requireInviteIssuerMayForward(
+        beaconId: beaconId,
         issuerId: invitation.userId,
-      );
-    }
+      ),
+      null => null,
+    };
 
     final user = await _database.managers.users.createReturning(
       (o) => o(
@@ -296,13 +300,16 @@ class UserRepository implements UserRepositoryPort {
       addresseeName: invitation.addresseeName,
     );
 
-    if (invitation.beaconId != null) {
-      await _materializeBeaconInviteForward(
-        beaconId: invitation.beaconId!,
+    if (beacon != null) {
+      final created = await _materializeBeaconInviteForward(
+        beaconId: beacon.id,
         senderId: invitation.userId,
         recipientId: user.id,
         parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
+      if (created && beacon.kind == BeaconKind.post) {
+        await onPostForwardCreated?.call(beacon, user.id);
+      }
     }
 
     return userModelToEntity(user);
@@ -392,6 +399,7 @@ class UserRepository implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
+    InvitedPostForwardCreated? onPostForwardCreated,
   }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -407,12 +415,13 @@ class UserRepository implements UserRepositoryPort {
       throw const InvitationWrongException(description: 'Invitation expired!');
     }
 
-    if (invitation.beaconId != null) {
-      await _requireInviteIssuerMayForward(
-        beaconId: invitation.beaconId!,
+    final beacon = switch (invitation.beaconId) {
+      final beaconId? => await _requireInviteIssuerMayForward(
+        beaconId: beaconId,
         issuerId: invitation.userId,
-      );
-    }
+      ),
+      null => null,
+    };
 
     final user = await _createUserWithCredential(
       type: type,
@@ -472,13 +481,16 @@ class UserRepository implements UserRepositoryPort {
       addresseeName: invitation.addresseeName,
     );
 
-    if (invitation.beaconId != null) {
-      await _materializeBeaconInviteForward(
-        beaconId: invitation.beaconId!,
+    if (beacon != null) {
+      final created = await _materializeBeaconInviteForward(
+        beaconId: beacon.id,
         senderId: invitation.userId,
         recipientId: user.id,
         parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
+      if (created && beacon.kind == BeaconKind.post) {
+        await onPostForwardCreated?.call(beacon, user.id);
+      }
     }
 
     return user;

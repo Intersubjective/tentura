@@ -38,6 +38,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
+    InvitedPostForwardCreated? onPostForwardCreated,
   }) {
     throw UnimplementedError();
   }
@@ -63,6 +64,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     String? handle,
     Map<String, Object?>? publicData,
     List<AssertedContact> contacts = const [],
+    InvitedPostForwardCreated? onPostForwardCreated,
   }) {
     throw UnimplementedError();
   }

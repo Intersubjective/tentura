@@ -107,6 +107,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? publicKey,
     required String? displayName,
     String? handle,
+    _i5.InvitedPostForwardCreated? onPostForwardCreated,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvited, [], {
@@ -114,6 +115,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #publicKey: publicKey,
               #displayName: displayName,
               #handle: handle,
+              #onPostForwardCreated: onPostForwardCreated,
             }),
             returnValue: _i6.Future<_i2.UserEntity>.value(
               _FakeUserEntity_0(
@@ -123,6 +125,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #publicKey: publicKey,
                   #displayName: displayName,
                   #handle: handle,
+                  #onPostForwardCreated: onPostForwardCreated,
                 }),
               ),
             ),
@@ -134,6 +137,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #publicKey: publicKey,
                   #displayName: displayName,
                   #handle: handle,
+                  #onPostForwardCreated: onPostForwardCreated,
                 }),
               ),
             ),
@@ -196,6 +200,7 @@ class MockUserRepositoryPort extends _i1.Mock
     String? handle,
     Map<String, Object?>? publicData,
     List<_i7.AssertedContact>? contacts = const [],
+    _i5.InvitedPostForwardCreated? onPostForwardCreated,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvitedWithCredential, [], {
@@ -206,6 +211,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #handle: handle,
               #publicData: publicData,
               #contacts: contacts,
+              #onPostForwardCreated: onPostForwardCreated,
             }),
             returnValue: _i6.Future<_i2.UserEntity>.value(
               _FakeUserEntity_0(
@@ -218,6 +224,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #handle: handle,
                   #publicData: publicData,
                   #contacts: contacts,
+                  #onPostForwardCreated: onPostForwardCreated,
                 }),
               ),
             ),
@@ -232,6 +239,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #handle: handle,
                   #publicData: publicData,
                   #contacts: contacts,
+                  #onPostForwardCreated: onPostForwardCreated,
                 }),
               ),
             ),

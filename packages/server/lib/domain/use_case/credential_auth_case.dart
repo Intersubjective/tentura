@@ -163,6 +163,22 @@ final class CredentialAuthCase extends UseCaseBase {
             displayName: displayName,
             publicData: publicData,
             contacts: contacts,
+            onPostForwardCreated: switch (invitation) {
+              final invitation? when invitation.beaconId != null =>
+                (beacon, recipientId) async {
+                  await transaction.record(
+                    await _attentionIntents!.relayReceived(
+                      beaconId: beacon.id,
+                      senderId: invitation.issuer.id,
+                      beaconAuthorId: beacon.author.id,
+                      recipientIds: [recipientId],
+                      beaconKind: beacon.kind,
+                      sourceEventKey: 'invitation:$inviteId:forward',
+                    ),
+                  );
+                },
+              _ => null,
+            },
           );
           if (invitation != null) {
             await transaction.record(

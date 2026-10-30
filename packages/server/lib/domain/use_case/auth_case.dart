@@ -171,6 +171,22 @@ final class AuthCase extends UseCaseBase {
           publicKey: publicKey,
           displayName: displayName,
           handle: handle,
+          onPostForwardCreated: switch (invitation) {
+            final invitation? when invitation.beaconId != null =>
+              (beacon, recipientId) async {
+                await transaction.record(
+                  await _attentionIntents!.relayReceived(
+                    beaconId: beacon.id,
+                    senderId: invitation.issuer.id,
+                    beaconAuthorId: beacon.author.id,
+                    recipientIds: [recipientId],
+                    beaconKind: beacon.kind,
+                    sourceEventKey: 'invitation:$invitationId:forward',
+                  ),
+                );
+              },
+            _ => null,
+          },
         );
         if (invitation != null) {
           await transaction.record(
