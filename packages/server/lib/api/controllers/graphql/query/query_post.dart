@@ -46,6 +46,7 @@ final class QueryPost extends GqlNodeBase {
     'rootImageUrl': post.rootImageUrl,
     'rootExcerpt': post.rootExcerpt,
     'lastMessageExcerpt': post.lastMessageExcerpt,
+    'lastMessageIsRoot': post.lastMessageIsRoot,
     'lastMessageAt': post.lastMessageAt?.toUtc().toIso8601String(),
     'lastActivityAt': post.lastActivityAt?.toUtc().toIso8601String(),
     'pinnedAt': post.pinnedAt?.toUtc().toIso8601String(),

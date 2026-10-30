@@ -12,6 +12,7 @@ final class PostSummary {
     this.rootImageUrl,
     required this.rootExcerpt,
     required this.lastMessageExcerpt,
+    this.lastMessageIsRoot = false,
     required this.lastMessageAt,
     required this.lastActivityAt,
     required this.pinnedAt,
@@ -36,6 +37,9 @@ final class PostSummary {
   final String? rootImageUrl;
   final String? rootExcerpt;
   final String? lastMessageExcerpt;
+
+  /// Whether the latest non-system message is the Post root, by identity.
+  final bool lastMessageIsRoot;
   final DateTime? lastMessageAt;
   final DateTime? lastActivityAt;
   final DateTime? pinnedAt;

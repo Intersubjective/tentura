@@ -92,6 +92,8 @@ class BeaconRepository implements BeaconRepositoryPort {
           '''
 SELECT posts.*, cover.image_id::text AS root_image_id,
        cover.author_id AS root_image_author_id,
+       COALESCE(posts.last_message_id = b.post_root_message_id, false)
+         AS last_message_is_root,
        forwarder.sender_id AS forwarded_by_id,
        forwarder.display_name AS forwarded_by_name,
        EXISTS (
@@ -147,6 +149,7 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
             : '$kImageServer/$kImagesPath/${row.read<String>('root_image_author_id')}/${row.read<String>('root_image_id')}.$kImageExt',
         rootExcerpt: row.readNullable<String>('root_excerpt'),
         lastMessageExcerpt: row.readNullable<String>('last_message_excerpt'),
+        lastMessageIsRoot: row.read<bool>('last_message_is_root'),
         lastMessageAt: timestamp('last_message_at'),
         lastActivityAt: timestamp('last_activity_at'),
         pinnedAt: timestamp('pinned_at'),

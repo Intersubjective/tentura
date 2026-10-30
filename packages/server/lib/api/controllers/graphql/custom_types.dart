@@ -2060,6 +2060,7 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('rootImageUrl', graphQLString),
     field('rootExcerpt', graphQLString),
     field('lastMessageExcerpt', graphQLString),
+    field('lastMessageIsRoot', graphQLBoolean.nonNullable()),
     field('lastMessageAt', graphQLString),
     field('lastActivityAt', graphQLString),
     field('pinnedAt', graphQLString),

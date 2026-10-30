@@ -128,6 +128,73 @@ Future<void> main() async {
     expect(await posts.myPosts(_author), hasLength(1));
   });
 
+  group('Post summaries identify whether the last message is the root', () {
+    setUp(() async {
+      await writer.execute('''
+        DELETE FROM public.beacon_room_message
+        WHERE beacon_id = '$_post' AND id <> 'Mpostsroot001'
+      ''');
+    });
+
+    Future<void> expectLastMessageIsRoot({required bool expected}) async {
+      final query = QueryPost(postCase: posts);
+      final rows = await query.myPosts.resolve!(null, {
+        kGlobalInputQueryJwt: const JwtEntity(sub: _member),
+      });
+      // Observe the public summary rather than accessing a not-yet-added
+      // entity getter, so the missing field produces an assertion failure.
+      expect(rows, [
+        allOf(
+          containsPair('id', _post),
+          containsPair('rootExcerpt', 'Root text'),
+          containsPair('lastMessageExcerpt', 'Root text'),
+          containsPair('lastMessageIsRoot', expected),
+        ),
+      ]);
+
+      final graphQL = GraphQL(
+        GraphQLSchema(
+          queryType: GraphQLObjectType('Query', null)..fields.addAll(query.all),
+        ),
+      );
+      final response = await graphQL.parseAndExecute(
+        '{ myPosts { id lastMessageIsRoot } }',
+        globalVariables: {
+          kGlobalInputQueryJwt: const JwtEntity(sub: _member),
+        },
+      );
+      expect(response, {
+        'myPosts': [
+          {'id': _post, 'lastMessageIsRoot': expected},
+        ],
+      });
+    }
+
+    test('a Post with only its root reports true', () async {
+      await expectLastMessageIsRoot(expected: true);
+    });
+
+    test('a reply with the same text as the root reports false', () async {
+      await writer.execute('''
+        INSERT INTO public.beacon_room_message
+          (id, beacon_id, author_id, body, created_at)
+        VALUES ('Mpostsecho001', '$_post', '$_member', 'Root text',
+                '2030-01-02T00:00:00Z')
+      ''');
+      await expectLastMessageIsRoot(expected: false);
+    });
+
+    test('a system message after the root still reports true', () async {
+      await writer.execute('''
+        INSERT INTO public.beacon_room_message
+          (id, beacon_id, author_id, body, system_message_kind, created_at)
+        VALUES ('Mpostsnotice1', '$_post', '$_author', 'Notice', 1,
+                '2030-01-02T00:00:00Z')
+      ''');
+      await expectLastMessageIsRoot(expected: true);
+    });
+  });
+
   Future<void> seedForwardedPost() async {
     // The shared fixture already has Alice's Post and Alice -> Bob delivery.
     await writer.execute('''
