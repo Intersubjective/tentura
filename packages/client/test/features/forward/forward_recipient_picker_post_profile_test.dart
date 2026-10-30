@@ -15,6 +15,7 @@ import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_band_strip.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/per_recipient_note_input.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_forward_section.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -101,6 +102,7 @@ class _SendRecordingCubit extends ForwardCubit {
 
 const _alex = Profile(id: 'u1', displayName: 'Alex', score: 10, rScore: 1);
 const _lena = Profile(id: 'u2', displayName: 'Lena', score: 5, rScore: 1);
+const _max = Profile(id: 'u3', displayName: 'Max', score: 8, rScore: 1);
 
 /// A null [kind] leaves the beacon unloaded, as in the Post composer.
 ForwardState _state(BeaconKind? kind) => ForwardState(
@@ -284,6 +286,59 @@ void main() {
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.text('Sender One'), findsOneWidget);
     });
+
+    testWidgets('ticking 1 person shows per-recipient note field and skip action', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1200, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final cubit = _SendRecordingCubit();
+      addTearDown(cubit.close);
+      final state = ForwardState(
+        beaconId: 'B1',
+        beacon: Beacon.empty.copyWith(
+          id: 'B1',
+          title: 'Subject',
+          kind: BeaconKind.request,
+        ),
+        candidates: const [
+          ForwardCandidate(profile: _alex),
+          ForwardCandidate(profile: _lena),
+        ],
+        selectedIds: const {'u1'},
+        candidatesLoad: const ForwardCandidatesReady(),
+      );
+      cubit.emit(state);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'B1',
+                recipientNoteHint: 'Add a note for this person (optional)',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PerRecipientNoteInput), findsOneWidget);
+      expect(
+        find.widgetWithText(TextField, 'Add a note for this person (optional)'),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Skip personal note'), findsOneWidget);
+    });
   });
 
   group('ForwardRecipientPicker for a Post', () {
@@ -375,6 +430,56 @@ void main() {
       expect(find.text('Sender One'), findsNothing);
       expect(cubit.forwardCalls, 1);
       expect(cubit.lastAttributionIds, isNull);
+    });
+
+    testWidgets('post profile with 3 selected people shows no note fields or skip action', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1200, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final cubit = _SendRecordingCubit();
+      addTearDown(cubit.close);
+      const state = ForwardState(
+        beaconId: 'B1',
+        candidates: [
+          ForwardCandidate(profile: _alex),
+          ForwardCandidate(profile: _lena),
+          ForwardCandidate(profile: _max),
+        ],
+        selectedIds: {'u1', 'u2', 'u3'},
+        candidatesLoad: ForwardCandidatesReady(),
+      );
+      cubit.emit(state);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'B1',
+                copyProfile: ForwardTargetProfile.post,
+                recipientNoteHint: 'Add a note for this person (optional)',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PerRecipientNoteInput), findsNothing);
+      expect(
+        find.widgetWithText(TextField, 'Add a note for this person (optional)'),
+        findsNothing,
+      );
+      expect(find.byTooltip('Skip personal note'), findsNothing);
     });
   });
 }

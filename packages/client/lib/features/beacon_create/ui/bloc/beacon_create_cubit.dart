@@ -1667,7 +1667,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           body: body,
           mentions: mentions,
           recipientIds: recipientIds,
-          notes: forwardCubit.state.perRecipientNotes,
+          notes: forwardCubit.state.profile.showsPersonalNotes
+              ? forwardCubit.state.perRecipientNotes
+              : const {},
           forwardPolicy: forwardPolicy,
           lifetime: Duration(hours: lifetimeHours),
           firstAttachment: attachments.firstOrNull,

@@ -9,6 +9,8 @@ enum ForwardTargetProfile {
 
   bool get showsReasons => _isRequest;
 
+  bool get showsPersonalNotes => _isRequest;
+
   bool get showsLineage => _isRequest;
 
   bool get showsAttribution => _isRequest;
