@@ -5,10 +5,6 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/capability/forward_band_row.dart';
-import 'package:tentura/domain/capability/friend_context.dart';
-import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
-import 'package:tentura/domain/capability/person_capability_cues.dart';
-import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -24,7 +20,6 @@ import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
-import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
