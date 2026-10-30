@@ -21,7 +21,7 @@ class TenturaStatusText extends StatelessWidget {
     this.tone = TenturaTone.neutral,
     this.maxLines = 1,
     this.textAlign,
-    this.overflow = TextOverflow.ellipsis,
+    this.overflow,
     this.softWrap = true,
   });
 
@@ -31,16 +31,18 @@ class TenturaStatusText extends StatelessWidget {
   /// When null, the line wraps freely (list cards). App bars keep [maxLines] = 1.
   final int? maxLines;
   final TextAlign? textAlign;
-  final TextOverflow overflow;
+  final TextOverflow? overflow;
   final bool softWrap;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final effectiveOverflow =
+        overflow ?? (maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis);
     return Text(
       text,
       maxLines: maxLines,
-      overflow: overflow,
+      overflow: effectiveOverflow,
       softWrap: softWrap,
       textAlign: textAlign,
       style: TenturaText.status(tenturaToneColor(tt, tone)),
@@ -56,7 +58,7 @@ class TenturaStatusLine extends StatelessWidget {
     required this.slot1Tone,
     this.slot2Tone,
     this.maxLines,
-    this.overflow = TextOverflow.ellipsis,
+    this.overflow,
     this.softWrap = true,
     super.key,
   });
@@ -66,19 +68,21 @@ class TenturaStatusLine extends StatelessWidget {
   final TenturaTone slot1Tone;
   final TenturaTone? slot2Tone;
   final int? maxLines;
-  final TextOverflow overflow;
+  final TextOverflow? overflow;
   final bool softWrap;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final effectiveOverflow =
+        overflow ?? (maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis);
     final s2 = slot2?.trim() ?? '';
     if (s2.isEmpty) {
       return TenturaStatusText(
         slot1,
         tone: slot1Tone,
         maxLines: maxLines,
-        overflow: overflow,
+        overflow: effectiveOverflow,
         softWrap: softWrap,
       );
     }
@@ -101,7 +105,7 @@ class TenturaStatusLine extends StatelessWidget {
         ],
       ),
       maxLines: maxLines,
-      overflow: overflow,
+      overflow: effectiveOverflow,
       softWrap: softWrap,
     );
   }
