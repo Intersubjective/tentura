@@ -2427,10 +2427,6 @@
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
-  "inboxEmpty": "Активность пуста",
-  "@inboxEmpty": {
-    "context": "InboxScreen"
-  },
   "notifications": "Уведомления",
   "@notifications": {
     "context": "NotificationCenter"
@@ -2497,10 +2493,6 @@
   "notificationQuietHoursTo": "До",
   "notificationLockScreen": "Скрывать детали на экране блокировки",
   "notificationLockScreenDesc": "Показывать общую сводку вместо содержимого",
-  "inboxEmptyHint": "Здесь появятся запросы, пересланные вам",
-  "@inboxEmptyHint": {
-    "context": "InboxScreen"
-  },
   "inboxNeedsMe": "Нужен ваш ответ",
   "@inboxNeedsMe": {
     "context": "InboxScreen"
@@ -2515,10 +2507,6 @@
   },
   "inboxRejectedTitle": "Убранные",
   "@inboxRejectedTitle": {
-    "context": "InboxScreen"
-  },
-  "inboxNeedsMeEmptyCalm": "Активность пуста. Новые запросы появятся здесь.",
-  "@inboxNeedsMeEmptyCalm": {
     "context": "InboxScreen"
   },
   "inboxWatchingEmptyCalm": "Пока не за чем следить.",
@@ -2562,29 +2550,8 @@
       }
     }
   },
-  "inboxTabWatching": "Слежу",
-  "@inboxTabWatching": {
-    "context": "InboxScreen"
-  },
-  "inboxTabReceipts": "Обновления",
-  "@inboxTabReceipts": {
-    "context": "InboxScreen",
-    "description": "Primary Inbox tab for folded Updates / notification receipts."
-  },
-  "inboxForwardedByMe": "Переслано",
-  "@inboxForwardedByMe": {
-    "context": "InboxScreen"
-  },
   "inboxTabRejected": "Убранные",
   "@inboxTabRejected": {
-    "context": "InboxScreen"
-  },
-  "inboxTabNeedsEmpty": "Здесь пока ничего нет",
-  "@inboxTabNeedsEmpty": {
-    "context": "InboxScreen"
-  },
-  "inboxTabWatchingEmpty": "Вы ни за чем не следите",
-  "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
   "inboxTabRejectedEmpty": "Нет убранных запросов",
@@ -2598,50 +2565,6 @@
   "inboxViewInTab": "Перейти",
   "@inboxViewInTab": {
     "context": "InboxScreen"
-  },
-  "inboxTombstoneQueueStatus": "Статус очереди",
-  "@inboxTombstoneQueueStatus": {
-    "context": "InboxScreen"
-  },
-  "inboxTombstoneSectionTitle": "Закрытые запросы",
-  "@inboxTombstoneSectionTitle": {
-    "context": "InboxScreen"
-  },
-  "inboxTombstoneLast24h": "За 24 ч",
-  "@inboxTombstoneLast24h": {
-    "context": "InboxScreen"
-  },
-  "inboxTombstoneStatusResolved": "Закрыт",
-  "@inboxTombstoneStatusResolved": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneStatusUnavailable": "Недоступен",
-  "@inboxTombstoneStatusUnavailable": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneClosedTitle": "Закрыт до вашего ответа",
-  "@inboxTombstoneClosedTitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneClosedSubtitle": "Этот запрос закрыли до того, как вы отреагировали.",
-  "@inboxTombstoneClosedSubtitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneDeletedTitle": "Больше недоступен",
-  "@inboxTombstoneDeletedTitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneDeletedSubtitle": "Этот запрос убрали до того, как вы отреагировали.",
-  "@inboxTombstoneDeletedSubtitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneDismiss": "Скрыть",
-  "@inboxTombstoneDismiss": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneOpen": "Открыть",
-  "@inboxTombstoneOpen": {
-    "context": "InboxTombstoneCard"
   },
   "actionCantHelp": "Не могу помочь",
   "@actionCantHelp": {
@@ -2669,15 +2592,6 @@
   },
   "forwardedCount": "{count}x переслано",
   "@forwardedCount": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxMoreForwarders": "+{count}",
-  "@inboxMoreForwarders": {
     "context": "InboxItemTile",
     "placeholders": {
       "count": {
@@ -2725,24 +2639,8 @@
   "@actionHide": {
     "context": "InboxItemTile"
   },
-  "inboxProvenanceTrail": "Кто переслал вам",
-  "@inboxProvenanceTrail": {
-    "context": "InboxItemTile"
-  },
-  "inboxProvenanceExpand": "Развернуть",
-  "@inboxProvenanceExpand": {
-    "context": "InboxItemTile"
-  },
-  "inboxProvenanceMore": "Ещё",
-  "@inboxProvenanceMore": {
-    "context": "InboxItemTile"
-  },
   "inboxProvenanceCollapse": "Свернуть",
   "@inboxProvenanceCollapse": {
-    "context": "InboxItemTile"
-  },
-  "inboxActionNotForMe": "Не моё",
-  "@inboxActionNotForMe": {
     "context": "InboxItemTile"
   },
   "inboxCardOpenBeacon": "Переслать",
@@ -2762,15 +2660,6 @@
     "context": "InboxItemTile",
     "placeholders": {
       "hours": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxDeadlineDaysRemaining": "Осталось {days} дн.",
-  "@inboxDeadlineDaysRemaining": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "days": {
         "type": "int"
       }
     }
@@ -2813,48 +2702,9 @@
   "@inboxForwardedByLabel": {
     "context": "InboxItemTile"
   },
-  "inboxFromForwarder": "От {name}",
-  "@inboxFromForwarder": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "inboxFromForwarderPlus": "От {name} +{rest}",
-  "@inboxFromForwarderPlus": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "rest": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxForwardCount": "{count, plural, one{1 пересылка} few{{count} пересылки} many{{count} пересылок} other{{count} пересылок}}",
-  "@inboxForwardCount": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "inboxCategoryGeneral": "Общее",
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
-  },
-  "inboxHelpOffersCount": "{count} предложений помощи",
-  "@inboxHelpOffersCount": {
-    "context": "BeaconViewScreen help offers tab label",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "beaconCardHelpOfferCount": "{count}",
   "@beaconCardHelpOfferCount": {
@@ -5629,14 +5479,6 @@
       }
     }
   },
-  "inboxCardPublicFactLine": "Публичный факт: {text}",
-  "@inboxCardPublicFactLine": {
-    "placeholders": {
-      "text": {
-        "type": "String"
-      }
-    }
-  },
   "inboxCardOpenBlocker": "Открытый блокер: {text}",
   "@inboxCardOpenBlocker": {
     "placeholders": {
@@ -5828,7 +5670,6 @@
   "helpOfferHideCategories": "Скрыть категории",
   "helpOfferSearchEmpty": "Ничего не найдено — выберите «Другое» или оставьте только текст",
   "forwardViewInvitations": "Открыть приглашения",
-  "inboxViewMyWork": "Открыть «Запросы»",
   "logoutConfirmTitle": "Выйти?",
   "logoutConfirmBody": "Чтобы снова пользоваться Tentura на этом устройстве, потребуется войти в аккаунт.",
   "capabilityCueHelpOffered": "Предлагает помощь: {tags}",
