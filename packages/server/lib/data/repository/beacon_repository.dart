@@ -92,6 +92,8 @@ class BeaconRepository implements BeaconRepositoryPort {
           '''
 SELECT posts.*, cover.image_id::text AS root_image_id,
        cover.author_id AS root_image_author_id,
+       forwarder.sender_id AS forwarded_by_id,
+       forwarder.display_name AS forwarded_by_name,
        EXISTS (
          SELECT 1 FROM public.notification_beacon_mute m
          WHERE m.beacon_id = posts.id
@@ -100,6 +102,15 @@ SELECT posts.*, cover.image_id::text AS root_image_id,
        ) AS muted_forever
 FROM public.post_my_posts(\$1) posts
 JOIN public.beacon b ON b.id = posts.id
+LEFT JOIN LATERAL (
+  SELECT e.sender_id, u.display_name
+  FROM public.beacon_forward_edge e
+  JOIN public."user" u ON u.id = e.sender_id
+  WHERE e.beacon_id = posts.id AND e.recipient_id = \$1
+    AND e.sender_id <> posts.author_id AND e.cancelled_at IS NULL
+  ORDER BY e.created_at DESC, e.id DESC
+  LIMIT 1
+) forwarder ON true
 LEFT JOIN LATERAL (
   SELECT i.id AS image_id, i.author_id
   FROM public.beacon_room_message_attachment a
@@ -126,6 +137,8 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         id: row.read<String>('id'),
         authorId: authorId,
         authorName: row.read<String>('author_name'),
+        forwardedById: row.readNullable<String>('forwarded_by_id'),
+        forwardedByName: row.readNullable<String>('forwarded_by_name'),
         authorAvatar: imageId == null
             ? kAvatarPlaceholderUrl
             : '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt',

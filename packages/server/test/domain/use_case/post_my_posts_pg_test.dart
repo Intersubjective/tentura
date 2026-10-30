@@ -1,11 +1,15 @@
 @Tags(['pg'])
 library;
 
+import 'package:graphql_schema2/graphql_schema2.dart';
+import 'package:graphql_server2/graphql_server2.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
+import 'package:tentura_server/api/controllers/graphql/query/query_post.dart';
 import 'package:tentura_server/consts.dart'
     show kAvatarPlaceholderUrl, kImageExt, kImageServer, kImagesPath;
 import 'package:tentura_server/data/database/migration/_migrations.dart';
@@ -22,6 +26,7 @@ import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/person_visibility_repository.dart';
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/post_case.dart';
@@ -122,6 +127,212 @@ Future<void> main() async {
   test('upgrade from 0214 exposes executable myPosts projection', () async {
     expect(await posts.myPosts(_author), hasLength(1));
   });
+
+  Future<void> seedForwardedPost() async {
+    // The shared fixture already has Alice's Post and Alice -> Bob delivery.
+    await writer.execute('''
+      UPDATE public."user" SET display_name = CASE id
+        WHEN '$_author' THEN 'QA Alice'
+        WHEN '$_member' THEN 'Bob GQ'
+        WHEN '$_stranger' THEN 'Carol'
+      END
+    ''');
+    await writer.execute(
+      Sql.named('''
+        INSERT INTO public."user" (id, display_name, public_key)
+        VALUES ('Upostseve0001', 'Eve', @key)
+      '''),
+      parameters: {'key': pgTestPublicKey('my-posts', 4)},
+    );
+    await writer.execute('''
+      INSERT INTO public.beacon_forward_edge
+        (id, beacon_id, sender_id, recipient_id)
+      VALUES ('FpostsToEve01', '$_post', '$_member', 'Upostseve0001'),
+             ('FpostsCarol01', '$_post', '$_author', '$_stranger')
+    ''');
+    // Post invitations are author-to-addressee deliveries: m0210 admits
+    // Carol through this edge. beacon_author_invite belongs to budded
+    // Requests (AuthorInviteCase rejects Posts), not Post invitations.
+  }
+
+  test(
+    'myPosts names the intermediary forwarder only for indirect recipients',
+    () async {
+      await seedForwardedPost();
+      final query = QueryPost(postCase: posts);
+      final rowsByViewer = <String, Object?>{};
+      for (final viewer in ['Upostseve0001', _member, _stranger]) {
+        // Use the public resolver to observe the serialized summary without
+        // referencing forwarder getters that do not exist on PostSummary yet.
+        rowsByViewer[viewer] = await query.myPosts.resolve!(null, {
+          kGlobalInputQueryJwt: JwtEntity(sub: viewer),
+        });
+      }
+      Matcher summary({String? forwardedById, String? forwardedByName}) =>
+          allOf(
+            containsPair('id', _post),
+            containsPair('authorId', _author),
+            containsPair('authorName', 'QA Alice'),
+            containsPair('forwardedById', forwardedById),
+            containsPair('forwardedByName', forwardedByName),
+          );
+      expect(rowsByViewer, {
+        'Upostseve0001': [
+          summary(forwardedById: _member, forwardedByName: 'Bob GQ'),
+        ],
+        _member: [summary()],
+        _stranger: [summary()],
+      });
+    },
+  );
+
+  test('myPosts GraphQL exposes nullable forwarder identity fields', () async {
+    await seedForwardedPost();
+    final graphQL = GraphQL(
+      GraphQLSchema(
+        queryType: GraphQLObjectType('Query', null)
+          ..fields.addAll(QueryPost(postCase: posts).all),
+      ),
+    );
+    for (final viewer in ['Upostseve0001', _member, _stranger]) {
+      final response = await graphQL.parseAndExecute(
+        '{ myPosts { id authorName forwardedById forwardedByName } }',
+        globalVariables: {kGlobalInputQueryJwt: JwtEntity(sub: viewer)},
+      );
+      final indirect = viewer == 'Upostseve0001';
+      expect(response, {
+        'myPosts': [
+          {
+            'id': _post,
+            'authorName': 'QA Alice',
+            'forwardedById': indirect ? _member : null,
+            'forwardedByName': indirect ? 'Bob GQ' : null,
+          },
+        ],
+      });
+    }
+  });
+
+  test(
+    'myPosts selects the newest active non-author sender to the viewer',
+    () async {
+      await seedForwardedPost();
+      await writer.execute('''
+        UPDATE public.beacon_forward_edge
+        SET created_at = '2030-01-01T00:00:00Z'
+        WHERE id = 'FpostsToEve01'
+      ''');
+      await writer.execute('''
+        INSERT INTO public.beacon_forward_edge
+          (id, beacon_id, sender_id, recipient_id, created_at)
+        VALUES
+          ('FpostsNewEve1', '$_post', '$_stranger', 'Upostseve0001',
+           '2030-01-02T00:00:00Z'),
+          ('FpostsAuthEv1', '$_post', '$_author', 'Upostseve0001',
+           '2030-01-03T00:00:00Z'),
+          ('FpostsOther01', '$_post', 'Upostseve0001', '$_author',
+           '2030-01-04T00:00:00Z')
+      ''');
+      final query = QueryPost(postCase: posts);
+      final rowsByViewer = <String, Object?>{};
+      for (final viewer in ['Upostseve0001', _member, _stranger]) {
+        rowsByViewer[viewer] = await query.myPosts.resolve!(null, {
+          kGlobalInputQueryJwt: JwtEntity(sub: viewer),
+        });
+      }
+      Matcher summary({String? forwardedById, String? forwardedByName}) =>
+          allOf(
+            containsPair('id', _post),
+            containsPair('authorName', 'QA Alice'),
+            containsPair('forwardedById', forwardedById),
+            containsPair('forwardedByName', forwardedByName),
+          );
+      expect(rowsByViewer, {
+        'Upostseve0001': [
+          summary(forwardedById: _stranger, forwardedByName: 'Carol'),
+        ],
+        _member: [summary()],
+        _stranger: [summary()],
+      });
+    },
+  );
+
+  test('myPosts returns a latest sender when inbound timestamps tie', () async {
+    await seedForwardedPost();
+    await writer.execute(
+      Sql.named('''
+        INSERT INTO public."user" (id, display_name, public_key)
+        VALUES ('Upostsdave001', 'Dave', @key)
+      '''),
+      parameters: {'key': pgTestPublicKey('my-posts', 5)},
+    );
+    await writer.execute('''
+      UPDATE public.beacon_forward_edge
+      SET created_at = '2030-01-02T00:00:00Z'
+      WHERE id = 'FpostsToEve01'
+    ''');
+    await writer.execute('''
+      INSERT INTO public.beacon_forward_edge
+        (id, beacon_id, sender_id, recipient_id, created_at)
+      VALUES
+        ('FpostsToDave1', '$_post', '$_author', 'Upostsdave001',
+         '2030-01-01T00:00:00Z'),
+        ('FpostsDaveEv1', '$_post', 'Upostsdave001', 'Upostseve0001',
+         '2030-01-01T00:00:00Z'),
+        ('FpostsTieEve1', '$_post', '$_stranger', 'Upostseve0001',
+         '2030-01-02T00:00:00Z')
+    ''');
+    final rows = await QueryPost(postCase: posts).myPosts.resolve!(null, {
+      kGlobalInputQueryJwt: const JwtEntity(sub: 'Upostseve0001'),
+    });
+    // The contract and PostViewCase.latestTo specify creation time, with no
+    // tie-breaker. Either newest sender is valid, with a matching id/name;
+    // the older Dave delivery must not win and ties must not duplicate rows.
+    expect(rows, [
+      allOf(
+        containsPair('id', _post),
+        containsPair('authorName', 'QA Alice'),
+        anyOf(
+          allOf(
+            containsPair('forwardedById', _member),
+            containsPair('forwardedByName', 'Bob GQ'),
+          ),
+          allOf(
+            containsPair('forwardedById', _stranger),
+            containsPair('forwardedByName', 'Carol'),
+          ),
+        ),
+      ),
+    ]);
+  });
+
+  test('myPosts ignores a newer cancelled inbound forward', () async {
+    await seedForwardedPost();
+    await writer.execute('''
+      UPDATE public.beacon_forward_edge
+      SET created_at = '2030-01-01T00:00:00Z'
+      WHERE id = 'FpostsToEve01'
+    ''');
+    await writer.execute('''
+      INSERT INTO public.beacon_forward_edge
+        (id, beacon_id, sender_id, recipient_id, created_at)
+      VALUES ('FpostsGoneEv1', '$_post', '$_stranger', 'Upostseve0001',
+              '2030-01-02T00:00:00Z')
+    ''');
+    await ForwardEdgeRepository(database).cancel('FpostsGoneEv1', _stranger);
+    final rows = await QueryPost(postCase: posts).myPosts.resolve!(null, {
+      kGlobalInputQueryJwt: const JwtEntity(sub: 'Upostseve0001'),
+    });
+    expect(rows, [
+      allOf(
+        containsPair('id', _post),
+        containsPair('authorName', 'QA Alice'),
+        containsPair('forwardedById', _member),
+        containsPair('forwardedByName', 'Bob GQ'),
+      ),
+    ]);
+  });
+
   test(
     'author and admitted addressee see the Post; stranger does not',
     () async {

@@ -7,6 +7,8 @@ final class PostSummary {
     required this.authorId,
     required this.authorName,
     required this.authorAvatar,
+    this.forwardedById,
+    this.forwardedByName,
     this.rootImageUrl,
     required this.rootExcerpt,
     required this.lastMessageExcerpt,
@@ -25,6 +27,10 @@ final class PostSummary {
   final String authorId;
   final String authorName;
   final String authorAvatar;
+
+  /// Latest active inbound sender other than the Post author, if any.
+  final String? forwardedById;
+  final String? forwardedByName;
 
   /// First image attached to the Post root message, in attachment order.
   final String? rootImageUrl;

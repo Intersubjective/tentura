@@ -2055,6 +2055,8 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('authorId', graphQLString.nonNullable()),
     field('authorName', graphQLString.nonNullable()),
     field('authorAvatar', graphQLString.nonNullable()),
+    field('forwardedById', graphQLString),
+    field('forwardedByName', graphQLString),
     field('rootImageUrl', graphQLString),
     field('rootExcerpt', graphQLString),
     field('lastMessageExcerpt', graphQLString),
