@@ -19,6 +19,8 @@ final class PersonTag {
     glyph: json['glyph']! as String,
     color: json['color']! as int,
     ord: json['ord']! as int,
+    count: json['count'] as int? ?? 0,
+    countOffField: json['countOffField'] as int? ?? 0,
   );
 
   final String id;
@@ -86,6 +88,12 @@ final class PersonTagSnapshot {
     'tag': tag.toJson(),
     'memberIds': memberIds,
     'sources': sources,
+  };
+
+  /// The delete response and replay record retain the pre-delete counts.
+  Map<String, dynamic> toGraphQL() => {
+    ...toJson(),
+    'tag': tag.toGraphQL(),
   };
 }
 

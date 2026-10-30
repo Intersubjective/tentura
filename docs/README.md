@@ -9,8 +9,12 @@ Short pointers for agents — read only what your task needs.
 | `docs/` (root) | Living product/eng specs and runbooks |
 | [`features/`](features/) | User-facing feature specs |
 | [`adr/`](adr/) | Architecture decision records |
-| [`plans/`](plans/) | **Active** implementation plans |
+| [`plans/`](plans/) | Active implementation plans, journals, and QA issue anamneses |
 | [`audits/`](audits/) | QA audits, analyses, UX reviews, readiness reports |
+| [`design/`](design/) | System design and trust architecture specs |
+| [`performance/`](performance/) | Database pipeline, lane-hold, and SQL performance measurements |
+| [`perf/`](perf/) | Micro-benchmarks and query pool performance benchmarks |
+| [`ui-review/`](ui-review/) | Visual UI review snapshots and flow comparison screenshots |
 | [`archive/plans/`](archive/plans/) | Done / superseded / historical plans |
 | [`archive/journals/`](archive/journals/) | Journals for archived plan work |
 
@@ -24,15 +28,18 @@ Short pointers for agents — read only what your task needs.
 | [`before-response-terminal-tombstone.md`](before-response-terminal-tombstone.md) | Terminal inbox rows when user never triaged |
 | [`watching-mechanism.md`](watching-mechanism.md) | Watching vs Needs me / Not for me / My Work |
 | [`invite-signup-landing-flow.md`](invite-signup-landing-flow.md) | Landing, WASM, native invite/signup routing (implemented) |
+| [`known-issues.md`](known-issues.md) | Tracked product and web test suite gaps |
 
 ## Feature specs (user-facing)
 
 | Doc | Read when |
 |-----|-----------|
-| [`features/beacon_room.md`](features/beacon_room.md) | Threads tab, General/semantic threads, discussion admission, People/Log |
+| [`features/beacon_room.md`](features/beacon_room.md) | Request & discussion product spec: NOW / Chat / People tabs, General-only discussion (semantic item threads retired/historical), admission, Who'll take it?, read receipts |
 | [`features/beacon_questions.md`](features/beacon_questions.md) | Request Questions («Вопросы»): asking the author before offering help; the one audience policy |
 | [`features/constellation.md`](features/constellation.md) | Constellation map/text field, discoverability, personal pins, filters, and limitations |
 | [`features/request-attention.md`](features/request-attention.md) | **Request attention contract**: one primary surface, obligations vs optional updates, read/clear/settle, the clearing ritual, indicator formulas — read before touching My desk / For you |
+| [`features/request-change-events.md`](features/request-change-events.md) | Request change events on discussions (who did what on a Request) |
+| [`features/user-block.md`](features/user-block.md) | User blocking: symmetric viewer-scoped hide, discovery filters, and entry-point write gates |
 | [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Retired client-side marker mechanism; superseded by `features/request-attention.md` — kept for history |
 | [`features/trust_edges.md`](features/trust_edges.md) | Per-context trust source edges, effective projection, MeritRank publish |
 | [`features/mutual-friends.md`](features/mutual-friends.md) | Mutual-friends query on profiles / invite accept |
@@ -62,6 +69,7 @@ Short pointers for agents — read only what your task needs.
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
 | [`plans/profile-request-routing-plan.md`](plans/profile-request-routing-plan.md) | Profile → request-routing surface (issue #83) |
 | [`plans/web-tab-unread-indicator-plan.md`](plans/web-tab-unread-indicator-plan.md) | Web tab unread indicator — accepted; external browser/PWA manual validation pending |
+| [`notification-attention-convergence-plan.md`](notification-attention-convergence-plan.md) | Single receipt-creation path and notification outbox convergence plan |
 
 ## Audits and analyses
 
@@ -76,6 +84,8 @@ Short pointers for agents — read only what your task needs.
 | [`audits/staging-invite-forward-qa-audit.md`](audits/staging-invite-forward-qa-audit.md) | Staging invite/forward E2E QA |
 | [`audits/staging-invite-forward-qa-audit-supplement.md`](audits/staging-invite-forward-qa-audit-supplement.md) | Delta findings for the staging QA session |
 | [`audits/local-playwright-screen-tree.md`](audits/local-playwright-screen-tree.md) | Local Playwright screen-coverage checklist |
+| [`audits/post-event-feedback-social-theory-analysis-2026-09-19.md`](audits/post-event-feedback-social-theory-analysis-2026-09-19.md) | Social theory and institution design for post-action feedback in Tentura |
+| [`audits/ux-audit-2026-09-27.md`](audits/ux-audit-2026-09-27.md) | Multi-surface UX audit: navigation, cards, desktop split, and form flows |
 
 ## Engineering / ADRs / inventories
 
@@ -87,6 +97,7 @@ Short pointers for agents — read only what your task needs.
 | [`client-ui-inventory.md`](client-ui-inventory.md) | Screens, routes, dialogs — **regenerate before trusting** |
 | [`test-audit.md`](test-audit.md) | Test-suite redundancy / slowness audit, tooling (`scripts/test_audit/`), review queue, policy for new tests |
 | [`test-coverage-misses.md`](test-coverage-misses.md) | Historical COV-* backlog (closed 2026-06) — not a todo list |
+| [`testing-resource-profile.md`](testing-resource-profile.md) | Local and agent test-run resource profile and execution policy |
 | [`realtime-sync-operations.md`](realtime-sync-operations.md) | Realtime contract, dashboards/log queries, alerts |
 | [`local-integration-tests.md`](local-integration-tests.md) | Local integration test harness |
 | [`production-deploy.md`](production-deploy.md) | Production deploy runbook |
@@ -120,4 +131,4 @@ Done and superseded plans live under [`archive/plans/`](archive/plans/) (e.g. co
 - Prefer this index + status quo over grep hits for retired paths in old branches.
 - Legacy term drift check: `scripts/check-doc-drift.sh` (Registry tab, Overview tab, `coordination_status`, `beacon.state`, ChatNews, `beacon_blocker`).
 - User-facing terminology: `scripts/check-user-facing-terminology.sh` (Request/discussion vs internal Beacon/room).
-- After large UI refactors: refresh [`client-ui-inventory.md`](client-ui-inventory.md); verify home tab order (My Work default), request detail tabs (Threads / People / Log).
+- After large UI refactors: refresh [`client-ui-inventory.md`](client-ui-inventory.md); verify home tab order (My Work default), request detail tabs (NOW / Chat / People).

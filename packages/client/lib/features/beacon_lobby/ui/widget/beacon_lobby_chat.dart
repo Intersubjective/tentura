@@ -55,6 +55,7 @@ class BeaconLobbyChat extends StatelessWidget {
           create: (_) => RoomCubit(
             beaconId: info.beaconId,
             threadItemId: info.lobbyId,
+            loadQuestionsAccess: cubit.loadAccess,
             lobbyAccess: BeaconLobbyAccess(
               canRead: true,
               canPost: info.canPost,
