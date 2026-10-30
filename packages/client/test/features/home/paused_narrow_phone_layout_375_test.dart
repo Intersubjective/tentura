@@ -2,7 +2,9 @@
 // (1) On the Requests tab, the top app bar title ("Requests" / "Запросы") and
 //     filter label ("Active" / "Активные") render untruncated while
 //     paused, the same as when not paused, and the pill is present and resumes.
-// (2) On own Profile, the availability line wraps and shows the full date,
+// (2) Confirming resume removes the chip and resizes the AppBar height back to standard (56px).
+// (3) Pausing while open dynamically adds the chip and expands AppBar height by 28px (84px total).
+// (4) On own Profile, the availability line wraps and shows the full date,
 //     with no ellipsis and no overflow.
 
 import 'dart:async';
@@ -99,6 +101,16 @@ final class _TestProfileCubit extends Cubit<ProfileState>
     emit(
       state.copyWith(
         profile: state.profile.copyWith(availability: Availability.open()),
+      ),
+    );
+  }
+
+  void pauseUntil(DateTime resumeOn) {
+    emit(
+      state.copyWith(
+        profile: state.profile.copyWith(
+          availability: Availability(resumeOn: resumeOn),
+        ),
       ),
     );
   }
@@ -283,6 +295,9 @@ void main() {
           }
           await _pumpFor(tester);
 
+          final initialBarHeight = tester.getRect(find.byType(AppBar)).height;
+          expect(initialBarHeight, 84.0); // 56px toolbar + 28px paused bottom
+
           // 1. Title ("Requests" / "Запросы") is present and untruncated.
           final titleText = find.text(l10n.myWork);
           expect(titleText, findsOneWidget);
@@ -308,9 +323,21 @@ void main() {
           expect(profileCubit.resumeCalls, 1);
           expect(find.byKey(OwnPausedChip.chipKey), findsNothing);
 
-          // 6. Title and filter remain present and untruncated after resuming.
+          // 6. AppBar height resizes back to standard un-paused height (56px).
+          final resumedBarHeight = tester.getRect(find.byType(AppBar)).height;
+          expect(resumedBarHeight, 56.0);
+
+          // 7. Title and filter remain present and untruncated after resuming.
           expect(find.text(l10n.myWork), findsOneWidget);
           expect(find.text(l10n.myWorkFilterActive), findsOneWidget);
+
+          // 8. Pausing again while open dynamically expands AppBar height back to 84px with chip.
+          profileCubit.pauseUntil(resumeOn);
+          await tester.pumpAndSettle();
+
+          expect(find.byKey(OwnPausedChip.chipKey), findsOneWidget);
+          final repausedBarHeight = tester.getRect(find.byType(AppBar)).height;
+          expect(repausedBarHeight, 84.0);
 
           unawaited(myWorkCubit.close());
           unawaited(homeAttention.close());

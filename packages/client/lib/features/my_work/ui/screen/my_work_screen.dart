@@ -74,54 +74,65 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
           ..setFilter(MyWorkFilter.active)
           ..setSort(MyWorkSort.recent);
       },
-      child: Scaffold(
-        backgroundColor: scheme.surface,
-        appBar: TenturaTopBar.of(
-          context,
-          tone: TenturaTopBarTone.primary,
-          alignment: useExpandedPane
-              ? TenturaTopBarAlignment.fullWidth
-              : TenturaTopBarAlignment.content,
-          title: useCompactTopBar
-              ? const SizedBox.shrink()
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    // NavigationToolbar can leave the title slot narrower
-                    // than one control while its leading and actions are
-                    // being measured. Keep the compact custom row unchanged;
-                    // on this transient non-compact path, omit controls that
-                    // cannot retain their tap target instead of overflowing.
-                    if (constraints.maxWidth < tt.buttonHeight) {
-                      return const SizedBox.shrink();
-                    }
-                    return const _MyWorkTitleControls();
-                  },
-                ),
-          actions: useCompactTopBar ? null : [createButton],
-          // NavigationToolbar balances its middle against the full trailing
-          // action width. With filter + sort in the middle and two actions at
-          // 390px, that can leave only a few pixels for the middle Row. The
-          // compact bar is one explicit flex row so the filter owns the
-          // shrinkable remainder while sort and icon actions keep tap targets.
-          row: useCompactTopBar
-              ? Row(
-                  children: [
-                    const Expanded(child: _MyWorkTitleControls()),
-                    createButton,
-                  ],
-                )
-              : null,
-          account: useCompactTopBar
-              ? const HomeAccountAvatarButton()
-              : homeTopBarAccount(context),
-          bottom: useCompactTopBar
-              ? const _MyWorkTopBarPausedBottom()
-              : null,
-        ),
-        body: SafeArea(
-          minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-          child: _MyWorkBody(
-            listScrollController: _listScrollController,
+      child: BlocSelector<ProfileCubit, ProfileState, bool>(
+        bloc: GetIt.I.isRegistered<ProfileCubit>()
+            ? GetIt.I<ProfileCubit>()
+            : null,
+        selector: (state) {
+          final availability = state.profile.availability;
+          final todayUtc = availabilityTodayUtc();
+          return availability.resumeOn != null &&
+              availability.effectiveOn(todayUtc) == AvailabilityView.paused;
+        },
+        builder: (context, isPaused) => Scaffold(
+          backgroundColor: scheme.surface,
+          appBar: TenturaTopBar.of(
+            context,
+            tone: TenturaTopBarTone.primary,
+            alignment: useExpandedPane
+                ? TenturaTopBarAlignment.fullWidth
+                : TenturaTopBarAlignment.content,
+            title: useCompactTopBar
+                ? const SizedBox.shrink()
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      // NavigationToolbar can leave the title slot narrower
+                      // than one control while its leading and actions are
+                      // being measured. Keep the compact custom row unchanged;
+                      // on this transient non-compact path, omit controls that
+                      // cannot retain their tap target instead of overflowing.
+                      if (constraints.maxWidth < tt.buttonHeight) {
+                        return const SizedBox.shrink();
+                      }
+                      return const _MyWorkTitleControls();
+                    },
+                  ),
+            actions: useCompactTopBar ? null : [createButton],
+            // NavigationToolbar balances its middle against the full trailing
+            // action width. With filter + sort in the middle and two actions at
+            // 390px, that can leave only a few pixels for the middle Row. The
+            // compact bar is one explicit flex row so the filter owns the
+            // shrinkable remainder while sort and icon actions keep tap targets.
+            row: useCompactTopBar
+                ? Row(
+                    children: [
+                      const Expanded(child: _MyWorkTitleControls()),
+                      createButton,
+                    ],
+                  )
+                : null,
+            account: useCompactTopBar
+                ? const HomeAccountAvatarButton()
+                : homeTopBarAccount(context),
+            bottom: useCompactTopBar && isPaused
+                ? const _MyWorkTopBarPausedBottom()
+                : null,
+          ),
+          body: SafeArea(
+            minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+            child: _MyWorkBody(
+              listScrollController: _listScrollController,
+            ),
           ),
         ),
       ),
@@ -131,53 +142,16 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
 
 class _MyWorkTopBarPausedBottom extends StatelessWidget
     implements PreferredSizeWidget {
-  const _MyWorkTopBarPausedBottom({
-    this.profileCubit,
-    this.clock,
-    super.key,
-  });
-
-  final ProfileCubit? profileCubit;
-  final DateTime Function()? clock;
-
-  ProfileCubit? _resolveCubit() =>
-      profileCubit ??
-      (GetIt.I.isRegistered<ProfileCubit>() ? GetIt.I<ProfileCubit>() : null);
+  const _MyWorkTopBarPausedBottom();
 
   @override
-  Size get preferredSize {
-    final cubit = _resolveCubit();
-    if (cubit == null) return Size.zero;
-    final availability = cubit.state.profile.availability;
-    final todayUtc = availabilityTodayUtc(clock);
-    final isPaused = availability.resumeOn != null &&
-        availability.effectiveOn(todayUtc) == AvailabilityView.paused;
-    return isPaused ? const Size.fromHeight(28) : Size.zero;
-  }
+  Size get preferredSize => const Size.fromHeight(28);
 
   @override
   Widget build(BuildContext context) {
-    final cubit = _resolveCubit();
-    if (cubit == null) return const SizedBox.shrink();
-    return BlocBuilder<ProfileCubit, ProfileState>(
-      bloc: cubit,
-      buildWhen: (p, c) => p.profile.availability != c.profile.availability,
-      builder: (context, state) {
-        final availability = state.profile.availability;
-        final todayUtc = availabilityTodayUtc(clock);
-        if (availability.resumeOn == null ||
-            availability.effectiveOn(todayUtc) != AvailabilityView.paused) {
-          return const SizedBox.shrink();
-        }
-        return Align(
-          alignment: Alignment.centerRight,
-          child: OwnPausedChip(
-            profileCubit: cubit,
-            clock: clock,
-            dense: true,
-          ),
-        );
-      },
+    return const Align(
+      alignment: Alignment.centerRight,
+      child: OwnPausedChip(dense: true),
     );
   }
 }
@@ -544,7 +518,7 @@ class _MyWorkListBody extends StatelessWidget {
                               cubit.setFilter(MyWorkFilter.archived),
                         ),
                       ),
-                      OrientationDecision.undecided => SliverFillRemaining(
+                      OrientationDecision.undecided => const SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(
                           child: CircularProgressIndicator.adaptive(),
