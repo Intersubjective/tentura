@@ -346,6 +346,10 @@ class FakeBeaconViewCoordinationRepository implements CoordinationRepository {
 }
 
 class FakeBeaconViewInboxRepository implements InboxRepository {
+  FakeBeaconViewInboxRepository({this.status});
+
+  InboxItemStatus? status;
+
   @override
   Future<
     ({
@@ -355,7 +359,7 @@ class FakeBeaconViewInboxRepository implements InboxRepository {
     })
   >
   fetchInboxContextForBeacon(String beaconId) async => (
-    status: null,
+    status: status,
     provenance: InboxProvenance.empty,
     latestNotePreview: '',
   );
@@ -612,6 +616,7 @@ BeaconViewCase buildTestBeaconViewCase({
   FakeBeaconViewFactCardRepository? factCardsRepo,
   FakeBeaconViewActivityEventRepository? activityEventsRepo,
   FakeBeaconViewRoomRepository? roomRepo,
+  FakeBeaconViewInboxRepository? inboxRepo,
   RealtimeSyncCase? realtimeSyncCase,
   PresenceRepository? presenceRepository,
   BeaconHierarchyRepositoryPort? hierarchyRepository,
@@ -634,7 +639,7 @@ BeaconViewCase buildTestBeaconViewCase({
     FakeBeaconViewArchiveRepository(),
     coordination,
     display,
-    FakeBeaconViewInboxRepository(),
+    inboxRepo ?? FakeBeaconViewInboxRepository(),
     factCards,
     buildTestBeaconThreadsCaseForView(watermark, room: roomRepo),
     activityEvents,

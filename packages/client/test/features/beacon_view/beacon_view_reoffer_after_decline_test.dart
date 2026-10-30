@@ -24,7 +24,6 @@ void main() {
     createdAt: DateTime.utc(2026),
     updatedAt: DateTime.utc(2026),
     status: status,
-    canReadContent: true,
     author: const Profile(id: 'Ualice', displayName: 'Alice'),
   );
 
@@ -154,7 +153,7 @@ FakeHelpOfferCoordinationRow _row({
   int? admissionAction,
   String? lastDeclineReason,
 }) {
-  final at = DateTime.utc(2026, 3, 1);
+  final at = DateTime.utc(2026, 3);
   return (
     beaconId: beaconId,
     userId: user.id,
